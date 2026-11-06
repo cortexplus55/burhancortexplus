@@ -58,7 +58,7 @@ export function PlanEditor({
       </label>
 
       <label className="flex items-center gap-1 text-xs text-[var(--adm-muted)]">
-        kredi
+        Kredi
         <input
           type="number"
           min={0}

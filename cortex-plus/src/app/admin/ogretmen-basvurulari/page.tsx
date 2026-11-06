@@ -4,14 +4,11 @@ import { ApplicationReview } from "@/components/admin/application-review";
 import { requireAdminPage } from "@/lib/auth/admin-guard";
 import { createServiceClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/format";
+import { statusLabel } from "@/lib/admin/status-labels";
 
-export const metadata = { title: "Yönetim · Öğretmen başvuruları" };
+export const metadata = { title: "Yönetim · Öğretmen Başvuruları" };
 
-const STATUS = {
-  approved: { label: "Onaylandı", tone: "ok" },
-  rejected: { label: "Reddedildi", tone: "bad" },
-  pending: { label: "Bekliyor", tone: "warn" },
-} as const;
+const STATUS_TONE = { approved: "ok", rejected: "bad", pending: "warn" } as const;
 
 export default async function OgretmenBasvurulariPage() {
   await requireAdminPage();
@@ -32,12 +29,12 @@ export default async function OgretmenBasvurulariPage() {
   return (
     <AdminShell href="/admin/ogretmen-basvurulari" pendingApplications={pending.length}>
       <AdminNote tone="warn">
-        <strong>Buraya yeni başvuru gelmiyor.</strong> Ürün öğrenci-only olduğu
-        için başvuru formu kaldırıldı; listede yalnızca o karardan önce gelmiş
-        başvurular var. Onaylamak bugün tek bir şey yapıyor: kişiye{" "}
-        <em>onaylı öğretmen</em> rolü verip quiz üretme sınırını yükseltiyor.
+        <strong>Buraya yeni başvuru gelmiyor.</strong> Ürün yalnız öğrenciye
+        hizmet verdiği için başvuru formu kaldırıldı; listede yalnızca o karardan
+        önce gelmiş başvurular var. Onaylamak bugün tek bir şey yapıyor: kişiye{" "}
+        <em>onaylı öğretmen</em> rolü verip test üretme sınırını yükseltiyor.
         Ayrı bir öğretmen paneli yok. Aynı rolü{" "}
-        <strong>Kullanıcılar</strong> sayfasından elle de verebilirsin.
+        <strong>Kullanıcı Yönetimi</strong> sayfasından elle de verebilirsin.
       </AdminNote>
 
       <AdminCard
@@ -80,14 +77,14 @@ export default async function OgretmenBasvurulariPage() {
         >
           <AdminTableFrame columns={["Kişi", "Kurum", "Sonuç", "Tarih"]}>
             {resolved.map((application) => {
-              const status = STATUS[application.status as keyof typeof STATUS];
+              const tone = STATUS_TONE[application.status as keyof typeof STATUS_TONE];
               return (
                 <tr key={application.id}>
                   <td>{name(application)}</td>
                   <td>{application.institution || "—"}</td>
                   <td>
-                    <AdminBadge tone={status?.tone ?? "mute"}>
-                      {status?.label ?? application.status}
+                    <AdminBadge tone={tone ?? "mute"}>
+                      {statusLabel(application.status)}
                     </AdminBadge>
                   </td>
                   <td className="adm-num text-xs text-[var(--adm-muted)]">

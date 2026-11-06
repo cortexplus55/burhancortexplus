@@ -1,6 +1,15 @@
 import Link from "next/link";
 import { AdminShell } from "@/components/admin/admin-shell";
-import { AdminCard, AdminEmpty, AdminTableFrame } from "@/components/admin/admin-ui";
+import { AdminBadge, AdminCard, AdminEmpty, AdminTableFrame } from "@/components/admin/admin-ui";
+import {
+  decisionProviderLabel,
+  learningActionLabel,
+  learningEventLabel,
+  settingKeyLabel,
+  shortId,
+  statusLabel,
+  topicStatusLabel,
+} from "@/lib/admin/status-labels";
 import { requireAdminPage } from "@/lib/auth/admin-guard";
 import { createServiceClient } from "@/lib/supabase/server";
 import { formatDate, formatNumber } from "@/lib/format";
@@ -18,7 +27,7 @@ import {
   PilotManageForm,
 } from "@/app/admin/adaptive/jev-admin-controls";
 
-export const metadata = { title: "Yönetim · Adaptive debug" };
+export const metadata = { title: "Yönetim · Uyarlamalı Öğrenme Hata Ayıklama" };
 
 const ADAPTIVE_USAGE_CODES = [
   "ADAPTIVE_JEV",
@@ -86,65 +95,75 @@ function DecisionEngineCard() {
     accessLabel,
   });
   const circuit = getJevCircuitSnapshot();
+  const labels = engineLabels(status, accessLabel);
+  const yesNo = (value: boolean) => (value ? "Evet" : "Hayır");
 
   return (
-    <AdminCard title="Decision engine">
-      <p className="text-sm">Decision Engine: {status.decisionLabel}</p>
-      <p className="mt-1 text-sm">Jev: {status.jevLabel}</p>
+    <AdminCard title="Karar motoru" desc="Uyarlamalı öğrenmede bir sonraki adımı kimin seçtiği. Ortam değişkeni adları ikincil satırda.">
+      <p className="text-sm">Karar veren: {labels.decision}</p>
+      <p className="mt-1 text-sm">Jev: {labels.jev}</p>
       <AdminTableFrame columns={["Alan", "Değer"]}>
-        <tbody>
-          <tr>
-            <td>Erişim yolu</td>
-            <td>{accessLabel}</td>
-          </tr>
-          <tr>
-            <td>Model</td>
-            <td>{model}</td>
-          </tr>
-          <tr>
-            <td>Kimlik var</td>
-            <td>{hasCred ? "evet" : "hayır"}</td>
-          </tr>
-          <tr>
-            <td>JEV_ENABLED</td>
-            <td>{env.JEV_ENABLED === true ? "true" : "false"}</td>
-          </tr>
-          <tr>
-            <td>JEV_SHADOW_MODE</td>
-            <td>{env.JEV_SHADOW_MODE === true ? "true" : "false"}</td>
-          </tr>
-          <tr>
-            <td>DECISION_PROVIDER</td>
-            <td>{env.DECISION_PROVIDER}</td>
-          </tr>
-          <tr>
-            <td>JEV_TIMEOUT_MS</td>
-            <td>{env.JEV_TIMEOUT_MS}</td>
-          </tr>
-          <tr>
-            <td>JEV_MIN_CONFIDENCE</td>
-            <td>{env.JEV_MIN_CONFIDENCE}</td>
-          </tr>
-          <tr>
-            <td>Circuit (instance)</td>
-            <td>
-              {circuit.open ? "OPEN" : "closed"}
-              {circuit.lastError
-                ? ` · son hata ${circuit.lastError}${circuit.lastErrorAt ? ` @ ${circuit.lastErrorAt}` : ""}`
-                : ""}
-            </td>
-          </tr>
-        </tbody>
+        <EnvRow label="Erişim yolu" value={accessLabel} />
+        <EnvRow label="Model" value={model} />
+        <EnvRow label="Erişim anahtarı tanımlı" value={yesNo(hasCred)} />
+        <EnvRow label="Jev açık" name="JEV_ENABLED" value={yesNo(env.JEV_ENABLED === true)} />
+        <EnvRow label="Gölge mod" name="JEV_SHADOW_MODE" value={yesNo(env.JEV_SHADOW_MODE === true)} />
+        <EnvRow label="Karar sağlayıcı ayarı" name="DECISION_PROVIDER" value={env.DECISION_PROVIDER} />
+        <EnvRow label="Zaman aşımı (ms)" name="JEV_TIMEOUT_MS" value={String(env.JEV_TIMEOUT_MS)} />
+        <EnvRow label="En düşük güven" name="JEV_MIN_CONFIDENCE" value={String(env.JEV_MIN_CONFIDENCE)} />
+        <EnvRow
+          label="Devre kesici (bu sunucu örneği)"
+          value={`${circuit.open ? "Devrede (Jev çağrılmıyor)" : "Kapalı (normal)"}${
+            circuit.lastError ? ` · son hata ${circuit.lastError}${circuit.lastErrorAt ? ` · ${circuit.lastErrorAt}` : ""}` : ""
+          }`}
+        />
       </AdminTableFrame>
-      <p className="mt-2 text-xs text-[var(--cs-muted)]">
-        Circuit durumu bu Vercel instance&apos;ına aittir; instance&apos;lar
-        paylaşılmaz. Anahtar asla gösterilmez. Bu ayrıntı öğrenci ekranında
-        yoktur.
+      <p className="mt-2 text-xs text-[var(--adm-muted)]">
+        Devre kesici durumu bu sunucu örneğine aittir; örnekler birbirini
+        görmez. Anahtar asla gösterilmez. Bu ayrıntı öğrenci ekranında yoktur.
       </p>
       <JevProbeButtons />
     </AdminCard>
   );
 }
+
+function EnvRow({ label, name, value }: { label: string; name?: string; value: string }) {
+  return (
+    <tr>
+      <td>
+        {label}
+        {name ? <span className="block text-xs text-[var(--adm-muted)]">{name}</span> : null}
+      </td>
+      <td>{value}</td>
+    </tr>
+  );
+}
+
+/** `decisionEngineStatus` İngilizce etiket döndürüyor (testleri o metne bağlı); ekranda Türkçesi. */
+function engineLabels(
+  status: { openaiPrimary: boolean; decisionLabel: string },
+  access: string,
+): { decision: string; jev: string } {
+  if (!status.openaiPrimary) return { decision: "Asıl karar Jev'de", jev: `Hazır (erişim: ${access})` };
+  if (status.decisionLabel.includes("shadow")) {
+    return { decision: "Asıl karar OpenAI'de (Jev gölgede)", jev: `Gölge modda (erişim: ${access})` };
+  }
+  return { decision: "Geçici sağlayıcı: OpenAI", jev: "Erişim bekleniyor ya da kapalı" };
+}
+
+/** Pilot ölçülerinin Türkçe adı ve tanımı; kod (`key`) ikincil. */
+const METRIC_TR: Record<string, { name: string; definition: string }> = {
+  SESSION_COMPLETION_RATE: { name: "Oturum tamamlama oranı", definition: "Tamamlanan uyarlamalı oturum / başlayan uyarlamalı oturum (aynı öğrenci ve hazırlık)." },
+  DAILY_PLAN_COMPLETION_RATE: { name: "Günlük plan tamamlama oranı", definition: "Bitti işaretlenen plan maddesi / o güne planlanan madde." },
+  INTERVENTION_SUCCESS_RATE: { name: "Müdahale başarısı", definition: "Müdahaleden sonra birkaç denemede kendi başına başaran öğrenci / başlayan müdahale." },
+  MASTERY_GAIN_PER_SESSION: { name: "Oturum başına hâkimiyet artışı", definition: "Oturum başı ile bitişi arasında kaydedilen konu hâkimiyeti değişimlerinin toplamı." },
+  REPEATED_MISCONCEPTION_RATE: { name: "Tekrarlayan yanılgı oranı", definition: "Aynı hatası en az iki kez görülen ya da yanılgı yakalanan kanıt / değerlendirilen cevap." },
+  REVIEW_SUCCESS_RATE: { name: "Tekrar başarısı", definition: "Doğru tamamlanan planlı tekrar / denenen günü gelmiş tekrar." },
+  JEV_FALLBACK_RATE: { name: "Jev yedeğe düşme oranı", definition: "Gerçek sağlayıcı arızası (OpenAI yedeği ya da gerekçeli kural tabanlı karar) / bütün kararlar. Bilerek verilen OpenAI kararı yedek sayılmaz." },
+  GPT4O_ESCALATION_RATE: { name: "Büyük modele yükseltme oranı", definition: "Uyarlamalı kullanımda büyük model (mini olmayan) çağrısı / bütün uyarlamalı OpenAI çağrısı." },
+  AI_COST_PER_SESSION: { name: "Oturum başına yapay zekâ maliyeti", definition: "Tamamlanan oturumlara düşen uyarlamalı kullanımın tahmini dolar karşılığı." },
+  NEXT_ACTION_LATENCY: { name: "Sonraki adım gecikmesi", definition: "Karar yolunda gecikmenin ortanca ve %95'lik değeri." },
+};
 
 export default async function AdminAdaptivePage({
   searchParams,
@@ -181,48 +200,50 @@ export default async function AdminAdaptivePage({
         <div className="space-y-6">
           <DecisionEngineCard />
           {flagsResult.missing ? (
-            <AdminCard title="Adaptive pilot health">
-              <AdminEmpty title="Tablo bulunamadı / veri yok" />
-              <p className="mt-2 text-xs text-[var(--cs-muted)]">
+            <AdminCard title="Pilot durumu">
+              <AdminEmpty title="Kayıt bulunamadı ya da veri yok" />
+              <p className="mt-2 text-xs text-[var(--adm-muted)]">
                 {flagsResult.error}
               </p>
             </AdminCard>
           ) : (
             <>
-              <AdminCard title="Adaptive pilot health">
-                <p className="mb-3 text-sm text-[var(--cs-muted)]">
-                  Global flags kapalı kalmalı; yalnızca{" "}
-                  <code>metadata.pilot_user_ids</code> hedeflenir. Detay için{" "}
-                  <code>/admin/adaptive?userId=…</code>
-                </p>
-                <AdminTableFrame columns={["Flag", "Global", "Pilot sayısı"]}>
-                  <tbody>
-                    {flagRows.map((f) => {
-                      const meta = (f.metadata ?? {}) as {
-                        pilot_user_ids?: string[];
-                      };
-                      const n = Array.isArray(meta.pilot_user_ids)
-                        ? meta.pilot_user_ids.length
-                        : 0;
-                      return (
-                        <tr key={f.key}>
-                          <td>{f.key}</td>
-                          <td>{f.enabled ? "ON" : "OFF"}</td>
-                          <td>{n}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
+              <AdminCard
+                title="Pilot durumu"
+                desc="Herkese açık anahtarlar kapalı kalmalı; özellik yalnız pilot listesindeki öğrencilere açılır. Bir öğrencinin ayrıntısı için aşağıdaki listeden adına tıkla."
+                bodyless
+              >
+                <AdminTableFrame columns={["Özellik anahtarı", "Herkese açık", "Pilot sayısı"]}>
+                  {flagRows.map((f) => {
+                    const meta = (f.metadata ?? {}) as {
+                      pilot_user_ids?: string[];
+                    };
+                    const n = Array.isArray(meta.pilot_user_ids)
+                      ? meta.pilot_user_ids.length
+                      : 0;
+                    return (
+                      <tr key={f.key}>
+                        <td>
+                          {settingKeyLabel(f.key)}
+                          <span className="block text-xs text-[var(--adm-muted)]">{f.key}</span>
+                        </td>
+                        <td>
+                          <AdminBadge tone={f.enabled ? "warn" : "mute"}>{f.enabled ? "Açık" : "Kapalı"}</AdminBadge>
+                        </td>
+                        <td className="adm-num">{n}</td>
+                      </tr>
+                    );
+                  })}
                 </AdminTableFrame>
               </AdminCard>
 
-              <AdminCard title="Pilot yönetimi">
+              <AdminCard title="Pilot yönetimi" desc="Bir öğrenciyi pilot listesine ekle ya da çıkar. Yalnız kurucu değiştirir.">
                 <PilotManageForm flagRows={flagPilotLists} />
               </AdminCard>
 
-              <AdminCard title="Pilot kullanıcılar">
+              <AdminCard title="Pilot öğrenciler">
                 {pilotIds.length === 0 ? (
-                  <AdminEmpty title="Pilot yok" />
+                  <AdminEmpty title="Pilot öğrenci yok" />
                 ) : (
                   <ul className="space-y-2 text-sm">
                     {pilotIds.map((id) => (
@@ -231,7 +252,7 @@ export default async function AdminAdaptivePage({
                           className="underline"
                           href={`/admin/adaptive?userId=${id}`}
                         >
-                          {id}
+                          Öğrenci {shortId(id)}
                         </Link>
                       </li>
                     ))}
@@ -241,13 +262,13 @@ export default async function AdminAdaptivePage({
             </>
           )}
 
-          <AdminCard title="Pilot metrik tanımları">
-            <ul className="space-y-2 text-xs text-[var(--cs-muted)]">
+          <AdminCard title="Pilot ölçülerinin tanımları">
+            <ul className="space-y-2 text-xs text-[var(--adm-muted)]">
               {ADAPTIVE_PILOT_METRICS.map((m) => (
                 <li key={m.key}>
-                  <strong className="text-[var(--cs-text)]">{m.key}</strong>
+                  <strong className="text-[var(--adm-text)]">{METRIC_TR[m.key]?.name ?? m.key}</strong>
                   {" — "}
-                  {m.definition}
+                  {METRIC_TR[m.key]?.definition ?? m.definition}
                 </li>
               ))}
             </ul>
@@ -535,14 +556,16 @@ export default async function AdminAdaptivePage({
     })),
   );
 
+  const ms = (value: number | null) => (value != null ? `${value} ms` : "—");
+
   return (
     <AdminShell href="/admin/adaptive">
       <div className="space-y-6">
         <DecisionEngineCard />
         {tableMissing ? (
           <AdminCard title="Uyarı">
-            <AdminEmpty title="veri yok / tablo bulunamadı" />
-            <p className="mt-2 text-xs text-[var(--cs-muted)]">
+            <AdminEmpty title="Veri yok ya da kayıt tablosu bulunamadı" />
+            <p className="mt-2 text-xs text-[var(--adm-muted)]">
               {[decisionsR.error, sessionsR.error, usageR.error]
                 .filter(Boolean)
                 .join(" · ")}
@@ -550,77 +573,73 @@ export default async function AdminAdaptivePage({
           </AdminCard>
         ) : null}
         <AdminCard
-          title={profile?.full_name ?? userId}
-          desc={`Pilot: ${isPilot ? "evet" : "hayır"} · Fallback %${fallbackRate}`}
+          title={profile?.full_name ?? `Öğrenci ${shortId(userId)}`}
+          desc={`Pilot: ${isPilot ? "evet" : "hayır"} · Yedeğe düşme %${fallbackRate}`}
         >
           <p className="text-sm">
             <Link href="/admin/adaptive" className="underline">
               Pilot listesi
             </Link>
             {" · "}
-            <Link href="/admin/kullanicilar" className="underline">
-              Kullanıcılar
+            <Link href={`/admin/kullanicilar/${userId}`} className="underline">
+              Kullanıcı Yönetimi
             </Link>
             {" · "}
-            Karar: {formatNumber(decisionCount)} · Fallback:{" "}
+            Karar: {formatNumber(decisionCount)} · Yedeğe düşen:{" "}
             {formatNumber(fallbackRateFromRows)}
           </p>
           {activePrep ? (
-            <p className="mt-2 text-sm text-[var(--cs-muted)]">
-              Aktif prep: {activePrep.title} · plan v
+            <p className="mt-2 text-sm text-[var(--adm-muted)]">
+              Etkin hazırlık: {activePrep.title} · plan sürümü{" "}
               {activePrep.adaptive_plan_version ?? 0} · sınav{" "}
               {activePrep.exam_date ?? "—"}
             </p>
           ) : null}
         </AdminCard>
 
-        <AdminCard title="Jev metrikleri">
-          <AdminTableFrame columns={["Metrik", "Değer"]}>
-            <tbody>
-              <tr>
-                <td>Jev karar sayısı (provider=jev)</td>
-                <td>{formatNumber(jevLatencies.length)}</td>
-              </tr>
-              <tr>
-                <td>Jev p50 / p95 gecikme</td>
-                <td>
-                  {jevP50 != null ? `${jevP50}ms` : "—"} /{" "}
-                  {jevP95 != null ? `${jevP95}ms` : "—"}
-                </td>
-              </tr>
-              <tr>
-                <td>OpenAI karar p50 / p95</td>
-                <td>
-                  {openaiP50 != null ? `${openaiP50}ms` : "—"} /{" "}
-                  {openaiP95 != null ? `${openaiP95}ms` : "—"}
-                </td>
-              </tr>
-              <tr>
-                <td>Jev maliyeti (gün / ay)</td>
-                <td>
-                  ${jevCostDay.toFixed(5)} / ${jevCostMtd.toFixed(5)}
-                </td>
-              </tr>
-              <tr>
-                <td>Düşük güven → OpenAI</td>
-                <td>{formatNumber(lowConfCount)}</td>
-              </tr>
-              <tr>
-                <td>Jev arıza (fallback satırları)</td>
-                <td>{formatNumber(jevFailCount)}</td>
-              </tr>
-              <tr>
-                <td>Gölge uyum oranı</td>
-                <td>
-                  {shadowTotal > 0
-                    ? `%${Math.round((shadowAgree / shadowTotal) * 100)} (${shadowAgree}/${shadowTotal})`
-                    : "—"}
-                </td>
-              </tr>
-            </tbody>
+        <AdminCard title="Jev ölçüleri" bodyless>
+          <AdminTableFrame columns={["Ölçü", "Değer"]}>
+            <tr>
+              <td>Jev&apos;in verdiği karar</td>
+              <td className="adm-num">{formatNumber(jevLatencies.length)}</td>
+            </tr>
+            <tr>
+              <td>Jev gecikmesi (ortanca / %95)</td>
+              <td className="adm-num">
+                {ms(jevP50)} / {ms(jevP95)}
+              </td>
+            </tr>
+            <tr>
+              <td>OpenAI karar gecikmesi (ortanca / %95)</td>
+              <td className="adm-num">
+                {ms(openaiP50)} / {ms(openaiP95)}
+              </td>
+            </tr>
+            <tr>
+              <td>Jev maliyeti (bugün / bu ay)</td>
+              <td className="adm-num">
+                ${jevCostDay.toFixed(5)} / ${jevCostMtd.toFixed(5)}
+              </td>
+            </tr>
+            <tr>
+              <td>Düşük güven yüzünden OpenAI&apos;ye geçiş</td>
+              <td className="adm-num">{formatNumber(lowConfCount)}</td>
+            </tr>
+            <tr>
+              <td>Jev arızası (yedeğe düşen karar)</td>
+              <td className="adm-num">{formatNumber(jevFailCount)}</td>
+            </tr>
+            <tr>
+              <td>Gölge kararla uyum</td>
+              <td className="adm-num">
+                {shadowTotal > 0
+                  ? `%${Math.round((shadowAgree / shadowTotal) * 100)} (${shadowAgree}/${shadowTotal})`
+                  : "—"}
+              </td>
+            </tr>
           </AdminTableFrame>
           {failReasons.size > 0 ? (
-            <ul className="mt-2 text-xs text-[var(--cs-muted)]">
+            <ul className="px-5 py-3 text-xs text-[var(--adm-muted)]">
               {[...failReasons.entries()].map(([k, n]) => (
                 <li key={k}>
                   {k}: {n}
@@ -630,242 +649,221 @@ export default async function AdminAdaptivePage({
           ) : null}
         </AdminCard>
 
-        <AdminCard title="Son gölge karşılaştırmaları">
+        <AdminCard title="Son gölge karşılaştırmaları" bodyless={shadowRows.length > 0}>
           {shadowRows.length === 0 ? (
             <AdminEmpty title="Gölge kaydı yok" />
           ) : (
-            <AdminTableFrame
-              columns={["OpenAI", "Jev", "Conf", "ms", "Agree"]}
-            >
-              <tbody>
-                {shadowRows.map((r, i) => (
-                  <tr key={i}>
-                    <td>{r.openai}</td>
-                    <td>{r.jev}</td>
-                    <td>{r.conf.toFixed(2)}</td>
-                    <td>{r.ms}</td>
-                    <td>{r.agree ? "evet" : "hayır"}</td>
-                  </tr>
-                ))}
-              </tbody>
+            <AdminTableFrame columns={["OpenAI'nin seçimi", "Jev'in seçimi", "Güven", "Süre (ms)", "Uyuştu mu"]}>
+              {shadowRows.map((r, i) => (
+                <tr key={i}>
+                  <td>{learningActionLabel(r.openai)}</td>
+                  <td>{learningActionLabel(r.jev)}</td>
+                  <td className="adm-num">{r.conf.toFixed(2)}</td>
+                  <td className="adm-num">{r.ms}</td>
+                  <td>{r.agree ? "Evet" : "Hayır"}</td>
+                </tr>
+              ))}
             </AdminTableFrame>
           )}
         </AdminCard>
 
-        <AdminCard title="Maliyet ve model dağılımı">
-          <AdminTableFrame columns={["Metrik", "Değer"]}>
-            <tbody>
-              <tr>
-                <td>cost/student/day (USD tahmini)</td>
-                <td>${costDay.toFixed(4)}</td>
-              </tr>
-              <tr>
-                <td>cost/student/month-to-date</td>
-                <td>${costMtd.toFixed(4)}</td>
-              </tr>
-              <tr>
-                <td>GPT-4o-mini calls / %</td>
-                <td>
-                  {formatNumber(miniCalls)} · %{miniPct}
-                </td>
-              </tr>
-              <tr>
-                <td>GPT-4o calls / %</td>
-                <td>
-                  {formatNumber(fourOCalls)} · %{fourOPct}
-                </td>
-              </tr>
-              <tr>
-                <td>Jev calls (ADAPTIVE_JEV)</td>
-                <td>{formatNumber(jevCalls)}</td>
-              </tr>
-              <tr>
-                <td>Provider failure rate</td>
-                <td>%{fallbackRate}</td>
-              </tr>
-              <tr>
-                <td>avg AI cost/session</td>
-                <td>${avgCostSession.toFixed(4)}</td>
-              </tr>
-              <tr>
-                <td>session completion (son 10)</td>
-                <td>%{sessionCompletionRate}</td>
-              </tr>
-              <tr>
-                <td>next-action latency p50 / p95</td>
-                <td>
-                  {p50 != null ? `${p50}ms` : "—"} /{" "}
-                  {p95 != null ? `${p95}ms` : "—"}
-                </td>
-              </tr>
-              <tr>
-                <td>mastery ort. (son konular)</td>
-                <td>{avgMastery}</td>
-              </tr>
-            </tbody>
+        <AdminCard title="Maliyet ve model dağılımı" bodyless>
+          <AdminTableFrame columns={["Ölçü", "Değer"]}>
+            <tr>
+              <td>Öğrenci başına bugünkü maliyet (tahmini, $)</td>
+              <td className="adm-num">${costDay.toFixed(4)}</td>
+            </tr>
+            <tr>
+              <td>Öğrenci başına bu ayki maliyet (tahmini, $)</td>
+              <td className="adm-num">${costMtd.toFixed(4)}</td>
+            </tr>
+            <tr>
+              <td>Küçük model (GPT-4o-mini) çağrısı / payı</td>
+              <td className="adm-num">
+                {formatNumber(miniCalls)} · %{miniPct}
+              </td>
+            </tr>
+            <tr>
+              <td>Büyük model (GPT-4o) çağrısı / payı</td>
+              <td className="adm-num">
+                {formatNumber(fourOCalls)} · %{fourOPct}
+              </td>
+            </tr>
+            <tr>
+              <td>Jev çağrısı</td>
+              <td className="adm-num">{formatNumber(jevCalls)}</td>
+            </tr>
+            <tr>
+              <td>Sağlayıcı arıza oranı</td>
+              <td className="adm-num">%{fallbackRate}</td>
+            </tr>
+            <tr>
+              <td>Oturum başına ortalama yapay zekâ maliyeti ($)</td>
+              <td className="adm-num">${avgCostSession.toFixed(4)}</td>
+            </tr>
+            <tr>
+              <td>Oturum tamamlama (son 10)</td>
+              <td className="adm-num">%{sessionCompletionRate}</td>
+            </tr>
+            <tr>
+              <td>Sonraki adım gecikmesi (ortanca / %95)</td>
+              <td className="adm-num">
+                {ms(p50)} / {ms(p95)}
+              </td>
+            </tr>
+            <tr>
+              <td>Ortalama hâkimiyet (son konular)</td>
+              <td className="adm-num">{avgMastery}</td>
+            </tr>
           </AdminTableFrame>
-          <p className="mt-2 text-xs text-[var(--cs-muted)]">
-            Öğrenci kredisi düşülmez; yalnızca iç telemetry. Kasıtlı OpenAI
-            kararı ve düşük-güven geçişi failure sayılmaz.
+          <p className="px-5 py-3 text-xs text-[var(--adm-muted)]">
+            Öğrenci kredisi düşülmez; yalnız iç ölçüm. Bilerek verilen OpenAI
+            kararı ve düşük güven geçişi arıza sayılmaz.
           </p>
         </AdminCard>
 
-        <AdminCard title="Oturum AI maliyeti">
+        <AdminCard title="Oturum başına yapay zekâ maliyeti" bodyless={sessionCosts.length > 0}>
           {sessionCosts.length === 0 ? (
             <AdminEmpty title="Oturum yok" />
           ) : (
             <AdminTableFrame
               columns={[
                 "Oturum",
-                "Mini karar token",
-                "GPT-4o karar token",
-                "İçerik token",
-                "Karar USD",
-                "İçerik USD",
-                "Toplam USD",
+                "Küçük model karar jetonu",
+                "Büyük model karar jetonu",
+                "İçerik jetonu",
+                "Karar ($)",
+                "İçerik ($)",
+                "Toplam ($)",
               ]}
             >
-              <tbody>
-                {sessionCosts.map((row) => (
-                  <tr key={row.sessionId}>
-                    <td className="max-w-[120px] truncate">{row.sessionId}</td>
-                    <td>{formatNumber(row.miniDecisionTokens)}</td>
-                    <td>{formatNumber(row.escalationTokens)}</td>
-                    <td>{formatNumber(row.contentTokens)}</td>
-                    <td>${row.decisionCostUsd.toFixed(4)}</td>
-                    <td>${row.contentCostUsd.toFixed(4)}</td>
-                    <td>${row.totalUsd.toFixed(4)}</td>
-                  </tr>
-                ))}
-              </tbody>
+              {sessionCosts.map((row) => (
+                <tr key={row.sessionId}>
+                  <td className="text-xs text-[var(--adm-muted)]">{shortId(row.sessionId)}</td>
+                  <td className="adm-num">{formatNumber(row.miniDecisionTokens)}</td>
+                  <td className="adm-num">{formatNumber(row.escalationTokens)}</td>
+                  <td className="adm-num">{formatNumber(row.contentTokens)}</td>
+                  <td className="adm-num">${row.decisionCostUsd.toFixed(4)}</td>
+                  <td className="adm-num">${row.contentCostUsd.toFixed(4)}</td>
+                  <td className="adm-num">${row.totalUsd.toFixed(4)}</td>
+                </tr>
+              ))}
             </AdminTableFrame>
           )}
         </AdminCard>
 
-        <AdminCard title="Mastery özeti">
+        <AdminCard title="Hâkimiyet özeti" bodyless={masteryRows.length > 0}>
           {masteryRows.length === 0 ? (
-            <AdminEmpty title="Mastery yok" />
+            <AdminEmpty title="Hâkimiyet kaydı yok" />
           ) : (
-            <AdminTableFrame columns={["Konu", "Mastery", "Güven", "Durum"]}>
-              <tbody>
-                {masteryRows.map((m) => (
-                  <tr key={m.topic_key}>
-                    <td className="max-w-[180px] truncate">{m.topic_key}</td>
-                    <td>{Number(m.mastery ?? 0).toFixed(2)}</td>
-                    <td>{Number(m.mastery_confidence ?? 0).toFixed(2)}</td>
-                    <td>{m.status}</td>
-                  </tr>
-                ))}
-              </tbody>
+            <AdminTableFrame columns={["Konu", "Hâkimiyet", "Güven", "Durum"]}>
+              {masteryRows.map((m) => (
+                <tr key={m.topic_key}>
+                  <td className="max-w-[180px] truncate">{m.topic_key}</td>
+                  <td className="adm-num">{Number(m.mastery ?? 0).toFixed(2)}</td>
+                  <td className="adm-num">{Number(m.mastery_confidence ?? 0).toFixed(2)}</td>
+                  <td>{topicStatusLabel(m.status)}</td>
+                </tr>
+              ))}
             </AdminTableFrame>
           )}
         </AdminCard>
 
-        <AdminCard title="Sınav hazırlıkları">
+        <AdminCard title="Sınav hazırlıkları" bodyless={preps.length > 0}>
           {preps.length === 0 ? (
-            <AdminEmpty title="Prep yok" />
+            <AdminEmpty title="Hazırlık yok" />
           ) : (
-            <AdminTableFrame columns={["Başlık", "Plan v", "Policy", "Tarih"]}>
-              <tbody>
-                {preps.map((p) => (
-                  <tr key={p.id}>
-                    <td>{p.title}</td>
-                    <td>{p.adaptive_plan_version ?? 0}</td>
-                    <td>{p.adaptive_policy_version ?? "—"}</td>
-                    <td>{p.exam_date ?? "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
+            <AdminTableFrame columns={["Başlık", "Plan sürümü", "Karar kuralı sürümü", "Sınav tarihi"]}>
+              {preps.map((p) => (
+                <tr key={p.id}>
+                  <td>{p.title}</td>
+                  <td className="adm-num">{p.adaptive_plan_version ?? 0}</td>
+                  <td>{p.adaptive_policy_version ?? "—"}</td>
+                  <td>{p.exam_date ?? "—"}</td>
+                </tr>
+              ))}
             </AdminTableFrame>
           )}
         </AdminCard>
 
-        <AdminCard title="Son oturumlar">
+        <AdminCard title="Son oturumlar" bodyless={sessions.length > 0}>
           {sessions.length === 0 ? (
             <AdminEmpty title="Oturum yok" />
           ) : (
-            <AdminTableFrame columns={["Durum", "%", "Başlangıç"]}>
-              <tbody>
-                {sessions.map((s) => (
-                  <tr key={s.id}>
-                    <td>{s.status}</td>
-                    <td>{Number(s.completion_pct ?? 0)}</td>
-                    <td>{formatDate(s.started_at)}</td>
-                  </tr>
-                ))}
-              </tbody>
+            <AdminTableFrame columns={["Durum", "Tamamlanma (%)", "Başlangıç"]}>
+              {sessions.map((s) => (
+                <tr key={s.id}>
+                  <td>{statusLabel(s.status)}</td>
+                  <td className="adm-num">{Number(s.completion_pct ?? 0)}</td>
+                  <td>{formatDate(s.started_at)}</td>
+                </tr>
+              ))}
             </AdminTableFrame>
           )}
         </AdminCard>
 
-        <AdminCard title="Son müdahaleler">
+        <AdminCard title="Son müdahaleler" bodyless={interventions.length > 0}>
           {interventions.length === 0 ? (
             <AdminEmpty title="Müdahale yok" />
           ) : (
             <AdminTableFrame columns={["Olay", "Konu", "Zaman"]}>
-              <tbody>
-                {interventions.map((e) => (
-                  <tr key={e.id}>
-                    <td>{e.event_type}</td>
-                    <td className="max-w-[160px] truncate">
-                      {e.topic_key ?? "—"}
-                    </td>
-                    <td>{formatDate(e.created_at)}</td>
-                  </tr>
-                ))}
-              </tbody>
+              {interventions.map((e) => (
+                <tr key={e.id}>
+                  <td>{learningEventLabel(e.event_type)}</td>
+                  <td className="max-w-[160px] truncate">
+                    {e.topic_key ?? "—"}
+                  </td>
+                  <td>{formatDate(e.created_at)}</td>
+                </tr>
+              ))}
             </AdminTableFrame>
           )}
         </AdminCard>
 
-        <AdminCard title="Son hatalar / fallback">
+        <AdminCard title="Son hatalar ve yedeğe düşmeler" bodyless={errors.length > 0}>
           {errors.length === 0 ? (
-            <AdminEmpty title="Fallback yok" />
+            <AdminEmpty title="Yedeğe düşen karar yok" />
           ) : (
-            <AdminTableFrame columns={["Provider", "Neden", "Zaman"]}>
-              <tbody>
-                {errors.map((e) => (
-                  <tr key={e.id}>
-                    <td>{e.provider}</td>
-                    <td className="max-w-[200px] truncate">
-                      {e.fallback_reason}
-                    </td>
-                    <td>{formatDate(e.created_at)}</td>
-                  </tr>
-                ))}
-              </tbody>
+            <AdminTableFrame columns={["Sağlayıcı", "Neden", "Zaman"]}>
+              {errors.map((e) => (
+                <tr key={e.id}>
+                  <td>{decisionProviderLabel(e.provider)}</td>
+                  <td className="max-w-[200px] truncate">
+                    {e.fallback_reason}
+                  </td>
+                  <td>{formatDate(e.created_at)}</td>
+                </tr>
+              ))}
             </AdminTableFrame>
           )}
         </AdminCard>
 
-        <AdminCard title="Son kararlar">
+        <AdminCard title="Son kararlar" bodyless={decisions.length > 0}>
           {decisions.length === 0 ? (
             <AdminEmpty title="Karar yok" />
           ) : (
             <AdminTableFrame
-              columns={["Provider", "Action", "Conf", "ms", "Fallback", "Zaman"]}
+              columns={["Sağlayıcı", "Seçilen adım", "Güven", "Süre (ms)", "Yedek nedeni", "Zaman"]}
             >
-              <tbody>
-                {decisions.slice(0, 20).map((d) => {
-                  const norm = (d.normalized ?? {}) as { action?: string };
-                  return (
-                    <tr key={d.id}>
-                      <td>{d.provider}</td>
-                      <td>{norm.action ?? "—"}</td>
-                      <td>
-                        {typeof d.confidence === "number"
-                          ? d.confidence.toFixed(2)
-                          : "—"}
-                      </td>
-                      <td>{d.latency_ms ?? "—"}</td>
-                      <td className="max-w-[140px] truncate">
-                        {d.fallback_reason ?? "—"}
-                      </td>
-                      <td>{formatDate(d.created_at)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
+              {decisions.slice(0, 20).map((d) => {
+                const norm = (d.normalized ?? {}) as { action?: string };
+                return (
+                  <tr key={d.id}>
+                    <td>{decisionProviderLabel(d.provider)}</td>
+                    <td>{learningActionLabel(norm.action)}</td>
+                    <td className="adm-num">
+                      {typeof d.confidence === "number"
+                        ? d.confidence.toFixed(2)
+                        : "—"}
+                    </td>
+                    <td className="adm-num">{d.latency_ms ?? "—"}</td>
+                    <td className="max-w-[140px] truncate">
+                      {d.fallback_reason ?? "—"}
+                    </td>
+                    <td>{formatDate(d.created_at)}</td>
+                  </tr>
+                );
+              })}
             </AdminTableFrame>
           )}
         </AdminCard>

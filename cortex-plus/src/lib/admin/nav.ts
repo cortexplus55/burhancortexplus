@@ -64,7 +64,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         href: "/admin/maliyetler",
         label: "Birim Ekonomisi & Maliyetler",
         icon: TrendingUp,
-        blurb: "Yapay zekâ sağlayıcısına ödenen tahmini tutar. Gelirle karşılaştırmak için.",
+        blurb: "Bugün, son 7 ve son 30 gün: PayTR tahsilatı ve iadeler, modele göre OpenAI gideri, net kâr ve marj; günlük harcama sigortası.",
       },
       {
         href: "/admin/ai-kullanimi",

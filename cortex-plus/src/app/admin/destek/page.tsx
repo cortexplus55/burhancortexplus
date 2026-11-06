@@ -8,7 +8,7 @@ import { countPendingApplications } from "@/lib/admin/pending";
 import { formatDate } from "@/lib/format";
 import { SUPPORT_SLA, supportSlaLine } from "@/lib/support/sla";
 
-export const metadata = { title: "Yönetim · Destek talepleri" };
+export const metadata = { title: "Yönetim · Destek Talepleri" };
 export const dynamic = "force-dynamic";
 
 type Row = {
@@ -49,7 +49,7 @@ export default async function AdminDestekPage() {
 
   return (
     <AdminShell href="/admin/destek" pendingApplications={pending}>
-      {error ? <AdminNote tone="warn">Talepler okunamadı ({error.code ?? "hata"}). Göç uygulanmış mı?</AdminNote> : null}
+      {error ? <AdminNote tone="warn">Talepler okunamadı (hata kodu: {error.code ?? "yok"}). Veritabanı göçü uygulanmış mı?</AdminNote> : null}
       <AdminNote tone={overdue.length ? "warn" : "info"}>
         Söz: {supportSlaLine()} Açık talep: {open.length}
         {overdue.length ? ` · ${overdue.length} tanesi ${SUPPORT_SLA.hours} saati geçti` : ""}. Cevabı e-postayla

@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { archiveSupersededItems, type CockpitActionResult } from "@/app/admin/cockpit-actions";
 import { supersededArchivable, supersededGroups, type SupersededRow } from "@/lib/admin/cockpit-math";
+import { difficultyLabel, statusLabel } from "@/lib/admin/status-labels";
 
 /*
   Eski sürüm soruları (5 Kasım 2026): ünitenin yeniden yazılmasından kalan `stale` sorular. Karantina kuyruğundan
@@ -19,7 +20,7 @@ export function CockpitSuperseded({ rows }: { rows: SupersededRow[] }) {
   const groups = supersededGroups(rows);
 
   if (!rows.length) {
-    return <p className="text-sm text-[var(--adm-muted)]">Eski sürüm sorusu yok: havuzdaki her `stale` soru ya karantinada ya da arşivlenmiş.</p>;
+    return <p className="text-sm text-[var(--adm-muted)]">Eski sürüm sorusu yok: havuzda bekleyen her soru ya karantinada ya da arşivlenmiş.</p>;
   }
 
   return (
@@ -39,7 +40,7 @@ export function CockpitSuperseded({ rows }: { rows: SupersededRow[] }) {
               <td className="py-1 pr-3">{group.unitId}</td>
               <td className="py-1 pr-3 adm-num">{group.count}</td>
               <td className="py-1 pr-3 adm-num">{group.archivable}</td>
-              <td className="py-1">{group.contentStatus ?? "içerik satırı yok"}</td>
+              <td className="py-1">{group.contentStatus ? statusLabel(group.contentStatus) : "içerik kaydı yok"}</td>
             </tr>
           ))}
         </tbody>
@@ -50,7 +51,7 @@ export function CockpitSuperseded({ rows }: { rows: SupersededRow[] }) {
           {rows.map((row) => (
             <li key={row.id}>
               <span className="text-[var(--adm-muted)]">
-                {row.outcomeCode ?? row.unitId} · {row.difficulty}
+                {row.outcomeCode ?? row.unitId} · {difficultyLabel(row.difficulty)}
                 {supersededArchivable(row) ? "" : " · içeriği yayında (arşivlenmez)"}
               </span>{" "}
               {row.stem.slice(0, 160)}

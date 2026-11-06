@@ -2,9 +2,9 @@
 
 import { useTransition } from "react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { reviewTeacherApplication } from "@/app/admin/actions";
 
+/** Öğretmen başvurusuna karar. Panelin kendi düğme sınıfları (genel arayüz bileşenlerinin stilleri burada yüklü değil). */
 export function ApplicationReview({ applicationId }: { applicationId: string }) {
   const [pending, startTransition] = useTransition();
 
@@ -18,23 +18,12 @@ export function ApplicationReview({ applicationId }: { applicationId: string }) 
 
   return (
     <div className="flex gap-2">
-      <Button
-        type="button"
-        size="sm"
-        disabled={pending}
-        onClick={() => decide("approved")}
-      >
+      <button type="button" className="adm-btn adm-btn--primary" disabled={pending} onClick={() => decide("approved")}>
         Onayla
-      </Button>
-      <Button
-        type="button"
-        size="sm"
-        variant="outline"
-        disabled={pending}
-        onClick={() => decide("rejected")}
-      >
+      </button>
+      <button type="button" className="adm-btn" disabled={pending} onClick={() => decide("rejected")}>
         Reddet
-      </Button>
+      </button>
     </div>
   );
 }

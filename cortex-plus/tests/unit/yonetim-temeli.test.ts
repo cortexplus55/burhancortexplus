@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { ADMIN_ENGLISH_TERMS } from "./helpers/admin-english-terms";
 
 /*
   Yönetim panelinin temeli (6 Kasım 2026): iki kademeli rol (Kurucu / Yönetici), kurucuya özel sunucu
@@ -465,13 +466,8 @@ describe("yönetici ekibi kuralları", () => {
 
 // ---- 5. Menü: beş kategori, tamamen Türkçe ------------------------------------------------------
 
-/** Menüde ve rozette geçmemesi gereken İngilizce terimler (özel adlar — OpenAI, Sentry, Jev, AI — hariç). */
-const ENGLISH_TERMS = [
-  "admin", "dashboard", "debug", "feature", "flag", "flags", "audit", "log", "logs", "prompt", "prompts", "settings",
-  "user", "users", "payment", "payments", "cockpit", "quarantine", "support", "overview", "system", "abuse", "refund",
-  "fallback", "only", "role", "roles", "team", "owner", "founder", "billing", "pricing", "credit", "rules", "survey",
-  "errors", "votes", "health", "adaptive", "teacher", "applications", "promo", "codes", "costs", "usage", "login", "gate",
-];
+/** Menüde ve rozette geçmemesi gereken İngilizce terimler: ortak liste (`helpers/admin-english-terms.ts`). */
+const ENGLISH_TERMS = ADMIN_ENGLISH_TERMS;
 
 describe("menü", () => {
   it("beş kategori, istenen sıra ve adresler; kurucuya özel öğeler işaretli", () => {

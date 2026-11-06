@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { createPromoCode, togglePromoCode } from "@/app/admin/actions";
+import { createPromoCode, togglePromoCode } from "@/app/admin/promo-actions";
 import { createSharedBetaCode, generateBetaCodeBatch } from "@/app/admin/beta-code-actions";
 import {
   BETA_BATCH_MAX,
@@ -10,6 +10,16 @@ import {
   SHARED_BETA_DEFAULT_USES,
   SHARED_BETA_MAX_USES,
 } from "@/lib/billing/promo-codes";
+import {
+  PROMO_CREDIT_MAX,
+  PROMO_CREDIT_MIN,
+  PROMO_PLUS_DAYS_MAX,
+  PROMO_PLUS_DAYS_MIN,
+  PROMO_USES_MAX,
+  PROMO_USES_MIN,
+  validatePromoForm,
+  type PromoGrant,
+} from "@/lib/billing/promo-form";
 
 /** Ortak beta kodu: tek bağlantı, ilk N kişi (sosyal medya duyurusu, 20 Ekim 2026). */
 export function SharedBetaCodeForm({ origin }: { origin: string }) {
@@ -118,89 +128,149 @@ export function SharedBetaCodeForm({ origin }: { origin: string }) {
   );
 }
 
-/** Yeni kampanya kodu formu. */
-export function PromoCreateForm() {
+/**
+ * Yeni promosyon / hediye kodu (6 Kasım 2026): kod adı (boş = üretilir), hak türü (X gün Plus ya da +Y kredi),
+ * en çok kullanım (1–1000), isteğe bağlı son gün. Doğrulama sunucuyla aynı işlevden (`validatePromoForm`).
+ */
+export function PromoCreateForm({ origin }: { origin: string }) {
   const [code, setCode] = useState("");
-  const [credits, setCredits] = useState("100");
-  const [limit, setLimit] = useState("");
+  const [grant, setGrant] = useState<PromoGrant>("plus");
+  const [amount, setAmount] = useState(String(BETA_PLUS_DAYS));
+  const [maxUses, setMaxUses] = useState("1");
+  const [expiresOn, setExpiresOn] = useState("");
+  const [created, setCreated] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const creditsNum = Number(credits);
-  const limitNum = limit.trim() ? Number(limit) : null;
-  const valid =
-    code.trim().length >= 3 &&
-    /^[A-Za-z0-9-]+$/.test(code.trim()) &&
-    Number.isInteger(creditsNum) &&
-    creditsNum > 0 &&
-    (limitNum === null || (Number.isInteger(limitNum) && limitNum > 0));
+  const input = { code, grant, amount: Number(amount), maxUses: Number(maxUses), expiresOn };
+  const check = validatePromoForm(input);
+  const link = created ? `${origin}/pay?kod=${created}` : "";
+
+  function chooseGrant(next: PromoGrant) {
+    setGrant(next);
+    setAmount(next === "plus" ? String(BETA_PLUS_DAYS) : "300");
+  }
+
+  async function copy(text: string, label: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(`${label} kopyalandı.`);
+    } catch {
+      toast.error("Kopyalanamadı; metni seçip kopyala.");
+    }
+  }
 
   return (
-    <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto_auto] sm:items-end">
-      <label className="grid gap-1 text-xs text-[var(--adm-muted)]">
-        Kod
-        <input
-          value={code}
-          onChange={(event) => setCode(event.target.value.toUpperCase())}
-          placeholder="ORNEK-2026"
-          aria-label="Kampanya kodu"
-          className="adm-input"
-        />
-      </label>
-
-      <label className="grid gap-1 text-xs text-[var(--adm-muted)]">
-        Hediye kredi
-        <input
-          type="number"
-          min={1}
-          value={credits}
-          onChange={(event) => setCredits(event.target.value)}
-          aria-label="Hediye kredi"
-          className="adm-input w-32"
-        />
-      </label>
-
-      <label className="grid gap-1 text-xs text-[var(--adm-muted)]">
-        Kaç kişi (boş = sınırsız)
-        <input
-          type="number"
-          min={1}
-          value={limit}
-          onChange={(event) => setLimit(event.target.value)}
-          placeholder="sınırsız"
-          aria-label="Kullanım sınırı"
-          className="adm-input w-40"
-        />
-      </label>
-
-      <button
-        type="button"
-        className="adm-btn adm-btn--primary"
-        disabled={pending || !valid}
-        onClick={() =>
-          startTransition(async () => {
-            const result = await createPromoCode({
-              code: code.trim(),
-              creditAmount: creditsNum,
-              maxRedemptions: limitNum,
-            });
-            if (result.ok) {
-              toast.success(result.message ?? "Kod oluşturuldu.");
-              setCode("");
-              setLimit("");
-            } else {
-              toast.error(result.error ?? "Oluşturulamadı.");
-            }
-          })
-        }
-      >
-        {pending ? "Oluşturuluyor…" : "Kod oluştur"}
-      </button>
+    <div className="grid gap-3">
+      <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Hak türü">
+        <button
+          type="button"
+          role="radio"
+          aria-checked={grant === "plus"}
+          className={`adm-btn${grant === "plus" ? " adm-btn--primary" : ""}`}
+          onClick={() => chooseGrant("plus")}
+        >
+          Gün Plus
+        </button>
+        <button
+          type="button"
+          role="radio"
+          aria-checked={grant === "credit"}
+          className={`adm-btn${grant === "credit" ? " adm-btn--primary" : ""}`}
+          onClick={() => chooseGrant("credit")}
+        >
+          Hediye kredi
+        </button>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto_auto_auto] sm:items-end">
+        <label className="grid gap-1 text-xs text-[var(--adm-muted)]">
+          Kod adı (boş = üretilir)
+          <input
+            value={code}
+            onChange={(event) => setCode(event.target.value.toLocaleUpperCase("en-US"))}
+            placeholder={grant === "plus" ? "PLUS-…" : "HEDIYE-…"}
+            aria-label="Kod adı"
+            className="adm-input font-mono"
+          />
+        </label>
+        <label className="grid gap-1 text-xs text-[var(--adm-muted)]">
+          {grant === "plus" ? `Plus gün (${PROMO_PLUS_DAYS_MIN}–${PROMO_PLUS_DAYS_MAX})` : `Kredi (${PROMO_CREDIT_MIN}–${PROMO_CREDIT_MAX.toLocaleString("tr-TR")})`}
+          <input
+            type="number"
+            min={grant === "plus" ? PROMO_PLUS_DAYS_MIN : PROMO_CREDIT_MIN}
+            max={grant === "plus" ? PROMO_PLUS_DAYS_MAX : PROMO_CREDIT_MAX}
+            value={amount}
+            onChange={(event) => setAmount(event.target.value)}
+            aria-label={grant === "plus" ? "Plus gün sayısı" : "Hediye kredi"}
+            className="adm-input w-28"
+          />
+        </label>
+        <label className="grid gap-1 text-xs text-[var(--adm-muted)]">
+          En çok kullanım ({PROMO_USES_MIN}–{PROMO_USES_MAX.toLocaleString("tr-TR")})
+          <input
+            type="number"
+            min={PROMO_USES_MIN}
+            max={PROMO_USES_MAX}
+            value={maxUses}
+            onChange={(event) => setMaxUses(event.target.value)}
+            aria-label="En çok kullanım"
+            className="adm-input w-28"
+          />
+        </label>
+        <label className="grid gap-1 text-xs text-[var(--adm-muted)]">
+          Son gün (isteğe bağlı)
+          <input
+            type="date"
+            value={expiresOn}
+            onChange={(event) => setExpiresOn(event.target.value)}
+            aria-label="Son kullanma tarihi"
+            className="adm-input"
+          />
+        </label>
+        <button
+          type="button"
+          className="adm-btn adm-btn--primary"
+          disabled={pending || !check.ok}
+          onClick={() =>
+            startTransition(async () => {
+              const result = await createPromoCode(input);
+              if (result.ok) {
+                toast.success(result.message);
+                setCreated(result.code ?? null);
+                setCode("");
+              } else {
+                toast.error(result.error);
+              }
+            })
+          }
+        >
+          {pending ? "Oluşturuluyor…" : "Kod oluştur"}
+        </button>
+      </div>
+      {!check.ok ? (
+        <p role="status" className="text-xs text-[var(--adm-bad)]">
+          {check.error}
+        </p>
+      ) : null}
+      {created ? (
+        <div className="grid gap-2">
+          <p className="text-xs text-[var(--adm-muted)]">{created} oluşturuldu. Öğrenci kodu Abonelik sayfasındaki kutuya yazar ya da bağlantıyı açar.</p>
+          <input readOnly value={link} aria-label="Kod bağlantısı" className="adm-input font-mono text-xs" />
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="adm-btn" onClick={() => copy(created, "Kod")}>
+              Kodu kopyala
+            </button>
+            <button type="button" className="adm-btn" onClick={() => copy(link, "Bağlantı")}>
+              Bağlantıyı kopyala
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
 
-/** Kodu açıp kapatan düğme. */
-export function PromoToggle({ promoId, active }: { promoId: string; active: boolean }) {
+/** Kodu tek tıkla Aktif / Pasif yapan düğme. */
+export function PromoToggle({ promoId, active, code }: { promoId: string; active: boolean; code: string }) {
   const [pending, startTransition] = useTransition();
 
   return (
@@ -208,15 +278,16 @@ export function PromoToggle({ promoId, active }: { promoId: string; active: bool
       type="button"
       className={`adm-btn${active ? " adm-btn--danger" : ""}`}
       disabled={pending}
+      aria-label={active ? `${code} kodunu pasif yap` : `${code} kodunu aktif yap`}
       onClick={() =>
         startTransition(async () => {
           const result = await togglePromoCode(promoId, !active);
-          if (result.ok) toast.success(result.message ?? "Güncellendi.");
-          else toast.error(result.error ?? "Güncellenemedi.");
+          if (result.ok) toast.success(result.message);
+          else toast.error(result.error);
         })
       }
     >
-      {pending ? "…" : active ? "Kapat" : "Aç"}
+      {pending ? "…" : active ? "Pasif yap" : "Aktif yap"}
     </button>
   );
 }

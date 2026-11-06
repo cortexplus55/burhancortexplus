@@ -43,6 +43,7 @@ export async function saveUsdTryRate(rate: number): Promise<CockpitActionResult>
   if (error) return { ok: false, error: "Kur kaydedilemedi." };
   await auditLog(service, { actorId, action: "cockpit.fx_rate.saved", entityType: "feature_flag", entityId: FX_FLAG, metadata: { rate: parsed.data } });
   revalidatePath("/admin");
+  revalidatePath("/admin/maliyetler");
   return { ok: true, message: `Kur kaydedildi: 1 USD = ${parsed.data} TL.` };
 }
 
@@ -205,5 +206,6 @@ export async function saveDailySpendCap(capUsd: number): Promise<CockpitActionRe
   await auditLog(service, { actorId, action: "cockpit.spend_cap.saved", entityType: "feature_flag", entityId: SPEND_CAP_FLAG, metadata: { capUsd: parsed.data } });
   resetSpendBreakerForTests();
   revalidatePath("/admin");
+  revalidatePath("/admin/maliyetler");
   return { ok: true, message: `Günlük tavan kaydedildi: ${parsed.data} $. Bir dakika içinde bütün sunucularda geçerli olur.` };
 }

@@ -6,7 +6,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
 import { actionLabel } from "@/lib/admin/labels";
 
-export const metadata = { title: "Yönetim · Kredi bedelleri" };
+export const metadata = { title: "Yönetim · Kredi Kuralları" };
 
 export default async function AdminKrediBedelleriPage() {
   await requireFounderPage();
@@ -28,7 +28,7 @@ export default async function AdminKrediBedelleriPage() {
         Bu sayıları <strong>düşürmek işletme maliyetini artırır</strong>:
         öğrenci aynı krediyle daha çok işlem yapar, yapay zekâ faturası büyür.
         Yükseltmek ise öğrencinin hakkını erken bitirir. Değişiklik anında
-        geçerli olur ve <strong>İşlem geçmişi</strong>ne yazılır.
+        geçerli olur ve <strong>İşlem Kayıtları</strong>&apos;na yazılır.
       </AdminNote>
 
       <AdminCard
@@ -37,7 +37,7 @@ export default async function AdminKrediBedelleriPage() {
         bodyless
       >
         {rows.length ? (
-          <AdminTableFrame columns={["İşlem", "Model", "Şu anki bedel", "Değiştir"]}>
+          <AdminTableFrame columns={["İşlem", "Model düzeyi", "Şu anki bedel", "Değiştir"]}>
             {rows.map((rule) => (
               <CreditRuleRow
                 key={rule.action_code}

@@ -11,7 +11,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
 import { formatDate, formatNumber } from "@/lib/format";
 
-export const metadata = { title: "Yönetim · Yanıt oyları" };
+export const metadata = { title: "Yönetim · Yanıt Oyları" };
 
 /** Öğrencinin seçtiği sebebin gündelik karşılığı. */
 const REASON_LABEL: Record<string, string> = {
@@ -39,10 +39,10 @@ export default async function AdminYanitOylariPage() {
     return (
       <AdminShell href="/admin/yanit-oylari" pendingApplications={pending}>
         <AdminNote tone="warn">
-          Oylama sütunları veritabanında henüz yok. Bu sayfanın çalışması için{" "}
-          <code>20260904140000_message_feedback.sql</code> göçünün uygulanması
-          gerekiyor; adımlar <code>docs/delivery/SENIN-YAPACAKLARIN.md</code>{" "}
-          dosyasında.
+          Oylama alanları veritabanında henüz yok. Bu sayfanın çalışması için
+          mesaj oylama göçünün uygulanması gerekiyor (dosya:{" "}
+          <code>20260904140000_message_feedback.sql</code>; adımlar{" "}
+          <code>docs/delivery/SENIN-YAPACAKLARIN.md</code> belgesinde).
         </AdminNote>
       </AdminShell>
     );
@@ -65,7 +65,7 @@ export default async function AdminYanitOylariPage() {
       <AdminNote tone="info">
         Öğrenciler yanıtların altındaki başparmağa bastığında buraya düşüyor.
         Amaç puan toplamak değil: <strong>kötü bulunan yanıtları okuyup</strong>{" "}
-        <a href="/admin/promptlar">AI talimatlarını</a> ona göre düzeltmek.
+        <a href="/admin/promptlar">istemleri</a> ona göre düzeltmek.
         Son 200 oy gösteriliyor.
       </AdminNote>
 
