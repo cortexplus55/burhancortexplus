@@ -2006,6 +2006,7 @@ kapandı. Kural: çözüm ders-bağımsız; senaryonun kelimeleri üretim koduna
 | Video başlığı (#581) | Başlık ve alt başlık `.cp-video-heading` koyu cam şeridinde (`--cp-video-scrim` + `blur(8px)`, `-webkit-` önekli); şerit üst çubuğun içinde, `--cp-top-h` onu sayar | `video-lesson.tsx`, `video-lesson.css` |
 | Yeni sekme bağlantısı (#581) | Her `target="_blank"` bağlantı `ExternalAnchor`: Türkçe `sr-only` "(yeni sekmede açılır)", simge `aria-hidden`; çıplak `target="_blank"` yazılmaz (bekçi). Resmî kurulumdaki belge notu kredi değil sayfa hakkı yazar | `external-anchor.tsx`, `own-document-copy.ts` |
 | Akışta payda yok (#581) | #553'teki "Adım 1 / ~N" kalktı: ders `building` iken (`writingDone` olsa da) payda ve giriş satırındaki "N adım" yok; mühürde payda kilitli | `activity-duration.ts`, `exam-lesson-steps.tsx` |
+| Farklı anlat giriş ekranında biçim etiketi (#586) | Hızlı giriş yazarı istemdeki biçim tarifini ("ilk fikrin kısa adı") başlığa kopyalayınca etiket ayraçla birlikte düşer; ayraçsız gerçek başlık bozulmaz | `rewrite-lead.ts` `dropFormatLabel` |
 
 Bekçi: `paket1-dogruluk-konu.test.ts`, `paket2-sik-dagilimi.test.ts`, `paket2-konu-testi-deneme.test.ts`,
-`paket3-yardimci-araclar.test.tsx`, `paket4-gorsel-cila.test.tsx`, `ikiz-sinav-belgeler.test.ts`.
+`paket3-yardimci-araclar.test.tsx`, `paket4-gorsel-cila.test.tsx`, `ikiz-sinav-belgeler.test.ts`, `giris-ekrani-etiket.test.ts`.
