@@ -141,6 +141,7 @@ describe("sohbet ve belge listesi sahipliği", async () => {
 
   it("belge listesi ve çıkmış soru okuyucusu sahibe göre süzer", () => {
     expect(read("src/lib/documents/teacher-analysis-run.ts")).toMatch(/return ownedByPrepOwner\(service, ownerId,/);
-    expect(read("src/lib/learning/mock-exam/create.ts")).toMatch(/await ownedByPrepOwner\(service,/);
+    // Çıkmış soru okuyucusu artık hazırlığın tek belge listesini (yukarıdaki, sahibe süzülmüş) kullanır.
+    expect(read("src/lib/learning/mock-exam/create.ts")).toMatch(/const ids = await loadPrepDocumentIds\(service, prepId\)/);
   });
 });
