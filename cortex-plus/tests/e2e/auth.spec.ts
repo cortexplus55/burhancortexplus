@@ -1,11 +1,11 @@
 import { test, expect, type Page } from "@playwright/test";
 
 // 6 Kasım 2026 (Paket 3): `/dashboard` korumalı sayfa değil, `/ogretmen`'e kalıcı yönlendirme (aşağıdaki döngü).
+// 6 Kasım 2026: `/admin` girişe yönlenmiyor, misafire 404 veriyor (yonetim-temeli.spec.ts).
 const PROTECTED_ROUTES = [
   "/ogretmen",
   "/dokumanlar",
   "/krediler",
-  "/admin",
 ];
 
 /** Öğrenci kayıt — hesap adımına en kısa yol. */

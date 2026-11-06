@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { auditLog } from "@/lib/audit";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireAdminActor } from "@/lib/auth/admin-actor";
 import { createServiceClient } from "@/lib/supabase/server";
 
 /**
@@ -12,7 +12,9 @@ import { createServiceClient } from "@/lib/supabase/server";
  * "24 saati geçti" sayısı da bu talepten düşer. İkinci tıklama ilk anı değiştirmez.
  */
 export async function markSupportAnswered(requestId: string): Promise<{ ok: boolean; error?: string }> {
-  const { user } = await requireAdmin();
+  const actorId = await requireAdminActor();
+  if (!actorId) return { ok: false, error: "Yetkisiz işlem." };
+  const user = { id: actorId };
   const parsed = z.string().uuid().safeParse(requestId);
   if (!parsed.success) return { ok: false, error: "Geçersiz kayıt." };
 

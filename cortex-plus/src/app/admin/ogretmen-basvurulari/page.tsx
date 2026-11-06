@@ -1,7 +1,7 @@
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AdminBadge, AdminCard, AdminEmpty, AdminNote, AdminTableFrame } from "@/components/admin/admin-ui";
 import { ApplicationReview } from "@/components/admin/application-review";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireAdminPage } from "@/lib/auth/admin-guard";
 import { createServiceClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/format";
 
@@ -14,7 +14,7 @@ const STATUS = {
 } as const;
 
 export default async function OgretmenBasvurulariPage() {
-  await requireAdmin();
+  await requireAdminPage();
   const service = createServiceClient();
 
   const { data: applications } = await service

@@ -202,7 +202,7 @@ describe("kuyruk satırları", () => {
 
 describe("yönetim sayfası", () => {
   it("menüde kokpit; sayfa istemci modülünden fonksiyon çağırmaz ve eylem süresi 60 sn", () => {
-    expect(ADMIN_NAV[0]?.items[0]).toMatchObject({ href: "/admin", label: "Kokpit" });
+    expect(ADMIN_NAV[0]?.items[0]).toMatchObject({ href: "/admin", label: "Ana Kokpit" });
     const page = readFileSync("src/app/admin/page.tsx", "utf8");
     expect(page).toContain("export const maxDuration = 60");
     expect(page).toContain("loadCockpit(service)");
@@ -211,7 +211,9 @@ describe("yönetim sayfası", () => {
     for (const name of ["saveUsdTryRate", "restoreQuarantinedItem", "rejectQuarantinedItem", "regenerateQuarantinedItem", "archiveSupersededItems", "saveDailySpendCap"]) {
       expect(actions).toContain(`export async function ${name}(`);
     }
-    expect(actions.match(/requireAdminActor\(\)/g)?.length).toBe(6);
+    // Kur ve harcama tavanı yalnız kurucu (6 Kasım 2026); karantina kararları yönetici.
+    expect(actions.match(/requireAdminActor\(\)/g)?.length).toBe(4);
+    expect(actions.match(/checkFounderActor\(\)/g)?.length).toBe(2);
     // Arşiv silmez: yalnız durum ve karar yazar; karantinalı soruya ve yayındaki içeriğin sorusuna dokunmaz.
     expect(actions).not.toMatch(/\.delete\(\)/);
     expect(actions).toContain('row.qa?.quarantine == null');

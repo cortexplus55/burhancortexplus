@@ -18,6 +18,7 @@ export function UserActions({
   isTeacher,
   isSelf,
   isSuspended = false,
+  canManageAdmins = false,
 }: {
   userId: string;
   isAdmin: boolean;
@@ -26,6 +27,8 @@ export function UserActions({
   isSelf: boolean;
   /** Plan 4.1 (18 Ekim 2026): askıdaki hesap giriş yapamaz, verisi durur. */
   isSuspended?: boolean;
+  /** Yönetici yap / geri al yalnız kurucuya (6 Kasım 2026); sunucu da checkFounderActor ile ister. */
+  canManageAdmins?: boolean;
 }) {
   const [amount, setAmount] = useState("");
   const [pending, startTransition] = useTransition();
@@ -76,7 +79,7 @@ export function UserActions({
         {isTeacher ? "Öğretmenliği al" : "Öğretmen yap"}
       </button>
 
-      <button
+      {canManageAdmins ? <button
         type="button"
         className={`adm-btn${isAdmin ? " adm-btn--danger" : ""}`}
         disabled={pending || (isAdmin && isSelf)}
@@ -88,7 +91,7 @@ export function UserActions({
         onClick={() => run(() => setUserRole({ userId, role: "admin", grant: !isAdmin }))}
       >
         {isAdmin ? "Yöneticiliği al" : "Yönetici yap"}
-      </button>
+      </button> : null}
 
       <button
         type="button"

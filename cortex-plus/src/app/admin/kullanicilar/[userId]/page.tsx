@@ -4,7 +4,7 @@ import { AdminShell } from "@/components/admin/admin-shell";
 import { AdminBadge, AdminCard, AdminEmpty, AdminNote, AdminTableFrame } from "@/components/admin/admin-ui";
 import { SubscriptionExtend } from "@/components/admin/subscription-extend";
 import { UserActions } from "@/components/admin/user-actions";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireAdminPage } from "@/lib/auth/admin-guard";
 import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
 import { formatDate, formatNumber } from "@/lib/format";
@@ -28,7 +28,7 @@ export const dynamic = "force-dynamic";
  * denetim günlüğüne yazılır.
  */
 export default async function AdminKullaniciPage({ params }: { params: Promise<{ userId: string }> }) {
-  const { user: actor } = await requireAdmin();
+  const { user: actor, role: actorRole } = await requireAdminPage();
   const { userId } = await params;
   const service = createServiceClient();
 
@@ -104,17 +104,17 @@ export default async function AdminKullaniciPage({ params }: { params: Promise<{
 
       <AdminCard title={profile.full_name || "İsimsiz kullanıcı"} desc={`${email} · kayıt ${formatDate(profile.created_at)}`}>
         <div className="flex flex-wrap items-center gap-2">
-          {roles.includes("admin") ? <AdminBadge tone="gold">Yönetici</AdminBadge> : <AdminBadge tone="mute">Öğrenci</AdminBadge>}
+          {roles.includes("founder") ? <AdminBadge tone="gold">Kurucu</AdminBadge> : roles.includes("admin") ? <AdminBadge tone="gold">Yönetici</AdminBadge> : <AdminBadge tone="mute">Öğrenci</AdminBadge>}
           {isSuspended ? <AdminBadge tone="warn">Askıda</AdminBadge> : null}
           <span className="text-sm">Kredi: {formatNumber(wallet?.balance ?? 0)}</span>
         </div>
         <div className="mt-3">
           <UserActions
             userId={profile.id}
-            isAdmin={roles.includes("admin")}
+            isAdmin={roles.includes("admin") || roles.includes("founder")}
             isTeacher={roles.includes("teacher") || roles.includes("verified_teacher")}
             isSelf={profile.id === actor.id}
-            isSuspended={isSuspended}
+            isSuspended={isSuspended} canManageAdmins={actorRole === "founder" && !roles.includes("founder")}
           />
         </div>
       </AdminCard>

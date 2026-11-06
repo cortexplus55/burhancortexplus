@@ -107,6 +107,8 @@ function tableApi(name: keyof typeof db) {
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({
     auth: { getUser: async () => ({ data: { user: db.user } }) },
+    // 6 Kasım 2026: rol SQL `is_admin` / `is_founder` ile okunuyor.
+    rpc: async (name: string) => ({ data: name === "is_admin" ? db.adminRow != null : false, error: null }),
     from: (table: string) => {
       if (table === "user_roles") {
         return {

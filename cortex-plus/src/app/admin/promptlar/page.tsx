@@ -3,7 +3,7 @@ import { AdminCard, AdminEmpty, AdminNote, AdminTableFrame } from "@/components/
 import { PromptActivate } from "@/components/admin/admin-rows";
 import { PromptEditor } from "@/components/admin/prompt-editor";
 import { BUILTIN_PROMPTS, PROMPT_KEYS, loadActivePrompt } from "@/lib/ai/prompts";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireAdminPage } from "@/lib/auth/admin-guard";
 import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
 import { formatDate } from "@/lib/format";
@@ -11,7 +11,7 @@ import { formatDate } from "@/lib/format";
 export const metadata = { title: "Yönetim · AI talimatları" };
 
 export default async function AdminAiTalimatlariPage() {
-  await requireAdmin();
+  await requireAdminPage();
   const service = createServiceClient();
 
   const [{ data: prompts }, pending] = await Promise.all([

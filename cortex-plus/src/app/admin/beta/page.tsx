@@ -1,6 +1,6 @@
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AdminBadge, AdminCard, AdminNote, AdminTableFrame } from "@/components/admin/admin-ui";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireAdminPage } from "@/lib/auth/admin-guard";
 import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
 import { collectBetaMetrics, evaluateBetaCriteria, type CriterionStatus } from "@/lib/admin/beta-metrics";
@@ -23,7 +23,7 @@ const STATUS: Record<CriterionStatus, { label: string; tone: "ok" | "bad" | "mut
  * yerde: `src/lib/admin/beta-metrics.ts`.
  */
 export default async function AdminBetaPage() {
-  await requireAdmin();
+  await requireAdminPage();
   const service = createServiceClient();
   const now = new Date();
   const [week, month, pending, reviewWeek, reviewMonth, signalsWeek, signalsMonth] = await Promise.all([

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/server";
-import { requireAdminActor } from "@/lib/auth/admin-actor";
+import { checkFounderActor, requireAdminActor } from "@/lib/auth/admin-actor";
 import {
   callJevSystemOne,
   listJevModels,
@@ -34,8 +34,9 @@ export async function updateAdaptivePilotUser(input: {
   userId: string;
   op: "add" | "remove";
 }): Promise<{ ok: true; pilotIds: string[] } | { ok: false; error: string }> {
-  const actorId = await requireAdminActor();
-  if (!actorId) return { ok: false, error: "Yetkisiz işlem." };
+  // Pilot listesi özellik anahtarının parçası: yalnız kurucu (6 Kasım 2026).
+  const founder = await checkFounderActor();
+  if (!founder.ok) return { ok: false, error: founder.error };
 
   const parsed = pilotSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Geçersiz UUID veya bayrak." };
@@ -88,8 +89,9 @@ export async function updateAdaptivePilotUser(input: {
 export async function addSelfToAdaptivePilots(): Promise<
   { ok: true } | { ok: false; error: string }
 > {
-  const actorId = await requireAdminActor();
-  if (!actorId) return { ok: false, error: "Yetkisiz işlem." };
+  const founder = await checkFounderActor();
+  if (!founder.ok) return { ok: false, error: founder.error };
+  const actorId = founder.userId;
 
   for (const flagKey of PILOT_FLAGS) {
     const r = await updateAdaptivePilotUser({

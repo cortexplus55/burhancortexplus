@@ -1,7 +1,7 @@
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AdminCard, AdminEmpty, AdminNote, AdminTableFrame } from "@/components/admin/admin-ui";
 import { CreditRuleRow } from "@/components/admin/admin-rows";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireFounderPage } from "@/lib/auth/admin-guard";
 import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
 import { actionLabel } from "@/lib/admin/labels";
@@ -9,7 +9,7 @@ import { actionLabel } from "@/lib/admin/labels";
 export const metadata = { title: "Yönetim · Kredi bedelleri" };
 
 export default async function AdminKrediBedelleriPage() {
-  await requireAdmin();
+  await requireFounderPage();
   const service = createServiceClient();
 
   const [{ data: rules }, pending] = await Promise.all([

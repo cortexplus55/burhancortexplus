@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AdminBadge, AdminCard, AdminEmpty, AdminNote, AdminTableFrame } from "@/components/admin/admin-ui";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireAdminPage } from "@/lib/auth/admin-guard";
 import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
 import { auditLog } from "@/lib/audit";
@@ -25,7 +25,7 @@ export default async function AdminHazirlikPage({
 }: {
   params: Promise<{ userId: string; prepId: string }>;
 }) {
-  const { user: actor } = await requireAdmin();
+  const { user: actor } = await requireAdminPage();
   const { userId, prepId } = await params;
   const service = createServiceClient();
 

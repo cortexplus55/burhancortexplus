@@ -7,7 +7,7 @@ import { FreePreviewToggle } from "@/components/admin/free-preview-toggle";
 import { FxRateForm } from "@/components/admin/fx-rate-form";
 import { SpendCapForm } from "@/components/admin/spend-cap-form";
 import { AdminBadge, AdminCard, AdminEmpty, AdminTableFrame } from "@/components/admin/admin-ui";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireAdminPage } from "@/lib/auth/admin-guard";
 import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
 import { loadCockpit } from "@/lib/admin/cockpit";
@@ -40,7 +40,8 @@ function CountRow({ label, counts, format = formatNumber }: { label: string; cou
 }
 
 export default async function AdminPage() {
-  const { user } = await requireAdmin();
+  const { user, role } = await requireAdminPage();
+  const isFounder = role === "founder";
   const service = createServiceClient();
 
   const [cockpit, pending, recentPayments, preview] = await Promise.all([
@@ -109,7 +110,7 @@ export default async function AdminPage() {
       <AdminCard
         title="Birim ekonomisi (kâr / zarar)"
         desc="OpenAI gideri ai_usage_events × ai_model_prices'tan; gelir başarılı ödemelerden. Marj için kur gerekir."
-        actions={<FxRateForm current={economics.usdTry.rate} isDefault={economics.usdTry.source === "default"} />}
+        actions={isFounder ? <FxRateForm current={economics.usdTry.rate} isDefault={economics.usdTry.source === "default"} /> : undefined}
         bodyless
       >
         <AdminTableFrame columns={["", "Bugün", "Son 30 gün"]}>
@@ -167,11 +168,16 @@ export default async function AdminPage() {
               </span>
             ) : null}
           </div>
-          <SpendCapForm current={breaker?.cap.capUsd ?? 25} source={breaker?.cap.source ?? "default"} />
+          {isFounder ? (
+            <SpendCapForm current={breaker?.cap.capUsd ?? 25} source={breaker?.cap.source ?? "default"} />
+          ) : (
+            <p className="text-xs text-[var(--adm-muted)]">Kur ve harcama tavanını yalnız kurucu değiştirir.</p>
+          )}
         </div>
       </AdminCard>
 
       <AdminCard
+        id="karantina"
         title="Canlı kalite · karantina kuyruğu"
         desc="Saatlik SQL işi doğru oranı düşük, çok bildirilen ya da güçlü öğrencilerin aynı yanlışı seçtiği havuz sorusunu 'stale' yapar. Burada okur, karar verirsin."
       >

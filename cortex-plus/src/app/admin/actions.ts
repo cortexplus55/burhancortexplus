@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/server";
-import { requireAdminActor } from "@/lib/auth/admin-actor";
+import { checkFounderActor, currentAdminActor, requireAdminActor } from "@/lib/auth/admin-actor";
+import { activeRolesOf, adminTeamChangeProblem } from "@/lib/admin/admin-team";
 import { auditLog } from "@/lib/audit";
 import { verifySmtpConnection } from "@/lib/email/smtp";
 import { requestPaytrRefund, queryPaytrStatus } from "@/lib/payments/paytr";
@@ -112,8 +113,10 @@ export async function updateCreditRule(input: {
   actionCode: string;
   creditCost: number;
 }) {
-  const actorId = await requireAdminActor();
-  if (!actorId) return { ok: false, error: "Yetkisiz işlem." };
+  // Kredi kuralı faturayı doğrudan değiştirir: yalnız kurucu (6 Kasım 2026).
+  const founder = await checkFounderActor();
+  if (!founder.ok) return { ok: false, error: founder.error };
+  const actorId = founder.userId;
 
   const parsed = creditRuleSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Geçersiz değer." };
@@ -140,8 +143,10 @@ export async function updateCreditRule(input: {
 }
 
 export async function toggleFeatureFlag(key: string, enabled: boolean) {
-  const actorId = await requireAdminActor();
-  if (!actorId) return { ok: false, error: "Yetkisiz işlem." };
+  // Özellik anahtarı herkesi anında etkiler: yalnız kurucu (6 Kasım 2026).
+  const founder = await checkFounderActor();
+  if (!founder.ok) return { ok: false, error: founder.error };
+  const actorId = founder.userId;
 
   const service = createServiceClient();
   const { error } = await service
@@ -261,18 +266,24 @@ export async function setUserRole(input: {
     .safeParse(input);
   if (!parsed.success) return { ok: false, error: "Geçersiz değer." };
 
-  if (
-    !parsed.data.grant &&
-    parsed.data.role === "admin" &&
-    parsed.data.userId === actorId
-  ) {
-    return {
-      ok: false,
-      error: "Kendi yöneticiliğini geri alamazsın; panele giriş kapanır.",
-    };
-  }
+  // Yönetici ekleme/çıkarma yalnız kurucunun işi (6 Kasım 2026); kurucu kendini ya da başka kurucuyu
+  // çıkaramaz. Kurallar /admin/yoneticiler ile ortak (`adminTeamChangeProblem`).
+  const founder = parsed.data.role === "admin" ? await checkFounderActor() : null;
+  if (founder && !founder.ok) return { ok: false, error: founder.error };
 
   const service = createServiceClient();
+
+  if (parsed.data.role === "admin") {
+    const targetRoles = await activeRolesOf(service, parsed.data.userId);
+    if (!targetRoles) return { ok: false, error: "Yetki okunamadı." };
+    const problem = adminTeamChangeProblem({
+      op: parsed.data.grant ? "grant" : "revoke",
+      actorId,
+      targetId: parsed.data.userId,
+      targetRoles,
+    });
+    if (problem) return { ok: false, error: problem };
+  }
   const { data: existing } = await service
     .from("user_roles")
     .select("id, revoked_at")
@@ -702,8 +713,10 @@ export async function updatePlan(input: {
   creditAmount: number;
   active: boolean;
 }) {
-  const actorId = await requireAdminActor();
-  if (!actorId) return { ok: false, error: "Yetkisiz işlem." };
+  // Paket fiyatı: yalnız kurucu (6 Kasım 2026).
+  const founder = await checkFounderActor();
+  if (!founder.ok) return { ok: false, error: founder.error };
+  const actorId = founder.userId;
 
   const parsed = z
     .object({
@@ -1136,6 +1149,13 @@ export async function setUserSuspended(input: {
   if (userId === actorId) return { ok: false, error: "Kendi hesabını askıya alamazsın." };
 
   const service = createServiceClient();
+  // Yönetici bir yöneticiyi ya da kurucuyu askıya alamaz; kurucu da başka bir kurucuyu (6 Kasım 2026).
+  const targetRoles = await activeRolesOf(service, userId);
+  if (!targetRoles) return { ok: false, error: "Yetki okunamadı." };
+  if (targetRoles.includes("founder")) return { ok: false, error: "Kurucunun hesabı askıya alınamaz." };
+  if (targetRoles.includes("admin") && (await currentAdminActor())?.role !== "founder") {
+    return { ok: false, error: "Bir yöneticiyi yalnız kurucu askıya alabilir." };
+  }
   const { error } = await service
     .from("profiles")
     .update({

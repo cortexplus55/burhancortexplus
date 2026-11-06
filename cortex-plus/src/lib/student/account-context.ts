@@ -26,6 +26,11 @@ export type StudentAccountContext = {
    * Ücretsiz önizlemede `false`: yönetici ücretsiz hesabın gördüğünü görür.
    */
   isAdmin: boolean;
+  /**
+   * Yönetim paneline girebilir mi (yönetici ya da kurucu; 6 Kasım 2026). Sunucu okur, istemciden gelmez.
+   * Ücretsiz önizlemede de doğru: önizleme isAdmin'i kapatır ama panele dönüş düğmesi kalır.
+   */
+  adminPanel?: boolean;
   /** Yönetici "ücretsiz gibi gör" önizlemesinde (free-preview.ts). */
   freePreview?: boolean;
   /**
@@ -92,6 +97,7 @@ export async function getStudentAccountContext(
       canSpend: true,
       isAdmin: false,
       freePreview: true,
+      adminPanel: true,
       periodKind: quota.kind,
       extraPercent: null,
       ...freeView(meters),
@@ -121,6 +127,7 @@ export async function getStudentAccountContext(
     subscriptionPeriodEnd: entitlements.subscriptionPeriodEnd,
     canSpend: isAdmin || balance > 0 || freeAllowanceRemaining > 0,
     isAdmin,
+    adminPanel: isAdmin,
     resetsAtLabel: formatResetAt(quota.resetsAt),
     resetsAtIso: quota.resetsAt.toISOString(),
     periodKind: quota.kind,

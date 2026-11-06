@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AdminCard, AdminEmpty, AdminTableFrame } from "@/components/admin/admin-ui";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireAdminPage } from "@/lib/auth/admin-guard";
 import { createServiceClient } from "@/lib/supabase/server";
 import { formatDate, formatNumber } from "@/lib/format";
 import {
@@ -151,7 +151,7 @@ export default async function AdminAdaptivePage({
 }: {
   searchParams: Promise<{ userId?: string }>;
 }) {
-  await requireAdmin();
+  await requireAdminPage();
   const { userId } = await searchParams;
   const service = createServiceClient();
 

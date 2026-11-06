@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { auditLog } from "@/lib/audit";
-import { requireAdminActor } from "@/lib/auth/admin-actor";
+import { checkFounderActor, requireAdminActor } from "@/lib/auth/admin-actor";
 import { createServiceClient } from "@/lib/supabase/server";
 import { poolUnit } from "@/lib/content-pool/keys";
 import { createReinforceItems } from "@/lib/content-pool/reinforce-new";
@@ -23,8 +23,10 @@ const rateSchema = z.number().finite().min(FX_MIN).max(FX_MAX);
 const idSchema = z.string().uuid();
 
 export async function saveUsdTryRate(rate: number): Promise<CockpitActionResult> {
-  const actorId = await requireAdminActor();
-  if (!actorId) return UNAUTHORIZED;
+  // Kur ayarı kâr marjını belirler: yalnız kurucu (6 Kasım 2026).
+  const founder = await checkFounderActor();
+  if (!founder.ok) return { ok: false, error: founder.error };
+  const actorId = founder.userId;
   const parsed = rateSchema.safeParse(rate);
   if (!parsed.success) return { ok: false, error: `Kur ${FX_MIN}–${FX_MAX} arasında bir sayı olmalı.` };
   const service = createServiceClient();
@@ -182,8 +184,10 @@ const capSchema = z.number().finite().min(SPEND_CAP_MIN_USD).max(SPEND_CAP_MAX_U
  * `admin_ai_daily_cap` metadata.cap_usd. Ortam değişkeni ve 25 $ varsayılanı bunun yedeğidir (spend-breaker.ts).
  */
 export async function saveDailySpendCap(capUsd: number): Promise<CockpitActionResult> {
-  const actorId = await requireAdminActor();
-  if (!actorId) return UNAUTHORIZED;
+  // Küresel harcama tavanı: yalnız kurucu (6 Kasım 2026).
+  const founder = await checkFounderActor();
+  if (!founder.ok) return { ok: false, error: founder.error };
+  const actorId = founder.userId;
   const parsed = capSchema.safeParse(capUsd);
   if (!parsed.success) return { ok: false, error: `Tavan ${SPEND_CAP_MIN_USD}–${SPEND_CAP_MAX_USD} $ arasında bir sayı olmalı.` };
   const service = createServiceClient();

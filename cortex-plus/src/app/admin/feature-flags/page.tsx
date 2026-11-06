@@ -1,7 +1,7 @@
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AdminCard, AdminNote, AdminTableFrame } from "@/components/admin/admin-ui";
 import { FeatureFlagRow } from "@/components/admin/admin-rows";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireFounderPage } from "@/lib/auth/admin-guard";
 import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
 import { paytrMode } from "@/lib/payments/paytr";
@@ -84,7 +84,7 @@ const INEFFECTIVE = [
 const RETIRED = new Set(["teacher_panel", ...INEFFECTIVE.map((flag) => flag.key)]);
 
 export default async function AdminOzellikAnahtarlariPage() {
-  await requireAdmin();
+  await requireFounderPage();
   const service = createServiceClient();
   const mode = paytrMode();
 

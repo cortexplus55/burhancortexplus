@@ -73,6 +73,13 @@ const PROTECTED_PREFIXES = [
   "/tasarim",
 ];
 
+/**
+ * Misafiri girişe göndermeyen korumalı adresler (6 Kasım 2026): yönetim paneli oturumsuz ziyaretçiye 404
+ * verir (sayfa koruması `requireAdminPage`), panelin varlığı bile söylenmez. Oturumlu istekte öbür
+ * korumalar (hesap durumu, cihaz sınırı) aynen çalışır.
+ */
+const GUEST_NOT_FOUND_PREFIXES = ["/admin"];
+
 const ONBOARDING_SKIP = [
   "/onboarding",
   "/kayit",
@@ -170,7 +177,7 @@ export async function updateSession(request: NextRequest) {
     device = gate.cookie;
   }
 
-  if (isProtected && !user) {
+  if (isProtected && !user && !matches(path, GUEST_NOT_FOUND_PREFIXES)) {
     const url = request.nextUrl.clone();
     // Kodlu bağlantı (/pay?kod=…) sosyal medyadan yeni öğrenciye gidiyor (20 Ekim 2026): "Tekrar hoş
     // geldin" diyen giriş yerine kayıt açılır; kayıttaki "Giriş yap" bağlantısı `next`i taşır.

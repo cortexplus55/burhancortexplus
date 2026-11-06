@@ -18,6 +18,8 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({
     auth: { getUser: async () => ({ data: { user: state.user } }) },
     from: () => chain({ data: state.adminRow, error: null }),
+    // 6 Kasım 2026: rol SQL `is_admin` / `is_founder` ile okunuyor.
+    rpc: async (name: string) => ({ data: name === "is_admin" ? state.adminRow !== null : false, error: null }),
   }),
   createServiceClient: () => ({ rpc: state.rpc }),
 }));
