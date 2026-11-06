@@ -11,6 +11,7 @@ import {
   type TutorContext,
 } from "@/lib/ai/teacher-tutor";
 import { answerFirstLine, stuckPointIssue } from "@/lib/learning/tutor-answer";
+import { simplifyLine } from "@/lib/ai/simplify-request";
 import type { TutorStyle } from "@/lib/learning/tutor-style";
 
 export type TutorRunOutcome =
@@ -48,7 +49,9 @@ export async function runTeacherTutor(input: {
   onDelta?: (text: string) => void;
 }): Promise<TutorRunOutcome> {
   const effort = input.reasoningEffort && isReasoningModel(input.model) ? { reasoning_effort: input.reasoningEffort } : {};
-  const system = `${tutorSystemPrompt(input.context)}\n\n${answerFirstLine(input.message, input.style)}`;
+  // Sadeleştirme isteği (6 Kasım 2026) en sonda: tarz ve öğretmen tavrı satırlarından sonra okunur, bu cevapta önce gelir.
+  const simplify = simplifyLine(input.message);
+  const system = `${tutorSystemPrompt(input.context)}\n\n${answerFirstLine(input.message, input.style)}${simplify ? `\n\n${simplify}` : ""}`;
   let reasons: string[] = [];
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const note = reasons.length ? `\n\n${tutorRetryNote(reasons)}` : "";

@@ -52,3 +52,36 @@ export async function resolvePrepTopicRow<T extends Record<string, unknown> = { 
   if (error || !data) return null;
   return data as T;
 }
+
+const foldLabel = (text: string) =>
+  text
+    .toLocaleLowerCase("tr")
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/ı/g, "i")
+    .replace(/[^\p{L}\d]+/gu, " ")
+    .trim();
+
+/**
+ * Kimlik konu bulmayınca düğümün konu adıyla satır (6 Kasım 2026). Kurulumda öğrencinin elle eklediği konunun geçici
+ * kimliği ("added:5:…") yol adımına yazılmıştı; kimlik süzgeci bunu reddedince sorgu sıradaki İLK konuya düşüyor, eklenen
+ * konunun dersi 1. konunun sayfalarından yazılıyordu. Önce aynı ad, sonra adı öbürünü içeren tek satır. `firstIfUnmatched`
+ * yalnız düğümün hiç konu kimliği yokken (eski yol): ilk konu.
+ */
+export function topicRowForLabel<T extends { label?: unknown }>(
+  rows: readonly T[],
+  title: string | null | undefined,
+  options: { firstIfUnmatched?: boolean } = {},
+): T | null {
+  const want = foldLabel(title ?? "");
+  if (want) {
+    const exact = rows.find((row) => typeof row.label === "string" && foldLabel(row.label) === want);
+    if (exact) return exact;
+    const near = rows.filter((row) => {
+      const have = typeof row.label === "string" ? foldLabel(row.label) : "";
+      return have.length >= 4 && want.length >= 4 && (have.includes(want) || want.includes(have));
+    });
+    if (near.length === 1) return near[0]!;
+  }
+  return options.firstIfUnmatched ? (rows[0] ?? null) : null;
+}

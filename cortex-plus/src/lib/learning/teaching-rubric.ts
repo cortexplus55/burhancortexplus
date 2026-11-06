@@ -66,6 +66,21 @@ export const BLOCK_ROLE_RULE =
   "özette kalır.";
 
 /**
+ * Örneğin sınıflandırması (6 Kasım 2026, canlı sınav). Belgesiz bir hazırlıkta "Farklı anlat" dersi günlük hayattan bir
+ * örnekle açıldı ve o örneği ders kitabının koymadığı bir kategoriye koydu: kavram doğru tanımlandı ama örnek, öğrenciye
+ * yanlış bir sınıflandırma öğretti. Kural "yeni bilgi taşımayan benzetme serbesttir" diyordu; benzetmenin kendisinin
+ * yanlış olabileceğini söylemiyordu. Ders YAZARI (belgeli, belgesiz, Farklı anlat, ilk ekran girişi), ders DENETÇİSİ ve
+ * hafif doğrulayıcı bu metni aynen okur. Ders adı ya da konu terimi yok.
+ */
+export const EXAMPLE_CLASSIFICATION_RULE =
+  "ÖRNEĞİN SINIFLANDIRMASI: Verdiğin her somut ya da günlük hayat örneği, benzetme, örnek vaka ve hafıza çivisi kavramın " +
+  "bilimsel sınıflandırmasına birebir uyar: bir nesneyi, canlıyı, olayı ya da durumu hangi sınıfın örneği diye gösteriyorsan " +
+  "ders kitabı onu o sınıfa koyar (bir memeliyi kuş diye, bir ateşkesi antlaşma diye örnekleme). Bir örneğin hangi sınıfa " +
+  "girdiğinden emin değilsen o örneği kullanma; kaynağın (belgesiz derste ONAYLI BİLGİLER ve önceki anlatımın) kendi " +
+  "örneklerini ya da sınıflandırması tartışmasız bilinen bir örneği kullan. Benzetme iki şeyin aynı sınıftan olduğunu ima " +
+  "etmez; benzettiğin nesnenin kendi sınıfını yanlış söyleme. Yanlış sınıfa konmuş örnek yanlış bilgidir.";
+
+/**
  * Kaynak kuralının dar istisnası (20 Ekim 2026, ürün sahibinin kararı). Ölçütün 2. ve 3. maddesi
  * kaynak kuralıyla çakışıyordu: neden cümlesi ve terimin Türkçe karşılığı denetçiden "kaynakta
  * dayanağı yok" (A) alıp tur döndürecekti. İstisna dar: dışarıdan tanım yine yalnız "Genel bilgi"

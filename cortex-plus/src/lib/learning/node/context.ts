@@ -9,7 +9,7 @@ import { errorResponse } from "@/lib/api/guards";
 import { PDF_LEARNING_V2_FLAG, isFeatureEnabled } from "@/lib/admin/feature-flags";
 import { PLAN_NODE_META, type PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { nodeNeedsStudentUnlock, studentMayStartNode, topicLabelsMatch } from "@/lib/learning/study-tools";
-import { prepTopicMatch } from "@/lib/learning/prep-topic-lookup";
+import { prepTopicMatch, topicRowForLabel } from "@/lib/learning/prep-topic-lookup";
 import { safeTopicIds, topicIdsOf } from "@/lib/learning/topic-identity";
 import { isOralLength } from "@/lib/learning/oral-exam";
 import { parseFamiliarity, parseMood } from "@/lib/learning/session-signals";
@@ -77,7 +77,7 @@ export async function loadNodeContext(ctx: NodeCaller, rawBody: unknown, options
   // (18 Ekim 2026: aşinalık kaydedilmiyor, konunun sayfa eşlemesi atlanıyordu).
   const topicMatch = topicLookupId ? prepTopicMatch(topicLookupId) : null;
 
-  const { data: topic } = topicMatch
+  const { data: matchedTopic } = topicMatch
     ? await service
         .from("exam_prep_topics")
         .select("id, label, measured_level, document_topic_node_id, source_refs")
@@ -85,13 +85,27 @@ export async function loadNodeContext(ctx: NodeCaller, rawBody: unknown, options
         .or(topicMatch)
         .limit(1)
         .maybeSingle()
-    : await service
-        .from("exam_prep_topics")
-        .select("id, label, measured_level, document_topic_node_id, source_refs")
-        .eq("exam_prep_id", prepId)
-        .order("sort_order")
-        .limit(1)
-        .maybeSingle();
+    : !topicLookupId
+      ? await service
+          .from("exam_prep_topics")
+          .select("id, label, measured_level, document_topic_node_id, source_refs")
+          .eq("exam_prep_id", prepId)
+          .order("sort_order")
+          .limit(1)
+          .maybeSingle()
+      : { data: null };
+  // Kimlik konu bulmazsa (kurulumda öğrencinin elle eklediği konunun geçici kimliği "added:…" kayda geçmişti) düğümün
+  // konu adı aranır; ilk konuya düşülmez (6 Kasım 2026, canlı: eklenen konunun dersi 1. konunun sayfalarından yazıldı).
+  const { data: topic } =
+    matchedTopic || !topicLookupId || !sessionMeta?.topicTitle?.trim()
+      ? { data: matchedTopic }
+      : await service
+          .from("exam_prep_topics")
+          .select("id, label, measured_level, document_topic_node_id, source_refs")
+          .eq("exam_prep_id", prepId)
+          .order("sort_order")
+          .limit(200)
+          .then(({ data }) => ({ data: topicRowForLabel(data ?? [], sessionMeta.topicTitle) }));
 
   let topicDocumentId: string | null = null;
   let topicNodeId: string | null = null;

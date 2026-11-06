@@ -158,9 +158,13 @@ describe("öğretmen motorunun kaynak metni", () => {
   it("düğüm rotası yardımcı sayfaları dört motor kurucusuna da verir", () => {
     const route = readSource("src/app/api/learning/exam-prep/node/route.ts");
     // Ders kurucusu sayfaları önce adlandırır (`lessonPages`): sınav maddeleri aynı sayfalara göre süzülür.
-    expect(route.split("pages: withSupport(clean, core)").length - 1).toBe(3);
-    expect(route).toContain("const lessonPages = withSupport(clean, core);");
+    // Ders ve konu testi yardımcı sayfaları konu yalıtımından geçirir (6 Kasım 2026, `narrowPagesToTopic` yardımcı
+    // sayfaya dokunmaz); kalan iki motor doğrudan verir.
+    expect(route.split("pages: withSupport(clean, core)").length - 1).toBe(2);
+    expect(route.split("narrowPagesToTopic<{ page: number; text: string; label?: string }>(withSupport(clean, core)").length - 1).toBe(2);
+    expect(route).toContain("const lessonPages = scoped.pages;");
     expect(route).toContain("pages: lessonPages,");
+    expect(route).toContain("pages: scoped.pages,");
     expect(route).toContain("support: supportPagesForEngine(await lessonSupport)");
     const page = readSource("src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/page.tsx");
     expect(page).toContain("loadTopicSupport(service");

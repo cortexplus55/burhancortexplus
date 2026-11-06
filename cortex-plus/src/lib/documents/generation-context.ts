@@ -189,20 +189,9 @@ export function topicScopeLine(context: Pick<DocumentGenerationContext, "wholeDo
  * kendisi yazdığı için dar kapsam doğru; hazırlıkta konu haritanın bir düğümü ve sayfasında kalan her şey onundur.
  * Öbür konu yoksa satır yok.
  */
-export function prepTopicScopeLine(topic: string, siblings: readonly string[]): string {
-  const title = topic.trim();
-  const key = (value: string) => value.trim().toLocaleLowerCase("tr");
-  const others = [
-    ...new Map(siblings.filter((other) => other.trim() && key(other) !== key(title)).map((other) => [key(other), other.trim()])).values(),
-  ].slice(0, 16);
-  if (!title || !others.length) return "";
-  return (
-    `Öğrenci «${title}» konusunu çalışıyor. Hazırlıktaki şu konular ayrı adımlarda anlatılıyor: ` +
-    `${others.map((other) => `«${other}»`).join(", ")}. KAYNAK sayfalarında onların kısımları da geçebilir: onları bölüm ` +
-    "yapma, gerekirse bir cümleyle an. Sayfalarda kalan öbür bütün başlıklar bu konunun kapsamındadır; kaynağın bütün " +
-    "noktalarını kapsama kuralı onlar için de geçerli."
-  );
-}
+// 6 Kasım 2026'dan beri ders ve konu testi de aynı satırı okur; tek kaynak `topic-section.ts` (istemci tarafı testlerde
+// sunucu modülü çekmeden kullanılsın).
+export { prepTopicScopeLine } from "@/lib/learning/topic-section";
 
 /** Hazırlığın konu adları (kapsam satırı için; okunamazsa boş: satır hiç yazılmaz, podcast bütün sayfayı anlatır). */
 export async function prepTopicLabels(service: SupabaseClient, prepId: string): Promise<string[]> {

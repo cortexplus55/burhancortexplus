@@ -27,7 +27,7 @@ import {
   scheduleSessionsToNodeDrafts,
   type ScheduleTopicInput,
 } from "@/lib/learning/exam-schedule-v2";
-import { applyStudentTopicList } from "@/lib/learning/apply-prep-topics";
+import { ADDED_TOPIC_ID_PREFIX, addedTopicIdMap, applyStudentTopicList } from "@/lib/learning/apply-prep-topics";
 import { remapTopicIds, topicIdMap, topicOnlyScheduleTopics } from "@/lib/learning/topic-only-schedule";
 import { groundPrepTopics } from "@/lib/learning/ground-prep-topics";
 import { missingColumn } from "@/lib/learning/missing-column";
@@ -384,6 +384,19 @@ export async function POST(request: Request) {
     const idFor = topicIdMap((savedTopics ?? []) as { id: string; sort_order: number }[]);
     scheduleSummary = remapTopicIds(scheduleSummary, idFor);
     scheduleDrafts = remapTopicIds(scheduleDrafts, idFor);
+  }
+  // Belgeli: öğrencinin elle eklediği konunun geçici kimliği (added:…) de kayıtlı konunun kimliğine çevrilir
+  // (6 Kasım 2026; çevrilmeyince düğüm ilk konunun sayfalarından yazılıyordu).
+  if (!topicOnly && scheduleSummary && scheduleTopics.some((topic) => String(topic.id ?? "").startsWith(ADDED_TOPIC_ID_PREFIX))) {
+    const { data: savedTopics } = await service
+      .from("exam_prep_topics")
+      .select("id, sort_order")
+      .eq("exam_prep_id", result.prepId);
+    const idFor = addedTopicIdMap(scheduleTopics, (savedTopics ?? []) as { id: string; sort_order: number }[]);
+    if (idFor.size) {
+      scheduleSummary = remapTopicIds(scheduleSummary, idFor);
+      scheduleDrafts = remapTopicIds(scheduleDrafts, idFor);
+    }
   }
 
   await service
