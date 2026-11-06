@@ -37,6 +37,14 @@ function randomBytes(count: number): Uint8Array {
 
 /** "BETA-7KQM-X3PD": 8 harf, 31 harflik alfabe (~2^39 olasılık); tahminle bulunmaz. */
 export function generateBetaCode(random: (count: number) => Uint8Array = randomBytes): string {
+  return generatePromoCode(BETA_CODE_PREFIX, random);
+}
+
+/**
+ * Önekli rastgele kod ("PLUS-7KQM-X3PD", "HEDIYE-…"): beta koduyla aynı alfabe, karışan harf yok.
+ * Yönetim panelinde kod adı boş bırakılınca kullanılır (6 Kasım 2026).
+ */
+export function generatePromoCode(prefix: string, random: (count: number) => Uint8Array = randomBytes): string {
   const alphabet = BETA_CODE_ALPHABET;
   const chars: string[] = [];
   // Modulo yanlılığını önlemek için alfabe boyunun katının üstündeki baytlar atılır.
@@ -48,7 +56,7 @@ export function generateBetaCode(random: (count: number) => Uint8Array = randomB
       if (chars.length === 8) break;
     }
   }
-  return `${BETA_CODE_PREFIX}-${chars.slice(0, 4).join("")}-${chars.slice(4).join("")}`;
+  return `${prefix}-${chars.slice(0, 4).join("")}-${chars.slice(4).join("")}`;
 }
 
 /** Bir partide birbirinden farklı `count` kod. */

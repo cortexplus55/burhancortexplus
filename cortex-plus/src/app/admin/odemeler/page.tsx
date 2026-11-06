@@ -3,18 +3,11 @@ import { AdminBadge, AdminCard, AdminEmpty, AdminNote, AdminTableFrame } from "@
 import { RefundButton } from "@/components/admin/refund-button";
 import { requireAdminPage } from "@/lib/auth/admin-guard";
 import { createServiceClient } from "@/lib/supabase/server";
-import { countPendingApplications } from "@/lib/admin/pending";
+import { PAYMENT_STATUS, webhookStatusLabel } from "@/lib/admin/labels";
 import { formatDate, formatTry } from "@/lib/format";
 import { parseRefundReason } from "@/lib/payments/refund";
 
 export const metadata = { title: "Yönetim · Ödemeler" };
-
-const STATUS = {
-  paid: { label: "Ödendi", tone: "ok" },
-  pending: { label: "Bekliyor", tone: "warn" },
-  failed: { label: "Başarısız", tone: "bad" },
-  refunded: { label: "İade edildi", tone: "mute" },
-} as const;
 
 type SearchParams = Promise<{ filtre?: string }>;
 
@@ -28,7 +21,7 @@ export default async function AdminOdemelerPage({
   const params = searchParams ? await searchParams : {};
   const onlyRefunds = params.filtre === "iadeler";
 
-  const [{ data: payments }, { data: events }, { data: refundRows }, pending] =
+  const [{ data: payments }, { data: events }, { data: refundRows }] =
     await Promise.all([
       service
         .from("payments")
@@ -47,7 +40,6 @@ export default async function AdminOdemelerPage({
         .select("id, payment_id, amount_try, reason, created_at")
         .order("created_at", { ascending: false })
         .limit(200),
-      countPendingApplications(service),
     ]);
 
   const refundsByPayment = new Map<
@@ -106,12 +98,12 @@ export default async function AdminOdemelerPage({
   );
 
   return (
-    <AdminShell href="/admin/odemeler" pendingApplications={pending}>
+    <AdminShell href="/admin/odemeler">
       <AdminNote tone="warn">
         <strong>İade hem PayTR&apos;ye para gönderir hem hesabı düzeltir.</strong>{" "}
         Kredi paketinde kalan kredi bakiyeden düşülür; harcanmış kısım
         &quot;geri alınamayan&quot; olarak görünür (bakiye eksiye inmez). Plus /
-        Sigma tam iadesinde aktif abonelik plan_id eşleşmese de geri alınır.
+        Sigma tam iadesinde etkin abonelik, plan kaydı eşleşmese de geri alınır.
         Kısmi iade planı kapatmaz. Anında teslim edilen dijital hizmette cayma
         hakkı yoktur (Mesafeli Sözleşmeler m.15/1-ğ); admin iadesi hatalı
         tahsilat içindir.
@@ -148,14 +140,14 @@ export default async function AdminOdemelerPage({
       <AdminCard title="İşlemler" desc="En yeni 50 kayıt." bodyless>
         {rows.length ? (
           <AdminTableFrame
-            columns={["Kişi", "Sipariş no", "Tutar", "Durum", "İadeler", "Tarih", "İşlem"]}
+            columns={["Kişi", "Sipariş numarası", "Tutar", "Durum", "İadeler", "Tarih", "İşlem"]}
           >
             {rows.map((payment) => {
               const refundInfo = refundsByPayment.get(payment.id);
               const refundedTotal = refundInfo?.totalKurus ?? 0;
-              const baseStatus = STATUS[payment.status as keyof typeof STATUS];
+              const baseStatus = PAYMENT_STATUS[payment.status as keyof typeof PAYMENT_STATUS];
               let statusLabel: string =
-                baseStatus?.label ?? payment.status;
+                baseStatus?.label ?? "Bilinmiyor";
               let statusTone: "ok" | "warn" | "bad" | "mute" =
                 baseStatus?.tone ?? "mute";
               if (payment.status === "paid" && refundedTotal > 0) {
@@ -186,16 +178,16 @@ export default async function AdminOdemelerPage({
                           <li key={r.id}>
                             {formatDate(r.created_at)} · {formatTry(r.amount_try)}
                             {r.reason?.reversed != null
-                              ? ` · −${r.reason.reversed} kr`
+                              ? ` · −${r.reason.reversed} kredi geri alındı`
                               : ""}
                             {r.reason?.unrecovered
-                              ? ` · alınamayan ${r.reason.unrecovered}`
+                              ? ` · harcanmış ${r.reason.unrecovered} kredi alınamadı`
                               : ""}
                             {r.reason?.source
-                              ? ` · ${r.reason.source === "reconcile" ? "mutabakat" : "admin"}`
+                              ? ` · ${r.reason.source === "reconcile" ? "PayTR mutabakatı" : "yönetici"}`
                               : ""}
                             {r.reason?.actor_id
-                              ? ` · ${String(r.reason.actor_id).slice(0, 8)}`
+                              ? ` · yapan ${String(r.reason.actor_id).slice(0, 8)}`
                               : ""}
                           </li>
                         ))}
@@ -233,11 +225,13 @@ export default async function AdminOdemelerPage({
         bodyless
       >
         {events?.length ? (
-          <AdminTableFrame columns={["Sipariş no", "Bildirilen durum", "Tarih"]}>
+          <AdminTableFrame columns={["Sipariş numarası", "Bildirilen sonuç", "Tarih"]}>
             {events.map((event, index) => (
               <tr key={`${event.merchant_oid}-${index}`}>
                 <td className="text-xs">{event.merchant_oid}</td>
-                <td>{event.status}</td>
+                <td>
+                  <AdminBadge tone={event.status === "success" ? "ok" : "bad"}>{webhookStatusLabel(event.status)}</AdminBadge>
+                </td>
                 <td className="adm-num text-xs text-[var(--adm-muted)]">
                   {formatDate(event.created_at)}
                 </td>

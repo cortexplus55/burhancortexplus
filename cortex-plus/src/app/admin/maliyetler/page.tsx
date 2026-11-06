@@ -1,113 +1,150 @@
+import Link from "next/link";
 import { AdminShell } from "@/components/admin/admin-shell";
-import { AdminCard, AdminEmpty, AdminNote, AdminTableFrame } from "@/components/admin/admin-ui";
+import { AdminBadge, AdminCard, AdminEmpty, AdminNote, AdminTableFrame } from "@/components/admin/admin-ui";
+import { FxRateForm } from "@/components/admin/fx-rate-form";
+import { SpendCapForm } from "@/components/admin/spend-cap-form";
 import { requireAdminPage } from "@/lib/auth/admin-guard";
 import { createServiceClient } from "@/lib/supabase/server";
-import { countPendingApplications } from "@/lib/admin/pending";
-import { formatTry } from "@/lib/format";
-import { priceForModel } from "@/lib/billing/model-price";
+import { loadFinanceReport } from "@/lib/admin/finance";
+import { WINDOW_KEYS, WINDOW_LABEL, spendKurus, type WindowCounts, type WindowKey } from "@/lib/admin/cockpit-math";
+import { formatMargin, formatUsd, modelLabel } from "@/lib/admin/finance-math";
+import { DEFAULT_DAILY_SPEND_CAP_USD } from "@/lib/billing/spend-breaker-copy";
+import { formatNumber, formatTry } from "@/lib/format";
 
-export const metadata = { title: "Yönetim · Giderler" };
+export const metadata = { title: "Yönetim · Birim Ekonomisi" };
+export const dynamic = "force-dynamic";
 
-const SAMPLE = 1000;
+const WINDOW_COLUMNS = WINDOW_KEYS.map((key) => WINDOW_LABEL[key]);
 
-export default async function AdminGiderlerPage() {
-  await requireAdminPage();
-  const service = createServiceClient();
-
-  const [{ data: prices }, { data: usage }, { data: payments }, pending] =
-    await Promise.all([
-      service.from("ai_model_prices").select("model, input_per_1k, output_per_1k"),
-      service
-        .from("ai_usage_events")
-        .select("model, tokens_in, tokens_out")
-        .order("created_at", { ascending: false })
-        .limit(SAMPLE),
-      service.from("payments").select("amount_try").eq("status", "paid"),
-      countPendingApplications(service),
-    ]);
-
-  const priceMap = new Map(
-    (prices ?? []).map((price) => [
-      price.model,
-      { input: Number(price.input_per_1k), output: Number(price.output_per_1k) },
-    ]),
+function Row({ label, values, strong = false, muted = false }: { label: string; values: Record<WindowKey, string>; strong?: boolean; muted?: boolean }) {
+  return (
+    <tr>
+      <td className={strong ? "font-semibold" : muted ? "text-[var(--adm-muted)]" : undefined}>{label}</td>
+      {WINDOW_KEYS.map((key) => (
+        <td key={key} className={`adm-num${strong ? " font-semibold" : ""}${muted ? " text-[var(--adm-muted)]" : ""}`}>
+          {values[key]}
+        </td>
+      ))}
+    </tr>
   );
+}
 
-  const costByModel = new Map<string, { cost: number; calls: number }>();
-  let unpriced = 0;
+function mapWindows<T>(read: (key: WindowKey) => T, format: (value: T) => string): Record<WindowKey, string> {
+  return { today: format(read("today")), week: format(read("week")), month: format(read("month")) };
+}
 
-  for (const event of usage ?? []) {
-    const price = priceForModel(event.model, priceMap);
-    if (!price) {
-      unpriced += 1;
-      continue;
-    }
-    const cost =
-      ((event.tokens_in ?? 0) / 1000) * price.input +
-      ((event.tokens_out ?? 0) / 1000) * price.output;
-    const entry = costByModel.get(event.model) ?? { cost: 0, calls: 0 };
-    entry.cost += cost;
-    entry.calls += 1;
-    costByModel.set(event.model, entry);
-  }
+function tryOrDash(value: number | null): string {
+  return value == null ? "—" : formatTry(value);
+}
 
-  const rows = [...costByModel.entries()].sort((a, b) => b[1].cost - a[1].cost);
-  const totalCost = rows.reduce((sum, [, entry]) => sum + entry.cost, 0);
-  const revenue = (payments ?? []).reduce(
-    (sum, payment) => sum + (payment.amount_try ?? 0),
-    0,
-  );
+function counts(values: WindowCounts, format: (value: number) => string): Record<WindowKey, string> {
+  return mapWindows((key) => values[key], format);
+}
+
+export default async function AdminMaliyetlerPage() {
+  const { role } = await requireAdminPage();
+  const isFounder = role === "founder";
+  const report = await loadFinanceReport(createServiceClient());
+  const { collection, spend, pnl, models, breaker, usdTry, failed } = report;
+  const unpricedModels = spend.month?.unpricedModels ?? [];
+  const unpricedCalls = spend.month?.unpricedCalls ?? 0;
 
   return (
-    <AdminShell href="/admin/maliyetler" pendingApplications={pending}>
-      <AdminNote tone="info">
-        Buradaki tutar <strong>tahmindir</strong>, fatura değil. Son{" "}
-        {SAMPLE.toLocaleString("tr-TR")} işlem, tanımlı model fiyatlarıyla
-        çarpılarak hesaplanıyor. Gerçek fatura sağlayıcının panelinde görünür;
-        bu sayfa &ldquo;gelir gideri karşılıyor mu&rdquo; sorusuna hızlı bir
-        cevap vermek için var.
-      </AdminNote>
+    <AdminShell href="/admin/maliyetler">
+      {failed.length ? (
+        <AdminNote tone="warn">Şu kaynaklar okunamadı, ilgili satırlar eksik olabilir: {failed.join(", ")}.</AdminNote>
+      ) : null}
 
-      <div className="adm-stats">
-        <div className="adm-stat">
-          <span className="adm-stat-label">Toplam gelir</span>
-          <span className="adm-stat-value">{formatTry(revenue)}</span>
-          <span className="adm-stat-hint">Tüm zamanlar, ödenmiş satışlar</span>
+      <AdminCard
+        title="Canlı kâr / zarar"
+        desc="Türkiye günüyle üç pencere. Tahsilat PayTR'den başarıyla alınan ödemeler; iade, iadenin yapıldığı güne yazılır. Gider OpenAI çağrılarının jeton sayısı × model fiyatıdır (tahmin, fatura değil); TL karşılığı aşağıdaki kurla."
+        actions={isFounder ? <FxRateForm current={usdTry.rate} isDefault={usdTry.source === "default"} /> : undefined}
+        bodyless
+      >
+        <AdminTableFrame columns={["", ...WINDOW_COLUMNS]}>
+          <Row label="PayTR tahsilatı" values={counts(collection.grossKurus, formatTry)} />
+          <Row label="· Ödeme adedi" values={counts(collection.paidCount, formatNumber)} muted />
+          <Row label="İade edilen" values={counts(collection.refundKurus, (value) => (value ? `−${formatTry(value)}` : formatTry(0)))} />
+          <Row label="· İade adedi" values={counts(collection.refundCount, formatNumber)} muted />
+          <Row label="Net gelir" values={counts(collection.netKurus, formatTry)} strong />
+          <Row label="OpenAI gideri ($)" values={mapWindows((key) => spend[key]?.usd ?? null, (value) => (value == null ? "okunamadı" : formatUsd(value)))} />
+          <Row label="OpenAI gideri (TL)" values={mapWindows((key) => pnl[key].spendKurus, tryOrDash)} />
+          <Row label="Net kâr" values={mapWindows((key) => pnl[key].profitKurus, tryOrDash)} strong />
+          <Row label="Kâr marjı" values={mapWindows((key) => pnl[key].marginPct, formatMargin)} strong />
+        </AdminTableFrame>
+        <div className="space-y-1 px-5 py-3 text-xs text-[var(--adm-muted)]">
+          <p>
+            Kur: 1 USD = {usdTry.rate.toLocaleString("tr-TR")} TL
+            {usdTry.source === "default" ? " (varsayılan; kurucu güncel kuru girince kalkar)" : " (kurucunun girdiği)"}.
+            {isFounder ? "" : " Kuru ve harcama tavanını yalnız kurucu değiştirir."}
+          </p>
+          <p>PayTR komisyonu ve vergiler düşülmedi. Gelir yoksa marj hesaplanamaz (—).</p>
         </div>
-        <div className="adm-stat">
-          <span className="adm-stat-label">Tahmini AI gideri</span>
-          <span className="adm-stat-value">${totalCost.toFixed(2)}</span>
-          <span className="adm-stat-hint">Son {SAMPLE.toLocaleString("tr-TR")} işlem</span>
-        </div>
-      </div>
+      </AdminCard>
 
-      <AdminCard title="Modele göre gider" desc="En pahalı model en üstte." bodyless>
-        {rows.length ? (
-          <AdminTableFrame columns={["Model", "Kaç işlem", "Tahmini gider"]}>
-            {rows.map(([model, entry]) => (
-              <tr key={model}>
-                <td className="font-medium">{model}</td>
-                <td className="adm-num">{entry.calls.toLocaleString("tr-TR")}</td>
-                <td className="adm-num">${entry.cost.toFixed(4)}</td>
+      <AdminCard
+        title="Günlük harcama sigortası"
+        desc="Türkiye gününün OpenAI gideri tavana ulaşınca ücretsiz hesapların model çağrısı durur; hazır müfredat ve Plus üyeler sürer. Tavan bir dakika içinde bütün sunucularda geçerli olur."
+      >
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            {breaker ? (
+              <AdminBadge tone={!breaker.enabled ? "mute" : breaker.tripped ? "bad" : "ok"}>
+                {!breaker.enabled ? "Kapalı (yerel ortam)" : breaker.tripped ? "Devrede · ücretsiz üretim durdu" : "Açık · sınırın altında"}
+              </AdminBadge>
+            ) : (
+              <AdminBadge tone="mute">Okunamadı</AdminBadge>
+            )}
+            {breaker ? (
+              <span className="text-[var(--adm-muted)]">
+                Bugün {breaker.spentUsd == null ? "okunamadı" : formatUsd(breaker.spentUsd)} / tavan {formatUsd(breaker.cap.capUsd)}
+                {breaker.spentUsd != null && breaker.cap.capUsd > 0
+                  ? ` · %${Math.min(999, Math.round((breaker.spentUsd / breaker.cap.capUsd) * 100))} doldu`
+                  : ""}
+                {(() => {
+                  const kurus = spendKurus(breaker.cap.capUsd, usdTry.rate);
+                  return kurus == null ? "" : ` · tavan ≈ ${formatTry(kurus)}`;
+                })()}
+              </span>
+            ) : null}
+          </div>
+          {isFounder ? (
+            <SpendCapForm current={breaker?.cap.capUsd ?? DEFAULT_DAILY_SPEND_CAP_USD} source={breaker?.cap.source ?? "default"} />
+          ) : (
+            <p className="text-xs text-[var(--adm-muted)]">
+              Tavan: {formatUsd(breaker?.cap.capUsd ?? DEFAULT_DAILY_SPEND_CAP_USD)} · yalnız kurucu değiştirir.
+            </p>
+          )}
+        </div>
+      </AdminCard>
+
+      <AdminCard title="Modele göre OpenAI gideri" desc="Son 30 günün en pahalı modeli üstte; dolar ve kurla TL karşılığı." bodyless>
+        {models.length ? (
+          <AdminTableFrame columns={["Model", "Bugün", "Son 7 gün", "Son 30 gün", "Son 30 gün (TL)", "Çağrı (30 gün)"]}>
+            {models.map((row) => (
+              <tr key={row.model}>
+                <td className="font-medium">{row.label}</td>
+                <td className="adm-num">{formatUsd(row.usd.today)}</td>
+                <td className="adm-num">{formatUsd(row.usd.week)}</td>
+                <td className="adm-num">{formatUsd(row.usd.month)}</td>
+                <td className="adm-num">{tryOrDash(spendKurus(row.usd.month, usdTry.rate))}</td>
+                <td className="adm-num">{formatNumber(row.calls.month)}</td>
               </tr>
             ))}
           </AdminTableFrame>
         ) : (
           <AdminEmpty title="Gider hesaplanamıyor">
-            Model fiyatları tanımlı değil. Hesabın çalışması için
-            `ai_model_prices` tablosuna kullanılan modellerin bin birim başına
-            fiyatı girilmeli.
+            Son 30 günde fiyatı tanımlı bir model çağrısı yok ya da kullanım okunamadı.
           </AdminEmpty>
         )}
+        {unpricedModels.length ? (
+          <p className="border-t border-[var(--adm-line)] px-5 py-3 text-xs text-[var(--adm-muted)]">
+            Fiyatı tanımsız {formatNumber(unpricedModels.length)} model ({unpricedModels.map(modelLabel).join(", ")}) ·{" "}
+            {formatNumber(unpricedCalls)} çağrı toplama katılmadı; gerçek gider gösterilenden yüksek olabilir. Fiyat, model
+            fiyat tablosuna girilince hesaba katılır. <Link href="/admin/ai-kullanimi" className="underline">AI kullanımı</Link>
+          </p>
+        ) : null}
       </AdminCard>
-
-      {unpriced > 0 ? (
-        <AdminNote tone="warn">
-          {unpriced.toLocaleString("tr-TR")} işlemin modeli için fiyat tanımlı
-          değil; bunlar toplama katılmadı, yani gerçek gider gösterilenden
-          yüksek.
-        </AdminNote>
-      ) : null}
     </AdminShell>
   );
 }
