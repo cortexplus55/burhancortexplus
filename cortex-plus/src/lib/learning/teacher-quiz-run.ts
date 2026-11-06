@@ -21,6 +21,7 @@ import { dropNearDuplicates } from "@/lib/learning/item-dedup";
 import { runTopicTestShards } from "@/lib/learning/quiz-shards";
 import { alignToPublished, playableQuestions, type QuizStageMs } from "@/lib/learning/quiz-delivery";
 import { runQuizSanity } from "@/lib/learning/quiz-sanity";
+import { balanceQuizQuestions } from "@/lib/learning/option-balance";
 import { repairBudget } from "@/lib/learning/repair-budget";
 import {
   appendWithoutConflicts,
@@ -34,10 +35,13 @@ import {
   shuffleOptions,
   SOFT_CODES,
   tableLookupLike,
+  topicTestCore,
   topicTestPoints,
+  topicTestSubheadings,
   type QuizIssue,
   type TeacherQuizInput,
 } from "@/lib/learning/teacher-quiz";
+import { capSameTable, coreFirst, questionTableOf } from "@/lib/learning/topic-test-shape";
 
 /** `role`: taslak ve düzeltme düşük düşünmeyle, denetim varsayılanla (19 Ekim 2026). */
 export type AskJson = (system: string, user: string, role?: "draft" | "verify" | "fix") => Promise<unknown | null>;
@@ -126,6 +130,7 @@ export async function teacherQuizLoop(
   // İkinci geçişte birinci geçişin soruları testin başı sayılır.
   const prior = scoped ? (input.avoid ?? []) : [];
   const pointsAvailable = scoped ? topicTestPoints(input).length : 0;
+  const subheadings = scoped ? topicTestSubheadings(input) : [];
   const codes: Record<string, number> = {};
   const slots: (QuizQuestion | null)[] = [];
   const accepted = (): Slot[] => slots.flatMap((question, index) => (question ? [{ index, question }] : []));
@@ -171,7 +176,7 @@ export async function teacherQuizLoop(
     ];
     for (const issue of quizSetIssues(
       merged.map((item) => item.question),
-      { pointsAvailable, lessonChecks: scoped ? input.lesson?.checks : undefined },
+      { pointsAvailable, lessonChecks: scoped ? input.lesson?.checks : undefined, subheadings },
     )) {
       const row = merged[issue.index]?.row;
       if (!row) continue;
@@ -298,9 +303,27 @@ export function withOneMultiLast(questions: QuizQuestion[], count: number): Quiz
  * Her parçaya ayrı bir "Sınavda sorulur" maddesi verilir; madde yoksa dersin ayrı bir terimi. Madde parçadan azsa aynı
  * maddeyi alan parça onun başka bir yönünü sorar.
  */
-export function shardTargets(input: Pick<TeacherQuizInput, "examPoints" | "lesson" | "scope">, shards: number): string[] {
+export function shardTargets(
+  input: Pick<TeacherQuizInput, "examPoints" | "lesson" | "scope"> &
+    Partial<Pick<TeacherQuizInput, "pages" | "topicLabel" | "mode" | "runningHeaders">>,
+  shards: number,
+): string[] {
   const points = topicTestPoints(input);
-  const pool = points.length >= 2 ? points : (input.lesson?.terms ?? []).map((term) => term.trim()).filter(Boolean);
+  // Alt başlıklar (6 Kasım 2026, Paket 2): madde yoksa parçalar konunun ayrı alt başlıklarını alır, terimden önce.
+  const headings = input.pages ? topicTestSubheadings({ ...input, pages: input.pages }) : [];
+  const pool =
+    points.length >= 2
+      ? points
+      : headings.length >= 2
+        ? headings
+        : (input.lesson?.terms ?? []).map((term) => term.trim()).filter(Boolean);
+  // İlk parça konunun çekirdek kuralını yoklar (testin 1. sorusu); öbür parçalar havuzun kalanını sırayla alır.
+  const core = input.pages ? topicTestCore({ ...input, pages: input.pages }) : null;
+  if (core) {
+    // Havuz boşsa öbür parçalar hedefsiz ("ayrı bir nokta"): hepsi çekirdeği sormasın.
+    const rest = pool.filter((item) => item.replace(/\s*\(derste işlendi\)\s*$/u, "").trim() !== core);
+    return Array.from({ length: shards }, (_, index) => (index === 0 ? core : rest.length ? rest[(index - 1) % rest.length]! : ""));
+  }
   if (pool.length < 2) return [];
   return Array.from({ length: shards }, (_, index) => pool[index % pool.length]!);
 }
@@ -316,6 +339,11 @@ export function shardBrief(brief: string | undefined, index: number, shards: num
       (repeat ? " Aynı noktayı başka bir üretim de soruyor: onun tanımını değil, başka bir yönünü (uygulama, karşılaştırma, sonuç) sor." : "") +
       " Bu nokta kurallarla çelişiyorsa (daha önce sorulduysa ya da testin kapsamında değilse) konunun sorulmamış başka bir noktasını sor; boş liste döndürme.";
   return brief ? `${brief}\n${line}` : line;
+}
+
+/** Konu testinde kaynak tablosu okuyucusu (aynı tablodan en çok iki soru); öbür testlerde ve belgesiz testte null. */
+function topicTableOf(input: TeacherQuizInput) {
+  return input.scope === "topic_test" && input.mode !== "topic" ? questionTableOf(input.pages) : null;
 }
 
 /** Öğrenci beklerken konu testi parçaları aynı anda yazılır. Duvar saati bir parçanın süresi. */
@@ -368,7 +396,7 @@ async function runShardedTopicQuiz(
   return {
     // Parçalar arası çakışma (aynı bilgi, aynı cevap en çok iki): her parçanın kendi denetimi tek soruya bakıyordu.
     // Elenen yerine çağıranın ikinci geçişi öbür soruları görerek (`avoid`) yazar.
-    questions: withOneMultiLast(appendWithoutConflicts([], sharded.questions), input.count),
+    questions: withOneMultiLast(appendWithoutConflicts([], sharded.questions, { tableOf: topicTableOf(input) }), input.count),
     rejected,
     rounds,
     softKept,
@@ -485,6 +513,9 @@ async function runTeacherQuizInner(
 
   try {
     const previousStems = input.previousStems ?? [];
+    // Konu testinin biçimi (6 Kasım 2026, Paket 2): aynı kaynak tablosundan en çok iki soru (kapı), çekirdek kural başta.
+    const tableOf = topicTableOf(input);
+    const core = topicTestCore(input);
     const shown = new Map<string, QuizQuestion>();
     /** Öğrenciye giden sorular, ilk gönderildikleri sırayla ve gönderildikleri hâliyle (`alignToPublished`). */
     const published: QuizQuestion[] = [];
@@ -498,7 +529,13 @@ async function runTeacherQuizInner(
             shown.set(key, shuffleOptions(question));
           }
           // Parçalı testte sorular ayrı ayrı akar: gösterilmeden önce testin bütününe bakılır (gösterilen soru elenmez).
-          const all = appendWithoutConflicts([], dropNearDuplicates([...shown.values()], (question) => question.text, previousStems));
+          const deduped = appendWithoutConflicts([], dropNearDuplicates([...shown.values()], (question) => question.text, previousStems), {
+            tableOf,
+          });
+          // Test çekirdek kuralı yoklayan soruyla açılır; açıldıktan sonra gösterilenler başta kalır.
+          const all = opened
+            ? [...deduped.filter((question) => publishedKeys.has(question.text.trim())), ...deduped.filter((question) => !publishedKeys.has(question.text.trim()))]
+            : coreFirst(deduped, core);
           const preview = playableQuestions(all, previousStems);
           if (!preview.length && !all.length) return;
           const window = all.slice(0, opened ? input.count : 1);
@@ -508,9 +545,11 @@ async function runTeacherQuizInner(
             const key = question.text.trim();
             if (publishedKeys.has(key)) continue;
             publishedKeys.add(key);
-            published.push(question);
+            // Şık harfi gösterilmiş soruların harflerine göre dengelenir (6 Kasım 2026, Paket 2); gösterilen soru değişmez.
+            published.push(balanceQuizQuestions([...published, question], published.length).at(-1)!);
           }
-          input.onPlayable!(window);
+          const sentByKey = new Map(published.map((question) => [question.text.trim(), question]));
+          input.onPlayable!(window.map((question) => sentByKey.get(question.text.trim()) ?? question));
         }
       : undefined;
     const hooks = publish ? { onPlayable: publish } : undefined;
@@ -519,8 +558,10 @@ async function runTeacherQuizInner(
         ? await runShardedTopicQuiz(ask, input, started, hooks)
         : await teacherQuizLoop(ask, input, started, hooks);
     let stages: QuizStageMs = { ...loop.stages };
-    let questions = dropNearDuplicates(loop.questions, (question) => question.text, previousStems);
-    const repeated = loop.questions.length - questions.length;
+    const unique = dropNearDuplicates(loop.questions, (question) => question.text, previousStems);
+    let questions = capSameTable(unique, tableOf);
+    const tableCapped = unique.filter((question) => !questions.includes(question));
+    const repeated = loop.questions.length - unique.length;
     let passes = 1;
     let softKept = loop.softKept;
     const salvaged = [...loop.salvaged];
@@ -551,7 +592,7 @@ async function runTeacherQuizInner(
         ...questions.map((question) => question.text),
       ]);
       // İkinci geçişin sorusu ilk geçişin sorularıyla aynı cevaba çıkıyor ya da birinin cevabını taşıyorsa alınmaz.
-      questions = withOneMultiLast(appendWithoutConflicts(questions, fresh), input.count);
+      questions = withOneMultiLast(appendWithoutConflicts(questions, fresh, { tableOf }), input.count);
       softKept += again.softKept;
       salvaged.push(...again.salvaged);
       rejected.push(...again.rejected);
@@ -566,7 +607,7 @@ async function runTeacherQuizInner(
         testteki sorularla çakışmaz.
       */
       questions = withOneMultiLast(
-        salvageRejected(rejected, questions, { optionCount: input.optionCount, previousStems }),
+        salvageRejected(rejected, questions, { optionCount: input.optionCount, previousStems, tableOf }),
         input.count,
       );
     }
@@ -575,13 +616,25 @@ async function runTeacherQuizInner(
       // Son çare (istek düşmez, 19 Ekim 2026): kökü doğru şıkkın ifadesini kuran soru, testi hiç vermemekten iyidir.
       const before = questions.length;
       questions = withOneMultiLast(
-        salvageRejected(rejected, questions, { optionCount: input.optionCount, previousStems, lastResort: true }),
+        salvageRejected(rejected, questions, { optionCount: input.optionCount, previousStems, lastResort: true, tableOf }),
         input.count,
       );
       lastResort = questions.length - before;
     }
+    let tableOverflow = 0;
+    if (questions.length < input.count && tableCapped.length) {
+      // İstek düşmez (19 Ekim 2026): ikinci geçiş ve kurtarma sayıyı dolduramadıysa tablo sınırıyla çıkan sorular en son
+      // çare olarak döner; test hiç verilmemekten iyidir. Günlükte `tableOverflow`.
+      const before = questions.length;
+      questions = withOneMultiLast(appendWithoutConflicts(questions, tableCapped), input.count);
+      tableOverflow = questions.length - before;
+    }
     // Akan testte son liste öğrencinin gördüğü sırayla başlar; cevaplar soru numarasıyla notlanıyor (30 Ekim 2026).
     if (published.length) questions = alignToPublished(questions, published, input.count);
+    else questions = coreFirst(questions, core);
+    // Sınav düzeyinde şık dengesi (6 Kasım 2026, Paket 2): soru başına karıştırma (`shuffleOptions`) testin bütününe
+    // bakmıyordu. Gösterilen sorular olduğu gibi kalır, harfleri geçmiş olur.
+    questions = balanceQuizQuestions(questions, Math.min(published.length, questions.length));
     console.info("teacher_quiz", {
       topic: logTopic(input.topicLabel),
       mode: input.mode ?? "document",
@@ -591,6 +644,7 @@ async function runTeacherQuizInner(
       passes,
       repeated,
       lastResort,
+      ...(tableOf ? { tableCapped: tableCapped.length, tableOverflow } : {}),
       urgent: Boolean(input.urgent),
       calls,
       ms: Date.now() - started,

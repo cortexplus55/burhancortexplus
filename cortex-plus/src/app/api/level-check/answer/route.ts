@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse } from "@/lib/api/guards";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { recordResponse } from "@/lib/level-check/store";
+import { decodeOrder, recordResponse } from "@/lib/level-check/store";
 import { LEVEL_TOKEN_TTL_MS, verifyLevelToken } from "@/lib/level-check/token";
 import type { LevelAnswerResponse } from "@/lib/level-check/types";
 import type { Difficulty } from "@/lib/level-check/mastery";
@@ -38,19 +38,26 @@ export async function POST(request: Request) {
     .eq("status", "verified")
     .maybeSingle();
   if (!item) return errorResponse(404, "not_found");
-  const correct = Number(item.answer) === parsed.data.choice;
+  // Gösterilen sıra belirteçte (6 Kasım 2026, Paket 2): seçilen yer özgün şık yerine çevrilir; dönen `answer` ekranın
+  // sırasıyla. Eski belirteçte sıra yok: şıklar yazıldığı sırayla.
+  const order = decodeOrder(claims.ord?.[claims.items.indexOf(parsed.data.itemId)]);
+  if (order && parsed.data.choice >= order.length) return errorResponse(400, "invalid_input");
+  const chosen = order ? order[parsed.data.choice]! : parsed.data.choice;
+  const key = Number(item.answer);
+  const shownAnswer = order ? order.indexOf(key) : key;
+  const correct = key === chosen;
   const persisted = userId
     ? await recordResponse(service, {
         userId,
         item: { ...(item as { id: string; unit_id: string; outcome_id: string; program_id: string }), difficulty: item.difficulty as Difficulty },
         correct,
-        chosen: parsed.data.choice,
+        chosen,
         timeMs: parsed.data.timeMs,
         source: claims.src,
         prepId: claims.prep,
         since: new Date(claims.exp - LEVEL_TOKEN_TTL_MS).toISOString(),
       })
     : false;
-  const payload: LevelAnswerResponse = { correct, answer: Number(item.answer), explanation: String(item.explanation ?? ""), persisted };
+  const payload: LevelAnswerResponse = { correct, answer: shownAnswer < 0 ? key : shownAnswer, explanation: String(item.explanation ?? ""), persisted };
   return NextResponse.json(payload, { headers: { "Cache-Control": "private, no-store" } });
 }

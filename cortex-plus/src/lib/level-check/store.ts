@@ -6,6 +6,7 @@ import { applyResponse, PRIOR, type Difficulty } from "@/lib/level-check/mastery
 import type { PickItem } from "@/lib/level-check/select";
 import type { LevelItem } from "@/lib/level-check/types";
 import type { LevelSource } from "@/lib/level-check/token-types";
+import { applyOrder, poolChoiceOrders, validOrder } from "@/lib/learning/option-balance";
 
 type ItemRow = { id: string; unit_id: string; outcome_id: string; difficulty: Difficulty; stem: string; choices: string[]; qa: { outcome_code?: string } | null };
 
@@ -24,8 +25,43 @@ export async function loadVerifiedItems(service: SupabaseClient, unitIds: string
 
 export const toPick = (r: ItemRow): PickItem => ({ id: r.id, unitId: r.unit_id, outcomeId: r.outcome_id, difficulty: r.difficulty });
 
-/** İstemciye giden soru: kök, şıklar, kazanım; cevap ve açıklama yok. */
-export function toLevelItem(r: ItemRow): LevelItem {
+/**
+ * Oturumun şık sıraları (6 Kasım 2026, Paket 2): havuzda doğru cevap çoğunlukla A ya da B'de. Seçilen soruların yalnız
+ * anahtarı ve açıklaması (sıraya gönderme yapan soru karıştırılmasın diye) sunucuda okunur; istemciye gitmez. Sıra
+ * imzalı belirtece yazılır (`ord`), notlama seçilen yeri oradan özgün yere çevirir. Okuma düşerse null: şıklar
+ * yazıldığı sırayla gider (eski davranış).
+ */
+export async function levelChoiceOrders(service: SupabaseClient, list: readonly ItemRow[], salt: string): Promise<number[][] | null> {
+  if (!list.length) return [];
+  const { data, error } = await service.from("item_bank").select("id, answer, explanation").in("id", list.map((r) => r.id));
+  if (error || !data) return null;
+  const keyOf = new Map((data as { id: string; answer: number; explanation: string | null }[]).map((row) => [row.id, row]));
+  if (list.some((r) => !keyOf.has(r.id))) return null;
+  return poolChoiceOrders(
+    list.map((r) => ({
+      id: r.id,
+      choices: Array.isArray(r.choices) ? r.choices : [],
+      answer: Number(keyOf.get(r.id)!.answer),
+      explanation: keyOf.get(r.id)!.explanation,
+    })),
+    salt,
+  );
+}
+
+/** Belirteçte sıra: her soru için gösterilen yerdeki özgün yerlerin rakamları ("20314"). */
+export function encodeOrder(order: readonly number[]): string {
+  return order.join("");
+}
+
+/** Belirteçteki sıra; bozuk ya da eksikse null (şıklar yazıldığı sırayla sayılır). */
+export function decodeOrder(raw: unknown): number[] | null {
+  if (typeof raw !== "string" || !/^\d{1,10}$/.test(raw)) return null;
+  const order = [...raw].map(Number);
+  return validOrder(order, order.length) ? order : null;
+}
+
+/** İstemciye giden soru: kök, şıklar (oturumun sırasıyla), kazanım; cevap ve açıklama yok. */
+export function toLevelItem(r: ItemRow, order?: readonly number[] | null): LevelItem {
   const unit = poolUnit(r.unit_id);
   const outcome = unit?.outcomes.find((o) => o.outcomeId === r.outcome_id);
   return {
@@ -37,7 +73,7 @@ export function toLevelItem(r: ItemRow): LevelItem {
     outcomeText: outcome?.text ?? "",
     difficulty: r.difficulty,
     stem: r.stem,
-    choices: Array.isArray(r.choices) ? r.choices.map(String) : [],
+    choices: Array.isArray(r.choices) ? (order ? applyOrder(r.choices.map(String), order) : r.choices.map(String)) : [],
   };
 }
 

@@ -14,12 +14,12 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { commitCredits, refundCredits, refusalCode, reserveCredits } from "@/lib/credits/service";
 import { generateExamQuiz } from "@/lib/learning/exam-quiz-generate";
+import { balanceExamDrafts } from "@/lib/learning/option-balance";
 import { loadMergedTopicContext, loadTopicSpanContext } from "@/lib/learning/source-context";
 import { assignExamCoverage, coverageAsk, topicCoveragePoints } from "@/lib/learning/mock-exam/fact-coverage";
 import {
   slotFromTopicRow,
   buildBlueprint,
-  letterBalanceOk,
   parseExamFormatFromText,
   polishMockCopy,
   TOPIC_GENERATE_CONCURRENCY,
@@ -412,6 +412,7 @@ function readDraft(question: MockExamQuestionDraft): DeliveryItem {
     correctAnswers: question.correctAnswers,
     explanation: question.explanation,
     sourceLabel: question.source.label,
+    modelAnswer: question.modelAnswer,
   };
 }
 
@@ -631,11 +632,11 @@ export async function assembleMockExamQuestions(input: {
     }
     return { ok: false, questions: bag.slice(), ...meta };
   }
-  let questions = filled.items.map((question, index) => ({
+  // Şık harfleri kâğıda yazılırken dengelenir (`mockQuestionRows` → `balanceExamDrafts`, 6 Kasım 2026).
+  const questions = filled.items.map((question, index) => ({
     ...question,
     points: filled.slots[index]?.points ?? question.points,
   }));
-  if (!letterBalanceOk(questions)) questions = rotateCorrectOptions(questions);
   const gate = assertDeliverable(filled.slots, questions, readDraft);
   if (!gate.canPublish) {
     const again = publishReady(filled.slots, questions, readDraft);
@@ -688,7 +689,12 @@ export async function persistMockExam(input: {
   return { ok: true, examId: exam.id as string };
 }
 
-export function mockQuestionRows(examId: string, questions: MockExamQuestionDraft[]) {
+/**
+ * Kâğıdın kayıt satırları. Şıklar sınav düzeyinde dengelenir (6 Kasım 2026, Paket 2; önceki `rotateCorrectOptions`
+ * yalnız harf payı %40'ı aşınca bir kaydırma yapıyordu): sıra kayda yazılır, notlama ve inceleme kayıttan okur.
+ */
+export function mockQuestionRows(examId: string, drafts: MockExamQuestionDraft[]) {
+  const questions = balanceExamDrafts(drafts);
   return questions.map((q, sort_order) => ({
     exam_id: examId,
     question_text: q.text,
@@ -1004,25 +1010,6 @@ function sourceLabelFromBlock(block: string, documentName: string | null): strin
 function pageFromLabel(label: string): number | null {
   const m = label.match(/s\.?\s*(\d+)/i);
   return m ? Number(m[1]) : null;
-}
-
-function rotateCorrectOptions(questions: MockExamQuestionDraft[]): MockExamQuestionDraft[] {
-  let shift = 0;
-  return questions.map((q) => {
-    if (q.type !== "mcq" || q.options.length < 2 || q.correctAnswers.length !== 1) return q;
-    const correct = q.correctAnswers[0];
-    const idx = q.options.indexOf(correct);
-    if (idx < 0) return q;
-    const target = (idx + shift) % q.options.length;
-    shift += 1;
-    if (target === idx) return q;
-    const options = [...q.options];
-    [options[idx], options[target]] = [options[target], options[idx]];
-    // Şık gerekçesi şıkla birlikte yer değiştirir; yoksa açıklama başka şıkkın altına düşer.
-    const optionWhy = [...q.optionWhy];
-    if (optionWhy.length === q.options.length) [optionWhy[idx], optionWhy[target]] = [optionWhy[target], optionWhy[idx]];
-    return { ...q, options, optionWhy, correctAnswers: [options[target]] };
-  });
 }
 
 function fold(s: string) {

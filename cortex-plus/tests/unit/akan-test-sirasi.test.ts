@@ -53,7 +53,7 @@ describe("akan testte cevap ile soru aynı numarada", () => {
 
   it("test motoru gönderilenleri kaydeder ve son listeyi hizalar", () => {
     const run = readFileSync("src/lib/learning/teacher-quiz-run.ts", "utf8");
-    expect(run).toContain("published.push(question);");
+    expect(run).toContain("published.push(balanceQuizQuestions([...published, question], published.length)");
     expect(run).toContain("if (published.length) questions = alignToPublished(questions, published, input.count);");
   });
 });

@@ -41,6 +41,7 @@ import {
 import { parseModelJson } from "@/lib/learning/teaching-standards";
 import { billedModel, fastTier } from "@/lib/learning/teacher-tier";
 import { QUIZ_FIX_DEADLINE_MS, teacherQuizLoop } from "@/lib/learning/teacher-quiz-run";
+import { balanceQuizQuestions } from "@/lib/learning/option-balance";
 import { usesScriptWriter } from "@/lib/learning/podcast-script-writer";
 import {
   changedPodcastLines,
@@ -350,7 +351,8 @@ export async function podcastListeningCheck(
       },
       loopClock,
     );
-    const questions = loop.questions.slice(0, PODCAST_CHECK_COUNT);
+    // Dinleme kontrolünde de şık harfleri testin bütününde dengelenir (6 Kasım 2026, Paket 2).
+    const questions = balanceQuizQuestions(loop.questions.slice(0, PODCAST_CHECK_COUNT));
     console.info("teacher_podcast_check", {
       topic: logTopic(input.topicLabel),
       kept: questions.length,
