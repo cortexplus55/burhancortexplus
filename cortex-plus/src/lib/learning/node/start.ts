@@ -24,7 +24,7 @@ import { adaptiveFocusTopic } from "@/lib/learning/path-change";
 import { PREP_WIDE_TARGET_KINDS } from "@/lib/learning/prep-wide-target";
 import { retargetNodeTopic } from "@/lib/learning/prep-wide-target-server";
 import { attemptStartResponse, findAttemptByClientRequest, findResumableAttempt } from "@/lib/learning/attempt-lifecycle-persist";
-import { actionForKind, afterResponse, readWalletBalance } from "@/lib/learning/node/shared";
+import { actionForKind, afterResponse, onNodeFailure, readWalletBalance } from "@/lib/learning/node/shared";
 import { publicPayloadForUser } from "@/lib/learning/node/payload";
 import type { NodeContext } from "./context";
 import { openLocalSession } from "@/lib/learning/node/local-session";
@@ -111,7 +111,7 @@ export async function startAction(context: NodeContext): Promise<NextResponse> {
         prepId,
         afterSortOrder: node.sort_order as number,
         topicId,
-      }).catch(() => undefined);
+      }).catch(onNodeFailure("node_quiz_prefetch_refresh_failed", { nodeId, topicId }));
       await requestBlockPracticePrefetch(service, {
         origin: options.origin,
         userId,

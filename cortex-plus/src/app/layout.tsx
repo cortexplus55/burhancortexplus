@@ -1,8 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Caveat, Figtree, Geist, Geist_Mono, JetBrains_Mono, Jersey_10 } from "next/font/google";
 import "./globals.css";
-// Model çıktısındaki LaTeX her yüzeyde render edilebilsin diye kök seviyede.
-import "katex/dist/katex.min.css";
+// KaTeX biçimi kök düzende değil (6 Kasım 2026): formül çizen bileşenler kendisi alır (`math-text.ts`,
+// `MathText`, `RichBody`, `Markdown`, `ExamLessonBody*`, video tahtası); pazarlama sayfaları yüklemez.
 // Premium tasarım sistemi (sınıflar; token kaynağı tokens.css).
 import "@/styles/premium-design-system.css";
 import { Providers } from "@/components/providers";

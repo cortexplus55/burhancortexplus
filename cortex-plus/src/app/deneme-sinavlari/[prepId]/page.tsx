@@ -106,6 +106,13 @@ async function loadTopicWarnings(
   return warnings;
 }
 
+/** Ana select'in sütunları (göçten önce de var olanlar). */
+const PREP_COLUMNS =
+  "id, title, exam_type, study_plan_id, exam_date, created_at, active_topic_id, intro_completed_at, intro_deferred_at, schedule_v2, learning_tracking, target_score, daily_minutes, study_days, hard_topics_self, learning_preferences";
+
+type PrepSourceRow = { document_id?: string | null; source_document_ids?: unknown } | null;
+type PrepShareRow = { visibility?: string | null; view_count?: number | null; forked_from?: string | null } | null;
+
 export default async function ExamPrepDetailPage({
   params,
   searchParams,
@@ -117,19 +124,60 @@ export default async function ExamPrepDetailPage({
   // Kilitli adımın adresi açıldıysa o adım seçili gelir (düğüm sayfası buraya yönlendirir).
   const { kilitli } = await searchParams;
   const { supabase, user } = await requireStudentArea();
-  const shell = await loadParityShellProps(supabase, user.id, user.email);
   const service = createServiceClient();
-  const trackingV2 = await isFeatureEnabled(service, PDF_LEARNING_V2_FLAG);
 
-  const { data: prep } = await supabase
-    .from("exam_preps")
-    .select(
-      "id, title, exam_type, study_plan_id, exam_date, created_at, active_topic_id, intro_completed_at, intro_deferred_at, schedule_v2, learning_tracking, target_score, daily_minutes, study_days, hard_topics_self, learning_preferences",
-    )
-    .eq("id", prepId)
-    .eq("user_id", user.id)
-    .maybeSingle();
+  // Dalga 1 (6 Kasım 2026, hız paketi): kabuk, anahtar, hazırlık ve profil birbirini beklemez.
+  // Hazırlık tek select'le okunur: kaynak belge (document_id, source_document_ids) ve paylaşım
+  // (visibility, view_count, forked_from) sütunları canlıda var. Birleşik okuma hata verirse
+  // (sütun yok: göçten önceki veritabanı) eski üç okumaya düşülür: önce ana select, sonra kaynak
+  // (yoksa yalnız document_id) ve paylaşım ayrı ayrı; eksik sütun sayfayı 404'e düşürmez.
+  const [shell, trackingV2, mergedPrep, { data: profile }] = await Promise.all([
+    loadParityShellProps(supabase, user.id, user.email),
+    isFeatureEnabled(service, PDF_LEARNING_V2_FLAG),
+    supabase
+      .from("exam_preps")
+      .select(
+        "id, title, exam_type, study_plan_id, exam_date, created_at, active_topic_id, intro_completed_at, intro_deferred_at, schedule_v2, learning_tracking, target_score, daily_minutes, study_days, hard_topics_self, learning_preferences, document_id, source_document_ids, visibility, view_count, forked_from",
+      )
+      .eq("id", prepId)
+      .eq("user_id", user.id)
+      .maybeSingle(),
+    supabase.from("profiles").select("school_id, school_name").eq("id", user.id).maybeSingle(),
+  ]);
 
+  let prepRead = mergedPrep.data;
+  let prepSource: PrepSourceRow = mergedPrep.data;
+  let shareRow: PrepShareRow = mergedPrep.data;
+  if (mergedPrep.error) {
+    const { data: basePrep } = await supabase
+      .from("exam_preps")
+      .select(PREP_COLUMNS)
+      .eq("id", prepId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    // Ek sütunlar yalnız kaynak/paylaşım okumalarından gelir; hazırlık nesnesinde boş durur.
+    prepRead = basePrep
+      ? { ...basePrep, document_id: null, source_document_ids: null, visibility: null, view_count: null, forked_from: null }
+      : null;
+    if (basePrep) {
+      const [richSource, shareRead] = await Promise.all([
+        supabase.from("exam_preps").select("document_id, source_document_ids").eq("id", prepId).maybeSingle(),
+        supabase.from("exam_preps").select("visibility, view_count, forked_from").eq("id", prepId).maybeSingle(),
+      ]);
+      prepSource = richSource.error
+        ? (
+            await supabase
+              .from("exam_preps")
+              .select("document_id")
+              .eq("id", prepId)
+              .maybeSingle()
+          ).data
+        : richSource.data;
+      shareRow = shareRead.data;
+    }
+  }
+
+  const prep = prepRead;
   if (!prep) notFound();
 
   // "Sıradaki" hazır değilse arka planda yazılır (18 Ekim 2026, ürün sahibinin kararı): öğrenci
@@ -143,41 +191,100 @@ export default async function ExamPrepDetailPage({
   // Soğuk bellek (5 Kasım 2026): bu hazırlığın gömmeleri tahliye edildiyse arka planda yeniden indekslenir (yalnız gömme çağrısı).
   after(() => reindexEvictedForPrep(service, prepId, embedTexts).catch(() => 0));
 
-  // Hazırlığın kurulduğu belge. document_id ana select'te değil: kolon
-  // migration ile geldi ve ana select'e eklenseydi kod migration'dan önce
-  // dağıtıldığında sayfa 404 verirdi. source_document_ids aynı sebeple
-  // ayrı okunur; kolon yoksa tek belgeye düşülür.
-  const richSource = await supabase
-    .from("exam_preps")
-    .select("document_id, source_document_ids")
-    .eq("id", prepId)
-    .maybeSingle();
-  const prepSource = richSource.error
-    ? (
-        await supabase
-          .from("exam_preps")
-          .select("document_id")
-          .eq("id", prepId)
-          .maybeSingle()
-      ).data
-    : richSource.data;
-  const rawSourceIds = (prepSource as { source_document_ids?: unknown } | null)
-    ?.source_document_ids;
+  const rawSourceIds = prepSource?.source_document_ids;
   const sourceIds = prepSourceDocumentIds({
     documentId: (prepSource?.document_id as string | null) ?? null,
     sourceDocumentIds: Array.isArray(rawSourceIds)
       ? rawSourceIds.filter((id): id is string => typeof id === "string")
       : [],
   });
-  const { data: sourceRows } = sourceIds.length
-    ? await supabase
-        .from("documents")
-        // `*`: hızlı başlatmanın part_of sütunu göçten önce de okunur.
-        .select("*")
-        .in("id", sourceIds)
-        .eq("user_id", user.id)
-        .is("deleted_at", null)
-    : { data: [] as { id: string; file_name: string; mime_type: string | null; page_count: number | null }[] };
+  const forkedFrom = shareRow?.forked_from ?? null;
+
+  // Dalga 2: hazırlığa bağlı okumalar aynı anda. Yol düğümlerinin yazımı (ensure*) kendi sırasıyla ve
+  // sunucu anahtarıyla (6 Kasım 2026): öğrenci rolünün yol tablolarına yazma izni kapandı. Hazırlık
+  // yukarıda sahibine göre okundu. Düğüm okuması yazımdan sonra.
+  const [
+    { data: sourceRows },
+    creatorLabel,
+    prepTopics,
+    { data: nodeRows },
+    skipKinds,
+    { data: masteryRows },
+    openCount,
+    [{ data: attemptRows }, { data: gapRows }, { data: openMissRows }],
+    topicWarnings,
+  ] = await Promise.all([
+    sourceIds.length
+      ? supabase
+          .from("documents")
+          // `*`: hızlı başlatmanın part_of sütunu göçten önce de okunur.
+          .select("*")
+          .in("id", sourceIds)
+          .eq("user_id", user.id)
+          .is("deleted_at", null)
+      : Promise.resolve({ data: [] as { id: string; file_name: string; mime_type: string | null; page_count: number | null }[] }),
+    // Okuldan katılınan hazırlıkta "Oluşturan" asıl sahibin ilk adı. Başkasının
+    // profili RLS'e takıldığı için servis anahtarıyla, yalnız ad okunur.
+    (async () => {
+      if (!forkedFrom) return "Sen";
+      const { data: source } = await service.from("exam_preps").select("user_id").eq("id", forkedFrom).maybeSingle();
+      const { data: owner } = source?.user_id
+        ? await service.from("profiles").select("full_name").eq("id", source.user_id as string).maybeSingle()
+        : { data: null };
+      return String(owner?.full_name ?? "").trim().split(/\s+/)[0] || "Okul arkadaşın";
+    })(),
+    loadOrBackfillTopics(supabase, prep.id, prep.study_plan_id),
+    (async () => {
+      await ensurePrepNodes(service, prep);
+      await ensurePathSkeletonNodes(service, prep.id);
+      return supabase
+        .from("exam_prep_nodes")
+        .select("id, kind, title, day_index, sort_order, status, session_meta")
+        .eq("exam_prep_id", prepId)
+        .order("sort_order");
+    })(),
+    pathSkipKinds(service, user.id),
+    trackingV2
+      ? supabase
+          .from("exam_prep_topic_mastery")
+          .select(
+            "topic_key, measured_level, confidence, evidence_count, first_attempt_correct, first_attempt_total, independent_correct, independent_total, last_practiced_at",
+          )
+          .eq("exam_prep_id", prepId)
+      : Promise.resolve({ data: null }),
+    // Yalnız çözülmemiş yanılgılar (20 Ekim 2026); sütun yoksa hepsi açık sayılır.
+    trackingV2 ? countOpenMisconceptions(supabase, { prepId }) : Promise.resolve(0),
+    // İlerleme sekmesi (kıyas ürünü düzeni): haftalık tablo, tempo, denemeler ve
+    // bilgi eksikleri gerçek kayıtlardan. Tahmin uydurulmuyor; kayıt yoksa
+    // bölüm "ilk derslerinden sonra görünür" diyor.
+    Promise.all([
+      supabase
+        .from("exam_prep_node_attempts")
+        .select("node_id, score, total, created_at, payload, topic_id")
+        .eq("exam_prep_id", prepId)
+        .eq("status", "completed")
+        .order("created_at", { ascending: false })
+        .limit(500),
+      withOpenMisconceptions((onlyOpen) => {
+        const query = supabase
+          .from("exam_prep_misconceptions")
+          .select("claim, topic_label, question_preview, source_kind")
+          .eq("exam_prep_id", prepId);
+        return (onlyOpen ? query.is("resolved_at", null) : query)
+          .order("created_at", { ascending: false })
+          .limit(5);
+      }),
+      // Final adımlarının konusu için açık yanlışların konusu (Paket I #8, `finalStepTopic`).
+      trackingV2
+        ? withOpenMisconceptions((onlyOpen) => {
+            const query = supabase.from("exam_prep_misconceptions").select("topic_label").eq("exam_prep_id", prepId);
+            return (onlyOpen ? query.is("resolved_at", null) : query).limit(300);
+          })
+        : Promise.resolve({ data: [] as { topic_label: string | null }[] }),
+    ]),
+    loadTopicWarnings(supabase, prepId),
+  ]);
+
   const sourceById = new Map((sourceRows ?? []).map((row) => [row.id as string, row]));
   const parentOf = (row: unknown) =>
     typeof (row as { part_of?: unknown }).part_of === "string" ? (row as { part_of: string }).part_of : null;
@@ -215,35 +322,7 @@ export default async function ExamPrepDetailPage({
       ? { id: materials[0].id, file_name: materials[0].name }
       : null;
 
-  // Paylaşım kolonları migration ile geliyor; yoksa düğme gizli kalır.
-  const [{ data: profile }, { data: shareRow }] = await Promise.all([
-    supabase.from("profiles").select("school_id, school_name").eq("id", user.id).maybeSingle(),
-    supabase.from("exam_preps").select("visibility, view_count, forked_from").eq("id", prepId).maybeSingle(),
-  ]);
-  // Okuldan katılınan hazırlıkta "Oluşturan" asıl sahibin ilk adı. Başkasının
-  // profili RLS'e takıldığı için servis anahtarıyla, yalnız ad okunur.
-  let creatorLabel = "Sen";
-  const forkedFrom = (shareRow as { forked_from?: string | null } | null)?.forked_from ?? null;
-  if (forkedFrom) {
-    const { data: source } = await service.from("exam_preps").select("user_id").eq("id", forkedFrom).maybeSingle();
-    const { data: owner } = source?.user_id
-      ? await service.from("profiles").select("full_name").eq("id", source.user_id as string).maybeSingle()
-      : { data: null };
-    creatorLabel = String(owner?.full_name ?? "").trim().split(/\s+/)[0] || "Okul arkadaşın";
-  }
-
-  const prepTopics = await loadOrBackfillTopics(supabase, prep.id, prep.study_plan_id);
   const topicsMeter = topicProgress(prepTopics);
-  // Yol adımlarını tamamlayan yazımlar sunucu anahtarıyla (6 Kasım 2026): öğrenci rolünün yol
-  // tablolarına yazma izni kapandı. Hazırlık yukarıda sahibine göre okundu.
-  await ensurePrepNodes(service, prep);
-  await ensurePathSkeletonNodes(service, prep.id);
-
-  const { data: nodeRows } = await supabase
-    .from("exam_prep_nodes")
-    .select("id, kind, title, day_index, sort_order, status, session_meta")
-    .eq("exam_prep_id", prepId)
-    .order("sort_order");
 
   const nodeList = (nodeRows ?? []).map((row) => ({
     id: row.id as string,
@@ -269,32 +348,64 @@ export default async function ExamPrepDetailPage({
 
   // Ücretsiz hesapta Plus'a özel adım "Sıradaki" olmaz: açamaz (24 Ekim 2026, `pathSkipKinds`). Düzeltmeden
   // önce Plus adımında takılmış yol bir kez açılır (`freePathUnblockIds`, tamamlama fonksiyonunun kuralı).
-  const skipKinds = await pathSkipKinds(service, user.id);
   const unblock = freePathUnblockIds(nodeList, skipKinds);
-  if (unblock.length) {
-    const { error: unblockError } = await service
-      .from("exam_prep_nodes")
-      .update({ status: "ready" })
-      .eq("exam_prep_id", prep.id)
-      .eq("status", "locked")
-      .in("id", unblock);
-    if (unblockError) console.warn("free_path_unblock_failed", { code: unblockError.code });
-  }
   const opened = new Set(unblock);
   const nodes = nodeList.map((node) =>
     opened.has(node.id) && node.status === "locked" ? { ...node, status: "ready" as const } : node,
   );
-  // Tamamlama tek işlevden (Paket I #7, prep-metrics.ts): "Hazırsın" karar ekranı adım sayılmaz.
-  const progress = pathCompletion(nodes);
-  let ready = nodes.find((node) => node.status === "ready" && !skipKinds.has(node.kind));
   // kıyas ürünü: yeni hazırlıkta "Devam et" ilk dersi doğrudan açar (3 Ekim 2026).
   // Eskiden önce "Konu seç", sonra zorunlu 8 soruluk tanı geliyordu. Etkin
   // konu yoksa ilk konu etkin olur; tanı yolun başında isteğe bağlı düğümdür.
   let activeTopicId = (prep.active_topic_id as string | null) ?? null;
-  if (!activeTopicId && prepTopics.length) {
-    activeTopicId = prepTopics[0].id;
-    await service.from("exam_preps").update({ active_topic_id: activeTopicId }).eq("id", prep.id).eq("user_id", user.id);
-  }
+  const needsActiveTopic = !activeTopicId && prepTopics.length > 0;
+  if (needsActiveTopic) activeTopicId = prepTopics[0].id;
+
+  // Etkin konunun adı konu listesinden (ayrı okuma yok); listede yoksa (eski kayıt) bir kez okunur.
+  const listedActiveTopic = activeTopicId ? prepTopics.find((topic) => topic.id === activeTopicId) : undefined;
+  // Deneme puanı ilerleme kayıtlarından: adımın en son tamamlanan kaydı (kayıtlar yeniden eskiye sıralı).
+  const mockNode = trackingV2 ? nodes.find((n) => n.kind === "written_exam" && n.status === "done") : undefined;
+  const listedMockAttempt = mockNode ? (attemptRows ?? []).find((row) => row.node_id === mockNode.id) : undefined;
+
+  // Dalga 3: yazımlar ve (gerekirse) yedek okumalar aynı anda.
+  const [, , activeTopicRead, mockAttempt] = await Promise.all([
+    unblock.length
+      ? service
+          .from("exam_prep_nodes")
+          .update({ status: "ready" })
+          .eq("exam_prep_id", prep.id)
+          .eq("status", "locked")
+          .in("id", unblock)
+          .then(({ error: unblockError }) => {
+            if (unblockError) console.warn("free_path_unblock_failed", { code: unblockError.code });
+          })
+      : Promise.resolve(),
+    needsActiveTopic
+      ? service.from("exam_preps").update({ active_topic_id: activeTopicId }).eq("id", prep.id).eq("user_id", user.id)
+      : Promise.resolve(),
+    activeTopicId && !listedActiveTopic
+      ? supabase
+          .from("exam_prep_topics")
+          .select("label")
+          .eq("id", activeTopicId)
+          .maybeSingle()
+          .then(({ data }) => data as { label?: string | null } | null)
+      : Promise.resolve(null),
+    mockNode && !listedMockAttempt
+      ? supabase
+          .from("exam_prep_node_attempts")
+          .select("score, total")
+          .eq("node_id", mockNode.id)
+          .eq("status", "completed")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle()
+          .then(({ data }) => data as { score?: number | null; total?: number | null } | null)
+      : Promise.resolve(listedMockAttempt ?? null),
+  ]);
+
+  // Tamamlama tek işlevden (Paket I #7, prep-metrics.ts): "Hazırsın" karar ekranı adım sayılmaz.
+  const progress = pathCompletion(nodes);
+  let ready = nodes.find((node) => node.status === "ready" && !skipKinds.has(node.kind));
   const hasTopic = Boolean(activeTopicId);
   const needsIntro = false;
 
@@ -305,20 +416,6 @@ export default async function ExamPrepDetailPage({
   let openMisconceptionsKnown = true;
 
   if (trackingV2) {
-    const { data: masteryRows } = await supabase
-      .from("exam_prep_topic_mastery")
-      .select(
-        "topic_key, measured_level, confidence, evidence_count, first_attempt_correct, first_attempt_total, independent_correct, independent_total, last_practiced_at",
-      )
-      .eq("exam_prep_id", prepId);
-
-    const { data: topicRows } = await supabase
-      .from("exam_prep_topics")
-      .select("label")
-      .eq("exam_prep_id", prepId);
-
-    // Yalnız çözülmemiş yanılgılar (20 Ekim 2026); sütun yoksa hepsi açık sayılır.
-    const openCount = await countOpenMisconceptions(supabase, { prepId });
     openMisconceptions = openCount ?? 0;
     openMisconceptionsKnown = openCount != null;
 
@@ -336,26 +433,16 @@ export default async function ExamPrepDetailPage({
     }));
     const topics = masterySnapshots;
 
-    const plannedTopicKeys = (topicRows ?? [])
+    // Planlanan konular konu listesinden (ayrı exam_prep_topics okuması yok).
+    const plannedTopicKeys = prepTopics
       .map((t) => String(t.label ?? "").trim())
       .filter(Boolean);
 
-    const mockNode = nodes.find((n) => n.kind === "written_exam" && n.status === "done");
     let mockScorePct: number | null = null;
-    if (mockNode) {
-      const { data: mockAttempt } = await supabase
-        .from("exam_prep_node_attempts")
-        .select("score, total")
-        .eq("node_id", mockNode.id)
-        .eq("status", "completed")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (mockAttempt?.total) {
-        mockScorePct = Math.round(
-          (Number(mockAttempt.score ?? 0) / Number(mockAttempt.total)) * 100,
-        );
-      }
+    if (mockAttempt?.total) {
+      mockScorePct = Math.round(
+        (Number(mockAttempt.score ?? 0) / Number(mockAttempt.total)) * 100,
+      );
     }
 
     const indicators = buildLearningIndicators({
@@ -392,34 +479,6 @@ export default async function ExamPrepDetailPage({
     if (biased) ready = biased;
   }
 
-  // İlerleme sekmesi (kıyas ürünü düzeni): haftalık tablo, tempo, denemeler ve
-  // bilgi eksikleri gerçek kayıtlardan. Tahmin uydurulmuyor; kayıt yoksa
-  // bölüm "ilk derslerinden sonra görünür" diyor.
-  const [{ data: attemptRows }, { data: gapRows }, { data: openMissRows }] = await Promise.all([
-    supabase
-      .from("exam_prep_node_attempts")
-      .select("node_id, score, total, created_at, payload, topic_id")
-      .eq("exam_prep_id", prepId)
-      .eq("status", "completed")
-      .order("created_at", { ascending: false })
-      .limit(500),
-    withOpenMisconceptions((onlyOpen) => {
-      const query = supabase
-        .from("exam_prep_misconceptions")
-        .select("claim, topic_label, question_preview, source_kind")
-        .eq("exam_prep_id", prepId);
-      return (onlyOpen ? query.is("resolved_at", null) : query)
-        .order("created_at", { ascending: false })
-        .limit(5);
-    }),
-    // Final adımlarının konusu için açık yanlışların konusu (Paket I #8, `finalStepTopic`).
-    trackingV2
-      ? withOpenMisconceptions((onlyOpen) => {
-          const query = supabase.from("exam_prep_misconceptions").select("topic_label").eq("exam_prep_id", prepId);
-          return (onlyOpen ? query.is("resolved_at", null) : query).limit(300);
-        })
-      : Promise.resolve({ data: [] as { topic_label: string | null }[] }),
-  ]);
   // kıyas ürünü yolun üstünde son biten etkinliği yüzdesiyle gösteriyor ("30% · PODCAST · Sonuçları gör").
   const lastAttempt = (attemptRows ?? []).find((row) => typeof row.node_id === "string");
   const lastResult = lastAttempt
@@ -537,34 +596,6 @@ export default async function ExamPrepDetailPage({
       })
     : nodes;
 
-  // Beklemesiz kilit (Paket J takip #1): ücretsiz hesapta kilitli adım yolda 🔒 rozeti taşır, tıklayınca kart anında
-  // açılır. Karar adım sayfası ve başlatma isteğiyle aynı kuraldan (`freeTopicLocks`); okuma düşerse kilit yok.
-  const firstTopicLocks = await freeTopicLocks(service, {
-    userId: user.id,
-    prepId,
-    nodes: nodes
-      .filter((node) => node.status !== "done")
-      .map((node) => ({
-        id: node.id,
-        kind: node.kind,
-        sessionMeta: node.sessionMeta ?? null,
-        topicLabel: String((node.sessionMeta as { topicTitle?: string } | undefined)?.topicTitle ?? "") || String(prep.title ?? "") || "konu",
-      })),
-  }).catch(() => null);
-  const lockedIds = new Set(firstTopicLocks?.lockedIds ?? []);
-  // Anında havuz dersi (3 Kasım 2026): sıradaki açık ders düğümünün havuzdaki ilk ekranı; kilitli konuya önizleme yok.
-  const previewNode = ready && ready.kind === "lesson" && !lockedIds.has(ready.id) ? ready : null;
-  const previewTopic = previewNode
-    ? String((previewNode.sessionMeta as { topicTitle?: string } | undefined)?.topicTitle ?? "").trim()
-    : "";
-  // Konusu düğümde yazılı değilse (açılışta etkin konuya bağlanır) önizleme yok; yanlış konu metni gösterilmez.
-  const lessonPreview = previewNode && previewTopic
-    ? await poolLessonPreview(service, { prefs: prep.learning_preferences, topicLabel: previewTopic, title: previewNode.title ?? previewTopic }).catch(() => null)
-    : null;
-  const pathNodes = lockedIds.size
-    ? homeNodes.map((node) => (lockedIds.has(node.id) ? { ...node, planLocked: true } : node))
-    : homeNodes;
-
   const startHref = !hasTopic
     ? examPrepTopicHref(prepId)
     : needsIntro
@@ -573,15 +604,10 @@ export default async function ExamPrepDetailPage({
         ? examPrepNodeHref(prepId, ready.id)
         : examPrepHomeHref(prepId);
 
-  let topicLabel: string | null = null;
-  if (activeTopicId) {
-    const { data: topic } = await supabase
-      .from("exam_prep_topics")
-      .select("label")
-      .eq("id", activeTopicId)
-      .maybeSingle();
-    topicLabel = topic?.label ?? null;
-  }
+  // Etkin konunun adı konu listesinden; listede yoksa dalga 3'teki tek okumadan.
+  const topicLabel: string | null = activeTopicId
+    ? (listedActiveTopic?.label ?? activeTopicRead?.label ?? null)
+    : null;
 
   const scheduleV2 =
     prep.schedule_v2 && typeof prep.schedule_v2 === "object"
@@ -592,13 +618,6 @@ export default async function ExamPrepDetailPage({
         })
       : null;
 
-  const { data: allTopics } = trackingV2
-    ? await supabase
-        .from("exam_prep_topics")
-        .select("label")
-        .eq("exam_prep_id", prepId)
-    : { data: [] as { label: string }[] };
-
   const settings = trackingV2
     ? {
         examDate: (prep.exam_date as string | null) ?? null,
@@ -607,7 +626,8 @@ export default async function ExamPrepDetailPage({
         hardTopics: Array.isArray(prep.hard_topics_self)
           ? (prep.hard_topics_self as string[])
           : [],
-        topicOptions: (allTopics ?? [])
+        // Konu seçenekleri konu listesinden (ayrı exam_prep_topics okuması yok).
+        topicOptions: prepTopics
           .map((t) => String(t.label ?? "").trim())
           .filter(Boolean),
         preferences: parseLearningPreferences(prep.learning_preferences),
@@ -628,10 +648,69 @@ export default async function ExamPrepDetailPage({
   const examPassed = examDatePassed(prep.exam_date as string | null, resultToday);
   // Kaydedilmiş notun başlangıcı boşsa (eski kural ya da sonradan gelen kayıt) okurken yeniden hesaplanır (Paket J takip #2).
   const storedResult = resultPrefs.examResult;
-  const lateBaseline =
-    examPassed && storedResult && storedResult.baselinePct == null
-      ? await loadExamBaseline(service, { prepId: prep.id as string, userId: user.id })
-      : null;
+
+  // Dalga 4: kilit + havuz önizlemesi, sınav sonrası başlangıç, ünite kontrolü, hakimiyet haritası ve kamp kartı
+  // birbirini beklemez (kilit, dalga 3'teki yol açma yazımından sonra okunur).
+  const [{ firstTopicLocks, lockedIds, previewNode, lessonPreview }, lateBaseline, unitCheck, { mapUnits, prepNet }, camp] =
+    await Promise.all([
+      (async () => {
+        // Beklemesiz kilit (Paket J takip #1): ücretsiz hesapta kilitli adım yolda 🔒 rozeti taşır, tıklayınca kart anında
+        // açılır. Karar adım sayfası ve başlatma isteğiyle aynı kuraldan (`freeTopicLocks`); okuma düşerse kilit yok.
+        const firstTopicLocks = await freeTopicLocks(service, {
+          userId: user.id,
+          prepId,
+          nodes: nodes
+            .filter((node) => node.status !== "done")
+            .map((node) => ({
+              id: node.id,
+              kind: node.kind,
+              sessionMeta: node.sessionMeta ?? null,
+              topicLabel: String((node.sessionMeta as { topicTitle?: string } | undefined)?.topicTitle ?? "") || String(prep.title ?? "") || "konu",
+            })),
+        }).catch(() => null);
+        const lockedIds = new Set(firstTopicLocks?.lockedIds ?? []);
+        // Anında havuz dersi (3 Kasım 2026): sıradaki açık ders düğümünün havuzdaki ilk ekranı; kilitli konuya önizleme yok.
+        const previewNode = ready && ready.kind === "lesson" && !lockedIds.has(ready.id) ? ready : null;
+        const previewTopic = previewNode
+          ? String((previewNode.sessionMeta as { topicTitle?: string } | undefined)?.topicTitle ?? "").trim()
+          : "";
+        // Konusu düğümde yazılı değilse (açılışta etkin konuya bağlanır) önizleme yok; yanlış konu metni gösterilmez.
+        const lessonPreview = previewNode && previewTopic
+          ? await poolLessonPreview(service, { prefs: prep.learning_preferences, topicLabel: previewTopic, title: previewNode.title ?? previewTopic }).catch(() => null)
+          : null;
+        return { firstTopicLocks, lockedIds, previewNode, lessonPreview };
+      })(),
+      examPassed && storedResult && storedResult.baselinePct == null
+        ? loadExamBaseline(service, { prepId: prep.id as string, userId: user.id })
+        : Promise.resolve(null),
+      // Plan PR 3: etkin ünite için Ünite Seviye Kontrolü (havuzda ≥3 doğrulanmış soru varsa; tablolar yoksa gösterilmez).
+      unitCheckOffer(service, {
+        userId: user.id,
+        prepId: prep.id as string,
+        prefs: prep.learning_preferences,
+        topicLabel,
+      }),
+      // Plan PR 4: resmî kurulumdan hazırlıkta Hakimiyet Haritası + Kişisel Program (tablolar yoksa gösterilmez).
+      (async () => {
+        const mapUnits = await loadMapInputs(service, { userId: user.id, prefs: prep.learning_preferences });
+        const prepNet = mapUnits?.length
+          ? await prepNetEstimate(service, { userId: user.id, prepId: prep.id as string, prefs: prep.learning_preferences, mapUnits })
+          : null;
+        return { mapUnits, prepNet };
+      })(),
+      // Paket 5: sınava ≤ 7 gün — ücretsiz hesapta mevcut Plus Haftalık'a sakin yönlendirme (Plus'ta gizli).
+      prep.exam_date && !examPassed
+        ? Promise.all([getUserEntitlements(service, user.id), loadPlusPrices(service)])
+            .then(([ent, prices]) =>
+              campOffer({ daysLeft: daysUntilExam(prep.exam_date as string), examPassed, showsUpgradeChrome: ent.showsUpgradeChrome, weeklyKurus: prices.plusWeekly }),
+            )
+            .catch(() => null)
+        : Promise.resolve(null),
+    ]);
+  const pathNodes = lockedIds.size
+    ? homeNodes.map((node) => (lockedIds.has(node.id) ? { ...node, planLocked: true } : node))
+    : homeNodes;
+
   const examResultView = examPassed
     ? {
         prepId: prep.id as string,
@@ -650,29 +729,6 @@ export default async function ExamPrepDetailPage({
           : null,
         landingUrl: `${appOrigin()}/`,
       }
-    : null;
-
-  // Plan PR 3: etkin ünite için Ünite Seviye Kontrolü (havuzda ≥3 doğrulanmış soru varsa; tablolar yoksa gösterilmez).
-  const unitCheck = await unitCheckOffer(service, {
-    userId: user.id,
-    prepId: prep.id as string,
-    prefs: prep.learning_preferences,
-    topicLabel,
-  });
-
-  // Plan PR 4: resmî kurulumdan hazırlıkta Hakimiyet Haritası + Kişisel Program (tablolar yoksa gösterilmez).
-  const mapUnits = await loadMapInputs(service, { userId: user.id, prefs: prep.learning_preferences });
-  const prepNet = mapUnits?.length
-    ? await prepNetEstimate(service, { userId: user.id, prepId: prep.id as string, prefs: prep.learning_preferences, mapUnits })
-    : null;
-
-  // Paket 5: sınava ≤ 7 gün — ücretsiz hesapta mevcut Plus Haftalık'a sakin yönlendirme (Plus'ta gizli).
-  const camp = prep.exam_date && !examPassed
-    ? await Promise.all([getUserEntitlements(service, user.id), loadPlusPrices(service)])
-        .then(([ent, prices]) =>
-          campOffer({ daysLeft: daysUntilExam(prep.exam_date as string), examPassed, showsUpgradeChrome: ent.showsUpgradeChrome, weeklyKurus: prices.plusWeekly }),
-        )
-        .catch(() => null)
     : null;
 
   return (
@@ -744,7 +800,7 @@ export default async function ExamPrepDetailPage({
           .map((topic) => ({ id: topic.id, label: topic.label, documentTopicNodeId: topic.documentTopicNodeId ?? null }))}
         materials={materials}
         readinessClaim={learningTrackingView?.claimFullyReady ?? null}
-        topicWarnings={await loadTopicWarnings(supabase, prepId)}
+        topicWarnings={topicWarnings}
         progressView={progressView}
         targetScore={typeof prep.target_score === "number" ? prep.target_score : null}
         creatorLabel={creatorLabel}

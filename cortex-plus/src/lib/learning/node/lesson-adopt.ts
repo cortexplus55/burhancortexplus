@@ -12,7 +12,7 @@ import { prepLanguage } from "@/lib/learning/teacher-brain";
 import { creditIdempotencyKeyForStart } from "@/lib/learning/attempt-lifecycle";
 import { fastAllowedFor } from "@/lib/learning/fast-access";
 import { attemptStartResponse, upsertGenerationJob } from "@/lib/learning/attempt-lifecycle-persist";
-import { actionForKind, readWalletBalance } from "@/lib/learning/node/shared";
+import { actionForKind, onNodeFailure, readWalletBalance } from "@/lib/learning/node/shared";
 import { saveTopicLesson } from "@/lib/learning/node/lesson-store";
 import { publicPayloadForUser } from "@/lib/learning/node/payload";
 import type { NodeContext } from "./context";
@@ -76,7 +76,9 @@ export async function adoptBuildingLesson(context: NodeContext, state: Pick<Star
         )
         .single();
       if (adoptError || !adoptedRow) {
-        await refundCredits(service, reservation.reservationId).catch(() => undefined);
+        await refundCredits(service, reservation.reservationId).catch(
+          onNodeFailure("node_credit_settle_failed", { reservationId: reservation.reservationId, outcome: "refund", site: "lesson_adopt" }),
+        );
         return errorResponse(500, "generation_failed", { refunded: true });
       }
       // Yarış: önceden yazım tam bu arada bittiyse hazır dersi hemen al.
@@ -92,7 +94,9 @@ export async function adoptBuildingLesson(context: NodeContext, state: Pick<Star
           )
           .single();
         if (done) served = done;
-        await commitCredits(service, reservation.reservationId).catch(() => undefined);
+        await commitCredits(service, reservation.reservationId).catch(
+          onNodeFailure("node_credit_settle_failed", { reservationId: reservation.reservationId, outcome: "commit", site: "lesson_adopt" }),
+        );
         const topicId = topic?.id ?? finished.topicId;
         if (topicId) await saveTopicLesson(service, { prepId, topicId, payload: finished.payload });
         refreshTopicQuiz(topicId);

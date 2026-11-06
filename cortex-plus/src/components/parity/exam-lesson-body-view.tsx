@@ -1,0 +1,96 @@
+import { studentTextParts } from "@/lib/learning/lesson-board";
+import { splitMath } from "@/lib/learning/math-split";
+import type { MathRender } from "@/lib/markdown-core";
+
+/**
+ * Kalın metin ve LaTeX'i birlikte işler. Formüller KaTeX'e verilir
+ * (`trust: false` — HTML enjekte eden komutlar kapalı); geri kalan her şey
+ * React metin düğümü olarak kalır, yani escape'i React yapar.
+ */
+function renderInline(text: string, renderMath: MathRender) {
+  return splitMath(text).flatMap((segment, segIndex) => {
+    if (segment.type === "math") {
+      const Tag = segment.display ? "div" : "span";
+      return (
+        <Tag
+          key={`m-${segIndex}`}
+          className={segment.display ? "cp-lesson-math" : undefined}
+          dangerouslySetInnerHTML={{
+            __html: renderMath(segment.value, segment.display),
+          }}
+        />
+      );
+    }
+    return studentTextParts(segment.value).map((part, index) =>
+      part.exam ? (
+        <mark key={`${segIndex}-${index}`} className="als-exam" title="Sınavda çıkar">
+          {part.text}
+        </mark>
+      ) : part.bold ? (
+        <strong key={`${segIndex}-${index}`}>{part.text}</strong>
+      ) : (
+        <span key={`${segIndex}-${index}`}>{part.text}</span>
+      ),
+    );
+  });
+}
+
+/**
+ * Eski biçimli dersin gövdesi, KaTeX'siz (6 Kasım 2026). Formül çizici dışarıdan: sunucu sayfası
+ * `ExamLessonBody` (KaTeX eşzamanlı), istemci oturumu `ExamLessonBodyLazy` (KaTeX yalnız formül varsa) verir.
+ */
+export function ExamLessonBodyView({ content, renderMath }: { content: string; renderMath: MathRender }) {
+  const blocks = content
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .filter(Boolean);
+
+  if (!blocks.length) {
+    return (
+      <p className="text-sm text-[var(--cp-muted)]">
+        Bu dersin içeriği henüz oluşmadı. Çalışma oturumuna dönüp birkaç soru sor, sonra tekrar aç.
+      </p>
+    );
+  }
+
+  return (
+    <div className="cp-lesson-prose">
+      {blocks.map((block, index) => {
+        const heading = /^##\s+(.+)$/.exec(block);
+        if (heading) {
+          return <h2 key={index}>{heading[1]}</h2>;
+        }
+
+        const lines = block.split("\n");
+        if (lines.every((line) => /^\s*-\s+/.test(line))) {
+          return (
+            <ul key={index}>
+              {lines.map((line) => (
+                <li key={line}>{renderInline(line.replace(/^\s*-\s+/, ""), renderMath)}</li>
+              ))}
+            </ul>
+          );
+        }
+
+        const speaker = /^(?:\*\*)?(Sen|Cortex)(?:\*\*)?:\s*/.exec(block);
+        if (speaker) {
+          const who = speaker[1];
+          const body = block.slice(speaker[0].length);
+          return (
+            <article
+              key={index}
+              className={
+                who === "Cortex" ? "cp-lesson-turn cp-lesson-turn--ai" : "cp-lesson-turn"
+              }
+            >
+              <p className="cp-lesson-turn-who">{who === "Cortex" ? "Cortex" : "Sen"}</p>
+              <p>{renderInline(body, renderMath)}</p>
+            </article>
+          );
+        }
+
+        return <p key={index}>{renderInline(block, renderMath)}</p>;
+      })}
+    </div>
+  );
+}

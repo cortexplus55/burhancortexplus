@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { loadPrepDocumentIds, loadTeacherAnalysis } from "@/lib/documents/teacher-analysis-run";
+import { loadPrepDocumentIds } from "@/lib/documents/teacher-analysis-run";
+import { parseTeacherAnalysis } from "@/lib/learning/teacher-brain";
 import { searchDocumentChunksAcross, type DocumentMatch } from "@/lib/rag/pipeline";
 import { citationHref } from "@/lib/ai/chat-citations";
 import { FIGURE_APPENDIX_LABEL } from "@/lib/learning/figure-pages";
@@ -107,6 +108,38 @@ export type PrepChatGrounding = {
 
 const EMPTY_SCOPE: SyllabusScope = { excluded: [], weighted: [] };
 
+/** `.in()` süzgecine bir seferde giden kimlik sayısı (adres uzunluğu sınırı). */
+export const ANALYSIS_ID_CHUNK = 150;
+
+/**
+ * Belgelerin saklı öğretmen analizleri tek sorguyla (150'lik parçalar, aynı anda). Okuma düşen
+ * parçanın belgeleri analizsiz sayılır (`loadTeacherAnalysis` da hata verince null döner).
+ */
+export async function loadAnalysisRows(
+  service: SupabaseClient,
+  documentIds: readonly string[],
+): Promise<Map<string, { status: unknown; analysis: unknown }>> {
+  const rows = new Map<string, { status: unknown; analysis: unknown }>();
+  const ids = [...new Set(documentIds.filter(Boolean))];
+  const chunks: string[][] = [];
+  for (let i = 0; i < ids.length; i += ANALYSIS_ID_CHUNK) chunks.push(ids.slice(i, i + ANALYSIS_ID_CHUNK));
+  const reads = await Promise.all(
+    chunks.map(async (chunk) => {
+      try {
+        const { data, error } = await service
+          .from("document_teacher_analyses")
+          .select("document_id, status, analysis")
+          .in("document_id", chunk);
+        return error ? [] : ((data ?? []) as { document_id: string; status: unknown; analysis: unknown }[]);
+      } catch {
+        return [];
+      }
+    }),
+  );
+  for (const row of reads.flat()) rows.set(String(row.document_id), { status: row.status, analysis: row.analysis });
+  return rows;
+}
+
 function slideMime(mime: string | null | undefined): boolean {
   return Boolean(mime && /presentation|powerpoint/i.test(mime));
 }
@@ -139,10 +172,17 @@ export async function loadPrepChatGrounding(
   const corpusDocs: CorpusDoc[] = [];
   const scopeInputs: Array<{ documentName: string; text: string; pageNumber?: number | null; analysis?: unknown }> = [];
 
+  // Öğretmen analizleri tek okumayla (6 Kasım 2026, hız paketi): önce her belge için iki ayrı okuma
+  // (çözümlenmiş analiz + ham analiz) her sohbet mesajında art arda gidiyordu. Belge kimlikleri
+  // `loadPrepDocumentIds`'ten gelir (hazırlığın sahibinin belgeleri); süzgeç orada.
+  const analysisRows = await loadAnalysisRows(service, documentIds);
+
   for (const documentId of documentIds) {
     const row = meta.get(documentId);
     const name = (row?.file_name as string | undefined) ?? "Belge";
-    const analysis = await loadTeacherAnalysis(service, documentId);
+    const stored = analysisRows.get(documentId);
+    // `loadTeacherAnalysis` ile aynı kural: yalnız hazır analiz çözümlenir, çözümlenemeyen yok sayılır.
+    const analysis = stored?.status === "ready" ? parseTeacherAnalysis(stored.analysis) : null;
     const flat = analysis ? flattenTeacherAnalysis(analysis, name) : "";
     if (flat) {
       corpusDocs.push({
@@ -152,12 +192,7 @@ export async function loadPrepChatGrounding(
         slide: slideMime(row?.mime_type as string | null),
       });
     }
-    const { data: raw } = await service
-      .from("document_teacher_analyses")
-      .select("analysis")
-      .eq("document_id", documentId)
-      .maybeSingle();
-    scopeInputs.push({ documentName: name, text: flat, analysis: raw?.analysis ?? analysis });
+    scopeInputs.push({ documentName: name, text: flat, analysis: stored?.analysis ?? analysis });
   }
 
   const { data: scopePages } = await service

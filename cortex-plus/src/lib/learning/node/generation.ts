@@ -30,7 +30,15 @@ import { parsePodcastLength, podcastScopeBrief } from "@/lib/learning/podcast-ep
 import { prepLanguage } from "@/lib/learning/teacher-brain";
 import { creditIdempotencyKeyForStart } from "@/lib/learning/attempt-lifecycle";
 import { attemptStartResponse, upsertGenerationJob, writtenExamDeadline } from "@/lib/learning/attempt-lifecycle-persist";
-import { NodeGenerationError, TEACHER_PAGE_KINDS, countTotal, readWalletBalance, settlePendingStart } from "@/lib/learning/node/shared";
+import {
+  NodeGenerationError,
+  TEACHER_PAGE_KINDS,
+  awaitLoggedWrite,
+  countTotal,
+  onNodeFailure,
+  readWalletBalance,
+  settlePendingStart,
+} from "@/lib/learning/node/shared";
 import { loadTopicLesson, saveTopicLesson } from "@/lib/learning/node/lesson-store";
 import { loadSectionBackbone, loadUpcomingTopicTitles } from "@/lib/learning/node/lesson";
 import { publicPayloadForUser } from "@/lib/learning/node/payload";
@@ -258,7 +266,9 @@ export async function runStartGeneration(
           if (delta.includes("\n") || /[.!?…]\s*$/.test(delta)) await show(false);
         }
         await show(true);
-        await recordUsage(service, { userId, actionCode: "STUDY_PLAN_GENERATE", model: leadModel, tokensIn, tokensOut }).catch(() => undefined);
+        await recordUsage(service, { userId, actionCode: "STUDY_PLAN_GENERATE", model: leadModel, tokensIn, tokensOut }).catch(
+          onNodeFailure("node_usage_record_failed", { site: "rewrite_lead" }),
+        );
       } catch (error) {
         console.info("rewrite_lead_skipped", { cause: error instanceof Error ? error.message.slice(0, 120) : "unknown" });
       }
@@ -610,7 +620,7 @@ export async function runStartGeneration(
     }
     if (namedTitle && node.title !== namedTitle) patch.title = namedTitle;
     if (patch.session_meta || patch.title) {
-      await service.from("exam_prep_nodes").update(patch).eq("id", nodeId).then(undefined, () => undefined);
+      await awaitLoggedWrite("node_meta_update_failed", { nodeId }, service.from("exam_prep_nodes").update(patch).eq("id", nodeId));
     }
   }
 

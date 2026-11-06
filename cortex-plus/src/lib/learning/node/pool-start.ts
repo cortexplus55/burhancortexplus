@@ -7,7 +7,7 @@ import { sharedUnitEnsurer } from "@/lib/content-pool/ensure";
 import { supplementScreens, unitSupplement } from "@/lib/content-pool/supplement";
 import { prepLanguage } from "@/lib/learning/teacher-brain";
 import { attemptStartResponse, upsertGenerationJob } from "@/lib/learning/attempt-lifecycle-persist";
-import { countTotal, readWalletBalance } from "@/lib/learning/node/shared";
+import { awaitLoggedWrite, countTotal, onNodeFailure, readWalletBalance } from "@/lib/learning/node/shared";
 import { publicPayloadForUser } from "@/lib/learning/node/payload";
 import { saveTopicLesson } from "@/lib/learning/node/lesson-store";
 import type { NodeContext } from "./context";
@@ -82,8 +82,10 @@ async function insertPoolAttempt(
   // Paket 1b: üç bağımsız yazım paralel (sırayla ~3 gidiş-dönüş ekliyordu).
   await Promise.all([
     upsertGenerationJob(service, { userId, prepId, nodeId, attemptId: row.id as string, clientRequestId: requestId, generationId: row.generation_id as string, status: "ready" }),
-    kind === "lesson" && topic?.id ? saveTopicLesson(service, { prepId, topicId: topic.id, payload }).catch(() => undefined) : null,
-    node.status !== "done" ? service.from("exam_prep_nodes").update({ status: "ready" }).eq("id", nodeId).then(() => undefined) : null,
+    kind === "lesson" && topic?.id ? saveTopicLesson(service, { prepId, topicId: topic.id, payload }).catch(onNodeFailure("node_topic_lesson_save_failed", { prepId, topicId: topic.id })) : null,
+    node.status !== "done"
+      ? awaitLoggedWrite("node_status_ready_failed", { nodeId }, service.from("exam_prep_nodes").update({ status: "ready" }).eq("id", nodeId))
+      : null,
   ]);
   const unitId = (payload.pool as { unitId?: string } | undefined)?.unitId ?? null;
   console.info("pool_served", { nodeId, kind, unit: unitId });

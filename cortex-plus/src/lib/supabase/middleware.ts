@@ -43,14 +43,14 @@ export function guestEntryPath(path: string, search: URLSearchParams): "/kayit" 
   return "/giris";
 }
 
+// 6 Kasım 2026: `/dashboard`, `/sinav-hazirligi/app`, `/calisma-plani`, `/limitler`, `/paketler` listeden çıktı:
+// sayfaları yok, `next.config.ts` yönlendirmesi middleware'den önce hedefe gönderiyor (hedef korumalı).
 const PROTECTED_PREFIXES = [
-  "/dashboard",
   "/onboarding",
   "/ogretmen",
   "/sohbetler",
   "/dokumanlar",
   "/soru-coz",
-  "/sinav-hazirligi/app",
   "/quizler",
   "/flashcardlar",
   "/studio",
@@ -59,13 +59,10 @@ const PROTECTED_PREFIXES = [
   // yönlendirme. Korumalı sayılsaydı giriş ekranına emekli adresi taşırdık;
   // böylece "next" parametresi doğrudan gerçek hedefi gösteriyor.
   "/araclar",
-  "/calisma-plani",
   "/ilerleme",
   "/krediler",
-  "/limitler",
   "/siniflar",
   "/davet",
-  "/paketler",
   "/pay",
   "/odemeler",
   "/bildirimler",

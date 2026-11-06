@@ -74,9 +74,11 @@ export const ADVANTAGE_ROWS: AdvantageRow[] = [
   },
   {
     id: "turkiye-uyum",
-    feature: "🇹🇷 Türkiye Sınav Sistemine %100 Uyum (A–E 5 Şık, ÖSYM Formatı, Resmî Tatil Takvimi)",
+    // 6 Kasım 2026 (360° denetim): "%100 Uyum" ve "ÖSYM Formatı" kanıtlanamayan mutlak iddia ve kurum adıyla onay
+    // izlenimi veriyordu. Kaynak gerçeği: MEB kazanımları ve ÖSYM kılavuzları (ÖSYM kazanım tablosu yayımlamaz).
+    feature: "🇹🇷 MEB Kazanımları ve ÖSYM Kılavuzlarına Dayalı · 5 Şıklı (A–E) Türkiye Sınav Standardı",
     cortex: {
-      verdict: "Tam Uyumlu",
+      verdict: "Türkiye standardı",
       body: "Lise/YKS/KPSS/TUS/Vize için 5 şıklı (A–E), LGS için 4 şıklı (A–D) sorular; resmî tatil ve vize tarihine göre dengelenen takvim.",
     },
     others: {
@@ -87,7 +89,7 @@ export const ADVANTAGE_ROWS: AdvantageRow[] = [
   },
   {
     id: "ikiz-soru",
-    feature: "🔥 \"İkiz Soru İle Anında İntikam\" & \"İki Şık Arasında Kaldım\" İpucu",
+    feature: "🔥 Yanlışın İkiziyle Anında Telafi & \"İki Şık Arasında Kaldım\" İpucu",
     cortex: {
       verdict: "Var",
       body: "Yanlış yaptığın sorunun anında ikizini çözdürür; iki şık arasında kaldığında farkı gösterir.",
@@ -147,12 +149,12 @@ export const ADVANTAGE_BADGES = [
 export const SHOW_BLIND_EXPERIMENT_PROOF = true;
 
 export const BLIND_EXPERIMENT_PROOF = {
-  kicker: "📈 Kanıtlanmış Öğrenme Kazanımı",
+  kicker: "📈 Örnek Senaryo Deneyinde 35 → 100 Puan Gelişimi",
   before: { value: "35", label: "Ön sınav" },
   after: { value: "100", label: "Son sınav" },
   delta: "+65 Puan Artış",
   body:
-    "Kör sınav deneyinde ön sınavdan 35 puan alan ve 6 temel kavram yanılgısına sahip öğrenci, Cortex Plus çalışma yolunu tamamladıktan sonra girdiği 20 soruluk sınavda 6 yanılgısının tamamını kırarak 100 tam puan (+65 Puan Artış) aldı.",
+    "Yapay zekâyla canlandırılan bir öğrenciyle yapılan kör sınav deneyinde ön sınavdan 35 puan alan ve 6 temel kavram yanılgısına sahip öğrenci, Cortex Plus çalışma yolunu tamamladıktan sonra girdiği 20 soruluk sınavda 6 yanılgısının tamamını kırarak 100 tam puan (+65 Puan Artış) aldı.",
   footnote:
     "İç deney, 30 Ekim 2026: öğrenci yapay zekâ ile canlandırıldı, yalnız Cortex Plus derslerinden tuttuğu defterle bağımsız yazılmış 20 soruluk sınava girdi. Tek konu, tek deney.",
 } as const;

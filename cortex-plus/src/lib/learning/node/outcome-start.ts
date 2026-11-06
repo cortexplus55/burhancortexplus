@@ -21,7 +21,7 @@ import type { LessonBody } from "@/lib/content-pool/schema";
 import { buildingPayload } from "@/lib/learning/lesson-build";
 import { prepLanguage } from "@/lib/learning/teacher-brain";
 import { attemptStartResponse, upsertGenerationJob } from "@/lib/learning/attempt-lifecycle-persist";
-import { countTotal, readWalletBalance } from "@/lib/learning/node/shared";
+import { awaitLoggedWrite, countTotal, onNodeFailure, readWalletBalance } from "@/lib/learning/node/shared";
 import { publicPayloadForUser } from "@/lib/learning/node/payload";
 import { saveTopicLesson } from "@/lib/learning/node/lesson-store";
 import type { NodeContext } from "./context";
@@ -79,7 +79,7 @@ export async function serveOutcomeLesson(context: NodeContext, state: State): Pr
   const firstReady = new Promise<OutcomeFirst | null>((resolve) => (announce = resolve));
   const run = generateOutcomeLesson(target.unit, target.code, llm, {
     models,
-    onUsage: (entry) => store.recordUsage(userId, [entry]).catch(() => undefined),
+    onUsage: (entry) => store.recordUsage(userId, [entry]).catch(onNodeFailure("node_usage_record_failed", { site: "outcome_lesson" })),
     onFirst: async (first) => announce(first),
   }).catch(() => null);
   void run.then((r) => {
@@ -87,7 +87,7 @@ export async function serveOutcomeLesson(context: NodeContext, state: State): Pr
   });
   const first = await Promise.race([firstReady, run.then(() => null)]);
   if (!first) {
-    await retireOutcomeLesson(service, claim.id, { issues: ["ilk bölüm üretilemedi"] }).catch(() => undefined);
+    await retireOutcomeLesson(service, claim.id, { issues: ["ilk bölüm üretilemedi"] }).catch(onNodeFailure("node_outcome_retire_failed", { claimId: claim.id }));
     return null;
   }
   const firstScreenMs = Date.now() - requestStarted;
@@ -96,9 +96,11 @@ export async function serveOutcomeLesson(context: NodeContext, state: State): Pr
   const response = await openAttempt(context, state, building, async (attemptId, generationId) => {
     const result = await run;
     if (result?.ok) {
-      await verifyOutcomeLesson(service, claim.id, result.lesson, result.qa, models.generate).catch(() => false);
+      await verifyOutcomeLesson(service, claim.id, result.lesson, result.qa, models.generate).catch(
+        onNodeFailure("node_outcome_verify_failed", { claimId: claim.id }, false),
+      );
     } else {
-      await retireOutcomeLesson(service, claim.id, result?.qa ?? { issues: ["üretim düştü"] }).catch(() => undefined);
+      await retireOutcomeLesson(service, claim.id, result?.qa ?? { issues: ["üretim düştü"] }).catch(onNodeFailure("node_outcome_retire_failed", { claimId: claim.id }));
     }
     // Kapıdan geçmeyen ders havuza girmez ama öğrenci okuduğunu kaybetmez (en az ilk bölüm).
     const body = result?.lesson ?? firstLessonBody(first);
@@ -108,8 +110,10 @@ export async function serveOutcomeLesson(context: NodeContext, state: State): Pr
   if (!response) {
     after(async () => {
       const result = await run;
-      if (result?.ok) await verifyOutcomeLesson(service, claim.id, result.lesson, result.qa, models.generate).catch(() => false);
-      else await retireOutcomeLesson(service, claim.id, result?.qa ?? { issues: ["kayıt açılamadı"] }).catch(() => undefined);
+      if (result?.ok) await verifyOutcomeLesson(service, claim.id, result.lesson, result.qa, models.generate).catch(
+        onNodeFailure("node_outcome_verify_failed", { claimId: claim.id }, false),
+      );
+      else await retireOutcomeLesson(service, claim.id, result?.qa ?? { issues: ["kayıt açılamadı"] }).catch(onNodeFailure("node_outcome_retire_failed", { claimId: claim.id }));
     });
     return null;
   }
@@ -154,10 +158,12 @@ async function openAttempt(
   if (error || !row) return null;
   await Promise.all([
     upsertGenerationJob(service, { userId, prepId, nodeId, attemptId: row.id as string, clientRequestId: requestId, generationId: row.generation_id as string, status: "ready" }),
-    !finish && topic?.id ? saveTopicLesson(service, { prepId, topicId: topic.id, payload }).catch(() => undefined) : null,
-    node.status !== "done" ? service.from("exam_prep_nodes").update({ status: "ready" }).eq("id", nodeId).then(() => undefined) : null,
+    !finish && topic?.id ? saveTopicLesson(service, { prepId, topicId: topic.id, payload }).catch(onNodeFailure("node_topic_lesson_save_failed", { prepId, topicId: topic.id })) : null,
+    node.status !== "done"
+      ? awaitLoggedWrite("node_status_ready_failed", { nodeId }, service.from("exam_prep_nodes").update({ status: "ready" }).eq("id", nodeId))
+      : null,
   ]);
-  if (finish) after(() => finish(row.id as string, row.generation_id as string).catch(() => undefined));
+  if (finish) after(() => finish(row.id as string, row.generation_id as string).catch(onNodeFailure("node_outcome_finish_failed", { nodeId })));
   console.info("outcome_lesson_served", { nodeId, building: Boolean(finish) });
   const [publicPayload, wallet] = await Promise.all([
     publicPayloadForUser(service, userId, payload, lessonReviewCards, kind, prepLanguage(prep.learning_preferences), lessonFormat),

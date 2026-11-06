@@ -2,7 +2,9 @@
 
 import { studentTextParts } from "@/lib/learning/lesson-board";
 import { studentSafeText } from "@/lib/learning/student-safe-text";
-import { renderMath, splitMath } from "@/lib/learning/math-text";
+import "katex/dist/katex.min.css";
+import { hasMath, plainMath, splitMath } from "@/lib/learning/math-split";
+import { useMathRenderer } from "@/components/learning/use-math-renderer";
 import { normalizeMathIdentifiers, isProgrammingContext } from "@/lib/learning/math-identifiers";
 import "@/styles/exam-lesson-steps.css";
 
@@ -18,6 +20,9 @@ export function RichBody({ text, topicHint = "" }: { text: string; topicHint?: s
     topicHint,
     programming: isProgrammingContext("", topicHint),
   });
+  // KaTeX yalnız formül varsa yüklenir (6 Kasım 2026); o ana kadar formül düz metindir.
+  const renderer = useMathRenderer(hasMath(normalized));
+  const renderMath = renderer?.renderMath ?? ((tex: string) => plainMath(tex));
   return (
     <>
       {splitMath(normalized).flatMap((segment, segIndex) => {

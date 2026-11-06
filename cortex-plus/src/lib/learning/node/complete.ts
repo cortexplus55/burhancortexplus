@@ -25,7 +25,14 @@ import { recordUserActivity } from "@/lib/streak/record-activity";
 import { mergeAnswersForScoring } from "@/lib/learning/attempt-lifecycle";
 import { adaptPathAfterResult } from "@/lib/learning/adaptive-path";
 import { upsertGenerationJob } from "@/lib/learning/attempt-lifecycle-persist";
-import { deferTask, readWalletBalance, scheduleAfter } from "@/lib/learning/node/shared";
+import {
+  awaitLoggedWrite,
+  deferTask,
+  logNodeFailure,
+  onNodeFailure,
+  readWalletBalance,
+  scheduleAfter,
+} from "@/lib/learning/node/shared";
 import { reviewSourceBlock, writtenReviewForPayload } from "@/lib/learning/node/written-review";
 import { gradeOralSemantics, oralCorpus, oralHasAnswerText, oralNeedsJudge, oralReviewFromPayload } from "@/lib/learning/node/oral";
 import { rememberMisconceptions, unseenLessonReviews } from "@/lib/learning/node/misconceptions";
@@ -204,7 +211,7 @@ export async function completeAction(context: NodeContext): Promise<NextResponse
             // Sözlüde kayıt yüzde (x/100); yol kararı soru sayısıyla (en az 3 öğe kuralı) verilir.
             score: oralExtras ? (oralExtras.pct / 100) * oralExtras.total : scored.score,
             total: oralExtras ? oralExtras.total : scored.total,
-          }).catch(() => null)
+          }).catch(onNodeFailure("node_complete_path_change_failed", { nodeId }, null))
         : null;
 
     // Sözlü raporu kayıt "completed" olmadan önce yazılır: arka plan notlamada
@@ -212,11 +219,15 @@ export async function completeAction(context: NodeContext): Promise<NextResponse
     // (sonuç "Tam doğru —/3", soru başına geri bildirim yok, inceleme yalnız ipucu). Aşağıdaki yazımlar aynı değer.
     if (oralExtras) {
       const base = (teachingV2 ? shownPayload : attempt.payload) as Record<string, unknown> | null;
-      await service
-        .from("exam_prep_node_attempts")
-        .update({ payload: { ...(base ?? {}), gradeMeta: oralExtras } })
-        .eq("id", attempt.id)
-        .then(undefined, () => undefined);
+      // Yazım düşerse tamamlama sürer (rapor aşağıda yeniden yazılır), ama hata günlüğe iner (6 Kasım 2026).
+      await awaitLoggedWrite(
+        "node_complete_grade_meta_failed",
+        { nodeId, attemptId: attempt.id },
+        service
+          .from("exam_prep_node_attempts")
+          .update({ payload: { ...(base ?? {}), gradeMeta: oralExtras } })
+          .eq("id", attempt.id),
+      );
     }
     const { data: completed, error: completeError } = await service.rpc("complete_exam_prep_node", {
       p_user_id: userId,
@@ -304,11 +315,11 @@ export async function completeAction(context: NodeContext): Promise<NextResponse
       } else if (shownPayload.type === "cards" && shownPayload !== attempt.payload) {
         // Dondurulmamış eski kart kaydı: notlanan liste kayda geçer; sonuç sayfası ve inceleme aynı kartları okur.
         payloadForEvidence = freezeShownCards(shownPayload, []);
-        await service
-          .from("exam_prep_node_attempts")
-          .update({ payload: payloadForEvidence })
-          .eq("id", attempt.id)
-          .then(undefined, () => undefined);
+        await awaitLoggedWrite(
+          "node_complete_cards_freeze_failed",
+          { nodeId, attemptId: attempt.id },
+          service.from("exam_prep_node_attempts").update({ payload: payloadForEvidence }).eq("id", attempt.id),
+        );
       }
 
       const drafts = extractMisconceptions({
@@ -357,17 +368,21 @@ export async function completeAction(context: NodeContext): Promise<NextResponse
         topicGain = tracked.topicGain;
         // Sonuç sayfası "+%X" aşamasını kayıttan okur (29 Ekim 2026); kazanç yoksa kayda bir şey yazılmaz.
         if (tracked.topicGain) {
-          await service
-            .from("exam_prep_node_attempts")
-            .update({ payload: { ...((payloadForEvidence as object) ?? {}), topicGain: tracked.topicGain } })
-            .eq("id", attempt.id)
-            .then(undefined, () => undefined);
+          await awaitLoggedWrite(
+            "node_complete_topic_gain_failed",
+            { nodeId, attemptId: attempt.id },
+            service
+              .from("exam_prep_node_attempts")
+              .update({ payload: { ...((payloadForEvidence as object) ?? {}), topicGain: tracked.topicGain } })
+              .eq("id", attempt.id),
+          );
         }
         if (tracked.nextNodeId) {
           nextHref = `/deneme-sinavlari/${prepId}/dugum/${tracked.nextNodeId}`;
         }
-      } catch {
-        // Tracking is additive; completion already succeeded.
+      } catch (error) {
+        // Tracking is additive; completion already succeeded. Hata yutulmaz, günlüğe iner (6 Kasım 2026).
+        logNodeFailure("node_complete_tracking_failed", { nodeId }, error);
       }
 
       if (attempt.client_request_id || parsed.data.clientRequestId) {
@@ -395,7 +410,7 @@ export async function completeAction(context: NodeContext): Promise<NextResponse
           prepId,
           since: new Date(Date.now() - 12 * 3600_000).toISOString(),
           answers: poolAnswers,
-        }).catch(() => 0);
+        }).catch(onNodeFailure("node_complete_pool_answers_failed", { nodeId }, 0));
       }
       // Havuz dışı konu testi soruları: konu → resmî ünite → kazanım; yalnız outcome_mastery (karantina tablosu değil).
       const ownAnswers = spansTopics ? [] : nonPoolQuizAnswers(shownPayload, mergedAnswers);
@@ -411,7 +426,7 @@ export async function completeAction(context: NodeContext): Promise<NextResponse
             questionText: a.text,
             correct: a.correct,
           })),
-        }).catch(() => 0);
+        }).catch(onNodeFailure("node_complete_answer_evidence_failed", { nodeId }, 0));
       }
     }
 
@@ -425,8 +440,9 @@ export async function completeAction(context: NodeContext): Promise<NextResponse
       );
       if (drafts.length) await recordMistakes(service, userId, drafts);
       await recordUserActivity(service, userId, `exam_prep_${kind}`);
-    } catch {
-      // Notebook / streak must not roll back a completed node.
+    } catch (error) {
+      // Notebook / streak must not roll back a completed node. Hata yutulmaz, günlüğe iner (6 Kasım 2026).
+      logNodeFailure("node_complete_notebook_streak_failed", { nodeId }, error);
     }
 
     // Günü gelen tekrar (20 Ekim 2026, ürün sahibinin kararı): kaçırılan soru ve dersin sınav noktası
@@ -444,7 +460,7 @@ export async function completeAction(context: NodeContext): Promise<NextResponse
       topicLabel: spansTopics ? null : (doneTopicLabel ?? topicLabel),
       topicId: spansTopics ? null : (tested?.id ?? (topic?.id as string | undefined) ?? null),
       oralReport: oralExtras ?? oralReviewFromPayload(attempt.payload),
-    }).catch(() => 0);
+    }).catch(onNodeFailure("node_complete_review_schedule_failed", { nodeId }, 0));
 
     let review = null;
     if (kind === "written_exam") {
@@ -457,7 +473,7 @@ export async function completeAction(context: NodeContext): Promise<NextResponse
         answers: answersForRpc,
         topicLabel,
         allowFill: true,
-      }).catch(() => null);
+      }).catch(onNodeFailure("node_complete_written_review_failed", { nodeId }, null));
     }
 
     // Yıldızlar (17 Ekim 2026, kıyas ürünündeki gibi): sonuç ekranında "+N yıldız". Aynı deneme bir kez sayılır; kayıtlı
@@ -526,10 +542,12 @@ export async function completeAction(context: NodeContext): Promise<NextResponse
       });
       if (!outcome?.ok) {
         // Sahiplik bırakılır: istemcinin yoklaması kaydı açık görüp bitirmeyi yeniden gönderir.
-        await releaseClaim().catch(() => undefined);
+        await releaseClaim().catch(onNodeFailure("node_complete_release_claim_failed", { nodeId, attemptId: attempt.id }));
         return;
       }
-      await storeCompletionResult(service, attempt.id as string, outcome.body).catch(() => undefined);
+      await storeCompletionResult(service, attempt.id as string, outcome.body).catch(
+        onNodeFailure("node_complete_store_result_failed", { nodeId, attemptId: attempt.id }),
+      );
     });
     if (scheduled) {
       return NextResponse.json({ ok: true, grading: true, state: "grading", attemptId: attempt.id });
@@ -540,11 +558,11 @@ export async function completeAction(context: NodeContext): Promise<NextResponse
   try {
     outcome = await runCompletion(false);
   } catch (error) {
-    await releaseClaim().catch(() => undefined);
+    await releaseClaim().catch(onNodeFailure("node_complete_release_claim_failed", { nodeId, attemptId: attempt.id }));
     throw error;
   }
   if (!outcome.ok) {
-    await releaseClaim().catch(() => undefined);
+    await releaseClaim().catch(onNodeFailure("node_complete_release_claim_failed", { nodeId, attemptId: attempt.id }));
     return errorResponse(503, outcome.code);
   }
   return NextResponse.json(outcome.body);

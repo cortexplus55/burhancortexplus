@@ -1,8 +1,13 @@
 "use client";
 
+import "katex/dist/katex.min.css";
 import { useMemo } from "react";
-import { renderMarkdownToHtml } from "@/lib/markdown";
+import { hasMath, plainMath } from "@/lib/learning/math-split";
+import { renderMarkdownWith } from "@/lib/markdown-core";
+import { useMathRenderer } from "@/components/learning/use-math-renderer";
 import { cn } from "@/lib/utils";
+
+const plainRender = (tex: string) => plainMath(tex);
 
 export function Markdown({
   content,
@@ -11,7 +16,12 @@ export function Markdown({
   content: string;
   variant?: "default" | "parity";
 }) {
-  const html = useMemo(() => renderMarkdownToHtml(content), [content]);
+  // KaTeX yalnız cevapta formül varsa yüklenir (6 Kasım 2026); o ana kadar formül düz metindir.
+  const renderer = useMathRenderer(hasMath(content));
+  const html = useMemo(
+    () => renderMarkdownWith(content, renderer?.renderMath ?? plainRender),
+    [content, renderer],
+  );
 
   return (
     <div

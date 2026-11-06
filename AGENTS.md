@@ -71,10 +71,16 @@ Kural — bu projede bir sayfaya **Suspense sınırı eklemeyin**:
 | Oturum gerektiren sayfaya `loading.tsx` koymak | Koymayın. Sayfa hazır olunca gelsin. |
 | `useSearchParams()` kullanan istemci bileşenini `<Suspense>` ile sarmak | Sayfaya `export const dynamic = "force-dynamic"` ekleyin; sınır gereksizleşir. |
 
-Tek istisna `/sohbetler/loading.tsx`: boş bir koyu kutu çiziyor ve çalıştığı
-doğrulandı. Yeni bir tane eklerseniz, ekledikten sonra sayfanın **yayında
-gerçekten açıldığını gözle görün** — derleme ve testler bunu yakalamıyor.
-Bekçi test: `tests/unit/loading-fallbacks.test.ts`.
+Bilinen üç istisna var, üçü de eşzamanlı istemci bileşeni ve oturum okumuyor (6 Kasım 2026'da kodla
+doğrulandı):
+- `/sohbetler/loading.tsx`: boş bir koyu kutu.
+- `deneme-sinavlari/[prepId]/dugum/[nodeId]/loading.tsx` (3 Kasım 2026, #550): yol sayfasının bellekte
+  bıraktığı ilk ekran varsa onu (`InstantLessonView`), yoksa ders biçimli iskelet çizer.
+- `deneme-sinavlari/[prepId]/deneme/[examId]/loading.tsx` (3 Kasım 2026): kurulumdan bellekte havuz
+  soruları varsa sınavı hemen açar, yoksa dönen simge.
+
+Yeni bir tane eklerseniz, ekledikten sonra sayfanın **yayında gerçekten açıldığını gözle görün** — derleme ve
+testler bunu yakalamıyor. Bekçi test: `tests/unit/loading-fallbacks.test.ts` (eşzamanlı olmalı, oturum okumamalı).
 
 ---
 
@@ -1954,3 +1960,23 @@ Bekçi: `harcama-sigortasi.test.ts`, `belge-tekillestirme.test.ts` (göç ve klo
 | Her sayfanın kendi sekme başlığı var (şifre, doğrulama, kurulum, ödeme hatası, giriş hatası); `/soru-coz`'da başlık bir kez | ilgili `layout.tsx` / `page.tsx` |
 
 Bekçi: `paket2-sayfa.test.ts`, `paket2-tipografi.test.ts`, `paket2-akis.test.tsx`, `paket2-akis-kaynak.test.ts`, `paket2-akis-zaman.test.tsx`, `mobile-chrome.test.tsx`.
+
+## SEO, ifade ve hız paketi 3 (6 Kasım 2026)
+
+360° denetimin kalan satırları. Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| **Kazanım sayfaları havuzdan zengin:** ünite dersinin bu kazanıma ait bölümü (anlatım, kilit noktalar, çözümlü örnek, sık yapılan hatalar), bölümde geçen kavramlar, örnek soru, ünite özeti ve aynı ünitenin öbür kazanımları; yapılandırılmış veri `LearningResource`. Model çağrısı yok. Örnek sorunun **yalnız kökü ve şıkları**: doğru cevap ve açıklama sayfaya girmez (soru bankası anahtarıyla kapalı). Havuz bölümü yoksa sayfa `noindex`. Bölümün adımları ve temel/orta/ileri anlatımı ile ünite özeti de görünür. Ölçüm (canlı havuz): 4.227 bölüm, ortanca 238 kelime yalnız bölümde; yerelde canlı veriyle rastgele 20 sayfa en az 333, tipik 500-700 kelime, hepsinde ön izleme | `src/lib/curriculum/outcome-preview.ts`, `mufredat/[programId]/[unitId]/[outcomeId]/page.tsx` |
+| **Reklam ifadeleri:** "%100 Uyum", "ÖSYM Formatı", "Kanıtlanmış Öğrenme Kazanımı", "Anında İntikam" yazılmaz. Kaynak gerçeği "MEB Kazanımları ve ÖSYM Kılavuzlarına Dayalı" (ÖSYM kazanım tablosu yayımlamaz); kör deney "Örnek Senaryo Deneyinde 35 → 100 Puan Gelişimi" ve öğrencinin yapay zekâyla canlandırıldığı gövdede de yazılı | `advantage-content.ts`, `paket3-mufredat.test.ts` |
+| **Hazırlık sayfası dört paralel sorgu dalgasında;** üç ayrı `exam_preps` okuması tek okuma (sütun hatasında eski okumalara düşer); konu adları tek listeden. Yol adımı yazımları yine sunucu anahtarıyla | `[prepId]/page.tsx`, `paket3-hiz-hazirlik-sayfasi.test.ts` |
+| **Özellik bayrakları 30 sn süreç önbelleğinde;** okuma düşerse son bilinen değer, hiç bilinmiyorsa kapalı + dakikada bir `feature_flag_unknown` uyarısı. Testte önbellek kapalı (`VITEST`) | `feature-flags.ts` |
+| **Kazanım hâkimiyeti atomik:** bir tamamlamanın bütün kanıtı tek `add_outcome_evidence` çağrısında (aynı anda iki tamamlama artışı kaybetmez); fonksiyon yoksa eski satır satır yol | göç `20261106140000`, `exam-evidence.ts` |
+| **25 eksik indeks** (en önemlisi `ai_usage_events(created_at)`: harcama sigortası her kontrolde tabloyu tarıyordu); her biri tablo/sütun yoksa ya da aynı sütunla başlayan indeks varsa atlanır | göç `20261106141000` |
+| Sohbette belge analizi tek sorgu (belge başına iki sorgu yoktu); deneme durumu yoklaması tek sayım; düzey değişikliği hedef değer başına tek güncelleme ve kısmen düşerse 500 | `prep-chat-grounding.ts`, `mock-exam/status`, `exam-prep/level` |
+| **Yazım hataları sessizce yutulmaz:** adım tamamlama, deneme notlama ve üretim yolundaki yazımlar düşerse kodlu `console.error` (`node_complete_*`, `mock_exam_*`, `node_credit_settle_failed` …); okuma yedekleri olduğu gibi | `node/shared.ts` (`awaitLoggedWrite`, `onNodeFailure`) |
+| **KaTeX CSS'i kökte değil,** yalnız formül çizen bileşenlerde (pazarlama sayfaları yüklemez). KaTeX JS'i tembel yükleme **denendi ve geri alındı:** sunucuda çizilen formül (örnek ders formül kartı, sınav sabahı kâğıdı) hidrasyondan sonra bir an ham TeX gösteriyordu. Bileşenler KaTeX'i tek kapıdan alır (`useMathRenderer`), KaTeX'siz yardımcılar `math-split.ts`'te | `use-math-renderer.ts`, `paket3-kalite-katex.test.tsx` |
+| **Yalnız yönlendiren sayfalar `next.config` yönlendirmesi:** `/calisma-plani`, `/uygulamalar`, `/paketler`, `/dashboard`, `/sinav-hazirligi/app`, `/limitler` (308, sorgu taşınır) | `next.config.ts` |
+| Kullanılmayan paketler kalktı (`isomorphic-dompurify`, `rehype-katex`, `remark-gfm`, `remark-math`, `next-intl`, `tw-animate-css`, `shadcn`); ölü dosyalar silindi; yeni yüksek açıklar (`brace-expansion`, `js-yaml`, `vite`) kırıcı olmayan güncellemeyle kapandı. Kalan tek yüksek açık `postcss` (Next 16 ister) | `package.json` |
+
+Bekçi: `paket3-mufredat.test.ts`, `paket3-hiz-*.test.ts`, `paket3-kalite-*.test.ts(x)`.

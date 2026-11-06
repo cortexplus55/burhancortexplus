@@ -187,25 +187,35 @@ export async function recordLearningTrackingAfterComplete(
     topicLabel: gainLabel ? (topicIndex.rowForKey(gainLabel)?.label ?? gainLabel) : gainLabel,
   });
 
+  // Konular tek istekte (6 Kasım 2026, hız paketi): önce konu başına art arda bir upsert gidiyordu.
+  // Aynı anahtar iki kez gelirse sonuncusu kalır (sıralı yazımda da sonuncusu kalıyordu; tek ifadede
+  // aynı satıra iki kez dokunulamaz).
+  const masteryUpserts = new Map<string, Record<string, unknown>>();
   for (const topic of folded) {
     if (!topic.measured && topic.evidenceCount === 0) continue;
-    await service.from("exam_prep_topic_mastery").upsert(
-      {
-        user_id: input.userId,
-        exam_prep_id: input.prepId,
-        topic_key: topic.topicKey,
-        measured_level: topic.level,
-        confidence: topic.confidence,
-        evidence_count: topic.evidenceCount,
-        first_attempt_correct: topic.firstAttemptCorrect,
-        first_attempt_total: topic.firstAttemptTotal,
-        independent_correct: topic.independentCorrect,
-        independent_total: topic.independentTotal,
-        last_practiced_at: topic.lastPracticedAt,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id,exam_prep_id,topic_key" },
-    );
+    masteryUpserts.set(topic.topicKey, {
+      user_id: input.userId,
+      exam_prep_id: input.prepId,
+      topic_key: topic.topicKey,
+      measured_level: topic.level,
+      confidence: topic.confidence,
+      evidence_count: topic.evidenceCount,
+      first_attempt_correct: topic.firstAttemptCorrect,
+      first_attempt_total: topic.firstAttemptTotal,
+      independent_correct: topic.independentCorrect,
+      independent_total: topic.independentTotal,
+      last_practiced_at: topic.lastPracticedAt,
+      updated_at: new Date().toISOString(),
+    });
+  }
+  if (masteryUpserts.size) {
+    // Tek konuda satırın kendisi (istek gövdesi eskisiyle aynı), birden çoksa dizi: ikisi de tek istek.
+    const masteryRowsOut = [...masteryUpserts.values()];
+    await service
+      .from("exam_prep_topic_mastery")
+      .upsert(masteryRowsOut.length === 1 ? masteryRowsOut[0]! : masteryRowsOut, {
+        onConflict: "user_id,exam_prep_id,topic_key",
+      });
   }
 
   const { data: nodeRows } = await service

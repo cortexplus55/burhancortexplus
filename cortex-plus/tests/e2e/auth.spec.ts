@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 
+// 6 Kasım 2026 (Paket 3): `/dashboard` korumalı sayfa değil, `/ogretmen`'e kalıcı yönlendirme (aşağıdaki döngü).
 const PROTECTED_ROUTES = [
-  "/dashboard",
   "/ogretmen",
   "/dokumanlar",
   "/krediler",
@@ -36,7 +36,7 @@ test.describe("authentication guards", { tag: ["@auth", "@smoke"] }, () => {
   // Emekli rotalar `/ogretmen`'e gider, ama `/ogretmen` de korumalı: oturumsuz
   // ziyaretçi zincirin sonunda giriş ekranında biter. Test eskiden zincirin
   // yalnızca ilk halkasını bekliyordu.
-  for (const legacy of ["/ogretmen-paneli", "/ogretmenler-ve-profesorler-icin"]) {
+  for (const legacy of ["/ogretmen-paneli", "/ogretmenler-ve-profesorler-icin", "/dashboard"]) {
     test(`${legacy} redirects to sign in for the student hub`, async ({ page }) => {
       await page.goto(legacy);
       await expect(page).toHaveURL(/\/giris\?next=%2Fogretmen$/);

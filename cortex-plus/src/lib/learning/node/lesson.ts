@@ -17,7 +17,7 @@ import { findFormulaTypos } from "@/lib/learning/formula-typos";
 import { mergeNoteWarnings } from "@/lib/learning/note-rule-check";
 import { checkNoteRules } from "@/lib/learning/note-rule-check-run";
 import { loadOfficialOutcome } from "@/lib/curriculum/prep-outcome";
-import { NodeGenerationError, actionForKind } from "./shared";
+import { NodeGenerationError, actionForKind, awaitLoggedWrite } from "./shared";
 import { saveTopicLesson } from "./lesson-store";
 import { withSupport, type LessonCore } from "./teacher-pages";
 import type { NodePayloadInput } from "./generate";
@@ -218,12 +218,15 @@ export async function teacherLessonPayload(
   }
   const lesson = outcome.lesson;
   // Ders kalitesi örneği (23 Ekim 2026): denetçinin öğretim puanları, ek model çağrısı olmadan. Yanıtı beklemez;
-  // tablo yoksa (göçten önce) sessizce atlanır.
+  // yazım düşerse ders sürer (6 Kasım 2026'dan beri hata günlüğe iner).
   if (outcome.teachingScores?.length) {
     const scores = outcome.teachingScores;
     after(async () => {
-      try {
-        await input.service.from("lesson_quality_samples").insert({
+      // Kalite örneği isteğe bağlı: düşerse ders sürer, hata günlüğe iner (6 Kasım 2026).
+      await awaitLoggedWrite(
+        "node_lesson_quality_sample_failed",
+        { prepId: input.prepId ?? null },
+        input.service.from("lesson_quality_samples").insert({
           source: "verifier",
           user_id: input.userId,
           exam_prep_id: input.prepId ?? null,
@@ -231,10 +234,8 @@ export async function teacherLessonPayload(
           scores: { parts: scores },
           total: Math.round((scores.reduce((sum, value) => sum + value, 0) / scores.length) * 10) / 10,
           note: outcome.dropped.length ? `atılan kavram: ${outcome.dropped.length}` : null,
-        });
-      } catch {
-        /* kalite örneği isteğe bağlı */
-      }
+        }),
+      );
     });
   }
   const payload = {

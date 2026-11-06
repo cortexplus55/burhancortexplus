@@ -10,7 +10,8 @@ import { isJunkTopicTitle, normalizeTopicTitle, topicTitleIssues } from "@/lib/d
  * sayfaları o konuya bağlanır. Ders, konuyu sayfa sayfa bölümlere ayırır
  * (bkz. `lessonPageChunks`).
  *
- * Bu dosya saf: istem ve doğrulama. Model çağrısı `topic-main-groups-llm.ts`.
+ * Bu dosya saf: istem ve doğrulama. Model çağrısını yapan `topic-main-groups-llm.ts` hiçbir yerden çağrılmadığı
+ * için 6 Kasım 2026'da silindi; istem ve doğrulama testlerle (`topic-main-groups.test.ts`) duruyor.
  */
 
 export const MAIN_TOPIC_MIN = 10;

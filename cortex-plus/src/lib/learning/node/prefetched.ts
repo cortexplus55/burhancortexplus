@@ -11,7 +11,7 @@ import { writePodcastCache } from "@/lib/learning/podcast-episode";
 import { prepLanguage } from "@/lib/learning/teacher-brain";
 import { creditIdempotencyKeyForStart } from "@/lib/learning/attempt-lifecycle";
 import { attemptStartResponse, upsertGenerationJob } from "@/lib/learning/attempt-lifecycle-persist";
-import { actionForKind, countTotal, readWalletBalance } from "@/lib/learning/node/shared";
+import { actionForKind, countTotal, onNodeFailure, readWalletBalance } from "@/lib/learning/node/shared";
 import { saveTopicLesson } from "@/lib/learning/node/lesson-store";
 import { publicPayloadForUser } from "@/lib/learning/node/payload";
 import type { NodeContext } from "./context";
@@ -58,7 +58,9 @@ export async function servePrefetched(context: NodeContext, state: Pick<StartLoc
     if (taken) taken.payload = freezeShownCards(taken.payload, lessonReviewCards);
     if (!taken) {
       // Aynı anda başka bir açılış aldı; bu istek dersi kendisi yazar.
-      await refundCredits(service, reservation.reservationId).catch(() => undefined);
+      await refundCredits(service, reservation.reservationId).catch(
+        onNodeFailure("node_credit_settle_failed", { reservationId: reservation.reservationId, outcome: "refund", site: "prefetched" }),
+      );
     } else {
       const { data: readyAttempt, error: readyErr } = await service
         .from("exam_prep_node_attempts")
@@ -84,14 +86,20 @@ export async function servePrefetched(context: NodeContext, state: Pick<StartLoc
         )
         .single();
       if (readyErr || !readyAttempt) {
-        await refundCredits(service, reservation.reservationId).catch(() => undefined);
+        await refundCredits(service, reservation.reservationId).catch(
+        onNodeFailure("node_credit_settle_failed", { reservationId: reservation.reservationId, outcome: "refund", site: "prefetched" }),
+      );
         return errorResponse(500, "generation_failed", { refunded: true });
       }
       // Önceden yazım önbellekten gelmiş podcast'se (hazırlığın podcast sayfası aynı konuyu yazmıştı)
       // bedelsiz: soğuk açılışta da önbellek ücret almıyor ve oynatıcı "hakkından düşülmedi" diyor.
       const cachedPodcast = kind === "podcast" && taken.payload.reused === true;
-      if (cachedPodcast) await refundCredits(service, reservation.reservationId).catch(() => undefined);
-      else await commitCredits(service, reservation.reservationId).catch(() => undefined);
+      if (cachedPodcast) await refundCredits(service, reservation.reservationId).catch(
+        onNodeFailure("node_credit_settle_failed", { reservationId: reservation.reservationId, outcome: "refund", site: "prefetched" }),
+      );
+      else await commitCredits(service, reservation.reservationId).catch(
+        onNodeFailure("node_credit_settle_failed", { reservationId: reservation.reservationId, outcome: "commit", site: "prefetched" }),
+      );
       // 20 Ekim 2026: önceden yazılmış podcast açılıp ücreti alındıktan sonra önbelleğe girer. Önceden
       // hiç girmiyordu; "Yeniden dinle" aynı podcast'i yeniden yazıp yeniden ücret alıyordu. Açılmadan
       // önbelleğe girmez kuralı korunur (yazım `charge !== false` iken, burada açılıştan sonra).

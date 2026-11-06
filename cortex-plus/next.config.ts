@@ -35,6 +35,21 @@ const nextConfig: NextConfig = {
       { source: "/fiyatlar", destination: "/fiyatlandirma", permanent: true },
       // 6 Kasım 2026: kaynak hatası ekranları bir dönem bu adrese gidiyordu (404).
       { source: "/belgeler", destination: "/dokumanlar", permanent: true },
+      /*
+        6 Kasım 2026: yalnız `redirect()` çağıran sayfa dosyaları buraya taşındı (sorgu işlemiyor, oturum
+        bakmıyorlardı). Yönlendirme middleware'den önce çalışır: misafir hedefin korumasında `/giris?next=<hedef>`
+        görür (önceden `next` emekli adresi taşıyordu). Sorgu dizesi hedefe aynen geçer.
+        - `/calisma-plani`: "Çalış" ekranı 3 Ekim 2026'da kalktı; her hazırlığın yolu Sınavlar'da.
+        - `/uygulamalar`: Uygulamalar bölümü kalktı, yerine Araçlar.
+        - `/paketler`: ödeme `/pay` ile birleşti. `/dashboard`: ev `/ogretmen`.
+        - `/sinav-hazirligi/app`: eski middleware rotası. `/limitler`: `/krediler` sayfasının birebir kopyasıydı.
+      */
+      { source: "/calisma-plani", destination: "/deneme-sinavlari", permanent: true },
+      { source: "/uygulamalar", destination: "/araclar", permanent: true },
+      { source: "/paketler", destination: "/pay", permanent: true },
+      { source: "/dashboard", destination: "/ogretmen", permanent: true },
+      { source: "/sinav-hazirligi/app", destination: "/deneme-sinavlari", permanent: true },
+      { source: "/limitler", destination: "/krediler", permanent: true },
     ];
   },
   /*

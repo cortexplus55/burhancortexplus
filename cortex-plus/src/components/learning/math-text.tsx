@@ -1,11 +1,14 @@
 "use client";
 
+import "katex/dist/katex.min.css";
 import { useMemo } from "react";
-import { hasMath, renderMath, splitMath } from "@/lib/learning/math-text";
+import { hasMath, plainMath, splitMath } from "@/lib/learning/math-split";
+import { useMathRenderer } from "@/components/learning/use-math-renderer";
 
 /**
  * Metin içindeki $...$ / $$...$$ / \ce{...} parçalarını KaTeX ile çizer.
  * Hatalı LaTeX sayfayı çökertmez; düz metin yedeği gösterir.
+ * KaTeX yalnız metinde formül varsa yüklenir (6 Kasım 2026, `useMathRenderer`); o ana kadar formül düz metindir.
  */
 export function MathText({
   text,
@@ -14,11 +17,14 @@ export function MathText({
   text: string;
   className?: string;
 }) {
+  const needsMath = Boolean(text) && (hasMath(text) || /\\ce\{/.test(text));
+  const renderer = useMathRenderer(needsMath);
   const html = useMemo(() => {
     if (!text) return "";
-    if (!hasMath(text) && !/\\ce\{/.test(text)) {
+    if (!needsMath) {
       return escapeText(text);
     }
+    const renderMath = renderer?.renderMath ?? ((tex: string) => plainMath(tex));
     // Düz metinde çıplak \ce{...} varsa satır içi formüle sar.
     const normalized = text.replace(/\\ce\{([^}]+)\}/g, (_all, inner: string) => {
       if (text.includes(`$\\ce{${inner}}$`) || text.includes(`$$\\ce{${inner}}$$`)) {
@@ -36,7 +42,7 @@ export function MathText({
         }
       })
       .join("");
-  }, [text]);
+  }, [text, needsMath, renderer]);
 
   return (
     <span

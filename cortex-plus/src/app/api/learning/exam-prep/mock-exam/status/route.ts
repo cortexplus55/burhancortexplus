@@ -79,16 +79,40 @@ async function recentRows(service: SupabaseClient, userId: string, prepId: strin
     rows.push({ id: row.id, blueprint: row.blueprint, questionCount: null });
   }
   // Arka plan işinin kâğıdı `cpBuild` taşımaz: yayımlandığının kanıtı soru satırlarıdır.
-  for (const row of rows) {
+  const unbuilt = rows.filter((row) => {
     const host = row.blueprint && typeof row.blueprint === "object" ? (row.blueprint as Record<string, unknown>) : null;
-    if (host?.cpBuild) continue;
-    const { count, error: countError } = await service
+    return !host?.cpBuild;
+  });
+  await fillQuestionCounts(service, unbuilt);
+  return rows;
+}
+
+/**
+ * Soru sayısı tek sorguyla (6 Kasım 2026, hız paketi): 4 sn'lik yoklamada her satıra ayrı sayım
+ * gidiyordu (en çok 20). Tek aday sayım başlığıyla (satır taşımaz); birden çoksa tek `.in()` ve
+ * kimlikler kodda sayılır (en çok 20 kâğıt × 40 soru: sunucunun satır sınırının altında). Yalnız
+ * "sıfırdan büyük mü?" okunur. Okuma hatası satırları "bilinmiyor" (null) bırakır.
+ */
+async function fillQuestionCounts(service: SupabaseClient, rows: MockStatusRow[]): Promise<void> {
+  if (!rows.length) return;
+  if (rows.length === 1) {
+    const { count, error } = await service
       .from("practice_exam_questions")
       .select("id", { count: "exact", head: true })
-      .eq("exam_id", row.id);
-    row.questionCount = countError ? null : (count ?? 0);
+      .eq("exam_id", rows[0]!.id);
+    rows[0]!.questionCount = error ? null : (count ?? 0);
+    return;
   }
-  return rows;
+  const { data, error } = await service
+    .from("practice_exam_questions")
+    .select("exam_id")
+    .in("exam_id", rows.map((row) => row.id));
+  const counts = new Map<string, number>();
+  for (const item of Array.isArray(data) ? (data as { exam_id?: unknown }[]) : []) {
+    const id = typeof item?.exam_id === "string" ? item.exam_id : null;
+    if (id) counts.set(id, (counts.get(id) ?? 0) + 1);
+  }
+  for (const row of rows) row.questionCount = error ? null : (counts.get(row.id) ?? 0);
 }
 
 export async function GET(request: Request) {

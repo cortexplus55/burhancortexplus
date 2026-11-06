@@ -48,9 +48,13 @@ describe("eski rota yönlendirme turları", () => {
     expect(hits).toEqual([]);
   });
 
+  // 6 Kasım 2026 (Paket 3): eski rotalar sayfa dosyası değil, `next.config.ts` kalıcı yönlendirmesi.
   it("eski rotalar yönlendirme olarak duruyor", () => {
-    expect(read("src/app/dashboard/page.tsx")).toContain('redirect("/ogretmen")');
-    expect(read("src/app/paketler/page.tsx")).toContain('redirect("/pay")');
+    const config = read("next.config.ts");
+    expect(config).toContain('{ source: "/dashboard", destination: "/ogretmen", permanent: true }');
+    expect(config).toContain('{ source: "/paketler", destination: "/pay", permanent: true }');
+    expect(existsSync(path.join(ROOT, "src/app/dashboard/page.tsx"))).toBe(false);
+    expect(existsSync(path.join(ROOT, "src/app/paketler/page.tsx"))).toBe(false);
   });
 
   it("e-posta doğrulama dönüşü sorguyu taşıyan /ogretmen'e", () => {

@@ -1,7 +1,7 @@
 "use client";
 
 /** Ders: adım adım ders (LessonV3) ya da eski düz metin. */
-import { ExamLessonBody } from "@/components/parity/exam-lesson-body";
+import { ExamLessonBodyLazy } from "@/components/parity/exam-lesson-body-lazy";
 import { ExamLessonSteps } from "@/components/parity/exam-lesson-steps";
 import type { LessonCheckAnswer } from "@/lib/learning/lesson-play";
 import { NodeSources } from "@/components/parity/node-sources";
@@ -50,7 +50,7 @@ export function LessonPlay({ life }: { life: NodeLifecycle }) {
         ) : (
           <section>
             <h1>{payload.title}</h1>
-            <ExamLessonBody content={payload.contentMd ?? ""} />
+            <ExamLessonBodyLazy content={payload.contentMd ?? ""} />
             <button type="button" className="cp-exam-continue cp-exam-continue--primary" disabled={loading} aria-busy={loading} onClick={() => void finish()}>
               {loading ? "Kaydediliyor…" : "Bitir"}
             </button>

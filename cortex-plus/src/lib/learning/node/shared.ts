@@ -45,7 +45,51 @@ export async function settlePendingStart(
     .maybeSingle();
   if (!data?.id) return;
   const settle = input.outcome === "commit" ? commitCredits : refundCredits;
-  await settle(service, data.id as string).catch(() => undefined);
+  await settle(service, data.id as string).catch(
+    onNodeFailure("node_credit_settle_failed", { reservationId: data.id, outcome: input.outcome, site: "pending_start" }),
+  );
+}
+
+/** Hata nedeni günlüğe kısa ve kararlı biçimde (Error, Supabase hata nesnesi ya da bilinmeyen). */
+export function failureCause(error: unknown): string {
+  if (error instanceof Error) return error.message.slice(0, 160);
+  if (error && typeof error === "object" && "message" in error) {
+    return String((error as { message: unknown }).message).slice(0, 160);
+  }
+  return "unknown";
+}
+
+/**
+ * Ölümcül olmayan yan iş düştü (6 Kasım 2026): akış sürer, ama hata sessizce yutulmaz; kararlı bir kodla
+ * günlüğe düşer. Yalnız hata anında çağrılır — başarılı yolda günlük satırı yazılmaz.
+ */
+export function logNodeFailure(code: string, context: Record<string, unknown>, error: unknown) {
+  console.error(code, { ...context, cause: failureCause(error) });
+}
+
+/**
+ * Supabase yazımı: `{ error }` sonucu ve ağ reddi günlüğe yazılır, asla fırlatılmaz. Yazım beklenir
+ * (RPC'den önce inmesi gereken kayıtlar için sıra korunur).
+ */
+export async function awaitLoggedWrite(
+  code: string,
+  context: Record<string, unknown>,
+  write: PromiseLike<unknown>,
+): Promise<void> {
+  try {
+    const result = (await write) as { error?: unknown } | null | undefined;
+    if (result && typeof result === "object" && result.error) logNodeFailure(code, context, result.error);
+  } catch (error) {
+    logNodeFailure(code, context, error);
+  }
+}
+
+/** `.catch(...)` için: reddi yutmadan günlüğe yazar, `fallback` döndürür (varsayılan `undefined`). */
+export function onNodeFailure<T = undefined>(code: string, context: Record<string, unknown>, fallback?: T) {
+  return (error: unknown): T => {
+    logNodeFailure(code, context, error);
+    return fallback as T;
+  };
 }
 
 /** `after` yalnız bir istek içinde çalışır; rotayı doğrudan çağıran birim testlerinde arka plan işi atlanır. */
@@ -75,7 +119,7 @@ export function deferTask(task: () => Promise<unknown> | unknown, background: bo
   }
   void Promise.resolve()
     .then(task)
-    .catch(() => undefined);
+    .catch((error: unknown) => logNodeFailure("node_deferred_task_failed", {}, error));
 }
 
 export class NodeGenerationError extends Error {
