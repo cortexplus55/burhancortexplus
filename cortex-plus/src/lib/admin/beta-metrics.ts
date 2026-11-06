@@ -160,7 +160,7 @@ export function evaluateBetaCriteria(m: BetaMetrics): CriterionRow[] {
       target: "0",
       value: String(m.droppedConcepts),
       status: m.droppedConcepts === 0 ? "pass" : "fail",
-      note: "Düzelmeyen kavram dersten çıkarılıp öğrenciye söylendi; ayrıntı /admin/ders-hatalari.",
+      note: "Düzelmeyen kavram dersten çıkarılıp öğrenciye söylendi; ayrıntı Ders Hataları sayfasında.",
     },
     {
       id: "cold",
@@ -195,7 +195,7 @@ export function evaluateBetaCriteria(m: BetaMetrics): CriterionRow[] {
         : `talep yok · ${m.support.openOverdue} gecikmiş açık`,
       status:
         m.support.openOverdue > 0 || m.support.answeredLate > 0 ? "fail" : m.support.total === 0 ? "nodata" : "pass",
-      note: "Cevap e-postayla gider; /admin/destek'te \"Cevaplandı\" denince süre yazılır.",
+      note: "Cevap e-postayla gider; Destek Talepleri sayfasında \"Cevaplandı\" denince süre yazılır.",
     },
     {
       id: "sentry",
