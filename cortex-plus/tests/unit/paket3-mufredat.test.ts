@@ -79,6 +79,8 @@ describe("kazanım sayfası havuz ön izlemesi", async () => {
     expect(preview!.steps).toEqual(["Ortamı belirle", "Yoğunluğu karşılaştır"]);
     expect(preview!.ladder?.ileri).toBe("Aktif taşıma enerji ister.");
     expect(preview!.unitSummary).toBe("Özet metni burada.");
+    // Tekrar kartları (kısa dersli sayfalar 300 kelimenin altında kalmasın diye): ders içeriği, en çok 6.
+    expect(preview!.cards).toEqual([{ front: "a", back: "b" }]);
     // Yalnız bölümde geçen kavram (Ribozom geçmiyor).
     expect(preview!.keyTerms.map((t) => t.term)).toEqual(["Hücre zarı"]);
     expect(preview!.sampleQuestion).toEqual({ stem: "Hücre zarı için hangisi doğrudur?", choices: ["A", "B", "C", "D", "E"] });
@@ -106,6 +108,7 @@ describe("kazanım sayfası havuz ön izlemesi", async () => {
     expect(page).toContain('.replace(/</g, "\\\\u003c")');
     expect(page).toContain('data-testid="sample-question"');
     expect(page).toContain('data-testid="sibling-outcomes"');
+    expect(page).toContain('data-testid="review-cards"');
   });
 });
 
