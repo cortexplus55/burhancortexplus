@@ -1088,6 +1088,38 @@
   }
 }
 
+/*
+  Dokunma alanı (6 Kasım 2026 telefon denetimi, 375×812): "Konuları düzenle" satırında ↑ / ↓
+  14×26 px, kaldır (×) 21×24 px, "Konuyu değiştir" 26 px, "Konu ekle" 33 px; tarih adımının ay
+  okları 32×32 px idi. Simgeler 44×44, metinli düğmeler 44 px yüksek; düğmeler konu adının altındaki
+  kendi satırında (li sütun düzeninde), 44 + 44 + ~110 + 44 px ve boşluklar 375 px'e sığar, kırılırsa
+  alt satıra iner (flex-wrap).
+*/
+@media (max-width: 480px) {
+  .apw-topic-actions {
+    gap: 0.35rem;
+  }
+
+  .apw-topic-edit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0 0.5rem;
+    font-size: 0.875rem;
+  }
+
+  .apw-topic-add-btn {
+    min-height: 44px;
+  }
+
+  .apw-cal-head button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .apw-progress-fill,
   .apw-readiness-fill,

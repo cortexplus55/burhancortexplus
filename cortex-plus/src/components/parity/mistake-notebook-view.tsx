@@ -217,7 +217,7 @@ export function MistakeNotebookView({
                   {stuck ? (
                     <Link
                       href={`/studio/anlat?topic=${encodeURIComponent(group.label)}`}
-                      className="mt-3 inline-flex items-center gap-2 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-[var(--cs-muted)] transition-colors hover:border-amber-500/50 hover:text-[var(--cs-text)]"
+                      className="cp-tap mt-3 inline-flex items-center gap-2 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-[var(--cs-muted)] transition-colors hover:border-amber-500/50 hover:text-[var(--cs-text)]"
                     >
                       Bu konu sana zor geliyor — bir de sen anlat
                     </Link>

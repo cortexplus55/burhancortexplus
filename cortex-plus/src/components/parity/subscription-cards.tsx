@@ -519,7 +519,7 @@ export function SubscriptionCards({
               ) : null}
               <button
                 type="button"
-                className="mt-3 flex w-full items-center justify-center gap-1 text-sm text-[var(--cs-muted)]"
+                className="cp-tap mt-3 flex w-full items-center justify-center gap-1 text-sm text-[var(--cs-muted)]"
                 onClick={() => setPlusOpen((v) => !v)}
               >
                 Tüm avantajları gör

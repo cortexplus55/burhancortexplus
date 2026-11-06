@@ -1,0 +1,64 @@
+/*
+  Telefonda dokunma alanı tabanı: 36 px (6 Kasım 2026 canlı mobil denetimi, 375×812 ve 360×800, gerçek
+  mobil emülasyon). Ölçülen kutu (getBoundingClientRect) şu düğme ve bağlantılarda 20–35 px çıktı;
+  parmakla basılınca komşusuna kayıyordu.
+
+  Tek kural, tek dosya: kök düzende yüklenir, bu yüzden her sayfada geçerli. Yalnız 480 px altında;
+  masaüstü görünümü değişmez. Yalnız min-height / min-width (gerekirse inline-flex) yazılır: kendi
+  dosyalarındaki width / height (ör. 2rem simge) olduğu gibi kalır, taban onların üstüne biner.
+  `:root` öneki tek sınıflı kuralların ve Tailwind sınıflarının önüne geçmek için.
+
+  Tailwind sınıflı tek seferlik öğeler (Sil, Tüm avantajları gör, Sonuca dön …) `cp-tap` sınıfını
+  taşır; yeni bir küçük düğme için önce o sınıfı deneyin. Simgeli düğmelerin 44 px'lik ::after
+  dokunma alanı kendi dosyalarında durur (Görsel ve akış paketi 2); burası görünen kutunun tabanı.
+  Bekçi: tests/unit/mobil-denetim-6-kasim.test.ts.
+*/
+@media (max-width: 480px) {
+  /* Satır içi metin bağlantıları: kutu metin kadar (≈20 px) kalmasın. */
+  :root .cp-tap,
+  :root .cp-docs-link,
+  :root .lc-skip,
+  :root .ls-pod-lock-link,
+  :root .cp-sor-logo,
+  :root .cortex-premium-auth__logo {
+    display: inline-flex;
+    align-items: center;
+    min-height: 36px;
+  }
+
+  /* Hap ve sekme düğmeleri. */
+  :root .ls-back,
+  :root .cp-path-sketch,
+  :root .cp-prep-tabs button,
+  :root .cp-node-sources,
+  :root .cp-pod-chapter,
+  :root .cp-pod-rate,
+  :root .cp-pod-script-btn,
+  :root .cp-video-ratio button,
+  :root .cp-qreport-trigger,
+  :root .cp-sor-subject,
+  :root .als-source-page,
+  :root .cp-exam-coach-chip,
+  :root .cp-back-pill,
+  :root .tool-back {
+    min-height: 36px;
+  }
+
+  /* Simgeli düğmeler: kare kalır, en az 36×36. */
+  :root .cp-tap,
+  :root .cp-prep-icon,
+  :root .cp-video-speed,
+  :root .cp-video-icon,
+  :root .cp-cal-month button,
+  :root .cp-survey-close {
+    min-width: 36px;
+    min-height: 36px;
+  }
+
+  /* "Anlatımın metni" açılır başlığı: liste öğesi kalır (üçgen işareti), yalnız boyu uzar. */
+  :root .cp-video-script summary {
+    box-sizing: border-box;
+    min-height: 36px;
+    padding-block: 8px;
+  }
+}

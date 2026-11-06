@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { PodcastLength } from "@/lib/learning/podcast-formats";
 import { useEffect, useState } from "react";
@@ -136,6 +137,10 @@ export function PrepPodcastSession({
         <button type="button" className="cp-exam-continue" onClick={() => setAttempt((value) => value + 1)}>
           Yeniden dene
         </button>
+        {/* Oturum kabuğunda üst çubuk yok: hata ekranının da bir çıkışı olsun. */}
+        <Link href={home} className="cp-pod-leave">
+          Çalışma yoluna dön
+        </Link>
       </section>
     );
   }

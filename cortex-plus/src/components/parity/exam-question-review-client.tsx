@@ -177,7 +177,7 @@ export function ExamQuestionReviewClient({
           href={`/deneme-sinavlari/${prepId}/sonuc?examId=${examId}${
             score != null ? `&score=${score}` : ""
           }`}
-          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-surface-2 hover:bg-surface-3 border border-[var(--cp-border)] text-xs font-medium text-[var(--c-text-muted)] hover:text-[var(--cp-text)] transition-all shadow-sm"
+          className="cp-tap inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-surface-2 hover:bg-surface-3 border border-[var(--cp-border)] text-xs font-medium text-[var(--c-text-muted)] hover:text-[var(--cp-text)] transition-all shadow-sm"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>Sonuca dön</span>
@@ -186,7 +186,7 @@ export function ExamQuestionReviewClient({
         <div className="flex items-center gap-2">
           <Link
             href={`/deneme-sinavlari/${prepId}/deneme/${examId}`}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-action-soft hover:bg-action-soft border border-action/30 text-xs font-semibold text-action transition-all"
+            className="cp-tap inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-action-soft hover:bg-action-soft border border-action/30 text-xs font-semibold text-action transition-all"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span>Tekrar Çöz</span>

@@ -19,7 +19,7 @@ export function ParitySiteHeader() {
         <Link
           href="/"
           className={cn(
-            "flex shrink-0 items-center gap-2 font-semibold tracking-tight text-[var(--mk-text)]",
+            "cp-tap flex shrink-0 items-center gap-2 font-semibold tracking-tight text-[var(--mk-text)]",
             navFocus,
           )}
         >
