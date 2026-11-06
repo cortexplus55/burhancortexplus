@@ -32,15 +32,25 @@ export async function POST(request: Request) {
     .maybeSingle();
   if (!prep) return errorResponse(404, "not_found");
 
+  // Yeni düzeye göre gruplanır, her düzey tek güncelleme (6 Kasım 2026, hız paketi): önce konu başına
+  // ayrı istek gidiyor, biri düşünce kalanlar hiç denenmeden 500 dönülüyordu. Hepsi denenir; başarı
+  // yalnız hepsi yazılınca bildirilir.
   const { data: topics } = await service.from("exam_prep_topics").select("id, familiarity").eq("exam_prep_id", prepId);
+  const byTarget = new Map<string, string[]>();
   for (const topic of topics ?? []) {
     const current = parseFamiliarity(topic.familiarity);
     const next = shiftFamiliarity(current, direction);
-    if (next !== current) {
-      const { error } = await service.from("exam_prep_topics").update({ familiarity: next }).eq("id", topic.id);
-      if (error) return errorResponse(500, "save_failed");
-    }
+    if (next === current) continue;
+    const ids = byTarget.get(next) ?? [];
+    ids.push(topic.id as string);
+    byTarget.set(next, ids);
   }
+  const results = await Promise.all(
+    [...byTarget].map(([familiarity, ids]) =>
+      service.from("exam_prep_topics").update({ familiarity }).eq("exam_prep_id", prepId).in("id", ids),
+    ),
+  );
+  if (results.some((result) => result.error)) return errorResponse(500, "save_failed");
 
   // Hazır bekleyen içerik eski düzeyde yazıldı: atılır, sıradaki yeni düzeyde hazırlanır.
   const { data: nodes } = await service.from("exam_prep_nodes").select("id").eq("exam_prep_id", prepId);

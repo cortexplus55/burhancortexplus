@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { generateJson } from "@/lib/ai/generate";
 import type { LessonV2 } from "@/lib/learning/teaching-standards";
 import { readLessonV2 } from "@/lib/learning/lesson-v3";
+import { awaitLoggedWrite } from "./shared";
 
 /**
  * Konunun en son doğrulanmış dersi. Podcast bunun üzerine kuruluyor;
@@ -33,15 +34,16 @@ export async function saveTopicLesson(
 ) {
   const lesson = readLessonV2(input.payload.lesson);
   if (!lesson?.title) return;
-  await service
-    .from("exam_prep_lessons")
-    .insert({
+  await awaitLoggedWrite(
+    "node_topic_lesson_save_failed",
+    { prepId: input.prepId, topicId: input.topicId },
+    service.from("exam_prep_lessons").insert({
       exam_prep_id: input.prepId,
       topic_id: input.topicId,
       title: lesson.title,
       content_md: lesson.overview ?? lesson.sections?.[0]?.body ?? lesson.title,
       // Kayıt biçimi olduğu gibi (V3). Eksik kavram listesi yazılmaz; konu testi dersin bütününü sorar.
       content_json: input.payload.lesson,
-    })
-    .then(undefined, () => undefined);
+    }),
+  );
 }

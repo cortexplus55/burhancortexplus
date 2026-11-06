@@ -22,10 +22,11 @@ test.describe("learning loop surfaces", { tag: ["@smoke"] }, () => {
     }
   });
 
+  // 6 Kasım 2026 (Paket 3): `/dashboard` `next.config.ts`'te `/ogretmen`'e yönlenir; `next` gerçek hedefi taşır.
   test("girişsiz dashboard girişe yönlenir ve geri döner", async ({ page }) => {
     await page.goto("/dashboard");
     await expect(page).toHaveURL(/\/giris/);
-    await expect(page).toHaveURL(/next=%2Fdashboard/);
+    await expect(page).toHaveURL(/next=%2Fogretmen/);
   });
 
   test("telefondan cortex page", async ({ page }) => {

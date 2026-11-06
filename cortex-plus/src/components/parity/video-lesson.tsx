@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils";
 import { postJsonWithRetry } from "@/lib/learning/generation-retry";
 import { STARS_CHANGED_EVENT } from "@/components/parity/stars-dialog";
 import { DiagramCard } from "@/components/parity/diagram-card";
+// Çizimli videoda formül adımı içeriğin kendisi: KaTeX eşzamanlı kalır, biçimi de burada (6 Kasım 2026).
+import "katex/dist/katex.min.css";
 import { formulaStepHtml } from "@/lib/learning/math-text";
 import { studentOutputText } from "@/lib/learning/student-output-firewall";
 import {

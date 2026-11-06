@@ -19,7 +19,10 @@ describe("her hazırlığın kendi yolu", () => {
     expect(studentBottomTabs.map((tab) => tab.label)).toEqual(["Ana Sayfa", "Sınavlar", "Araçlar", "Profil"]);
     expect(studentBottomTabs.some((tab) => tab.href === "/calisma-plani")).toBe(false);
     expect(TOOLS.some((tool) => tool.href === "/calisma-plani")).toBe(false);
-    expect(readFileSync("src/app/calisma-plani/page.tsx", "utf8")).toContain('permanentRedirect("/deneme-sinavlari")');
+    // 6 Kasım 2026 (Paket 3): yönlendirme sayfa dosyasından `next.config.ts`'e taşındı.
+    expect(readFileSync("next.config.ts", "utf8")).toContain(
+      '{ source: "/calisma-plani", destination: "/deneme-sinavlari", permanent: true }',
+    );
   });
 
   it("kurulum dersle başlar; materyal adımı yalnız o dersin, eski belgeler listelenmez", () => {

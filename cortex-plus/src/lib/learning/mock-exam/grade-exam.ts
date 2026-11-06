@@ -37,7 +37,7 @@ import {
 } from "@/lib/learning/mock-exam";
 import { recordAnswerEvidence } from "@/lib/mastery-map/exam-evidence";
 import { rememberMisconceptions } from "@/lib/learning/node/misconceptions";
-import { afterResponse } from "@/lib/learning/node/shared";
+import { afterResponse, logNodeFailure, onNodeFailure } from "@/lib/learning/node/shared";
 import { refreshStudentMemory } from "@/lib/learning/student-memory";
 
 export type GradeMockExamInput = {
@@ -411,8 +411,9 @@ export async function gradeMockExam(input: GradeMockExamInput): Promise<GradeMoc
       force: true,
       reason: "exam_graded",
     });
-  } catch {
-    // ignore
+  } catch (error) {
+    // Etkinlik ve yeniden planlama notu geri almaz; hata yutulmaz, günlüğe iner (6 Kasım 2026).
+    logNodeFailure("mock_exam_activity_reschedule_failed", { examId }, error);
   }
 
   // Öğrenme hafızası (5 Kasım 2026): deneme de defter ve yanılgı kaydı üretir; özet yanıttan sonra yenilenir.
@@ -502,7 +503,7 @@ async function judgeOpenAnswers(
       model,
       tokensIn: response.usage?.prompt_tokens ?? 0,
       tokensOut: response.usage?.completion_tokens ?? 0,
-    }).catch(() => undefined);
+    }).catch(onNodeFailure("mock_exam_usage_record_failed", { site: "open_grade" }));
     return parseOpenGrade(parseModelJson(response.choices[0]?.message?.content ?? ""), items);
   } catch (error) {
     console.error("exam_open_grade_failed", {

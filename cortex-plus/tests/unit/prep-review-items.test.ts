@@ -480,7 +480,8 @@ describe("bekçi: kaynak", () => {
     const complete = read("src/lib/learning/node/complete.ts");
     const call = complete.indexOf("scheduleReviewsAfterComplete(service");
     expect(call).toBeGreaterThan(complete.indexOf('service.rpc("complete_exam_prep_node"'));
-    expect(complete.slice(call, call + 700)).toContain(".catch(() => 0)");
+    // 6 Kasım 2026 (Paket 3): hata yine 0 döner ama yutulmaz, kararlı kodla günlüğe iner.
+    expect(complete.slice(call, call + 700)).toContain('.catch(onNodeFailure("node_complete_review_schedule_failed", { nodeId }, 0))');
     expect(complete.slice(call, call + 700)).not.toContain(".rpc(");
     expect(route).toContain("reviewScheduled,");
     const store = read("src/lib/learning/review-items-store.ts");
