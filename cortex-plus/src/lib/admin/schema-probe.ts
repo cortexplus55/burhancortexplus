@@ -499,7 +499,7 @@ export async function probeSchema(
       critical: false,
       detail: founderRole.error
         ? "is_founder yok — kimse kurucu sayılmıyor; fiyat, kredi kuralı, harcama tavanı, kur, özellik anahtarı ve yönetici ekleme kapalı (20261106150000)."
-        : "is_founder yerinde (20261106150000); yöneticiler /admin/yoneticiler'de.",
+        : "is_founder yerinde (20261106150000); yöneticiler «Yöneticiler ve Yetkiler» sayfasında.",
     },
   ];
 }

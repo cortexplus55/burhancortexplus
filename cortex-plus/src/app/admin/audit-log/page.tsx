@@ -70,7 +70,7 @@ export default async function AdminIslemKayitlariPage() {
                   <div className="text-sm">{entityLabel(log.entity_type)}</div>
                   {log.entity_id ? (
                     <div className="text-xs text-[var(--adm-muted)]" title={log.entity_id}>
-                      {shortEntityId(log.entity_id)}
+                      {/^[0-9a-f-]{8,}$/i.test(log.entity_id) ? shortEntityId(log.entity_id) : null}
                     </div>
                   ) : null}
                 </td>

@@ -7,6 +7,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
 import { SERVICE_NOTES, serviceDisplay } from "@/lib/admin/labels";
 import { MaintenanceButton } from "@/components/admin/maintenance-button";
+import { CodeAware } from "@/components/admin/code-aware";
 import { loadContentPoolReport } from "@/lib/admin/content-pool-report";
 import { lessonCoverage, POOL_STATE_BADGE, poolRowState } from "@/lib/admin/content-families";
 import { probeOpenAi, probeRedis, readStorageSize } from "@/lib/admin/system-probes";
@@ -353,7 +354,7 @@ export default async function AdminSistemPage() {
         <AdminTableFrame columns={["Kontrol", "Durum", "Ayrıntı"]}>
           {schema.map((check) => (
             <tr key={check.name}>
-              <td className="font-medium">{check.name}</td>
+              <td className="font-medium"><CodeAware text={check.name} /></td>
               <td>
                 {check.ok ? (
                   <AdminBadge tone="ok">uyumlu</AdminBadge>
@@ -365,7 +366,7 @@ export default async function AdminSistemPage() {
               </td>
               {/* Kredi kuralı satırları virgüllü uzun kod listesi yazabilir; hücre taşmasın. */}
               <td className="max-w-md whitespace-normal break-words text-xs text-[var(--adm-muted)]">
-                {check.detail}
+                <CodeAware text={check.detail} />
               </td>
             </tr>
           ))}
