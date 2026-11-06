@@ -469,6 +469,24 @@ export function skeletonCoverage(
     const pages = topicPages(topic);
     if (!pages.length) continue;
     const first = pages[0]!;
+    // Konunun adını taşıyan kendi başlığı iskelette varsa (ölçülmese de, gövdesi kısa olduğu için) konu O başlığın
+    // yerini tutar; aynı sayfadaki başka bir bölümü konumla sahiplenmez (6 Kasım 2026, canlı: iki bölümlü sayfada
+    // haritadaki konu kısa kendi bölümüyle değil sonraki numaralı bölümle eşlendi, o bölüm hiç konu olmadı).
+    // `headingNamedIn(x, [])` yalnız x'te eşlenecek kelime yoksa true döner: kelimesiz başlık ya da ad eşleşme sayılmaz.
+    const ownHeading = headingNamedIn(topic.title, []) ? undefined : skeleton.headings.find(
+      (heading) =>
+        !heading.documentTitle &&
+        // Üst başlık (altında 1.1, 1.2 …) ölçülmez; o konu ilk alt bölümünü temsil eder (eski kural aynen).
+        !heading.parent &&
+        !headingNamedIn(heading.title, []) &&
+        (options.singleFile ? 0 : heading.fileIndex) === fileOf(topic) &&
+        heading.pages.some((page) => pages.includes(page)) &&
+        (headingNamedIn(topic.title, [heading.title]) || headingNamedIn(heading.title, [topic.title])),
+    );
+    if (ownHeading) {
+      if (measuredHeadings.includes(ownHeading)) owned.add(ownHeading);
+      continue;
+    }
     const candidates = measuredHeadings.filter((heading) => {
       if ((options.singleFile ? 0 : heading.fileIndex) !== fileOf(topic)) return false;
       if (!heading.pages.includes(first)) return false;

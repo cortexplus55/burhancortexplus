@@ -14,7 +14,8 @@ import { poolBudgetAllows } from "@/lib/content-pool/fill-server";
 import { openaiLlm, SHARED_VERIFY_MODEL } from "@/lib/content-pool/generate";
 import { firstLessonBody, generateOutcomeLesson, OUTCOME_LESSON_ESTIMATE_USD, outcomeBlueprintKind, type OutcomeFirst } from "@/lib/content-pool/outcome-lesson";
 import { claimOutcomeLesson, readOutcomeLesson, retireOutcomeLesson, verifyOutcomeLesson } from "@/lib/content-pool/outcome-store";
-import { poolLessonV3, poolSliceForTopic } from "@/lib/content-pool/serve";
+import { poolLessonV3, poolSliceForTopic, readPoolLessonChecks, withPoolChecks } from "@/lib/content-pool/serve";
+import type { PoolCheckItem } from "@/lib/content-pool/lesson-checks";
 import { supabasePoolStore } from "@/lib/content-pool/supabase-store";
 import type { PoolUnit } from "@/lib/content-pool/keys";
 import type { LessonBody } from "@/lib/content-pool/schema";
@@ -39,8 +40,19 @@ export function singleOutcome(prefs: unknown, topicLabel: string | null | undefi
   return outcome ? { unit, code, outcomeId: outcome.outcomeId } : null;
 }
 
-function lessonPayload(body: LessonBody, title: string, target: { unit: PoolUnit; code: string; outcomeId: string }) {
-  const lesson = poolLessonV3(body, title, target.unit.program.kind, outcomeBlueprintKind(target.unit.program.kind));
+function lessonPayload(
+  body: LessonBody,
+  title: string,
+  target: { unit: PoolUnit; code: string; outcomeId: string },
+  checks: readonly PoolCheckItem[] = [],
+) {
+  // Kontrol soruları kazanımın doğrulanmış bankasından (6 Kasım 2026, `lesson-checks.ts`).
+  const lesson = withPoolChecks(
+    poolLessonV3(body, title, target.unit.program.kind, outcomeBlueprintKind(target.unit.program.kind)),
+    body,
+    [target.unit],
+    checks,
+  );
   return {
     type: "lesson",
     lesson,
@@ -57,9 +69,12 @@ export async function serveOutcomeLesson(context: NodeContext, state: State): Pr
   if (kind !== "lesson" || !teachingV2 || state.voiceSession || prefetch) return null;
   const target = singleOutcome(prep.learning_preferences, state.topicLabel);
   if (!target) return null;
+  const checksRead = readPoolLessonChecks(service, { units: [target.unit], codes: new Set([target.code]) }, userId).catch(
+    () => [] as PoolCheckItem[],
+  );
   const stored = await readOutcomeLesson(service, target.unit, target.outcomeId).catch(() => null);
   if (stored) {
-    const response = await openAttempt(context, state, lessonPayload(stored, state.title, target));
+    const response = await openAttempt(context, state, lessonPayload(stored, state.title, target, await checksRead));
     if (response) {
       const ms = Date.now() - requestStarted;
       after(() => recordLessonTiming(service, { userId, kind, path: "pool", openMs: ms, meta: { route: "outcome", outcomeId: target.outcomeId, unitId: target.unit.unitId } }));
@@ -104,7 +119,7 @@ export async function serveOutcomeLesson(context: NodeContext, state: State): Pr
     }
     // Kapıdan geçmeyen ders havuza girmez ama öğrenci okuduğunu kaybetmez (en az ilk bölüm).
     const body = result?.lesson ?? firstLessonBody(first);
-    const final = { ...lessonPayload(body, state.title, target), ...(result?.ok ? {} : { pooled: false }) };
+    const final = { ...lessonPayload(body, state.title, target, await checksRead), ...(result?.ok ? {} : { pooled: false }) };
     await service.from("exam_prep_node_attempts").update({ payload: final, total: countTotal(kind, final) }).eq("id", attemptId).eq("generation_id", generationId);
   });
   if (!response) {

@@ -72,6 +72,7 @@ import { topWeightedTopic } from "@/lib/learning/prep-corpus";
 import { runTeacherTutor } from "@/lib/ai/teacher-tutor-run";
 import { answerFirstLine, bestSourcePage } from "@/lib/learning/tutor-answer";
 import { CHAT_NATURAL_VOICE, teacherStyleLine, tutorHistoryLine, tutorHistoryText } from "@/lib/ai/teacher-tutor";
+import { simplifyLine } from "@/lib/ai/simplify-request";
 import { loadStudentMemory, studentMemoryLines } from "@/lib/learning/student-memory";
 import { parseCheckExpected, gradeAgainstExpected } from "@/lib/learning/check-question";
 import { citationHref, type ChatCitation, type ChatEvidence } from "@/lib/ai/chat-citations";
@@ -422,7 +423,7 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
       const chatMood = parseMood(rest.mood);
       const moodLine = chatMood === "neutral" ? "" : ` ${moodPrompt(chatMood)}`;
       const requestMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-        { role: "system", content: `${SYSTEM_GUARDRAIL} ${studentInstruction} ${teacherTurn} ${teacherStyleLine(tutorStyle)} ${CHAT_NATURAL_VOICE} ${answerFirstLine(message, tutorStyle)}${moodLine}${examContext?.block ?? ""}${attachedBrief ? `\n${SOURCE_PAGE_FORMULA_RULE}\n${attachedBrief}` : ""}${contextBlock}${tutorAddendum ? `\n\n${tutorAddendum}` : ""}` },
+        { role: "system", content: `${SYSTEM_GUARDRAIL} ${studentInstruction} ${teacherTurn} ${teacherStyleLine(tutorStyle)} ${CHAT_NATURAL_VOICE} ${answerFirstLine(message, tutorStyle)}${moodLine}${examContext?.block ?? ""}${attachedBrief ? `\n${SOURCE_PAGE_FORMULA_RULE}\n${attachedBrief}` : ""}${contextBlock}${tutorAddendum ? `\n\n${tutorAddendum}` : ""}${simplifyLine(message) ? `\n\n${simplifyLine(message)}` : ""}` },
         ...history,
         { role: "user", content: imageUrl ? [{ type: "text", text: message }, { type: "image_url", image_url: visionImage(imageUrl) }] : message },
       ];

@@ -8,6 +8,16 @@
  * (öğrencinin okuduğu ekran yerinden oynamaz). Asıl dersin 6–8 bölüm kuralı değişmez.
  */
 import { LESSON_V3_FORMAT, lessonScreenSchema, type LessonScreen } from "@/lib/learning/lesson-v3";
+import { EXAMPLE_CLASSIFICATION_RULE } from "@/lib/learning/teaching-rubric";
+
+/**
+ * Giriş ekranının örneği (6 Kasım 2026, canlı sınav): bu ekranı hızlı ve düşünmesiz model yazıyor, hafif doğrulayıcıdan
+ * geçmiyor; "gündelik bir örnek" isteği bir nesneyi yanlış sınıfa koydurdu ve yanlış sınıflandırma dersin ilk kartında
+ * kaldı. Asıl yazarla aynı kural; örnek önce kazanımlardan ve önceki anlatımdan seçilir.
+ */
+export const LEAD_EXAMPLE_RULE =
+  `${EXAMPLE_CLASSIFICATION_RULE} Örneği önce KAZANIMLAR'dan ve ÖNCEKİ ANLATIMIN KISA ÖZETİ'ndeki gerçek örneklerden seç; ` +
+  "emin olmadığın bir örneği kullanmaktansa örneksiz anlat.";
 
 export const REWRITE_LEAD_MAX_TOKENS = 380;
 /** Akışlı giriş (3 Kasım 2026 ikinci ölçüm: JSON'lu tek parça çağrı 3,9 sn sürdü, öğrenci görmedi). */
@@ -18,6 +28,7 @@ export function rewriteLeadPrompt(input: { topicLabel: string; basis: string; st
     system: [
       "Sen Cortex Plus'ın öğretmenisin. Türkçe yazarsın. Öğrenci bu konunun bir anlatımını okudu ve farklı anlatılmasını istedi.",
       "Yalnız dersin İLK ekranını yaz: 1-2 cümlelik merak uyandıran farklı bir giriş, ardından konunun ilk temel fikri (somut, gündelik bir örnek ya da benzetmeyle).",
+      LEAD_EXAMPLE_RULE,
       "Toplam 90-150 kelime. Soru, test, şık yazma. Kazanımların dışına çıkma; bilgi doğru ve sınav düzeyinde olsun.",
       input.styleLine?.trim() ?? "",
       'JSON döndür: {"heading":"ekran başlığı","concept":"ilk fikrin kısa adı","paragraphs":["giriş","ilk fikir"]}',
@@ -35,6 +46,7 @@ export function rewriteLeadStreamPrompt(input: { topicLabel: string; basis: stri
     system: [
       "Sen Cortex Plus'ın öğretmenisin. Türkçe yazarsın. Öğrenci bu konunun bir anlatımını okudu ve farklı anlatılmasını istedi.",
       "Yalnız dersin İLK ekranını yaz: 1-2 cümlelik merak uyandıran farklı bir giriş, ardından konunun ilk temel fikri (somut, gündelik bir örnek ya da benzetmeyle).",
+      LEAD_EXAMPLE_RULE,
       "Toplam 80-130 kelime. Soru, test, şık yazma. Kazanımların dışına çıkma; bilgi doğru ve sınav düzeyinde olsun.",
       input.styleLine?.trim() ?? "",
       "Biçim (düz metin, JSON ya da markdown yok):\n1. satır: ekran başlığı\n2. satır: ilk fikrin kısa adı\nBoş satır, sonra giriş paragrafı; boş satır, sonra ilk fikir paragrafı.",

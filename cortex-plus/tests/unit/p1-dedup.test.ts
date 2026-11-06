@@ -178,7 +178,7 @@ describe("kablolama", () => {
   const node = readSource("src/app/api/learning/exam-prep/node/route.ts");
   it("test önceki kökleri ve dilimi alır; kartlar yalnız konunun sayfalarından ve önceki kartsız", () => {
     expect(node).toMatch(/kind: "quiz",\s+excludeNodeId/);
-    expect(node).toContain("practiceCoverage(variant, lessonBackbone(clean");
+    expect(node).toContain("practiceCoverage(variant, lessonBackbone(ownPages");
     expect(node).toContain("teacherPages(input, core ? { ...core, support: [] } : core)");
     expect(node).toContain('kind: "cards",');
   });
