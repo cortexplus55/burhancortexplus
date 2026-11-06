@@ -36,7 +36,7 @@ export function CockpitSuperseded({ rows }: { rows: SupersededRow[] }) {
         </thead>
         <tbody>
           {groups.map((group) => (
-            <tr key={group.unitId} className="border-t border-[var(--adm-border)]">
+            <tr key={group.unitId} className="border-t border-[var(--adm-line)]">
               <td className="py-1 pr-3">{group.unitId}</td>
               <td className="py-1 pr-3 adm-num">{group.count}</td>
               <td className="py-1 pr-3 adm-num">{group.archivable}</td>

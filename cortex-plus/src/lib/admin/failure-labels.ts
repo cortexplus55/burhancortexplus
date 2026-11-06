@@ -19,6 +19,8 @@ export const FAILURE_REASON_LABEL: Record<string, string> = {
   // 18 Ekim 2026: akışlı motor. Taslak okunamadı (yeniden yazıldı) ya da düzelmeyen kavram atıldı.
   draft_unreadable: "Taslak okunamadı (yeniden yazıldı)",
   concept_dropped: "Kavram atıldı (düzelmedi)",
+  pedagogy_salvaged: "Öğretim kuralına takılan soru sayıyı tamamlamak için geri kondu",
+  build_stalled: "Ders yazımı takıldı, olduğu kadarıyla kapatıldı",
 };
 
 /**

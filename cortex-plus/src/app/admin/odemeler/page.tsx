@@ -105,7 +105,7 @@ export default async function AdminOdemelerPage({
         &quot;geri alınamayan&quot; olarak görünür (bakiye eksiye inmez). Plus /
         Sigma tam iadesinde etkin abonelik, plan kaydı eşleşmese de geri alınır.
         Kısmi iade planı kapatmaz. Anında teslim edilen dijital hizmette cayma
-        hakkı yoktur (Mesafeli Sözleşmeler m.15/1-ğ); admin iadesi hatalı
+        hakkı yoktur (Mesafeli Sözleşmeler m.15/1-ğ); yönetici iadesi hatalı
         tahsilat içindir.
       </AdminNote>
 

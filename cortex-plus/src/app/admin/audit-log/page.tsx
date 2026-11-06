@@ -49,8 +49,8 @@ export default async function AdminIslemKayitlariPage() {
 
       {unlabeled.size ? (
         <AdminNote tone="warn">
-          {unlabeled.size} işlem türünün Türkçe adı henüz yok; satırda &quot;Tanımlanmamış işlem&quot; yazıyor. Adı{" "}
-          <code>src/lib/admin/labels.ts</code> dosyasına eklenmeli.
+          {unlabeled.size} işlem türünün Türkçe adı henüz yok; satırda &quot;Tanımlanmamış işlem&quot; yazıyor. Bu işlemlerin Türkçe adının
+          koda eklenmesi gerekiyor.
         </AdminNote>
       ) : null}
 
@@ -60,8 +60,10 @@ export default async function AdminIslemKayitlariPage() {
             {rows.map((log) => (
               <tr key={log.id}>
                 <td>
-                  <div className="font-medium">{auditLabel(log.action)}</div>
-                  <div className="text-xs text-[var(--adm-muted)]">{log.action}</div>
+                  {/* Ham eylem kodu ekranda değil, yalnız ipucunda (geliştirici için). */}
+                  <div className="font-medium" title={log.action}>
+                    {auditLabel(log.action)}
+                  </div>
                 </td>
                 <td>{log.profiles?.full_name || "Sistem"}</td>
                 <td>

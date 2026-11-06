@@ -182,3 +182,37 @@ export function segmentLabel(code: string | null | undefined, empty = "—"): st
 export function shortId(id: string | null | undefined): string {
   return id ? String(id).slice(0, 8) : "—";
 }
+
+/** Veritabanı tablolarının ekrandaki adı (Sistem Sağlığı "en büyük tablolar"); ham tablo adı gösterilmez. */
+const TABLE_LABELS: Record<string, string> = {
+  item_bank: "Soru bankası",
+  topic_content: "Hazır ders içeriği",
+  document_embeddings: "Belge vektörleri",
+  document_chunks: "Belge parçaları",
+  document_pages: "Belge sayfaları",
+  ai_usage_events: "Yapay zekâ kullanım kayıtları",
+  exam_prep_node_attempts: "Etkinlik denemeleri",
+  exam_prep_nodes: "Çalışma yolu adımları",
+  exam_prep_lessons: "Kayıtlı dersler",
+  exam_prep_podcasts: "Kayıtlı podcast'ler",
+  messages: "Sohbet mesajları",
+  audit_logs: "İşlem kayıtları",
+  item_responses: "Soru cevapları",
+  practice_exam_questions: "Deneme soruları",
+};
+
+export function tableLabel(name: string): string {
+  return TABLE_LABELS[name] ?? "Diğer tablo";
+}
+
+/** Dosya deposu kovalarının ekrandaki adı. */
+const BUCKET_LABELS: Record<string, string> = {
+  "lesson-audio": "Ders ve podcast sesleri",
+  documents: "Yüklenen belgeler",
+  avatars: "Profil resimleri",
+  "video-lessons": "Video dersler",
+};
+
+export function bucketLabel(name: string): string {
+  return BUCKET_LABELS[name] ?? "Diğer dosyalar";
+}

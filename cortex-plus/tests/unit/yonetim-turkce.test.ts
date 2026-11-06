@@ -267,32 +267,8 @@ const OWN_FILES = [
  * BAŞKA PR'LARDA DÜZELECEK DOSYALAR (6 Kasım 2026, yönetim panelinin Türkçe turu). Paralel geliştiriciler bu
  * sayfaları yazıyor; burada dokunulmadı. O PR'lar birleşince bu liste BOŞALTILIR ve bütün ağaç kesin bekçiye girer.
  */
-const PENDING_OTHER_PRS = new Set([
-  // Kullanıcı yönetimi
-  "src/app/admin/kullanicilar/page.tsx",
-  "src/app/admin/kullanicilar/[userId]/page.tsx",
-  "src/app/admin/kullanicilar/[userId]/hazirlik/[prepId]/page.tsx",
-  "src/components/admin/user-actions.tsx",
-  "src/components/admin/subscription-extend.tsx",
-  // Gelir, maliyet, promosyon
-  "src/app/admin/maliyetler/page.tsx",
-  "src/app/admin/odemeler/page.tsx",
-  "src/components/admin/refund-button.tsx",
-  "src/app/admin/promosyonlar/page.tsx",
-  "src/components/admin/campaign-form.tsx",
-  "src/components/admin/promo-tools.tsx",
-  "src/app/admin/ai-kullanimi/page.tsx",
-  // Sistem ve güvenlik
-  "src/app/admin/sistem/page.tsx",
-  "src/components/admin/digest-send-button.tsx",
-  "src/components/admin/smtp-test-button.tsx",
-  "src/app/admin/feature-flags/page.tsx",
-  "src/app/admin/audit-log/page.tsx",
-  "src/app/admin/kotuye-kullanim/page.tsx",
-  // Ortak düzen ve menü (temel PR'ın sahibi)
-  "src/app/admin/layout.tsx",
-  "src/components/admin/admin-nav-links.tsx",
-]);
+// 6 Kasım 2026: diğer yönetim PR'ları (#587, #588, #590, #591) birleşti; hariç liste boş. Yeni dosya da taranır.
+const PENDING_OTHER_PRS = new Set<string>([]);
 
 describe("yönetim paneli Türkçe — bu PR'ın sayfaları (kesin)", () => {
   it("görünen metinde yasak İngilizce terim yok", () => {

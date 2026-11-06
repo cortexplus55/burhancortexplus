@@ -2010,3 +2010,21 @@ kapandı. Kural: çözüm ders-bağımsız; senaryonun kelimeleri üretim koduna
 
 Bekçi: `paket1-dogruluk-konu.test.ts`, `paket2-sik-dagilimi.test.ts`, `paket2-konu-testi-deneme.test.ts`,
 `paket3-yardimci-araclar.test.tsx`, `paket4-gorsel-cila.test.tsx`, `ikiz-sinav-belgeler.test.ts`, `giris-ekrani-etiket.test.ts`.
+
+## Kurucu & Yönetim Merkezi (6 Kasım 2026) — #587–#592
+
+Ürün sahibi: "/admin %100 Türkçe, yalnız kurucuya tam yetkili, alt yönetici atama/kaldırma destekli". Göçler canlıda
+(`20261106150000_founder_role`, `20261106163000_yonetim_kullanicilar`, `20261106170000_storage_size_report`).
+
+| Kural | Nerede |
+|---|---|
+| Rol iki kademe: `founder` (Kurucu) ve `admin` (Yönetici); tek kaynak SQL `is_admin` (founder dahil) ve `is_founder`. Göç yoksa kimse kurucu sayılmaz | `admin-role.ts` (`getAdminRole`) |
+| Misafir, öğrenci, askıdaki hesap `/admin*` için 404 (girişe yönlenmez). Her sayfa `requireAdminPage()` ya da `requireFounderPage()` çağırır; düzendeki kontrol tek başına koruma sayılmaz | `admin-guard.ts`, `supabase/middleware.ts` |
+| Yalnız kurucu: fiyat, kredi kuralı, özellik anahtarı ve pilot listesi, kur, harcama tavanı, yönetici ekleme/çıkarma, hazırlık/belge kalıcı silme, elle bakım. Eylem `checkFounderActor()` ister. Yönetici bir yöneticinin ya da kurucunun hesabına dokunamaz | `admin-actor.ts`, `user-manage-copy.ts` (`targetAccountProblem`) |
+| `/admin/yoneticiler`: e-postayla var olan hesaba yetki; geri alma `revoked_at` (satır silinmez); kurucu çıkarılamaz; her işlem `audit_logs`'a | `admin-team.ts` |
+| PIN kapısı: `ADMIN_GATE_PIN_HASH` (scrypt, `scripts/admin-pin-hash.mjs`); HttpOnly, Secure, SameSite=Strict, kullanıcıya bağlı, `APP_SECRET` imzalı 12 saatlik çerez; 10 dakikada 5 yanlış. Tanımsızsa kapı kapalı ve sarı uyarı. PIN'i kurucu kendisi tanımlar | `admin-gate*.ts`, `/admin/kapi` |
+| Kullanıcı yönetimi: panelden paket ödeme değildir (ödeme kaydı yok, `trial_until = bitiş`); yıldız düzeltmesi `admin_adjust_stars`, cihaz sıfırlama `admin_reset_device_sessions`; silme öğrencinin kendi silme yolundan (`delete_exam_prep`, `soft_delete_document` + `purgeDeletedDocument`), "SİL" onayı ve sunucuda sahiplik okuması. Yönetici iptalinin kayıt adı `subscription.cancelled_by_admin` (öğrencinin kendi iptali `subscription.cancelled`) | `user-manage.ts`, `kullanicilar/actions.ts` |
+| Gelir: `/admin/maliyetler` üç pencere (Türkiye günü); tahsilat = ödendi + sonradan iade edilen, net = tahsilat − iade; gider `readAiSpend`, kur `effectiveUsdTry`; PayTR komisyonu düşülmez. Promosyon kodu yöneticiye açık: tek tür hak (1–90 gün Plus ya da 1–10.000 kredi), 1–1000 kullanım, son gün Türkiye günü sonu | `finance-math.ts`, `promo-actions.ts`, `promo-form.ts` |
+| Sistem Sağlığı: DB, depo (`storage_size_report()`), Redis PING, OpenAI `models.list()` (üretim çağrısı yok); "Ölçülemedi" asla "Çalışıyor" sayılmaz. İçerik havuzu aile eşlemesi tek yerde (`content-families.ts`). Elle bakım günlük turun iki işlevini aynı sınırlarla çağırır | `system-health.ts`, `system-probes.ts` |
+| Ekranda ham kod yok: işlem adı `labels.ts` (her yazılan eylemin Türkçe adı olmalı), durum kodu `status-labels.ts`, ödeme `PAYMENT_STATUS`. Panelde shadcn `Button` değil `adm-btn`; kenarlık tokenı `--adm-line` | `lib/admin/*` |
+| Türkçe bekçisi `yonetim-turkce.test.ts` bütün `src/app/admin` ve `src/components/admin` ağacını tarar (hariç liste boş); İngilizce terim listesi tek yerde `tests/unit/helpers/admin-english-terms.ts` | — |

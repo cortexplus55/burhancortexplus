@@ -33,7 +33,7 @@ export function AdminNavLinks({
                 <span
                   key={item.href}
                   className="adm-nav-link adm-nav-link--locked"
-                  aria-disabled="true"
+                  aria-disabled={true}
                   title="Yalnız kurucu açabilir"
                 >
                   <Icon className="h-4 w-4" aria-hidden />

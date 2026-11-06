@@ -175,7 +175,7 @@ export default async function AdminOzellikAnahtarlariPage() {
         dokunma.
       </AdminNote>
       <AdminNote tone="info">
-        Canlı ödeme bu listedeki <code>paytr_live</code> ile açılmaz. Gerçek kip{" "}
+        Canlı ödeme bu listedeki &quot;Canlı PayTR ödemesi&quot; anahtarıyla açılmaz. Gerçek kip{" "}
         <code>PAYTR_TEST_MODE</code>: şu an <strong>{paytrStatus}</strong>.
       </AdminNote>
 

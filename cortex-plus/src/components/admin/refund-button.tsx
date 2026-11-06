@@ -130,7 +130,7 @@ export function RefundButton({
 
   if (mode === "external") {
     return (
-      <div className="flex min-w-[16rem] flex-col gap-2 rounded border border-[var(--adm-border)] p-2 text-xs">
+      <div className="flex min-w-[16rem] flex-col gap-2 rounded border border-[var(--adm-line)] p-2 text-xs">
         <p className="text-[var(--adm-muted)]">
           PayTR panelinden yapılmış iadeyi deftere yaz (PayTR tekrar çağrılmaz).
           Mutabakat PayTR toplamıyla karşılaştırır; aynı tutar iki kez yazılmaz.
@@ -154,7 +154,7 @@ export function RefundButton({
             maxLength={64}
             value={externalRef}
             onChange={(e) => setExternalRef(e.target.value)}
-            placeholder="reference_no"
+            placeholder="PayTR referans numarası"
           />
         </label>
         <div className="flex gap-1">
@@ -197,7 +197,7 @@ export function RefundButton({
   }
 
   return (
-    <div className="flex min-w-[18rem] flex-col gap-2 rounded border border-[var(--adm-border)] p-2 text-xs">
+    <div className="flex min-w-[18rem] flex-col gap-2 rounded border border-[var(--adm-line)] p-2 text-xs">
       <div className="flex gap-2">
         <button
           type="button"

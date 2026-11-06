@@ -21,6 +21,7 @@ import {
   type HealthRow,
 } from "@/lib/admin/system-health";
 import { formatNumber } from "@/lib/format";
+import { bucketLabel, tableLabel } from "@/lib/admin/status-labels";
 import { paytrMode } from "@/lib/payments/paytr";
 import {
   AUTO_RENEW_SUPPORTED,
@@ -50,7 +51,7 @@ export const maxDuration = 120;
  */
 const SERVICES: { name: string; env: string[]; critical: boolean; all?: boolean }[] = [
   { name: "Supabase", env: ["NEXT_PUBLIC_SUPABASE_URL"], critical: true },
-  { name: "Supabase service key", env: ["SUPABASE_SECRET_KEY"], critical: true },
+  { name: "Supabase hizmet anahtarı", env: ["SUPABASE_SECRET_KEY"], critical: true },
   { name: "OpenAI", env: ["OPENAI_API_KEY"], critical: true },
   { name: "Workspace SMTP", env: ["SMTP_PASS"], critical: true },
   // 5 Kasım 2026: işlem e-postası sağlayıcısı; anahtar tanımlıysa asıl yol Resend, SMTP yedek (mailer.ts).
@@ -206,11 +207,11 @@ export default async function AdminSistemPage() {
           {database?.tables.length ? (
             <>
               En büyük tablolar:{" "}
-              {database.tables.slice(0, 4).map((table) => `${table.name} ${formatMegabytes(table.bytes)}`).join(", ")}.{" "}
+              {database.tables.slice(0, 4).map((table) => `${tableLabel(table.name)} ${formatMegabytes(table.bytes)}`).join(", ")}.{" "}
             </>
           ) : null}
           {storage?.buckets.length ? (
-            <>Depo: {storage.buckets.map((bucket) => `${bucket.name} ${megabytes(bucket.bytes)}`).join(", ")}. </>
+            <>Depo: {storage.buckets.map((bucket) => `${bucketLabel(bucket.name)} ${megabytes(bucket.bytes)}`).join(", ")}. </>
           ) : null}
           Sınırlar Pro&apos;ya geçince Vercel&apos;de <code>SUPABASE_DB_LIMIT_MB</code> ve{" "}
           <code>SUPABASE_STORAGE_LIMIT_MB</code> ile değişir; uyarı %{Math.round(DB_WARN_SHARE * 100)}, kritik %
@@ -220,7 +221,7 @@ export default async function AdminSistemPage() {
 
       {/*
         İçerik havuzu (6 Kasım 2026): dokuz sınav ailesi. Ünite toplamı kayıt defterinden, havuz sayıları sayım
-        sorgularından (satır okunmaz). Aile eşlemesi tek yerde: `lib/admin/content-families.ts`.
+        sorgularından (satır okunmaz). Aile eşlemesi kodda tek yerde tutulur.
       */}
       <AdminCard
         title="İçerik havuzu"
@@ -270,7 +271,7 @@ export default async function AdminSistemPage() {
               onayla / reddet). <strong>Yenilenecek</strong>: ünitesi yeniden yazılınca emekliye ayrılan eski sürüm
               sorular (kokpitte &quot;Eski sürümleri arşivle&quot;).
               {pool.unmapped.length
-                ? ` Hiçbir aileye bağlanmamış ${pool.unmapped.length} program var: lib/admin/content-families.ts'e eklenmeli.`
+                ? ` Hiçbir aileye bağlanmamış ${pool.unmapped.length} program var: sınav ailesi eşlemesine eklenmeli.`
                 : ""}
             </p>
           </>
