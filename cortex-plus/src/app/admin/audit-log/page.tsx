@@ -60,8 +60,10 @@ export default async function AdminIslemKayitlariPage() {
             {rows.map((log) => (
               <tr key={log.id}>
                 <td>
-                  <div className="font-medium">{auditLabel(log.action)}</div>
-                  <div className="text-xs text-[var(--adm-muted)]">{log.action}</div>
+                  {/* Ham eylem kodu ekranda değil, yalnız ipucunda (geliştirici için). */}
+                  <div className="font-medium" title={log.action}>
+                    {auditLabel(log.action)}
+                  </div>
                 </td>
                 <td>{log.profiles?.full_name || "Sistem"}</td>
                 <td>

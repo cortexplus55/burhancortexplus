@@ -21,6 +21,7 @@ import {
   type HealthRow,
 } from "@/lib/admin/system-health";
 import { formatNumber } from "@/lib/format";
+import { bucketLabel, tableLabel } from "@/lib/admin/status-labels";
 import { paytrMode } from "@/lib/payments/paytr";
 import {
   AUTO_RENEW_SUPPORTED,
@@ -206,11 +207,11 @@ export default async function AdminSistemPage() {
           {database?.tables.length ? (
             <>
               En büyük tablolar:{" "}
-              {database.tables.slice(0, 4).map((table) => `${table.name} ${formatMegabytes(table.bytes)}`).join(", ")}.{" "}
+              {database.tables.slice(0, 4).map((table) => `${tableLabel(table.name)} ${formatMegabytes(table.bytes)}`).join(", ")}.{" "}
             </>
           ) : null}
           {storage?.buckets.length ? (
-            <>Depo: {storage.buckets.map((bucket) => `${bucket.name} ${megabytes(bucket.bytes)}`).join(", ")}. </>
+            <>Depo: {storage.buckets.map((bucket) => `${bucketLabel(bucket.name)} ${megabytes(bucket.bytes)}`).join(", ")}. </>
           ) : null}
           Sınırlar Pro&apos;ya geçince Vercel&apos;de <code>SUPABASE_DB_LIMIT_MB</code> ve{" "}
           <code>SUPABASE_STORAGE_LIMIT_MB</code> ile değişir; uyarı %{Math.round(DB_WARN_SHARE * 100)}, kritik %
