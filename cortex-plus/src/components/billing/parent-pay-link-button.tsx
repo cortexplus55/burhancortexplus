@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Copy, MessageCircle, Users } from "lucide-react";
 import { toast } from "sonner";
+import { ExternalAnchor } from "@/components/ui/external-anchor";
 
 type LinkPayload = { url: string; expiresAt: string; shareText: string; whatsappUrl: string };
 
@@ -54,9 +55,9 @@ export function ParentPayLinkButton({ planId, planName }: { planId: string; plan
         </p>
         <input readOnly value={link.url} onFocus={(event) => event.currentTarget.select()} className="mt-2 w-full rounded-lg border border-[var(--cs-border)] bg-transparent px-2 py-1.5 font-mono text-xs text-[var(--cs-text)]" aria-label="Ödeme bağlantısı" />
         <div className="mt-2 flex flex-wrap gap-2">
-          <a href={link.whatsappUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full bg-action px-3 py-1.5 text-xs font-semibold text-action-foreground">
+          <ExternalAnchor href={link.whatsappUrl} className="inline-flex items-center gap-1.5 rounded-full bg-action px-3 py-1.5 text-xs font-semibold text-action-foreground">
             <MessageCircle className="h-3.5 w-3.5" aria-hidden /> WhatsApp&apos;ta gönder
-          </a>
+          </ExternalAnchor>
           <button type="button" onClick={() => void copy()} className="inline-flex items-center gap-1.5 rounded-full border border-[var(--cs-border)] px-3 py-1.5 text-xs text-[var(--cs-text)]">
             <Copy className="h-3.5 w-3.5" aria-hidden /> Kopyala
           </button>

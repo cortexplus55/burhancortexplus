@@ -4,6 +4,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { CRAM_SHEET_TITLE, examPrepCramSheetHref } from "@/lib/learning/cram-sheet";
 import { PREP_SHARE_COPY_LABEL, PREP_SHARE_LABEL, PREP_SHARE_NOTE } from "@/lib/learning/prep-share";
+import { ExternalAnchor } from "@/components/ui/external-anchor";
 import "@/styles/cram-sheet.css";
 
 /**
@@ -37,9 +38,9 @@ export function PrepShareTools({
       </Link>
       {inviteUrl && whatsappHref ? (
         <>
-          <a href={whatsappHref} target="_blank" rel="noopener noreferrer" className="cp-prep-extra">
+          <ExternalAnchor href={whatsappHref} className="cp-prep-extra">
             {PREP_SHARE_LABEL}
-          </a>
+          </ExternalAnchor>
           <div className="cp-prep-share-panel">
             <p className="cp-prep-share-note">{PREP_SHARE_NOTE}</p>
             <button type="button" className="cp-prep-share-copy" onClick={() => void copy()}>

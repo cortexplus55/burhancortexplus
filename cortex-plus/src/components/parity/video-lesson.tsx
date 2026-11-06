@@ -476,10 +476,14 @@ export function VideoLessonPlayer({
           </>
         )}
         <div ref={topBar} className="cp-video-top">
-          <p className="cp-video-title">{title}</p>
-          <p className="cp-video-meta">
-            {topicLabel} · {styleLabel} · 1 kaynak
-          </p>
+          {/* Başlık koyu cam şeridin üstünde (6 Kasım 2026, Paket 4): telefonda açık renkli resmin üstünde beyaz
+              yazı okunmuyordu. Şerit çubuğun içinde; `--cp-top-h` ölçümü onu da sayar. */}
+          <div className="cp-video-heading">
+            <p className="cp-video-title">{title}</p>
+            <p className="cp-video-meta">
+              {topicLabel} · {styleLabel} · 1 kaynak
+            </p>
+          </div>
           <button type="button" className="cp-video-finish" disabled={finishing} onClick={() => void finish()}>
             {completed ? "Yola dön" : "Dersi tamamla"}
           </button>

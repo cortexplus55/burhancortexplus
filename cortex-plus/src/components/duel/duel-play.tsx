@@ -21,6 +21,7 @@ import {
   type BotStep,
 } from "@/lib/learning/duel-bot";
 import { duelChallengeText, duelInviteText, whatsappShareHref } from "@/lib/learning/duel-share";
+import { ExternalAnchor } from "@/components/ui/external-anchor";
 
 /** Oyundan önceki geri sayım (sn). */
 export const DUEL_COUNTDOWN_SECONDS = 3;
@@ -396,14 +397,12 @@ export function DuelPlay({
         </ol>
         <Leaderboard rows={result.leaderboard} />
         <div className="cp-duel-actions">
-          <a
+          <ExternalAnchor
             className="cp-duel-secondary"
             href={whatsappShareHref(duelChallengeText(title, result.correct, result.total), shareUrl)}
-            target="_blank"
-            rel="noopener noreferrer"
           >
             <MessageCircle className="h-4 w-4" aria-hidden /> WhatsApp&apos;ta meydan oku
-          </a>
+          </ExternalAnchor>
           <button type="button" className="cp-duel-secondary" onClick={() => void copyLink()}>
             <Copy className="h-4 w-4" aria-hidden /> Bağlantıyı kopyala
           </button>
@@ -485,14 +484,12 @@ export function DuelPlay({
       </div>
       {initialBoard.length ? <Leaderboard rows={initialBoard} /> : null}
       <div className="cp-duel-actions">
-        <a
+        <ExternalAnchor
           className="cp-duel-secondary"
           href={whatsappShareHref(duelInviteText(title), shareUrl)}
-          target="_blank"
-          rel="noopener noreferrer"
         >
           <MessageCircle className="h-4 w-4" aria-hidden /> WhatsApp&apos;ta gönder
-        </a>
+        </ExternalAnchor>
         <button type="button" className="cp-duel-secondary" onClick={() => void copyLink()}>
           <Copy className="h-4 w-4" aria-hidden /> Bağlantıyı kopyala
         </button>

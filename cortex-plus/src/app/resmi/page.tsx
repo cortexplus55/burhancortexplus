@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { MarketingPage } from "@/components/layout/marketing-page";
 import { CURRICULUM } from "@/lib/curriculum/registry";
+import { ExternalAnchor } from "@/components/ui/external-anchor";
 
 export const metadata = {
   title: "Resmî Takvim ve Sınav Yapıları",
@@ -38,9 +39,9 @@ export default function ResmiPage() {
               </span>
               <span className="text-xs text-[var(--mk-muted)]">
                 {e.starts === e.ends ? trDate(e.starts) : `${trDate(e.starts)} – ${trDate(e.ends)}`} ·{" "}
-                <a href={src[e.sourceId]?.url} target="_blank" rel="noreferrer">
+                <ExternalAnchor href={src[e.sourceId]?.url}>
                   {src[e.sourceId]?.publisher ?? e.sourceId}
-                </a>
+                </ExternalAnchor>
               </span>
             </li>
           ))}
@@ -100,9 +101,9 @@ export default function ResmiPage() {
         <ul className="mt-3 grid gap-2 text-xs text-[var(--mk-muted)]">
           {Object.values(src).map((s) => (
             <li key={s.id} className="mk-card break-all p-3">
-              <a href={s.url} target="_blank" rel="noreferrer" className="text-[var(--mk-text)]">
+              <ExternalAnchor href={s.url} className="text-[var(--mk-text)]">
                 {s.publisher} — {s.title}
-              </a>{" "}
+              </ExternalAnchor>{" "}
               · sha256 {s.sha256}
             </li>
           ))}

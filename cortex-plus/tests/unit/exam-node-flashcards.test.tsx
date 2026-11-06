@@ -163,7 +163,7 @@ describe("exam-prep flashcards — kıyas ürünü gibi tekrar turu ve kaynak", 
     fireEvent.click(screen.getByRole("button", { name: "1 kaynak" }));
     expect(screen.getByRole("dialog", { name: "Kaynaklar" })).toBeTruthy();
     expect(screen.getByText("pediatri.pdf")).toBeTruthy();
-    const open = screen.getByRole("link", { name: "Aç" });
+    const open = screen.getByRole("link", { name: "Aç (yeni sekmede açılır)" });
     expect(open.getAttribute("href")).toBe("/dokumanlar/doc-1");
     expect(open.getAttribute("target")).toBe("_blank");
   });

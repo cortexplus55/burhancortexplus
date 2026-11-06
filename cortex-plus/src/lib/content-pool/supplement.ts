@@ -162,7 +162,7 @@ export function supplementScreens(result: SupplementResult, room: number): Recor
   if (result.state === "insufficient_credits") {
     return [{
       heading: "Senin belgenden ek",
-      blocks: [{ type: "note", note: { title: "Ek bölüm eklenmedi", body: `Belgenden bu üniteye ek bölüm yazmak ${result.cost} kredi. Bakiyen yetmediği için eklenmedi; hazır ders ücretsiz devam ediyor.`, tone: "info" } }],
+      blocks: [{ type: "note", note: { title: "Ek bölüm eklenmedi", body: "Belgenden bu üniteye ek bölüm yazmaya kalan hakkın bu sefer yetmedi; hazır ders ücretsiz devam ediyor.", tone: "info" } }],
     }];
   }
   if (result.state !== "ready") return [];
