@@ -164,6 +164,66 @@ describe("iskelet: numaralı kardeş bölümler", () => {
     expect(partial.units.flatMap((unit) => unit.topics.map((item) => item.title))).toContain("Arz ve Talep");
   });
 
+  it("başlık satırı yerine numaralı cümle maddeleriyle bölümlenmiş not: her madde bir bölüm", () => {
+    const text = [
+      "Kimya Ara Sınav Özeti",
+      "1. Asitler suda hidrojen iyonu verir; tadı ekşidir ve turnusolü kırmızıya çevirir.",
+      "Kuvvetli asitler suda tamamen iyonlaşır.",
+      "2. Bazlar suda hidroksit iyonu verir ve ele kayganlık hissi verir.",
+      "3. Tuzlar nötrleşme tepkimesiyle oluşur.",
+      "4. İndikatörler ortamın asitliğine göre renk değiştirir.",
+      "pH 7'den küçükse ortam asidiktir.",
+    ].join("\n");
+    const skeleton = buildDocumentSkeleton([{ fileName: "kimya.pdf", pages: [{ pageNumber: 1, text }] }]);
+    const items = skeleton.headings.filter((heading) => heading.numberedSibling);
+    expect(items.map((heading) => heading.number)).toEqual(["1", "2", "3", "4"]);
+    expect(items.every((heading) => heading.itemChars != null)).toBe(true);
+    const block = skeletonPromptBlock(skeleton, { maxTopics: 40 });
+    expect(block).toContain("3. Tuzlar nötrleşme tepkimesiyle oluşur.");
+
+    const two: OutlineUnitDraft[] = [{ title: "Kimya", topics: [topic("Asitler ve Bazlar", [1]), topic("Tuz ve Göstergeler", [1])] }];
+    // "Asitler ve Bazlar" iki maddeyi tek adda toplar (birleştirme); "Tuz ve Göstergeler" aynı sayfadaki kardeşleri
+    // konumla sahiplenemez. Dört madde de eksik sayılır, onarım her birini ayrı konu ister.
+    expect(skeletonCoverage(skeleton, two, { singleFile: true }).gaps.map((gap) => gap.label.slice(0, 2))).toEqual([
+      "1.",
+      "2.",
+      "3.",
+      "4.",
+    ]);
+    const four: OutlineUnitDraft[] = [
+      {
+        title: "Kimya",
+        topics: [topic("Asitler", [1]), topic("Bazlar", [1]), topic("Tuzlar", [1]), topic("İndikatörler", [1])],
+      },
+    ];
+    expect(skeletonCoverage(skeleton, four, { singleFile: true }).gaps).toEqual([]);
+  });
+
+  it("başlıklı belgedeki numaralı olgu listesi bölüm sayılmaz", () => {
+    const text = [
+      "## Asitler",
+      "1. Asitler suda hidrojen iyonu verir ve turnusolü kırmızıya çevirir.",
+      "2. Kuvvetli asitler suda tamamen iyonlaşır ve iletkenliği artırır.",
+      "3. Zayıf asitler suda kısmen iyonlaşır ve dengede kalır.",
+      "## Bazlar",
+      body("Baz", 300),
+    ].join("\n");
+    const skeleton = buildDocumentSkeleton([{ fileName: "kimya.pdf", pages: [{ pageNumber: 1, text }] }]);
+    expect(skeleton.headings.some((heading) => heading.itemChars != null)).toBe(false);
+  });
+
+  it("başlıksız uzun metnin ortasındaki numaralı liste bölüm sayılmaz", () => {
+    const text = [
+      body("Giriş", 1500),
+      "1. Asitler suda hidrojen iyonu verir ve turnusolü kırmızıya çevirir.",
+      "2. Bazlar suda hidroksit iyonu verir ve ele kayganlık hissi verir.",
+      "3. Tuzlar nötrleşme tepkimesiyle oluşur ve suda iyonlarına ayrışır.",
+      body("Sonuç", 600),
+    ].join("\n");
+    const skeleton = buildDocumentSkeleton([{ fileName: "uzun.pdf", pages: [{ pageNumber: 1, text }] }]);
+    expect(skeleton.headings.some((heading) => heading.itemChars != null)).toBe(false);
+  });
+
   it("harita yazarının kuralı aynı şeyi söyler", () => {
     expect(OUTLINE_GRANULARITY_RULE).toContain("NUMARALI KARDEŞ BÖLÜMLER AYRI KONUDUR");
     expect(read("src/lib/documents/outline-skeleton.ts")).not.toMatch(/Mitokondri|Ribozom|Golgi/i);
