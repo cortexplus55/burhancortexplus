@@ -30,6 +30,66 @@ export const AUDIT_LABELS: Record<string, string> = {
   "admin_gate.locked": "Kurucu yönetim girişi çok fazla yanlış PIN yüzünden kilitlendi",
   "admin_gate.misconfigured": "Kurucu yönetim girişi ayarı okunamadı",
   "admin_gate.locked_by_user": "Yönetim girişi bu cihazda kilitlendi",
+  // 6 Kasım 2026: kodun yazdığı bütün eylemler (bekçi: yonetim-sistem.test.ts kaynakta arar).
+  "payment.token.created": "Ödeme sayfası açıldı (sözleşme onayıyla)",
+  "payment.completed": "Ödeme tamamlandı",
+  "payment.amount_mismatch": "Ödeme tutarı beklenenle uyuşmadı",
+  "payment.refund.partial": "Ödemenin bir kısmı iade edildi",
+  "subscription.extended": "Abonelik süresi elle uzatıldı",
+  "subscription.cancelled": "Öğrenci aboneliğini yenilemeyeceğini bildirdi",
+  "subscription.resumed": "Öğrenci aboneliğini yeniden sürdürdü",
+  "subscription.test_granted": "Deneme amaçlı abonelik tanımlandı",
+  "support.created": "Destek talebi açıldı",
+  "support.answered": "Destek talebi cevaplandı olarak işaretlendi",
+  "support.prep_viewed": "Destek için öğrencinin hazırlığına bakıldı",
+  "prompt.saved": "Bir AI talimatının yeni sürümü kaydedildi",
+  "promo.redeemed": "Bir kod kullanıldı",
+  "promo.beta_batch_created": "Tek kişilik beta kodları üretildi",
+  "promo.beta_shared_created": "Ortak beta kodu üretildi",
+  "campaign.started": "Duyuru bandı başlatıldı",
+  "campaign.ended": "Duyuru bandı kapatıldı",
+  "pool_item.restored": "Karantinadaki soru havuza geri alındı",
+  "pool_item.rejected": "Karantinadaki soru reddedildi",
+  "pool_item.regenerated": "Karantinadaki soru reddedildi ve yerine yenisi üretildi",
+  "pool_item.superseded_archived": "Eski sürüm sorular arşivlendi",
+  "ops.daily_digest": "Günlük özet e-postası gönderildi",
+  "ops.daily_digest_manual": "Günlük özet e-postası elle gönderildi",
+  "generation.admin_reset": "Takılı kalan bir üretim elle sıfırlandı",
+  "document.analysis_rerun": "Belgenin öğretmen analizi yeniden başlatıldı",
+  "cockpit.fx_rate.saved": "Dolar kuru kaydedildi",
+  "cockpit.spend_cap.saved": "Günlük Harcama Sigortası tavanı kaydedildi",
+  "teacher.application.approved": "Öğretmen başvurusu onaylandı",
+  "teacher.application.rejected": "Öğretmen başvurusu reddedildi",
+  "user.suspended": "Hesap askıya alındı",
+  "user.unsuspended": "Hesabın askısı kaldırıldı",
+  free_preview_on: "\"Ücretsiz gibi gör\" önizlemesi açıldı",
+  free_preview_off: "\"Ücretsiz gibi gör\" önizlemesi kapatıldı",
+  "system.maintenance_run": "Elle bakım: yetim yüklemeler ve soğuk vektörler temizlendi",
+};
+
+/** İşlem kaydının "ilgili kayıt" türü (`entity_type`) — ham tablo adı gösterilmez. */
+export const ENTITY_LABELS: Record<string, string> = {
+  admin_gate: "Yönetim girişi",
+  credit_rule: "Kredi kuralı",
+  day: "Gün",
+  document: "Belge",
+  exam_prep: "Sınav hazırlığı",
+  exam_prep_generation_job: "Üretim işi",
+  feature_flag: "Özellik anahtarı",
+  item_bank: "Havuz sorusu",
+  payment: "Ödeme",
+  plan: "Paket",
+  profile: "Hesap",
+  promo_batch: "Kod paketi",
+  promo_campaign: "Duyuru bandı",
+  promo_code: "Kod",
+  prompt_version: "AI talimatı",
+  subscription: "Abonelik",
+  support_request: "Destek talebi",
+  system: "Sistem",
+  teacher_application: "Öğretmen başvurusu",
+  user: "Hesap",
+  user_role: "Yetki",
 };
 
 /** Kredi bedeli tablosundaki işlem kodları. */
@@ -65,8 +125,36 @@ export const SERVICE_NOTES: Record<string, string> = {
   Sentry: "Hata takibi. Eksikse bir kullanıcıda site patlarsa haberin olmaz.",
 };
 
+/** Sistem sayfasında servisin görünen adı (kod içindeki ad İngilizce kalabilir; ekranda Türkçe). */
+export const SERVICE_DISPLAY: Record<string, string> = {
+  "Supabase service key": "Supabase servis anahtarı",
+  "Workspace SMTP": "E-posta sunucusu (Workspace SMTP)",
+  Resend: "İşlem e-postası (Resend)",
+  "Upstash Redis": "Hız Sınırı sayacı (Upstash Redis)",
+  PostHog: "Kullanım istatistiği (PostHog)",
+  Sentry: "Hata takibi (Sentry)",
+};
+
+export function serviceDisplay(name: string): string {
+  return SERVICE_DISPLAY[name] ?? name;
+}
+
+/** Bilinmeyen eylemde ham kod ana satıra çıkmaz; kod yalnız küçük ikincil yazıda kalır. */
+export const UNKNOWN_AUDIT_LABEL = "Tanımlanmamış işlem";
+
 export function auditLabel(action: string): string {
-  return AUDIT_LABELS[action] ?? action;
+  return AUDIT_LABELS[action] ?? UNKNOWN_AUDIT_LABEL;
+}
+
+export function entityLabel(entityType: string | null | undefined): string {
+  if (!entityType) return "—";
+  return ENTITY_LABELS[entityType] ?? "Diğer kayıt";
+}
+
+/** Kimlik ya da kısa kod: uzun kimlik ilk 8 karakteriyle (tamamı ipucunda). */
+export function shortEntityId(id: string | null | undefined): string {
+  if (!id) return "";
+  return id.length > 12 ? `${id.slice(0, 8)}…` : id;
 }
 
 export function actionLabel(code: string): string {
