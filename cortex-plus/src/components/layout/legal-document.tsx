@@ -1,18 +1,41 @@
 import Link from "next/link";
 import { MarketingPage } from "@/components/layout/marketing-page";
+import type { LegalSection } from "@/lib/legal/legal-types";
 
 export function LegalDocument({
   title,
   description,
   sections,
+  summary,
+  version,
+  children,
 }: {
   title: string;
   description: string;
-  sections: { heading: string; body: string[] }[];
+  sections: LegalSection[];
+  /** "Kısaca": çocuğun anlayacağı dilde kısa özet (KVKK aydınlatma metni). Asıl metnin yerini tutmaz. */
+  summary?: string[];
+  /** Metnin sürümü (onay kayıtlarının tuttuğu tarih). */
+  version?: string;
+  /** Bölümlerden sonra gelen ek içerik (ör. çerez tablosu). */
+  children?: React.ReactNode;
 }) {
   return (
     <MarketingPage title={title} description={description} variant="legal">
       <div className="max-w-2xl text-[var(--mk-text)]">
+        {version ? (
+          <p className="mb-6 text-xs text-[var(--mk-muted)]">Sürüm: {version}</p>
+        ) : null}
+        {summary?.length ? (
+          <section className="mk-card mb-10 p-5" aria-label="Kısaca">
+            <p className="mk-eyebrow">Kısaca</p>
+            <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-relaxed text-[var(--mk-text)]">
+              {summary.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
         <div className="space-y-10">
           {sections.map((section, index) => (
             <section key={section.heading}>
@@ -33,6 +56,8 @@ export function LegalDocument({
             </section>
           ))}
         </div>
+
+        {children}
 
         {/*
           Buradaki not eskiden okuyucuya değil site sahibine sesleniyordu

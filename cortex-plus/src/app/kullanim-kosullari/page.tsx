@@ -1,62 +1,19 @@
 import { LegalDocument } from "@/components/layout/legal-document";
+import { TERMS_SECTIONS, TERMS_VERSION } from "@/lib/legal/terms-text";
 
 export const metadata = {
   title: "Kullanım koşulları",
   description: "Cortex Plus hizmetinin kullanım şartları.",
 };
 
+/** Metin `src/lib/legal/terms-text.ts`'te: kayıttaki okuma penceresi de aynı metni gösterir. */
 export default function KullanimKosullariPage() {
   return (
     <LegalDocument
       title="Kullanım koşulları"
       description="Cortex Plus'ı kullanarak aşağıdaki koşulları kabul etmiş olursun."
-      sections={[
-        {
-          heading: "Hesap",
-          body: [
-            "Hesabını doğru bilgilerle oluşturman ve şifreni gizli tutman gerekir.",
-            "Hesabın üzerinden yapılan işlemlerden sen sorumlusun.",
-          ],
-        },
-        {
-          heading: "Kredi ve ödeme",
-          body: [
-            "Kredi bedelleri işlem öncesinde gösterilir ve sunucu tarafında belirlenir.",
-            "Başarısız işlemlerde kredi otomatik iade edilir.",
-            "Ödemeler PayTR altyapısı üzerinden alınır; kart bilgileri tarafımızda saklanmaz.",
-          ],
-        },
-        {
-          heading: "Cayma hakkı",
-          body: [
-            "Cortex Plus anında sunulan dijital bir hizmettir: satın alma tamamlandığı anda kredi hesabına geçer ve hizmet kullanıma açılır. Mesafeli Sözleşmeler Yönetmeliği'nin 15. maddesi uyarınca bu tür hizmetlerde cayma hakkı kullanılamaz; satın alarak bunu kabul etmiş olursun.",
-            "Abonelikler otomatik olarak yenilenmez: dönem sona erdiğinde hesabından kendiliğinden tahsilat yapılmaz, devam etmek istersen yeni bir satın alma yaparsın. Ödediğin dönem sonuna kadar hizmet açık kalır.",
-            "Hatalı ya da yetkisiz bir işlem olduğunu düşünüyorsan destek sayfasından bize yaz; her talebi tek tek inceliyoruz.",
-          ],
-        },
-        {
-          heading: "Kabul edilebilir kullanım",
-          body: [
-            "Hizmeti yasa dışı amaçlarla, başkalarının haklarını ihlal edecek şekilde veya sistem güvenliğini tehdit ederek kullanamazsın.",
-            "Yapay zekâ çıktıları hata içerebilir; kritik kararlarda doğrulama sorumluluğu kullanıcıdadır.",
-            "Sınav kurallarına aykırı kullanım kullanıcının sorumluluğundadır.",
-          ],
-        },
-        {
-          heading: "İçerik hakları",
-          body: [
-            "Yüklediğin içeriklerin haklarına sahip olduğunu beyan edersin.",
-            "Platform arayüzü, metinleri ve yazılımı Cortex Plus'a aittir.",
-          ],
-        },
-        {
-          heading: "Fesih",
-          body: [
-            "Koşulların ihlali hâlinde hesabın askıya alınabilir.",
-            "Hesabını dilediğin zaman kapatma talebi oluşturabilirsin.",
-          ],
-        },
-      ]}
+      version={TERMS_VERSION}
+      sections={TERMS_SECTIONS}
     />
   );
 }

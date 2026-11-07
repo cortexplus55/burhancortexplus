@@ -323,13 +323,16 @@ export async function probeSchema(
     .from("exam_prep_misconceptions")
     .select("resolved_at")
     .limit(1);
-  const [explainAttempts, prepVideos, generationJobs, creditRules, founderRole] = await Promise.all([
+  const [explainAttempts, prepVideos, generationJobs, creditRules, founderRole, consentEvidence, cookieConsents] = await Promise.all([
     hasTable(service, "explain_attempts"),
     hasTable(service, "prep_videos"),
     hasTable(service, "generation_jobs"),
     probeCreditRules(service),
     // 6 Kasım 2026: iki kademeli yönetim. Var olmayan kullanıcıyla sorulur; hiçbir satıra dokunmaz.
     service.rpc("is_founder", { uid: "00000000-0000-0000-0000-000000000000" }),
+    // 7 Kasım 2026: uyum paketi (onay kanıtı ve çerez tercihi kaydı). Salt okuma.
+    service.from("consent_records").select("evidence").limit(1),
+    hasTable(service, "cookie_consent_events"),
   ]);
   const examPrice = CREDIT_PRICE_TABLE.PRACTICE_EXAM_GENERATE.credits;
   const chatPrice = CREDIT_PRICE_TABLE.AI_CHAT_STANDARD.credits;
@@ -500,6 +503,22 @@ export async function probeSchema(
       detail: founderRole.error
         ? "is_founder yok — kimse kurucu sayılmıyor; fiyat, kredi kuralı, harcama tavanı, kur, özellik anahtarı ve yönetici ekleme kapalı (20261106150000)."
         : "is_founder yerinde (20261106150000); yöneticiler «Yöneticiler ve Yetkiler» sayfasında.",
+    },
+    {
+      name: "Onay kanıtı (consent_records.evidence)",
+      ok: !consentEvidence.error,
+      critical: false,
+      detail: consentEvidence.error
+        ? "Sütun yok — onaylar kanıtsız yazılır: metnin açılıp sonuna kadar okunduğu saklanmaz (20261107120000)."
+        : "Sütun yerinde (20261107120000): her onay, metnin sürümü ve okuma anlarıyla birlikte saklanır.",
+    },
+    {
+      name: "Çerez tercihi kaydı",
+      ok: cookieConsents,
+      critical: false,
+      detail: cookieConsents
+        ? "cookie_consent_events yerinde (20261107120000); giriş yapan öğrencinin tercihi başka cihazda yeniden sorulmaz."
+        : "Tablo yok — tercih yalnız tarayıcıda kalır, kanıt kaydı yazılmaz ve her cihazda yeniden sorulur (20261107120000).",
     },
   ];
 }

@@ -21,6 +21,7 @@ const marketingPaths = [
   "/gizlilik",
   "/kvkk",
   "/kullanim-kosullari",
+  "/cerez-politikasi",
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {

@@ -4,6 +4,7 @@ import { SupportForm } from "@/components/support/support-form";
 import { requireUser } from "@/lib/auth/session";
 import { formatDate } from "@/lib/format";
 import { supportSlaLine } from "@/lib/support/sla";
+import { isSupportCategory } from "@/lib/support/categories";
 
 export const metadata = { title: "Destek" };
 
@@ -16,8 +17,15 @@ const SUPPORT_STATUS: Record<string, string> = {
   answered: "Cevaplandı · e-postana bak",
 };
 
-export default async function DestekPage() {
+export default async function DestekPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ konu?: string | string[] }>;
+}) {
   const { supabase, user } = await requireUser();
+  // Aydınlatma metni ve Ayarlar "Kişisel veri başvurusu"na, iade metni "Ödeme ve iade"ye buradan gelir.
+  const konu = (await searchParams).konu;
+  const defaultCategory = isSupportCategory(konu) ? konu : "genel";
 
   const { data: requests } = await supabase
     .from("support_requests")
@@ -33,7 +41,7 @@ export default async function DestekPage() {
           title="Yeni destek talebi"
           description={`Sorununu yaz; ekibimiz e-posta ile dönüş yapar. ${supportSlaLine()}`}
         >
-          <SupportForm />
+          <SupportForm defaultCategory={defaultCategory} />
         </SectionCard>
 
         {requests?.length ? (

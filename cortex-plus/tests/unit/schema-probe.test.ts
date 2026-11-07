@@ -83,6 +83,9 @@ const healthyRows: Rows = {
   explain_attempts: {},
   prep_videos: {},
   generation_jobs: {},
+  // 7 Kasım 2026 (uyum paketi): onay kanıtı sütunu ve çerez tercihi kaydı.
+  consent_records: {},
+  cookie_consent_events: {},
 };
 
 const healthy = () => service({ rows: healthyRows });
@@ -184,7 +187,8 @@ describe("diğer göç dosyaları", () => {
     expect(checks.every((check) => check.ok)).toBe(true);
     // 29 Ekim 2026: +4 satır (kredi kuralı satırları, bedel farkı, koddan eklenmiş kural, plus_only_action).
     // 6 Kasım 2026: +1 satır (kurucu rolü, is_founder).
-    expect(checks).toHaveLength(25);
+    // 7 Kasım 2026: +2 satır (onay kanıtı, çerez tercihi kaydı).
+    expect(checks).toHaveLength(27);
     expect(find(checks, "Kurucu rolü")).toMatchObject({ ok: true, critical: false });
     expect(find(checks, "Kredi kuralı satırları")).toMatchObject({ ok: true, critical: true });
     expect(find(checks, "Kredi kuralı satırları").detail).toContain(`${ACTION_CODES.length} eylem kodunun hepsi`);

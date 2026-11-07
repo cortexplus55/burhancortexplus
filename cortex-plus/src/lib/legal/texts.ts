@@ -7,7 +7,8 @@ import { SELLER, sellerField } from "@/lib/legal/seller";
  * kopyalanmadı. Her madde kodda bir karşılığa dayanıyor:
  *
  *   hizmet anında sunulur        -> ödeme geri çağrısı krediyi hemen yüklüyor
- *   cayma hakkı doğmuyor         -> m.15/1-ğ, anında ifa edilen dijital içerik
+ *   cayma hakkı doğmuyor         -> m.15/1-ğ ve h; hemen başlama ayrı kutuyla (performanceConsent)
+ *   sözleşmenin örneği           -> ödeme onayında e-posta + Ödemelerim (purchase-contract.ts)
  *   otomatik yenileme yok        -> auto_renew varsayılanı false
  *   başarısız işlemde iade       -> credit_refund / undoSpend
  *   cevaplanamayan soruda iade   -> saidNoSource dalı
@@ -62,6 +63,19 @@ const SERVICE_DESC = [
   "Abonelikler belirli bir dönem için satılır ve o dönemde tanımlı kullanım hakkını açar. Kredi paketleri tek seferlik alımdır ve bakiyeye eklenir.",
 ];
 
+/*
+  Cayma hakkının istisnası (7 Kasım 2026): yalnız (ğ) bendine dayanmak yetersizdi. (h) bendi "cayma süresi dolmadan
+  tüketicinin onayıyla ifasına başlanan hizmet"i sayar ve bu onayın AYRI ve açık alınması gerekir; sözleşme
+  kutusunun içine gömülü bir cümle yetmez. Ödeme adımında ikinci kutu: `PERFORMANCE_CONSENT_TEXT`. Sunucu
+  (`performanceConsent: z.literal(true)`) bu kutu olmadan ödemeyi başlatmaz.
+*/
+const CAYMA_RULE =
+  "Mesafeli Sözleşmeler Yönetmeliği'nin 15. maddesinin birinci fıkrasının (ğ) bendi uyarınca elektronik ortamda anında ifa edilen hizmetlerde ve tüketiciye anında teslim edilen gayrimaddi mallarda, (h) bendi uyarınca da cayma süresi dolmadan tüketicinin onayıyla ifasına başlanan hizmetlerde cayma hakkı kullanılamaz.";
+
+/** Ödeme adımındaki ikinci kutu: hizmetin hemen başlaması talebi ve cayma hakkının bulunmadığının bilgisi. */
+export const PERFORMANCE_CONSENT_TEXT =
+  "Hizmetin hemen başlamasını istiyorum. Ödeme onaylanınca hak hesaba hemen tanımlandığı için cayma hakkımın bulunmadığını biliyorum.";
+
 export const PRE_INFO_SECTIONS = [
   {
     heading: "Satıcı bilgileri",
@@ -90,9 +104,9 @@ export const PRE_INFO_SECTIONS = [
   {
     heading: "Cayma hakkı",
     body: [
-      "Mesafeli Sözleşmeler Yönetmeliği'nin 15. maddesinin birinci fıkrasının (ğ) bendi uyarınca, elektronik ortamda anında ifa edilen ve tüketiciye anında teslim edilen gayrimaddi mallara ilişkin sözleşmelerde cayma hakkı kullanılamaz.",
+      CAYMA_RULE,
       "Cortex Plus hizmeti bu kapsamdadır: satın alma tamamlandığı anda kullanım hakkı hesaba geçer ve hizmet açılır. Bu nedenle satın alma sonrasında cayma hakkı doğmaz.",
-      "Alıcı, ödeme adımındaki onay kutusunu işaretleyerek bu bilgilendirmeyi aldığını ve cayma hakkının bulunmadığını kabul etmiş sayılır.",
+      "Alıcı, ödeme adımında bu formu ve Mesafeli Satış Sözleşmesi'ni okuduğunu bir kutuyla; hizmetin hemen başlamasını istediğini ve bu nedenle cayma hakkının bulunmadığını bildiğini ayrı bir kutuyla onaylar. İkinci kutu işaretlenmeden ödeme başlamaz.",
     ],
   },
   {
@@ -139,8 +153,8 @@ export const DISTANCE_SALES_SECTIONS = [
   {
     heading: "Cayma hakkının bulunmaması",
     body: [
-      "Mesafeli Sözleşmeler Yönetmeliği'nin 15. maddesinin birinci fıkrasının (ğ) bendi uyarınca, elektronik ortamda anında ifa edilen ve tüketiciye anında teslim edilen gayrimaddi mallara ilişkin sözleşmelerde cayma hakkı kullanılamaz.",
-      "Alıcı, satın alma anında hizmetin derhal ifa edileceğini ve bu nedenle cayma hakkının bulunmadığını bildiğini kabul eder.",
+      CAYMA_RULE,
+      "Alıcı, ödeme adımında hizmetin derhal ifasına başlanmasını ayrı bir onay kutusuyla açıkça talep eder ve bu nedenle cayma hakkının bulunmadığını bildiğini kabul eder.",
       "Bu durum, hatalı ya da yetkisiz işlemlere ilişkin başvuru hakkını ortadan kaldırmaz; bu tür talepler ayrıca incelenir.",
     ],
   },
@@ -177,8 +191,8 @@ export const DISTANCE_SALES_SECTIONS = [
   {
     heading: "Yürürlük",
     body: [
-      "Alıcının ödeme adımındaki onay kutusunu işaretleyip ödemeyi tamamlamasıyla bu sözleşme kurulmuş ve yürürlüğe girmiş olur.",
-      "Sözleşmenin bir örneği alıcının hesabına bağlı olarak saklanır ve Ödemelerim sayfasından her zaman görüntülenebilir.",
+      "Alıcının ödeme adımındaki onay kutularını işaretleyip ödemeyi tamamlamasıyla bu sözleşme kurulmuş ve yürürlüğe girmiş olur.",
+      "Ödeme onaylanınca sözleşmenin ve Ön Bilgilendirme Formu'nun satın alma bilgileriyle birlikte bir örneği hesabın e-posta adresine gönderilir; aynı örnek Ödemelerim sayfasından her zaman görüntülenebilir.",
     ],
   },
 ];
@@ -188,7 +202,7 @@ export const CANCELLATION_SECTIONS = [
     heading: "Cayma hakkı",
     body: [
       "Cortex Plus, elektronik ortamda anında ifa edilen bir dijital hizmettir: satın alma tamamlandığı anda kullanım hakkı hesaba geçer ve hizmet açılır.",
-      "Mesafeli Sözleşmeler Yönetmeliği'nin 15. maddesinin birinci fıkrasının (ğ) bendi uyarınca bu tür hizmetlerde cayma hakkı kullanılamaz. Satın alma sırasında bu bilgilendirme yapılır ve onayınız alınır.",
+      "Mesafeli Sözleşmeler Yönetmeliği'nin 15. maddesinin birinci fıkrasının (ğ) ve (h) bentleri uyarınca bu tür hizmetlerde cayma hakkı kullanılamaz. Satın alma sırasında bu bilgilendirme yapılır; hizmetin hemen başlamasını istediğiniz ayrı bir kutuyla onaylanmadan ödeme başlamaz.",
     ],
   },
   {
@@ -211,6 +225,14 @@ export const CANCELLATION_SECTIONS = [
     body: [
       "Hesabınızdan bilginiz dışında bir işlem yapıldığını düşünüyorsanız ya da tahsilat hatalıysa, Destek sayfasından ya da e-posta ile bize yazın.",
       "Her talep tek tek incelenir. Haklı bulunan işlemlerde tutar, ödemenin yapıldığı karta iade edilir; iadenin kartınıza yansıması bankanıza bağlı olarak birkaç iş günü sürebilir.",
+    ],
+  },
+  {
+    heading: "İade talebi nasıl işler",
+    body: [
+      "Destek sayfasında \"Ödeme ve iade\" konusunu seçip yazın; hangi ödeme olduğunu ve nedenini kısaca belirtin.",
+      "Talep onaylanırsa iade ödeme kuruluşu üzerinden ödemenin yapıldığı karta gönderilir. Tam iadede üyelik sona erer ya da süresi iade edilen kadar kısalır; üyelik bitince hesap ücretsiz katmana döner, çalışmalarınız silinmez. Kısmi iadede üyelik devam eder.",
+      "İade yapıldığında uygulama içinde bildirim ve hesabınızın e-posta adresine bilgi gönderilir.",
     ],
   },
 ];

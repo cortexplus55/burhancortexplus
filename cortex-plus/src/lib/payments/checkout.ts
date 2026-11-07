@@ -1,6 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { buildPaytrToken, generateMerchantOid, paytrFetchInit } from "@/lib/payments/paytr";
 import { auditLog } from "@/lib/audit";
+import { validReadEvidence, type ReadEvidence } from "@/lib/legal/consent-evidence";
+import { PERFORMANCE_CONSENT_TEXT } from "@/lib/legal/texts";
+import { SALES_DOCS } from "@/lib/legal/versions";
 
 /**
  * PayTR iFrame oturumu (29 Ekim 2026'da `create-token` rotasından çıkarıldı). İki çağıran:
@@ -25,6 +28,11 @@ export type CheckoutInput = {
   /** Denetim kaydı: kim başlattı ve nasıl. */
   actorId: string;
   via: "self" | "parent_account" | "parent_link";
+  /**
+   * Sözleşmelerin okunduğunun izi (7 Kasım 2026): bu satın almada açılıp sonuna kadar okunduysa kanıt, bu sürüm
+   * daha önce okunduysa `remembered`. Denetim kaydına girer.
+   */
+  legalRead?: { evidence: ReadEvidence | null; remembered: boolean };
 };
 
 export type CheckoutResult =
@@ -88,6 +96,17 @@ export async function createPaytrCheckout(service: SupabaseClient, input: Checko
           at: new Date().toISOString(),
           ip: input.userIp,
           documents: ["on-bilgilendirme", "mesafeli-satis"],
+          version: SALES_DOCS.version,
+          read: input.legalRead?.evidence ?? (input.legalRead?.remembered ? "daha önce okundu" : null),
+        },
+        /*
+          Cayma hakkının istisnası (m.15/1-h): hizmetin hemen başlaması ayrı kutuyla istendi. Sunucu bu kutu olmadan
+          buraya gelmez (`performanceConsent: z.literal(true)`); kayıt, kutunun o anki metnini de tutar.
+        */
+        performance_consent: {
+          accepted: true,
+          at: new Date().toISOString(),
+          text: PERFORMANCE_CONSENT_TEXT,
         },
       },
     });
@@ -95,6 +114,36 @@ export async function createPaytrCheckout(service: SupabaseClient, input: Checko
   } catch {
     await markFailed();
     return { ok: false, status: 502, error: "Ödeme sağlayıcısına ulaşılamadı." };
+  }
+}
+
+/**
+ * Ödeme sözleşmelerinin bu sürümünü sonuna kadar okuduğunun kaydı (`consent_records`, tür `satis_sozlesmeleri`).
+ * Bir sonraki satın almada metin zorla yeniden açılmaz; kutu yine işaretlenir. Kayıt düşerse ödeme etkilenmez.
+ */
+export async function recordSalesDocsRead(
+  service: SupabaseClient,
+  userId: string,
+  evidence: ReadEvidence | null,
+  ip: string | null,
+): Promise<void> {
+  if (!validReadEvidence(evidence, SALES_DOCS.version)) return;
+  try {
+    const { recordConsents, consentMoment } = await import("@/lib/legal/record-consent");
+    await recordConsents(service, {
+      userId,
+      ip,
+      items: [
+        {
+          type: SALES_DOCS.type,
+          version: SALES_DOCS.version,
+          acceptedAt: consentMoment(evidence.confirmedAt),
+          evidence,
+        },
+      ],
+    });
+  } catch (error) {
+    console.error("sales_docs_read_record_failed", { userId, error: String(error) });
   }
 }
 

@@ -11,6 +11,8 @@ import {
 } from "@/lib/auth/email-policy";
 import { UNVERIFIED_FLAG, sendVerification } from "@/lib/auth/email-verification";
 import { safeNextPath } from "@/lib/auth/safe-next-path";
+import { ageDeclarationSchema, ageProblem, consentEvidenceSchema } from "@/lib/legal/consent-evidence";
+import { recordSignupConsent } from "@/lib/legal/record-consent";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +29,10 @@ const bodySchema = z.object({
   tutorStyle: z.string().max(40).optional(),
   avatarEmoji: z.string().max(8).optional(),
   consentAcceptedAt: z.string().max(40),
+  // Uyum paketi (7 Kasım 2026): okuma kanıtı ve yaş beyanı. Eski sekmeden gelen istekte yok olabilir; o zaman
+  // onay bugünkü sürüm adına yazılmaz, onay kapısı ilk girişte metinleri yeniden gösterir.
+  consentEvidence: consentEvidenceSchema.optional(),
+  ageDeclaration: ageDeclarationSchema.optional(),
   next: z.string().max(400).optional(),
   referralCode: z.string().max(16).optional(),
 });
@@ -56,6 +62,11 @@ export async function POST(request: Request) {
 
   const issue = passwordIssues(input.password)[0];
   if (issue) return NextResponse.json({ error: issue }, { status: 400 });
+  // 18 yaşından küçük beyan edildiyse velinin izni şart; arayüz de aynı cümleyle durur.
+  if (input.ageDeclaration) {
+    const ageIssue = ageProblem(input.ageDeclaration);
+    if (ageIssue) return NextResponse.json({ error: ageIssue }, { status: 400 });
+  }
 
   const service = createServiceClient();
   const { data: blockedRows } = await service
@@ -83,6 +94,8 @@ export async function POST(request: Request) {
       avatar_emoji: input.avatarEmoji ?? "",
       onboarding_done: "false",
       legal_consent_at: input.consentAcceptedAt,
+      legal_consent_evidence: input.consentEvidence ?? null,
+      age_declaration: input.ageDeclaration ?? null,
       signup_next: safeNextPath(input.next ?? null, ""),
       referral_code: input.referralCode ?? "",
     },
@@ -97,6 +110,17 @@ export async function POST(request: Request) {
   }
 
   const user = data.user;
+  // Onay kaydı hesapla aynı anda (profil satırını auth tetikleyicisi açar): tamamla sayfasına ulaşılamasa da
+  // kanıt kaybolmaz. Yazılamazsa kayıt yine biter; tamamlama ve onay kapısı eksiği kapatır.
+  await recordSignupConsent(service, {
+    userId: user.id,
+    acceptedAt: input.consentAcceptedAt,
+    ip: request.headers.get("x-forwarded-for") ?? request.headers.get("x-real-ip"),
+    documents: input.consentEvidence ?? null,
+    age: input.ageDeclaration ?? null,
+  }).catch((error: unknown) => {
+    console.error("signup_consent_record_failed", { userId: user.id, error: String(error) });
+  });
   // Posta yanıtı bekletmesin: öğrenci hemen içeri girer, e-posta arkadan gider.
   after(async () => {
     const sent = await sendVerification({ userId: user.id, email, name: input.fullName });

@@ -5,6 +5,7 @@ export type ParentLinkMode = "code" | "email" | "later";
 export type ParentRelation = "anne" | "baba" | "vasi" | "diger";
 
 import type { TutorStyle } from "@/lib/learning/tutor-style";
+import type { AgeDeclaration, ConsentEvidence } from "@/lib/legal/consent-evidence";
 
 export type { TutorStyle };
 export { TUTOR_STYLE_OPTIONS } from "@/lib/learning/tutor-style";
@@ -29,6 +30,10 @@ export type SignupPayload = {
   referralCode?: string;
   /** KVKK ve kullanım koşulları kutusunun işaretlendiği an (ISO). Sunucu consent_records'a yazar. */
   consentAcceptedAt?: string;
+  /** Her metnin okuma kanıtı (sürüm, açılış ve onay anı, sonuna kadar kaydırıldı). 7 Kasım 2026. */
+  consentEvidence?: ConsentEvidence;
+  /** Yaş beyanı ve 18 altındaysa velinin izni. 7 Kasım 2026. */
+  ageDeclaration?: AgeDeclaration;
 };
 
 export const SIGNUP_STORAGE_KEY = "cortex-signup-payload";

@@ -2,8 +2,12 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ReadGate, type ReadGateChange } from "@/components/legal/read-gate";
+import { PERFORMANCE_CONSENT_TEXT } from "@/lib/legal/texts";
+import { SALES_DOCS, consentKey } from "@/lib/legal/versions";
 import { ChevronDown, ChevronUp, Plus, Sigma, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AskParentPaymentButton } from "@/components/paywall/ask-parent-payment";
@@ -27,8 +31,6 @@ import {
   tierComparisonRows,
   WEEKLY_PLUS_PLAN_NAME,
 } from "@/lib/billing/tier-presentation";
-import { ExternalAnchor } from "@/components/ui/external-anchor";
-
 export { BENEFITS_LEAD };
 
 type Plan = {
@@ -212,7 +214,11 @@ export function SubscriptionCards({
   async function startCheckout(planId: string) {
     if (!checkoutEnabled) return;
     if (!legalAccepted && !guestMode) {
-      toast.error("Devam etmek için sözleşmeleri onaylaman gerekiyor.");
+      toast.error("Önce Ön Bilgilendirme Formu'nu ve Mesafeli Satış Sözleşmesi'ni açıp okumalı ve onaylamalısın.");
+      return;
+    }
+    if (!performanceConsent && !guestMode) {
+      toast.error("Ödemeye geçmek için hizmetin hemen başlamasını istediğini onaylaman gerekiyor.");
       return;
     }
     if (guestMode) {
@@ -231,6 +237,8 @@ export function SubscriptionCards({
         body: JSON.stringify({
           planId,
           legalAccepted: true,
+          performanceConsent: true,
+          ...(legalRead.evidence ? { legalEvidence: legalRead.evidence } : { legalRemembered: salesRemembered }),
           ...(beneficiaryStudentId ? { studentId: beneficiaryStudentId } : {}),
         }),
       });
@@ -258,7 +266,32 @@ export function SubscriptionCards({
     Onay kutusu işaretlenmeden ödeme başlamıyor; onay ayrıca sunucuda
     kayda geçiyor (zaman + IP), çünkü itiraz hâlinde kanıt bizde olmalı.
   */
-  const [legalAccepted, setLegalAccepted] = useState(false);
+  /*
+    7 Kasım 2026 (uyum paketi): sözleşme kutusu metinler açılıp sonuna kadar okunmadan işaretlenmez; bu sürümü daha
+    önce okumuş öğrencide metin zorla açılmaz (her satın almada kutu yine işaretlenir). Cayma hakkının istisnası için
+    ikinci, ayrı kutu: hizmetin hemen başlaması (Mesafeli Sözleşmeler Yönetmeliği m.15/1-h).
+  */
+  const [legalRead, setLegalRead] = useState<ReadGateChange>({ checked: false, evidence: null });
+  const legalAccepted = legalRead.checked;
+  const [performanceConsent, setPerformanceConsent] = useState(false);
+  const [salesRemembered, setSalesRemembered] = useState(false);
+
+  useEffect(() => {
+    if (guestMode) return;
+    let cancelled = false;
+    fetch("/api/consent/status", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body: { read?: string[] } | null) => {
+        if (cancelled) return;
+        setSalesRemembered(Boolean(body?.read?.includes(consentKey(SALES_DOCS.type, SALES_DOCS.version))));
+      })
+      .catch(() => {
+        /* bilinmiyorsa metin yine açılır; zararı bir pencere */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [guestMode]);
 
   const planCardCount =
     (plusOwned ? 0 : 1) + (showSigmaCard && sigmaPlan ? 1 : 0);
@@ -784,23 +817,26 @@ export function SubscriptionCards({
           alınmalı.
         */}
         {guestMode ? null : (
-          <label className="cs-legal-consent">
-            <input
-              type="checkbox"
+          <div className="flex flex-col gap-3" data-payment-consent>
+            <ReadGate
+              docId="satis_sozlesmeleri"
+              linkText="Ön Bilgilendirme Formu ve Mesafeli Satış Sözleşmesi"
+              after="'ni okudum, kabul ediyorum."
+              ariaLabel="Ön Bilgilendirme Formu'nu ve Mesafeli Satış Sözleşmesi'ni okudum, kabul ediyorum"
               checked={legalAccepted}
-              onChange={(event) => setLegalAccepted(event.target.checked)}
+              remembered={salesRemembered}
+              onChange={setLegalRead}
             />
-            <span>
-              <ExternalAnchor href="/on-bilgilendirme">
-                Ön Bilgilendirme Formu
-              </ExternalAnchor>
-              &apos;nu ve{" "}
-              <ExternalAnchor href="/mesafeli-satis">
-                Mesafeli Satış Sözleşmesi
-              </ExternalAnchor>
-              &apos;ni okudum, kabul ediyorum.
-            </span>
-          </label>
+            <label className="cp-legal-row">
+              <Checkbox
+                aria-label={PERFORMANCE_CONSENT_TEXT}
+                className="mt-0.5 size-5 border-[var(--c-text-subtle)]"
+                checked={performanceConsent}
+                onCheckedChange={(value) => setPerformanceConsent(value === true)}
+              />
+              <span className="cp-legal-row-text">{PERFORMANCE_CONSENT_TEXT}</span>
+            </label>
+          </div>
         )}
 
                 <TrustStrip />

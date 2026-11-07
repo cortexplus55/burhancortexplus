@@ -1,5 +1,8 @@
 import crypto from "crypto";
+import { after } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
+import { appOrigin } from "@/lib/app-url";
+import { sendPurchaseContract } from "@/lib/payments/purchase-contract";
 import { verifyPaytrCallbackHash } from "@/lib/payments/paytr";
 import { auditLog } from "@/lib/audit";
 import { awardInviteSubscribed } from "@/lib/stars/invite";
@@ -87,6 +90,13 @@ export async function POST(request: Request) {
       await awardInviteSubscribed(service, result.beneficiary_id ?? result.payer_id);
     } catch (err) {
       console.error("paytr_callback_stars_failed", { merchantOid, message: errorMessage(err) });
+    }
+    // Sözleşme örneği e-postayla (7 Kasım 2026, uyum paketi). "OK"u bekletmez; `completed` yalnız bir kez döner.
+    // `after` yalnız istek içinde kurulur; rotayı doğrudan çağıran birim testinde iş atlanır.
+    try {
+      after(() => sendPurchaseContract(service, merchantOid, appOrigin()));
+    } catch {
+      /* istek dışı */
     }
   }
 
