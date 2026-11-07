@@ -23,9 +23,9 @@ import type {
   CurriculumRef,
   CurriculumScenario,
   CurriculumSource,
-  YksPart,
 } from "@/lib/curriculum/types";
 import { ExternalAnchor } from "@/components/ui/external-anchor";
+import "@/styles/official-curriculum.css";
 
 export type OfficialCurriculumPick = {
   program: CurriculumProgram;
@@ -191,207 +191,299 @@ export function OfficialCurriculumPanel({
     return <CurriculumPickPanel gradeLevel={gradeLevel} onClose={() => setFallback(false)} onPick={onChatFallback} />;
   }
 
+  /*
+    8 Kasım 2026 yeniden tasarım (ürün sahibi: "basit, özensiz ve karışık"). Numaralı adımlar (düzey → ders → yazılı →
+    senaryo), her adım kendi başlığıyla; seçim bitince konu haritası ayrı kartta, sayılar üç kutuda. Radyo adları,
+    `official-summary` metni ve "Bu konularla devam et" testlerin dayandığı adlar; değişmedi.
+  */
+  let stepNo = 0;
+  const nextNo = () => (stepNo += 1);
+  const ready = Boolean(program && map?.topics.length);
+
   return (
-    <div className="apw-import apw-official" role="group" aria-label={WIZARD_COPY.pickCurriculum}>
-      <p className="apw-drop-hint">{WIZARD_COPY.officialLead}</p>
-      {failed ? <p className="apw-drop-hint" role="alert">{WIZARD_COPY.officialFailed}</p> : null}
-      {!programs && !failed ? <p className="apw-drop-hint" role="status">{WIZARD_COPY.officialLoading}</p> : null}
-      {programs ? (
-        <>
-          <div className="apw-chips" role="radiogroup" aria-label="Düzey">
-            {visibleLevels.map((key) => (
-              <button
-                key={key}
-                type="button"
-                role="radio"
-                aria-checked={key === activeLevel}
-                className={key === activeLevel ? "apw-chip apw-chip--on" : "apw-chip"}
-                onClick={() => {
-                  setLevelId(key);
-                  setProgramId(null);
-                  setDetail(null);
-                }}
-              >
-                {levelLabel(key)}
-              </button>
-            ))}
-            {lockedToExam ? (
-              <button type="button" className="apw-link" onClick={() => setAllLevels(true)} data-testid="official-other-levels">
-                Başka sınıf/sınav
-              </button>
-            ) : null}
-          </div>
-          <div className="apw-chips" role="radiogroup" aria-label={WIZARD_COPY.curriculumSubject}>
-            {levelPrograms.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                role="radio"
-                aria-checked={p.id === programId}
-                className={p.id === programId ? "apw-chip apw-chip--on" : "apw-chip"}
-                onClick={() => {
-                  setProgramId(p.id);
-                  setPartId(undefined);
-                }}
-              >
-                {p.subject}
-              </button>
-            ))}
-          </div>
-        </>
+    <div className="apw-import apw-official ocp" role="group" aria-label={WIZARD_COPY.pickCurriculum}>
+      <header className="ocp-head">
+        <span className="ocp-head-icon" aria-hidden>
+          🏛️
+        </span>
+        <span className="ocp-head-text">
+          <strong>Resmî müfredattan kur</strong>
+          <span>{WIZARD_COPY.officialLead}</span>
+        </span>
+      </header>
+      {failed ? (
+        <p className="ocp-alert" role="alert">
+          {WIZARD_COPY.officialFailed}
+        </p>
       ) : null}
-      {programId && !program && !failed ? <p className="apw-drop-hint" role="status">{WIZARD_COPY.officialLoading}</p> : null}
-      {program && map ? (
-        <div className="apw-official-body">
-          <p className="apw-official-badges">
-            <span className="apw-official-badge">{program.badge}</span>
-          </p>
-          {examChoices.length ? (
-          <>
-          <p className="apw-official-label">{WIZARD_COPY.officialWhichExam}</p>
-          <div className="apw-chips" role="radiogroup" aria-label={WIZARD_COPY.officialWhichExam}>
-            {examChoices.map((o) => (
-              <button
-                key={o.key}
-                type="button"
-                role="radio"
-                aria-checked={o.key === examKey}
-                className={o.key === examKey ? "apw-chip apw-chip--on" : "apw-chip"}
-                onClick={() => setExamKey(o.key)}
-              >
-                {o.label}
-              </button>
-            ))}
-          </div>
-          </>
-          ) : null}
-          {program.kind === "yks" ? (
-            <>
-              <p className="apw-official-label">{WIZARD_COPY.officialYksPart}</p>
-              <div className="apw-chips" role="radiogroup" aria-label={WIZARD_COPY.officialYksPart}>
-                {PART_OPTIONS.map((o) => (
+      {!programs && !failed ? (
+        <p className="ocp-loading" role="status">
+          <span className="ocp-spinner" aria-hidden />
+          {WIZARD_COPY.officialLoading}
+        </p>
+      ) : null}
+      {programs ? (
+        <ol className="ocp-steps">
+          <li className="ocp-step">
+            <span className="ocp-num" aria-hidden>
+              {nextNo()}
+            </span>
+            <div className="ocp-step-body">
+              <p className="ocp-step-title">Sınıf ya da sınav</p>
+              <div className="apw-chips" role="radiogroup" aria-label="Düzey">
+                {visibleLevels.map((key) => (
                   <button
-                    key={o.label}
+                    key={key}
                     type="button"
                     role="radio"
-                    aria-checked={o.key === yksPart}
-                    className={o.key === yksPart ? "apw-chip apw-chip--on" : "apw-chip"}
-                    onClick={() => setPartId(o.key)}
+                    aria-checked={key === activeLevel}
+                    className={key === activeLevel ? "apw-chip apw-chip--on" : "apw-chip"}
+                    onClick={() => {
+                      setLevelId(key);
+                      setProgramId(null);
+                      setDetail(null);
+                    }}
                   >
-                    {o.label}
+                    {levelLabel(key)}
+                  </button>
+                ))}
+                {lockedToExam ? (
+                  <button type="button" className="apw-link ocp-more" onClick={() => setAllLevels(true)} data-testid="official-other-levels">
+                    Başka sınıf/sınav
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          </li>
+          <li className="ocp-step">
+            <span className="ocp-num" aria-hidden>
+              {nextNo()}
+            </span>
+            <div className="ocp-step-body">
+              <p className="ocp-step-title">{WIZARD_COPY.curriculumSubject}</p>
+              <div className="apw-chips" role="radiogroup" aria-label={WIZARD_COPY.curriculumSubject}>
+                {levelPrograms.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={p.id === programId}
+                    className={p.id === programId ? "apw-chip apw-chip--on" : "apw-chip"}
+                    onClick={() => {
+                      setProgramId(p.id);
+                      setPartId(undefined);
+                    }}
+                  >
+                    {p.subject}
                   </button>
                 ))}
               </div>
-              <p className="apw-drop-hint" role="note" data-testid="yks-split-note">
-                {WIZARD_COPY.officialPartScope(yksPart ?? "YKS", scopes[yksPart ?? "YKS"])}
-              </p>
-              {!map.topics.length ? (
-                <p className="apw-drop-hint" role="alert" data-testid="yks-part-empty">
-                  {WIZARD_COPY.officialPartEmpty(yksPart ?? "YKS")}
+              {program ? (
+                <p className="ocp-badge-row">
+                  <span className="apw-official-badge">{program.badge}</span>
                 </p>
               ) : null}
-            </>
+            </div>
+          </li>
+          {program && examChoices.length ? (
+            <li className="ocp-step">
+              <span className="ocp-num" aria-hidden>
+                {nextNo()}
+              </span>
+              <div className="ocp-step-body">
+                <p className="ocp-step-title">{WIZARD_COPY.officialWhichExam}</p>
+                <div className="apw-chips" role="radiogroup" aria-label={WIZARD_COPY.officialWhichExam}>
+                  {examChoices.map((o) => (
+                    <button
+                      key={o.key}
+                      type="button"
+                      role="radio"
+                      aria-checked={o.key === examKey}
+                      className={o.key === examKey ? "apw-chip apw-chip--on" : "apw-chip"}
+                      onClick={() => setExamKey(o.key)}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </li>
           ) : null}
-          {scenarios.length ? (
-            <>
-              <p className="apw-official-label">{WIZARD_COPY.officialScenario}</p>
-              <div className="apw-chips" role="radiogroup" aria-label={WIZARD_COPY.officialScenario}>
-                {scenarios.map((n) => (
+          {program && map && program.kind === "yks" ? (
+            <li className="ocp-step">
+              <span className="ocp-num" aria-hidden>
+                {nextNo()}
+              </span>
+              <div className="ocp-step-body">
+                <p className="ocp-step-title">{WIZARD_COPY.officialYksPart}</p>
+                <div className="apw-chips" role="radiogroup" aria-label={WIZARD_COPY.officialYksPart}>
+                  {PART_OPTIONS.map((o) => (
+                    <button
+                      key={o.label}
+                      type="button"
+                      role="radio"
+                      aria-checked={o.key === yksPart}
+                      className={o.key === yksPart ? "apw-chip apw-chip--on" : "apw-chip"}
+                      onClick={() => setPartId(o.key)}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="ocp-hint" role="note" data-testid="yks-split-note">
+                  {WIZARD_COPY.officialPartScope(yksPart ?? "YKS", scopes[yksPart ?? "YKS"])}
+                </p>
+                {!map.topics.length ? (
+                  <p className="ocp-alert" role="alert" data-testid="yks-part-empty">
+                    {WIZARD_COPY.officialPartEmpty(yksPart ?? "YKS")}
+                  </p>
+                ) : null}
+              </div>
+            </li>
+          ) : null}
+          {program && scenarios.length ? (
+            <li className="ocp-step">
+              <span className="ocp-num" aria-hidden>
+                {nextNo()}
+              </span>
+              <div className="ocp-step-body">
+                <p className="ocp-step-title">{WIZARD_COPY.officialScenario}</p>
+                <div className="apw-chips" role="radiogroup" aria-label={WIZARD_COPY.officialScenario}>
+                  {scenarios.map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      role="radio"
+                      aria-checked={effectiveScenario === n}
+                      className={effectiveScenario === n ? "apw-chip apw-chip--on" : "apw-chip"}
+                      onClick={() => setScenario(n)}
+                    >
+                      Senaryo {n}
+                    </button>
+                  ))}
                   <button
-                    key={n}
                     type="button"
                     role="radio"
-                    aria-checked={effectiveScenario === n}
-                    className={effectiveScenario === n ? "apw-chip apw-chip--on" : "apw-chip"}
-                    onClick={() => setScenario(n)}
+                    aria-checked={effectiveScenario === "karma"}
+                    className={effectiveScenario === "karma" ? "apw-chip apw-chip--on" : "apw-chip"}
+                    onClick={() => setScenario("karma")}
                   >
-                    Senaryo {n}
+                    {WIZARD_COPY.officialKarma}
                   </button>
-                ))}
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={effectiveScenario === "karma"}
-                  className={effectiveScenario === "karma" ? "apw-chip apw-chip--on" : "apw-chip"}
-                  onClick={() => setScenario("karma")}
-                >
-                  {WIZARD_COPY.officialKarma}
-                </button>
+                </div>
+                <p className="ocp-hint">{WIZARD_COPY.officialScenarioHint}</p>
               </div>
-              <p className="apw-drop-hint">{WIZARD_COPY.officialScenarioHint}</p>
-            </>
+            </li>
           ) : null}
-          {map.national ? <p className="apw-drop-hint" role="note">{WIZARD_COPY.officialNational}</p> : null}
+        </ol>
+      ) : null}
+      {programId && !program && !failed ? (
+        <p className="ocp-loading" role="status">
+          <span className="ocp-spinner" aria-hidden />
+          {WIZARD_COPY.officialLoading}
+        </p>
+      ) : null}
+      {program && map ? (
+        <section className="ocp-map-card" aria-label="Konu haritası özeti">
+          <div className="ocp-stats" aria-hidden>
+            <span className="ocp-stat">
+              <strong>{map.topics.length}</strong>
+              <small>konu</small>
+            </span>
+            <span className="ocp-stat">
+              <strong>{map.outcomeCount}</strong>
+              <small>kazanım</small>
+            </span>
+            {map.total ? (
+              <span className="ocp-stat">
+                <strong>{map.total}</strong>
+                <small>{map.averaged ? "soru (ortalama)" : "soru"}</small>
+              </span>
+            ) : null}
+          </div>
           <p className="apw-official-summary" data-testid="official-summary">
             {map.topics.length} konu · {map.outcomeCount} kazanım
             {map.total ? ` · ${map.total} soru${map.averaged ? " (senaryoların ortalaması)" : " (resmî tablo)"}` : ""}
           </p>
-          <ol className="apw-official-map" aria-label="Konu haritası">
+          {map.national ? (
+            <p className="ocp-hint" role="note">
+              {WIZARD_COPY.officialNational}
+            </p>
+          ) : null}
+          <ol className="apw-official-map ocp-map" aria-label="Konu haritası">
             {map.units.map((unit) =>
               redundantUnitHeader(unit.title, unit.topicIndexes.map((i) => map.topics[i] ?? "")) ? (
-                <li key={unit.title} data-testid="official-unit-single">
-                  <strong>{unit.title}</strong>
-                  <small className="apw-official-count"> · {map.topicCodes[unit.topicIndexes[0]!]!.length} kazanım</small>
-                  {map.quotaByTopic[unit.topicIndexes[0]!] ? <em className="apw-official-quota">{map.quotaByTopic[unit.topicIndexes[0]!]} soru</em> : null}
+                <li key={unit.title} className="ocp-unit ocp-unit--single" data-testid="official-unit-single">
+                  <span className="ocp-row">
+                    <strong className="ocp-row-title">{unit.title}</strong>
+                    <span className="ocp-row-meta">
+                      <small className="apw-official-count ocp-pill">{map.topicCodes[unit.topicIndexes[0]!]!.length} kazanım</small>
+                      {map.quotaByTopic[unit.topicIndexes[0]!] ? (
+                        <em className="apw-official-quota ocp-pill ocp-pill--quota">{map.quotaByTopic[unit.topicIndexes[0]!]} soru</em>
+                      ) : null}
+                    </span>
+                  </span>
                 </li>
               ) : (
-              <li key={unit.title}>
-                <strong>{unit.title}</strong>
-                <ul>
-                  {unit.topicIndexes.map((i) => (
-                    <li key={i}>
-                      <span>{map.topics[i]}</span>
-                      <small className="apw-official-count"> · {map.topicCodes[i]!.length} kazanım</small>
-                      {map.quotaByTopic[i] ? <em className="apw-official-quota">{map.quotaByTopic[i]} soru</em> : null}
-                    </li>
-                  ))}
-                </ul>
-              </li>
+                <li key={unit.title} className="ocp-unit">
+                  <strong className="ocp-unit-title">{unit.title}</strong>
+                  <ul>
+                    {unit.topicIndexes.map((i) => (
+                      <li key={i} className="ocp-row">
+                        <span className="ocp-row-title">{map.topics[i]}</span>
+                        <span className="ocp-row-meta">
+                          <small className="apw-official-count ocp-pill">{map.topicCodes[i]!.length} kazanım</small>
+                          {map.quotaByTopic[i] ? <em className="apw-official-quota ocp-pill ocp-pill--quota">{map.quotaByTopic[i]} soru</em> : null}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </li>
               ),
             )}
           </ol>
-          <p className="apw-official-sources">
+          <p className="apw-official-sources ocp-sources">
             {WIZARD_COPY.officialSource}:{" "}
             {(detail?.sources ?? []).map((s, i) => (
               <span key={s.id}>
                 {i ? " · " : ""}
-                <ExternalAnchor href={s.url}>
-                  {sourceDisplayTitle(s.title)}
-                </ExternalAnchor>
+                <ExternalAnchor href={s.url}>{sourceDisplayTitle(s.title)}</ExternalAnchor>
               </span>
             ))}
           </p>
-        </div>
+        </section>
       ) : null}
-      <p className="apw-note" data-testid="curriculum-free-note">
-        <strong>Hazır içerikle çalış — ücretsiz</strong> · Hazır içerik kredi harcamaz. Ücretsiz hesapta ilk konu açık, tüm konular Plus ile.
-      </p>
-      <div className="apw-import-row">
-        <button
-          type="button"
-          className="apw-drop-pick"
-          disabled={!program || !map?.topics.length}
-          onClick={() =>
-            program &&
-            map &&
-            onPick({
-              program,
-              map,
-              sources: detail?.sources ?? [],
-              ref: { programId: program.id, examKey, scenario: effectiveScenario, ...(yksPart ? { part: yksPart } : {}) },
-              title: officialPrepTitle(program.label, yksPart, scopes),
-            })
-          }
-        >
-          {WIZARD_COPY.officialSubmit}
-        </button>
-        <button type="button" className="apw-ghost" onClick={onClose}>
-          Vazgeç
+      <div className="ocp-footer">
+        <p className="ocp-free" data-testid="curriculum-free-note">
+          <strong>Hazır içerikle çalış — ücretsiz</strong> · Hazır içerik kredi harcamaz. Ücretsiz hesapta ilk konu açık, tüm konular Plus ile.
+        </p>
+        <div className="ocp-actions">
+          <button
+            type="button"
+            className="apw-cta ocp-submit"
+            disabled={!ready}
+            onClick={() =>
+              program &&
+              map &&
+              onPick({
+                program,
+                map,
+                sources: detail?.sources ?? [],
+                ref: { programId: program.id, examKey, scenario: effectiveScenario, ...(yksPart ? { part: yksPart } : {}) },
+                title: officialPrepTitle(program.label, yksPart, scopes),
+              })
+            }
+          >
+            {WIZARD_COPY.officialSubmit}
+          </button>
+          <button type="button" className="apw-ghost ocp-cancel" onClick={onClose}>
+            Vazgeç
+          </button>
+        </div>
+        <button type="button" className="apw-link ocp-missing" onClick={() => setFallback(true)}>
+          {WIZARD_COPY.officialMissing}
         </button>
       </div>
-      <button type="button" className="apw-link" onClick={() => setFallback(true)}>
-        {WIZARD_COPY.officialMissing}
-      </button>
     </div>
   );
 }

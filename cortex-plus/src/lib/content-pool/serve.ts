@@ -222,7 +222,43 @@ async function shownPoolItemIds(service: SupabaseClient, userId: string, prepId:
   return ids;
 }
 
-export async function readPoolQuiz(service: SupabaseClient, slice: PoolSlice | PoolUnit, userId: string, count = 10, prepId?: string) {
+/**
+ * Öğrencinin seçtiği zorluk (8 Kasım 2026): havuzda her ünitenin kolay/orta/zor soruları neredeyse eşit sayıda; seçim
+ * önceden hiç zorluğa bakmıyordu, "İleri" seçen öğrenci karışık (çoğu kolay-orta) soru alıyordu. Katman sırası:
+ * ileri → zor, orta, kolay; kolay → kolay, orta, zor; orta → orta, zor, kolay. Seçilen katman yetmezse sıradakiyle
+ * tamamlanır; kazanım dengesi her katmanın içinde korunur.
+ */
+export type PoolDifficulty = "kolay" | "orta" | "ileri";
+const DIFFICULTY_TIERS: Record<PoolDifficulty, string[]> = {
+  kolay: ["easy", "medium", "hard"],
+  orta: ["medium", "hard", "easy"],
+  ileri: ["hard", "medium", "easy"],
+};
+
+export function pickByDifficulty(rows: ItemRow[], count: number, difficulty?: PoolDifficulty | null): ItemRow[] {
+  if (!difficulty) return balancedPick(rows, count);
+  const tiers = DIFFICULTY_TIERS[difficulty];
+  const picked: ItemRow[] = [];
+  for (const tier of tiers) {
+    if (picked.length >= count) break;
+    picked.push(...balancedPick(rows.filter((row) => row.difficulty === tier), count - picked.length));
+  }
+  // Bilinmeyen zorluk etiketli satırlar en sonda.
+  if (picked.length < count) {
+    const taken = new Set(picked.map((row) => row.id));
+    picked.push(...balancedPick(rows.filter((row) => !taken.has(row.id)), count - picked.length));
+  }
+  return picked;
+}
+
+export async function readPoolQuiz(
+  service: SupabaseClient,
+  slice: PoolSlice | PoolUnit,
+  userId: string,
+  count = 10,
+  prepId?: string,
+  difficulty?: PoolDifficulty | null,
+) {
   const sl: PoolSlice = "units" in slice ? slice : { units: [slice], codes: null };
   const unitIds = sl.units.map((u) => u.unitId);
   const [{ data }, { data: answered }] = await Promise.all([
@@ -243,10 +279,10 @@ export async function readPoolQuiz(service: SupabaseClient, slice: PoolSlice | P
   const fresh = rows.filter((r) => !seen.has(r.id));
   // Havuz yetmezse önce görülmemişler, eksik görülenlerden tamamlanır (önce: hepsi karışık).
   if (fresh.length < count) {
-    const refill = rows.filter((r) => seen.has(r.id)).sort(() => Math.random() - 0.5).slice(0, count - fresh.length);
-    return mapPoolRows(balancedPick(fresh, fresh.length).concat(refill), prepId ?? userId);
+    const refill = pickByDifficulty(rows.filter((r) => seen.has(r.id)), count - fresh.length, difficulty);
+    return mapPoolRows(pickByDifficulty(fresh, fresh.length, difficulty).concat(refill), prepId ?? userId);
   }
-  return mapPoolRows(balancedPick(fresh, count), prepId ?? userId);
+  return mapPoolRows(pickByDifficulty(fresh, count, difficulty), prepId ?? userId);
 }
 
 /** Kazanım ve zorluk dengesi: sırayla her kazanımdan bir soru. */
@@ -325,7 +361,17 @@ export type EnsureUnit = (unit: PoolUnit) => Promise<LessonBody | null>;
 /** Havuzdan sunulacak gövde; havuzda yoksa ve paylaşımlı üretim de olmadıysa null (bugünkü üretim yolu). */
 export async function poolPayload(
   service: SupabaseClient,
-  input: { kind: string; prefs: unknown; topicLabel: string; title: string; userId: string; ensure?: EnsureUnit; prepId?: string },
+  input: {
+    kind: string;
+    prefs: unknown;
+    topicLabel: string;
+    title: string;
+    userId: string;
+    ensure?: EnsureUnit;
+    prepId?: string;
+    /** Öğrencinin seçtiği zorluk; testte soru katmanını belirler (8 Kasım 2026). */
+    difficulty?: PoolDifficulty | null;
+  },
 ): Promise<Record<string, unknown> | null> {
   if (!POOL_SERVE_KINDS.has(input.kind)) return null;
   const slice = poolSliceForTopic(input.prefs, input.topicLabel);
@@ -341,7 +387,7 @@ export async function poolPayload(
     slice.units.map(async (u) => ({ unit: u, body: (await readPoolLesson(service, u)) ?? (input.ensure ? await input.ensure(u).catch(() => null) : null) })),
   );
   const quizCount = POOL_QUIZ_COUNT[input.kind];
-  const quizRead = quizCount ? readPoolQuiz(service, slice, input.userId, quizCount, input.prepId) : null;
+  const quizRead = quizCount ? readPoolQuiz(service, slice, input.userId, quizCount, input.prepId, input.difficulty) : null;
   // Ders kontrol soruları doğrulanmış bankadan (6 Kasım 2026); ünite okumasıyla paralel. Okunamazsa ders eskisi gibi açılır.
   const checksRead = input.kind === "lesson" ? readPoolLessonChecks(service, slice, input.userId).catch(() => []) : null;
   const read = await lessonsRead;

@@ -2118,3 +2118,22 @@ sabit senaryo kelimesi yok; 375 ve 360 px'te taşma yok; %100 Türkçe." Tek PR.
 Bekçi: `landing-showcase.test.ts`, `coach-reactions.test.ts`, `first-step-launcher.test.tsx`, `signup-preset.test.ts`,
 `marketing-claims.test.ts` (yeni yüzeyler listede), e2e `donusum.spec.ts` (375 ve 360 px taşma 0, dokunma ≥ 36 px, vitrin uçtan
 uca ağ isteği olmadan, kayıt ön seçimi, başlatıcı).
+
+## Kurulum ve test ekranları (8 Kasım 2026) — eğitmen, zorluk, tarih adımı, resmî müfredat
+
+Ürün sahibi dört ekranı fotoğrafla gösterdi: "eğitmen gösterişsiz, başka soruya geçince eski konuşma duruyor, kısa ve
+öğretici değil; zorluk sürgüsü sona gelmiyor ve İleri seçsem de sorular basit; müfredat seçimi özensiz ve karışık;
+günlük çalışma süresiyle sınav tarihi birbirine karışmış". Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| **Eğitmen her soruda kendi sohbetini görür**: mesaj `q` (soru sırası) taşır; sonraki soruda önceki konuşma ekrandan kalkar, geri dönülünce görünür; modele yalnız o sorunun konuşması gider (`threadFor`). Eski "📌 Soru N için soruluyor" ayracı ve "sohbet silinmez" kararı **değişti** | `exam-node-coach.tsx` |
+| **Eğitmen öğretir**: `COACH_TEACHING_RULE` (tanım → neden → FARKLI küçük örnek → bu sorudaki ipucu → tek kontrol sorusu; ipucu isteğinde tek ipucu; doğru şık söylenmez), cevap 5-12 cümle, `- ` maddeleri, **kalın** terim; sınır 800 → 2200 karakter; cevap Markdown'la çizilir. Hızlı istekler: "Bilmiyorum, sen anlat" (adı testlerde), "Bir ipucu ver", "Örnekle anlat". Route dosyası yalnız `POST` dışa aktarır: kural `coach-sources.ts`'te | `coach-sources.ts`, `coach/route.ts`, `node-coach.css` |
+| **Zorluk gerçekten uygulanır**: hazır müfredat testi (havuz) önceden zorluğa hiç bakmıyordu; havuzda her ünitede kolay/orta/zor ~eşit (canlı: 4.389 / 4.395 / 4.393). `pickByDifficulty`: ileri → zor, orta, kolay; kolay → kolay, orta, zor; orta → orta, zor, kolay; kazanım dengesi katman içinde. Model yazan testte zorluk zaten istemdeydi (`DIFFICULTY_LINE`) | `content-pool/serve.ts`, `node/pool-start.ts` |
+| **Zorluk seçimi sürgü değil üç kart** (ad + anlam + seviye çubukları, radyo grubu, ok tuşları). Sürgü `.cp-field input` dolgusunu alıp sona ulaşmıyordu | `difficulty-picker.tsx` |
+| **Tarih adımı kartlara ayrıldı**: tarih kartı (seçili tarih + "N gün kaldı", beş hızlı seçim ızgarada, her zaman açık takvim; bugün çerçeveli, resmî günler noktalı; geçmiş aya gidilmez), resmî sınav tarihleri ayrı açılır bölüm (sınav türü seçilmediyse kapalı), günlük süre ayrı kart, saat/yer ayrı kart. `DateStep` dışa aktarılır (fikstür `/e2e/kurulum`) | `exam-create-wizard.tsx`, `exam-create-wizard.css` |
+| **Resmî müfredat paneli**: numaralı adımlar (sınıf/sınav → ders → yazılı → [YKS bölümü] → senaryo) bağlantı çizgisiyle, konu haritası ayrı kartta, sayılar üç kutuda, birincil "Bu konularla devam et". Radyo adları ve `official-summary` metni e2e'nin dayandığı adlar: değişmedi | `official-curriculum-panel.tsx`, `official-curriculum.css` |
+
+Bekçi: `kurulum-ve-egitmen-8-kasim.test.tsx`, `paket1-tutor-scratchpad.test.tsx`, e2e `kurulum-gorsel.spec.ts` (375/360 px taşma 0,
+dokunma ≥ 40 px, tarih özeti, eğitmen sohbeti soruya bağlı), `mufredat.spec.ts`. Telefonda kök düzendeki 36 px tabanı
+(`mobile-tap-targets.css`, `:root` + sınıf) eğitmen çiplerini eziyordu: kural `.cp-exam-coach .cp-coach-asks` ile daha özgül.

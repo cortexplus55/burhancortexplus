@@ -277,6 +277,13 @@ function longLabel(iso: string) {
   return `${d} ${MONTHS[m - 1]} ${WEEKDAYS[(date.getDay() + 6) % 7]}`;
 }
 
+/** İki ISO gün arasındaki gün sayısı (yerel takvim günü). */
+function daysBetweenIso(fromIso: string, toIso: string): number {
+  const [fy, fm, fd] = fromIso.split("-").map(Number);
+  const [ty, tm, td] = toIso.split("-").map(Number);
+  return Math.round((Date.UTC(ty, tm - 1, td) - Date.UTC(fy, fm - 1, fd)) / 86_400_000);
+}
+
 /** Ekran okuyucu için tam tarih: "17 Eylül 2026 Perşembe". */
 function fullLabel(iso: string) {
   const [y, m, d] = iso.split("-").map(Number);
@@ -2729,7 +2736,7 @@ function TopicEditor({
 }
 
 /** Hızlı seçenekler + ay takvimi. Referans üründeki gibi tarih ayrı bir adım. */
-function DateStep({
+export function DateStep({
   value,
   onPick,
   onNext,
@@ -2773,27 +2780,43 @@ function DateStep({
     { label: "3 gün sonra", days: 3 },
     { label: "1 hafta sonra", days: 7 },
     { label: "2 hafta sonra", days: 14 },
-    { label: "30 gün sonra", days: DEFAULT_EXAM_LEAD_DAYS },
+    { label: "1 ay sonra", days: DEFAULT_EXAM_LEAD_DAYS },
   ];
 
   const todayIso = isoOf(new Date());
   const officialExams = officialExamsForTrack(todayIso, examTrack, 8);
+  const officialDays = new Set(officialExams.map((exam) => exam.date));
   const firstWeekday = (new Date(cursor.getFullYear(), cursor.getMonth(), 1).getDay() + 6) % 7;
   const daysInMonth = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getDate();
+  const daysLeft = value ? daysBetweenIso(todayIso, value) : null;
+  const now = new Date();
+  const atCurrentMonth = cursor.getFullYear() === now.getFullYear() && cursor.getMonth() === now.getMonth();
 
+  function pickDate(iso: string) {
+    onPick(iso);
+    const at = new Date(`${iso}T12:00:00`);
+    setCursor(new Date(at.getFullYear(), at.getMonth(), 1));
+  }
+
+  /*
+    8 Kasım 2026 yeniden tasarım (ürün sahibi: "günlük çalışma süresiyle sınav tarihi birbirine karışmış; tarihi kendi
+    seçebilmeli"). Önce tarih kartı: seçili tarih ve kalan gün, hızlı seçimler, her zaman açık takvim; resmî sınav
+    tarihleri ayrı (sınav türü seçilmediyse kapalı başlar). Günlük süre ve saat/yer kendi kartlarında.
+  */
   return (
-    <section className="apw-step">
+    <section className="apw-step apw-when">
       <h1>Sınav ne zaman?</h1>
-      <p className="apw-lead">Kalan güne göre planın sıkışır ya da rahatlar. 30 gün sonrası seçili gelir.</p>
+      <p className="apw-lead">Tarihi seç; çalışma planın kalan güne göre sıkışır ya da rahatlar.</p>
+
       {askLevel ? (
-        <>
-          <h2 className="apw-group">Sınıf / seviye</h2>
-          <div className="apw-quick" role="group" aria-label="Sınıf veya seviye">
+        <div className="apw-card">
+          <h2 className="apw-card-title">Sınıf ve sınav türü</h2>
+          <div className="apw-seg-wrap" role="group" aria-label="Sınıf veya seviye">
             {STUDY_BANDS.map((band) => (
               <button
                 key={band.id}
                 type="button"
-                className={studyBand === band.id ? "apw-quick-btn apw-quick-btn--on" : "apw-quick-btn"}
+                className={studyBand === band.id ? "apw-seg apw-seg--on" : "apw-seg"}
                 aria-pressed={studyBand === band.id}
                 onClick={() => onStudyBand(band.id)}
               >
@@ -2801,13 +2824,12 @@ function DateStep({
               </button>
             ))}
           </div>
-          <h2 className="apw-group">Sınav türü</h2>
-          <div className="apw-quick" role="group" aria-label="Sınav türü">
+          <div className="apw-seg-wrap" role="group" aria-label="Sınav türü">
             {EXAM_OCCASIONS.map((item) => (
               <button
                 key={item.id}
                 type="button"
-                className={examOccasion === item.id ? "apw-quick-btn apw-quick-btn--on" : "apw-quick-btn"}
+                className={examOccasion === item.id ? "apw-seg apw-seg--on" : "apw-seg"}
                 aria-pressed={examOccasion === item.id}
                 onClick={() => onExamOccasion(item.id)}
               >
@@ -2815,139 +2837,171 @@ function DateStep({
               </button>
             ))}
           </div>
-        </>
-      ) : null}
-      <h2 className="apw-group">Günlük çalışma süresi</h2>
-      <div className="apw-quick" role="group" aria-label="Günlük çalışma süresi">
-        {DAILY_MINUTE_CHOICES.map((minutes) => (
-          <button
-            key={minutes}
-            type="button"
-            className={dailyMinutes === minutes ? "apw-quick-btn apw-quick-btn--on" : "apw-quick-btn"}
-            aria-pressed={dailyMinutes === minutes}
-            onClick={() => onDailyMinutes(minutes)}
-          >
-            {minutes} dk
-          </button>
-        ))}
-      </div>
-
-      <div className="apw-quick">
-        {quick.map((option) => {
-          const iso = isoOf(addDays(option.days));
-          return (
-            <button
-              key={option.label}
-              type="button"
-              className={value === iso ? "apw-quick-btn apw-quick-btn--on" : "apw-quick-btn"}
-              aria-pressed={value === iso}
-              onClick={() => onPick(iso)}
-            >
-              <span>{option.label}</span>
-              <small>{longLabel(iso)}</small>
-            </button>
-          );
-        })}
-      </div>
-
-      {officialExams.length ? (
-        <>
-          <h2 className="apw-group">Resmî sınav tarihleri (ÖSYM / MEB)</h2>
-          <div className="apw-quick" role="group" aria-label="Resmî sınav tarihleri" data-testid="official-exam-dates">
-            {officialExams.map((exam) => (
-              <button
-                key={exam.id}
-                type="button"
-                className={value === exam.date ? "apw-quick-btn apw-quick-btn--on" : "apw-quick-btn"}
-                aria-pressed={value === exam.date}
-                title={exam.sourceUrl ? `Belge: ${exam.sourceUrl}` : undefined}
-                onClick={() => {
-                  onPick(exam.date);
-                  const at = new Date(`${exam.date}T12:00:00`);
-                  setCursor(new Date(at.getFullYear(), at.getMonth(), 1));
-                }}
-              >
-                <span>{exam.label}</span>
-                <small>{longLabel(exam.date)}</small>
-              </button>
-            ))}
-          </div>
-        </>
-      ) : null}
-
-      <div className="apw-cal">
-        <div className="apw-cal-head">
-          <button
-            type="button"
-            aria-label="Önceki ay"
-            onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))}
-          >
-            ‹
-          </button>
-          <strong>
-            {MONTHS[cursor.getMonth()]} {cursor.getFullYear()}
-          </strong>
-          <button
-            type="button"
-            aria-label="Sonraki ay"
-            onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))}
-          >
-            ›
-          </button>
         </div>
-        <div className="apw-cal-grid">
-          {WEEKDAYS.map((day) => (
-            <span key={day} className="apw-cal-dow">
-              {day}
+      ) : null}
+
+      <div className="apw-card apw-date-card">
+        <h2 className="apw-card-title">Sınav tarihi</h2>
+        <div className="apw-date-summary" aria-live="polite" data-testid="exam-date-summary">
+          {value ? (
+            <>
+              <span className="apw-date-tile" aria-hidden>
+                <small>{MONTHS[Number(value.slice(5, 7)) - 1]}</small>
+                <strong>{Number(value.slice(8, 10))}</strong>
+              </span>
+              <span className="apw-date-text">
+                <strong>{fullLabel(value)}</strong>
+                <span>
+                  {daysLeft === null ? "" : daysLeft <= 0 ? "Bugün" : daysLeft === 1 ? "Yarın · 1 gün kaldı" : `${daysLeft} gün kaldı`}
+                </span>
+              </span>
+            </>
+          ) : (
+            <span className="apw-date-text">
+              <strong>Henüz tarih seçilmedi</strong>
+              <span>Aşağıdan hızlı seç ya da takvimden gününe dokun.</span>
             </span>
-          ))}
-          {Array.from({ length: firstWeekday }).map((_, i) => (
-            <span key={`pad-${i}`} />
-          ))}
-          {Array.from({ length: daysInMonth }).map((_, i) => {
-            const iso = isoOf(new Date(cursor.getFullYear(), cursor.getMonth(), i + 1));
-            const disabled = iso <= todayIso;
+          )}
+        </div>
+
+        <div className="apw-date-chips" role="group" aria-label="Hızlı tarih seçimi">
+          {quick.map((option) => {
+            const iso = isoOf(addDays(option.days));
             return (
               <button
-                key={iso}
+                key={option.label}
                 type="button"
-                disabled={disabled}
+                className={value === iso ? "apw-date-chip apw-date-chip--on" : "apw-date-chip"}
                 aria-pressed={value === iso}
-                // Ekran okuyucuya yalnızca "10" demek hangi ay/gün olduğunu
-                // gizliyordu; tam tarih okunsun.
-                aria-label={fullLabel(iso)}
-                className={value === iso ? "apw-cal-day apw-cal-day--on" : "apw-cal-day"}
-                onClick={() => onPick(iso)}
+                onClick={() => pickDate(iso)}
               >
-                {i + 1}
+                <span>{option.label}</span>
+                <small>{longLabel(iso)}</small>
               </button>
             );
           })}
         </div>
+
+        <div className="apw-cal">
+          <div className="apw-cal-head">
+            <button
+              type="button"
+              aria-label="Önceki ay"
+              disabled={atCurrentMonth}
+              onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))}
+            >
+              ‹
+            </button>
+            <strong>
+              {MONTHS[cursor.getMonth()]} {cursor.getFullYear()}
+            </strong>
+            <button
+              type="button"
+              aria-label="Sonraki ay"
+              onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))}
+            >
+              ›
+            </button>
+          </div>
+          <div className="apw-cal-grid">
+            {WEEKDAYS.map((day) => (
+              <span key={day} className="apw-cal-dow">
+                {day}
+              </span>
+            ))}
+            {Array.from({ length: firstWeekday }).map((_, i) => (
+              <span key={`pad-${i}`} />
+            ))}
+            {Array.from({ length: daysInMonth }).map((_, i) => {
+              const iso = isoOf(new Date(cursor.getFullYear(), cursor.getMonth(), i + 1));
+              const disabled = iso <= todayIso;
+              const classes = ["apw-cal-day"];
+              if (value === iso) classes.push("apw-cal-day--on");
+              if (iso === todayIso) classes.push("apw-cal-day--today");
+              if (officialDays.has(iso)) classes.push("apw-cal-day--official");
+              return (
+                <button
+                  key={iso}
+                  type="button"
+                  disabled={disabled}
+                  aria-pressed={value === iso}
+                  // Ekran okuyucuya yalnızca "10" demek hangi ay/gün olduğunu
+                  // gizliyordu; tam tarih okunsun.
+                  aria-label={fullLabel(iso)}
+                  className={classes.join(" ")}
+                  onClick={() => onPick(iso)}
+                >
+                  {i + 1}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {officialExams.length ? (
+          <details className="apw-official-dates" open={Boolean(examTrack)}>
+            <summary>
+              <span>Resmî sınav tarihleri</span>
+              <small>ÖSYM / MEB · takvimde noktalı</small>
+            </summary>
+            <div className="apw-official-date-list" role="group" aria-label="Resmî sınav tarihleri" data-testid="official-exam-dates">
+              {officialExams.map((exam) => (
+                <button
+                  key={exam.id}
+                  type="button"
+                  className={value === exam.date ? "apw-official-date apw-official-date--on" : "apw-official-date"}
+                  aria-pressed={value === exam.date}
+                  title={exam.sourceUrl ? `Belge: ${exam.sourceUrl}` : undefined}
+                  onClick={() => pickDate(exam.date)}
+                >
+                  <span>{exam.label}</span>
+                  <small>{longLabel(exam.date)}</small>
+                </button>
+              ))}
+            </div>
+          </details>
+        ) : null}
       </div>
 
-      <h2 className="apw-group">Sınav saati ve yeri (isteğe bağlı)</h2>
-      <div className="apw-exam-time">
-        <label>
-          <span>Saat</span>
-          <input
-            type="time"
-            value={examTime}
-            onChange={(e) => onExamTime(e.target.value)}
-            aria-label="Sınav saati"
-          />
-        </label>
-        <label>
-          <span>Yer</span>
-          <input
-            type="text"
-            value={examPlace}
-            maxLength={EXAM_PLACE_MAX}
-            placeholder="Örn. Amfi 2"
-            onChange={(e) => onExamPlace(e.target.value)}
-            aria-label="Sınav yeri"
-          />
-        </label>
+      <div className="apw-card">
+        <h2 className="apw-card-title">Günlük çalışma süresi</h2>
+        <p className="apw-card-hint">Her gün ayırabileceğin süre; plan günlere bu süreye göre dağıtılır.</p>
+        <div className="apw-seg-wrap apw-seg-wrap--even" role="group" aria-label="Günlük çalışma süresi">
+          {DAILY_MINUTE_CHOICES.map((minutes) => (
+            <button
+              key={minutes}
+              type="button"
+              className={dailyMinutes === minutes ? "apw-seg apw-seg--on" : "apw-seg"}
+              aria-pressed={dailyMinutes === minutes}
+              onClick={() => onDailyMinutes(minutes)}
+            >
+              <strong>{minutes}</strong> dk
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="apw-card">
+        <h2 className="apw-card-title">
+          Sınav saati ve yeri <small>(isteğe bağlı)</small>
+        </h2>
+        <div className="apw-exam-time">
+          <label>
+            <span>Saat</span>
+            <input type="time" value={examTime} onChange={(e) => onExamTime(e.target.value)} aria-label="Sınav saati" />
+          </label>
+          <label>
+            <span>Yer</span>
+            <input
+              type="text"
+              value={examPlace}
+              maxLength={EXAM_PLACE_MAX}
+              placeholder="Örn. Amfi 2"
+              onChange={(e) => onExamPlace(e.target.value)}
+              aria-label="Sınav yeri"
+            />
+          </label>
+        </div>
       </div>
 
       <button type="button" className="apw-cta" disabled={!value} onClick={onNext}>
