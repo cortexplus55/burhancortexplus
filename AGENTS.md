@@ -2064,6 +2064,8 @@ bir yerde saklayalım; önceden okuyup onayladıysa bir daha sormasın; profesyo
 | **Sözleşme örneği**: ödeme kesinleşince (`completed`) satın alma bilgileri + iki metin hesabın e-postasına; hesapsız veli ödemesinde ödemeye geçerken velinin adresine (adres saklanmaz); Ödemelerim'de "Sözleşme örneği" (`/odemeler/sozlesme/[siparis]`, yalnız ödeyen ya da hakkın sahibi) | `purchase-contract.ts`, `paytr/callback`, `mailer.ts` |
 | **İade**: uygulama içi bildirimin yanında e-posta; iptal-iade sayfasında "İade talebi nasıl işler". Destek formunda konu türü (Genel, Ödeme ve iade, Hesap ve giriş, Teknik sorun, KVKK başvurusu); tür konunun önüne yazılır (`[Ödeme ve iade] …`, göç yok) | `refund.ts` `emailRefund`, `support/categories.ts`, `support-form.tsx` |
 
+**IP adresi üç biçimde tutulur ve metin bunu söyler (8 Kasım 2026'da düzeltildi; önce "hep özet" yazıyordu):** kötüye kullanım, metin onayı ve çerez tercihi kayıtlarında tek yönlü özet; hız sınırında Upstash anahtarında olduğu gibi (TTL dakikalar-günler); ödemede PayTR'ye ve `audit_logs` ödeme onayı kaydına olduğu gibi (PayTR zorunlu kılıyor, itirazda kanıt). Yeni bir yerde IP saklanırsa önce `kvkk-text.ts`, sonra sürüm.
+
 14 günlük gönüllü iade sözü **verilmedi**: karar ürün sahibinde (bugünkü metin yalnız hatalı ve yetkisiz işlemde iade der). Bekçi: `uyum-paketi.test.ts`,
 `uyum-paketi-ui.test.tsx`, `consent-records.test.ts`, e2e `uyum.spec.ts` (bant temiz tarayıcıyla; öbür e2e testleri
 `consent-cookie.ts` ile tercihi verilmiş başlar, oturumlu kurulum test hesabının onayını kanıtla verir).

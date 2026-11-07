@@ -29,7 +29,8 @@ describe("metin sürümleri: metin değişince sürüm de değişir", async () =
     değişip buraya eklenmedi.
   */
   const FINGERPRINTS = {
-    kvkk: { "2026-11-07": "9446ec8ca66fe40e" } as Record<string, string>,
+    // 8 Kasım 2026: IP'nin hangi kayıtta nasıl tutulduğu düzeltildi (hız sınırı ve ödeme kaydında ham). Eski satır kalır.
+    kvkk: { "2026-11-07": "9446ec8ca66fe40e", "2026-11-08": "a226f4fe8e30a3c2" } as Record<string, string>,
     terms: { "2026-11-07": "65eb7f7261e5a0c4" } as Record<string, string>,
     cookie: { "2026-11-07": "6942f7aaf4fcbb7f" } as Record<string, string>,
     sales: { "2026-11-07": "b97ee8662442fa45" } as Record<string, string>,
@@ -92,7 +93,7 @@ describe("okuma kanıtı ve onay durumu (saf kurallar)", async () => {
     ]);
 
     const done = consentStatusFrom([
-      { consent_type: "kvkk_aydinlatma", version: "2026-11-07" },
+      { consent_type: "kvkk_aydinlatma", version: "2026-11-08" },
       { consent_type: "kullanim_kosullari", version: "2026-11-07" },
       { consent_type: "yas_beyani", version: "2026-11-07" },
       { consent_type: "satis_sozlesmeleri", version: "2026-11-07" },
@@ -106,13 +107,14 @@ describe("okuma kanıtı ve onay durumu (saf kurallar)", async () => {
 describe("onay kaydı: kanıtsız onay bugünkü sürüm adına yazılmaz", async () => {
   const { consentItemsFrom, recordConsents, recordSignupConsent } = await import("@/lib/legal/record-consent");
   const now = new Date("2026-11-07T12:00:00Z");
-  const evidence = { version: "2026-11-07", openedAt: "2026-11-07T11:58:00Z", confirmedAt: "2026-11-07T11:59:30Z", scrolledToEnd: true };
+  const evidenceFor = (version: string) => ({ version, openedAt: "2026-11-07T11:58:00Z", confirmedAt: "2026-11-07T11:59:30Z", scrolledToEnd: true });
+  const evidence = evidenceFor("2026-11-08");
 
   it("yalnız geçerli kanıtı olan metin ve tamamlanmış yaş beyanı satır olur", () => {
     const items = consentItemsFrom(
       {
         acceptedAt: "2026-11-07T11:59:40Z",
-        documents: { kvkk_aydinlatma: evidence, kullanim_kosullari: { ...evidence, scrolledToEnd: false } },
+        documents: { kvkk_aydinlatma: evidence, kullanim_kosullari: { ...evidenceFor("2026-11-07"), scrolledToEnd: false } },
         age: { minor: true, guardianAck: true },
       },
       now,

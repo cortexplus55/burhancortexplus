@@ -58,7 +58,7 @@ export default function GizlilikPage() {
           body: [
             "Dosyalar özel depolamada tutulur ve yalnız kısa ömürlü imzalı bağlantıyla açılır.",
             "Veritabanı erişimi satır düzeyi güvenlik kurallarıyla kullanıcı bazında sınırlanır; tarayıcıdan yapılabilen yazma işlemleri birkaç tabloyla ve kullanıcının kendi satırlarıyla sınırlıdır.",
-            "IP adresleri onay ve tercih kayıtlarında ham değil, tek yönlü özet olarak tutulur.",
+            "IP adresi; kötüye kullanım, onay ve çerez tercihi kayıtlarında tek yönlü özet olarak tutulur. Hız sınırı için kısa süreli, ödeme sırasında ise ödeme kuruluşuna ve ödeme onayının kanıt kaydına olduğu gibi kullanılır (ayrıntı KVKK Aydınlatma Metni'nde).",
           ],
         },
       ]}
