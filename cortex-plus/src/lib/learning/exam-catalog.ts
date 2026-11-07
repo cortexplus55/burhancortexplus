@@ -110,6 +110,8 @@ export function curriculumFor(gradeLevel: string | null | undefined): {
 } {
   const grade = (gradeLevel ?? "").trim();
   const number = Number.parseInt(grade, 10);
+  // Üniversite (7 Kasım 2026): sabit ders listesi yok; öğrenci dersinin adını kurulumda yazar.
+  if (/üniversite|universite/i.test(grade)) return { levelLabel: "Üniversite", items: [] };
   if (/mezun/i.test(grade)) {
     return {
       levelLabel: "Mezun",

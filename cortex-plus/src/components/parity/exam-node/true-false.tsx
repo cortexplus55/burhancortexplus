@@ -9,6 +9,12 @@ import type { NodeLifecycle } from "./use-node-lifecycle";
 
 export function TrueFalsePlay({ life }: { life: NodeLifecycle }) {
   const { stage, loading, payload, index, setIndex, answers, tfRevealed, setTfRevealed, finish, updateAnswer, items } = life;
+  // Koç katmanı (7 Kasım 2026): bu önermeden önceki art arda doğrular.
+  let streakBefore = 0;
+  for (let at = index - 1; at >= 0; at -= 1) {
+    if (answers[String(at)] !== items[at]?.correct) break;
+    streakBefore += 1;
+  }
   return (
     <>
       {stage === "play" && payload.type === "true_false" && items[index] ? (
@@ -25,6 +31,7 @@ export function TrueFalsePlay({ life }: { life: NodeLifecycle }) {
             // Yanlış önermede açıklama "✏️ Doğrusu: …" ile başlar; eski kayıtlar da aynı biçimde gösterilir.
             explanation={<RichBody text={trueFalseExplanation(items[index])} />}
             nextLabel={index + 1 < items.length ? "Sonraki önerme" : "Bitir"}
+            streakBefore={streakBefore}
             onPick={(value) => {
               if (tfRevealed) return;
               updateAnswer(String(index), value);

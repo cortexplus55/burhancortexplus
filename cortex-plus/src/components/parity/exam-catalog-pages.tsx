@@ -142,7 +142,14 @@ export function CurriculumPage({ gradeLevel }: { gradeLevel: string | null }) {
       <p className="cp-catalog-lead">
         Dersini seç; konular kurulumda müfredatına göre çıkarılır, yol ona göre açılır.
       </p>
-      <CatalogGrid items={curriculum.items} />
+      {curriculum.items.length ? (
+        <CatalogGrid items={curriculum.items} />
+      ) : (
+        // Üniversite (7 Kasım 2026): hazır ders listesi yok; dersin adı kurulumda yazılır.
+        <Link href="/deneme-sinavlari/olustur" className="cp-exam-discover-cta mt-4 inline-flex">
+          Dersinin adını yazarak kur
+        </Link>
+      )}
     </section>
   );
 }

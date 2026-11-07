@@ -1,0 +1,138 @@
+/*
+  Ana sayfa: hazırlığı olmayan öğrencinin ilk adım başlatıcısı (7 Kasım 2026). Üç kart yan yana, telefonda alt alta;
+  her kart ve çip en az 44 px dokunma alanı; sohbet kutusunun üstünde durur, onu örtmez.
+*/
+
+.cp-first-step {
+  width: min(100%, 52rem);
+  margin: 1.5rem auto 0;
+  text-align: left;
+}
+
+.cp-first-step-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.9rem;
+}
+
+.cp-first-step-title {
+  margin: 0;
+  font: var(--t-label-15);
+  font-weight: 650;
+  font-size: 1.05rem;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+  color: var(--c-text);
+  text-wrap: balance;
+}
+
+.cp-first-step-hide {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: 2.75rem;
+  padding: 0 0.6rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--c-text-muted);
+  font: var(--t-label-13);
+  cursor: pointer;
+}
+
+.cp-first-step-hide:hover {
+  background: var(--c-surface-2);
+  color: var(--c-text);
+}
+
+.cp-first-step-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+@media (min-width: 48rem) {
+  .cp-first-step-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.cp-first-step-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: 1rem;
+  border: 1px solid var(--c-border-strong);
+  border-radius: var(--r-2xl);
+  background: var(--c-surface-1);
+  color: var(--c-text);
+  text-decoration: none;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+a.cp-first-step-card:hover,
+.cp-first-step-card--curriculum:hover {
+  border-color: var(--c-action);
+  background: var(--c-surface-2);
+}
+
+.cp-first-step-card .cp-icon3d {
+  flex: none;
+}
+
+.cp-first-step-card strong {
+  font: var(--t-label-15);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.cp-first-step-card span {
+  font: var(--t-body-14);
+  color: var(--c-text-muted);
+}
+
+.cp-first-step-card em,
+.cp-first-step-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: auto;
+  padding-top: 0.35rem;
+  min-height: 2.25rem;
+  font: var(--t-label-13);
+  font-style: normal;
+  font-weight: 600;
+  color: var(--c-action);
+  text-decoration: none;
+}
+
+.cp-first-step-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.2rem;
+}
+
+.cp-first-step-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.25rem;
+  padding: 0 0.7rem;
+  border: 1px solid var(--c-border-strong);
+  border-radius: 999px;
+  background: var(--c-surface-2);
+  color: var(--c-text);
+  font: var(--t-label-13);
+  text-decoration: none;
+}
+
+.cp-first-step-chip:hover {
+  border-color: var(--c-action);
+}

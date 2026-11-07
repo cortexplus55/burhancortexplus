@@ -9,6 +9,8 @@ import { nearDuplicateSentence } from "@/lib/text/turkish";
 import { Check, ChevronLeft, CornerDownLeft, Info, Star, X } from "lucide-react";
 import { honestReadingMinutes } from "@/lib/learning/lesson-coherence";
 import { activityDurationMinutes, lessonStepCounter, type LessonStepCounter } from "@/lib/learning/activity-duration";
+import { LessonSpark } from "@/components/learning/coach-chrome";
+import { lessonSpark } from "@/lib/learning/coach-reactions";
 import { prepStars } from "@/lib/stars/rules";
 import { ComparisonCarousel, ExamTrapCard, FormulaCard, MemoryHookCard } from "@/components/parity/lesson-visual-cards";
 import type { LessonV2 } from "@/lib/learning/teaching-standards";
@@ -823,6 +825,7 @@ export function ExamLessonSteps({
   const [recallDraft, setRecallDraft] = useState("");
   const [grading, setGrading] = useState(false);
   const [advancing, setAdvancing] = useState(false);
+  const [spark, setSpark] = useState<{ text: string | null; token: number }>({ text: null, token: 0 });
   const [gradeResult, setGradeResult] = useState<GradeCheckResult | null>(null);
   /** Yanlış cevaplanan bölümlerin sırası — tekrar kuyruğunu bunlar doğurur. */
   const [missed, setMissed] = useState<number[]>([]);
@@ -975,6 +978,17 @@ export function ExamLessonSteps({
     resetAnswer();
   }
 
+  // Mikro-ilerleme kıvılcımı (7 Kasım 2026): tuzak ya da formül içeren adım bitince, son adıma girince kısa bir cümle.
+  function sparkFor(current: Step, nextIndex: number) {
+    const blocks = current.kind === "section" ? current.blocks : [];
+    const text = lessonSpark({
+      hadTrap: blocks.some((block) => block.type === "exam_trap_card"),
+      hadFormula: blocks.some((block) => block.type === "formula"),
+      enteringLast: nextIndex === steps.length - 1 && steps.length > 1,
+    });
+    if (text) setSpark((previous) => ({ text, token: previous.token + 1 }));
+  }
+
   async function next() {
     // Bekleme kartında ilerlenmez: sıradaki kavram gelince kart onun yerini alır.
     if (step.kind === "building" || advancing) return;
@@ -992,6 +1006,7 @@ export function ExamLessonSteps({
       }
       return;
     }
+    sparkFor(step, index + 1);
     go(index + 1);
   }
 
@@ -1209,6 +1224,7 @@ export function ExamLessonSteps({
           </p>
         </div>
         {closeControl ?? <span className="als-icon als-icon--ghost" aria-hidden />}
+        <LessonSpark text={spark.text} token={spark.token} />
       </header>
       {toolbar ? <div className="als-toolbar">{toolbar}</div> : null}
       {figureSource ? (

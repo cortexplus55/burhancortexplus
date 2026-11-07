@@ -66,6 +66,8 @@ export const GRADE_OPTIONS = [
   "11. sınıf",
   "12. sınıf",
   "Mezun",
+  // 7 Kasım 2026: üniversite öğrencisi (vize-final) ayrı düzey; müfredatı ders adıyla serbest (`curriculumFor`).
+  "Üniversite",
 ];
 
 export const SUBJECT_OPTIONS = [
@@ -88,6 +90,8 @@ export const GOAL_OPTIONS = [
   { label: "KPSS hazırlık", body: "Devlet memurluğu sınavı" },
   { label: "ALES hazırlık", body: "Yüksek lisans başvurusu için sınav" },
   { label: "TUS hazırlık", body: "Tıp mezunları için uzmanlık sınavı" },
+  // 7 Kasım 2026: üniversite vize-final ayrı hedef (ana sayfanın "Üniversite" sekmesi buraya gelir).
+  { label: "Üniversite vize ve final", body: "Hocanın notlarından ve slaytlarından sınava hazırlanıyorum" },
   { label: "Diğer / konu pekiştirme", body: "Belirli bir sınavım yok, eksiklerimi kapatacağım" },
 ];
 

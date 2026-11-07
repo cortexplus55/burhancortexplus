@@ -5,6 +5,7 @@ import { Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { multiPartialPercent, sameOptionSet, selectedOptions, type PublicQuizQuestion } from "@/lib/learning/exam-quiz";
 import { RichBody } from "@/components/parity/lesson-rich-text";
+import { CoachLine, StreakBadge } from "@/components/learning/coach-chrome";
 import { VOIDED_FIXED_LINE, VOIDED_LINE } from "@/lib/learning/question-report/copy";
 import "@/styles/question-report.css";
 
@@ -23,6 +24,8 @@ export function ExamQuizPlay({
   twoOption,
   locked = false,
   plannedTotal,
+  streakBefore = 0,
+  usedHint = false,
 }: {
   questions: PublicQuizQuestion[];
   index: number;
@@ -45,6 +48,10 @@ export function ExamQuizPlay({
   locked?: boolean;
   /** Akışla gelen testte sözü verilen soru sayısı: sayaç "1 / 4" ile başlayıp "2 / 5" olmasın. */
   plannedTotal?: number;
+  /** Bu sorudan önce art arda doğru sayısı (7 Kasım 2026, koç katmanı): rozet ve koç cümlesi buna bakar. */
+  streakBefore?: number;
+  /** Bu soruda "İki şık arasında kaldım" ipucu alındı: koç bunu söyler. */
+  usedHint?: boolean;
 }) {
   const [revealed, setRevealed] = useState(locked);
   const [acting, setActing] = useState(false);
@@ -85,6 +92,8 @@ export function ExamQuizPlay({
   const isCorrect = hasCorrect ? sameOptionSet(selected, question.correct!) : false;
   // Çok cevaplıda kısmi puan, kıyas ürünündeki gibi: (doğru seçilen − yanlış seçilen) / doğru sayısı.
   const partial = hasCorrect && question.multi ? multiPartialPercent(selected, question.correct!) : 0;
+  // Seri: bu cevap dahil art arda doğru (yanlışta sıfırlanır; rozet kırılınca sessizce kaybolur, azar yok).
+  const streakNow = isCorrect ? streakBefore + 1 : 0;
 
   function pick(option: string) {
     if (!examMode && revealed) return;
@@ -124,6 +133,7 @@ export function ExamQuizPlay({
         <span className="px-3 py-1 rounded-full border border-[var(--cp-border)] bg-[var(--cp-surface)] text-xs font-semibold text-[var(--cp-text)]">
           Soru {index + 1} / {Math.max(questions.length, plannedTotal ?? 0)}
         </span>
+        {showFeedback ? <StreakBadge streak={streakNow} /> : null}
       </div>
       <div
         className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--cp-surface-2)]"
@@ -244,6 +254,7 @@ export function ExamQuizPlay({
               </>
             )}
           </div>
+          {!question.voided ? <CoachLine input={{ correct: isCorrect, streak: streakNow, usedHint, partial }} /> : null}
           {question.explanation ? (
             <p className="text-sm text-[var(--cp-text)] leading-relaxed">
               <RichBody text={question.explanation} />

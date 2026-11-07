@@ -25,6 +25,12 @@ const withoutComments = (source: string) =>
 const SURFACES = [
   "src/lib/marketing/landing-content.ts",
   "src/components/landing/landing-page.tsx",
+  // 7 Kasım 2026: hedef kitle sekmeleri ve kayıtsız vitrin de misafire gösterilen söz.
+  "src/lib/marketing/landing-showcase.ts",
+  "src/components/landing/audience-hero.tsx",
+  "src/components/landing/interactive-showcase.tsx",
+  "src/components/parity/first-step-launcher.tsx",
+  "src/lib/student/first-step.ts",
   "src/lib/marketing/advantage-content.ts",
   "src/components/marketing/advantage-sections.tsx",
   "src/app/page.tsx",
