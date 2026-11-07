@@ -80,7 +80,7 @@ test.describe("accessibility basics", { tag: ["@public"] }, () => {
     await page.getByRole("button", { name: "Adım adım anlat" }).click();
     await page.getByRole("button", { name: "Devam" }).click();
     await expect(page.getByLabel("Ad soyad")).toBeVisible();
-    await expect(page.getByLabel("E-posta")).toBeVisible();
+    await expect(page.getByLabel("E-posta", { exact: true })).toBeVisible();
     await expect(page.getByLabel("Şifre tekrar")).toBeVisible();
   });
 
