@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { ExternalAnchor } from "@/components/ui/external-anchor";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ReadGate, type ReadGateChange } from "@/components/legal/read-gate";
+import { PERFORMANCE_CONSENT_TEXT } from "@/lib/legal/texts";
 
 /**
  * Velinin ödeme formu (29 Ekim 2026): e-posta (PayTR makbuzu), ad (isteğe bağlı), sözleşme onayı;
@@ -10,14 +12,21 @@ import { ExternalAnchor } from "@/components/ui/external-anchor";
 export function ParentPayForm({ token, studentName, planName, priceLabel }: { token: string; studentName: string; planName: string; priceLabel: string }) {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
-  const [accepted, setAccepted] = useState(false);
+  // 7 Kasım 2026: sözleşmeler okunmadan işaretlenmez; hizmetin hemen başlaması ayrı kutu (m.15/1-h).
+  const [legalRead, setLegalRead] = useState<ReadGateChange>({ checked: false, evidence: null });
+  const accepted = legalRead.checked;
+  const [performance, setPerformance] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [iframeUrl, setIframeUrl] = useState<string | null>(null);
 
   async function start() {
     if (!accepted) {
-      setError("Devam etmek için sözleşmeleri onaylamanız gerekiyor.");
+      setError("Önce Ön Bilgilendirme Formu'nu ve Mesafeli Satış Sözleşmesi'ni açıp okumalı ve onaylamalısınız.");
+      return;
+    }
+    if (!performance) {
+      setError("Ödemeye geçmek için hizmetin hemen başlamasını istediğinizi onaylamanız gerekiyor.");
       return;
     }
     setBusy(true);
@@ -26,7 +35,14 @@ export function ParentPayForm({ token, studentName, planName, priceLabel }: { to
       const res = await fetch("/api/payments/parent-link/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, email: email.trim(), name: name.trim() || undefined, legalAccepted: true }),
+        body: JSON.stringify({
+          token,
+          email: email.trim(),
+          name: name.trim() || undefined,
+          legalAccepted: true,
+          performanceConsent: true,
+          ...(legalRead.evidence ? { legalEvidence: legalRead.evidence } : {}),
+        }),
       });
       const payload = (await res.json().catch(() => ({}))) as { iframeUrl?: string; error?: string };
       if (!res.ok || !payload.iframeUrl) {
@@ -72,7 +88,7 @@ export function ParentPayForm({ token, studentName, planName, priceLabel }: { to
           {studentName} için {planName} · {priceLabel}
         </p>
         <p className="mt-1 text-sm leading-relaxed text-[var(--mk-muted)]">
-          Paket {studentName} adlı öğrencinin hesabına tanımlanır. Siz hesap açmazsınız; makbuz e-postanıza gelir. Otomatik yenileme yoktur.
+          Paket {studentName} adlı öğrencinin hesabına tanımlanır. Siz hesap açmazsınız; makbuz ve sözleşme örneği e-postanıza gelir. Otomatik yenileme yoktur.
         </p>
       </div>
       <label className="flex flex-col gap-1 text-sm">
@@ -96,18 +112,22 @@ export function ParentPayForm({ token, studentName, planName, priceLabel }: { to
           autoComplete="name"
         />
       </label>
-      <label className="flex items-start gap-2 text-sm leading-relaxed">
-        <input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} className="mt-1" />
-        <span>
-          <ExternalAnchor href="/on-bilgilendirme" className="underline">
-            Ön Bilgilendirme Formu
-          </ExternalAnchor>
-          &apos;nu ve{" "}
-          <ExternalAnchor href="/mesafeli-satis" className="underline">
-            Mesafeli Satış Sözleşmesi
-          </ExternalAnchor>
-          &apos;ni okudum, kabul ediyorum. Dijital hizmet anında açıldığı için cayma hakkı bulunmadığını biliyorum.
-        </span>
+      <ReadGate
+        docId="satis_sozlesmeleri"
+        linkText="Ön Bilgilendirme Formu ve Mesafeli Satış Sözleşmesi"
+        after="'ni okudum, kabul ediyorum."
+        ariaLabel="Ön Bilgilendirme Formu'nu ve Mesafeli Satış Sözleşmesi'ni okudum, kabul ediyorum"
+        checked={accepted}
+        onChange={setLegalRead}
+      />
+      <label className="cp-legal-row">
+        <Checkbox
+          aria-label={PERFORMANCE_CONSENT_TEXT}
+          className="mt-0.5 size-5 border-[var(--c-text-subtle)]"
+          checked={performance}
+          onCheckedChange={(value) => setPerformance(value === true)}
+        />
+        <span className="cp-legal-row-text">{PERFORMANCE_CONSENT_TEXT}</span>
       </label>
       {error ? (
         <p role="alert" className="text-sm text-[#f87171]">

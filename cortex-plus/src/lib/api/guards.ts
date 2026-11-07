@@ -340,6 +340,10 @@ export function errorResponse(
     generation_busy: "Şu an çok yoğun; sıradaydın ama yer açılmadı. Birkaç dakika sonra yeniden dene. Hakkından düşülmedi.",
     save_failed: "Değişiklik kaydedilemedi. Lütfen tekrar dene.",
     invalid_input: "Gönderilen bilgiler geçersiz.",
+    legal_consent_required:
+      "Ödemeye geçmeden önce Ön Bilgilendirme Formu'nu ve Mesafeli Satış Sözleşmesi'ni okuyup onaylaman gerekiyor.",
+    performance_consent_required:
+      "Ödemeye geçmek için hizmetin hemen başlamasını istediğini ayrı kutuyla onaylaman gerekiyor.",
     not_found: "Kayıt bulunamadı.",
     duel_unavailable: "Düellolar henüz açılmadı. Kısa süre sonra yeniden dene; hakkından düşülmedi.",
     forbidden: "Bu içeriğe erişim yetkin yok.",

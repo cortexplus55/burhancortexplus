@@ -40,7 +40,17 @@ test.describe("Paket J akışları", { tag: ["@public"] }, () => {
     await page.getByRole("button", { name: "Devam" }).click();
 
     await expect(page.getByRole("heading", { name: "Hesabını oluştur" })).toBeVisible();
-    await page.getByRole("checkbox").click();
+    // Uyum paketi (7 Kasım 2026): yaş beyanı ve iki metin; her kutu metni açtırır, sonuna kadar okununca onaylanır.
+    await page.getByRole("radio", { name: "18 yaşında ya da büyüğüm" }).check();
+    for (const name of [/KVKK Aydınlatma Metni'ni okudum/, /Kullanım Koşulları'nı okudum/]) {
+      await page.getByRole("checkbox", { name }).click();
+      const dialog = page.getByRole("dialog");
+      const confirm = dialog.getByRole("button", { name: "Okudum, onaylıyorum" });
+      await dialog.locator(".cp-legal-dialog-body").evaluate((element) => element.scrollTo(0, element.scrollHeight));
+      await expect(confirm).toBeEnabled();
+      await confirm.click();
+      await expect(page.getByRole("checkbox", { name })).toBeChecked();
+    }
     await page.getByLabel("Ad soyad").fill("Deneme Öğrenci");
     await page.getByLabel("E-posta").fill("ogrenci@example.com");
     await page.getByLabel("Şifre", { exact: true }).fill("Guclu1234");
@@ -51,6 +61,10 @@ test.describe("Paket J akışları", { tag: ["@public"] }, () => {
     expect(signupBody).toMatchObject({ email: "ogrenci@example.com", fullName: "Deneme Öğrenci" });
     expect((signupBody as unknown as Record<string, unknown>).gradeLevel).toBeTruthy();
     expect((signupBody as unknown as Record<string, unknown>).tutorStyle).toBeTruthy();
+    const evidence = (signupBody as unknown as { consentEvidence?: Record<string, { scrolledToEnd: boolean }> }).consentEvidence;
+    expect(evidence?.kvkk_aydinlatma?.scrolledToEnd).toBe(true);
+    expect(evidence?.kullanim_kosullari?.scrolledToEnd).toBe(true);
+    expect((signupBody as unknown as { ageDeclaration?: unknown }).ageDeclaration).toEqual({ minor: false, guardianAck: false });
   });
 
   test("doğrulanmamış e-posta şeridi ve yeniden gönder düğmesi", async ({ page }) => {

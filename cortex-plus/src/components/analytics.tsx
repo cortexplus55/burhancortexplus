@@ -1,29 +1,57 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { sanitizeAnalyticsProperties, scrubPath } from "@/lib/analytics/scrub";
+import {
+  COOKIE_CONSENT_EVENT,
+  clearAnalyticsStorage,
+  hasAnalyticsConsent,
+  type CookieConsent,
+} from "@/lib/consent/cookie-consent";
 
 declare global {
   interface Window {
     posthog?: {
       capture: (event: string, properties?: Record<string, unknown>) => void;
       init: (key: string, options: Record<string, unknown>) => void;
+      opt_in_capturing?: () => void;
+      opt_out_capturing?: () => void;
+      reset?: () => void;
     };
   }
 }
 
 /**
- * PostHog is loaded only when a public key is configured, so local and CI runs
- * stay free of third-party requests.
+ * PostHog yalnız iki koşulda yüklenir: ortamda bir anahtar var ve ziyaretçi analitik çerezlere izin verdi
+ * (7 Kasım 2026, uyum paketi; Kurul'un çerez rehberi: zorunlu olmayan çerez rızadan ÖNCE yüklenmez). İzin geri
+ * alınınca ölçüm durur, PostHog'un çerezi ve tarayıcı kayıtları silinir. Yerel ve CI çalışmaları üçüncü taraf
+ * isteğinden zaten muaf (anahtar yok).
  */
 export function Analytics() {
   const pathname = usePathname();
   const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
   const host = process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://eu.i.posthog.com";
+  const [allowed, setAllowed] = useState(false);
 
   useEffect(() => {
-    if (!key) return;
+    setAllowed(hasAnalyticsConsent());
+    const onChange = (event: Event) => {
+      const consent = (event as CustomEvent<CookieConsent>).detail;
+      const next = consent?.a === true;
+      setAllowed(next);
+      if (!next && window.posthog) {
+        window.posthog.opt_out_capturing?.();
+        window.posthog.reset?.();
+        clearAnalyticsStorage();
+      }
+    };
+    window.addEventListener(COOKIE_CONSENT_EVENT, onChange);
+    return () => window.removeEventListener(COOKIE_CONSENT_EVENT, onChange);
+  }, []);
+
+  useEffect(() => {
+    if (!key || !allowed) return;
     let cancelled = false;
 
     import("posthog-js")
@@ -52,6 +80,9 @@ export function Analytics() {
             },
           });
           window.posthog = posthog as unknown as Window["posthog"];
+        } else {
+          // Aynı sayfada izin önce geri alınıp sonra yeniden verildiyse.
+          window.posthog.opt_in_capturing?.();
         }
         window.posthog?.capture("$pageview", { path: scrubPath(pathname ?? "/") });
       })
@@ -62,7 +93,7 @@ export function Analytics() {
     return () => {
       cancelled = true;
     };
-  }, [key, host, pathname]);
+  }, [key, host, pathname, allowed]);
 
   return null;
 }

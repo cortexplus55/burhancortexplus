@@ -42,6 +42,9 @@ const USER_CONTENT_TABLES = [
   // 5 Kasım 2026: öğrenme hafızası özeti. auth.users CASCADE var ama silme işçisi auth kullanıcısını her zaman
   // silmez (ödeme kaydı olan hesap yumuşak silinir); satır burada gider. Göç canlıda yoksa atlanır.
   "student_learning_memory",
+  // 7 Kasım 2026 (uyum paketi): çerez tercihi kayıtları. Profil anonimleşse de satırlar kalırdı. Onay kayıtları
+  // (`consent_records`) bilerek listede yok: ödeme kaydı olan hesapta uyuşmazlık kanıtı olarak profille kalır.
+  "cookie_consent_events",
 ] as const;
 
 const OPTIONAL_PURGE_TABLES = new Set([
@@ -50,6 +53,7 @@ const OPTIONAL_PURGE_TABLES = new Set([
   "user_device_sessions",
   "question_reports",
   "student_learning_memory",
+  "cookie_consent_events",
 ]);
 
 /**

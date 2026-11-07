@@ -4,6 +4,7 @@ import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
 import { SectionCard } from "@/components/ui-kit/empty-state";
 import { DataDeletionButton } from "@/components/profile/data-deletion-button";
+import { CookiePreferencesButton } from "@/components/legal/cookie-banner";
 import { EmailChangeCard } from "@/components/profile/email-change-card";
 import { StudyReminderToggle } from "@/components/profile/study-reminder-toggle";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -104,6 +105,13 @@ export default async function AyarlarPage() {
             </Link>
             <Link href="/kullanim-kosullari" className="underline">
               Kullanım koşulları
+            </Link>
+            <Link href="/cerez-politikasi" className="underline">
+              Çerez politikası
+            </Link>
+            <CookiePreferencesButton className="underline" />
+            <Link href="/destek?konu=kvkk" className="underline">
+              Kişisel veri başvurusu
             </Link>
             {account.isAdmin ? null : (
               <Link href="/pay" className="underline">

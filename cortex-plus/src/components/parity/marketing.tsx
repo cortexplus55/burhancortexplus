@@ -6,6 +6,7 @@ import { ParitySiteHeader } from "@/components/marketing/parity-site-header";
 import { MARKETING_NAV } from "@/lib/parity/marketing-nav";
 import { CinematicPageHero } from "@/components/marketing/cinematic-page-hero";
 import { CinematicScrollReveal } from "@/components/marketing/cinematic-scroll-reveal";
+import { CookiePreferencesButton } from "@/components/legal/cookie-banner";
 
 
 export { ParitySiteHeader } from "@/components/marketing/parity-site-header";
@@ -30,6 +31,9 @@ export function ParitySiteFooter() {
           <Link href="/gizlilik">Gizlilik</Link>
           <Link href="/kvkk">KVKK</Link>
           <Link href="/kullanim-kosullari">Kullanım koşulları</Link>
+          <Link href="/cerez-politikasi">Çerez politikası</Link>
+          {/* Kurul'un çerez rehberi: rıza her sayfadan kolayca geri alınabilmeli (7 Kasım 2026). */}
+          <CookiePreferencesButton className="mk-footer-pref" />
           {/* Mesafeli satışta bu dördü sitede erişilebilir olmak zorunda. */}
           <Link href="/mesafeli-satis">Mesafeli satış sözleşmesi</Link>
           <Link href="/on-bilgilendirme">Ön bilgilendirme formu</Link>

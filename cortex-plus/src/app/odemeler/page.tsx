@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
 import { EmptyState } from "@/components/ui-kit/empty-state";
 import { Badge } from "@/components/ui/badge";
@@ -116,6 +117,15 @@ export default async function OdemelerPage() {
                   <p className="text-xs text-[var(--cs-muted)]">
                     {formatDate(payment.created_at)} · {payment.merchant_oid}
                   </p>
+                  {/* Mesafeli satış sözleşmesinin sözü: örnek Ödemelerim'de her zaman görüntülenir (7 Kasım 2026). */}
+                  {payment.status === "paid" || payment.status === "refunded" ? (
+                    <Link
+                      href={`/odemeler/sozlesme/${encodeURIComponent(payment.merchant_oid)}`}
+                      className="inline-flex min-h-11 items-center text-xs text-[var(--cs-text)] underline underline-offset-2"
+                    >
+                      Sözleşme örneği
+                    </Link>
+                  ) : null}
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="font-medium">

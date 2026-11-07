@@ -104,6 +104,9 @@ const ABUSE_SCOPE_PREFIXES: [string, string][] = [
   ["duel", "Düello"],
   ["profile", "Profil"],
   ["weekly-survey", "Haftalık anket"],
+  // 7 Kasım 2026 (uyum paketi): metin onayı ve çerez tercihi uçları.
+  ["consent-", "Metin onayı"],
+  ["cookie-consent", "Çerez tercihi"],
 ];
 
 export const UNKNOWN_SCOPE_LABEL = "Diğer bir uç";

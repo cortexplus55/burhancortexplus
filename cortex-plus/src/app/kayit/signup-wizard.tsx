@@ -8,7 +8,14 @@ import { ArrowLeft, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
+import { ReadGate, type ReadGateChange } from "@/components/legal/read-gate";
+import {
+  AgeDeclarationField,
+  EMPTY_AGE,
+  ageDeclarationOf,
+  type AgeValue,
+} from "@/components/legal/age-declaration";
+import { ageProblem, type ConsentEvidence } from "@/lib/legal/consent-evidence";
 import { createClient } from "@/lib/supabase/client";
 import { passwordIssues } from "@/lib/auth/password";
 import {
@@ -51,7 +58,11 @@ export function SignupWizard() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
-  const [consent, setConsent] = useState(false);
+  // Uyum paketi (7 Kasım 2026): iki metin ayrı ayrı ve yalnız açılıp sonuna kadar okununca onaylanır; yaş
+  // beyanı ve 18 altındaysa velinin izni. Kanıt (sürüm, açılış ve onay anı) sunucuya gider.
+  const [kvkkRead, setKvkkRead] = useState<ReadGateChange>({ checked: false, evidence: null });
+  const [termsRead, setTermsRead] = useState<ReadGateChange>({ checked: false, evidence: null });
+  const [age, setAge] = useState<AgeValue>(EMPTY_AGE);
   const [loading, setLoading] = useState(false);
   const blockedApp = useGoogleBlockedWebViewApp();
 
@@ -66,6 +77,26 @@ export function SignupWizard() {
   function back() {
     if (stepIndex === 0) return;
     setStepIndex((i) => i - 1);
+  }
+
+  /** Onay adımında eksik olan ilk şey (yoksa null). Google ve e-posta yolu aynı kuralı kullanır. */
+  function consentIssue(): string | null {
+    const ageIssue = ageProblem(ageDeclarationOf(age));
+    if (ageIssue) return ageIssue;
+    if (!kvkkRead.checked || !kvkkRead.evidence) {
+      return "KVKK Aydınlatma Metni'ni açıp sonuna kadar okumalı ve onaylamalısın.";
+    }
+    if (!termsRead.checked || !termsRead.evidence) {
+      return "Kullanım Koşulları'nı açıp sonuna kadar okumalı ve kabul etmelisin.";
+    }
+    return null;
+  }
+
+  function consentEvidence(): ConsentEvidence {
+    return {
+      ...(kvkkRead.evidence ? { kvkk_aydinlatma: kvkkRead.evidence } : {}),
+      ...(termsRead.evidence ? { kullanim_kosullari: termsRead.evidence } : {}),
+    };
   }
 
   function buildPayload(): SignupPayload {
@@ -89,6 +120,8 @@ export function SignupWizard() {
       // Avatar adımı kalktı (31 Ekim 2026, Paket J1 #2): varsayılan avatar; profilden değişir.
       avatarEmoji: draft.avatarEmoji ?? AVATAR_OPTIONS[0],
       referralCode,
+      consentEvidence: consentEvidence(),
+      ageDeclaration: ageDeclarationOf(age) ?? undefined,
     };
   }
 
@@ -155,8 +188,9 @@ export function SignupWizard() {
       toast.error("Şifreler eşleşmiyor.");
       return;
     }
-    if (!consent) {
-      toast.error("Devam etmek için sözleşmeleri onaylaman gerekiyor.");
+    const issue = consentIssue();
+    if (issue) {
+      toast.error(issue);
       return;
     }
     // Kuralı burada söylüyoruz ki kullanıcı kayıt olduktan sonra hakkının
@@ -194,6 +228,8 @@ export function SignupWizard() {
           tutorStyle: payload.tutorStyle,
           avatarEmoji: payload.avatarEmoji,
           consentAcceptedAt: payload.consentAcceptedAt,
+          consentEvidence: payload.consentEvidence,
+          ageDeclaration: payload.ageDeclaration,
           next: safeNextPath(searchParams.get("next"), ""),
           referralCode: payload.referralCode,
         }),
@@ -251,6 +287,10 @@ export function SignupWizard() {
           // Doğrulama bağlantısı başka tarayıcıda açılırsa localStorage'daki
           // yük kaybolur; onay anı hesapta da dursun ki sunucu kaydedebilsin.
           legal_consent_at: payload.consentAcceptedAt,
+          // Okuma kanıtı ve yaş beyanı da (7 Kasım 2026): bağlantı başka tarayıcıda açılınca tamamla sayfası
+          // yükü bulamaz; onay kapısı metni yeniden sormasın diye kanıt hesapta durur.
+          legal_consent_evidence: payload.consentEvidence ?? null,
+          age_declaration: payload.ageDeclaration ?? null,
           // Dönüş adresi de (ör. beta kodlu /pay?kod=…) hesapta dursun: Instagram'ın tarayıcısında
           // kayıt olup onayı e-posta uygulamasından açan öğrencide kod kayboluyordu (20 Ekim 2026).
           // Kurulum sonunda onboarding buradan okur.
@@ -293,8 +333,9 @@ export function SignupWizard() {
   }
 
   async function googleSignup() {
-    if (!consent) {
-      toast.error("Devam etmek için sözleşmeleri onaylaman gerekiyor.");
+    const issue = consentIssue();
+    if (issue) {
+      toast.error(issue);
       return;
     }
     stashPayload({ ...buildPayload(), consentAcceptedAt: new Date().toISOString() });
@@ -419,24 +460,27 @@ export function SignupWizard() {
               sınırına da takılmaz). Onay kutusu ikisinin de üstünde: iki yol da onay ister.
             */}
             <div className="signup-account-panel mb-4 space-y-4">
-              <label className="flex min-h-11 items-start gap-3 text-sm">
-                <Checkbox
-                  aria-label="KVKK aydınlatma metnini ve kullanım koşullarını kabul ediyorum"
-                  className="mt-0.5 size-5 border-[var(--mk-muted)]"
-                  checked={consent}
-                  onCheckedChange={(value) => setConsent(value === true)}
-                />
-                <span className="text-[var(--mk-muted)]">
-                  <Link href="/kvkk" className="underline">
-                    KVKK aydınlatma metnini
-                  </Link>{" "}
-                  ve{" "}
-                  <Link href="/kullanim-kosullari" className="underline">
-                    kullanım koşullarını
-                  </Link>{" "}
-                  okudum, kabul ediyorum.
-                </span>
-              </label>
+              {/*
+                Uyum paketi (7 Kasım 2026): aydınlatma bir onay değil bilgilendirmedir ("okudum ve anladım"),
+                koşullar kabul edilir; iki kutu ayrı. İkisi de metni açıp sonuna kadar okumadan işaretlenmez.
+              */}
+              <AgeDeclarationField value={age} onChange={setAge} />
+              <ReadGate
+                docId="kvkk_aydinlatma"
+                linkText="KVKK Aydınlatma Metni"
+                after="'ni okudum ve anladım."
+                ariaLabel="KVKK Aydınlatma Metni'ni okudum ve anladım"
+                checked={kvkkRead.checked}
+                onChange={setKvkkRead}
+              />
+              <ReadGate
+                docId="kullanim_kosullari"
+                linkText="Kullanım Koşulları"
+                after="'nı okudum ve kabul ediyorum."
+                ariaLabel="Kullanım Koşulları'nı okudum ve kabul ediyorum"
+                checked={termsRead.checked}
+                onChange={setTermsRead}
+              />
               {blockedApp ? (
                 <GoogleBlockedNote
                   app={blockedApp}

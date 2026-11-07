@@ -213,3 +213,69 @@ export async function sendVerifyEmail({ to, name, url }: { to: string; name: str
     text: `${hello} Cortex Plus hesabın açıldı. E-postanı doğrulamak için: ${url} (7 gün geçerli). Bu hesabı sen açmadıysan tıklama.`,
   });
 }
+
+/**
+ * İade bildirimi (7 Kasım 2026, uyum paketi): uygulama içindeki bildirimin e-posta eşi. İade metni (iptal-iade
+ * sayfası) "uygulama içinde bildirim ve e-posta" diyor; eskiden yalnız bildirim düşüyordu.
+ */
+export async function sendRefundEmail({
+  to,
+  title,
+  body,
+  appUrl,
+}: {
+  to: string;
+  title: string;
+  body: string;
+  appUrl: string;
+}) {
+  const href = `${appUrl.replace(/\/$/, "")}/odemeler`;
+  return sendEmail({
+    to,
+    subject: `Cortex Plus · ${title}`,
+    html: layout(
+      title,
+      `<p style="margin:0;">${escapeHtml(body)}</p>
+       <p style="margin:12px 0 0;">İadenin kartına yansıması bankana bağlı olarak birkaç iş günü sürebilir. Bir sorun görürsen Destek sayfasından bize yazabilirsin.</p>`,
+      { href, label: "Ödemelerimi gör" },
+    ),
+    text: `${title}. ${body} İadenin kartına yansıması bankana bağlı olarak birkaç iş günü sürebilir. Ödemelerin: ${href}`,
+  });
+}
+
+/**
+ * Satın almanın sözleşme örneği (7 Kasım 2026, uyum paketi). Mesafeli Sözleşmeler Yönetmeliği: ön bilgilendirme ve
+ * sözleşme, satın alma bilgileriyle birlikte tüketiciye kalıcı bir ortamda (e-posta) iletilir. Metnin kendisi
+ * e-postanın içinde; bağlantı yalnız kolaylık.
+ */
+export async function sendPurchaseContractEmail({
+  to,
+  title,
+  intro,
+  sections,
+  link,
+}: {
+  to: string;
+  title: string;
+  intro: string;
+  sections: { heading: string; body: string[] }[];
+  link?: { href: string; label: string };
+}) {
+  const htmlSections = sections
+    .map(
+      (section) =>
+        `<h2 style="font-size:15px;margin:20px 0 6px;color:#fafafa;">${escapeHtml(section.heading)}</h2>${section.body
+          .map((line) => `<p style="margin:0 0 6px;">${escapeHtml(line)}</p>`)
+          .join("")}`,
+    )
+    .join("");
+  const textSections = sections
+    .map((section) => `${section.heading}\n${section.body.join("\n")}`)
+    .join("\n\n");
+  return sendEmail({
+    to,
+    subject: `Cortex Plus · ${title}`,
+    html: layout(title, `<p style="margin:0 0 8px;">${escapeHtml(intro)}</p>${htmlSections}`, link),
+    text: `${intro}\n\n${textSections}${link ? `\n\n${link.label}: ${link.href}` : ""}`,
+  });
+}

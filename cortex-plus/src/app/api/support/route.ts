@@ -2,10 +2,13 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { auditLog } from "@/lib/audit";
+import { SUPPORT_CATEGORY_IDS, categorizedSubject } from "@/lib/support/categories";
 
 const bodySchema = z.object({
   subject: z.string().min(3).max(150),
   message: z.string().min(10).max(4000),
+  // 7 Kasım 2026: konu türü (ödeme ve iade, KVKK başvurusu …); eski istemci göndermez.
+  category: z.enum(SUPPORT_CATEGORY_IDS).optional(),
 });
 
 export async function POST(request: Request) {
@@ -18,7 +21,7 @@ export async function POST(request: Request) {
 
   const { error } = await service.from("support_requests").insert({
     user_id: userId,
-    subject: parsed.data.subject,
+    subject: categorizedSubject(parsed.data.category, parsed.data.subject),
     message: parsed.data.message,
   });
 

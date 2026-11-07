@@ -223,7 +223,8 @@ describe("otomatik yenileme engelleri", () => {
     edilmezse yenileneceğini ima eden, sözleşmeyle çelişen bir cümle.
   */
   it("desteklenmiyorken kullanım koşulları ve SSS de yenileme ima etmiyor", () => {
-    const terms = readFileSync("src/app/kullanim-kosullari/page.tsx", "utf8");
+    // 7 Kasım 2026: metin sayfadan `terms-text.ts`'e taşındı (kayıttaki okuma penceresi de aynı metni gösterir).
+    const terms = readFileSync("src/lib/legal/terms-text.ts", "utf8");
     const faq = readFileSync("src/lib/marketing/landing-content.ts", "utf8");
     if (!AUTO_RENEW_SUPPORTED) {
       expect(terms).toContain("otomatik olarak yenilenmez");

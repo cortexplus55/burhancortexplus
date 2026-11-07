@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 import { loadEnvConfig } from "@next/env";
 import path from "path";
+import { CONSENT_COOKIE } from "./tests/e2e/consent-cookie";
 
 /*
   `.env.local` içindeki gerçek Supabase anahtarları process.env'e yüklenir.
@@ -53,7 +54,8 @@ export default defineConfig({
     { name: "setup", testMatch: /auth\.setup\.ts/ },
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      // Çerez tercihi verilmiş tarayıcı: bant tıklamalara binmesin (bandın kendi testi temiz başlar).
+      use: { ...devices["Desktop Chrome"], storageState: { cookies: [CONSENT_COOKIE], origins: [] } },
       testIgnore: [/auth\.setup\.ts/, /authenticated\.spec\.ts/],
     },
     {

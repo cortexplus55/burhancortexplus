@@ -56,7 +56,7 @@ test.describe("authentication guards", { tag: ["@auth", "@smoke"] }, () => {
     await page.getByLabel("E-posta").fill("ornek@cortexplus.app");
     await page.getByLabel("Şifre", { exact: true }).fill("zayifsifre1");
     await page.getByLabel("Şifre tekrar").fill("zayifsifre1");
-    await page.getByRole("checkbox").click();
+    // Şifre kuralı onaylardan önce denetlenir (7 Kasım 2026: onay kutuları metni açtırır, burada gerekmez).
     await page.getByRole("button", { name: "Hesabı oluştur" }).click();
     await expect(page.getByText("En az bir büyük harf gerekli.")).toBeVisible();
   });

@@ -263,7 +263,8 @@ describe("paylaşım ve davet", () => {
   it("kayıtta Google ilk ve beyaz ana düğme; e-posta yolu altında; onay kutusu ikisinin de üstünde", () => {
     const wizard = read("src/app/kayit/signup-wizard.tsx");
     const account = wizard.slice(wizard.indexOf('step === "account"'));
-    const consent = account.indexOf("onCheckedChange");
+    // 7 Kasım 2026: onay kutuları metni açtıran `ReadGate` (uyum paketi); yine Google'ın ve formun üstünde.
+    const consent = account.indexOf("<ReadGate");
     const google = account.indexOf("<GoogleSignInButton");
     const form = account.indexOf("<form onSubmit={submitAccount}");
     expect(consent).toBeGreaterThan(0);

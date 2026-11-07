@@ -257,8 +257,12 @@ describe("ödeme öncesi onay", () => {
 
   it("arayüzde onay kutusu var ve iki belgeye de bağlanıyor", () => {
     expect(cards).toContain("legalAccepted");
-    expect(cards).toContain('href="/on-bilgilendirme"');
-    expect(cards).toContain('href="/mesafeli-satis"');
+    // 7 Kasım 2026 (uyum paketi): kutu iki metni bir pencerede açtırır, okunmadan işaretlenmez; pencere iki
+    // belgenin sayfasına da bağlanır.
+    expect(cards).toContain('docId="satis_sozlesmeleri"');
+    const docs = readFileSync("src/lib/legal/legal-docs.ts", "utf8");
+    expect(docs).toContain('href: "/on-bilgilendirme"');
+    expect(docs).toContain('href: "/mesafeli-satis"');
   });
 
   it("onaysız ödeme başlamıyor", () => {

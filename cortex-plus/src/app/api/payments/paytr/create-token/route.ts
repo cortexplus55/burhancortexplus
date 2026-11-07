@@ -4,7 +4,8 @@ import { errorResponse, withUser } from "@/lib/api/guards";
 import { isPaytrConfigured } from "@/lib/payments/paytr";
 import { resolveCheckoutBeneficiary } from "@/lib/payments/beneficiary";
 import { billingPeriodOf } from "@/lib/payments/subscription";
-import { createPaytrCheckout, requestUserIp } from "@/lib/payments/checkout";
+import { createPaytrCheckout, recordSalesDocsRead, requestUserIp } from "@/lib/payments/checkout";
+import { readEvidenceSchema } from "@/lib/legal/consent-evidence";
 
 const bodySchema = z.object({
   planId: z.string().uuid(),
@@ -17,6 +18,15 @@ const bodySchema = z.object({
     ödemeyi BAŞLATAN yer, dolayısıyla teyidin son duracağı yer burası.
   */
   legalAccepted: z.literal(true),
+  /*
+    Cayma hakkının istisnası (Mesafeli Sözleşmeler Yönetmeliği m.15/1-h, 7 Kasım 2026): hizmetin hemen başlaması
+    tüketicinin AYRI ve açık onayıyla olur. Sözleşme kutusunun içinde bir cümle yetmez; ikinci kutu olmadan ödeme
+    başlamaz.
+  */
+  performanceConsent: z.literal(true),
+  /** Sözleşmelerin okunduğunun kanıtı (bu satın almada açıldıysa) ya da bu sürümün daha önce okunduğu bilgisi. */
+  legalEvidence: readEvidenceSchema.optional(),
+  legalRemembered: z.boolean().optional(),
   studentId: z.string().uuid().optional(),
 });
 
@@ -32,7 +42,11 @@ export async function POST(request: Request) {
     const noConsent = parsed.error?.issues.some((i) =>
       i.path.includes("legalAccepted"),
     );
-    return errorResponse(400, noConsent ? "legal_consent_required" : "invalid_input");
+    const noPerformance = parsed.error?.issues.some((i) => i.path.includes("performanceConsent"));
+    return errorResponse(
+      400,
+      noConsent ? "legal_consent_required" : noPerformance ? "performance_consent_required" : "invalid_input",
+    );
   }
 
   // Price always comes from the database, never from the client payload.
@@ -128,11 +142,17 @@ export async function POST(request: Request) {
     failUrl: `${origin}/odeme/basarisiz${returnQuery}`,
     actorId: userId,
     via: forChild ? "parent_account" : "self",
+    legalRead: {
+      evidence: parsed.data.legalEvidence ?? null,
+      remembered: Boolean(parsed.data.legalRemembered),
+    },
   });
   if (!checkout.ok) {
     return checkout.status === 500
       ? errorResponse(500, checkout.error)
       : NextResponse.json({ error: checkout.error }, { status: 502 });
   }
+  // Bu sürümü sonuna kadar okuduğu kaydedilir: bir sonraki satın almada metin zorla yeniden açılmaz.
+  await recordSalesDocsRead(service, userId, parsed.data.legalEvidence ?? null, userIp);
   return NextResponse.json({ merchantOid: checkout.merchantOid, iframeUrl: checkout.iframeUrl });
 }

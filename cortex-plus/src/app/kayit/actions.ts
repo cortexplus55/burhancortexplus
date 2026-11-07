@@ -6,6 +6,7 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { homePathForRole, isOptionalPhoneValid } from "@/lib/parity/signup";
 import { resolveFullName } from "@/lib/auth/resolve-full-name";
 import { consentMoment, recordSignupConsent, requestIp } from "@/lib/legal/record-consent";
+import { ageDeclarationSchema, consentEvidenceSchema } from "@/lib/legal/consent-evidence";
 import { getParentLinkStatus } from "@/lib/parent/link-status";
 import {
   sendParentInviteEmail,
@@ -37,7 +38,19 @@ const payloadSchema = z.object({
   teacherClassName: z.string().max(80).optional(),
   referralCode: z.string().max(16).optional(),
   consentAcceptedAt: z.string().max(40).optional(),
+  consentEvidence: consentEvidenceSchema.optional(),
+  ageDeclaration: ageDeclarationSchema.optional(),
 });
+
+/** Kayıtta hesaba yazılan okuma kanıtı ve yaş beyanı (bağlantı başka tarayıcıda açılınca yük yoktur). */
+function metadataConsent(metadata: Record<string, unknown> | undefined) {
+  const documents = consentEvidenceSchema.safeParse(metadata?.legal_consent_evidence ?? undefined);
+  const age = ageDeclarationSchema.safeParse(metadata?.age_declaration ?? undefined);
+  return {
+    documents: documents.success ? documents.data : null,
+    age: age.success ? age.data : null,
+  };
+}
 
 export type CompleteSignupResult =
   | { ok: true; redirectTo: string; linkWarning?: string }
@@ -110,16 +123,22 @@ async function completeSignupInner(
   // (bağlantı başka tarayıcıda açıldıysa) hesap verisinde. İkisi de yoksa
   // eski bir yük — onay uydurulmuyor, kaydedilmiyor. Yazılamazsa kayıt
   // yine tamamlanır ama sebep loga düşer (recordSignupConsent).
+  //
+  // 7 Kasım 2026: satır yalnız okuma kanıtı varsa bugünkü sürüm adına yazılır (yük ya da hesap verisi). Kayıt
+  // ucu aynı kanıtı zaten yazmış olabilir; aynı tür@sürüm ikinci kez yazılmaz.
   const claimedConsent =
     payload.consentAcceptedAt ??
     (typeof user.user_metadata?.legal_consent_at === "string"
       ? (user.user_metadata.legal_consent_at as string)
       : undefined);
   if (claimedConsent) {
+    const stored = metadataConsent(user.user_metadata);
     await recordSignupConsent(createServiceClient(), {
       userId: user.id,
       acceptedAt: consentMoment(claimedConsent),
       ip: await requestIp(),
+      documents: payload.consentEvidence ?? stored.documents,
+      age: payload.ageDeclaration ?? stored.age,
     });
   }
 
@@ -164,10 +183,13 @@ export async function recordConsentFromAccount(): Promise<{ ok: boolean }> {
   if (!user) return { ok: false };
   const claimed = user.user_metadata?.legal_consent_at;
   if (typeof claimed !== "string") return { ok: false };
+  const stored = metadataConsent(user.user_metadata);
   const result = await recordSignupConsent(createServiceClient(), {
     userId: user.id,
     acceptedAt: consentMoment(claimed),
     ip: await requestIp(),
+    documents: stored.documents,
+    age: stored.age,
   });
   return { ok: result.ok };
 }

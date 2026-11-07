@@ -663,6 +663,27 @@ async function notifyRefund(
     title,
     body,
   });
+  await emailRefund(service, opts.userId, title, body);
+}
+
+/**
+ * İade e-postası (7 Kasım 2026, uyum paketi): iptal-iade metni "uygulama içinde bildirim ve hesabınızın e-posta
+ * adresine bilgi" diyor. E-posta düşerse iade yine tamamdır; yalnız günlüğe yazılır.
+ */
+async function emailRefund(service: SupabaseClient, userId: string, title: string, body: string) {
+  try {
+    const { data } = await service.auth.admin.getUserById(userId);
+    const email = data?.user?.email;
+    if (!email) return;
+    const [{ sendRefundEmail }, { appOrigin }] = await Promise.all([
+      import("@/lib/email/mailer"),
+      import("@/lib/app-url"),
+    ]);
+    const sent = await sendRefundEmail({ to: email, title, body, appUrl: appOrigin() });
+    if (!sent.ok) console.warn("refund_email_failed", { userId, reason: sent.reason });
+  } catch (error) {
+    console.error("refund_email_failed", { userId, error: String(error) });
+  }
 }
 
 function revalidateAfterRefund() {
