@@ -9,11 +9,15 @@ async function sendViaResend({
   subject,
   html,
   text,
+  headers,
+  idempotencyKey,
 }: {
   to: string;
   subject: string;
   html: string;
   text: string;
+  headers?: Record<string, string>;
+  idempotencyKey?: string;
 }): Promise<SendResult> {
   const apiKey = process.env.RESEND_API_KEY?.trim();
   const from = process.env.EMAIL_FROM?.trim();
@@ -27,6 +31,8 @@ async function sendViaResend({
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
+        // Aynı anahtarla gelen ikinci istek yeni e-posta üretmez (cron yeniden çalışırsa çift gitmesin).
+        ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
       },
       body: JSON.stringify({
         from,
@@ -35,7 +41,7 @@ async function sendViaResend({
         html,
         text,
         reply_to: process.env.SMTP_USER?.trim() || "cortexplus@cortexplus.app",
-        headers: UNSUBSCRIBE_HEADERS,
+        headers: headers ?? UNSUBSCRIBE_HEADERS,
       }),
       signal: AbortSignal.timeout(RESEND_TIMEOUT_MS),
     });
@@ -80,18 +86,23 @@ export async function sendEmail({
   subject,
   html,
   text,
+  headers,
+  idempotencyKey,
 }: {
   to: string;
   subject: string;
   html: string;
   text: string;
+  /** Alıcıya özel başlıklar (tek tıkla abonelikten çıkış). Verilmezse işlem e-postasının ortak başlıkları. */
+  headers?: Record<string, string>;
+  idempotencyKey?: string;
 }): Promise<SendResult> {
   const config = getSmtpConfig();
   const order = deliveryOrder({ resend: resendConfigured(), smtp: Boolean(config) });
   let lastReason = "email_not_configured";
   for (const via of order) {
     if (via === "resend") {
-      const result = await sendViaResend({ to, subject, html, text });
+      const result = await sendViaResend({ to, subject, html, text, headers, idempotencyKey });
       if (result.ok) return result;
       lastReason = result.reason;
       continue;
@@ -107,7 +118,7 @@ export async function sendEmail({
         text,
         // DELIVERABILITY P1 — Outlook/Hotmail için tutarlı From + unsubscribe
         replyTo: config.user,
-        headers: { "X-Entity-Ref-ID": `cortexplus-${Date.now()}`, ...UNSUBSCRIBE_HEADERS },
+        headers: { "X-Entity-Ref-ID": `cortexplus-${Date.now()}`, ...(headers ?? UNSUBSCRIBE_HEADERS) },
       });
       return { ok: true };
     } catch {

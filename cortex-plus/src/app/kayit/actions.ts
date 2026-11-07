@@ -7,6 +7,7 @@ import { homePathForRole, isOptionalPhoneValid } from "@/lib/parity/signup";
 import { resolveFullName } from "@/lib/auth/resolve-full-name";
 import { consentMoment, recordSignupConsent, requestIp } from "@/lib/legal/record-consent";
 import { ageDeclarationSchema, consentEvidenceSchema } from "@/lib/legal/consent-evidence";
+import { recordSignupMarketingConsent } from "@/lib/email/preferences";
 import { getParentLinkStatus } from "@/lib/parent/link-status";
 import {
   sendParentInviteEmail,
@@ -40,6 +41,7 @@ const payloadSchema = z.object({
   consentAcceptedAt: z.string().max(40).optional(),
   consentEvidence: consentEvidenceSchema.optional(),
   ageDeclaration: ageDeclarationSchema.optional(),
+  marketingEmail: z.boolean().optional(),
 });
 
 /** Kayıtta hesaba yazılan okuma kanıtı ve yaş beyanı (bağlantı başka tarayıcıda açılınca yük yoktur). */
@@ -140,6 +142,11 @@ async function completeSignupInner(
       documents: payload.consentEvidence ?? stored.documents,
       age: payload.ageDeclaration ?? stored.age,
     });
+  }
+
+  // Kampanya e-postası izni: yük ya da hesap verisi (başka tarayıcıda açılan bağlantı). Tercih satırı varsa dokunulmaz.
+  if (payload.marketingEmail ?? user.user_metadata?.marketing_email === true) {
+    await recordSignupMarketingConsent(createServiceClient(), user.id, await requestIp()).catch(() => undefined);
   }
 
   if (payload.learningGoal) {

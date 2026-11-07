@@ -52,7 +52,7 @@ test.describe("Paket J akışları", { tag: ["@public"] }, () => {
       await expect(page.getByRole("checkbox", { name })).toBeChecked();
     }
     await page.getByLabel("Ad soyad").fill("Deneme Öğrenci");
-    await page.getByLabel("E-posta").fill("ogrenci@example.com");
+    await page.getByLabel("E-posta", { exact: true }).fill("ogrenci@example.com");
     await page.getByLabel("Şifre", { exact: true }).fill("Guclu1234");
     await page.getByLabel("Şifre tekrar").fill("Guclu1234");
     await page.getByRole("button", { name: "E-postayla hesabı oluştur" }).click();

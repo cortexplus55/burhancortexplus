@@ -86,6 +86,10 @@ const healthyRows: Rows = {
   // 7 Kasım 2026 (uyum paketi): onay kanıtı sütunu ve çerez tercihi kaydı.
   consent_records: {},
   cookie_consent_events: {},
+  // 7 Kasım 2026 (e-posta ağı).
+  email_preferences: {},
+  email_campaigns: {},
+  referral_gift_days: {},
 };
 
 const healthy = () => service({ rows: healthyRows });
@@ -155,7 +159,7 @@ describe("credit_reserve_metered yoklaması", () => {
     sb.rpc = vi.fn(async (name: string) =>
       name === "credit_reserve_metered"
         ? { error: { code: "PGRST202", message: "Could not find the function public.credit_reserve_metered(p_action_code, p_idempotency_key, p_meter, p_quantity, p_user_id) in the schema cache" } }
-        : name === "unverified_allowance"
+        : name === "unverified_allowance" || name === "email_audience_count"
           ? { data: 0, error: null }
           : name === "plus_only_action" || name === "is_founder"
             ? { data: name === "plus_only_action", error: null }
@@ -188,7 +192,8 @@ describe("diğer göç dosyaları", () => {
     // 29 Ekim 2026: +4 satır (kredi kuralı satırları, bedel farkı, koddan eklenmiş kural, plus_only_action).
     // 6 Kasım 2026: +1 satır (kurucu rolü, is_founder).
     // 7 Kasım 2026: +2 satır (onay kanıtı, çerez tercihi kaydı).
-    expect(checks).toHaveLength(27);
+    // 7 Kasım 2026: +2 satır (e-posta ağı, davet günlük tavanı).
+    expect(checks).toHaveLength(29);
     expect(find(checks, "Kurucu rolü")).toMatchObject({ ok: true, critical: false });
     expect(find(checks, "Kredi kuralı satırları")).toMatchObject({ ok: true, critical: true });
     expect(find(checks, "Kredi kuralı satırları").detail).toContain(`${ACTION_CODES.length} eylem kodunun hepsi`);

@@ -87,7 +87,9 @@ describe("yönetim menüsü", () => {
   it("yöneticiye kurucuya özel öğeler kilitli (bağlantı değil); kurucuya açık", () => {
     const admin = render(<AdminNavLinks role="admin" />);
     const lockedAdmin = [...admin.container.querySelectorAll(".adm-nav-link--locked")].map((node) => node.textContent);
-    expect(lockedAdmin).toEqual(["Yöneticiler ve Yetkiler", "Paket Fiyatları", "Kredi Kuralları", "Özellik Anahtarları"]);
+    expect(lockedAdmin).toEqual([
+      "Yöneticiler ve Yetkiler", "E-posta ve Davet", "Paket Fiyatları", "Kredi Kuralları", "Özellik Anahtarları",
+    ]);
     expect(admin.container.querySelector('a[href="/admin/yoneticiler"]')).toBeNull();
     expect(admin.container.querySelector('a[href="/admin/destek"]')).not.toBeNull();
     expect(admin.container.querySelector('a[href="/admin"]')?.getAttribute("aria-current")).toBe("page");

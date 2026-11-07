@@ -53,7 +53,7 @@ test.describe("authentication guards", { tag: ["@auth", "@smoke"] }, () => {
   test("registration blocks a weak password", async ({ page }) => {
     await openSignupAccountStep(page);
     await page.getByLabel("Ad soyad").fill("Test Kullanıcı");
-    await page.getByLabel("E-posta").fill("ornek@cortexplus.app");
+    await page.getByLabel("E-posta", { exact: true }).fill("ornek@cortexplus.app");
     await page.getByLabel("Şifre", { exact: true }).fill("zayifsifre1");
     await page.getByLabel("Şifre tekrar").fill("zayifsifre1");
     // Şifre kuralı onaylardan önce denetlenir (7 Kasım 2026: onay kutuları metni açtırır, burada gerekmez).

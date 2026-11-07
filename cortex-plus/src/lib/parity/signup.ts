@@ -34,6 +34,8 @@ export type SignupPayload = {
   consentEvidence?: ConsentEvidence;
   /** Yaş beyanı ve 18 altındaysa velinin izni. 7 Kasım 2026. */
   ageDeclaration?: AgeDeclaration;
+  /** Duyuru ve kampanya e-postası izni (isteğe bağlı, işaretli gelmez). 7 Kasım 2026. */
+  marketingEmail?: boolean;
 };
 
 export const SIGNUP_STORAGE_KEY = "cortex-signup-payload";

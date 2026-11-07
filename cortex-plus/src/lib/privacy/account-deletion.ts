@@ -45,6 +45,10 @@ const USER_CONTENT_TABLES = [
   // 7 Kasım 2026 (uyum paketi): çerez tercihi kayıtları. Profil anonimleşse de satırlar kalırdı. Onay kayıtları
   // (`consent_records`) bilerek listede yok: ödeme kaydı olan hesapta uyuşmazlık kanıtı olarak profille kalır.
   "cookie_consent_events",
+  // 7 Kasım 2026 (e-posta ağı): kampanya izni ve gönderim alıcı satırları. Silme işçisi profili anonimleştirir,
+  // CASCADE çalışmaz; satırlar burada gider. Göç canlıda yoksa atlanır.
+  "email_preferences",
+  "email_campaign_recipients",
 ] as const;
 
 const OPTIONAL_PURGE_TABLES = new Set([
@@ -54,6 +58,8 @@ const OPTIONAL_PURGE_TABLES = new Set([
   "question_reports",
   "student_learning_memory",
   "cookie_consent_events",
+  "email_preferences",
+  "email_campaign_recipients",
 ]);
 
 /**

@@ -6,11 +6,12 @@ import { SectionCard } from "@/components/ui-kit/empty-state";
 import { DataDeletionButton } from "@/components/profile/data-deletion-button";
 import { CookiePreferencesButton } from "@/components/legal/cookie-banner";
 import { EmailChangeCard } from "@/components/profile/email-change-card";
-import { StudyReminderToggle } from "@/components/profile/study-reminder-toggle";
+import { EmailPreferencesCard } from "@/components/profile/email-preferences-card";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { requireUser } from "@/lib/auth/session";
 import { formatDate } from "@/lib/format";
 import { getStudentAccountContext } from "@/lib/student/account-context";
+import { createServiceClient } from "@/lib/supabase/server";
 import { FounderBadge } from "@/components/student/founder-chip";
 
 export const metadata = { title: "Ayarlar" };
@@ -31,6 +32,12 @@ export default async function AyarlarPage() {
     // Kolon yoksa sorgu hata verir ve tercih "açık" varsayılır.
     supabase.from("profiles").select("study_reminder_email").eq("id", user.id).maybeSingle(),
   ]);
+  // Kampanya izni yalnız sunucu anahtarıyla okunur (satır güvenliği tarayıcıya kapalı). 7 Kasım 2026.
+  const { data: marketingPref } = await createServiceClient()
+    .from("email_preferences")
+    .select("marketing")
+    .eq("user_id", user.id)
+    .maybeSingle();
 
   return (
     <AppShell title="Ayarlar">
@@ -75,13 +82,14 @@ export default async function AyarlarPage() {
         </SectionCard>
 
         <SectionCard
-          title="Çalışma hatırlatması"
-          description="Yoluna bir gün uğramazsan, sınavına son üç gün kalırsa ya da serin kırılmak üzereyse hatırlatırız. Günde en fazla bir kez."
+          title="E-posta tercihleri"
+          description="Hesabınla ilgili bilgilendirmeler (doğrulama, ödeme, iade) her zaman gelir; aşağıdakileri istediğin gibi ayarla. Günde en fazla bir hatırlatma gönderiyoruz."
         >
-          <StudyReminderToggle
-            initial={
-              (reminderPref?.study_reminder_email as boolean | null) ?? true
-            }
+          <EmailPreferencesCard
+            initial={{
+              reminders: (reminderPref?.study_reminder_email as boolean | null) ?? true,
+              marketing: marketingPref?.marketing === true,
+            }}
           />
         </SectionCard>
 

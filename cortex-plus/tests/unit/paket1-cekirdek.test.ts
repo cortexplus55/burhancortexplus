@@ -45,7 +45,12 @@ describe("e-posta kaçışı", async () => {
     expect(mailer).not.toMatch(/<strong>\$\{parentName\}<\/strong>/);
     expect(mailer).not.toMatch(/name\.split\(/);
     const reminder = read("src/app/api/cron/study-reminders/route.ts");
-    expect(reminder).toContain("${escapeHtml(row.body)}");
+    // 7 Kasım 2026: hatırlatma gövdesi ortak şablondan çıkar; her dinamik değer orada kaçışlanır.
+    expect(reminder).toContain("renderReminderMail(");
+    const templates = read("src/lib/email/templates.ts");
+    for (const value of ["input.line", "input.prepTitle", "input.headline", "name"]) {
+      expect(templates).toContain(`escapeHtml(${value})`);
+    }
   });
 });
 
