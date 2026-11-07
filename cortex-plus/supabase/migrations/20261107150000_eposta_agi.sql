@@ -328,7 +328,7 @@ ON CONFLICT (key) DO NOTHING;
 
 UPDATE public.feature_flags
    SET metadata = jsonb_build_object('daily_cap', 150)
- WHERE key = 'referral_gifts' AND metadata IS NULL;
+ WHERE key = 'referral_gifts' AND (metadata IS NULL OR metadata = '{}'::jsonb);
 
 CREATE OR REPLACE FUNCTION public.grant_referral_gift(p_user_id uuid)
 RETURNS void AS $BODY$
