@@ -38,7 +38,14 @@ export async function POST(request: Request) {
   }
 
   const ip = request.headers.get("x-forwarded-for") ?? request.headers.get("x-real-ip");
-  const { error } = await createServiceClient()
+  // Sunucu anahtarı yoksa (yerel/CI) kayıt atlanır; tercih tarayıcıda zaten geçerli.
+  let service: ReturnType<typeof createServiceClient>;
+  try {
+    service = createServiceClient();
+  } catch {
+    return NextResponse.json({ ok: false });
+  }
+  const { error } = await service
     .from("cookie_consent_events")
     .insert({
       consent_id: parsed.data.consentId,

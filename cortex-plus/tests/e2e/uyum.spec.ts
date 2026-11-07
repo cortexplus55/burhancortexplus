@@ -64,12 +64,23 @@ test.describe("Uyum paketi", { tag: ["@public"] }, () => {
     await page.getByRole("button", { name: "Devam" }).click();
 
     const box = page.getByRole("checkbox", { name: /KVKK Aydınlatma Metni'ni okudum/ });
+    await expect(box).not.toBeChecked();
     await box.click();
+    // Pencere açıkken sayfanın geri kalanı ekran okuyucudan gizlidir (modal); kutu pencere kapanınca sorulur.
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
     await expect(dialog.getByText("Kısaca")).toBeVisible();
-    await expect(box).not.toBeChecked();
     const confirm = dialog.getByRole("button", { name: "Okudum, onaylıyorum" });
+    await expect(confirm).toBeDisabled();
+
+    // Okumadan kapatılırsa kutu boş kalır.
+    await dialog.getByRole("button", { name: "Kapat" }).last().click();
+    await expect(dialog).toBeHidden();
+    await expect(box).not.toBeChecked();
+
+    // Yeniden açılır, sonuna kadar kaydırılır, onaylanır: kutu işaretlenir.
+    await box.click();
+    await expect(dialog).toBeVisible();
     await expect(confirm).toBeDisabled();
     await dialog.locator(".cp-legal-dialog-body").evaluate((element) => element.scrollTo(0, element.scrollHeight));
     await expect(confirm).toBeEnabled();
