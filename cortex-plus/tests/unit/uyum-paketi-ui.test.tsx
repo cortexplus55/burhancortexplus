@@ -93,7 +93,7 @@ describe("okumadan işaretlenemeyen kutu", async () => {
     await waitFor(() => expect(box.getAttribute("aria-checked")).toBe("true"));
     const change = onChange.mock.calls.at(-1)?.[0] as { checked: boolean; evidence: { version: string; scrolledToEnd: boolean } };
     expect(change.checked).toBe(true);
-    expect(change.evidence.version).toBe("2026-11-07");
+    expect(change.evidence.version).toBe("2026-11-08");
     expect(change.evidence.scrolledToEnd).toBe(true);
 
     // Okuduktan sonra kaldırıp yeniden işaretlemek metni bir daha açtırmaz.
@@ -203,7 +203,7 @@ describe("onay kapısı", async () => {
       <ConsentGateDialog
         state={{
           missing: [
-            { type: "kvkk_aydinlatma", version: "2026-11-07", previous: "2026-08-27" },
+            { type: "kvkk_aydinlatma", version: "2026-11-08", previous: "2026-08-27" },
             { type: "kullanim_kosullari", version: "2026-11-07", previous: "2026-09-28" },
           ],
           ageNeeded: true,
