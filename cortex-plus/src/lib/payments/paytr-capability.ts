@@ -55,6 +55,13 @@ export const RECURRING_BLOCKERS: { title: string; detail: string }[] = [
     detail:
       "Tekrarlayan tahsilat non_3d=1 ile çalışıyor ve bu yetki mağazaya PayTR'den istenerek tanımlanıyor.",
   },
+  {
+    // 8 Kasım 2026, panel okundu: 8 Ekim'deki Direkt API başvurusuna PayTR 9 Ekim'de "test giriş bilgisi"
+    // istedi; o günden beri yazışma yok, inceleme hesabı açılmadı. Top bizde (PAYTR-DESTEK-TALEBI.md → Durum).
+    title: "Direkt API başvurusu PayTR'de bekliyor",
+    detail:
+      "PayTR 9 Ekim 2026'dan beri inceleme için test giriş bilgisi istiyor; inceleme hesabı açılıp panelden gönderilmeden başvuru ilerlemiyor.",
+  },
 ];
 
 export type PaytrCapability = {

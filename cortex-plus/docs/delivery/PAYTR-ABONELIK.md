@@ -202,3 +202,23 @@ tekrar denendiğinde kaldığı yerden devam eder.
 Eski akışta `payments.status=refunded` yazılmış ama `refunds` satırı
 olmayan kayıtlarda aktif (yeni) aboneliğe dokunulmaz — yalnızca kredi
 defteri tamamlanır.
+
+## Onay sonrası uygulama planı (8 Kasım 2026)
+
+Ürün sahibi 8 Kasım'da otomatik yenileme, 3 günlük ek süre, kart silme ve
+hukuki metin paketini istedi; PayTR onayı olmadığı için (bkz.
+`PAYTR-DESTEK-TALEBI.md` → "Durum") **yazılmadı**. Onay + test ortamı gelince
+bu sırayla, tek PR'da değil aşamalı:
+
+| Aşama | Ne | Kural |
+|---|---|---|
+| 0 | PCI belgesi (PayTR'nin istediği SAQ) ve Vercel'de `PAYTR_DIRECT_API=1` | Belge olmadan canlıya kart formu çıkmaz |
+| 1 | Göç (yalnız ekleme): `subscriptions.paytr_utoken`, `paytr_ctoken`, `card_last4`, `card_brand`, `grace_period_until`, `renewal_retry_count`, `last_renewal_attempt_at`, `last_renewal_error`; `auto_renew`/`cancel_at_period_end` zaten var | utoken/ctoken yalnız `service_role`; istemciye yalnız `has_saved_card`, `card_last4/brand`, `auto_renew`, `cancel_at_period_end`, `current_period_end`, `grace_period_until` |
+| 2 | **İlk ödeme Direkt API ile** (3D, `store_card=1`, kendi kart formumuz; taksit tablosu bizde); veli bağlantısı (`/odeme/veli/[token]`) **her zaman** `store_card=0`, `auto_renew=false` | Kart numarası ve CVV sunucumuzdan geçer: sunucu kaydı tutmaz, günlüğe yazmaz |
+| 3 | `paytr-recurring.ts`: `kayitli-kart-tekrarlayan-odeme` imzası (`merchant_id + user_ip + merchant_oid + email + payment_amount + payment_type + installment_count + currency + test_mode + non_3d` + salt, HMAC-SHA256 base64), `recurring_payment=1`, `non_3d=1`; CAPI list / delete; `utoken` callback'ten | Test modunda PayTR test kartıyla uçtan uca doğrulanmadan canlı anahtar açılmaz |
+| 4 | Yenileme **mevcut günlük cron'un içinde** (`subscription-renewal`; Hobby'de üçüncü cron yok): aday = `auto_renew` ∧ ¬`cancel_at_period_end` ∧ utoken ∧ (`current_period_end <= now` ∨ ek süre içinde, son denemeden ≥ 20 sa, `renewal_retry_count < 3`); `merchant_oid` dönem + deneme numarasından deterministik (çift çekim imkânsız); başarıda dönem uzar, sayaçlar sıfırlanır, Resend "yenilendi" e-postası; 1. başarısızlıkta `grace_period_until = now + 3 gün`, erişim sürer, e-posta; 3. başarısızlıkta `expired` + `auto_renew=false`, "ücretsize geçildi, borç yok" e-postası | Asla eksi bakiye / borç; ek süre boyunca Plus hakları aynen |
+| 5 | Öğrenci `/pay`: sonraki yenileme tarihi ve tutarı, maskeli kart, "Otomatik yenilemeyi kapat/aç", "Kayıtlı kartımı sil" (CAPI delete; dönem sonuna kadar hak sürer), ek süre sarı kartı; `/admin/odemeler`: otomatik yenilemesi açık / ek süredeki abone sayısı, son denemeler; `/admin/sistem`: kart saklama durumu (bugünkü yoklama) | Öğrenci kredi sayısı görmez |
+| 6 | **En son, tek commit'te:** `AUTO_RENEW_SUPPORTED = true`, `RECURRING_BLOCKERS = []`, KVKK (m.5/2-c, utoken/ctoken, maskeli kart, PayTR'ye iletim), gizlilik (PCI altyapısı PayTR'de, kart silme, veli bağlantısında saklama yok), ön bilgilendirme + mesafeli satış ("Abonelik yenileme, otomatik tahsilat ve iptal": güncel bedel kayıtlı karttan, fiyat değişikliği öncesi e-posta, tek tıkla cezasız durdurma, 3 gün / 3 deneme, borçsuz ücretsize dönüş, veli ödemesi tek seferlik), kullanım koşulları; KVKK sürümü değişir → onay kapısı yeniden sorar (tasarım gereği) | Bekçi testler bu flip'i zorlar: metinler sabit true/false'a göre |
+
+Pastedeki "iFrame'e `store_card=1` gönder" adımı **yok**: iFrame API'de böyle
+bir parametre bulunmuyor (17 Eylül 2026 doğrulaması, PayTR'nin 5 Ekim cevabı).

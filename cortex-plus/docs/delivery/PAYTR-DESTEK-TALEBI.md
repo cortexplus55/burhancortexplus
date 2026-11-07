@@ -130,3 +130,58 @@ gösteriyor — eski talepler için tarih aralığını geri çekmek gerekiyor.
 ürün sahibinde; gönderilen metin ödeme sayfasını (`/pay`, giriş gerekli) ve açık
 fiyat sayfasını (`/fiyatlandirma`) gösteriyor, otomatik yenilemenin bugün
 olmadığını tekrar söylüyor.
+
+## Durum (8 Kasım 2026, panel okundu): PayTR bizden cevap bekliyor
+
+Destek listesi 1 Eylül – 8 Kasım aralığında tek tek tarandı (liste bir seferde en
+çok ~15 günlük pencere gösteriyor). 9 Ekim'deki "test giriş bilgisi" isteğinden
+sonra **hiçbir yazışma yok**; `cortexplus+paytr@…` inceleme hesabı da hiç
+açılmamış (`auth.users`'ta yok). Yani başvuru bir aydır **bizim tarafımızda**
+bekliyor; Direkt API, kart saklama ve Non3D yetkisi verilmedi (panelin
+"Entegrasyon Bilgileri" sayfası yalnız iFrame API dokümanlarını listeliyor).
+
+Ürün sahibinin kararı (8 Kasım 2026): **önce PayTR'yi aç.** Kod, onay ve test
+ortamı gelince yazılacak (`PAYTR-ABONELIK.md` → "Onay sonrası uygulama planı").
+
+### İnceleme hesabı nasıl açılır (ürün sahibi)
+
+- `cortexplus+paytr@cortexplus.app` **açılamaz**: kayıt ucu `+etiket`i atıp
+  kutuyu `cortexplus@cortexplus.app` sayıyor ve kurucu hesabı zaten var →
+  409 "aynı posta kutusu". Google Workspace'te aynı kutuya **ayrı yerel adlı**
+  bir takma ad ekleyin (ör. `inceleme@cortexplus.app`) ve onunla kaydolun.
+- `/kayit` gizli pencerede: 18 yaş üstü, KVKK ve koşullar okunarak onaylanır;
+  doğrulama e-postası kutuya düşer. Hesap **ücretsiz katmanda kalır** (Plus
+  verilmez; `/pay` sayfası görünsün). Yönetici yetkisi verilmez.
+- Şifre PayTR'ye yalnız panel üzerinden gönderilir; depoya, Vercel'e ya da bu
+  belgeye yazılmaz. İnceleme bitince şifre değiştirilir.
+
+### Gönderilecek cevap (panelde 9 Ekim tarihli "Direkt API Talebi"ne)
+
+> Merhaba,
+>
+> 9 Ekim tarihli isteğinize istinaden inceleme için test giriş bilgileri
+> aşağıdadır (Mağaza No: 747272, cortexplus.app):
+>
+> Giriş adresi: https://cortexplus.app/giris
+> E-posta: `<inceleme hesabının adresi>`
+> Şifre: `<şifre>`
+>
+> Hesap ücretsiz katmandadır. Giriş yaptıktan sonra Abonelik sayfasında
+> (https://cortexplus.app/pay) paketler ve mevcut PayTR iFrame ödeme akışı
+> görülebilir; fiyatlar herkese açık: https://cortexplus.app/fiyatlandirma.
+> Bugün ödeme tek seferlik iFrame API ile alınıyor; sözleşmelerimizde
+> "otomatik olarak yenilenmez" yazıyor ve Direkt API + Non3D onayı gelene
+> kadar böyle kalacak.
+>
+> Başvurumuzdaki iki soru hâlâ açık; değerlendirmenizi rica ederiz:
+> 1) Direkt API'de kart verisi sunucumuzdan geçeceği için hangi PCI-DSS
+>    belgesi / SAQ seviyesi isteniyor?
+> 2) İlk ödemeyi 3D Secure ile alıp (kart o sırada saklanarak) yalnız dönem
+>    sonu yenilemelerini Non3D "Kayıtlı Kart Tekrarlayan Ödeme" servisiyle
+>    yapmamız mümkün mü?
+>
+> Teşekkürler.
+
+Panelin hesap e-postası hâlâ kişisel bir Gmail; cevap oraya da gelir.
+Operasyon adresine (`cortexplus@cortexplus.app`) çekilmesi ürün sahibinin
+kararı (`IDENTITY.md`).
