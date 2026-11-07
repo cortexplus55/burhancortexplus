@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Dialog } from "@base-ui/react/dialog";
 import { ReadGate, type ReadGateChange } from "@/components/legal/read-gate";
@@ -141,6 +141,9 @@ export function ConsentGateDialog({ state, onDone }: { state: GateState; onDone:
   const [age, setAge] = useState<AgeValue>(EMPTY_AGE);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // İlk odak metnin gövdesinde (7 Kasım 2026, canlıda görüldü): Base UI ilk seçeneğe odaklanıyordu, "18 yaşından
+  // küçüğüm" çerçevesi yanıp seçilmiş gibi görünüyordu. Onay ekranında hiçbir seçenek seçili görünmemeli.
+  const bodyRef = useRef<HTMLDivElement | null>(null);
 
   const updated = state.missing.length > 0 && state.missing.every((item) => item.previous);
   const changes = state.missing.filter((item) => item.previous).map((item) => LEGAL_CHANGE_NOTES[item.type]);
@@ -183,7 +186,7 @@ export function ConsentGateDialog({ state, onDone }: { state: GateState; onDone:
     <Dialog.Root open disablePointerDismissal onOpenChange={() => undefined}>
       <Dialog.Portal>
         <Dialog.Backdrop className="cp-legal-backdrop" />
-        <Dialog.Popup className="cp-legal-dialog" data-consent-gate>
+        <Dialog.Popup className="cp-legal-dialog" data-consent-gate initialFocus={bodyRef}>
           <div className="cp-legal-dialog-head">
             <div className="min-w-0">
               <Dialog.Title className="cp-legal-dialog-title">
@@ -194,7 +197,7 @@ export function ConsentGateDialog({ state, onDone }: { state: GateState; onDone:
               </Dialog.Description>
             </div>
           </div>
-          <div className="cp-legal-dialog-body">
+          <div className="cp-legal-dialog-body" ref={bodyRef} tabIndex={-1} data-initial-focus>
             <p className="cp-consent-gate-intro">
               Cortex Plus&apos;ı kullanmaya devam etmek için aşağıdaki metinleri açıp sonuna kadar okuman ve onaylaman
               gerekiyor.
