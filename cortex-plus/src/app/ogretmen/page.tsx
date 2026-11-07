@@ -16,7 +16,7 @@ import { turkishLower } from "@/lib/text/turkish";
 import { defaultStartPrompt } from "@/lib/student/first-prompts";
 import { getStudentAccountContext } from "@/lib/student/account-context";
 import { getUserStreak } from "@/lib/streak/record-activity";
-import { FirstPrepCard } from "@/components/parity/first-prep-card";
+import { FirstStepLauncher } from "@/components/parity/first-step-launcher";
 import { PlusMonth } from "@/components/marketing/plus-month";
 import { loadPlusPrices } from "@/lib/billing/plan-prices";
 import { loadNearestExamCountdown } from "@/lib/learning/exam-countdown-load";
@@ -152,7 +152,9 @@ export default async function OgretmenPage({
   const heroCards =
     !params.sohbet && (prepCount === 0 || showPlus) ? (
       <>
-        {prepCount === 0 ? <FirstPrepCard /> : null}
+        {prepCount === 0 ? (
+          <FirstStepLauncher firstName={firstName} gradeLevel={profile?.grade_level} goalText={goalText} />
+        ) : null}
         {showPlus ? (
           <PlusMonth
             variant="compact"

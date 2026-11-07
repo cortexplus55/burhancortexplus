@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { ArrowLeft, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ReadGate, type ReadGateChange } from "@/components/legal/read-gate";
+import { signupPresetFor, type SignupPreset } from "@/lib/parity/signup-preset";
 import { Checkbox } from "@/components/ui/checkbox";
 import { MARKETING_CONSENT_HINT, MARKETING_CONSENT_TEXT } from "@/lib/legal/marketing-consent";
 import {
@@ -55,6 +56,9 @@ export function SignupWizard() {
   const [entryPrompt, setEntryPrompt] = useState<string | null>(null);
   const [stepIndex, setStepIndex] = useState(0);
   const [draft, setDraft] = useState<Partial<SignupPayload>>({});
+  // Ana sayfanın hedef kitle sekmesi (7 Kasım 2026): `?hedef=` sınıf ve hedef sınavı önceden seçer / öne çıkarır.
+  const presetRef = useRef<SignupPreset | null>(null);
+  const [suggestedGrades, setSuggestedGrades] = useState<string[]>([]);
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -162,6 +166,18 @@ export function SignupWizard() {
 
     const prompt = searchParams.get("prompt")?.trim();
     if (prompt) setEntryPrompt(prompt);
+
+    const preset = signupPresetFor(searchParams.get("hedef"));
+    if (preset) {
+      presetRef.current = preset;
+      setSuggestedGrades(preset.suggestedGrades);
+      // Yalnız boş alanlar dolar: öğrenci geri gelip değiştirdiyse seçimi ezilmez.
+      setDraft((d) => ({
+        ...d,
+        gradeLevel: d.gradeLevel ?? preset.gradeLevel,
+        learningGoal: d.learningGoal ?? preset.learningGoal,
+      }));
+    }
 
     const ders = searchParams.get("ders")?.trim();
     if (!ders) return;
@@ -390,16 +406,27 @@ export function SignupWizard() {
             title="Hangi sınıftasın, hedefin ne?"
             subtitle="İçerikleri seviyene ve sınavına göre ayarlayacağız."
           >
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
               {GRADE_OPTIONS.map((g) => (
                 <ChoiceChip
                   key={g}
                   label={g}
                   selected={draft.gradeLevel === g}
-                  onClick={() => setDraft((d) => ({ ...d, gradeLevel: g }))}
+                  suggested={suggestedGrades.includes(g)}
+                  onClick={() =>
+                    setDraft((d) => ({
+                      ...d,
+                      gradeLevel: g,
+                      // YKS/LGS sekmesinden gelen 8. sınıf → LGS, lise ve mezun → YKS (sekme kararı sınıfa uyar).
+                      learningGoal: presetRef.current?.goalForGrade?.(g) ?? d.learningGoal,
+                    }))
+                  }
                 />
               ))}
             </div>
+            {suggestedGrades.length ? (
+              <p className="signup-suggested-note">Kesikli çerçeveli seçenekler seçtiğin hedefe uygun; birini seç.</p>
+            ) : null}
             <p className="signup-step-label mt-5 mb-2 text-sm font-semibold">Hedef sınavın</p>
             <div className="grid grid-cols-2 gap-2">
               {GOAL_OPTIONS.map((g) => (
@@ -623,6 +650,7 @@ function SignupChoice({
   className,
   ariaLabel,
   showCheck = true,
+  suggested = false,
 }: {
   selected: boolean;
   onClick: () => void;
@@ -630,6 +658,8 @@ function SignupChoice({
   className?: string;
   ariaLabel?: string;
   showCheck?: boolean;
+  /** Hedef kitle sekmesinin önerdiği seçenek: kesikli çerçeve, seçilmiş sayılmaz. */
+  suggested?: boolean;
 }) {
   return (
     <button
@@ -638,6 +668,7 @@ function SignupChoice({
       aria-label={ariaLabel}
       aria-pressed={selected}
       data-selected={selected}
+      data-suggested={suggested || undefined}
       className={cn("signup-choice relative", className)}
     >
       {children}
@@ -654,14 +685,17 @@ function ChoiceChip({
   label,
   selected,
   onClick,
+  suggested,
 }: {
   label: string;
   selected: boolean;
   onClick: () => void;
+  suggested?: boolean;
 }) {
   return (
     <SignupChoice
       selected={selected}
+      suggested={suggested}
       onClick={onClick}
       className="px-3 py-3 text-center text-sm font-medium"
       ariaLabel={label}

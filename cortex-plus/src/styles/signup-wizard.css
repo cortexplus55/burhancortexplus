@@ -57,6 +57,18 @@
   box-shadow: 0 0 0 1px rgba(57, 62, 76, 0.2);
 }
 
+/* Hedef kitle sekmesinin önerdiği seçenek (7 Kasım 2026): kesikli mavi çerçeve, seçilince normal seçili hâl. */
+.signup-wizard .signup-choice[data-suggested="true"]:not([data-selected="true"]) {
+  border-style: dashed;
+  border-color: rgba(67, 83, 243, 0.65);
+}
+
+.signup-wizard .signup-suggested-note {
+  margin: 0.6rem 0 0;
+  font-size: 0.8rem;
+  color: var(--mk-muted);
+}
+
 .signup-wizard .signup-choice:focus-visible {
   outline: 2px solid rgba(67, 83, 243, 0.75);
   outline-offset: 2px;

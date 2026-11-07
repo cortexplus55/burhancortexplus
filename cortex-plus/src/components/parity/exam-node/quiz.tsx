@@ -1,6 +1,7 @@
 "use client";
 
 /** Test (konu testi, zayıf nokta, son kontrol, yazılı deneme): soru soru. */
+import { useState } from "react";
 import { ScratchPad } from "@/components/parity/scratch-pad";
 import { ExamQuizPlay } from "@/components/parity/exam-quiz-play";
 import { sanitizeStudentCopy } from "@/lib/learning/student-copy";
@@ -8,10 +9,21 @@ import { NodeSources } from "@/components/parity/node-sources";
 import { QuestionReportButton } from "@/components/learning/question-report-button";
 import { TwinQuestionCard } from "@/components/learning/twin-question-card";
 import { TwoOptionHint } from "@/components/learning/two-option-hint";
+import { sameOptionSet, selectedOptions } from "@/lib/learning/exam-quiz";
 import type { NodeLifecycle } from "./use-node-lifecycle";
 
 export function QuizPlay({ life }: { life: NodeLifecycle }) {
   const { sources, stage, loading, payload, setPayload, attemptId, markHint, index, setIndex, answers, revealedRef, lockAnswer, isTimedExam, finish, updateAnswer, questions, quizBuilding } = life;
+  // Koç katmanı (7 Kasım 2026): bu sorudan önceki art arda doğrular (yalnız kilitlenmiş cevaplar) ve bu soruda ipucu.
+  const [hintAt, setHintAt] = useState<Record<string, boolean>>({});
+  let streakBefore = 0;
+  for (let at = index - 1; at >= 0; at -= 1) {
+    const question = questions[at];
+    const key = String(at);
+    if (!question?.correct?.length || !revealedRef.current.has(key)) break;
+    if (!sameOptionSet(selectedOptions(answers[key]), question.correct)) break;
+    streakBefore += 1;
+  }
   return (
     <>
       {stage === "play" && payload.type === "quiz" && questions[index] ? (
@@ -46,6 +58,8 @@ export function QuizPlay({ life }: { life: NodeLifecycle }) {
             onChange={(value) => updateAnswer(String(index), value)}
             onReveal={() => lockAnswer(String(index))}
             locked={revealedRef.current.has(String(index))}
+            streakBefore={isTimedExam ? 0 : streakBefore}
+            usedHint={Boolean(hintAt[String(index)])}
             onContinue={() => {
               if (index + 1 < questions.length) {
                 setIndex(index + 1);
@@ -77,7 +91,10 @@ export function QuizPlay({ life }: { life: NodeLifecycle }) {
                       attemptId={attemptId}
                       index={at}
                       options={questions[at]?.options ?? []}
-                      onUsed={markHint}
+                      onUsed={() => {
+                        markHint();
+                        setHintAt((current) => ({ ...current, [String(at)]: true }));
+                      }}
                     />
                   )
                 : undefined

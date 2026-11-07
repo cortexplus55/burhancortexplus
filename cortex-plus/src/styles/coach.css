@@ -1,0 +1,102 @@
+/*
+  Enerjik koç katmanı (7 Kasım 2026): seri rozeti, koç cümlesi, ders kıvılcımı. Sarı yalnız seride (tasarım kuralı:
+  sarı marka, Plus, yıldız ve seri için). Hareket azaltma açıksa animasyon yok.
+*/
+
+.cp-streak {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+  padding: 0 0.65rem;
+  border-radius: 999px;
+  border: 1px solid var(--c-brand-soft);
+  background: var(--c-brand-soft);
+  color: var(--c-brand);
+  font: var(--t-label-13);
+  font-weight: 600;
+  white-space: nowrap;
+  animation: cp-streak-pop 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.cp-streak--hot {
+  box-shadow: 0 0 0 3px var(--c-brand-soft);
+}
+
+.cp-coach {
+  margin: 0;
+  font: var(--t-body-14);
+  line-height: 1.5;
+  color: var(--c-text);
+}
+
+.cp-coach--right {
+  color: var(--c-success);
+}
+
+.cp-coach--partial {
+  color: var(--c-warning);
+}
+
+.cp-coach--off {
+  color: var(--c-text);
+}
+
+.cp-spark {
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  z-index: 3;
+  margin: 0.35rem 0 0;
+  padding: 0.4rem 0.8rem;
+  max-width: calc(100% - 1.5rem);
+  transform: translateX(-50%);
+  border-radius: 999px;
+  border: 1px solid var(--c-border-strong);
+  background: var(--c-surface-1);
+  color: var(--c-text);
+  font: var(--t-label-13);
+  font-weight: 600;
+  text-align: center;
+  box-shadow: 0 10px 30px -14px rgba(0, 0, 0, 0.6);
+  animation: cp-spark-in 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+
+@keyframes cp-streak-pop {
+  from {
+    transform: scale(0.85);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes cp-spark-in {
+  from {
+    transform: translate(-50%, -6px);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-streak,
+  .cp-spark {
+    animation: none;
+  }
+}
+
+/* Doğru/yanlış odak kartında rozet sayacın yanında, koç cümlesi hükmün altında. */
+.tf-focus-count .cp-streak {
+  margin-left: 0.5rem;
+  vertical-align: middle;
+}
+
+.tf-focus-coach {
+  margin: 0.35rem 0 0.6rem;
+}

@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { ArrowRight, Check, Lock, Sparkles } from "lucide-react";
 import { CortexLogoReveal } from "@/components/brand/cortex-logo-reveal";
+import { AudienceHero } from "@/components/landing/audience-hero";
 import { Icon3D } from "@/components/ui/icon-3d";
 import {
   FAQ,
   FEATURES,
-  HERO,
   LESSON_SCENE,
   PROOF,
   STAGE,
@@ -40,33 +40,8 @@ export function LandingPage({ prices }: { prices: LandingPrices }) {
 
   return (
     <div className="lp">
-      <section className="lp-hero" aria-labelledby="lp-hero-title">
-        <div className="lp-hero-bg" aria-hidden>
-          <div className="lp-aurora" />
-          <div className="lp-floor" />
-        </div>
-        <div className="lp-wrap lp-hero-inner">
-          <p className="lp-eyebrow">
-            <span className="lp-live" aria-hidden />
-            {HERO.eyebrow}
-          </p>
-          <h1 id="lp-hero-title" className="lp-hero-title">
-            {HERO.titleLead} <span className="lp-glow-text">{HERO.titleAccent}</span>
-          </h1>
-          <p className="lp-hero-lead">{HERO.lead}</p>
-          <div className="lp-cta-row">
-            <Link href={HERO.primary.href} className="lp-btn lp-btn--primary">
-              {HERO.primary.label}
-              <ArrowRight className="h-4 w-4" aria-hidden />
-            </Link>
-            <Link href={HERO.secondary.href} className="lp-btn lp-btn--ghost">
-              {HERO.secondary.label}
-            </Link>
-          </div>
-          <p className="lp-fineprint">{HERO.fineprint}</p>
-        </div>
-        <HeroStage />
-      </section>
+      {/* Kahraman + hedef kitle sekmeleri + kayıtsız canlı vitrin (7 Kasım 2026): tek durum, sahne sunucuda. */}
+      <AudienceHero stage={<HeroStage />} />
 
       <AdvantageShowcase />
 

@@ -3,6 +3,7 @@
 import { useEffect, type ReactNode } from "react";
 import { Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CoachLine, StreakBadge } from "@/components/learning/coach-chrome";
 import "@/styles/true-false-focus.css";
 
 /**
@@ -55,6 +56,7 @@ export function TrueFalseFocusCard({
   nextLabel,
   onPick,
   onNext,
+  streakBefore = 0,
 }: {
   index: number;
   total: number;
@@ -66,13 +68,17 @@ export function TrueFalseFocusCard({
   nextLabel: string;
   onPick: (value: boolean) => void;
   onNext: () => void;
+  /** Bu önermeden önce art arda doğru sayısı (7 Kasım 2026, koç katmanı). */
+  streakBefore?: number;
 }) {
   useTrueFalseKeys({ active: true, revealed, onPick, onNext });
   const right = picked === correct;
+  const streakNow = revealed && right ? streakBefore + 1 : 0;
   return (
     <section className="tf-focus" aria-labelledby="tf-focus-statement">
       <p className="tf-focus-count">
         Önerme {index + 1} / {total}
+        {revealed ? <StreakBadge streak={streakNow} className="tf-focus-streak" /> : null}
       </p>
       <div className="tf-focus-card">
         <div id="tf-focus-statement" className="tf-focus-statement">
@@ -104,6 +110,7 @@ export function TrueFalseFocusCard({
       {revealed ? (
         <div className={cn("tf-focus-feedback", right ? "is-right" : "is-off")} role="status">
           <p className="tf-focus-verdict">{right ? "✓ Doğru bildin" : "✕ Bu sefer olmadı"}</p>
+          <CoachLine input={{ correct: right, streak: streakNow }} className="tf-focus-coach" />
           <div className="tf-focus-explain">{explanation}</div>
           <button type="button" className="tf-focus-next" onClick={onNext}>
             {nextLabel}
