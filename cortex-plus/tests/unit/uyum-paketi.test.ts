@@ -210,6 +210,8 @@ describe("çerez tercihi", async () => {
     expect(analytics).toContain("hasAnalyticsConsent()");
     expect(analytics).toContain("opt_out_capturing");
     expect(analytics).toContain("clearAnalyticsStorage()");
+    // İzin yoksa önceki sürümün izinsiz bıraktığı PostHog izleri açılışta silinir.
+    expect(analytics).toContain("if (!consented) clearAnalyticsStorage();");
   });
 
   it("bant: üç eşit düğme (Reddet, Tercihler, Kabul et), çerez duvarı yok; tercih her sayfadan değişir", () => {

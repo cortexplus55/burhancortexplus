@@ -35,7 +35,10 @@ export function Analytics() {
   const [allowed, setAllowed] = useState(false);
 
   useEffect(() => {
-    setAllowed(hasAnalyticsConsent());
+    const consented = hasAnalyticsConsent();
+    setAllowed(consented);
+    // Bu sürümden önce izinsiz yazılmış PostHog izleri (7 Kasım 2026, canlıda görüldü): izin yoksa açılışta silinir.
+    if (!consented) clearAnalyticsStorage();
     const onChange = (event: Event) => {
       const consent = (event as CustomEvent<CookieConsent>).detail;
       const next = consent?.a === true;
