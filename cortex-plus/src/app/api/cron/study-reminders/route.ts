@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
-import { moreUrgent, pickReminder, type Reminder } from "@/lib/learning/study-reminder";
+import { moreUrgent, pickReminder, reminderEmailSubject, type Reminder } from "@/lib/learning/study-reminder";
 import { sendEmail } from "@/lib/email/mailer";
-import { escapeHtml, safeAppHref } from "@/lib/email/escape";
+import { renderReminderMail } from "@/lib/email/templates";
+import { signUnsubscribeToken, unsubscribeHeaders, unsubscribePageUrl } from "@/lib/email/unsubscribe";
+import { sendReferralGiftMails, sendReferralInviteMails, verifiedUserIds } from "@/lib/email/daily-mails";
 import { isFeatureEnabled, SPACED_REVIEW_FLAG } from "@/lib/admin/feature-flags";
 import { istanbulDay } from "@/lib/istanbul-day";
 import { examPrepDueReviewHref } from "@/lib/learning/exam-prep-hrefs";
@@ -132,6 +134,8 @@ export async function GET(request: Request) {
           (streak?.last_activity_date as string | null) === yesterday,
         alreadyNotifiedToday: notifiedToday.has(userId),
         dueReviews,
+        // Bugün (İstanbul günü) çalışmış öğrenciye sınava kalan gün nudge'ı gitmez (7 Kasım 2026).
+        studiedToday: last ? istanbulDay(new Date(last)) === istanbulDay(now) : false,
       });
       if (!reminder) continue;
 
@@ -143,7 +147,7 @@ export async function GET(request: Request) {
         link:
           reminder.kind === "review" || (dueReviews > 0 && !unfinished)
             ? `${APP_URL}${examPrepDueReviewHref(prepId)}`
-            : `${APP_URL}/deneme-sinavlari`,
+            : `${APP_URL}/deneme-sinavlari/${prepId}`,
       };
       const current = best.get(userId);
       if (!current || moreUrgent(candidate, current) < 0) {
@@ -161,8 +165,19 @@ export async function GET(request: Request) {
       body: `${pick.prepTitle} — ${pick.reminder.body}`,
     }));
 
+  // Davet e-postası ve hediye bildirimi (7 Kasım 2026): hatırlatma çıkmasa da koşar, kalan e-posta süresini kullanır.
+  const referralMails = async () => {
+    const hediye = await sendReferralGiftMails(service, { deadline: startedAt + MAIL_BUDGET_MS }).catch(() => ({ mailed: 0, skipped: 0 }));
+    const davet = await sendReferralInviteMails(service, { deadline: startedAt + MAIL_BUDGET_MS }).catch(() => ({
+      mailed: 0,
+      skipped: 0,
+      reason: "hata",
+    }));
+    return { gift: hediye.mailed, invite: davet.mailed, inviteReason: "reason" in davet ? davet.reason : undefined };
+  };
+
   if (!rows.length) {
-    return NextResponse.json({ ok: true, checked, sent: 0, mailed: 0 });
+    return NextResponse.json({ ok: true, checked, sent: 0, mailed: 0, referral: await referralMails() });
   }
 
   for (let from = 0; from < rows.length; from += INSERT_BATCH) {
@@ -184,30 +199,44 @@ export async function GET(request: Request) {
     for (const profile of data ?? []) optedIn.push(profile.id as string);
   }
 
+  // Yalnız doğrulanmış adres (7 Kasım 2026): anında kayıt doğrulamadan girişe izin veriyor; başkasının adresiyle açılmış
+  // bir hesaba her akşam e-posta gitmesi şikâyet ve gönderici itibarı demek. Doğrulama okunamazsa e-posta gitmez.
+  const verified = await verifiedUserIds(service, optedIn);
+  if (!verified) console.warn("study_reminder_verified_unknown", { candidates: optedIn.length });
+  const mailable = verified ? optedIn.filter((userId) => verified.has(userId)) : [];
+
   // Sınırlı eşzamanlılık ve süre (31 Ekim 2026): sırayla gönderim yüzlerce öğrencide işlevin 300 sn'sini aşardı.
   const rowByUser = new Map(rows.map((row) => [row.user_id, row]));
   const mail = await runWithBudget(
-    optedIn,
+    mailable,
     async (userId) => {
       const row = rowByUser.get(userId);
-      if (!row) return false;
-      const link = best.get(userId)?.link ?? `${APP_URL}/deneme-sinavlari`;
+      const pick = best.get(userId);
+      if (!row || !pick) return false;
+      // Tek tıkla çıkış bağlantısı üretilemiyorsa e-posta hiç gitmez (APP_SECRET eksik).
+      const token = signUnsubscribeToken(userId, "reminder");
+      if (!token) return false;
       const { data: account } = await service.auth.admin.getUserById(userId);
       const to = account?.user?.email;
       if (!to) return false;
+      const rendered = renderReminderMail({
+        subject: reminderEmailSubject(pick.reminder, pick.daysUntilExam),
+        daysLeft: pick.daysUntilExam,
+        prepTitle: pick.prepTitle,
+        headline: pick.reminder.title,
+        line: pick.reminder.body,
+        ctaUrl: pick.link,
+        unsubscribeUrl: unsubscribePageUrl(token),
+        firstName: String(account?.user?.user_metadata?.full_name ?? "").split(" ")[0] || null,
+      });
       const result = await sendEmail({
         to,
-        subject: row.title,
-        text: `${row.body}
-
-Yoluna dön: ${link}
-
-Bu hatırlatmayı ayarlardan kapatabilirsin.`,
-        // Gövde hazırlık başlığını taşır (öğrencinin yazdığı metin): HTML kaçışı (6 Kasım 2026).
-        html:
-          `<p>${escapeHtml(row.body)}</p>` +
-          `<p><a href="${escapeHtml(safeAppHref(link, APP_URL))}">Yoluna dön</a></p>` +
-          `<p style="color:#666;font-size:12px">Bu hatırlatmayı ayarlardan kapatabilirsin.</p>`,
+        subject: rendered.subject,
+        html: rendered.html,
+        text: rendered.text,
+        headers: unsubscribeHeaders(token),
+        // Cron aynı gün ikinci kez çalışırsa aynı öğrenciye çift e-posta gitmesin.
+        idempotencyKey: `reminder-${userId}-${today}`,
       });
       return result.ok;
     },
@@ -221,5 +250,6 @@ Bu hatırlatmayı ayarlardan kapatabilirsin.`,
     sent: rows.length,
     mailed: mail.done,
     mailSkipped: mail.skipped,
+    referral: await referralMails(),
   });
 }

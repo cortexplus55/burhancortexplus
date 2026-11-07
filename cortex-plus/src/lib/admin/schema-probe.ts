@@ -323,7 +323,7 @@ export async function probeSchema(
     .from("exam_prep_misconceptions")
     .select("resolved_at")
     .limit(1);
-  const [explainAttempts, prepVideos, generationJobs, creditRules, founderRole, consentEvidence, cookieConsents] = await Promise.all([
+  const [explainAttempts, prepVideos, generationJobs, creditRules, founderRole, consentEvidence, cookieConsents, emailNetwork, referralDays] = await Promise.all([
     hasTable(service, "explain_attempts"),
     hasTable(service, "prep_videos"),
     hasTable(service, "generation_jobs"),
@@ -333,7 +333,15 @@ export async function probeSchema(
     // 7 Kasım 2026: uyum paketi (onay kanıtı ve çerez tercihi kaydı). Salt okuma.
     service.from("consent_records").select("evidence").limit(1),
     hasTable(service, "cookie_consent_events"),
+    // 7 Kasım 2026: e-posta ağı (tercihler, gönderimler) ve davet hediyesinin günlük sayacı. Salt okuma.
+    Promise.all([
+      service.from("email_preferences").select("user_id").limit(1),
+      service.from("email_campaigns").select("id").limit(1),
+      service.rpc("email_audience_count", { p_kind: "service", p_plan: "all", p_signup_days: null, p_exam_days: null }),
+    ]),
+    service.from("referral_gift_days").select("day").limit(1),
   ]);
+  const emailNetworkOk = emailNetwork.every((result) => !result.error);
   const examPrice = CREDIT_PRICE_TABLE.PRACTICE_EXAM_GENERATE.credits;
   const chatPrice = CREDIT_PRICE_TABLE.AI_CHAT_STANDARD.credits;
   const v2 = Boolean(podcastRule.data) && chatRule.data?.credit_cost === chatPrice;
@@ -519,6 +527,22 @@ export async function probeSchema(
       detail: cookieConsents
         ? "cookie_consent_events yerinde (20261107120000); giriş yapan öğrencinin tercihi başka cihazda yeniden sorulmaz."
         : "Tablo yok — tercih yalnız tarayıcıda kalır, kanıt kaydı yazılmaz ve her cihazda yeniden sorulur (20261107120000).",
+    },
+    {
+      name: "E-posta ağı (tercihler ve gönderimler)",
+      ok: emailNetworkOk,
+      critical: false,
+      detail: emailNetworkOk
+        ? "email_preferences, email_campaigns ve hedef kitle işlevleri yerinde (20261107150000): kampanya izni saklanır, yönetimden gönderim ve davet e-postası çalışır."
+        : "Eksik — akşam hatırlatması eski yolda kalır, yönetimden gönderim ve davet e-postası çalışmaz (20261107150000).",
+    },
+    {
+      name: "Davet hediyesi günlük tavanı",
+      ok: !referralDays.error,
+      critical: false,
+      detail: referralDays.error
+        ? "referral_gift_days yok — davet hediyesinde günlük tavan ve kapatma anahtarı çalışmaz (20261107150000)."
+        : "referral_gift_days yerinde (20261107150000): günlük tavan ve kapatma anahtarı çalışıyor.",
     },
   ];
 }

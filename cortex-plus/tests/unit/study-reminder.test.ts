@@ -30,14 +30,15 @@ describe("pickReminder", () => {
   });
 
   it("calls back a student who has been away a day", () => {
-    const reminder = pickReminder({ ...base, hoursSinceActivity: 26 });
+    // Sınav tarihi yoksa geri sayım çıkmaz; yalnız "kaldığın yer" (tarihli hazırlık için geri sayım ayrı test).
+    const reminder = pickReminder({ ...base, daysUntilExam: null, hoursSinceActivity: 26 });
     expect(reminder?.kind).toBe("idle");
     // Azar değil, hatırlatma: "yapmadın" demiyoruz.
     expect(reminder?.title).toBe("Kaldığın yer seni bekliyor");
   });
 
   it("treats a student who never started as away", () => {
-    expect(pickReminder({ ...base, hoursSinceActivity: null })?.kind).toBe("idle");
+    expect(pickReminder({ ...base, daysUntilExam: null, hoursSinceActivity: null })?.kind).toBe("idle");
   });
 
   it("warns before a streak breaks", () => {
@@ -56,6 +57,7 @@ describe("pickReminder", () => {
     expect(
       pickReminder({
         ...base,
+        daysUntilExam: null,
         hoursSinceActivity: 26,
         streakDays: 1,
         streakBreaksToday: true,

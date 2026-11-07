@@ -27,10 +27,15 @@ export type ReminderInput = {
    * çalışmış olsa da 19:00'daki tek bildirim "N tekrar bekliyor" der (ürün sahibinin kararı).
    */
   dueReviews?: number;
+  /**
+   * Öğrenci bugün (İstanbul günü) çalıştı mı (7 Kasım 2026). Sınava kalan gün nudge'ı çalışana gitmez: akşam
+   * 19:00'da zaten çalışmış öğrenciyi kovalamak olmaz. Bilinmiyorsa son etkinlikten türetilir (12 saat içinde çalıştıysa çalışmış sayılır).
+   */
+  studiedToday?: boolean;
 };
 
 export type Reminder = {
-  kind: "exam_soon" | "review" | "streak" | "idle";
+  kind: "exam_soon" | "review" | "streak" | "countdown" | "idle";
   title: string;
   body: string;
 };
@@ -39,8 +44,46 @@ const KIND_RANK: Record<Reminder["kind"], number> = {
   exam_soon: 0,
   review: 1,
   streak: 2,
-  idle: 3,
+  countdown: 3,
+  idle: 4,
 };
+
+/**
+ * Sınava kalan gün (7 Kasım 2026, ürün sahibinin isteği: "her akşam, sınavına kaç gün kaldıysa yazsın"). Son 30 gün
+ * her akşam; daha uzakta haftada bir, sınavla aynı hafta gününde ("tam 6 hafta"); 120 günden uzakta yok. Son üç
+ * gün ayrı kuralda (`exam_soon`). Çalışmış öğrenciye gitmez.
+ */
+export const COUNTDOWN_DAILY_DAYS = 30;
+export const COUNTDOWN_WEEKLY_MAX_DAYS = 120;
+
+export function countdownDue(daysUntilExam: number | null): boolean {
+  if (daysUntilExam === null || !Number.isInteger(daysUntilExam) || daysUntilExam < 4) return false;
+  if (daysUntilExam <= COUNTDOWN_DAILY_DAYS) return true;
+  return daysUntilExam <= COUNTDOWN_WEEKLY_MAX_DAYS && daysUntilExam % 7 === 0;
+}
+
+/** Her akşam aynı cümle gitmesin diye güne bağlı (rastgele değil) kısa satırlar. */
+const COUNTDOWN_LINES = [
+  "Yolundaki sıradaki adım hazır; birkaç dakikanı ayırman yeter.",
+  "Bugün bir adım yap, yarın kaldığın yerden devam edersin.",
+  "Kaldığın yerden devam et; sıradaki adım seni bekliyor.",
+  "Bugün henüz çalışmadıysan şimdi kısa bir adımla başlayabilirsin.",
+];
+
+export function countdownLine(daysLeft: number): string {
+  const weeks = daysLeft > COUNTDOWN_DAILY_DAYS && daysLeft % 7 === 0 ? ` Tam ${daysLeft / 7} hafta var.` : "";
+  return `${COUNTDOWN_LINES[Math.abs(daysLeft) % COUNTDOWN_LINES.length]}${weeks}`;
+}
+
+/**
+ * E-postanın konusu: sınav tarihi varsa kalan gün hep başta ("Sınavına 12 gün kaldı · 3 tekrar bekliyor"); son üç
+ * gün ve geri sayım kuralında başlık zaten kalan günü söylüyor.
+ */
+export function reminderEmailSubject(reminder: Reminder, daysUntilExam: number | null): string {
+  if (daysUntilExam === null || daysUntilExam < 1) return reminder.title;
+  if (reminder.kind === "exam_soon" || reminder.kind === "countdown") return reminder.title;
+  return `Sınavına ${daysUntilExam} gün kaldı · ${reminder.title}`;
+}
 
 /**
  * Bir öğrencinin birden çok hazırlığı olduğunda hangisi konuşur.
@@ -127,6 +170,14 @@ export function pickReminder(input: ReminderInput): Reminder | null {
       title: `${input.streakDays} günlük serin bugün kırılıyor`,
       body: "Tek bir adım seriyi sürdürmeye yeter.",
     };
+  }
+
+  // Sınava kalan gün: bugün çalışmamış ve yolunda bitmemiş adım olan öğrenciye (7 Kasım 2026).
+  // Bilinmiyorsa son etkinliğe bakılır: son 12 saatte çalışmış öğrenci bugün çalışmış sayılır.
+  const studiedToday = input.studiedToday ?? (input.hoursSinceActivity !== null && input.hoursSinceActivity < 12);
+  if (input.hasUnfinishedPath && !studiedToday && countdownDue(input.daysUntilExam)) {
+    const days = input.daysUntilExam as number;
+    return { kind: "countdown", title: `Sınavına ${days} gün kaldı`, body: countdownLine(days) };
   }
 
   if (input.hoursSinceActivity === null || input.hoursSinceActivity >= IDLE_HOURS) {

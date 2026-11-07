@@ -16,6 +16,12 @@ export const ADAPTIVE_MODEL_ROUTER_FLAG = "adaptive_model_router_enabled";
  * sayfasında "Bugün N tekrar". Kapalıyken yeni tekrar yazılmaz, kart ve hatırlatma görünmez.
  */
 export const SPACED_REVIEW_FLAG = "spaced_review";
+/**
+ * Kampanya ve duyuru e-postaları (7 Kasım 2026). KAPALI doğar: yalnız izin verene gider ve Ticari Elektronik
+ * İletiler Hakkında Yönetmelik gereği İYS kaydı tamamlanmadan gönderilmez. Kurucu kaydı bitirince açar.
+ * Hizmet duyuruları ve hesap bilgilendirmeleri bu anahtara bağlı değildir.
+ */
+export const MARKETING_EMAIL_FLAG = "marketing_email";
 
 type FlagRow = {
   enabled: boolean;

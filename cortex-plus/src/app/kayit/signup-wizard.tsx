@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ReadGate, type ReadGateChange } from "@/components/legal/read-gate";
+import { Checkbox } from "@/components/ui/checkbox";
+import { MARKETING_CONSENT_HINT, MARKETING_CONSENT_TEXT } from "@/lib/legal/marketing-consent";
 import {
   AgeDeclarationField,
   EMPTY_AGE,
@@ -63,6 +65,8 @@ export function SignupWizard() {
   const [kvkkRead, setKvkkRead] = useState<ReadGateChange>({ checked: false, evidence: null });
   const [termsRead, setTermsRead] = useState<ReadGateChange>({ checked: false, evidence: null });
   const [age, setAge] = useState<AgeValue>(EMPTY_AGE);
+  // Duyuru ve kampanya e-postası izni: isteğe bağlı, işaretli gelmez, hizmet buna bağlı değil (7 Kasım 2026).
+  const [marketing, setMarketing] = useState(false);
   const [loading, setLoading] = useState(false);
   const blockedApp = useGoogleBlockedWebViewApp();
 
@@ -122,6 +126,7 @@ export function SignupWizard() {
       referralCode,
       consentEvidence: consentEvidence(),
       ageDeclaration: ageDeclarationOf(age) ?? undefined,
+      marketingEmail: marketing || undefined,
     };
   }
 
@@ -230,6 +235,7 @@ export function SignupWizard() {
           consentAcceptedAt: payload.consentAcceptedAt,
           consentEvidence: payload.consentEvidence,
           ageDeclaration: payload.ageDeclaration,
+          marketingEmail: payload.marketingEmail,
           next: safeNextPath(searchParams.get("next"), ""),
           referralCode: payload.referralCode,
         }),
@@ -291,6 +297,7 @@ export function SignupWizard() {
           // yükü bulamaz; onay kapısı metni yeniden sormasın diye kanıt hesapta durur.
           legal_consent_evidence: payload.consentEvidence ?? null,
           age_declaration: payload.ageDeclaration ?? null,
+          marketing_email: payload.marketingEmail === true,
           // Dönüş adresi de (ör. beta kodlu /pay?kod=…) hesapta dursun: Instagram'ın tarayıcısında
           // kayıt olup onayı e-posta uygulamasından açan öğrencide kod kayboluyordu (20 Ekim 2026).
           // Kurulum sonunda onboarding buradan okur.
@@ -481,6 +488,18 @@ export function SignupWizard() {
                 checked={termsRead.checked}
                 onChange={setTermsRead}
               />
+              <label className="cp-legal-row">
+                <Checkbox
+                  aria-label={MARKETING_CONSENT_TEXT}
+                  className="mt-0.5 size-5 border-[var(--c-text-subtle)]"
+                  checked={marketing}
+                  onCheckedChange={(value) => setMarketing(value === true)}
+                />
+                <span className="cp-legal-row-text">
+                  {MARKETING_CONSENT_TEXT}
+                  <span className="cp-legal-hint">{MARKETING_CONSENT_HINT}</span>
+                </span>
+              </label>
               {blockedApp ? (
                 <GoogleBlockedNote
                   app={blockedApp}

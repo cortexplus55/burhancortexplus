@@ -13,6 +13,7 @@ import { UNVERIFIED_FLAG, sendVerification } from "@/lib/auth/email-verification
 import { safeNextPath } from "@/lib/auth/safe-next-path";
 import { ageDeclarationSchema, ageProblem, consentEvidenceSchema } from "@/lib/legal/consent-evidence";
 import { recordSignupConsent } from "@/lib/legal/record-consent";
+import { recordSignupMarketingConsent } from "@/lib/email/preferences";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +34,7 @@ const bodySchema = z.object({
   // onay bugünkü sürüm adına yazılmaz, onay kapısı ilk girişte metinleri yeniden gösterir.
   consentEvidence: consentEvidenceSchema.optional(),
   ageDeclaration: ageDeclarationSchema.optional(),
+  marketingEmail: z.boolean().optional(),
   next: z.string().max(400).optional(),
   referralCode: z.string().max(16).optional(),
 });
@@ -96,6 +98,7 @@ export async function POST(request: Request) {
       legal_consent_at: input.consentAcceptedAt,
       legal_consent_evidence: input.consentEvidence ?? null,
       age_declaration: input.ageDeclaration ?? null,
+      marketing_email: input.marketingEmail === true,
       signup_next: safeNextPath(input.next ?? null, ""),
       referral_code: input.referralCode ?? "",
     },
@@ -121,6 +124,10 @@ export async function POST(request: Request) {
   }).catch((error: unknown) => {
     console.error("signup_consent_record_failed", { userId: user.id, error: String(error) });
   });
+  // Kampanya e-postası izni (işaretlendiyse): hesapla aynı anda, kanıtıyla. Yazılamazsa kayıt yine biter.
+  if (input.marketingEmail) {
+    await recordSignupMarketingConsent(service, user.id, request.headers.get("x-forwarded-for")).catch(() => undefined);
+  }
   // Posta yanıtı bekletmesin: öğrenci hemen içeri girer, e-posta arkadan gider.
   after(async () => {
     const sent = await sendVerification({ userId: user.id, email, name: input.fullName });

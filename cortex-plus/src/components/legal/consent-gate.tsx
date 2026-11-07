@@ -50,6 +50,7 @@ const EXEMPT_PREFIXES = [
   "/sifre-yenile",
   "/sifremi-unuttum",
   "/email-dogrula",
+  "/eposta",
   "/onboarding",
   "/odeme",
   "/e2e",

@@ -10,6 +10,7 @@ import {
   History,
   LifeBuoy,
   LayoutDashboard,
+  Mail,
   MessageSquare,
   Package,
   Receipt,
@@ -88,6 +89,13 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         label: "Yöneticiler ve Yetkiler",
         icon: Crown,
         blurb: "Panele kimin girebildiği. Kurucu e-postayla var olan bir hesaba yönetici yetkisi verir ya da geri alır; her işlem kayda geçer.",
+        founderOnly: true,
+      },
+      {
+        href: "/admin/eposta",
+        label: "E-posta ve Davet",
+        icon: Mail,
+        blurb: "Tek kişiye ya da herkese e-posta yaz (hizmet duyurusu ya da kampanya), son gönderimleri gör, davet programının durumuna bak.",
         founderOnly: true,
       },
       {
