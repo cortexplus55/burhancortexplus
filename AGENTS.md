@@ -292,6 +292,14 @@ yenilemeler Non3D; PCI seviyesi soruldu). **Onay gelene kadar hiçbir şey
 değişmiyor:** iFrame, hatırlatmalı elle yenileme, "otomatik olarak yenilenmez",
 `AUTO_RENEW_SUPPORTED = false`. Ayrıntı ve onay sonrası sıra aynı belgede.
 
+**8 Kasım 2026, panel okundu:** PayTR 9 Ekim'de "inceleme için test giriş bilgisi" istedi; o günden beri
+**hiçbir yazışma yok**, inceleme hesabı açılmamış, yetki verilmemiş (panel yalnız iFrame API gösteriyor).
+"Otomatik yenileme + 3 günlük ek süre + kart silme + hukuki metin" paketi istendi; ürün sahibi **"önce PayTR'yi
+aç"** dedi: kod yazılmadı, plan `PAYTR-ABONELIK.md` → "Onay sonrası uygulama planı", gönderilecek cevap ve
+inceleme hesabı tarifi `PAYTR-DESTEK-TALEBI.md` → "Durum". `RECURRING_BLOCKERS`'ta dördüncü madde bu bekleyişi
+`/admin/sistem`'de gösterir. İki tuzak: `cortexplus+paytr@` ile kayıt 409 verir (`+etiket` kutuya katlanır, kurucu
+hesabı var) → ayrı yerel adlı takma ad; iFrame API'de `store_card` yok, ilk ödeme de Direkt API kart formuyla alınır.
+
 ## Ücretsiz katman (3 Ekim 2026) — günde bir ders, bir hazırlık, toplam 5 sayfa
 
 Ürün sahibinin kararı, aynı gün Astra'nın ücretsiz hesabı ölçülerek: Astra'da
