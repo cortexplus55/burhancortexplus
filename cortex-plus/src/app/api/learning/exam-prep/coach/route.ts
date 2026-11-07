@@ -6,7 +6,7 @@ import { TUTOR_ANSWER_DISCIPLINE } from "@/lib/learning/tutor-style";
 import { teacherPersona } from "@/lib/learning/teacher-brain";
 import { answerFirstLine } from "@/lib/learning/tutor-answer";
 import { loadPrepChatGrounding } from "@/lib/learning/prep-chat-grounding";
-import { COACH_SOURCE_RULE, coachSourceBlock } from "@/lib/learning/coach-sources";
+import { COACH_SOURCE_RULE, COACH_TEACHING_RULE, coachSourceBlock } from "@/lib/learning/coach-sources";
 import { SOURCE_NUMBER_PRIORITY } from "@/lib/learning/teaching-rubric";
 
 const bodySchema = z.object({
@@ -23,9 +23,11 @@ const bodySchema = z.object({
     .max(12),
 });
 
+// 8 Kasım 2026: 800 karakter / "3-6 cümle" sınırı eğitmeni tek paragrafa sıkıştırıyordu ("gerçekten anlatsın").
 const replySchema = z.object({
-  reply: z.string().min(8).max(800),
+  reply: z.string().min(8).max(2200),
 });
+
 
 export async function POST(request: Request) {
   const guard = await withUser(request, { scope: "exam-prep-coach", limit: 20 });
@@ -87,7 +89,7 @@ export async function POST(request: Request) {
     // Ders içi yardım: ücretsizde derse dahil (24 Ekim 2026).
     freeMeter: "included",
     isPremium: await isPremiumUser(service, userId),
-    schemaHint: 'JSON: {"reply":string}. Kısa Türkçe, 3-6 cümle. Filler yok.',
+    schemaHint: 'JSON: {"reply":string}. Türkçe, öğretici; 5-12 cümle, gerekirse "- " maddeleri, anahtar terim **kalın**.',
     // Belgesiz (havuz) hazırlıkta öğrencinin notu yok; sayı önceliği yalnız belgeli hazırlıkta.
     systemAddendum: curriculum ? undefined : COACH_SOURCE_RULE,
     // Denetçi notun değerini "yanlış" saymasın: aynı kural denetçide de.
@@ -96,6 +98,7 @@ export async function POST(request: Request) {
 ${answerFirstLine(lastStudent)}
 ${teacherPersona()}
 Öğrenci dersin içinde yardım istedi. Kavram sorusuna ilk cümlede doğrudan cevap ver; üzerindeki sorunun doğru şıkkını harfiyle söyleme. Yanlış denemesinde neyin tutmadığını söyle.
+${COACH_TEACHING_RULE}
 Sınav: ${prep.title} (${prep.exam_type}). Konu: ${topic?.label ?? prep.title}.
 Üzerindeki madde: ${parsed.data.itemText}
 ${sources ? `\n${sources}\n` : ""}

@@ -4717,78 +4717,7 @@
   font-size: 0.9rem;
 }
 
-.cp-exam-coach {
-  margin-top: 1.25rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--cp-border);
-}
-
-.cp-exam-coach-chip {
-  display: inline-flex;
-  margin-bottom: 0.55rem;
-  padding: 0.4rem 0.8rem;
-  border-radius: 9999px;
-  border: 1px solid rgba(57, 62, 76, 0.45);
-  background: rgba(31, 31, 31, 0.08);
-  color: var(--c-text);
-  font: inherit;
-  font-size: 0.85rem;
-  cursor: pointer;
-}
-
-.cp-exam-coach-form {
-  display: flex;
-  gap: 0.45rem;
-}
-
-.cp-exam-coach-form input {
-  flex: 1;
-  padding: 0.65rem 0.85rem;
-  border-radius: 9999px;
-  border: 1px solid var(--cp-border);
-  background: var(--c-surface-1);
-  color: inherit;
-  font: inherit;
-}
-
-.cp-exam-coach-form button {
-  padding: 0.65rem 0.9rem;
-  border-radius: 9999px;
-  border: 0;
-  background: #2a2a2a;
-  color: inherit;
-  font: inherit;
-  font-size: 0.85rem;
-  cursor: pointer;
-}
-
-.cp-exam-coach-log {
-  list-style: none;
-  margin: 0.75rem 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
-}
-
-.cp-exam-coach-msg em {
-  display: block;
-  font-style: normal;
-  font-size: 0.75rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--cp-muted);
-}
-
-.cp-exam-coach-msg p {
-  margin: 0.15rem 0 0;
-  font-size: 0.9rem;
-  line-height: 1.45;
-}
-
-.cp-exam-coach-msg--assistant p {
-  color: var(--cp-muted);
-}
+/* Test içi eğitmen kutusu: src/styles/node-coach.css (8 Kasım 2026). */
 
 .cp-exam-quiz-feedback {
   margin: 1.25rem 0;

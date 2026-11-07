@@ -2,7 +2,7 @@
 import "server-only";
 import { after, NextResponse } from "next/server";
 import { recordLessonTiming } from "@/lib/admin/beta-metrics";
-import { poolPayload, poolUnitForTopic } from "@/lib/content-pool/serve";
+import { poolPayload, poolUnitForTopic, type PoolDifficulty } from "@/lib/content-pool/serve";
 import { sharedUnitEnsurer } from "@/lib/content-pool/ensure";
 import { supplementScreens, unitSupplement } from "@/lib/content-pool/supplement";
 import { prepLanguage } from "@/lib/learning/teacher-brain";
@@ -19,13 +19,14 @@ export async function servePoolContent(
   context: NodeContext,
   state: Pick<StartLocals, "topic" | "topicLabel" | "title" | "clientRequestId" | "voiceSession">,
 ): Promise<NextResponse | null> {
-  const { userId, service, prepId, prefetch, teachingV2, prep, kind } = context;
+  const { userId, service, prepId, prefetch, teachingV2, prep, kind, difficulty } = context;
   const { topicLabel, title, voiceSession } = state;
+  const level: PoolDifficulty | null = difficulty === "kolay" || difficulty === "orta" || difficulty === "ileri" ? difficulty : null;
   if (!teachingV2 || voiceSession) return null;
   // Hazır ünitede arka planda önceden yazım yok (2 Kasım 2026): havuzdaki türler anında açılır; havuzda olmayan
   // türler (ör. Doğru/Yanlış) öğrenci açınca yazılır. Canlıda Doğru/Yanlış önceden yazımı CONTENT_PREFETCH düşürüyordu.
   if (prefetch && poolUnitForTopic(prep.learning_preferences, topicLabel)) return NextResponse.json({ ok: true, skipped: "pool" });
-  const payload = await poolPayload(service, { kind, prefs: prep.learning_preferences, topicLabel, title, userId, prepId, ensure: sharedUnitEnsurer(service, userId) }).catch(() => null);
+  const payload = await poolPayload(service, { kind, prefs: prep.learning_preferences, topicLabel, title, userId, prepId, difficulty: level, ensure: sharedUnitEnsurer(service, userId) }).catch(() => null);
   if (!payload) return null;
   // Öğrenci belge eklediyse: havuz dersi kalır, belgenin kapsadığı üniteye "Senin belgenden ek" (bir kez 15 kredi).
   if (kind === "lesson") {

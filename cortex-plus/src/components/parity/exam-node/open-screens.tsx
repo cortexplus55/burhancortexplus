@@ -9,6 +9,7 @@ import { difficultyFromFamiliarity, markSignalsSkipped, saveSignalsChoice, stepA
 import { activityDurationMinutes } from "@/lib/learning/activity-duration";
 import { startActionLabel } from "@/lib/learning/feedback-copy";
 import { PodcastFormatPicker } from "@/components/parity/podcast-format-picker";
+import { DifficultyPicker } from "@/components/parity/difficulty-picker";
 import Link from "next/link";
 import { InstantLessonView } from "@/components/parity/instant-lesson-view";
 import { VOICE_MODE_GATE } from "./gates";
@@ -137,22 +138,8 @@ export function SetupScreens({ life }: { life: NodeLifecycle }) {
           <p className="cp-lesson-kicker">{prepTitle}</p>
           <h1>{meta.setupLabel}</h1>
           {topicLabel ? <p className="text-sm text-[var(--cp-muted)]">{topicLabel}</p> : null}
-          <label className="cp-field">
-            <span>Zorluk seviyesi belirle</span>
-            <strong className="cp-exam-diff-label">
-              {difficulty === "kolay" ? "Kolay" : difficulty === "ileri" ? "İleri" : "Orta"}
-            </strong>
-            <input
-              type="range"
-              min={0}
-              max={2}
-              value={difficulty === "kolay" ? 0 : difficulty === "ileri" ? 2 : 1}
-              onChange={(event) => {
-                const value = Number(event.target.value);
-                setDifficulty(value === 0 ? "kolay" : value === 2 ? "ileri" : "orta");
-              }}
-            />
-          </label>
+          {/* 8 Kasım 2026: sürgü yerine anlamı yazan üç seçenek; hazır müfredat testinde de soru katmanını belirler. */}
+          <DifficultyPicker value={difficulty} onChange={setDifficulty} />
           {kind === "podcast" ? (
             <PodcastFormatPicker value={podcastLength} onChange={setPodcastLength} />
           ) : null}
