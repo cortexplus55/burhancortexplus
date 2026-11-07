@@ -212,6 +212,9 @@ describe("onay kapısı", async () => {
       />,
     );
     expect(await screen.findByText("Metinlerimizi güncelledik")).toBeTruthy();
+    // İlk odak metnin gövdesinde: hiçbir yaş seçeneği seçili ya da odaklı görünmez (canlıda görüldü, 7 Kasım 2026).
+    await waitFor(() => expect(document.activeElement?.hasAttribute("data-initial-focus")).toBe(true));
+    for (const radio of screen.getAllByRole("radio") as HTMLInputElement[]) expect(radio.checked).toBe(false);
     const submit = screen.getByRole("button", { name: "Onayla ve devam et" }) as HTMLButtonElement;
     expect(submit.disabled).toBe(true);
 

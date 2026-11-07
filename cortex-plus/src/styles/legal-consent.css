@@ -644,3 +644,8 @@
 .cp-legal-actions .cp-legal-btn[data-primary="true"] {
   flex: 2;
 }
+
+/* Onay kapısında ilk odak metnin gövdesinde: odak çerçevesi çizilmez (bir seçenek seçili görünmesin). */
+.cp-legal-dialog-body[data-initial-focus]:focus {
+  outline: none;
+}
