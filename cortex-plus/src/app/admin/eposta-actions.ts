@@ -17,6 +17,7 @@ import {
   type AudiencePreview,
   type CampaignProgress,
 } from "@/lib/email/campaign";
+import { REFERRAL_CAP_MAX, REFERRAL_CAP_MIN } from "@/lib/email/referral-cap";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 /*
@@ -141,6 +142,38 @@ export async function stopEmailCampaign(campaignId: string): Promise<{ ok: boole
   const stopped = await cancelCampaign(createServiceClient(), actor.userId, campaignId);
   revalidatePath("/admin/eposta");
   return stopped ? { ok: true } : { ok: false, error: "Gönderim zaten bitmiş ya da durmuş." };
+}
+
+/** Davet hediyesinin günlük tavanı (çift sayısı). Anahtarın açık/kapalı durumuna dokunmaz. */
+export async function saveReferralGiftCap(raw: unknown): Promise<{ ok: true; message: string } | Fail> {
+  const actor = await checkFounderActor();
+  if (!actor.ok) return actor;
+  const cap = typeof raw === "number" ? raw : Number(String(raw ?? "").replace(",", "."));
+  if (!Number.isInteger(cap) || cap < REFERRAL_CAP_MIN || cap > REFERRAL_CAP_MAX) {
+    return { ok: false, error: `Tavan ${REFERRAL_CAP_MIN}–${REFERRAL_CAP_MAX} arasında bir tam sayı olmalı.` };
+  }
+  const service = createServiceClient();
+  const { data: row, error: readError } = await service
+    .from("feature_flags")
+    .select("metadata")
+    .eq("key", "referral_gifts")
+    .maybeSingle();
+  if (readError || !row) return { ok: false, error: "Davet anahtarı okunamadı. Veritabanı değişikliği uygulanmamış olabilir." };
+  const previous = (row.metadata ?? {}) as Record<string, unknown>;
+  const { error } = await service
+    .from("feature_flags")
+    .update({ metadata: { ...previous, daily_cap: cap }, updated_at: new Date().toISOString() })
+    .eq("key", "referral_gifts");
+  if (error) return { ok: false, error: "Tavan kaydedilemedi." };
+  await auditLog(service, {
+    actorId: actor.userId,
+    action: "email.referral_cap.saved",
+    entityType: "feature_flag",
+    entityId: "referral_gifts",
+    metadata: { dailyCap: cap, previous: previous.daily_cap ?? null },
+  });
+  revalidatePath("/admin/eposta");
+  return { ok: true, message: `Günlük tavan kaydedildi: ${cap} çift. Bir sonraki hediyeden itibaren geçerli.` };
 }
 
 export async function sendSingleEmail(raw: unknown): Promise<{ ok: true; known: boolean } | Fail> {

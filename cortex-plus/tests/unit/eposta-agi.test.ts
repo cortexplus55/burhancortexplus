@@ -302,6 +302,30 @@ describe("kampanya izni metni", () => {
   });
 });
 
+describe("davet hediyesi tavanı (kurucu formu)", () => {
+  const actions = read("src/app/admin/eposta-actions.ts");
+
+  it("yalnız kurucu yazar, yalnız tavanı değiştirir (açık/kapalı durumuna dokunmaz) ve denetim kaydı düşer", () => {
+    const body = actions.slice(actions.indexOf("export async function saveReferralGiftCap"));
+    expect(body.slice(0, 400)).toContain("checkFounderActor()");
+    expect(body).toContain(".update({ metadata: { ...previous, daily_cap: cap }");
+    expect(body).not.toMatch(/enableds*:/);
+    expect(body).toContain('action: "email.referral_cap.saved"');
+    expect(read("src/lib/admin/labels.ts")).toContain('"email.referral_cap.saved"');
+  });
+
+  it('"use server" dosyası yalnız eylem dışa aktarır; sınırlar ayrı modülde', () => {
+    expect(actions).not.toMatch(/^export const /m);
+    const limits = read("src/lib/email/referral-cap.ts");
+    expect(limits).toContain("REFERRAL_CAP_MIN = 1");
+    expect(limits).toContain("REFERRAL_CAP_MAX = 2000");
+  });
+
+  it("kokpit kartı formu gösterir", () => {
+    expect(read("src/app/admin/eposta/page.tsx")).toContain("<ReferralCapForm current={Number(stats.daily_cap)} />");
+  });
+});
+
 describe("bağlantılar (kaynak denetimi)", () => {
   const cron = read("src/app/api/cron/study-reminders/route.ts");
 

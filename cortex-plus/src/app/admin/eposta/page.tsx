@@ -1,6 +1,7 @@
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AdminBadge, AdminCard, AdminEmpty, AdminNote, AdminTableFrame } from "@/components/admin/admin-ui";
 import { CampaignRowControls, EmailComposer } from "@/components/admin/email-composer";
+import { ReferralCapForm } from "@/components/admin/referral-cap-form";
 import { isFeatureEnabled, MARKETING_EMAIL_FLAG } from "@/lib/admin/feature-flags";
 import { requireFounderPage } from "@/lib/auth/admin-guard";
 import { listCampaigns, type CampaignRow } from "@/lib/email/campaign";
@@ -121,8 +122,10 @@ export default async function AdminEpostaPage() {
             </div>
             <p className="text-sm text-[var(--adm-muted)]">
               Günlük tavan, sahte hesap sürüsünün en kötü günlük bedelini sınırlar. Tavan dolunca ya da hediye kapatılınca yeni hediye yazılmaz;
-              davetli sonraki çalışmasında yeniden denenir, kimse hakkını kaybetmez. Tavanı ve anahtarı Özellik Anahtarları sayfasından değiştirebilirsin.
+              davetli sonraki çalışmasında yeniden denenir, kimse hakkını kaybetmez. Anahtarı Özellik Anahtarları sayfasından kapatıp açabilirsin;
+              tavanı aşağıdan değiştir.
             </p>
+            <ReferralCapForm current={Number(stats.daily_cap)} />
             {top.length ? (
               <AdminTableFrame columns={["Davet eden", "Davetle gelen", "Hediyesi yazılan"]} stack>
                 {top.map((row) => (
