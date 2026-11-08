@@ -14816,3 +14816,52 @@ a.cp-exam-search {
   font-weight: 600;
   cursor: pointer;
 }
+
+/* Tekrar destesi girişi (8 Kasım 2026): Çalışma Stüdyosu'nun başında, destede kart varsa. Günü gelen kart varsa yeşil. */
+.tools-deck {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  border-radius: 1.25rem;
+  border: 1px solid var(--cp-border-strong);
+  background: var(--cp-surface);
+  color: var(--cp-text);
+  text-decoration: none;
+}
+
+.tools-deck.is-due {
+  border-color: color-mix(in srgb, var(--c-success, #22c55e) 50%, transparent);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--c-success, #22c55e) 14%, transparent), transparent 70%),
+    var(--cp-surface);
+}
+
+.tools-deck-text {
+  display: grid;
+  gap: 0.15rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.tools-deck-text strong {
+  font-size: 1rem;
+}
+
+.tools-deck-text span {
+  font-size: 0.875rem;
+  color: var(--cp-muted);
+}
+
+.tools-deck-go {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 1rem;
+  border-radius: 999px;
+  background: var(--c-action);
+  color: var(--c-on-action);
+  font-size: 0.875rem;
+  font-weight: 650;
+}

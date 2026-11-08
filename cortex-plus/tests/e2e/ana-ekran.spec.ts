@@ -130,3 +130,21 @@ for (const size of SIZES) {
     await page.screenshot({ path: `test-results/studyo-${size.width}.png`, fullPage: true });
   });
 }
+
+test("sohbet öğretim dili: kilit bilgi, kutular ve Akılda kalsın kartı çizilir; ham işaret kalmaz", { tag: ["@public"] }, async ({ page }) => {
+  for (const size of [{ width: 375, height: 812 }, { width: 1280, height: 900 }]) {
+    await page.setViewportSize(size);
+    await page.goto("/e2e/ana-ekran?durum=ogretim");
+    await expect(page.locator("mark.cp-key").first()).toBeAttached();
+    await expect(page.locator(".cp-callout")).toHaveCount(2);
+    await expect(page.locator(".cp-remember")).toHaveCount(2);
+    const state = await page.evaluate(() => ({
+      overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      raw: [...document.querySelectorAll(".cp-sor-msg-assistant")].some(
+        (node) => (node as HTMLElement).innerText.includes("==") || /(^|\n)\s*>/.test((node as HTMLElement).innerText),
+      ),
+      smallButtons: [...document.querySelectorAll(".cp-remember-add")].filter((node) => node.getBoundingClientRect().height < 44).length,
+    }));
+    expect(state).toEqual({ overflow: 0, raw: false, smallButtons: 0 });
+  }
+});

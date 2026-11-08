@@ -37,6 +37,9 @@ export const normalizeForMatch = (s: string) =>
     // bazen işaretli, bazen işaretsiz aktarıyor. PDF metni de noktadan önce boşluk taşıyor ("O₂ .").
     // İşaretler ve atıflar karşılaştırmadan çıkar; kelimeler ve sayılar aynen kalır.
     .replace(/\[(?:\d+|Sayfa\s+\d+)\]/gi, " ")
+    // 8 Kasım 2026: sohbet öğretim dili — kilit bilgi (==…==) ve kutu satırı ("> 📌 Sınav ipucu:") işareti çıkar.
+    .replace(/==/g, "")
+    .replace(/^\s*>\s?(?:📌|⚠️?|💡|🧠|✅|🤔)?\s*/gmu, "")
     .replace(/\*\*|__|`/g, "")
     .replace(/(^|\n)\s*(?:#{1,6}\s+|[-•*]\s+)/g, "$1")
     .replace(/\s+([.,;:!?)\]])/g, "$1")
