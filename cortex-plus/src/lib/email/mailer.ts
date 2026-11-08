@@ -226,6 +226,25 @@ export async function sendVerifyEmail({ to, name, url }: { to: string; name: str
 }
 
 /**
+ * Şifre sıfırlama (8 Kasım 2026): Supabase'in kendi e-postası (saatte 30, Gmail SMTP) gelmiyordu; bağlantı sunucuda
+ * üretilir (`auth.admin.generateLink`), bizim hattımızdan gider. Google ile açılmış hesaba da şifre eklemeyi sağlar.
+ */
+export async function sendPasswordResetEmail({ to, url }: { to: string; url: string }) {
+  return sendEmail({
+    to,
+    subject: "Cortex Plus · Şifreni belirle",
+    html: layout(
+      "Şifreni belirle",
+      `<p style="margin:0;">Merhaba, bu adres için şifre sıfırlama istendi.</p>
+       <p style="margin:12px 0 0;">Aşağıdaki düğmeyle yeni şifreni belirle. Hesabını Google ile açtıysan bu yolla e-posta ve şifreyle girişi de açmış olursun. Bağlantı 1 saat geçerli ve tek kullanımlık.</p>
+       <p style="margin:12px 0 0;">Bu isteği sen yapmadıysan bu e-postayı yok say; şifren değişmez.</p>`,
+      { href: url, label: "Yeni şifremi belirle" },
+    ),
+    text: `Cortex Plus şifre sıfırlama: ${url} (1 saat geçerli, tek kullanımlık). Bu isteği sen yapmadıysan yok say.`,
+  });
+}
+
+/**
  * İade bildirimi (7 Kasım 2026, uyum paketi): uygulama içindeki bildirimin e-posta eşi. İade metni (iptal-iade
  * sayfası) "uygulama içinde bildirim ve e-posta" diyor; eskiden yalnız bildirim düşüyordu.
  */

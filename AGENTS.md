@@ -2363,3 +2363,12 @@ altında kalan yazı, kesişen blok yazılar): gerçek taşma ve binme yok. Sat�
 ve kartın köşesindeki mutlak rozetler yanlış alarmdır; ölçüde satır içi öğeler dışlanır.
 
 Bekçi: `dost-katmani.test.tsx` (satır öncelikleri, kararlı seçim, ilk söz, ders kartı, koç, hatırlatma, tahmin kapısı, ruh hali ucu).
+
+### Şifre sıfırlama bizim hattımızdan, canlı duman testi (8 Kasım 2026)
+
+| Kural | Nerede |
+|---|---|
+| **Şifre sıfırlama e-postası bizim posta hattımızdan** (Resend, yoksa SMTP): Supabase'in kendi gönderimi (saatte 30, Gmail SMTP) gelmiyordu. Bağlantı sunucuda `auth.admin.generateLink({type:"recovery"})` ile üretilir (e-posta göndermez), `/auth/confirm?token_hash=…&type=recovery&next=/sifre-yenile` olarak gider; tarayıcıya bağlı değil. Uç her durumda `{ok:true}` (kayıtlı adres sınanamaz); IP başına 10 dk'da 5, adres başına saatte 3. Uç düşerse sayfa eski Supabase yoluna döner. Google ile açılmış hesaba şifre eklemenin yolu da bu | `password-reset.ts`, `api/auth/sifre-sifirla`, `sifremi-unuttum/page.tsx`, `mailer.ts` `sendPasswordResetEmail` |
+| **Canlı duman testi** (`.github/workflows/canli-duman.yml`) her üretim yayınından sonra test hesabıyla girer. Giriş artık yolun kendisini bekler (`/giris?next=/ogretmen` "girdi" sayılmıyordu); düşerse ekrandaki uyarı hata iletisine yazılır. **Hata kaydı (artifact) yüklenmez:** Playwright sayfa görüntüsü giriş kutularının içeriğini, yani şifreyi düz yazıyla taşıyordu (8 Kasım'da bir kayıt bu yüzden silindi). Test hesabı e-posta + şifreyle girebilmeli (Google'la açılmış hesabın şifresi yoktur) | `auth.setup.ts` |
+
+Bekçi: `sifre-sifirla.test.ts`.

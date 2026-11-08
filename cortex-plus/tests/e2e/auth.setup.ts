@@ -51,7 +51,29 @@ setup("authenticate", async ({ page }) => {
   await page.getByLabel("Şifre", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Giriş yap" }).click();
 
-  await expect(page).toHaveURL(/\/ogretmen/, { timeout: 45_000 });
+  /*
+    Canlı duman testi (8 Kasım 2026): eski kontrol `/\/ogretmen/` giriş sayfasının kendi adresini
+    (`/giris?next=/ogretmen`) de geçiriyordu; giriş düşse bile "girdi" sayılıp üst çubuk beklenirken zaman aşımı
+    oluyordu ve nedeni görünmüyordu. Artık yolun kendisi beklenir; giriş sayfasında kalınırsa ekrandaki uyarı (yanlış
+    şifre, doğrulanmamış e-posta, hız sınırı) hata iletisine yazılır. Kimlik bilgisi iletide yer almaz.
+  */
+  const landed = await page
+    .waitForURL((url) => url.pathname.startsWith("/ogretmen") || url.pathname.startsWith("/onboarding"), {
+      timeout: 45_000,
+    })
+    .then(() => true)
+    .catch(() => false);
+  if (!landed) {
+    const notices = await page
+      .locator("[data-sonner-toast], [role='status'], [role='alert']")
+      .allInnerTexts()
+      .catch(() => [] as string[]);
+    const shown = notices.map((text) => text.trim()).filter(Boolean).join(" | ") || "ekranda uyarı yok";
+    throw new Error(`Giriş tamamlanmadı: adres ${new URL(page.url()).pathname}; ekrandaki uyarı: ${shown}`);
+  }
+  if (new URL(page.url()).pathname.startsWith("/onboarding")) {
+    throw new Error("Test hesabı kurulumu (onboarding) bitirmemiş: hesapla bir kez girip kurulumu tamamlayın.");
+  }
   await expect(page.locator("header.cp-sor-top")).toBeVisible({
     timeout: 30_000,
   });
