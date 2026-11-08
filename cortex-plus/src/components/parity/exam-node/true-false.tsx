@@ -8,7 +8,7 @@ import { trueFalseExplanation } from "@/lib/learning/true-false-quality";
 import type { NodeLifecycle } from "./use-node-lifecycle";
 
 export function TrueFalsePlay({ life }: { life: NodeLifecycle }) {
-  const { stage, loading, payload, index, setIndex, answers, tfRevealed, setTfRevealed, finish, updateAnswer, items } = life;
+  const { stage, loading, payload, index, setIndex, answers, tfRevealed, setTfRevealed, finish, updateAnswer, items, mood } = life;
   // Koç katmanı (7 Kasım 2026): bu önermeden önceki art arda doğrular.
   let streakBefore = 0;
   for (let at = index - 1; at >= 0; at -= 1) {
@@ -32,6 +32,7 @@ export function TrueFalsePlay({ life }: { life: NodeLifecycle }) {
             explanation={<RichBody text={trueFalseExplanation(items[index])} />}
             nextLabel={index + 1 < items.length ? "Sonraki önerme" : "Bitir"}
             streakBefore={streakBefore}
+            mood={mood}
             onPick={(value) => {
               if (tfRevealed) return;
               updateAnswer(String(index), value);

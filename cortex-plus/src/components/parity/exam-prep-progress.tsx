@@ -147,7 +147,7 @@ export function ExamPrepProgress({
               </>
             ) : (
               <>
-                <h3>Tahmin, ilk dersinden sonra görünür</h3>
+                <h3>Tahmin için biraz daha veri gerekiyor</h3>
                 <p>{view.forecast.reason}</p>
               </>
             )}

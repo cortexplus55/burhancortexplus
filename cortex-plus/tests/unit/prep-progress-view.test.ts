@@ -42,7 +42,9 @@ const base = {
 };
 
 describe("hazırlık ilerleme görünümü (kıyas ürünü düzeni)", () => {
-  it("tahmin ilk dersten önce yok, ilk dersten sonra var (19 Ekim 2026: kıyas ürünü ilk dersten hemen sonra gösteriyor)", () => {
+  // 8 Kasım 2026 (ürün sahibi: "tahmin gerçek olsun"): tek dersten ve tek günden tahmin türetilmez; iki ayrı günde
+  // puanlı çalışma gerekir. 19 Ekim'in "ilk dersten hemen sonra" kararı bilerek değişti.
+  it("tahmin ilk dersten önce yok; iki günlük puanlı çalışmadan sonra var", () => {
     const none = buildPrepProgressView({
       ...base,
       nodes: nodes.map((n) => (LESSON_KINDS_FOR_TEST.has(n.kind) ? { ...n, status: "ready" as const } : n)),
@@ -54,10 +56,12 @@ describe("hazırlık ilerleme görünümü (kıyas ürünü düzeni)", () => {
       ...base,
       nodes: nodes.map((n) => (n.id === "l2" ? { ...n, status: "ready" as const } : n)),
       examDate: "2026-10-13",
-      // Aynı ders bugün iki kez kaydedilmiş ("Dersi tekrarla"): bugün 1 ders sayılır, 2 değil.
+      // Aynı ders bugün iki kez kaydedilmiş ("Dersi tekrarla"): bugün 1 ders sayılır, 2 değil. Dünkü puanlı
+      // çalışma tahmin kapısını açar (iki ayrı gün).
       attempts: [
         { nodeId: "l1", score: 3, total: 3, createdAt: daysAgo(0) },
         { nodeId: "l1", score: 3, total: 3, createdAt: daysAgo(0) },
+        { nodeId: "l1", score: 2, total: 3, createdAt: daysAgo(1) },
       ],
       measuredReadinessPct: 2,
     });

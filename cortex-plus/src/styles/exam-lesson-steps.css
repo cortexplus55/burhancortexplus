@@ -1771,3 +1771,48 @@
   gap: 0.35rem;
   margin: 0;
 }
+
+/* Genel bilgi kutusu açılır-kapanır (8 Kasım 2026): başlık ve etiket özet satırında; ok işareti sağda. */
+.als-note--fold {
+  padding: 0;
+}
+.als-note--fold > summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0.55rem 0.85rem;
+  cursor: pointer;
+  list-style: none;
+}
+.als-note--fold > summary::-webkit-details-marker {
+  display: none;
+}
+.als-note--fold > summary::after {
+  content: "";
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-left: auto;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+  opacity: 0.6;
+  transition: transform 160ms ease;
+}
+.als-note--fold[open] > summary::after {
+  transform: rotate(-135deg);
+}
+.als-note--fold > summary .als-note-title {
+  margin: 0;
+  min-width: 0;
+}
+.als-note--fold > .als-note-body {
+  padding: 0 0.85rem 0.7rem;
+}
+
+/* Ders açılışında ruh hali cümlesi (dost katmanı). */
+.cp-open-mood-line {
+  margin-top: 0.35rem;
+  color: var(--cp-text, #f2f2f2);
+}

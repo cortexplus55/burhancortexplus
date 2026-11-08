@@ -75,7 +75,9 @@ export function PrepForecastChart({ series: raw }: { series: ReadinessForecastSe
       </svg>
       <figcaption className="cp-forecast-caption">
         Hazırlık %{series.currentPct}
-        {series.hitsTargetOn != null && series.hitsTargetOn > 0
+        {series.pending
+          ? " · tahmin için biraz daha veri gerekiyor"
+          : series.hitsTargetOn != null && series.hitsTargetOn > 0
           ? ` · hedefe ~${series.hitsTargetOn} günde`
           : series.hitsTargetOn === 0
             ? " · hedef bandındasın"

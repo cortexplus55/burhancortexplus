@@ -438,7 +438,28 @@ export function buildPrepProgressView(input: {
 
   const examTime = input.examDate ? Date.parse(input.examDate) : Number.NaN;
   const daysToExam = Number.isFinite(examTime) ? Math.max(1, Math.ceil((examTime - now) / DAY_MS)) : null;
-  const gainPerLessonPct = lessonsDone > 0 && scorePct > 0 ? Math.max(1, Math.round(scorePct / lessonsDone)) : 0;
+  /*
+    Tahmin kapısı (8 Kasım 2026, ürün sahibi: "tahmin tamamen gerçek olsun, saçma sapan kurgu olmasın"). Tek dersten
+    "+%2 → 37 ders → ~13 günde" türetiliyordu; test doğruluğu %0 iken bile "hedefe ~2 günde" yazdı. Tempo ve tahmin
+    ancak şu üçü birlikte varsa: ölçülen hazırlık, en az iki ayrı çalışma günü, puanlı etkinliklerde en az bir doğru.
+  */
+  const scoredAttempts = completed.filter((attempt) => (attempt.total ?? 0) > 0);
+  const scoredCorrect = scoredAttempts.reduce((sum, attempt) => sum + Math.max(0, attempt.score ?? 0), 0);
+  const activeDays = new Set(
+    completed.map((attempt) => Date.parse(attempt.createdAt)).filter(Number.isFinite).map((time) => istanbulDay(new Date(time))),
+  ).size;
+  const forecastGate: { kind: "waiting"; reason: string } | null =
+    typeof measured !== "number"
+      ? { kind: "waiting", reason: "Tahmin yalnız ölçülen hazırlığa dayanır; bir test çözünce görünür." }
+      : scoredAttempts.length === 0
+        ? { kind: "waiting", reason: "Tahmin yalnız çözdüğün sorulara dayanır: önce bir test çöz." }
+        : scoredCorrect === 0
+          ? { kind: "waiting", reason: "Ölçülen doğruluk henüz %0; bir konuyu çalışıp testini çöz, tahmin ondan sonra." }
+          : activeDays < 2
+            ? { kind: "waiting", reason: "Tek günden eğilim çıkmaz; ikinci çalışma gününden sonra görünür." }
+            : null;
+  const gainPerLessonPct =
+    !forecastGate && lessonsDone > 0 && scorePct > 0 ? Math.max(1, Math.round(scorePct / lessonsDone)) : 0;
   const plannedLessonDays = plannedLessonDates(input.nodes, istanbulDay(new Date(now)));
   const pace: PrepProgressView["pace"] =
     gainPerLessonPct > 0
@@ -491,6 +512,8 @@ export function buildPrepProgressView(input: {
     };
   } else if (!Number.isFinite(examTime)) {
     forecast = { kind: "waiting", reason: "Sınav tarihi girilince tahmin görünür." };
+  } else if (forecastGate) {
+    forecast = forecastGate;
   } else if (!pace || pace.daysToFinish == null) {
     forecast = {
       kind: "ready",
@@ -544,7 +567,8 @@ export function buildPrepProgressView(input: {
     coverageText: measuredTopics == null ? null : coverageLine(measuredTopics, labels.length),
     lessonsDone,
     forecast,
-    forecastSeries: buildReadinessForecastSeries({
+    forecastSeries: {
+      ...buildReadinessForecastSeries({
       currentPct: scorePct,
       targetPct,
       gainPerDay: gainPerLessonPct > 0 ? Math.min(6, gainPerLessonPct) : 0,
@@ -558,7 +582,9 @@ export function buildPrepProgressView(input: {
               pct: scorePct + gainPerLessonPct * plannedLessonDays.length,
             }
           : null,
-    }),
+      }),
+      ...(forecastGate || lessonsDone < FORECAST_MIN_LESSONS ? { pending: true, hitsTargetOn: null } : {}),
+    },
     pace,
     gapsMeasured,
     // Eski kayıtların "(boş)" / "Doğru" önizlemesi yazılmaz; yalnız şık taşıyan satır listeye girmez (Paket I #7).

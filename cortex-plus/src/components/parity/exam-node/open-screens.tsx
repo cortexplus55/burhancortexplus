@@ -7,6 +7,7 @@ import { NodeGenerationProgress, preparingTitle } from "@/components/parity/node
 import { LessonOpenChrome } from "@/components/parity/lesson-open-chrome";
 import { difficultyFromFamiliarity, markSignalsSkipped, saveSignalsChoice, stepAfterMood } from "@/lib/learning/lesson-open";
 import { activityDurationMinutes } from "@/lib/learning/activity-duration";
+import { moodAcknowledgement } from "@/lib/companion/voice";
 import { startActionLabel } from "@/lib/learning/feedback-copy";
 import { PodcastFormatPicker } from "@/components/parity/podcast-format-picker";
 import { DifficultyPicker } from "@/components/parity/difficulty-picker";
@@ -70,7 +71,7 @@ export function OpenSignals({ life }: { life: NodeLifecycle }) {
 
 export function SetupScreens({ life }: { life: NodeLifecycle }) {
   const { instantLesson } = life;
-  const { prepId, nodeId, kind, prepTitle, reviewSaved, rewriteHref, rewriteLesson, autoOpening, sourceName, unitTitle, activityMinutes, router, topicLabel, meta, stage, setStage, familiarity, difficulty, setDifficulty, podcastLength, setPodcastLength, voiceLocked, voiceMode, setVoiceMode, loading, generationError, queueNote, generationFailure, setPaywall, setPaywallGate, start } = life;
+  const { prepId, nodeId, kind, prepTitle, reviewSaved, rewriteHref, rewriteLesson, autoOpening, sourceName, unitTitle, activityMinutes, router, topicLabel, meta, stage, setStage, familiarity, difficulty, setDifficulty, podcastLength, setPodcastLength, voiceLocked, voiceMode, setVoiceMode, loading, generationError, queueNote, generationFailure, setPaywall, setPaywallGate, start, mood } = life;
   return (
     <>
       {stage === "setup" && !loading && reviewSaved && generationError ? (
@@ -120,6 +121,10 @@ export function SetupScreens({ life }: { life: NodeLifecycle }) {
               : null
           }
           topicLabel={unitTitle ?? topicLabel}
+          moodLine={moodAcknowledgement(
+            mood,
+            typeof activityMinutes === "number" && activityMinutes > 0 ? activityDurationMinutes(kind, { known: activityMinutes }) : null,
+          )}
           familiarity={familiarity}
           onChangeLevel={() => setStage("familiarity")}
           busy={loading}

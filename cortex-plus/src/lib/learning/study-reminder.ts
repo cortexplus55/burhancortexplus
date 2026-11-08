@@ -168,7 +168,7 @@ export function pickReminder(input: ReminderInput): Reminder | null {
     return {
       kind: "streak",
       title: `${input.streakDays} günlük serin bugün kırılıyor`,
-      body: "Tek bir adım seriyi sürdürmeye yeter.",
+      body: "Tek bir kısa adım yeter; seriyi birlikte koruyalım.",
     };
   }
 
@@ -181,6 +181,15 @@ export function pickReminder(input: ReminderInput): Reminder | null {
   }
 
   if (input.hoursSinceActivity === null || input.hoursSinceActivity >= IDLE_HOURS) {
+    // Dost katmanı (8 Kasım 2026): üç gün ve üstü arada "spora birlikte giden arkadaş" sesi; azar yok, sayı gerçek.
+    const days = input.hoursSinceActivity === null ? null : Math.floor(input.hoursSinceActivity / 24);
+    if (days !== null && days >= 3) {
+      return {
+        kind: "idle",
+        title: `${days} gündür görüşmedik`,
+        body: "Dert değil; kaldığın yer hâlâ burada. Beş dakika, tek adım, gerisi yarın.",
+      };
+    }
     return {
       kind: "idle",
       title: "Kaldığın yer seni bekliyor",

@@ -13,7 +13,7 @@ import { sameOptionSet, selectedOptions } from "@/lib/learning/exam-quiz";
 import type { NodeLifecycle } from "./use-node-lifecycle";
 
 export function QuizPlay({ life }: { life: NodeLifecycle }) {
-  const { sources, stage, loading, payload, setPayload, attemptId, markHint, index, setIndex, answers, revealedRef, lockAnswer, isTimedExam, finish, updateAnswer, questions, quizBuilding } = life;
+  const { sources, stage, loading, payload, setPayload, attemptId, markHint, index, setIndex, answers, revealedRef, lockAnswer, isTimedExam, finish, updateAnswer, questions, quizBuilding, mood } = life;
   // Koç katmanı (7 Kasım 2026): bu sorudan önceki art arda doğrular (yalnız kilitlenmiş cevaplar) ve bu soruda ipucu.
   const [hintAt, setHintAt] = useState<Record<string, boolean>>({});
   let streakBefore = 0;
@@ -59,6 +59,7 @@ export function QuizPlay({ life }: { life: NodeLifecycle }) {
             onReveal={() => lockAnswer(String(index))}
             locked={revealedRef.current.has(String(index))}
             streakBefore={isTimedExam ? 0 : streakBefore}
+            mood={isTimedExam ? null : mood}
             usedHint={Boolean(hintAt[String(index)])}
             onContinue={() => {
               if (index + 1 < questions.length) {

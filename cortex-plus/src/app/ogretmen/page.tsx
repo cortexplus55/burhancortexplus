@@ -13,7 +13,9 @@ import { isPremiumUser } from "@/lib/ai/generate";
 import { parseTutorStyle, tutorStyleLabel } from "@/lib/learning/tutor-style";
 import { messageFeedbackEnabled } from "@/lib/learning/message-feedback";
 import { turkishLower } from "@/lib/text/turkish";
-import { startGreetingFor } from "@/lib/student/first-prompts";
+import { homeLine, startGreeting as companionStartGreeting } from "@/lib/companion/voice";
+import { loadActivityDays, loadTodayMood } from "@/lib/companion/today-mood";
+import { istanbulDay } from "@/lib/istanbul-day";
 import { getStudentAccountContext } from "@/lib/student/account-context";
 import { getUserStreak } from "@/lib/streak/record-activity";
 import { FirstStepLauncher } from "@/components/parity/first-step-launcher";
@@ -140,8 +142,26 @@ export default async function OgretmenPage({
   // ekranda "i̇yi günler" diye çift noktalı görünüyordu.
   const greetingLine = `${firstName}, ${turkishLower(timeGreeting)}!${moon}`;
   const goalText = goal?.goal_text ?? null;
-  // Başla (8 Kasım 2026): öğretmen ilk sözü kendisi söyler, öğrenci adına talimat cümlesi gönderilmez; model çağrısı yok.
-  const startGreeting = startGreetingFor(firstName);
+  // Dost katmanı (8 Kasım 2026): selamın altındaki satır ve öğretmenin ilk sözü gerçek sinyallerden (ruh hali, seri,
+  // son çalışmadan beri geçen gün, sınava kalan gün, sıradaki adım). Model çağrısı yok; okuma düşerse sade selam.
+  const [todayMood, activity] = await Promise.all([
+    loadTodayMood(supabase, user.id).catch(() => null),
+    loadActivityDays(supabase, user.id).catch(() => ({ daysSinceLast: null, streak })),
+  ]);
+  const hour = Number(
+    new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Istanbul", hour: "2-digit", hourCycle: "h23" }).format(new Date()),
+  );
+  const companionSignals = {
+    firstName: firstName === "Merhaba" ? null : firstName,
+    mood: todayMood,
+    streak: activity.streak || streak,
+    daysSinceLast: activity.daysSinceLast,
+    examDaysLeft: countdown?.state === "countdown" ? countdown.daysLeft : null,
+    examTitle: countdown?.state === "countdown" ? countdown.examTitle : null,
+    hour,
+    seed: istanbulDay(),
+  };
+  const startGreeting = companionStartGreeting(companionSignals);
   const style = parseTutorStyle(profile?.tutor_style);
   // Ana ekran öğretmenle sohbet alanıdır (8 Kasım 2026, ürün sahibi): selam, Başla ve hiç hazırlığı olmayan öğrenciye
   // ilk adım kartları. Plus kartı ve stüdyo kartları burada yok; stüdyolar üstteki "Çalışma Stüdyosu" sekmesinde.
@@ -153,6 +173,14 @@ export default async function OgretmenPage({
           .then((skip) => loadContinueStep(supabase, user.id, skip))
           .catch(() => null)
       : null;
+  const greetingSubline = params.sohbet
+    ? undefined
+    : homeLine({
+        ...companionSignals,
+        nextStep: continueStep
+          ? { heading: continueStep.next.heading, kindLabel: continueStep.next.kindLabel, minutes: continueStep.next.minutes }
+          : null,
+      }).text;
   const heroCards =
     !params.sohbet && prepCount === 0 ? (
       <FirstStepLauncher firstName={firstName} gradeLevel={profile?.grade_level} goalText={goalText} />
@@ -180,6 +208,7 @@ export default async function OgretmenPage({
         composerMode="parity"
         feedbackEnabled={feedbackOn}
         greetingLine={greetingLine}
+        greetingSubline={greetingSubline}
         startGreeting={startGreeting}
         showEmptyStarter
         startLabel="Başla"

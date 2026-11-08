@@ -69,17 +69,17 @@ export function familiarityPrompt(level: Familiarity): string {
 export function moodPrompt(mood: Mood): string {
   switch (mood) {
     case "ready":
-      return "Öğrencinin enerjisi yüksek: tempoyu yüksek tut, doğrudan ilerle, fazla ısınma turu yapma.";
+      return "Öğrenci bugün 'hazırım' dedi: tempoyu yüksek tut, doğrudan ilerle, ısınma turu yapma; zorlayıcı bir soruyla meydan oku ve başardığında bunu açıkça söyle.";
     case "curious":
-      return "Öğrenci meraklı: 'neden böyle' sorularına yer ver, konuyu bağlamıyla birlikte anlat.";
+      return "Öğrenci bugün 'meraklı' dedi: 'neden böyle' sorularına yer ver, konuyu bağlamıyla anlat, merakını bir adım ileri taşıyan tek bir soru bırak.";
     case "calm":
-      return "Öğrenci sakin: ölçülü ve akıcı bir tonla, aceleye getirmeden anlat.";
+      return "Öğrenci bugün 'sakin' dedi: ölçülü ve akıcı bir tonla, aceleye getirmeden anlat.";
     case "low_energy":
-      return "Öğrencinin enerjisi düşük: içeriği kısa parçalara böl, cümleleri kısa tut, bilişsel yükü azalt, tek seferde az şey iste.";
+      return "Öğrenci bugün 'enerjim düşük' dedi: bir arkadaş gibi davran; cümleleri kısa tut, tek seferde tek şey iste, küçük ilerlemeyi gör ve söyle ('bu kadarı bugün için yeter'), uzun liste verme.";
     case "stressed":
-      return "Öğrenci stresli: adımları kısa ve net tut, sınav baskısını vurgulama.";
+      return "Öğrenci bugün 'stresli' dedi: önce sakinleştir (bir cümle, abartısız), sonra tek bir küçük adım ver; sınav baskısını, 'yetişemezsin' tonunu ve uzun planları kullanma; yanlışta azarlama, yolu göster.";
     default:
-      return "Öğrenci nötr: dengeli ve net bir tonla anlat.";
+      return "Öğrenci nötr: dengeli, sıcak ve net bir tonla anlat.";
   }
 }
 

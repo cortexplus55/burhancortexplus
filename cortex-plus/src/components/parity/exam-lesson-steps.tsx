@@ -353,11 +353,23 @@ function LessonBlocks({
           case "diagram_card":
             return <DiagramCard key={key} card={block} id={key} />;
           case "note":
+            // Genel bilgi kutusu kapalı başlar (8 Kasım 2026): belgede olmayan destek bilgisi; telefonda tek ekranda
+            // metin + iki genel bilgi + sınav tuzağı üst üste geliyordu. Başlık görünür, dokununca açılır.
+            if (calloutTone(block.note) === "general") {
+              return (
+                <details key={key} className="als-note als-note--general als-note--fold">
+                  <summary>
+                    <span className="als-kicker als-kicker--general">Genel bilgi</span>
+                    <span className="als-note-title">{sanitizeStudentContent(block.note.title)}</span>
+                  </summary>
+                  <p className="als-note-body">
+                    <RichBody text={block.note.body} topicHint={topicHint} />
+                  </p>
+                </details>
+              );
+            }
             return (
               <aside key={key} className={`als-note als-note--${calloutTone(block.note)}`}>
-                {calloutTone(block.note) === "general" ? (
-                  <p className="als-kicker als-kicker--general">Genel bilgi</p>
-                ) : null}
                 <p className="als-note-title">{sanitizeStudentContent(block.note.title)}</p>
                 <p className="als-note-body">
                   <RichBody text={block.note.body} topicHint={topicHint} />
