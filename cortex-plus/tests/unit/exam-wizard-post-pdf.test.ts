@@ -40,7 +40,7 @@ describe("post-PDF wizard order", () => {
     );
     expect(wizard).toContain("WIZARD_COPY");
     expect(wizard).toContain("WIZARD_STEP_ORDER");
-    expect(WIZARD_COPY.languageTitle).toBe("Dil");
+    expect(WIZARD_COPY.languageTitle).toBe("Hangi dilde çalışalım?");
     expect(WIZARD_COPY.analyzing).toBe("Dosyaların inceleniyor...");
     expect(WIZARD_COPY.shapingTitle).toBe("Konular hazırlanıyor...");
     expect(WIZARD_COPY.editTopic).toBe("Konuyu değiştir");

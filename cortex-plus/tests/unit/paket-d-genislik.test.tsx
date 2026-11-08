@@ -173,7 +173,7 @@ describe("Paket D · hazır müfredattan başlangıç", () => {
   });
 
   it("seçim sohbeti dolu istemle açar ve istem kendiliğinden gönderilir", () => {
-    expect(WIZARD_COPY.pickCurriculum).toBe("📚 Dosyam Yok — Resmî MEB / ÖSYM Müfredatından Seç");
+    expect(WIZARD_COPY.pickCurriculum).toBe("Dosyam yok — resmî MEB / ÖSYM müfredatından seç");
     const entry = read("src/components/parity/exam-create-entry.tsx");
     expect(entry).toContain("initialPrompt={picked?.prompt ?? initialPrompt}");
     expect(entry).toContain("autoStart={Boolean(picked?.prompt)}");

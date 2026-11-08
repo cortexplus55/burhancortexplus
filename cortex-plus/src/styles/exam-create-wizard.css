@@ -1953,3 +1953,1346 @@
   font-size: 0.875rem;
   font-weight: 600;
 }
+
+/* ===========================================================================
+   Kurulum 2.0 (8 Kasım 2026, ürün sahibi: "daha premium, profesyonel, samimi; üstünde düşünülmüş").
+
+   Kural: seçim mavi (--c-action), tamam yeşil (--c-success), sarı yalnız "hedef puan". Eski mor seçimler
+   ve mavi-mor geçişli düğmeler bu katmanda maviye döner. Büyük harfli izli etiket yok; etiketler cümle düzeninde.
+
+   İmza öge: "Hazırlığın" kartı (exam-wizard-chrome.tsx). Cevaplar geldikçe satır satır dolar; masaüstünde sağda
+   yapışkan, telefonda adım çubuğunun altında yatay şerit. Geri kalan her şey sessiz: başlık, öğretmenin cümlesi,
+   seçenekler, tek mavi düğme.
+   =========================================================================== */
+
+.apw {
+  --apw-sel: var(--c-action, #4353f3);
+  --apw-sel-hover: var(--c-action-hover, #4b5af4);
+  --apw-sel-soft: color-mix(in srgb, var(--c-action, #4353f3) 14%, transparent);
+  --apw-sel-ring: color-mix(in srgb, var(--c-action, #4353f3) 60%, transparent);
+  --apw-ok: var(--c-success, #1dd3a2);
+  --apw-line: var(--c-border, #242424);
+  --apw-line-2: var(--c-border-strong, #303030);
+  --apw-s1: var(--c-surface-1, #141414);
+  --apw-s2: var(--c-surface-2, #1f1f1f);
+  --apw-text: var(--c-text, #fff);
+  --apw-muted: var(--c-text-muted, #999);
+  --apw-page: var(--c-bg, #0d0d0d);
+  width: min(40rem, 100%);
+  /* Telefonda yan boşluk (8 Kasım 2026): kabuğun ana alanı kenar boşluğu vermiyor; sihirbaz kenardan kenara yapışıktı. */
+  padding: 0.75rem clamp(1rem, 4vw, 1.5rem) 5rem;
+}
+
+/* Çerçeve: üst çubuk, kart, ana sütun. Kart yokken (fikstür) eski tek sütun. */
+.apw:has(> .apw-side) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "head" "side" "main";
+  row-gap: 0.85rem;
+}
+
+.apw-head { grid-area: head; min-width: 0; }
+.apw-side { grid-area: side; min-width: 0; }
+.apw-main { grid-area: main; min-width: 0; }
+
+@media (min-width: 1100px) {
+  .apw:has(> .apw-side) {
+    width: min(63rem, 100%);
+    grid-template-columns: minmax(0, 40rem) 18rem;
+    grid-template-areas: "head side" "main side";
+    column-gap: 3.5rem;
+    justify-content: center;
+  }
+
+  .apw-side {
+    grid-row: 1 / span 2;
+    align-self: start;
+    position: sticky;
+    top: 5.5rem;
+  }
+}
+
+/* --- Üst çubuk: geri, adım sayısı, dört aşama --- */
+
+.apw-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.apw-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 44px;
+}
+
+.apw-head-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--apw-muted);
+}
+
+.apw .apw-back {
+  gap: 0.15rem;
+  margin: 0;
+  padding: 0 0.85rem 0 0.5rem;
+  border: 1px solid var(--apw-line);
+  border-radius: 999px;
+  background: var(--apw-s1);
+  color: var(--apw-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.apw .apw-back:hover {
+  border-color: var(--apw-line-2);
+  background: var(--apw-s2);
+}
+
+.apw-head-count {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--apw-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.apw-phases-bar {
+  display: flex;
+  gap: 0.375rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.apw-phase {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  flex-basis: 0;
+  min-width: 0;
+}
+
+.apw-phase-track {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--apw-line-2);
+  overflow: hidden;
+}
+
+.apw-phase-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--apw-sel);
+  transition: width 0.4s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.apw-phase--done .apw-phase-fill {
+  background: var(--apw-ok);
+}
+
+.apw-phase-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  overflow: hidden;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--apw-muted);
+  white-space: nowrap;
+}
+
+.apw-phase--active .apw-phase-label {
+  color: var(--apw-text);
+}
+
+.apw-phase--done .apw-phase-label svg {
+  flex: none;
+  color: var(--apw-ok);
+}
+
+/* --- Hazırlığın kartı --- */
+
+.apw-ticket {
+  position: relative;
+  border: 1px solid var(--apw-line);
+  border-radius: 20px;
+  background: var(--apw-s1);
+}
+
+/* Ders seçilince kartın üst kenarı dersin rengini alır (seçim rengi değil, dersin kimliği). */
+.apw-ticket::before {
+  content: "";
+  position: absolute;
+  inset: -1px -1px auto;
+  height: 3px;
+  border-radius: 20px 20px 0 0;
+  background: var(--apw-subject);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.apw-ticket--on::before {
+  opacity: 1;
+}
+
+.apw-ticket-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.1rem 1.1rem 0.95rem;
+  border-bottom: 1px dashed var(--apw-line-2);
+}
+
+/* Bilet delikleri: kesik çizginin iki ucunda sayfa renginde yarım daire. */
+.apw-ticket-head::before,
+.apw-ticket-head::after {
+  content: "";
+  position: absolute;
+  bottom: -0.55rem;
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 999px;
+  background: var(--apw-page);
+  border: 1px solid var(--apw-line);
+}
+
+.apw-ticket-head::before {
+  left: -0.6rem;
+  clip-path: inset(0 0 0 50%);
+}
+
+.apw-ticket-head::after {
+  right: -0.6rem;
+  clip-path: inset(0 50% 0 0);
+}
+
+.apw-ticket-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 13px;
+  background: var(--apw-s2);
+  color: var(--apw-muted);
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+.apw-ticket--on .apw-ticket-icon {
+  background: color-mix(in srgb, var(--apw-subject) 16%, var(--apw-s2));
+  color: var(--apw-subject);
+}
+
+.apw-ticket-title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.apw-ticket-title small {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--apw-muted);
+}
+
+.apw-ticket-title strong {
+  overflow: hidden;
+  font-size: 1.0625rem;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.apw-ticket:not(.apw-ticket--on) .apw-ticket-title strong {
+  color: var(--apw-muted);
+  font-weight: 500;
+}
+
+.apw-ticket-rows {
+  margin: 0;
+  padding: 0.55rem 0.45rem 0.6rem;
+  list-style: none;
+}
+
+.apw-ticket-jump,
+.apw-ticket-static {
+  display: grid;
+  grid-template-columns: 1rem 4.4rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  min-height: 40px;
+  padding: 0.35rem 0.65rem;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.8125rem;
+  text-align: left;
+}
+
+.apw-ticket-jump {
+  cursor: pointer;
+}
+
+.apw-ticket-jump:hover {
+  background: var(--apw-s2);
+}
+
+.apw-ticket-jump:focus-visible {
+  outline: 2px solid var(--apw-sel);
+  outline-offset: 1px;
+}
+
+.apw-ticket-row-icon {
+  color: var(--apw-muted);
+}
+
+.apw-ticket-label {
+  color: var(--apw-muted);
+}
+
+.apw-ticket-value {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-weight: 600;
+  color: var(--apw-text);
+  overflow-wrap: anywhere;
+}
+
+.apw-ticket-value small {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--apw-muted);
+}
+
+.apw-ticket-row--empty .apw-ticket-value,
+.apw-ticket-row--empty .apw-ticket-row-icon {
+  color: var(--apw-line-2);
+  font-weight: 500;
+}
+
+/* Satır dolduğu an: kısa bir "damga". Kullanıcının seçimine cevap; başka hareket yok. */
+.apw-ticket-row:not(.apw-ticket-row--empty) .apw-ticket-value {
+  animation: apw-stamp 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes apw-stamp {
+  from {
+    opacity: 0;
+    transform: translateX(-4px);
+  }
+}
+
+/* Telefon ve tablet: kart, adım çubuğunun altında yalnız dolu satırlardan oluşan yatay şerit. */
+@media (max-width: 1099px) {
+  .apw-ticket {
+    border: 0;
+    border-radius: 0;
+    background: none;
+  }
+
+  .apw-ticket::before,
+  .apw-ticket-head {
+    display: none;
+  }
+
+  .apw-ticket-rows {
+    display: flex;
+    gap: 0.4rem;
+    margin: 0 -1rem;
+    padding: 0 1rem 0.1rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 1rem, #000 calc(100% - 1.5rem), transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 1rem, #000 calc(100% - 1.5rem), transparent);
+  }
+
+  .apw-ticket-rows::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Gizli etiketin (position: absolute) kapsayıcısı satır olsun: yoksa kaydırma kutusundan taşıp sayfayı 560 px yapıyordu. */
+  .apw-ticket-row {
+    position: relative;
+    flex: none;
+  }
+
+  .apw-ticket-row--empty {
+    display: none;
+  }
+
+  .apw-ticket-jump,
+  .apw-ticket-static {
+    display: inline-flex;
+    gap: 0.4rem;
+    width: auto;
+    min-height: 40px;
+    padding: 0 0.85rem 0 0.7rem;
+    border: 1px solid var(--apw-line);
+    border-radius: 999px;
+    background: var(--apw-s1);
+    white-space: nowrap;
+  }
+
+  .apw-ticket-row-icon {
+    color: var(--apw-text);
+  }
+
+  /* Ders satırının simgesi dersin renginde: şeritte de kimlik görünsün. */
+  .apw-ticket-row:nth-child(2) .apw-ticket-row-icon {
+    color: var(--apw-subject);
+  }
+
+  .apw-ticket-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .apw-ticket-value {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 0.35rem;
+    overflow-wrap: normal;
+  }
+
+  .apw-side:not(:has(.apw-ticket-row:not(.apw-ticket-row--empty))) {
+    display: none;
+  }
+}
+
+/* --- Adım: başlık ve öğretmenin cümlesi --- */
+
+.apw .apw-step {
+  margin-top: 0.75rem;
+  animation: apw-enter 0.24s ease-out;
+}
+
+@keyframes apw-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.apw .apw-step h1 {
+  font-size: clamp(1.5rem, 1.15rem + 1.3vw, 1.9rem);
+  font-weight: 650;
+  line-height: 1.15;
+  letter-spacing: -0.028em;
+  text-wrap: balance;
+}
+
+.apw .apw-say {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  max-width: 36rem;
+  margin: 0.7rem 0 1.5rem;
+  color: var(--apw-muted);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
+
+.apw-say-mark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  margin-top: -0.1rem;
+  border: 1px solid var(--apw-line);
+  border-radius: 999px;
+  background: var(--apw-s2);
+}
+
+.apw-say-text strong {
+  color: var(--apw-text);
+  font-weight: 600;
+}
+
+.apw .apw-step--center .apw-say {
+  justify-content: center;
+  margin-inline: auto;
+}
+
+/* Bölüm etiketleri: cümle düzeninde, metin renginde (büyük harfli izli etiket kalktı). */
+.apw .apw-sublabel,
+.apw .apw-group {
+  margin: 1.5rem 0 0.65rem;
+  font-family: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  text-transform: none;
+  color: var(--apw-text);
+}
+
+.apw .apw-step > .apw-say + .apw-sublabel {
+  margin-top: 0;
+}
+
+/* --- Ders adımı --- */
+
+.apw .apw-tracks .apw-quick-btn {
+  min-height: 42px;
+  padding: 0 1rem;
+  border: 1px solid var(--apw-line-2);
+  background: var(--apw-s1);
+  color: var(--apw-text);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.apw .apw-tracks .apw-quick-btn:hover {
+  border-color: var(--apw-sel-ring);
+}
+
+.apw .apw-tracks .apw-quick-btn--on,
+.apw .apw-tracks .apw-quick-btn--on:hover {
+  border-color: var(--apw-sel);
+  background: var(--apw-sel);
+  color: #fff;
+}
+
+.apw .apw-official-entry,
+.apw .apw-curriculum-pick {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.85rem;
+  width: 100%;
+  min-height: 68px;
+  margin: 1rem 0 0;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--apw-line-2);
+  border-radius: 16px;
+  background: var(--apw-s1);
+  color: var(--apw-text);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.apw .apw-official-entry:hover,
+.apw .apw-curriculum-pick:hover {
+  border-color: var(--apw-sel-ring);
+  background: var(--apw-s2);
+}
+
+.apw .apw-official-entry:focus-visible,
+.apw .apw-curriculum-pick:focus-visible {
+  outline: 2px solid var(--apw-sel);
+  outline-offset: 2px;
+}
+
+.apw .apw-official-entry span,
+.apw .apw-curriculum-pick span {
+  opacity: 1;
+}
+
+.apw .apw-official-entry-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 13px;
+  background: var(--apw-sel-soft);
+  color: var(--apw-sel);
+}
+
+.apw .apw-official-entry-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.apw .apw-official-entry-text strong {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.apw .apw-official-entry-text span {
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--apw-muted);
+}
+
+.apw .apw-official-entry-go {
+  flex: none;
+  color: var(--apw-muted);
+}
+
+.apw .apw-search {
+  min-height: 50px;
+  border: 1px solid var(--apw-line-2);
+  border-radius: 14px;
+  background: var(--apw-s1);
+  font-size: 1rem;
+}
+
+.apw .apw-search::placeholder {
+  color: var(--apw-muted);
+}
+
+.apw .apw-search:focus-visible {
+  outline: 2px solid var(--apw-sel);
+  outline-offset: 1px;
+  border-color: transparent;
+}
+
+.apw .apw-add-own {
+  min-height: 48px;
+  border-color: var(--apw-sel-ring);
+  border-radius: 14px;
+  color: var(--apw-sel);
+}
+
+.apw .apw-add-own:hover {
+  background: var(--apw-sel-soft);
+}
+
+.apw .apw-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+
+.apw .apw-subject-tile {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 60px;
+  padding: 0.55rem 0.7rem 0.55rem 0.6rem;
+  border: 1px solid var(--apw-line);
+  border-radius: 15px;
+  background: var(--apw-s1);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.apw .apw-subject-tile:hover {
+  border-color: var(--apw-sel-ring);
+  background: var(--apw-s2);
+}
+
+.apw .apw-subject-tile:focus-visible {
+  outline: 2px solid var(--apw-sel);
+  outline-offset: 2px;
+}
+
+.apw .apw-subject-tile span {
+  margin: 0;
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+}
+
+.apw .apw-subject-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--apw-subject) 15%, transparent);
+  color: var(--apw-subject);
+}
+
+.apw .apw-subject-name {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.apw .apw-subject-go {
+  flex: none;
+  color: var(--apw-muted);
+  opacity: 0.45;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.apw .apw-subject-tile:hover .apw-subject-go {
+  opacity: 1;
+  transform: translateX(2px);
+}
+
+/* --- Ortak seçim durumları: mor yerine mavi --- */
+
+.apw .apw-tile,
+.apw .apw-choice {
+  border-color: var(--apw-line);
+  background: var(--apw-s1);
+}
+
+.apw .apw-tile:hover,
+.apw .apw-choice:hover {
+  border-color: var(--apw-sel-ring);
+}
+
+.apw .apw-tile--on,
+.apw .apw-choice--on,
+.apw .apw-day--on,
+.apw .apw-doc-row--on,
+.apw .apw-tile--on:hover,
+.apw .apw-choice--on:hover {
+  border-color: var(--apw-sel);
+  background: var(--apw-sel-soft);
+}
+
+.apw .apw-tile:focus-visible,
+.apw .apw-choice:focus-visible,
+.apw .apw-quick-btn:focus-visible,
+.apw .apw-cal-day:focus-visible,
+.apw .apw-day:focus-visible,
+.apw .apw-doc-row:focus-visible,
+.apw .apw-add-own:focus-visible,
+.apw .apw-topics li input:focus-visible,
+.apw .apw-modal input:focus-visible {
+  outline: 2px solid var(--apw-sel);
+  outline-offset: 2px;
+}
+
+.apw .apw-cal-day--on {
+  background: var(--apw-sel);
+}
+
+.apw .apw-link {
+  color: var(--apw-sel);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+/* --- Tek mavi düğme; telefonda alt menünün üstünde, masaüstünde ekranın altında yapışkan --- */
+
+.apw .apw-cta {
+  min-height: 52px;
+  border-radius: 999px;
+  background: var(--apw-sel);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 650;
+  letter-spacing: -0.005em;
+  box-shadow:
+    0 0 0 6px var(--apw-page),
+    0 14px 30px -14px color-mix(in srgb, var(--c-action, #4353f3) 85%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.apw .apw-cta:hover:not(:disabled) {
+  background: var(--apw-sel-hover);
+}
+
+.apw .apw-cta:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.apw .apw-cta:focus-visible {
+  outline: 2px solid var(--apw-sel);
+  outline-offset: 4px;
+}
+
+/* Yapışkan düğme yarı saydam olunca altındaki içerik (takvim başlığı) içinden görünüyordu: devre dışı hâl dolu renk. */
+.apw .apw-cta:disabled {
+  opacity: 1;
+  background: var(--apw-s2);
+  color: var(--apw-muted);
+  box-shadow: 0 0 0 6px var(--apw-page), inset 0 0 0 1px var(--apw-line-2);
+}
+
+.apw .apw-step > .apw-cta {
+  position: sticky;
+  bottom: 1rem;
+  z-index: 5;
+}
+
+@media (max-width: 767px) {
+  .apw .apw-step > .apw-cta {
+    bottom: calc(4.4rem + env(safe-area-inset-bottom));
+  }
+}
+
+.apw .apw-modal-actions .apw-cta {
+  min-height: 44px;
+  box-shadow: none;
+}
+
+/* --- Tarih adımı --- */
+
+.apw .apw-card {
+  border-color: var(--apw-line);
+  border-radius: 18px;
+  background: var(--apw-s1);
+}
+
+.apw .apw-step > .apw-say + .apw-card {
+  margin-top: 0;
+}
+
+/* --- Hedef adımı --- */
+
+.apw .apw-target {
+  padding: 1.75rem 1.25rem 1.25rem;
+  border-color: var(--apw-line);
+  border-radius: 20px;
+  background: var(--apw-s1);
+}
+
+.apw .apw-target-value {
+  font-size: 4.25rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.045em;
+  background: none;
+  color: var(--apw-text);
+  -webkit-text-fill-color: currentColor;
+  font-variant-numeric: tabular-nums;
+}
+
+.apw .apw-target input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  margin-top: 1.75rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--apw-sel) var(--apw-range, 50%), var(--apw-line-2) var(--apw-range, 50%));
+  cursor: pointer;
+}
+
+.apw .apw-target input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 26px;
+  height: 26px;
+  border: 3px solid var(--apw-sel);
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 4px 14px -4px color-mix(in srgb, var(--c-action, #4353f3) 90%, transparent);
+}
+
+.apw .apw-target input[type="range"]::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border: 3px solid var(--apw-sel);
+  border-radius: 999px;
+  background: #fff;
+}
+
+.apw .apw-target input[type="range"]:focus-visible {
+  outline: 2px solid var(--apw-sel);
+  outline-offset: 6px;
+}
+
+.apw .apw-target-scale {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.35rem;
+  margin-top: 1.1rem;
+}
+
+.apw-target-mark {
+  min-height: 40px;
+  border: 1px solid var(--apw-line);
+  border-radius: 11px;
+  background: transparent;
+  color: var(--apw-muted);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.apw-target-mark:hover {
+  border-color: var(--apw-sel-ring);
+  color: var(--apw-text);
+}
+
+.apw-target-mark--on,
+.apw-target-mark--on:hover {
+  border-color: var(--apw-sel);
+  background: var(--apw-sel-soft);
+  color: var(--apw-text);
+}
+
+.apw-target-mark:focus-visible {
+  outline: 2px solid var(--apw-sel);
+  outline-offset: 2px;
+}
+
+.apw .apw-target-hint {
+  border-radius: 12px;
+  font-size: 0.875rem;
+}
+
+/* --- Materyal adımı --- */
+
+.apw .apw-drop {
+  gap: 0.4rem;
+  padding: 2.25rem 1.25rem 1.85rem;
+  border: 1.5px dashed var(--apw-line-2);
+  border-radius: 20px;
+  background: var(--apw-s1);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.apw .apw-drop--over {
+  border-color: var(--apw-sel);
+  background: var(--apw-sel-soft);
+}
+
+.apw-drop-icon {
+  display: grid;
+  place-items: center;
+  width: 3.4rem;
+  height: 3.4rem;
+  margin-bottom: 0.4rem;
+  border-radius: 17px;
+  background: var(--apw-sel-soft);
+  color: var(--apw-sel);
+}
+
+.apw .apw-drop-title {
+  font-size: 1.0625rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.apw .apw-drop-hint {
+  max-width: 28rem;
+  color: var(--apw-muted);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.apw .apw-drop-pick--main {
+  min-height: 46px;
+  margin-top: 1rem;
+  padding: 0 1.5rem;
+  border: 0;
+  background: var(--apw-sel);
+  color: #fff;
+  font-size: 0.9375rem;
+  font-weight: 650;
+}
+
+.apw .apw-drop-pick--main:hover:not(:disabled) {
+  background: var(--apw-sel-hover);
+}
+
+.apw-or {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1.35rem 0 0.15rem;
+  color: var(--apw-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.apw-or::before,
+.apw-or::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--apw-line-2);
+}
+
+.apw .apw-file-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.5rem;
+}
+
+.apw .apw-file-actions .apw-drop-pick {
+  justify-content: flex-start;
+  gap: 0.6rem;
+  min-height: 50px;
+  padding: 0 1rem;
+  border: 1px solid var(--apw-line);
+  border-radius: 14px;
+  background: var(--apw-s1);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-align: left;
+}
+
+.apw .apw-file-actions .apw-drop-pick:hover:not(:disabled),
+.apw .apw-file-actions .apw-drop-pick[aria-expanded="true"] {
+  border-color: var(--apw-sel-ring);
+  background: var(--apw-s2);
+}
+
+.apw .apw-file-actions .apw-drop-pick svg {
+  flex: none;
+  color: var(--apw-sel);
+}
+
+.apw .apw-file-actions .apw-drop-pick:focus-visible,
+.apw .apw-drop-pick--main:focus-visible {
+  outline: 2px solid var(--apw-sel);
+  outline-offset: 2px;
+}
+
+.apw .apw-doc-chip {
+  gap: 0.65rem;
+  margin-top: 0;
+  padding: 0.7rem 0.6rem 0.7rem 0.9rem;
+  border: 1px solid var(--apw-line);
+  border-radius: 14px;
+  background: var(--apw-s1);
+}
+
+.apw .apw-doc-chip > svg:first-child {
+  color: var(--apw-sel);
+}
+
+.apw .apw-doc-chip > svg:nth-of-type(2) {
+  color: var(--apw-ok);
+}
+
+.apw .apw-doc-chip button {
+  display: grid;
+  place-items: center;
+  min-width: 36px;
+  min-height: 36px;
+  border-radius: 999px;
+}
+
+.apw .apw-doc-chip button:hover {
+  background: var(--apw-s2);
+  color: var(--apw-text);
+}
+
+.apw .apw-materials {
+  margin-top: 0.75rem;
+}
+
+.apw .apw-curriculum-pick {
+  margin-top: 1.25rem;
+}
+
+/* --- Dil --- */
+
+.apw .apw-lang .apw-tile {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 62px;
+}
+
+.apw .apw-lang .apw-tile b {
+  display: grid;
+  place-items: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 11px;
+  background: var(--apw-s2);
+  color: var(--apw-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.apw .apw-lang .apw-tile--on b {
+  background: var(--apw-sel);
+  color: #fff;
+}
+
+/* --- Çalışma tarzı ve odak: onay kutulu satırlar --- */
+
+.apw .apw-choices {
+  gap: 0.5rem;
+  margin-top: 0;
+}
+
+.apw .apw-choice {
+  min-height: 58px;
+  padding: 0.85rem 1rem;
+  border-radius: 15px;
+}
+
+.apw .apw-check-box {
+  width: 1.4rem;
+  height: 1.4rem;
+  border-color: var(--apw-line-2);
+  border-radius: 7px;
+}
+
+.apw .apw-choice--on .apw-check-box {
+  border-color: var(--apw-sel);
+  background: var(--apw-sel);
+}
+
+/* --- Aşinalık: sıralı basamaklar; aradaki çizgi düzeylerin bir merdiven olduğunu gösterir --- */
+
+.apw .apw-ladder {
+  position: relative;
+}
+
+.apw .apw-ladder::before {
+  content: "";
+  position: absolute;
+  top: 1.75rem;
+  bottom: 1.75rem;
+  left: calc(1rem + 1.2rem - 1px);
+  width: 2px;
+  border-radius: 999px;
+  background: var(--apw-line-2);
+}
+
+.apw .apw-ladder .apw-choice {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.apw-ladder-emoji {
+  display: grid;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  flex: none;
+  border-radius: 12px;
+  background: var(--apw-s2);
+  font-size: 1.15rem;
+}
+
+.apw .apw-ladder .apw-choice--on .apw-ladder-emoji {
+  background: var(--apw-sel);
+}
+
+.apw-ladder-title {
+  font-weight: 600;
+}
+
+/* --- Hazırlanıyor ekranları --- */
+
+.apw .apw-step--center {
+  padding-top: 2.5rem;
+}
+
+.apw-wait-mark {
+  margin: 0 auto 1.25rem;
+}
+
+.apw .apw-stages {
+  gap: 0.9rem;
+  width: min(22rem, 100%);
+  margin-inline: auto;
+  padding: 1.1rem 1.25rem;
+  border: 1px solid var(--apw-line);
+  border-radius: 18px;
+  background: var(--apw-s1);
+}
+
+.apw .apw-stages li.is-done .apw-stage-dot {
+  background: var(--apw-ok);
+  color: var(--apw-page);
+}
+
+/* --- Konular: sıralı liste, numaralı satırlar --- */
+
+.apw .apw-step > .apw-topics {
+  counter-reset: apw-topic;
+  gap: 0.5rem;
+}
+
+.apw .apw-topics .apw-topics {
+  counter-reset: none;
+  gap: 0.5rem;
+}
+
+.apw .apw-topics > li:not(.apw-topic-unit) {
+  counter-increment: apw-topic;
+  display: grid;
+  grid-template-columns: 1.85rem minmax(0, 1fr);
+  column-gap: 0.7rem;
+  row-gap: 0.45rem;
+  align-items: start;
+  padding: 0.85rem 0.85rem 0.75rem;
+  border-color: var(--apw-line);
+  border-radius: 15px;
+  background: var(--apw-s1);
+}
+
+.apw .apw-topics > li:not(.apw-topic-unit)::before {
+  content: counter(apw-topic);
+  grid-row: 1 / span 2;
+  grid-column: 1;
+  display: grid;
+  place-items: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 9px;
+  background: var(--apw-s2);
+  color: var(--apw-muted);
+  font-size: 0.8125rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.apw .apw-topics > li:not(.apw-topic-unit) > .apw-topic-field,
+.apw .apw-topics > li:not(.apw-topic-unit) > .apw-topic-actions {
+  grid-column: 2;
+}
+
+.apw .apw-topic-field strong {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.apw .apw-topic-unit {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.apw .apw-topic-unit > .apw-group {
+  margin: 0.75rem 0 0.15rem;
+  font-size: 0.875rem;
+  color: var(--apw-muted);
+}
+
+.apw .apw-topic-edit {
+  min-height: 34px;
+  padding: 0 0.6rem;
+  border-radius: 999px;
+  color: var(--apw-muted);
+}
+
+.apw .apw-topic-edit:hover:not(:disabled) {
+  background: var(--apw-s2);
+  color: var(--apw-text);
+}
+
+/* Telefonda 44 px dokunma alanı kuralı (6 Kasım 2026 denetimi) bu katmanda da geçerli. */
+@media (max-width: 480px) {
+  .apw .apw-topic-edit {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+.apw .apw-topic-add-btn {
+  min-height: 46px;
+  margin-top: 0.6rem;
+  padding: 0 1rem;
+  border: 1px dashed var(--apw-sel-ring);
+  border-radius: 14px;
+  color: var(--apw-sel);
+}
+
+.apw .apw-topic-add-btn:hover {
+  background: var(--apw-sel-soft);
+}
+
+/* --- Plan hazır: düğmeden sonra olanlar, sırayla (gerçek bir sıra; numara bilgi taşıyor) --- */
+
+.apw-next {
+  position: relative;
+  display: grid;
+  gap: 1rem;
+  margin: 0 0 1.25rem;
+  padding: 1.15rem 1.15rem 1.2rem;
+  border: 1px solid var(--apw-line);
+  border-radius: 18px;
+  background: var(--apw-s1);
+  list-style: none;
+  counter-reset: apw-next;
+}
+
+.apw-next::before {
+  content: "";
+  position: absolute;
+  top: 2.2rem;
+  bottom: 2.2rem;
+  left: calc(1.15rem + 0.9rem - 1px);
+  width: 2px;
+  border-radius: 999px;
+  background: var(--apw-line-2);
+}
+
+.apw-next li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.8rem minmax(0, 1fr);
+  column-gap: 0.85rem;
+  counter-increment: apw-next;
+}
+
+.apw-next li::before {
+  content: counter(apw-next);
+  grid-row: 1 / span 2;
+  display: grid;
+  place-items: center;
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 999px;
+  background: var(--apw-s2);
+  box-shadow: 0 0 0 4px var(--apw-s1);
+  color: var(--apw-text);
+  font-size: 0.8125rem;
+  font-weight: 650;
+}
+
+.apw-next li:first-child::before {
+  background: var(--apw-sel);
+  color: #fff;
+}
+
+.apw-next strong {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.8rem;
+}
+
+.apw-next span {
+  color: var(--apw-muted);
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+/* --- "Kaldığın yerden devam ediyorsun" şeridi --- */
+
+.apw .apw-draft-resume {
+  margin-top: 0;
+  border-color: var(--apw-line);
+  border-radius: 14px;
+  background: var(--apw-s1);
+}
+
+.apw .apw-draft-resume .apw-ghost {
+  min-height: 40px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .apw .apw-step,
+  .apw-ticket-row:not(.apw-ticket-row--empty) .apw-ticket-value {
+    animation: none;
+  }
+
+  .apw-phase-fill,
+  .apw-ticket::before,
+  .apw-ticket-icon,
+  .apw .apw-subject-go {
+    transition: none;
+  }
+}
