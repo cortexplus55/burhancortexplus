@@ -39,6 +39,22 @@ export function turkishFold(value: string): string {
  * ekleri kabaca atar: "eşlenmesi" ~ "eşlenir"), kesişim / birleşim oranı eşiği aşarsa tekrar sayılır.
  * Derste doğru/yanlış sorusunun "Açıklama"sı ile "Doğrusu" çoğu kez aynı cümleydi.
  */
+/**
+ * Kısa cümlenin sözcük köklerinin çoğu uzun metinde zaten geçiyor mu (8 Kasım 2026): "Doğrusu · Hücre zarı seçici
+ * geçirgen yapıdadır." açıklamanın ilk yarısını yineliyordu ama iki metnin genel benzerliği düşük kalıyordu.
+ */
+export function sentenceCoveredBy(short: string, long: string, threshold = 0.75): boolean {
+  const stems = (value: string) =>
+    turkishFold(value)
+      .split(/[^a-z0-9]+/)
+      .filter((word) => word.length > 1)
+      .map((word) => word.slice(0, 5));
+  const words = [...new Set(stems(short))];
+  if (words.length < 2) return false;
+  const pool = new Set(stems(long));
+  return words.filter((word) => pool.has(word)).length / words.length >= threshold;
+}
+
 export function nearDuplicateSentence(a: string, b: string, threshold = 0.6): boolean {
   const stems = (value: string) =>
     new Set(

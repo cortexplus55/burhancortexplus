@@ -1,7 +1,7 @@
 const TOOL_LABEL: Record<string, string> = {
-  quiz: "Quiz",
+  quiz: "Konu Testi",
   tf: "Doğru / Yanlış",
-  flash: "Flashcard",
+  flash: "Kartlar",
   podcast: "Podcast",
   sozlu: "Sözlü deneme",
   yazili: "Yazılı deneme",

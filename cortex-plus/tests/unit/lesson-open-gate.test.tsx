@@ -61,9 +61,9 @@ describe("lesson open gate", () => {
     expect(screen.getByRole("heading", { name: PLAN_NODE_META.lesson.setupLabel })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: LESSON_OPEN_COPY.recommendedContinue }));
 
-    expect(screen.getByRole("heading", { name: LESSON_OPEN_COPY.exploreTitle })).toBeTruthy();
+    // Konu adı başlık; genel başlık yalnız konu yoksa.
+    expect(screen.getByRole("heading", { name: "Limit" })).toBeTruthy();
     expect(screen.getByText(LESSON_OPEN_COPY.exploreLead)).toBeTruthy();
-    expect(screen.getByText("Limit")).toBeTruthy();
     expect(screen.getByRole("button", { name: LESSON_OPEN_COPY.create })).toBeTruthy();
   });
 });

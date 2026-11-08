@@ -324,3 +324,34 @@
     --dur-count: 0ms;
   }
 }
+
+/* Sayfa geçiş çizgisi (8 Kasım 2026): bağlantıya basınca üstte ince şerit; içerikten bağımsız. */
+.cp-nav-progress {
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: 2px;
+  z-index: 2147483000;
+  pointer-events: none;
+  transform-origin: left center;
+  transform: scaleX(0);
+  opacity: 0;
+  background: linear-gradient(90deg, var(--c-action), #7c8dff);
+  box-shadow: 0 0 10px var(--c-action-soft);
+}
+.cp-nav-progress[data-state="loading"] {
+  opacity: 1;
+  animation: cp-nav-progress-crawl 8s cubic-bezier(0.1, 0.7, 0.2, 1) forwards;
+}
+.cp-nav-progress[data-state="done"] {
+  opacity: 0;
+  transform: scaleX(1);
+  transition: transform 160ms ease-out, opacity 220ms ease 120ms;
+}
+@keyframes cp-nav-progress-crawl {
+  0% { transform: scaleX(0.08); }
+  30% { transform: scaleX(0.55); }
+  100% { transform: scaleX(0.92); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cp-nav-progress[data-state="loading"] { animation: none; transform: scaleX(0.6); }
+}

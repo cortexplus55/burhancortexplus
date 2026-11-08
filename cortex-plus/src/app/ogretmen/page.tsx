@@ -18,6 +18,10 @@ import { getStudentAccountContext } from "@/lib/student/account-context";
 import { getUserStreak } from "@/lib/streak/record-activity";
 import { FirstStepLauncher } from "@/components/parity/first-step-launcher";
 import { loadNearestExamCountdown } from "@/lib/learning/exam-countdown-load";
+import { loadContinueStep } from "@/lib/learning/prep-cards";
+import { pathSkipKinds } from "@/lib/billing/node-free-meter";
+import { createServiceClient } from "@/lib/supabase/server";
+import { ContinueLine } from "@/components/parity/continue-line";
 
 export const metadata = { title: "Sor" };
 
@@ -141,9 +145,19 @@ export default async function OgretmenPage({
   const style = parseTutorStyle(profile?.tutor_style);
   // Ana ekran öğretmenle sohbet alanıdır (8 Kasım 2026, ürün sahibi): selam, Başla ve hiç hazırlığı olmayan öğrenciye
   // ilk adım kartları. Plus kartı ve stüdyo kartları burada yok; stüdyolar üstteki "Çalışma Stüdyosu" sekmesinde.
+  // Hazırlığı olan öğrenciye tek satır "Kaldığın yerden devam" (8 Kasım 2026); okuma düşerse satır yok.
+  const continueStep =
+    !params.sohbet && (prepCount ?? 0) > 0
+      ? await pathSkipKinds(createServiceClient(), user.id)
+          .catch(() => new Set<string>())
+          .then((skip) => loadContinueStep(supabase, user.id, skip))
+          .catch(() => null)
+      : null;
   const heroCards =
     !params.sohbet && prepCount === 0 ? (
       <FirstStepLauncher firstName={firstName} gradeLevel={profile?.grade_level} goalText={goalText} />
+    ) : continueStep ? (
+      <ContinueLine step={continueStep} />
     ) : undefined;
   const avatar = profile?.avatar_url as string | null | undefined;
 

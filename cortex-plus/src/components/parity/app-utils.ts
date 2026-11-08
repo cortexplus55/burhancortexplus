@@ -2,7 +2,11 @@
 
 export function parityGreetingName(fullName: string | null | undefined): string {
   if (!fullName?.trim()) return "Merhaba";
-  return fullName.trim().split(/\s+/)[0] ?? "Merhaba";
+  const first = fullName.trim().split(/\s+/)[0] ?? "";
+  // Ad yoksa e-posta geliyor: selamda adres yazılmaz (8 Kasım 2026).
+  if (!first || first.includes("@")) return "Merhaba";
+  // Kayıtta küçük harfle yazılan ad selamda "burhan" görünüyordu; baş harf Türkçe kurala göre büyür, gerisine dokunulmaz.
+  return first.charAt(0).toLocaleUpperCase("tr-TR") + first.slice(1);
 }
 
 /**

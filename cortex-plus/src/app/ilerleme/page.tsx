@@ -157,7 +157,7 @@ export default async function IlerlemePage() {
       value: conversations.count ?? 0,
       href: "/sohbetler",
     },
-    { label: "Quiz", value: quizzes.count ?? 0, href: "/quizler" },
+    { label: "Test", value: quizzes.count ?? 0, href: "/quizler" },
     { label: "Kart seti", value: flashcards.count ?? 0, href: "/flashcardlar" },
     {
       label: "Deneme ortalaması",

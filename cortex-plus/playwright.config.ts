@@ -12,14 +12,21 @@ loadEnvConfig(process.cwd());
 
 const AUTH_FILE = path.join(__dirname, "playwright/.auth/user.json");
 
+/*
+  Canlı duman testi (8 Kasım 2026, `.github/workflows/canli-duman.yml`): `E2E_BASE_URL` verilirse yerel sunucu
+  kalkmaz, testler o adrese (cortexplus.app) karşı koşar. Yalnız `chromium-authenticated` projesiyle çalıştırılır;
+  örnek ekranlar (/e2e/*) canlıda yok.
+*/
+const LIVE_BASE_URL = process.env.E2E_BASE_URL?.trim() || "";
+
 export default defineConfig({
   testDir: "tests/e2e",
   fullyParallel: true,
   use: {
-    baseURL: "http://127.0.0.1:3005",
+    baseURL: LIVE_BASE_URL || "http://127.0.0.1:3005",
     trace: "on-first-retry",
   },
-  webServer: {
+  webServer: LIVE_BASE_URL ? undefined : {
     command: "npx next dev -p 3005",
     url: "http://127.0.0.1:3005",
     reuseExistingServer: !process.env.CI,

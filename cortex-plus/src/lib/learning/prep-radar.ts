@@ -4,7 +4,9 @@
  */
 
 export const PREP_RADAR_AXES = [
-  { id: "coverage", label: "Konu Kapsamı" },
+  // "Konu Kapsamı" diyordu (8 Kasım 2026): deneme her konudan sorunca %100 çıkıyor, kartta "0/5 konu" (biten ders)
+  // yazarken çelişki gibi okunuyordu. Eksen biten dersi değil, en az 3 cevapla ölçülen konuları sayar.
+  { id: "coverage", label: "Ölçülen Konular" },
   { id: "accuracy", label: "Test Doğruluğu" },
   { id: "mock", label: "Deneme Performansı" },
   { id: "retention", label: "Tekrar & Kalıcılık" },

@@ -31,20 +31,22 @@ export type ScheduleRefreshReason =
 export async function maybeRescheduleMissedDays(
   service: SupabaseClient,
   userId: string,
-  options: { force?: boolean; reason?: ScheduleRefreshReason } = {},
+  options: { force?: boolean; reason?: ScheduleRefreshReason; prepId?: string } = {},
 ): Promise<void> {
   if (!(await isFeatureEnabled(service, PDF_LEARNING_V2_FLAG))) return;
 
   const today = istanbulToday();
-  const { data: preps } = await service
+  let query = service
     .from("exam_preps")
     .select(
       "id, exam_date, daily_minutes, study_days, hard_topics_self, schedule_v2, target_score",
     )
     .eq("user_id", userId)
     .not("exam_date", "is", null)
-    .not("schedule_v2", "is", null)
-    .limit(2);
+    .not("schedule_v2", "is", null);
+  // Hazırlık sayfası açılınca yalnız o hazırlık (8 Kasım 2026); deneme notlanınca en yeni iki hazırlık.
+  query = options.prepId ? query.eq("id", options.prepId) : query.order("created_at", { ascending: false });
+  const { data: preps } = await query.limit(2);
 
   for (const prep of preps ?? []) {
     const previous = prep.schedule_v2 as ScheduleBuildResult | null;

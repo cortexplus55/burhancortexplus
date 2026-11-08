@@ -3,6 +3,7 @@
 import { ChatPanel } from "@/components/chat/chat-panel";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { FirstStepLauncher } from "@/components/parity/first-step-launcher";
+import { ContinueLine } from "@/components/parity/continue-line";
 import type { StudentAccountContext } from "@/lib/student/account-context";
 
 /** Yalnız test fikstürü (E2E_FIXTURE=1): ana ekranın yerleşimini veritabanısız çizer. */
@@ -77,10 +78,23 @@ export function AnaEkranFixture({
   unanswered?: boolean;
   teaching?: boolean;
 }) {
-  const heroFooter =
-    conversation || hasPrep ? undefined : (
-      <FirstStepLauncher firstName="Öğrenci" gradeLevel="12. sınıf" goalText="YKS hazırlık" />
-    );
+  const heroFooter = conversation ? undefined : hasPrep ? (
+    <ContinueLine
+      step={{
+        prepId: "fixture",
+        prepTitle: "Hücre Bölünmeleri ve Kalıtım",
+        next: {
+          kind: "quiz",
+          kindLabel: "Konu testi",
+          heading: "Mitoz ve mayoz arasındaki farklar",
+          minutes: 8,
+          href: "/e2e/ana-ekran?hazirlik=1&tiklandi=1",
+        },
+      }}
+    />
+  ) : (
+    <FirstStepLauncher firstName="Öğrenci" gradeLevel="12. sınıf" goalText="YKS hazırlık" />
+  );
   return (
     <ParitySorShell userInitial="Ö" streak={2} account={account(plus)}>
       <ChatPanel

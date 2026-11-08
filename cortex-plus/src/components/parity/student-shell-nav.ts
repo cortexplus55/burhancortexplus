@@ -34,8 +34,8 @@ export type StudentNavItem = {
 export const CANONICAL_FEATURES = {
   aiTeacher: "AI Öğretmen",
   studyFromDoc: "Kendi Belgemden Çalış",
-  quiz: "Quiz",
-  flashcard: "Flashcard",
+  quiz: "Konu Testi",
+  flashcard: "Kartlar",
   podcast: "Podcast",
   oral: "Sözlü Sınav",
   mockExam: "Deneme Sınavı",

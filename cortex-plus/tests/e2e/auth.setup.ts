@@ -36,7 +36,8 @@ setup("authenticate", async ({ page }) => {
   }
 
   const publishable = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "";
-  if (!publishable || publishable === "sb-e2e-local-only") {
+  // Canlı duman testinde anahtar sitenin kendisinde; yerelde gerçek anahtar şart.
+  if (!process.env.E2E_BASE_URL?.trim() && (!publishable || publishable === "sb-e2e-local-only")) {
     writeEmptyAuthState();
     setup.skip(
       true,

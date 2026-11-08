@@ -7,9 +7,11 @@ import { test, expect } from "@playwright/test";
 const hasAuthCreds = Boolean(
   process.env.E2E_USER_EMAIL?.trim() && process.env.E2E_USER_PASSWORD,
 );
+const isLive = Boolean(process.env.E2E_BASE_URL?.trim());
 const hasRealSupabase =
-  Boolean(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) &&
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY !== "sb-e2e-local-only";
+  isLive ||
+  (Boolean(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) &&
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY !== "sb-e2e-local-only");
 
 test.describe("authenticated student hub", { tag: ["@auth"] }, () => {
   test.beforeEach(() => {
@@ -77,7 +79,11 @@ test.describe("authenticated student hub", { tag: ["@auth"] }, () => {
       "/deneme-sinavlari/hazirliklarim",
       "/dokumanlar",
       "/profil",
-    ].filter((path) => process.env.SUPABASE_SECRET_KEY || !needsServiceKey.has(path));
+      // Canlı duman testinde (8 Kasım 2026) öğrencinin öbür ana sayfaları da: her yayında açılıyor mu.
+      ...(isLive
+        ? ["/araclar", "/ilerleme", "/ayarlar", "/krediler", "/pay", "/soru-coz", "/yanlislarim", "/siniflar", "/deneme-sinavlari/mufredat", "/tekrar", "/sohbetler", "/destek"]
+        : []),
+    ].filter((path) => isLive || process.env.SUPABASE_SECRET_KEY || !needsServiceKey.has(path));
     for (const path of screens) {
       const response = await page.goto(path);
       expect(response?.status() ?? 0, `${path} durum kodu`).toBeLessThan(400);

@@ -15782,3 +15782,81 @@ a.cp-exam-search {
 :root:not(.dark) .cp-tutor-quote {
   background: rgba(0, 0, 0, 0.03);
 }
+
+/* ── Açık tema tamamlaması sonu ── */
+
+/* Ana ekranda "Kaldığın yerden devam" (8 Kasım 2026): Sınavlar kartının "Sıradaki" satırıyla aynı görünüm, tıklanır. */
+.cp-continue-line {
+  width: min(100%, 34rem);
+  margin: 1.1rem auto 0;
+  text-decoration: none;
+  color: inherit;
+  min-height: 3.25rem;
+  transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
+}
+.cp-continue-line:hover {
+  border-color: color-mix(in srgb, var(--next-accent) 55%, transparent);
+  background: color-mix(in srgb, var(--next-accent) 14%, transparent);
+}
+.cp-continue-line:active {
+  transform: scale(0.99);
+}
+.cp-continue-line-go {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  font-weight: 700;
+  color: var(--c-text, #f2f2f2);
+  background: color-mix(in srgb, var(--next-accent) 22%, transparent);
+}
+.cp-continue-line {
+  text-align: left;
+}
+.cp-continue-line-meta {
+  overflow: hidden;
+  margin-top: 0.1rem;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--cp-muted, #a1a1a1);
+}
+
+/* Zor kullanıcı turu (8 Kasım 2026, telefonda ölçüldü): açık bölümde sıradaki düğümün üstünde yükselen simge
+   "1 Dk Çizimli Video Özeti" hapının üstüne biniyordu; hap düğümlerin üstünde kalır ve yolla arasına yer açılır. */
+.cp-path-section.is-open .cp-path-sketch {
+  position: relative;
+  z-index: 3;
+  margin-bottom: 2.4rem;
+}
+
+/* "Sıradaki" etiketi sol düğümde kartın sağ kenarından taşıyordu (375 px'te 14 px; adım adı ve "+10 ⭐" kesiliyordu).
+   Etiket, düğümün sağında kalan gerçek genişliğe sığar. */
+@media (max-width: 480px) {
+  .cp-path-list .cp-exam-trail-item .cp-path-current-label {
+    max-width: min(8.5rem, calc(50vw - 5.4rem));
+  }
+}
+
+/* Sınav şeridi hazırlığa gider (8 Kasım 2026): bütün şerit dokunulabilir, altı çizili değil. */
+.cp-exam-due-bar .cp-exam-due-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  text-decoration: none;
+}
+.cp-exam-due-bar .cp-exam-due-link:hover {
+  text-decoration: underline;
+}
+
+/* Masaüstü üst çubuğu (8 Kasım 2026, kurucu hesabıyla 1280 px'te görüldü): sekme grubu ortaya sabitlenince sağdaki
+   "Kurucu · Sınırsız" rozeti "Daha fazla"nın 41 px üstüne biniyordu. Grup akışta kalır, boşlukta ortalanır. */
+@media (min-width: 1180px) {
+  .cp-sor-top .cp-sor-topnav-group {
+    position: static;
+    transform: none;
+    margin-inline: auto;
+  }
+}

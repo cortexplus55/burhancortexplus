@@ -34,6 +34,7 @@ import {
   PDF_LEARNING_V2_FLAG,
 } from "@/lib/admin/feature-flags";
 import { createServiceClient } from "@/lib/supabase/server";
+import { maybeRescheduleMissedDays } from "@/lib/learning/missed-day-reschedule";
 import { pathSkipKinds } from "@/lib/billing/node-free-meter";
 import {
   buildLearningIndicators,
@@ -190,6 +191,11 @@ export default async function ExamPrepDetailPage({
   }
   // Soğuk bellek (5 Kasım 2026): bu hazırlığın gömmeleri tahliye edildiyse arka planda yeniden indekslenir (yalnız gömme çağrısı).
   after(() => reindexEvictedForPrep(service, prepId, embedTexts).catch(() => 0));
+  // Kaçırılan günler (8 Kasım 2026): bitmemiş adımın günü geçtiyse kalan plan bugünden sınava yeniden dağıtılır.
+  // Yanıttan sonra; bir sonraki açılışta görünür. Bu iş yalnız deneme notlanınca çalışıyordu.
+  after(() =>
+    maybeRescheduleMissedDays(service, user.id, { prepId, reason: "missed_day" }).catch(() => undefined),
+  );
 
   const rawSourceIds = prepSource?.source_document_ids;
   const sourceIds = prepSourceDocumentIds({
