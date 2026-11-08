@@ -66,7 +66,6 @@ import { StartHub } from "@/components/parity/start-hub";
 import { SubjectModal } from "@/components/parity/subject-modal";
 import { UploadModal } from "@/components/parity/upload-modal";
 import { MathKeyboard } from "@/components/parity/math-keyboard";
-import { UpgradeAside } from "@/components/paywall/upgrade-aside";
 import { useStudentShellAccount } from "@/lib/student/student-shell-context";
 import { MessageActions, type Rating } from "@/components/chat/message-actions";
 import { TutorReplyView } from "@/components/chat/tutor-reply-view";
@@ -1437,7 +1436,7 @@ function ChatPanelSession({
             </div>
           ) : null}
           {showParityEmpty && !examChrome ? (
-            <div className="cp-sor-hero">
+            <div className={cn("cp-sor-hero", heroFooter ? "cp-sor-hero--rich" : null)}>
               <h1 className="cp-sor-hero-title">
                 {greetingLine ?? "Merhaba!"}
               </h1>
@@ -1616,9 +1615,17 @@ function ChatPanelSession({
                   <SorTypingDots label={thinkingLabel} />
                 </div>
               ) : null}
-              {showUpgrade && messages.length > 0 ? (
-                <Link href="/pay" className="cp-upgrade-banner">
-                  Daha hızlı öğrenmek için yükselt
+              {/* 8 Kasım 2026: sohbetin sonunda ince bir satır; yazma alanının arkasına girmeyen, akıştaki tek Plus
+                  hatırlatması (eski altın kutu bestecinin altında kalıyordu, yandaki kart sohbetin üstüne biniyordu). */}
+              {showUpgrade && messages.length > 0 && !loading ? (
+                <Link href={`/pay?returnTo=${encodeURIComponent(returnPath)}`} className="cp-sor-upgrade-row">
+                  <span className="cp-sor-upgrade-row-text">
+                    <strong>Plus</strong> ile podcast, sözlü ve yazılı deneme de açılır
+                  </span>
+                  <span className="cp-sor-upgrade-row-cta">
+                    Plus&apos;a geç
+                    <ChevronRight className="h-4 w-4" aria-hidden />
+                  </span>
                 </Link>
               ) : null}
               <div ref={messagesEndRef} className="h-px shrink-0" aria-hidden />
@@ -1634,16 +1641,12 @@ function ChatPanelSession({
             />
           ) : null}
 
-          {/* Ücretsiz kullanıcıda yazı alanının yanına kalıcı bir yükseltme
-              kartı giriyor. Kutunun içine değil yanına: yazacak yeri
-              daraltmadan her açılışta görünüyor. Sınav sohbetinde satış
-              kartı yok; kota dolunca mevcut kredi kapısı açılır. */}
+          {/* Yazma alanı ortada ve tek başına (8 Kasım 2026): yanındaki Plus kartı kalktı, sohbetin ve ana ekranın
+              üstüne biniyordu. Ücretsiz hesabın Plus bilgisi ana ekranda kahraman alanında, sohbette akıştaki ince
+              satırda ve üst çubuktaki Plus düğmesinde. Sınav sohbetinde satış yok; kota dolunca kredi kapısı açılır. */}
           <div
             ref={composerZoneRef}
-            className={cn(
-              "cp-sor-composer-zone",
-              showUpgrade && "cp-sor-composer-zone--aside",
-            )}
+            className="cp-sor-composer-zone"
             style={keyboardInset ? { paddingBottom: keyboardInset } : undefined}
           >
             <div className="cp-sor-composer-main">
@@ -2044,17 +2047,6 @@ function ChatPanelSession({
             </form>
             </div>
 
-            {/* Boş ekranda kahraman kartı zaten Plus kartını taşıyorsa ikinci kart yok (2 Kasım 2026). */}
-            {showUpgrade && !(showParityEmpty && heroFooter) ? (
-              <div
-                className={cn(
-                  "cp-sor-composer-upgrade",
-                  showParityEmpty && "cp-sor-composer-upgrade--empty-deferred",
-                )}
-              >
-                <UpgradeAside returnPath={returnPath} />
-              </div>
-            ) : null}
           </div>
         </div>
 

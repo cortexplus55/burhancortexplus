@@ -248,9 +248,12 @@ export function ParitySorShell({
                       href={tab.href}
                       className={cn("cp-sor-topnav-link", active && "cp-sor-topnav-link--active")}
                       aria-current={active ? "page" : undefined}
+                      title={tab.label}
                     >
                       <Icon className="cp-sor-topnav-icon" aria-hidden />
-                      {tab.label}
+                      {/* Tablette (768–1179 px) yalnız simge (8 Kasım 2026): yazılar sığmayıp simgelerle çakışıyordu.
+                          Yazı gizlenince ad ekran okuyucuda kalsın diye görsel gizleme sr-only ile. */}
+                      <span className="cp-sor-topnav-label">{tab.label}</span>
                     </Link>
                   );
                 })}

@@ -7779,25 +7779,11 @@
 
 
 /*
-  Mobil boş Sor.
-
-  Ücretsiz katmanda Plus kartı hero akışına konunca sabit composer ve ders
-  çipi ("Matematik") kartın üstüne biniyordu: kart sayfanın altında, çip ve
-  yazı kutusu position:fixed olduğu için onun üstünde çiziliyordu.
-
-  Kart artık sabit yığının parçası — ders çipinin üstünde, yazı kutusunun
-  dışında. Hero yalnızca selamlama ve öneriler; alt boşluk yığının
-  yüksekliği kadar ki "Günün turu" kaydırınca çipin altında kalmasın.
+  Mobil boş Sor: selam ve kartlar kendi kaydırma kutusunda; alt boşluk sabit
+  bestecinin ölçülen yüksekliği kadar (bkz. data-composer-measured kuralı).
+  8 Kasım 2026'dan beri Plus kartı bestecinin parçası değil.
 */
 @media (max-width: 640px) {
-  .cp-sor-root:has(.cp-sor-composer-zone--aside) {
-    height: 100vh;
-    height: 100dvh;
-    max-height: 100vh;
-    max-height: 100dvh;
-    overflow: hidden;
-  }
-
   .cp-sor-hero {
     min-height: 0;
     justify-content: flex-start;
@@ -7806,26 +7792,6 @@
     overflow-x: hidden;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-  }
-
-  .cp-sor-view:has(.cp-sor-composer-zone--aside) .cp-sor-hero {
-    padding-top: 0.65rem;
-    padding-bottom: calc(22.5rem + env(safe-area-inset-bottom, 0px));
-  }
-
-  /* Yığın (kart + çip + kutu) selamlamanın altını kapatmasın. Aralıklar
-     yalnızca ücretsiz boş ekranda daralıyor; dokunma hedefleri 44px kalıyor. */
-  .cp-sor-view:has(.cp-sor-composer-zone--aside) .cp-sor-start {
-    margin-top: 0.7rem;
-  }
-
-  .cp-sor-view:has(.cp-sor-composer-zone--aside) .cp-sor-starters {
-    margin-top: 0.55rem;
-    gap: 0.5rem;
-  }
-
-  .cp-sor-view:has(.cp-sor-composer-zone--aside) .cp-sor-daily {
-    margin-top: 0.65rem;
   }
 
   .cp-sor-starters {
@@ -7852,53 +7818,6 @@
     bottom: calc(4.4rem + env(safe-area-inset-bottom, 0px));
   }
 
-  .cp-sor-view:has(.cp-sor-hero) .cp-sor-composer-zone--aside {
-    background: var(--cp-bg);
-    padding-top: 0.35rem;
-    gap: 0.65rem;
-  }
-
-  .cp-sor-composer-upgrade--empty-deferred {
-    display: block !important;
-    order: -1;
-    width: 100%;
-  }
-}
-
-/*
-  Ücretsiz katmanda sohbet kutusunun yanındaki yükseltme kartı.
-
-  Kutu normalde ortalanmış ve 42rem genişliğinde. Kart eklendiğinde alan
-  genişliyor ve ikisi yan yana duruyor; kutunun kendi genişliği korunuyor ki
-  ücretsiz kullanıcının yazacak yeri daralmasın. 961px altında kart alta
-  iner; 640px ve altında boş ekranda order ile ders çipinin üstüne alınır.
-*/
-.cp-sor-composer-zone--aside {
-  width: min(calc(100% - 2rem), 60rem);
-  display: flex;
-  align-items: flex-end;
-  gap: 1rem;
-}
-
-.cp-sor-composer-zone--aside .cp-sor-composer-main {
-  flex: 1 1 auto;
-  min-width: 0;
-  position: relative;
-}
-
-@media (max-width: 60rem) {
-  .cp-sor-composer-zone--aside {
-    flex-direction: column;
-    align-items: stretch;
-    width: min(calc(100% - 2rem), 42rem);
-  }
-
-  /* Sütun olunca kart DOM'da kutunun ardından geliyor; alta inince
-     alt menünün içine giriyordu. Boş ekranda çipin üstünde dursun. */
-  .cp-sor-composer-upgrade--empty-deferred {
-    order: -1;
-    width: 100%;
-  }
 }
 
 /*
@@ -8483,21 +8402,8 @@
   color: #444;
 }
 
-/* MOBILE_AUDIT_POLISH
-   Sohbet açıldıktan sonra Plus kartı composer yığınından çıkar; üstteki
-   "Satın al" yeter, kart mesajların üstüne binmesin. Boş ekranda kart
-   `.cp-sor-composer-upgrade--empty-deferred` ile ders çipinin üstünde kalır.
-*/
+/* MOBILE_AUDIT_POLISH: telefonda üst çubuk sadeleşir; ilk boyamada mesajlar bestecinin altında kalmasın. */
 @media (max-width: 640px) {
-  .cp-sor-composer-zone--aside {
-    flex-direction: column;
-    width: min(calc(100% - 1.25rem), 42rem);
-  }
-
-  .cp-sor-composer-zone--aside .cp-sor-composer-upgrade:not(.cp-sor-composer-upgrade--empty-deferred) {
-    display: none !important;
-  }
-
   .cp-sor-messages {
     padding-bottom: calc(14.5rem + env(safe-area-inset-bottom, 0px));
   }
@@ -14670,4 +14576,240 @@ a.cp-exam-search {
   .cp-path-jump {
     margin-right: 0;
   }
+}
+
+/*
+  Ana ekran ve sohbet yerleşimi (8 Kasım 2026, ürün sahibi: "üste binmeler, ortalanmamış düğmeler kabul edilemez").
+
+  1) Sabit besteci (mod düğmeleri + ders sekmesi + yazı kutusu) arkasını örter: üstte kısa bir geçiş, altta zemin.
+     Önce kaydırılan kartlar düğmelerin arasından görünüyordu.
+  2) Mod düğmeleri ortada; sığmazsa kaydırma kutusu sola yaslanır (safe center), hiçbir düğme kırpılmaz.
+  3) Sohbet sütunu bestecinin genişliğinde ortalanır; masaüstünde mesajlar ekranın iki kenarına dağılmıyor.
+  4) Selamın altında kart varsa (.cp-sor-hero--rich) içerik üstten başlar ve kendi içinde kayar; ortalama, uzun
+     içerikte selamı ekranın dışına itiyordu.
+  Sınav sohbeti (.cp-sor-root--exam) kendi kabuğunu kullanır; bu kurallar ona dokunmaz.
+*/
+.cp-sor-root:not(.cp-sor-root--exam) .cp-sor-composer-zone::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: 50%;
+  width: 100vw;
+  top: -1.75rem;
+  bottom: -6rem;
+  transform: translateX(-50%);
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--cp-bg) 0%, transparent),
+    color-mix(in srgb, var(--cp-bg) 88%, transparent) 1.5rem,
+    var(--cp-bg) 2.5rem
+  );
+}
+
+.cp-sor-root:not(.cp-sor-root--exam) .cp-tutor-mode {
+  justify-content: safe center;
+  margin-inline: 0;
+  scrollbar-width: none;
+}
+
+.cp-sor-root:not(.cp-sor-root--exam) .cp-tutor-mode::-webkit-scrollbar {
+  display: none;
+}
+
+.cp-sor-root:not(.cp-sor-root--exam) .cp-sor-messages {
+  padding-inline: max(1.25rem, calc((100% - 48rem) / 2));
+}
+
+.cp-sor-hero.cp-sor-hero--rich {
+  justify-content: flex-start;
+  padding-top: clamp(1.25rem, 5vh, 3rem);
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  min-height: 0;
+}
+
+.cp-sor-hero--rich > .cp-sor-start {
+  flex: none;
+}
+
+/* Sohbetin sonundaki tek Plus hatırlatması: akışta, ince, mavi eylem; altın yalnız "Plus" sözcüğünde. */
+.cp-sor-upgrade-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0.5rem 0 1rem;
+  min-height: 48px;
+  padding: 0.55rem 0.6rem 0.55rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid var(--cp-border-strong);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--c-action) 10%, transparent), transparent 70%),
+    var(--cp-surface);
+  color: var(--cp-text);
+  text-decoration: none;
+  transition: border-color 0.15s ease;
+}
+
+.cp-sor-upgrade-row:hover {
+  border-color: color-mix(in srgb, var(--c-action) 55%, transparent);
+}
+
+.cp-sor-upgrade-row-text {
+  min-width: 0;
+  font-size: 0.875rem;
+  line-height: 1.35;
+  color: var(--cp-muted);
+}
+
+.cp-sor-upgrade-row-text strong {
+  color: var(--c-brand);
+  font-weight: 700;
+}
+
+.cp-sor-upgrade-row-cta {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  min-height: 36px;
+  padding: 0 0.8rem;
+  border-radius: 999px;
+  background: var(--c-action);
+  color: var(--c-on-action);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+@media (max-width: 480px) {
+  .cp-sor-upgrade-row {
+    flex-wrap: wrap;
+  }
+
+  .cp-sor-upgrade-row-cta {
+    min-height: 40px;
+  }
+}
+
+/* Öğrencinin mesaj balonu okunur (8 Kasım 2026): yazı rengi zemin rengiydi (--c-bg), gri balonda neredeyse görünmüyordu. */
+.cp-sor-root .cp-sor-msg-user {
+  background: color-mix(in srgb, var(--cp-text) 9%, var(--cp-surface));
+  border: 1px solid var(--cp-border);
+  color: var(--cp-text);
+}
+
+/* Geri / Yeni sohbet satırı sohbet sütunuyla aynı hizada; kenara yapışmaz, dokunma alanı 44 px. */
+.cp-sor-root:not(.cp-sor-root--exam) .cp-thread-bar {
+  padding-inline: max(1.25rem, calc((100% - 48rem) / 2));
+}
+
+.cp-sor-root:not(.cp-sor-root--exam) .cp-thread-bar button {
+  min-height: 44px;
+}
+
+/*
+  Üst menü tablette (8 Kasım 2026): 768 px'te sekme yazıları sığmıyor, simgelerle üst üste biniyordu. 768–1179 px
+  arasında sekmeler ve "Daha fazla" yalnız simge (ad ekran okuyucuda ve üzerine gelince ipucu olarak duruyor);
+  1180 px'ten itibaren yazılı. Telefonda yandaki "Daha fazla" iki satıra kırılıyordu: yalnız simge.
+*/
+@media (min-width: 768px) and (max-width: 1179px) {
+  .cp-sor-topnav-label,
+  .cp-sor-more--center .cp-sor-more-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .cp-sor-topnav-link {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0 12px;
+  }
+
+  .cp-sor-more--center {
+    padding: 0 14px;
+  }
+}
+
+@media (max-width: 479px) {
+  .cp-sor-more--side .cp-sor-more-label {
+    display: none;
+  }
+
+  .cp-sor-more--side {
+    min-width: 44px;
+    justify-content: center;
+  }
+}
+
+/* Bestecinin üstündeki geçiş (::before, 1.75rem) son satırı örtmesin: ölçülen boşluğa geçiş payı eklenir. */
+.cp-sor-root:not(.cp-sor-root--exam) .cp-sor-view[data-composer-measured] .cp-sor-hero,
+.cp-sor-root:not(.cp-sor-root--exam) .cp-sor-view[data-composer-measured] .cp-sor-messages {
+  padding-bottom: calc(var(--cp-sor-composer-clearance) + 2.5rem);
+}
+
+/* Ana ekranın kartları tek sütun genişliğinde (56rem): ilk adım, stüdyolar ve Plus kartı aynı kenarlarda. */
+.cp-sor-hero--rich > .cp-first-step,
+.cp-sor-hero--rich > .hs,
+.cp-sor-hero--rich > .pm-card {
+  width: min(100%, 56rem);
+  max-width: 56rem;
+  margin-inline: auto;
+}
+
+.cp-sor-hero--rich > .pm-card {
+  margin-top: 1.5rem;
+  text-align: left;
+}
+
+@media (max-width: 520px) {
+  .cp-sor-hero--rich > .pm-card .pm-card-counts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, max-content));
+    column-gap: 1.75rem;
+  }
+}
+
+/* Telefonda ana ekranın üstü sıkı: selam ve Başla daha az yer kaplar, stüdyolar ilk ekranda görünür. */
+@media (max-width: 640px) {
+  .cp-sor-hero.cp-sor-hero--rich {
+    padding-top: 1rem;
+  }
+
+  .cp-sor-hero--rich > .cp-sor-start {
+    margin-top: 0.9rem;
+    gap: 0.45rem;
+  }
+
+  .cp-sor-hero--rich .cp-sor-start-orb {
+    width: 3.5rem;
+    height: 3.5rem;
+  }
+}
+
+/* Klavyeyle (Tab) ya da kaydırarak odaklanan kart yazma alanının arkasında durmasın: kaydırma, bestecinin üstünde biter. */
+.cp-sor-root:not(.cp-sor-root--exam) .cp-sor-view[data-composer-measured] .cp-sor-hero,
+.cp-sor-root:not(.cp-sor-root--exam) .cp-sor-view[data-composer-measured] .cp-sor-messages {
+  scroll-padding-bottom: calc(var(--cp-sor-composer-clearance) + 2.5rem);
+}
+
+/*
+  Ana ekran kartlı hâlde sabit yükseklikte bir kabuk (8 Kasım 2026): kaydırılan yalnız selam ve kartların kutusu, üst
+  çubuk, alt menü ve yazma alanı yerinde kalır. Belge kaydırınca scroll-padding işlemiyordu; klavyeyle odaklanan kart
+  yazma alanının arkasında kalabiliyordu. Önce vh (eski tarayıcı), sonra dvh (tarayıcı çubuğu ve klavye).
+*/
+.cp-sor-root:has(.cp-sor-hero--rich) {
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100vh;
+  max-height: 100dvh;
+  overflow: hidden;
 }

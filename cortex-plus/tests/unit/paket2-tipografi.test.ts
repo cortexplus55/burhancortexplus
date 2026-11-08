@@ -256,7 +256,6 @@ describe("yalnız simgeli düğmelerde dokunma alanı ≥ 44 px", () => {
     ["parity-shell.css", ".cp-path-jump"],
     ["in-app-browser-banner.css", ".cp-inapp-banner__close"],
     ["paper-exam.css", ".cp-paper-qr-close"],
-    ["upgrade-gate.css", ".ug-aside-close"],
     ["weekly-survey.css", ".cp-survey-close"],
     ["parity-sor.css", ".cs-sor-send"],
     ["parity-sor.css", ".cs-sor-attach"],

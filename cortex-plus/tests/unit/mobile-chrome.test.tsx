@@ -42,24 +42,15 @@ const plans = [
   },
 ];
 
-describe("mobil öğretmen yükseltme kartı", () => {
-  it("boş ekranda kart ders çipinin üstündeki yığında durur, hero kopyası yoktur", () => {
-    expect(chat).toContain("cp-sor-composer-upgrade--empty-deferred");
-    expect(chat).not.toContain("cp-sor-empty-upgrade");
-
-    expect(shell).toContain(".cp-sor-composer-upgrade--empty-deferred");
-    expect(shell).toContain("order: -1");
-    expect(shell).not.toMatch(
-      /\.cp-sor-composer-upgrade--empty-deferred\s*\{[^}]*display:\s*none/,
-    );
-
-    expect(upgrade).toContain(
-      ".cp-sor-composer-upgrade--empty-deferred .ug-aside",
-    );
-    expect(upgrade).toContain("display: grid !important");
-    expect(upgrade).not.toMatch(
-      /\.cp-sor-composer-zone \.ug-aside\s*\{[^}]*display:\s*none/,
-    );
+describe("öğretmen ekranında yükseltme kartı yazma alanının yanında değil (8 Kasım 2026)", () => {
+  it("yan kart ve onun yerleşimi kalktı; Plus satırı sohbet akışında", () => {
+    expect(chat).not.toContain("UpgradeAside");
+    expect(chat).not.toContain("cp-sor-composer-upgrade");
+    expect(chat).not.toContain("cp-sor-composer-zone--aside");
+    expect(chat).toContain('className="cp-sor-upgrade-row"');
+    expect(shell).not.toContain("composer-zone--aside");
+    expect(shell).not.toContain("cp-sor-composer-upgrade");
+    expect(upgrade).not.toContain("ug-aside");
   });
 });
 

@@ -529,7 +529,6 @@ describe("sohbet, sözlü ve deneme ekranları dinamik görünüm yüksekliğind
   it("sohbet ve sınav sohbeti kabuğu: önce vh (eski tarayıcı), sonra dvh", () => {
     const shell = read("src/styles/parity-shell.css");
     expect(shell).toMatch(/\.cp-sor-root \{\n(?:\s*\/\*[\s\S]*?\*\/\n)?\s*min-height: 100vh;\n\s*min-height: 100dvh;/);
-    expect(shell).toContain(".cp-sor-root:has(.cp-sor-composer-zone--aside) {\n    height: 100vh;\n    height: 100dvh;\n    max-height: 100vh;\n    max-height: 100dvh;");
     expect(shell).toMatch(/\.cp-sor-root\.cp-sor-root--exam \{[^}]*height: 100vh;\n\s*height: 100dvh;/);
   });
 
