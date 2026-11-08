@@ -168,11 +168,12 @@ test("Soru Çöz ve hazırlık yolu: tuzak kutusu, Akılda kalsın, renkli adım
   }
 });
 
-test("kurucu turu: sohbet altı tek satır, Soru Çöz başlığı, Sınavlar kartında sıradaki adım, anket şeridi", { tag: ["@public"] }, async ({ page }) => {
-  await page.route("**/api/feedback/weekly", (route) =>
-    route.request().method() === "GET" ? route.fulfill({ json: { show: true } }) : route.fulfill({ json: { ok: true } }),
-  );
-  for (const size of [{ width: 375, height: 812 }, { width: 768, height: 1024 }, { width: 1280, height: 800 }]) {
+// Her boyut ayrı test: üç boyut tek testte CI'da 30 sn sınırını aşıyordu (8 Kasım 2026).
+for (const size of [{ width: 375, height: 812 }, { width: 768, height: 1024 }, { width: 1280, height: 800 }]) {
+  test(`kurucu turu ${size.width}×${size.height}: sohbet altı tek satır, Soru Çöz başlığı, kartta sıradaki adım, anket şeridi`, { tag: ["@public"] }, async ({ page }) => {
+    await page.route("**/api/feedback/weekly", (route) =>
+      route.request().method() === "GET" ? route.fulfill({ json: { show: true } }) : route.fulfill({ json: { ok: true } }),
+    );
     await page.setViewportSize(size);
 
     await page.goto("/e2e/ana-ekran?durum=ogretim");
@@ -205,5 +206,5 @@ test("kurucu turu: sohbet altı tek satır, Soru Çöz başlığı, Sınavlar ka
     await page.getByRole("button", { name: "Yanıtla" }).click();
     await expect(page.getByRole("radio", { name: "4" }).first()).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
-  }
-});
+  });
+}
