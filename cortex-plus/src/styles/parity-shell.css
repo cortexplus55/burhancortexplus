@@ -15705,3 +15705,80 @@ a.cp-exam-search {
   max-width: none;
   margin-left: calc((100% - min(174.3%, 30rem)) / 2);
 }
+
+/* ── Açık tema tamamlaması (8 Kasım 2026, ürün sahibinin kararı) ────────────────────────────────────────────────
+   Bu dosyada ~45 bileşen koyu tema için sabit koyu zemin ve açık yazıyla yazılmıştı. Açık temada bir kısmı koyu
+   zeminde koyu yazı (hazırlık yolu, takvim, yazma alanı, ruh hali seçimi), bir kısmı açık zeminde açık yazı kalıyordu.
+   Koyu temaya dokunulmaz; açık temada yüzeyler ve yazılar temanın değişkenlerinden. Yeni bileşen yazarken renk
+   değişkenden alınır, sabit koyu renk yazılmaz. */
+:root:not(.dark) :is(
+  .cp-path-section, .cp-path-exam-day, .cp-path-section-more, .cp-exam-history-card, .cp-exam-history-search,
+  .cp-exam-menu, .cp-exam-quiz-feedback, .cp-subject-panel, .cp-hub-foot-card, .cp-hub-tool, .cp-hub-scan,
+  .cp-exam-option
+) {
+  background: var(--c-surface-1);
+  color: var(--c-text);
+}
+
+:root:not(.dark) :is(
+  .cp-cal-date, .cp-cal-day--has, .cp-cal-filter[aria-selected="true"], .cp-chip, .cp-countdown-meter, .cp-quota-track,
+  .cp-exam-back, .cp-exam-mark, .cp-exam-menu-x, .cp-exam-more-pill, .cp-exam-option-num, .cp-exam-option:hover,
+  .cp-exam-talk, .cp-exam-tile, .cp-exam-topic-badge:hover, .cp-exam-user-bubble, .cp-math-bar button, .cp-mk-key,
+  .cp-path-node span, .cp-pod-rate, .cp-puck-glyph .cp-puck-lock, .cp-signal-emoji, .cp-signal-option:hover,
+  .cp-sor-composer-box, .cp-sor-subject-wrap, .cp-subject-add, .cp-subject-chip, .cp-topic-pick-item,
+  .cp-tutor-mode-pill, .cp-exam-quick-chip
+) {
+  background: var(--c-surface-2);
+  color: var(--c-text);
+}
+
+:root:not(.dark) .cp-sor-root--exam .cp-sor-composer-box {
+  background: var(--c-surface-2);
+}
+
+:root:not(.dark) .cp-sor-root.cp-sor-root--exam {
+  background: var(--c-bg);
+}
+
+:root:not(.dark) :is(
+  .cp-cal-day, .cp-countdown-pct, .cp-exam-greet p, .cp-exam-msg-body, .cp-exam-msg-body .katex,
+  .cp-exam-msg-body .text-lg, .cp-exam-msg-body .text-base.font-semibold, .cp-exam-msg-body .text-sm.font-semibold,
+  .cp-exam-topic-badge, .cp-exam-history-search input, .cp-cal-month button:hover, .cp-exam-starter:hover:not(:disabled),
+  .cp-exam-more-pill.is-open, .cp-exam-history-jump, .cp-tutor-steps summary
+) {
+  color: var(--c-text);
+}
+
+:root:not(.dark) :is(.cp-exam-quiz-explain, .cp-exam-review-explain, .cp-tutor-scope, .cp-tutor-cite, .cp-tutor-chip) {
+  color: var(--c-text-muted);
+}
+
+:root:not(.dark) .cp-tutor-mode-pill {
+  border-color: var(--c-border-strong);
+}
+
+:root:not(.dark) .cp-tutor-mode-pill.is-on {
+  background: color-mix(in srgb, var(--c-action) 14%, #ffffff);
+  color: var(--c-action);
+}
+
+:root:not(.dark) .cp-signal-option[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--c-action) 12%, #ffffff);
+  color: var(--c-text);
+}
+
+:root:not(.dark) .cp-countdown--urgent {
+  background: color-mix(in srgb, #ef4444 8%, #ffffff);
+}
+
+:root:not(.dark) :is(.cp-exam-quiz-verdict--bad, .cp-exam-review-verdict--bad, .cp-exam-timer--urgent, .cp-countdown--urgent .cp-countdown-days strong) {
+  color: #b91c1c;
+}
+
+:root:not(.dark) .cp-exam-multi-hint {
+  color: #6d28d9;
+}
+
+:root:not(.dark) .cp-tutor-quote {
+  background: rgba(0, 0, 0, 0.03);
+}
