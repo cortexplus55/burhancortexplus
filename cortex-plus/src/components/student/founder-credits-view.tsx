@@ -32,7 +32,7 @@ export function FounderCreditsView({
 }) {
   return (
     <div className="cp-exam-page space-y-6">
-      <h1 className="cp-founder-title">Krediler</h1>
+      <h1 className="cp-founder-title">Kullanım limitleri</h1>
 
       <section className="pm-card cp-founder-card" aria-labelledby="founder-card-title">
         <span className="cp-founder-card__badge" aria-hidden>

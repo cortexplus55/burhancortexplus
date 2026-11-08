@@ -4,7 +4,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ExamPrepCard } from "@/components/parity/exam-prep";
 import { mapPrepTopics, topicProgress, type PrepTopic } from "@/lib/learning/exam-prep-progress";
 import { loadOrBackfillTopics } from "@/lib/learning/exam-prep-topics";
-import { examRelativeLabel, nodeProgress } from "@/lib/learning/exam-prep-plan";
+import { examRelativeLabel, nodeProgress, PLAN_NODE_META, type PlanNodeKind } from "@/lib/learning/exam-prep-plan";
+import { activityDurationMinutes } from "@/lib/learning/activity-duration";
+import { examPrepNodeHref } from "@/lib/learning/exam-prep-hrefs";
+import { nodeHeading } from "@/lib/learning/node-heading";
 import { istanbulDay } from "@/lib/chat/chat-display";
 
 type PrepRow = {
@@ -17,16 +20,51 @@ type PrepRow = {
   view_count?: number | null;
 };
 
+export type PrepCardNode = {
+  status: "locked" | "ready" | "done";
+  id?: string;
+  kind?: string | null;
+  title?: string | null;
+  sortOrder?: number | null;
+  sessionMeta?: { topicTitle?: string | null; activityMinutes?: number | null } | null;
+};
+
+/**
+ * Kartın "Sıradaki" satırı (8 Kasım 2026, ürün sahibinin onayı): yolda ilk açık adım, sıra numarasıyla. Ücretsiz
+ * hesapta Plus adımı atlanır (hazırlık sayfasının "Devam et"iyle aynı karar, `pathSkipKinds`).
+ */
+export function nextPrepStep(
+  prepId: string,
+  nodes: readonly PrepCardNode[],
+  skipKinds: ReadonlySet<string> = new Set(),
+): ExamPrepCard["next"] {
+  const next = [...nodes]
+    .filter((node) => node.status === "ready" && node.id && node.kind && node.kind in PLAN_NODE_META)
+    .filter((node) => !skipKinds.has(node.kind as string))
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))[0];
+  if (!next?.id || !next.kind) return null;
+  const kind = next.kind as PlanNodeKind;
+  return {
+    kind,
+    kindLabel: PLAN_NODE_META[kind].title,
+    heading: nodeHeading({ kind, title: next.title, sessionMeta: next.sessionMeta }),
+    minutes: activityDurationMinutes(kind, { known: next.sessionMeta?.activityMinutes ?? null }),
+    href: examPrepNodeHref(prepId, next.id),
+  };
+}
+
 export function toPrepCard(
   prep: PrepRow,
   topics: PrepTopic[],
-  nodes: { status: "locked" | "ready" | "done" }[],
+  nodes: PrepCardNode[],
   today = istanbulDay(),
+  skipKinds: ReadonlySet<string> = new Set(),
 ): ExamPrepCard {
   // Çubuk ve "X / Y konu" aynı birimi kullanır: konu. Düğüm sayısı
   // etkinliktir; kartta konu diye yazılmaz.
   const progress = topics.length ? topicProgress(topics) : nodeProgress(nodes);
   const next = nodes.find((node) => node.status === "ready");
+  const nextStep = prep.exam_date && prep.exam_date < today ? null : nextPrepStep(prep.id, nodes, skipKinds);
   return {
     id: prep.id,
     title: prep.title ?? prep.exam_type,
@@ -42,17 +80,29 @@ export function toPrepCard(
     targetScore: prep.target_score,
     dated: Boolean(prep.exam_date),
     continueHref: `/deneme-sinavlari/${prep.id}`,
+    next: nextStep,
     // "Geçmiş" sekmesi: sınav günü geride kalanlar (İstanbul günü).
     past: Boolean(prep.exam_date && prep.exam_date < today),
     joinCount: Number(prep.view_count ?? 0),
   };
 }
 
+type NodeRow = {
+  id?: string;
+  exam_prep_id: string;
+  status: string;
+  kind?: string | null;
+  title?: string | null;
+  sort_order?: number | null;
+  session_meta?: unknown;
+};
+
 /** Öğrencinin hazırlık kartları, en yeni önce. Liste ve "Hazırlıklarım" ortak. */
 export async function loadPrepCards(
   supabase: SupabaseClient,
   userId: string,
   limit: number,
+  skipKinds: ReadonlySet<string> = new Set(),
 ): Promise<ExamPrepCard[]> {
   const { data: prepRows } = await supabase
     .from("exam_preps")
@@ -89,8 +139,11 @@ export async function loadPrepCards(
   }
 
   const { data: allNodes } = prepIds.length
-    ? await supabase.from("exam_prep_nodes").select("exam_prep_id, status").in("exam_prep_id", prepIds)
-    : { data: [] as { exam_prep_id: string; status: string }[] };
+    ? await supabase
+        .from("exam_prep_nodes")
+        .select("id, exam_prep_id, status, kind, title, sort_order, session_meta")
+        .in("exam_prep_id", prepIds)
+    : { data: [] as NodeRow[] };
 
   const today = istanbulDay();
   return preps.map((prep) =>
@@ -99,8 +152,16 @@ export async function loadPrepCards(
       topicMap.get(prep.id) ?? [],
       (allNodes ?? [])
         .filter((row) => row.exam_prep_id === prep.id)
-        .map((row) => ({ status: (row.status as "locked" | "ready" | "done") ?? "locked" })),
+        .map((row: NodeRow) => ({
+          status: (row.status as "locked" | "ready" | "done") ?? "locked",
+          id: row.id,
+          kind: row.kind,
+          title: row.title,
+          sortOrder: row.sort_order,
+          sessionMeta: (row.session_meta as PrepCardNode["sessionMeta"]) ?? null,
+        })),
       today,
+      skipKinds,
     ),
   );
 }

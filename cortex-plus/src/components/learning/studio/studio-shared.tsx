@@ -95,6 +95,7 @@ export function StudioEntry({
   initialTopic = "",
   suggestions,
   setup,
+  belowHero,
   onSubmit,
 }: {
   tool: StudioToolId;
@@ -107,6 +108,8 @@ export function StudioEntry({
   suggestions?: string[];
   /** Kaynak, sayı, süre seçimi: sorunun üstünde. */
   setup?: ReactNode;
+  /** Başlığın hemen altında küçük ek (ör. podcast'te "Örnek bölümü dinle"). */
+  belowHero?: ReactNode;
   onSubmit: (topic: string) => void;
 }) {
   const intro = STUDIO_INTRO[tool];
@@ -130,6 +133,8 @@ export function StudioEntry({
       <h1 className="sr-only">{title}</h1>
 
       <StudioHero tool={tool} />
+
+      {belowHero}
 
       {setup}
 

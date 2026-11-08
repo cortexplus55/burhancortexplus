@@ -13,7 +13,7 @@ describe("O3 path labels", () => {
   it("week headers and next-step headings use topic-only labels", () => {
     const src = readFileSync("src/components/parity/exam-prep-home.tsx", "utf8");
     expect(src).toContain("<strong>{topicOnlyLabel(section.title)}</strong>");
-    expect(src).toContain("topicOnlyLabel(topic)");
+    expect(readFileSync("src/lib/learning/node-heading.ts", "utf8")).toContain("topicOnlyLabel(topic)");
   });
 });
 

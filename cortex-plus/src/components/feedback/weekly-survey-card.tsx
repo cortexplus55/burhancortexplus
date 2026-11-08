@@ -12,6 +12,9 @@ type Phase = "hidden" | "open" | "sending" | "thanks";
  * Haftalık kısa anket kartı (19 Ekim 2026, kapalı beta). Sınavlar sayfasında, o hafta çalışmış
  * öğrenciye haftada en çok bir kez görünür; kararı sunucu verir (`/api/feedback/weekly`). Okuma
  * düşerse kart hiç görünmez. "Şimdi değil" de haftanın satırını yazar.
+ *
+ * 8 Kasım 2026 (ürün sahibinin onayı): önce tek satırlık şerit ("Haftalık 1 dakikalık soru · Yanıtla"); dört soru
+ * ancak "Yanıtla"ya basınca açılır. Tam kart Sınavlar listesini telefonda bir ekran aşağı itiyordu.
  */
 export function WeeklySurveyCard() {
   const [phase, setPhase] = useState<Phase>("hidden");
@@ -20,6 +23,7 @@ export function WeeklySurveyCard() {
   const [mostUsed, setMostUsed] = useState<MostUsed | null>(null);
   const [improve, setImprove] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -68,6 +72,32 @@ export function WeeklySurveyCard() {
 
   const ready = helpfulness !== null && recommend !== null;
   const busy = phase === "sending";
+
+  if (!expanded) {
+    return (
+      <section className="cp-survey-strip" aria-label={SURVEY_COPY.title}>
+        <span className="cp-survey-strip-icon" aria-hidden>
+          📝
+        </span>
+        <p className="cp-survey-strip-text">
+          <strong>{SURVEY_COPY.title}</strong>
+          <span>{SURVEY_COPY.stripHint}</span>
+        </p>
+        <button type="button" className="cp-survey-strip-go" disabled={busy} onClick={() => setExpanded(true)}>
+          {SURVEY_COPY.open}
+        </button>
+        <button
+          type="button"
+          className="cp-survey-close"
+          aria-label={SURVEY_COPY.dismiss}
+          disabled={busy}
+          onClick={() => send({ action: "dismiss" }, "hidden")}
+        >
+          <X className="h-4 w-4" aria-hidden />
+        </button>
+      </section>
+    );
+  }
 
   return (
     <section className="cp-survey" aria-labelledby="cp-survey-title">

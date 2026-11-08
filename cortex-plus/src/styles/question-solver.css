@@ -614,3 +614,149 @@
   gap: 8px;
   min-width: 0;
 }
+
+/* ── Stüdyo başlığı (8 Kasım 2026): Çalışma Stüdyosu'ndaki kartla aynı simge, ad ve renk. ── */
+.cp-solver-page {
+  --solver-accent: #5b6cff;
+}
+
+.cp-solver-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  font: var(--t-label-13);
+  font-weight: 600;
+}
+
+.cp-solver-back:hover {
+  color: var(--c-text);
+}
+
+.cp-solver-back svg {
+  width: 16px;
+  height: 16px;
+}
+
+.cp-solver-hero {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-block: -4px 4px;
+}
+
+.cp-solver-hero-art {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 5.25rem;
+  height: 5.25rem;
+}
+
+.cp-solver-hero-plate {
+  position: absolute;
+  inset: 0.35rem;
+  border-radius: 1.5rem;
+  background:
+    radial-gradient(80% 80% at 30% 20%, color-mix(in srgb, var(--solver-accent) 55%, transparent), transparent 70%),
+    color-mix(in srgb, var(--solver-accent) 16%, #1f1f1f);
+  border: 1px solid color-mix(in srgb, var(--solver-accent) 40%, transparent);
+  transform: rotate(-8deg);
+}
+
+.cp-solver-hero-art img {
+  position: relative;
+  filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.45));
+}
+
+.cp-solver-hero-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.cp-solver-hero-title {
+  margin: 0;
+  font-size: clamp(1.4rem, 3.2vw, 1.75rem);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--c-text);
+}
+
+.cp-solver-hero-blurb {
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  color: var(--c-text-muted);
+}
+
+.cp-solver-hero-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.cp-solver-hero-facts > span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--solver-accent) 45%, #ffffff);
+  background: color-mix(in srgb, var(--solver-accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--solver-accent) 30%, transparent);
+}
+
+.cp-solver-hero-facts > .cp-solver-hero-quota {
+  color: var(--c-text-muted);
+  background: var(--c-surface-2, #1f1f1f);
+  border-color: var(--c-border);
+}
+
+/* Fotoğraf seçimi büyük, renkli bir bırakma alanı gibi; birincil düğme stüdyonun renginde. */
+.cp-solver-page .cp-solver-pick {
+  flex-direction: column;
+  gap: 6px;
+  min-height: 92px;
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--solver-accent) 45%, var(--c-border-strong));
+  background: color-mix(in srgb, var(--solver-accent) 8%, var(--c-surface-2, #1f1f1f));
+  font-weight: 600;
+}
+
+.cp-solver-page .cp-solver-pick:hover {
+  background: color-mix(in srgb, var(--solver-accent) 16%, var(--c-surface-2, #1f1f1f));
+}
+
+.cp-solver-page .cp-solver-pick svg {
+  width: 26px;
+  height: 26px;
+  color: color-mix(in srgb, var(--solver-accent) 50%, #ffffff);
+}
+
+.cp-solver-page .cp-solver-go {
+  background: var(--solver-accent);
+  color: #ffffff;
+}
+
+.cp-solver-page .cp-solver-go:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--solver-accent) 85%, #ffffff);
+}
+
+@media (max-width: 480px) {
+  .cp-solver-hero-art {
+    width: 4.25rem;
+    height: 4.25rem;
+  }
+
+  .cp-solver-hero-art img {
+    width: 56px !important;
+    height: 56px !important;
+  }
+}

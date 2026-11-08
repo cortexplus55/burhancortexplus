@@ -1,9 +1,12 @@
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { QuestionSolver } from "@/components/learning/question-solver";
+import { SOLVER_ACCENT, SolverHero } from "@/components/learning/solver-hero";
 import { requireUser } from "@/lib/auth/session";
 import { examPrepHomeHref } from "@/lib/learning/exam-prep-hrefs";
 import { parseTutorStyle } from "@/lib/learning/tutor-style";
+import { getStudentAccountContext } from "@/lib/student/account-context";
 import "@/styles/question-solver.css";
 
 export const metadata = { title: "Soru çöz" };
@@ -13,17 +16,20 @@ export const dynamic = "force-dynamic";
   Soru çöz (23 Ekim 2026): fotoğraf ya da yazılı soru, her ders. Yeni motor `src/lib/solve/` (iki bağımsız çözüm, kod
   kontrolü, denetim). Ücretsiz hesapta günde 1 fotoğraf ve 3 mesaj (24 Ekim 2026). Hazırlık sayfasından gelince
   (`?hazirlik=`) şıklı soru o hazırlığın tekrar listesine eklenebilir.
+
+  8 Kasım 2026 (ürün sahibinin onayı): sayfa Çalışma Stüdyosu'ndaki kartıyla aynı dilde açılır: 3B simge, ad, renk,
+  "← Çalışma Stüdyosu". Günlük fotoğraf hakkı cümlesi yalnız ücretsiz hesaba (Plus ve kurucu görmüyordu ama okuyordu).
 */
 export default async function SoruCozPage({ searchParams }: { searchParams: Promise<{ hazirlik?: string }> }) {
   const { supabase, user } = await requireUser();
   const { hazirlik } = await searchParams;
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("tutor_style")
-    .eq("id", user.id)
-    .maybeSingle();
+  const [{ data: profile }, account] = await Promise.all([
+    supabase.from("profiles").select("tutor_style").eq("id", user.id).maybeSingle(),
+    getStudentAccountContext(supabase, user.id).catch(() => null),
+  ]);
   const tutorStyle = parseTutorStyle(profile?.tutor_style);
+  const freeAccount = account?.showsUpgradeChrome ?? false;
 
   let prep: { id: string; title: string } | null = null;
   if (hazirlik && /^[0-9a-f-]{36}$/i.test(hazirlik)) {
@@ -42,20 +48,18 @@ export default async function SoruCozPage({ searchParams }: { searchParams: Prom
   }
 
   return (
-    <AppShell title="Soru çöz">
-      <div className="cp-solver-page">
+    <AppShell>
+      <div className="cp-solver-page" style={{ ["--solver-accent" as string]: SOLVER_ACCENT }}>
         {prep ? (
           <Link href={examPrepHomeHref(prep.id)} className="cp-solver-back">
-            ← {prep.title}
+            <ArrowLeft aria-hidden /> {prep.title}
           </Link>
-        ) : null}
-        {/* Sayfa başlığı kabuğun h1'i ("Soru çöz"); burada ikinci kez yazılmaz (6 Kasım 2026). */}
-        <header className="cp-solver-intro-head">
-          <p>
-            Sorunun fotoğrafını çek ya da soruyu yaz. Birkaç saniyede adım adım çözüm, her şıkkın açıklaması ve
-            akılda kalacak kısa kural gelir. Ücretsiz hesapta günde 1 fotoğraf sorusu.
-          </p>
-        </header>
+        ) : (
+          <Link href="/araclar" className="cp-solver-back">
+            <ArrowLeft aria-hidden /> Çalışma Stüdyosu
+          </Link>
+        )}
+        <SolverHero freeAccount={freeAccount} />
         <QuestionSolver prep={prep} tutorStyle={tutorStyle} />
       </div>
     </AppShell>

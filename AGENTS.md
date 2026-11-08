@@ -2205,3 +2205,23 @@ kuralı "değer kattığında" iken kutu çıkmıyordu; "en az 1" ile kavram anl
 | Sınavlar kartında sınav tarihi varsa kalan süre çipi; mavi ışıklı yüzey | `exam-prep.tsx` `PrepCard`, `prep-cards.ts` `dated` |
 
 Fikstür `/e2e/ic-ekran?ekran=cozum|yol`. Bekçi: `genel-tekrar-destesi.test.tsx`, e2e `ana-ekran.spec.ts`.
+
+### Kurucu hesabıyla tur (8 Kasım 2026) — sekiz onaylı öneri, altı kusur
+
+Ürün sahibi yerleşik tarayıcıda kurucu hesabıyla baktı ("premium hesapta değişmemiş"): sekme eski kodu taşıyordu,
+yenileyince yeni sürüm geldi (kod hesaba göre değişmiyor). Aynı hesapla bütün sayfalar gezildi; sekiz öneri onaylandı.
+Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| **Sohbet altı tek satır:** kaynak seçimi tek hap (🔒 Yalnızca belgem / 📄 Belgem + genel bilgi / 🌐 Genel sohbet; dokununca açıklamalı menü, Escape kapatır), mod düğmeleri ve "Ders seç" aynı satırda; telefonda en çok iki satır. Açık sohbette sınav geri sayım şeridi gizli. Telefonda okuma alanı 212 → 349 px. Sınav sohbeti (`examChrome`) eski düzende | `source-mode-pill.tsx`, `chat-panel.tsx` `.cp-sor-controls`, `chat-teaching.css` |
+| **Öğretmen imzası ve balon:** öğretmen cevabı "Cortex öğretmen" imzasıyla başlar; öğrencinin balonu açık mavi geçiş; öneri çipleri simgeli ve türüne göre renkli (🧩 basit, 🔁 örnek, ✅ test — "Beni test et" belirgin) | `chat-panel.tsx` `FOLLOW_UPS`, `chat-teaching.css` |
+| **Soru Çöz stüdyo dilinde:** Çalışma Stüdyosu kartıyla aynı 3B simge, ad ve renk; "← Çalışma Stüdyosu"; büyük fotoğraf alanları ve "Çöz" stüdyonun renginde; günlük fotoğraf hakkı yalnız ücretsiz hesapta | `solver-hero.tsx`, `soru-coz/page.tsx`, `question-solver.css` |
+| **Yol önce:** hazırlık sayfasında sınav sabahı kâğıdı ve paylaşım yolun ve deneme kartının altında (telefonda yol ikinci ekranda başlıyordu) | `exam-prep-home.tsx` `PrepShareTools` |
+| **Haftalık anket şerit:** "📝 Haftalık 1 dakikalık soru · Yanıtla"; dört soru basınca açılır, × "Şimdi değil" | `weekly-survey-card.tsx` `expanded` |
+| **Stüdyo seçimleri kendi renginde** (`--ls-accent`; altın yok); podcast'te "🎧 Örnek bölümü dinle" başlığın altında küçük hap (`StudioEntry` `belowHero`) | `learning-studio.css` `.ls-seg`, `podcast-studio.tsx` |
+| **Sınavlar kartında sıradaki adım:** türün renginde nokta, "Sıradaki · Tür", adım adı (iki satır), "~N dk"; "Devam et" doğrudan o adıma. İlk `ready` düğüm sıra numarasıyla; ücretsiz hesapta Plus adımı atlanır (`pathSkipKinds`, hazırlık sayfasıyla aynı karar); sınavı geçmiş kartta yok. Adım adı tek kaynaktan (`nodeHeading`) | `prep-cards.ts` `nextPrepStep`, `node-heading.ts`, `exam-prep.tsx` `PrepCard` |
+| Gezide bulunan: tablette (768–1179 px) kurucu çipi "Daha fazla"nın üstüne biniyordu (çip kısa adıyla, menü ortada); kamp teklifi kurucuya ve Plus'a "Plus Haftalık'a bak" diyordu (`shell.account.showsUpgradeChrome` de şart); İlerleme beşgeninde ortadaki yüzde noktayla karışıyordu (zemin rengi çevre, etiket 14 px); Krediler sekmesi "Limitler" diyordu (sayfa ve sekme "Kullanım limitleri"); Yanlışlar Defteri'nde altın düğmeler (mavi) | `parity-shell.css`, `[prepId]/page.tsx`, `krediler/page.tsx`, `mistake-notebook-view.tsx` |
+
+Fikstür `/e2e/ic-ekran?ekran=soru|sinavlar|podcast`, `/e2e/ana-ekran?durum=ogretim`. Bekçi: `premium-ic-ekranlar-8-kasim.test.tsx`,
+`weekly-survey.test.tsx`, e2e `ana-ekran.spec.ts`.

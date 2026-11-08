@@ -18,6 +18,7 @@ describe("ana sayfa sade", () => {
   });
 
   it("kaynak seçimi ilk mesajdan sonra görünüyor; belgeden gelindiyse baştan", () => {
-    expect(panel).toContain("showParityEmpty && !examChrome && !initialDocumentId ? null : renderSourceMode(true)");
+    // 8 Kasım 2026: kaynak seçimi sohbet altındaki tek satırda bir hap; kural aynı.
+    expect(panel).toContain("showSourceMode && !(showParityEmpty && !initialDocumentId) ? (");
   });
 });

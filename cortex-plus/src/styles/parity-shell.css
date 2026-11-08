@@ -15009,3 +15009,107 @@ a.cp-exam-search {
     transform: none;
   }
 }
+
+/*
+  Tablet üst çubuğu (8 Kasım 2026, kurucu hesabıyla 922 px'te görüldü): 900 px'ten itibaren sekme grubu ortaya
+  sabitleniyordu; sağdaki düğmeler (kurucu çipi, seri, yıldız) uzayınca "Daha fazla" kutusu çipin altında kalıyordu.
+  1179 px'e kadar grup akışta (ortada, iki yanla çarpışmaz) ve kurucu çipi kısa yazıyla.
+*/
+@media (min-width: 768px) and (max-width: 1179px) {
+  .cp-sor-top .cp-sor-topnav-group {
+    position: static;
+    transform: none;
+    margin-inline: auto;
+  }
+
+  .cp-sor-top .cp-founder-chip__full {
+    display: none;
+  }
+
+  .cp-sor-top .cp-founder-chip__short {
+    display: inline;
+  }
+}
+
+/* Beşgenin ortasındaki yüzde ve hedef, düşük değerde noktanın ve çizgilerin üstüne biniyordu (8 Kasım 2026):
+   zemin renginde ince bir hale ile okunur kalır; noktalar yazının altında. */
+.cp-radar-score,
+.cp-radar-goal {
+  paint-order: stroke;
+  stroke: var(--cp-bg, #0d0d0d);
+  stroke-width: 5px;
+  stroke-linejoin: round;
+}
+
+.cp-radar-label {
+  font-size: 14px;
+}
+
+/* Sınavlar kartında sıradaki adım (8 Kasım 2026): yol adımının türü kendi renginde, adı ve süresi. */
+.cp-prep-card-next {
+  --next-accent: #7b88ff;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0.75rem 0 0;
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--next-accent) 30%, transparent);
+  background: color-mix(in srgb, var(--next-accent) 9%, transparent);
+}
+.cp-prep-card-next[data-kind="quiz"],
+.cp-prep-card-next[data-kind="final_check"] { --next-accent: #b48cff; }
+.cp-prep-card-next[data-kind="true_false"] { --next-accent: #5fd884; }
+.cp-prep-card-next[data-kind="flashcards"],
+.cp-prep-card-next[data-kind="spaced"] { --next-accent: #4fd9c8; }
+.cp-prep-card-next[data-kind="podcast"] { --next-accent: #ff7aa3; }
+.cp-prep-card-next[data-kind="oral"],
+.cp-prep-card-next[data-kind="qa"] { --next-accent: #ff9478; }
+.cp-prep-card-next[data-kind="written_exam"] { --next-accent: #5cc6ff; }
+.cp-prep-card-next[data-kind="focused"],
+.cp-prep-card-next[data-kind="gaps"] { --next-accent: #ffb86b; }
+.cp-prep-card-next[data-kind="readiness"],
+.cp-prep-card-next[data-kind="level"] { --next-accent: #c46bff; }
+
+.cp-prep-card-next-dot {
+  flex: none;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 999px;
+  background: var(--next-accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--next-accent) 20%, transparent);
+}
+
+.cp-prep-card-next-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.cp-prep-card-next-text small {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--next-accent) 55%, #ffffff);
+}
+
+.cp-prep-card-next-text strong {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--c-text, #f2f2f2);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.cp-prep-card-next-min {
+  flex: none;
+  font-size: 0.8125rem;
+  color: var(--cp-muted, #a1a1a1);
+  font-variant-numeric: tabular-nums;
+}

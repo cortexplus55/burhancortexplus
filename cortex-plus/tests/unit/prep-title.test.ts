@@ -58,7 +58,8 @@ describe("hazırlığın adı içerikten", () => {
   });
 
   it("yol kartı kavram birimli derste dersin adını yazar", () => {
-    const home = readFileSync("src/components/parity/exam-prep-home.tsx", "utf8");
+    // 8 Kasım 2026: adım adı Sınavlar kartıyla ortak `node-heading.ts`.
+    const home = readFileSync("src/lib/learning/node-heading.ts", "utf8");
     expect(home).toContain('if (unit) return unit.replace(/^Ders \\d+\\/\\d+: /, "");');
   });
 });

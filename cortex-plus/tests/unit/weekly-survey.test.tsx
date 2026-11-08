@@ -162,6 +162,7 @@ describe("anket: kart", () => {
     const calls = stubFetch(true);
     render(<WeeklySurveyCard />);
     await screen.findByText(SURVEY_COPY.title);
+    fireEvent.click(screen.getByRole("button", { name: SURVEY_COPY.open }));
     const send = screen.getByRole("button", { name: SURVEY_COPY.submit });
     expect(send).toHaveProperty("disabled", true);
     fireEvent.click(screen.getAllByRole("radio", { name: "4" })[0]!);
@@ -180,7 +181,9 @@ describe("anket: kart", () => {
     const calls = stubFetch(true);
     const { container } = render(<WeeklySurveyCard />);
     await screen.findByText(SURVEY_COPY.title);
-    fireEvent.click(screen.getByText(SURVEY_COPY.dismiss));
+    // Kapalı şeritte sorular yok; X "Şimdi değil" demektir.
+    expect(screen.queryByRole("radio", { name: "4" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: SURVEY_COPY.dismiss }));
     await waitFor(() => expect(container.innerHTML).toBe(""));
     expect(calls.at(-1)).toEqual({ method: "POST", body: { action: "dismiss" } });
   });

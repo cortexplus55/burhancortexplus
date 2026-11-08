@@ -206,3 +206,63 @@
   height: 44px;
   transform: translate(-50%, -50%);
 }
+
+/* Kapalı şerit (8 Kasım 2026): tek satır; dört soru "Yanıtla"ya basınca açılır. */
+.cp-survey-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 8px 8px 8px 14px;
+  border: 1px solid color-mix(in srgb, var(--c-action) 28%, var(--c-border));
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--c-action) 7%, var(--c-surface-1));
+  color: var(--c-text);
+}
+
+.cp-survey-strip-icon {
+  flex: none;
+  font-size: 1.05rem;
+}
+
+.cp-survey-strip-text {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 8px;
+  min-width: 0;
+  flex: 1;
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.35;
+}
+
+.cp-survey-strip-text span {
+  color: var(--c-text-muted);
+  font-size: 0.8125rem;
+}
+
+.cp-survey-strip-go {
+  flex: none;
+  min-height: 36px;
+  padding: 6px 16px;
+  border-radius: var(--r-pill);
+  background: var(--c-action);
+  color: var(--c-on-action, #fff);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.cp-survey-strip-go:hover {
+  background: var(--c-action-hover);
+}
+
+@media (max-width: 480px) {
+  .cp-survey-strip {
+    border-radius: var(--r-xl, 1rem);
+  }
+
+  .cp-survey-strip-text span {
+    display: none;
+  }
+}
