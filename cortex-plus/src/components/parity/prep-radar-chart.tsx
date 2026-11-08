@@ -86,16 +86,8 @@ export function PrepRadarChart({
           return (
             <g key={axis.id}>
               <circle className="cp-radar-dot" cx={p.x} cy={p.y} r={3.4} />
-              <text
-                className="cp-radar-label"
-                x={label.x + nudge}
-                y={side === "middle" ? label.y + (label.y < CY ? -6 : 6) : label.y}
-                textAnchor={side}
-                dominantBaseline="middle"
-              >
-                {axis.label}
-              </text>
-              {/* Telefonda ad yerine numara: çizim ekrana sığmak için küçülüyor, ad 8 px'e iniyordu (8 Kasım 2026). */}
+              {/* Çizimde ad yerine numara, ad ve yüzde alttaki listede (8 Kasım 2026): telefonda ad 8 px'e iniyor,
+                  masaüstünde iki kez yazıyordu. */}
               <text
                 className="cp-radar-num"
                 x={label.x + nudge}
