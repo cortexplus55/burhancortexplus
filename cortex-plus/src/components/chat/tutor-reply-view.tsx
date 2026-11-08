@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
+import { RememberCard } from "@/components/chat/remember-card";
+import { splitRememberBlock } from "@/lib/learning/remember-facts";
 import {
   AlertCircle,
   CheckCircle2,
@@ -15,6 +17,7 @@ import { Markdown } from "@/components/markdown";
 import { MathText } from "@/components/learning/math-text";
 import { formatSourceSections, generalOnlyAnswer } from "@/lib/ai/source-sections";
 import { splitTutorChrome, type ReplyChip, type ReplyQuote } from "@/lib/learning/tutor-reply";
+import "@/styles/chat-teaching.css";
 import { SOCRATIC_QUICK_CHIPS, type TutorStyle } from "@/lib/learning/tutor-style";
 
 function TutorBody({
@@ -84,6 +87,8 @@ export function TutorReplyView({
     () => splitTutorChrome(formatSourceSections(content)),
     [content],
   );
+  // "Akılda kalsın" kutusu cevaptan ayrılır, düğmeli kartla çizilir (8 Kasım 2026).
+  const remember = useMemo(() => splitRememberBlock(view.body), [view.body]);
   const chips = useMemo(() => {
     const socratic = tutorStyle === "hints_first" ? SOCRATIC_QUICK_CHIPS : [];
     const extra = hideChips ? [] : view.chips;
@@ -158,7 +163,8 @@ export function TutorReplyView({
           <Markdown content={view.example} variant={variant} />
         </section>
       ) : null}
-      <TutorBody body={view.body} quote={view.quote} variant={variant} />
+      <TutorBody body={remember.body} quote={view.quote} variant={variant} />
+      {remember.items.length ? <RememberCard items={remember.items} /> : null}
       {view.check ? (
         <div className="cp-tutor-check" ref={checkRef}>
           <p className="cp-tutor-check-kicker">Sıra sende</p>

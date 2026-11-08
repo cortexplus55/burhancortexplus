@@ -141,6 +141,9 @@ function assistantErrorContent(error: unknown) {
 function plainForSpeech(content: string) {
   return content
     .replace(/```[\s\S]*?```/g, " ")
+    // Kutu simgeleri ve kilit bilgi işareti sesli okunmaz (8 Kasım 2026).
+    .replace(/📌|⚠️?|💡|🧠|✅|🤔/gu, " ")
+    .replace(/==/g, "")
     .replace(/[*_`#>|[\]()]/g, " ")
     .replace(/\s+/g, " ")
     .trim();

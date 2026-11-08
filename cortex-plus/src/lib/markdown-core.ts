@@ -14,6 +14,11 @@ function formatText(text: string) {
   return escapeHtml(text)
     .replace(/`([^`]+)`/g, '<code class="rounded bg-muted px-1 py-0.5">$1</code>')
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    /*
+      Kilit bilgi (8 Kasım 2026, sohbet öğretim dili; dersteki EMPHASIS_RULE ile aynı işaret): ==…== turuncu
+      fosforlu kalem. İç kısım boşlukla başlayıp bitemez ve "=" taşımaz: "a == b" gibi kod ya da eşitlik vurgu sayılmaz.
+    */
+    .replace(/==(?![\s=])([^=\n]{1,160}?)(?<![\s=])==/g, '<mark class="cp-key">$1</mark>')
     .replace(/(^|[^*])\*([^*]+)\*/g, "$1<em>$2</em>")
     /*
       Yalnızca site içi göreli bağlantı: `/dokumanlar/…?page=3#belge-onizleme`.
@@ -94,6 +99,48 @@ function expandGluedLists(content: string): string {
   );
 }
 
+/**
+ * Alıntı satırları bir arada ve çevresinden boş satırla ayrık kalsın: model kutuyu paragrafın hemen altına yazınca
+ * paragrafla tek bloğa düşüyordu; kutunun içindeki boş satır (">") da kutuyu bölmesin.
+ */
+function separateQuoteBlocks(content: string): string {
+  const lines = content.split("\n");
+  const out: string[] = [];
+  let inQuote = false;
+  for (const line of lines) {
+    const isQuote = /^\s*>/.test(line);
+    if (isQuote && !inQuote && out.length && out[out.length - 1].trim()) out.push("");
+    if (!isQuote && inQuote && line.trim()) out.push("");
+    out.push(isQuote && !line.replace(/^\s*>\s?/, "").trim() ? ">" : line);
+    inQuote = isQuote;
+  }
+  return out.join("\n");
+}
+
+/**
+ * Adımların arasına boş satır konunca ("1. …\n\n2. …") her adım ayrı liste oluyordu: sohbetin adım çizgisi yalnız
+ * ilk adımda çıkıyor, öbürleri "start=2" ile düz numaraya düşüyordu (8 Kasım 2026, canlı ölçüm). Numarası bir
+ * öncekinin devamı olan numaralı blok önceki listeye katılır.
+ */
+function mergeContinuingLists(blocks: string[]): string[] {
+  const out: string[] = [];
+  for (const block of blocks) {
+    const previous = out[out.length - 1];
+    const first = Number(block.trim().match(/^(\d+)\.\s/)?.[1]);
+    if (previous != null && Number.isFinite(first) && /^\s*\d+\.\s/.test(previous)) {
+      const numbers = [...previous.matchAll(/^\s*(\d+)\.\s/gm)].map((match) => Number(match[1]));
+      const lines = previous.split("\n");
+      const allItems = lines.every((line) => !line.trim() || /^\s*\d+\.\s/.test(line) || /^\s{2,}\S/.test(line));
+      if (allItems && numbers.length && first === numbers[numbers.length - 1] + 1) {
+        out[out.length - 1] = `${previous}\n${block.trim()}`;
+        continue;
+      }
+    }
+    out.push(block);
+  }
+  return out;
+}
+
 function splitTrailingList(block: string): string[] {
   const lines = block.split("\n");
   let start = lines.length;
@@ -142,17 +189,61 @@ function renderTable(block: string, math: MathRender): string {
   return `<div class="cp-md-table-wrap"><table class="cp-md-table">${headHtml}<tbody>${bodyHtml}</tbody></table></div>`;
 }
 
+/**
+ * Öğretim kutuları (8 Kasım 2026, sohbet öğretim dili). Öğretmen bir bloğu alıntı satırıyla ("> ") ve bir etiketle
+ * başlatır; ekran onu kendi tasarımıyla çizer. Etiket emoji ya da adla tanınır; tanınmayan alıntı sade alıntıdır.
+ * Kutunun içi yine bu çiziciden geçer (liste, formül, kilit bilgi).
+ */
+export type CalloutKind = "exam" | "mistake" | "analogy" | "mnemonic" | "remember" | "why";
+
+const CALLOUTS: { kind: CalloutKind; label: string; match: RegExp }[] = [
+  { kind: "exam", label: "Sınav ipucu", match: /^(?:📌\s*)?(?:sınav ipucu)\s*[:：-]?\s*/i },
+  { kind: "mistake", label: "Sık yapılan hata", match: /^(?:⚠️?\s*)?(?:sık yapılan hata|sık hata|dikkat)\s*[:：-]?\s*/i },
+  { kind: "analogy", label: "Benzetme", match: /^(?:💡\s*)?(?:benzetme)\s*[:：-]?\s*/i },
+  { kind: "mnemonic", label: "Ezber kodu", match: /^(?:🧠\s*)?(?:ezber kodu|hafıza kodu)\s*[:：-]?\s*/i },
+  { kind: "remember", label: "Akılda kalsın", match: /^(?:✅\s*)?(?:akılda kalsın)\s*[:：-]?\s*/i },
+  { kind: "why", label: "Neden böyle?", match: /^(?:🤔\s*)?(?:neden böyle\??)\s*[:：-]?\s*/i },
+];
+
+/** Satırların hepsi ">" ile başlıyorsa alıntı bloğunun iç metni; değilse null. */
+export function quoteBlockText(block: string): string | null {
+  const lines = block.split("\n");
+  if (!lines.length || !lines.every((line) => /^\s*>/.test(line))) return null;
+  return lines.map((line) => line.replace(/^\s*>\s?/, "")).join("\n").trim();
+}
+
+/** Alıntının etiketi: tür, görünen ad ve etiket çıkarılmış gövde. */
+export function calloutOf(inner: string): { kind: CalloutKind; label: string; body: string } | null {
+  for (const callout of CALLOUTS) {
+    const head = inner.match(callout.match);
+    if (head && head[0].trim()) {
+      return { kind: callout.kind, label: callout.label, body: inner.slice(head[0].length).trim() };
+    }
+  }
+  return null;
+}
+
 export function renderMarkdownWith(content: string, math: MathRender): string {
-  return expandGluedLists(content)
-    .split(/\n{2,}/)
-    .flatMap(splitTableBlock)
-    .flatMap(splitTrailingList)
+  return mergeContinuingLists(
+    separateQuoteBlocks(expandGluedLists(content))
+      .split(/\n{2,}/)
+      .flatMap(splitTableBlock)
+      .flatMap(splitTrailingList),
+  )
     .map((block) => {
       const trimmed = block.trim();
       if (!trimmed) return "";
 
       if (TABLE_ROW.test(trimmed.split("\n")[0]) && TABLE_SEPARATOR.test(trimmed.split("\n")[1] ?? "")) {
         return renderTable(trimmed, math);
+      }
+
+      const quoted = quoteBlockText(trimmed);
+      if (quoted != null) {
+        const callout = calloutOf(quoted);
+        if (!callout) return `<blockquote class="cp-md-quote">${renderMarkdownWith(quoted, math)}</blockquote>`;
+        const body = callout.body ? renderMarkdownWith(callout.body, math) : "";
+        return `<aside class="cp-callout cp-callout--${callout.kind}" data-callout="${callout.kind}"><p class="cp-callout-label">${callout.label}</p><div class="cp-callout-body">${body}</div></aside>`;
       }
 
       const mathOnly = splitMath(trimmed);

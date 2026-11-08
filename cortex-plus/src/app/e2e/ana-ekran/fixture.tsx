@@ -25,6 +25,26 @@ function account(plus: boolean): StudentAccountContext {
   } as StudentAccountContext;
 }
 
+/** Öğretim dili örneği (8 Kasım 2026, canlı ölçümden iki gerçek cevap; gpt-6-luna). */
+export const TEACHING_MESSAGES = [
+  {
+    "role": "user" as const,
+    "content": "Mitoz ile mayoz bölünme arasındaki fark nedir?"
+  },
+  {
+    "role": "assistant" as const,
+    "content": "1. **Mitoz**, büyüme ve doku onarımı için vücut hücrelerinde gerçekleşir. Bir bölünme sonunda ana hücreyle ==genetik olarak aynı hücreler== oluşur.\n\n2. **Mayoz**, üreme hücreleri oluşurken gerçekleşir. İki bölünme sonunda kromozom sayısı yarıya iner ve genetik çeşitlilik oluşur.\n\n3. Mitozda kromozom sayısı korunur; mayozda yarıya düşer. Mitozda bir, mayozda iki kez bölünme gerçekleşir.\n\n> 📌 Sınav ipucu: Mitoz ve mayozu karşılaştırırken bölünme sayısına, oluşan hücre sayısına ve kromozom sayısına birlikte bak.\n\n> ✅ Akılda kalsın:\n> - Mayoz sonucunda ==dört haploit hücre== oluşur."
+  },
+  {
+    "role": "user" as const,
+    "content": "Kalp döngüsünde sistol ve diyastol nedir?"
+  },
+  {
+    "role": "assistant" as const,
+    "content": "- **Sistol**, kalp kasının kasılıp kanı ileri pompaladığı evredir.\n- **Diyastol**, kalp kasının gevşeyip kalp boşluklarının kanla dolduğu evredir.\n- Kulakçıklar ve karıncıklar bu evreleri sırayla geçirir; bir bölüm kasılırken diğeri gevşeyebilir.\n\n> ⚠️ Sık hata: Sistol ve diyastolü kalbin aynı anda bütünüyle kasılıp gevşemesi gibi düşünme; kulakçıklarla karıncıkların evreleri farklı zamanlarda gerçekleşir.\n\n> ✅ Akılda kalsın:\n> - **Sistol** kalbin ==kasılıp kanı pompaladığı== evredir.\n> - **Diyastol** kalbin ==gevşeyip kanla dolduğu== evredir."
+  }
+];
+
 const MESSAGES = [
   { role: "user" as const, content: "Türevin tanımını kısaca anlatır mısın?" },
   {
@@ -49,11 +69,13 @@ export function AnaEkranFixture({
   plus,
   hasPrep,
   unanswered = false,
+  teaching = false,
 }: {
   conversation: boolean;
   plus: boolean;
   hasPrep: boolean;
   unanswered?: boolean;
+  teaching?: boolean;
 }) {
   const heroFooter =
     conversation || hasPrep ? undefined : (
@@ -76,7 +98,9 @@ export function AnaEkranFixture({
           conversation
             ? unanswered
               ? [...MESSAGES, { role: "user" as const, content: "Aynı mantıkla benzer bir örnek soru üret ve çöz." }]
-              : MESSAGES
+              : teaching
+                ? TEACHING_MESSAGES
+                : MESSAGES
             : []
         }
         hasDocuments={false}

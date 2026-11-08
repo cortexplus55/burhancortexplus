@@ -52,7 +52,7 @@ const ICONS: Record<string, LucideIcon> = {
   "dogru-yanlis": BookOpen,
 };
 
-export function ToolsHub() {
+export function ToolsHub({ deck }: { deck?: { dueCount: number; total: number } }) {
   const shellAccount = useStudentShellAccount();
   const freeAccount = shellAccount ? shellAccount.showsUpgradeChrome : false;
   // Stüdyolar kendi galerisinde (studios.ts); burada yalnız laboratuvar, hesap aracı ve kısayol.
@@ -70,6 +70,22 @@ export function ToolsHub() {
         <h1>Bugün nasıl çalışmak istersin?</h1>
         <p>Bir stüdyo seç; konunu yaz ya da belgeni seç, saniyeler içinde hazır.</p>
       </header>
+
+      {deck && deck.total > 0 ? (
+        // Genel tekrar destesi (8 Kasım 2026): sohbetten eklenen bilgiler günü gelince burada.
+        <Link href="/tekrar" className={cn("tools-deck", deck.dueCount > 0 && "is-due")}>
+          <Icon3D name="tekrar" size={52} />
+          <span className="tools-deck-text">
+            <strong>Tekrar destem</strong>
+            <span>
+              {deck.dueCount > 0
+                ? `Bugün ${deck.dueCount} kart seni bekliyor`
+                : `Destende ${deck.total} kart; bugün tekrar yok`}
+            </span>
+          </span>
+          <span className="tools-deck-go">{deck.dueCount > 0 ? "Başla" : "Aç"}</span>
+        </Link>
+      ) : null}
 
       <StudioGallery freeAccount={freeAccount} />
 

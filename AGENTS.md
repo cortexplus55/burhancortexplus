@@ -139,7 +139,7 @@ düğüm; görseller **bize özgü** 3B set. Ölçümler ve 8 adım: `docs/deliv
 
 | Kural | Nerede |
 |---|---|
-| Dört yazı tipi: Figtree (metin), JetBrains Mono (etiket), Jersey 10 (karşılama, 404), Caveat ("hedef puan"); `ui-monospace` ya da tırnaklı başlık yazmayın | `layout.tsx`, `tokens.css` (`--font-mono/pixel/hand`) |
+| Dört yazı tipi: Figtree (metin), JetBrains Mono (etiket), Jersey 10 (karşılama, 404), Caveat ("hedef puan" ve 8 Kasım 2026'dan beri sohbetin "Ezber kodu" kutusu, ürün sahibinin kararı); `ui-monospace` ya da tırnaklı başlık yazmayın | `layout.tsx`, `tokens.css` (`--font-mono/pixel/hand`) |
 | Koyu palet: zemin #0d0d0d, yüzey #141414 / #1f1f1f, çerçeve #242424 / #303030, mavi #4353f3; **durum renkleri altın değil** (seçili sekme gri cam, seçim mavi, ilerleme yeşil); sarı yalnız marka, Plus, yıldız, seri, "hedef puan" | `tokens.css` `.dark`, `--glass-bg` |
 | Yazı ölçeği `--t-*` (başlık 600, -0.02em; etiket 500, +0.01em); yeni ara boyut (13.6, 16.8) uydurmayın | `tokens.css` |
 | 3B simgeler `Icon3D` ile, ad listesi tek kaynak; yeni görsel aynı tarzda üretilir | `components/ui/icon-3d.tsx`, `public/illustrations/3d` |
@@ -2172,3 +2172,24 @@ zaman aşımına düşüyor.
 
 Fikstür `/e2e/ic-ekran` (`?ekran=radar|test|defter`), `/e2e/ana-ekran?durum=cevapsiz`. Bekçi: `ic-ekran-duzeltmeler.test.tsx`,
 e2e `ana-ekran.spec.ts` (sohbet elle kaydırılmadan sona iner; beşgen etiketleri kesilmez).
+
+## Sohbet öğretim dili ve genel tekrar destesi (8 Kasım 2026)
+
+Ürün sahibi: "AI öğretmenle konuşurken balonlar çok sade; önemli yerler farklı renk ve yazı tipiyle akılda kalıcı
+olsun." Dersin işaretleri sohbete taşındı; ek model çağrısı yok. Ürün sahibinin kararları: canlı ölçüm (1 $ onayı;
+harcanan ~0,015 $), ezber kodunda el yazısı, sohbetten "Tekrarıma ekle" ile **genel tekrar destesi**. Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| Öğretmen yazarken işaretler: `==kilit bilgi==` (cümlenin İÇİNDE 1-6 kelime, asla bütün cümle; cevapta en çok 2), `**terim**`, alıntı satırıyla başlayan kutular (`> 📌 Sınav ipucu:`, `> ⚠️ Sık hata:`, `> 💡 Benzetme:`, `> 🤔 Neden böyle?`, `> 🧠 Ezber kodu:`), `$$formül$$`, numaralı adımlar. Kavram anlatan cevapta en az 1, en çok 2 kutu; selamlaşma ve kısa cevapta hiç işaret yok. Ana sohbet ve hazırlık sohbeti aynı metni okur; JSON'lu hazırlık yolu okumaz | `teacher-tutor.ts` `CHAT_TEACHING_MARKUP`, `chat/route.ts` |
+| Çizici: `==…==` → `<mark class="cp-key">` (iç kısım boşlukla başlayıp bitmez, "=" taşımaz: "a == b" vurgu değil); `>` blokları etiketiyle kutu, etiketsiz alıntı sade alıntı; kutunun içi yeniden çizilir; ardışık numaralı bloklar tek liste (`start`'lı Türkçe sıra sayısı listesi olduğu gibi); çıktı kaçışlı. Akış sürerken eşleşmemiş `==` gizlenir | `markdown-core.ts`, `stream-markdown-mask.ts` |
+| Görünüm: balonun solunda öğretmen çizgisi, terim mavi, kilit bilgi turuncu fosfor (çizilerek gelir), kutular renkli (sınav ipucu turuncu, sık hata kırmızı, benzetme mavi, neden turkuaz, ezber kodu mor ve el yazısı), formül kartı, adımlar bağlı dairelerle | `chat-teaching.css` |
+| **Akılda kalsın:** cevabın sonundaki `> ✅ Akılda kalsın:` kutusu (1-3 madde, her maddede bir kilit bilgi) cevaptan ayrılır, yeşil kartta çizilir; "Tekrarıma ekle" maddeyi boşluk doldurma kartına çevirir (ilk `==…==` boşluk, cevap odur; kilit bilgisi olmayan madde kart olmaz, uydurulmaz) | `remember-facts.ts`, `remember-card.tsx`, `TutorReplyView` |
+| **Genel tekrar destesi:** tablo `general_review_cards` (göç `20261108120000`, canlıda; satır güvenliği açık, politika yok, yalnız sunucu); aynı kart ikinci kez eklenmez (`card_key`); 1-3-7-14 gün, Bildim bir basamak, 14. günde bilinen öğrenildi, Bilemedim 1. güne; aynı gün ikinci yanıt basamağı yeniden oynatmaz. Uç `/api/review/deck` (POST ekle, PATCH yanıt), sayfa `/tekrar` (Suspense yok), Çalışma Stüdyosu'nun başında "Tekrar destem" kartı (destede kart varsa). Hesap silinince `purgeUserData` siler | `general-review.ts`, `review-deck-session.tsx` |
+| Alıntı eşleştirme (`normalizeForMatch`) ve seslendirme (`plainForSpeech`) `==` ve kutu simgelerini yok sayar | `document-answer-verification.ts`, `chat-panel.tsx` |
+
+Ölçüm (yerel, `tests/unit/_tmp/sohbet-dili-olcum.test.ts`, gpt-6-luna, 16 soru, 3 tur): ilk turda model kilit bilgiyi bütün
+cümleye koyuyordu (20 maddeden 3'ü karta dönüşüyordu); kurala "Doğru/Yanlış" örneği eklenince 18 maddeden 15'i. Kutu
+kuralı "değer kattığında" iken kutu çıkmıyordu; "en az 1" ile kavram anlatan her cevapta bir kutu. Fikstür
+`/e2e/ana-ekran?durum=ogretim` (ölçümden iki gerçek cevap). Bekçi: `sohbet-ogretim-dili.test.ts`,
+`genel-tekrar-destesi.test.tsx` (göçü PGlite'ta), e2e `ana-ekran.spec.ts` ("öğretim dili").

@@ -49,6 +49,8 @@ const USER_CONTENT_TABLES = [
   // CASCADE çalışmaz; satırlar burada gider. Göç canlıda yoksa atlanır.
   "email_preferences",
   "email_campaign_recipients",
+  // 8 Kasım 2026: genel tekrar destesi (sohbetin "Akılda kalsın" kartları). Göç canlıda yoksa atlanır.
+  "general_review_cards",
 ] as const;
 
 const OPTIONAL_PURGE_TABLES = new Set([
@@ -60,6 +62,7 @@ const OPTIONAL_PURGE_TABLES = new Set([
   "cookie_consent_events",
   "email_preferences",
   "email_campaign_recipients",
+  "general_review_cards",
 ]);
 
 /**

@@ -136,6 +136,7 @@ export function tutorSystemPrompt(context: TutorContext): string {
     // Öğrencinin belgesi olan her modda notun sayısı genel bilgiden önce gelir (6 Kasım 2026; dersin ve testin kuralı aynen).
     mode === "curriculum" ? "" : SOURCE_NUMBER_PRIORITY,
     CONTENT_STYLE,
+    CHAT_TEACHING_MARKUP,
     who,
     ...(context.learnerLines ?? []).filter(Boolean),
     context.pendingAnswer
@@ -252,6 +253,31 @@ export const CHAT_NATURAL_VOICE =
   "Sınav sorusu (yazılı veya fotoğraf) sorulduğunda: önce soruyu ve şıkları birebir oku (sayı, sembol, grafik/tablo, " +
   "Romen öncül, değildir/yanlıştır/ulaşılamaz/en az/kesinlikle); adım adım çöz; cevabı yerine koyarak sağlamasını yap; " +
   "diğer şıkları ele. Sağlaması yapılmamış ilk tahmini yazma.";
+
+/**
+ * Sohbet öğretim dili (8 Kasım 2026, ürün sahibi: "önemli yerler farklı renk ve yazı tipiyle akılda kalıcı olsun").
+ * Dersin işaretleriyle aynı: ekran ==kilit bilgi==yi turuncu fosforla, alıntı satırıyla başlayan etiketli kutuları
+ * renkli kutu olarak, "Akılda kalsın" maddelerini "Tekrarıma ekle" düğmeli kartla çizer (markdown-core, TutorReplyView).
+ * Ana sohbet ve hazırlık sohbeti aynı metni okur. Selamlaşma ve kısa cevapta işaret yok: az ve öz vurgu.
+ */
+export const CHAT_TEACHING_MARKUP =
+  "SOHBET ÖĞRETİM DİLİ (ekran bu işaretleri renkli çizer; işaretlerin rengini ya da anlamını metinde anlatma):\n" +
+  "- Sınavda doğrudan sorulacak KESİN bilgiyi (kural, eşik, sayı, tanımın çekirdeği) cümlenin İÇİNDE ==çift eşittir== arasına al: yalnız kilit kısım (1-6 kelime), asla bütün cümle değil, ayrı satırda değil, içinde formül yok; bir cevapta en çok 2. Doğru: 'Mayozda kromozom sayısı ==yarıya iner==.' Yanlış: '==Mayozda kromozom sayısı yarıya iner.==' Anahtar terimler **koyu**.\n" +
+  "- Bir kavramı ya da yöntemi anlattığın cevapta EN AZ 1, en çok 2 kutu kullan (çoğu zaman ⚠️ Sık hata ya da 📌 Sınav ipucu; " +
+  "kısa ve bu konuya özgü, genel öğüt değil); her kutu ayrı paragraf ve her satırı \"> \" ile başlar:\n" +
+  "  > 📌 Sınav ipucu: sınavda nasıl soruluyor / neye dikkat\n" +
+  "  > ⚠️ Sık hata: öğrencilerin yaygın yanılgısı ve doğrusu\n" +
+  "  > 💡 Benzetme: soyut kavramı gündelik bir şeye bağla (sınıflandırması doğru olsun)\n" +
+  "  > 🤔 Neden böyle? kuralın nedeni\n" +
+  "  > 🧠 Ezber kodu: yalnız gerçekten akılda tutmaya yarıyorsa ve listedeki öğelerden kurulursa; uydurma kısaltma yok\n" +
+  "- Tek başına duran formül kendi satırında $$…$$; işlem adımları numaralı liste.\n" +
+  "- Bir kavramı ya da yöntemi öğrettiğin cevabın EN SONUNA (varsa kısa sorudan sonra) şu kutuyu koy:\n" +
+  "  > ✅ Akılda kalsın:\n" +
+  "  > - Mitozda oluşan hücre sayısı ==2==, mayozda ==4==.\n" +
+  "  1 ile 3 madde; her madde tek cümle ve içinde kilit kısmı ==…== ile işaretli (ekran o kısmı boşluk yapıp öğrenciye sonra soracak; cümlenin geri kalanı soruyu anlaşılır kılmalı). " +
+  "Madde kendi başına anlaşılır (\"bu\", \"o\" ile başlamaz) ve yalnız bu cevapta öğrettiğin doğru bilgiden. " +
+  "Soru çözdüğün cevapta madde sorunun cevabı değil, kullandığın kural ya da yöntemdir.\n" +
+  "- Selamlaşma, tek cümlelik cevap, öğrencinin sorusunu netleştirme ya da sohbet havasındaki cevapta hiçbir işaret ve kutu kullanma.";
 
 /**
  * Öğrencinin profilde seçtiği anlatım tarzı. Eski `tutorStylePrompt` her
