@@ -15057,19 +15057,19 @@ a.cp-exam-search {
   border: 1px solid color-mix(in srgb, var(--next-accent) 30%, transparent);
   background: color-mix(in srgb, var(--next-accent) 9%, transparent);
 }
-.cp-prep-card-next[data-kind="quiz"],
-.cp-prep-card-next[data-kind="final_check"] { --next-accent: #b48cff; }
-.cp-prep-card-next[data-kind="true_false"] { --next-accent: #5fd884; }
-.cp-prep-card-next[data-kind="flashcards"],
-.cp-prep-card-next[data-kind="spaced"] { --next-accent: #4fd9c8; }
-.cp-prep-card-next[data-kind="podcast"] { --next-accent: #ff7aa3; }
-.cp-prep-card-next[data-kind="oral"],
-.cp-prep-card-next[data-kind="qa"] { --next-accent: #ff9478; }
-.cp-prep-card-next[data-kind="written_exam"] { --next-accent: #5cc6ff; }
-.cp-prep-card-next[data-kind="focused"],
-.cp-prep-card-next[data-kind="gaps"] { --next-accent: #ffb86b; }
-.cp-prep-card-next[data-kind="readiness"],
-.cp-prep-card-next[data-kind="level"] { --next-accent: #c46bff; }
+:is(.cp-prep-card-next, .cp-resume)[data-kind="quiz"],
+:is(.cp-prep-card-next, .cp-resume)[data-kind="final_check"] { --next-accent: #b48cff; }
+:is(.cp-prep-card-next, .cp-resume)[data-kind="true_false"] { --next-accent: #5fd884; }
+:is(.cp-prep-card-next, .cp-resume)[data-kind="flashcards"],
+:is(.cp-prep-card-next, .cp-resume)[data-kind="spaced"] { --next-accent: #4fd9c8; }
+:is(.cp-prep-card-next, .cp-resume)[data-kind="podcast"] { --next-accent: #ff7aa3; }
+:is(.cp-prep-card-next, .cp-resume)[data-kind="oral"],
+:is(.cp-prep-card-next, .cp-resume)[data-kind="qa"] { --next-accent: #ff9478; }
+:is(.cp-prep-card-next, .cp-resume)[data-kind="written_exam"] { --next-accent: #5cc6ff; }
+:is(.cp-prep-card-next, .cp-resume)[data-kind="focused"],
+:is(.cp-prep-card-next, .cp-resume)[data-kind="gaps"] { --next-accent: #ffb86b; }
+:is(.cp-prep-card-next, .cp-resume)[data-kind="readiness"],
+:is(.cp-prep-card-next, .cp-resume)[data-kind="level"] { --next-accent: #c46bff; }
 
 .cp-prep-card-next-dot {
   flex: none;
@@ -15785,43 +15785,394 @@ a.cp-exam-search {
 
 /* ── Açık tema tamamlaması sonu ── */
 
-/* Ana ekranda "Kaldığın yerden devam" (8 Kasım 2026): Sınavlar kartının "Sıradaki" satırıyla aynı görünüm, tıklanır. */
-.cp-continue-line {
-  width: min(100%, 34rem);
-  margin: 1.1rem auto 0;
+/*
+  Ana ekranda "Kaldığın yerden devam" kartı (8 Kasım 2026 yeniden tasarım; ürün sahibi: "çok özensiz ve gösterişsiz;
+  kullanıcı girdiğinde çok özel bir görünüm görsün"). Üst satır hazırlığın kimliği (dersin simgesi ve rengi, adı,
+  sınava kalan gün), orta satır sıradaki adım ve yolun tamamlama halkası, alt satır yüzde ve tek mavi düğme.
+  Tek hareket anı: sayfa açılınca kart yükselir, halka biten kısma kadar dolar, düğmenin üstünden bir kez ışık geçer.
+  Adım türünün rengi (--next-accent) Sınavlar kartındaki "Sıradaki" satırıyla aynı listeden.
+*/
+.cp-resume {
+  --next-accent: #7b88ff;
+  --resume-subject: #7b88ff;
+  position: relative;
+  isolation: isolate;
+  flex: none; /* Ana ekranın kart kutusu sütun; kart küçülüp içeriğini kesmesin. */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "head head" "body body" "prog go";
+  align-items: center;
+  width: min(100%, 36rem);
+  margin: 1.25rem auto 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--next-accent) 26%, var(--c-border, #242424));
+  border-radius: 24px;
+  background:
+    radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--next-accent) 16%, transparent), transparent 58%),
+    radial-gradient(90% 80% at 0% 100%, color-mix(in srgb, var(--resume-subject) 9%, transparent), transparent 60%),
+    var(--c-surface-1, #141414);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, #ffffff 6%, transparent) inset,
+    0 24px 60px -32px color-mix(in srgb, var(--next-accent) 55%, transparent);
+  color: var(--c-text, #fff);
+  text-align: left;
   text-decoration: none;
-  color: inherit;
-  min-height: 3.25rem;
-  transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
+  animation: cp-resume-rise 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  transition: border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
 }
-.cp-continue-line:hover {
-  border-color: color-mix(in srgb, var(--next-accent) 55%, transparent);
-  background: color-mix(in srgb, var(--next-accent) 14%, transparent);
+
+.cp-resume:hover {
+  border-color: color-mix(in srgb, var(--next-accent) 55%, var(--c-border, #242424));
+  transform: translateY(-2px);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, #ffffff 6%, transparent) inset,
+    0 28px 70px -30px color-mix(in srgb, var(--next-accent) 70%, transparent);
 }
-.cp-continue-line:active {
-  transform: scale(0.99);
+
+.cp-resume:active {
+  transform: translateY(0) scale(0.995);
 }
-.cp-continue-line-go {
+
+.cp-resume:focus-visible {
+  outline: 2px solid var(--c-action, #4353f3);
+  outline-offset: 3px;
+}
+
+@keyframes cp-resume-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.985);
+  }
+}
+
+/* Üst satır: hazırlığın kimliği */
+.cp-resume-head {
+  grid-area: head;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.15rem 0.9rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--c-border, #242424) 80%, transparent);
+}
+
+.cp-resume-subject {
   flex: none;
   display: grid;
   place-items: center;
-  width: 2rem;
-  height: 2rem;
-  border-radius: 999px;
-  font-weight: 700;
-  color: var(--c-text, #f2f2f2);
-  background: color-mix(in srgb, var(--next-accent) 22%, transparent);
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--resume-subject) 17%, transparent);
+  color: var(--resume-subject);
 }
-.cp-continue-line {
-  text-align: left;
+
+.cp-resume-prep {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
 }
-.cp-continue-line-meta {
+
+.cp-resume-prep small {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--c-text-muted, #999);
+}
+
+.cp-resume-prep strong {
   overflow: hidden;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cp-resume-days {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 1.9rem;
+  padding: 0 0.7rem;
+  border: 1px solid var(--c-border-strong, #303030);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--c-surface-2, #1f1f1f) 70%, transparent);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-resume-days--soon {
+  border-color: color-mix(in srgb, #f59e0b 45%, transparent);
+  color: color-mix(in srgb, #f59e0b 75%, var(--c-text, #fff));
+}
+
+/* Orta satır: halka ve sıradaki adım */
+.cp-resume-body {
+  grid-area: body;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.15rem 1.15rem 0.85rem;
+}
+
+.cp-resume-ring {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 4rem;
+  height: 4rem;
+  color: var(--next-accent);
+}
+
+.cp-resume-ring-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.cp-resume-ring-track {
+  fill: color-mix(in srgb, var(--next-accent) 10%, transparent);
+  stroke: color-mix(in srgb, var(--next-accent) 18%, var(--c-border, #242424));
+  stroke-width: 4;
+}
+
+.cp-resume-ring-fill {
+  fill: none;
+  stroke: var(--next-accent);
+  stroke-width: 4;
+  stroke-linecap: round;
+  animation: cp-resume-ring 1.1s cubic-bezier(0.3, 0.7, 0.2, 1) 0.25s both;
+}
+
+/* Biten kısma kadar dolar: başlangıç boş halka, bitiş öğenin kendi stroke-dashoffset'i. */
+@keyframes cp-resume-ring {
+  from {
+    stroke-dashoffset: var(--resume-ring);
+  }
+}
+
+.cp-resume-kind-icon {
+  position: relative;
+}
+
+.cp-resume-step {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.cp-resume-kind {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--next-accent) 72%, var(--c-text, #fff));
+}
+
+.cp-resume-heading {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 1.1875rem;
+  font-weight: 650;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.cp-resume-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
   margin-top: 0.1rem;
   font-size: 0.8125rem;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  color: var(--cp-muted, #a1a1a1);
+  color: var(--c-text-muted, #999);
+}
+
+/* Alt satır: tamamlama ve düğme */
+.cp-resume-progress {
+  grid-area: prog;
+  padding: 0.35rem 0.75rem 1.1rem 1.15rem;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem 0.35rem;
+  min-width: 0;
+  font-size: 0.8125rem;
+  color: var(--c-text-muted, #999);
+}
+
+.cp-resume-progress b {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--c-text, #fff);
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-resume-count {
+  margin-left: 0.35rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-resume-go {
+  grid-area: go;
+  justify-self: end;
+  margin: 0.35rem 1.15rem 1.1rem 0;
+  position: relative;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0 1.2rem 0 0.45rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--c-action, #4353f3);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 12px 26px -12px color-mix(in srgb, var(--c-action, #4353f3) 90%, transparent);
+  color: #fff;
+  font-size: 0.9375rem;
+  font-weight: 650;
+  transition: background 160ms ease;
+}
+
+.cp-resume:hover .cp-resume-go {
+  background: var(--c-action-hover, #4b5af4);
+}
+
+.cp-resume-go-icon {
+  display: grid;
+  place-items: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.cp-resume-go-icon svg {
+  margin-left: 2px;
+}
+
+/* Düğmenin üstünden bir kez geçen ışık: halka dolduktan sonra, yalnız açılışta. */
+.cp-resume-go::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, 0.28) 50%, transparent 70%);
+  transform: translateX(-120%);
+  animation: cp-resume-sheen 0.9s ease-out 1.2s both;
+  pointer-events: none;
+}
+
+@keyframes cp-resume-sheen {
+  to {
+    transform: translateX(120%);
+  }
+}
+
+@media (max-width: 480px) {
+  .cp-resume {
+    grid-template-areas: "head head" "body go" "prog prog";
+    border-radius: 20px;
+  }
+
+  .cp-resume-head {
+    padding: 0.85rem 0.95rem 0.75rem;
+  }
+
+  .cp-resume-body {
+    gap: 0.8rem;
+    padding: 0.95rem 0.5rem 0.6rem 0.95rem;
+  }
+
+  .cp-resume-heading {
+    font-size: 1.0625rem;
+  }
+
+  .cp-resume-prep strong {
+    display: -webkit-box;
+    white-space: normal;
+    line-height: 1.3;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .cp-resume-days-long {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .cp-resume-ring {
+    width: 3.5rem;
+    height: 3.5rem;
+  }
+
+  .cp-resume-progress {
+    padding: 0 0.95rem 0.95rem;
+  }
+
+  /* Telefonda yuvarlak oynat düğmesi; yazı ekran okuyucuda kalır. */
+  .cp-resume-go {
+    align-self: center;
+    justify-content: center;
+    width: 3rem;
+    min-height: 3rem;
+    margin: 0 0.95rem 0.25rem 0;
+    padding: 0;
+  }
+
+  .cp-resume-go-icon {
+    background: none;
+  }
+
+  .cp-resume-go-icon svg {
+    width: 1.1rem;
+    height: 1.1rem;
+  }
+
+  .cp-resume-go-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-resume,
+  .cp-resume-ring-fill,
+  .cp-resume-go::after {
+    animation: none;
+  }
+
+  .cp-resume,
+  .cp-resume:hover {
+    transform: none;
+    transition: none;
+  }
+}
+
+:root:not(.dark) .cp-resume {
+  box-shadow: 0 18px 44px -30px color-mix(in srgb, var(--next-accent) 60%, transparent);
+}
+
+:root:not(.dark) .cp-resume-days--soon {
+  color: #b45309;
 }
 
 /* Zor kullanıcı turu (8 Kasım 2026, telefonda ölçüldü): açık bölümde sıradaki düğümün üstünde yükselen simge

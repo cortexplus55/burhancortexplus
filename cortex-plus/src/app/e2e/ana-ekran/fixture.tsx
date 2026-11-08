@@ -71,10 +71,13 @@ export function AnaEkranFixture({
   hasPrep,
   unanswered = false,
   teaching = false,
+  freshPrep = false,
 }: {
   conversation: boolean;
   plus: boolean;
   hasPrep: boolean;
+  /** Hiç adımı bitmemiş hazırlık (`?hazirlik=yeni`): kart "İlk adım seni bekliyor" ve "Başla" der. */
+  freshPrep?: boolean;
   unanswered?: boolean;
   teaching?: boolean;
 }) {
@@ -83,6 +86,9 @@ export function AnaEkranFixture({
       step={{
         prepId: "fixture",
         prepTitle: "Hücre Bölünmeleri ve Kalıtım",
+        subject: "Biyoloji",
+        progress: freshPrep ? { done: 0, total: 48, pct: 0 } : { done: 13, total: 48, pct: 27 },
+        daysLeft: 35,
         next: {
           kind: "quiz",
           kindLabel: "Konu testi",

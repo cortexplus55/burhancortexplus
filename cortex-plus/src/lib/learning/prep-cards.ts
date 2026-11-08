@@ -9,6 +9,7 @@ import { activityDurationMinutes } from "@/lib/learning/activity-duration";
 import { examPrepNodeHref } from "@/lib/learning/exam-prep-hrefs";
 import { nodeHeading } from "@/lib/learning/node-heading";
 import { istanbulDay } from "@/lib/chat/chat-display";
+import { pathCompletion } from "@/lib/learning/prep-metrics";
 
 type PrepRow = {
   id: string;
@@ -166,7 +167,17 @@ export async function loadPrepCards(
   );
 }
 
-export type ContinueStep = { prepId: string; prepTitle: string; next: NonNullable<ExamPrepCard["next"]> };
+export type ContinueStep = {
+  prepId: string;
+  prepTitle: string;
+  next: NonNullable<ExamPrepCard["next"]>;
+  /** Dersin adı (hazırlığın `exam_type`); kartta dersin simgesi buradan. */
+  subject?: string | null;
+  /** Yolun tamamlaması (İlerleme'deki "Tamamlama" ile aynı hesap, `pathCompletion`). */
+  progress?: { done: number; total: number; pct: number } | null;
+  /** Sınava kalan gün (İstanbul günüyle); tarih yoksa null. */
+  daysLeft?: number | null;
+};
 
 /**
  * Ana ekranın "Kaldığın yerden devam" satırı (8 Kasım 2026, ürün sahibinin onayı): en son çalışılan hazırlığın
@@ -196,15 +207,16 @@ export async function loadContinueStep(
   const { data: prep } = await query.limit(1).maybeSingle();
   if (!prep?.id) return null;
   if (prep.exam_date && String(prep.exam_date) < istanbulDay()) return null;
+  // Bütün adımlar (yalnız açık olanlar değil): kart yolun ne kadarının bittiğini de gösterir (8 Kasım 2026).
   const { data: nodes } = await supabase
     .from("exam_prep_nodes")
     .select("id, status, kind, title, sort_order, session_meta")
-    .eq("exam_prep_id", prep.id)
-    .eq("status", "ready");
+    .eq("exam_prep_id", prep.id);
+  const steps = (nodes ?? []).filter((row) => !skipKinds.has(String(row.kind)));
   const next = nextPrepStep(
     String(prep.id),
     (nodes ?? []).map((row) => ({
-      status: "ready" as const,
+      status: (row.status as PrepCardNode["status"]) ?? "locked",
       id: String(row.id),
       kind: row.kind as string | null,
       title: row.title as string | null,
@@ -214,5 +226,18 @@ export async function loadContinueStep(
     skipKinds,
   );
   if (!next) return null;
-  return { prepId: String(prep.id), prepTitle: String(prep.title ?? prep.exam_type), next };
+  const today = istanbulDay();
+  const daysLeft = prep.exam_date
+    ? Math.round((Date.parse(`${String(prep.exam_date).slice(0, 10)}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000)
+    : null;
+  return {
+    prepId: String(prep.id),
+    prepTitle: String(prep.title ?? prep.exam_type),
+    next,
+    subject: (prep.exam_type as string | null) ?? null,
+    progress: pathCompletion(
+      steps.map((row) => ({ status: (row.status as PrepCardNode["status"]) ?? "locked", kind: row.kind as string | null })),
+    ),
+    daysLeft,
+  };
 }

@@ -131,10 +131,51 @@ describe("Kaldığın yerden devam", () => {
     );
     const link = view.getByRole("link");
     expect(link.getAttribute("href")).toBe("/deneme-sinavlari/p1/dugum/n1");
-    expect(link.textContent).toContain("Kaldığın yerden devam");
+    // Hiç adımı bitmemiş hazırlık (8 Kasım 2026 kart): "Yeni hazırlığın", "İlk adım seni bekliyor", "Başla".
+    expect(link.textContent).toContain("Yeni hazırlığın");
+    expect(link.textContent).toContain("Anayasa Hukuku");
     expect(link.textContent).toContain("Yasama yetkisi");
-    expect(link.textContent).toContain("Ders · Anayasa Hukuku");
+    expect(link.textContent).toContain("Sıradaki: Ders");
     expect(link.textContent).toContain("~12 dk");
+    expect(link.textContent).toContain("İlk adım seni bekliyor");
+    expect(link.textContent).toContain("Başla");
+  });
+
+  it("başlanmış hazırlık: yüzde, adım sayısı, sınava kalan gün ve halka biten kısmı gösterir", () => {
+    const view = render(
+      <ContinueLine
+        step={{
+          prepId: "p1",
+          prepTitle: "Anayasa Hukuku",
+          subject: "Hukuk",
+          progress: { done: 13, total: 48, pct: 27 },
+          daysLeft: 35,
+          next: { kind: "quiz", kindLabel: "Konu testi", heading: "Yasama yetkisi", minutes: 8, href: "/deneme-sinavlari/p1/dugum/n2" },
+        }}
+      />,
+    );
+    const link = view.container.querySelector("a")!;
+    expect(link.textContent).toContain("Kaldığın yerden devam");
+    expect(link.textContent).toContain("%27");
+    expect(link.textContent).toContain("13 / 48 adım");
+    expect(link.textContent).toContain("Sınava 35 gün");
+    expect(link.textContent).toContain("Devam et");
+    expect(link.getAttribute("data-kind")).toBe("quiz");
+    const fill = link.querySelector(".cp-resume-ring-fill")!;
+    const ring = Number(fill.getAttribute("stroke-dasharray"));
+    expect(Number(fill.getAttribute("stroke-dashoffset"))).toBeCloseTo(ring * 0.73, 3);
+  });
+
+  it("sınav yarın / bugün; geçmiş tarih gösterilmez", () => {
+    const base = {
+      prepId: "p1",
+      prepTitle: "Kimya",
+      progress: { done: 2, total: 10, pct: 20 },
+      next: { kind: "lesson" as const, kindLabel: "Ders", heading: "Mol", minutes: 10, href: "/x" },
+    };
+    expect(render(<ContinueLine step={{ ...base, daysLeft: 1 }} />).container.textContent).toContain("Sınav yarın");
+    expect(render(<ContinueLine step={{ ...base, daysLeft: 0 }} />).container.textContent).toContain("Sınav bugün");
+    expect(render(<ContinueLine step={{ ...base, daysLeft: -2 }} />).container.textContent).not.toContain("Sınav");
   });
 });
 
