@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import { CalendarClock, ChevronRight, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { Icon3D, type Icon3DName } from "@/components/ui/icon-3d";
 import { WeeklySurveyCard } from "@/components/feedback/weekly-survey-card";
 import { cn } from "@/lib/utils";
@@ -27,6 +27,8 @@ export type ExamPrepCard = {
   topicsDone: number;
   topicsTotal: number;
   targetScore: number | null;
+  /** Sınav tarihi var: kartın başında kalan süre çipi (8 Kasım 2026). */
+  dated?: boolean;
   continueHref: string;
   /** Sınav günü geçti ("Geçmiş" sekmesi). */
   past?: boolean;
@@ -266,6 +268,15 @@ export function PrepCard({ card, showTargetLabel }: { card: ExamPrepCard; showTa
   return (
     <article className="cp-prep-card">
       <div className="cp-prep-card-body">
+        {/* 8 Kasım 2026: sınav tarihi varsa kartın başında kalan süre çipi; önceden yalnız başlık ve ince bir çizgi vardı. */}
+        {card.dated && card.daysLabel ? (
+          <div className="cp-prep-card-top">
+            <span className={cn("cp-prep-card-days", card.past && "is-past")}>
+              <CalendarClock className="h-3.5 w-3.5" aria-hidden />
+              {card.daysLabel}
+            </span>
+          </div>
+        ) : null}
         <h2 className="cp-prep-card-title">{card.title}</h2>
         <div className="cp-prep-meter">
           <div className="cp-prep-meter-rail">

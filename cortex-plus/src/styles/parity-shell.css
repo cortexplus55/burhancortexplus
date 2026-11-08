@@ -14865,3 +14865,147 @@ a.cp-exam-search {
   font-size: 0.875rem;
   font-weight: 650;
 }
+
+/*
+  Yol adımları türünün rengini taşır (8 Kasım 2026): renkler Çalışma Stüdyosu kartlarıyla aynı (lib/parity/studios.ts).
+  Açık adımda simge renkli, kilitlide soluk ve köşede küçük kilit; bitmiş adımın onayı ve sıradaki adımın huzmesi aynen.
+*/
+.cp-exam-trail-node {
+  --node-accent: #9aa3b5;
+}
+.cp-exam-trail-node[data-kind="lesson"] { --node-accent: #7b88ff; }
+.cp-exam-trail-node[data-kind="quiz"],
+.cp-exam-trail-node[data-kind="final_check"] { --node-accent: #b48cff; }
+.cp-exam-trail-node[data-kind="true_false"] { --node-accent: #5fd884; }
+.cp-exam-trail-node[data-kind="flashcards"],
+.cp-exam-trail-node[data-kind="spaced"] { --node-accent: #4fd9c8; }
+.cp-exam-trail-node[data-kind="podcast"] { --node-accent: #ff7aa3; }
+.cp-exam-trail-node[data-kind="oral"],
+.cp-exam-trail-node[data-kind="qa"] { --node-accent: #ff9478; }
+.cp-exam-trail-node[data-kind="written_exam"] { --node-accent: #5cc6ff; }
+.cp-exam-trail-node[data-kind="focused"],
+.cp-exam-trail-node[data-kind="gaps"] { --node-accent: #ffb86b; }
+.cp-exam-trail-node[data-kind="readiness"],
+.cp-exam-trail-node[data-kind="level"] { --node-accent: #c46bff; }
+
+.cp-exam-trail-node:not(.cp-exam-trail-node--done) .cp-puck-glyph {
+  color: var(--node-accent);
+}
+
+.cp-exam-trail-node--locked .cp-puck-glyph {
+  color: color-mix(in srgb, var(--node-accent) 55%, var(--c-gray-450, #6b6f78));
+}
+
+.cp-exam-trail-node--locked .cp-puck-glyph > svg:not(.cp-puck-lock),
+.cp-exam-trail-node--locked .cp-puck-glyph .cp-path-letters {
+  opacity: 0.7;
+}
+
+.cp-exam-trail-node--locked .cp-puck-glyph svg {
+  width: 20px;
+  height: 20px;
+}
+
+.cp-puck-glyph .cp-puck-lock {
+  position: absolute;
+  right: -14px;
+  top: -8px;
+  width: 14px !important;
+  height: 14px !important;
+  padding: 2px;
+  border-radius: 999px;
+  background: #1c1c1e;
+  color: var(--c-gray-450, #8a8f99);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+/*
+  Sıradaki adım kartı (8 Kasım 2026): üç düğme tek satırda "Başka Bir Konu veya Etkinlik Seç"i üç satıra
+  sıkıştırıyordu. Birincil "Devam et" üstte tam genişlik; iki seçim düğmesi altta yan yana (dar ekranda alt alta).
+*/
+.cp-path-next--focus .cp-path-next-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.cp-path-next--focus .cp-path-next-actions > .cp-exam-continue--primary {
+  grid-column: 1 / -1;
+  order: -1;
+  min-height: 48px;
+}
+
+.cp-path-next--focus .cp-path-next-actions > .cp-path-next-custom {
+  min-height: 44px;
+  font-size: 0.875rem;
+}
+
+@media (max-width: 400px) {
+  .cp-path-next--focus .cp-path-next-actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/*
+  Sınavlar listesindeki hazırlık kartı (8 Kasım 2026, ürün sahibi: "iç ekranlar premium olsun"): mavi ışıklı yüzey,
+  sınav tarihi varsa kalan süre çipi, üzerine gelince hafifçe yükselir. İlerleme çubuğu ve alt şerit aynen.
+*/
+.cp-prep-card {
+  position: relative;
+  border-color: var(--cp-border-strong);
+  transition:
+    transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1),
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.cp-prep-card:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--c-action) 45%, transparent);
+  box-shadow: 0 18px 40px -26px color-mix(in srgb, var(--c-action) 80%, transparent);
+}
+
+.cp-prep-card .cp-prep-card-body {
+  gap: 1.1rem;
+  background:
+    radial-gradient(90% 70% at 100% 0%, color-mix(in srgb, var(--c-action) 14%, transparent), transparent 70%),
+    var(--cp-bg, #0d0d0f);
+}
+
+.cp-prep-card .cp-prep-card-title {
+  font-size: 1.0625rem;
+  letter-spacing: -0.01em;
+}
+
+.cp-prep-card-top {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.cp-prep-card-days {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--c-action) 40%, transparent);
+  background: color-mix(in srgb, var(--c-action) 14%, transparent);
+  color: #c7ccff;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-prep-card-days.is-past {
+  border-color: var(--cp-border-strong);
+  background: transparent;
+  color: var(--cp-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-prep-card,
+  .cp-prep-card:hover {
+    transition: none;
+    transform: none;
+  }
+}

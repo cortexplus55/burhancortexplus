@@ -18,7 +18,8 @@ export function socraticHint(solution: Pick<Solution, "intro" | "asked" | "steps
 export function socraticConcept(solution: Pick<Solution, "steps" | "tip" | "asked" | "subject">): string {
   const math = solution.steps.find((step) => step.math?.trim())?.math?.trim();
   if (math) return math;
-  if (solution.tip.trim()) return solution.tip.trim();
+  // Kural kilit kısmını ==…== ile işaretleyebilir (8 Kasım 2026); düz ipucunda işaret görünmez.
+  if (solution.tip.trim()) return solution.tip.replace(/==/g, "").trim();
   if (solution.asked.trim()) return solution.asked.trim();
   return solution.subject.trim() || "Bu sorunun kilit kavramı.";
 }

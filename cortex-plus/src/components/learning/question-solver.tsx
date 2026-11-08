@@ -5,6 +5,7 @@ import { Camera, CheckCircle2, ImageUp, ListPlus, ShieldAlert, TriangleAlert, X 
 import { useDismiss } from "@/lib/ui/use-dismiss";
 import { CreditGate } from "@/components/paywall/credit-gate";
 import { MathText } from "@/components/learning/math-text";
+import { RememberCard } from "@/components/chat/remember-card";
 import { requestSolve, SOLVE_STAGE_LABEL, solvePhaseAfter, type SolveDone, type SolvePhase } from "@/lib/solve/solve-client";
 import { solutionAnswerLine } from "@/lib/solve/solution-markdown";
 import type { SolveStatus } from "@/lib/solve/solve-run";
@@ -373,9 +374,19 @@ export function SolutionView({
           <p className="cp-solver-answer-text">{solution.answer.text}</p>
         ) : null}
         {!locked && solution.trap ? (
-          <p className="cp-solver-trap">⚠️ Sınav tuzağı / dikkat: {solution.trap}</p>
+          // Sohbetin "Sık hata" kutusuyla aynı görünüm (8 Kasım 2026).
+          <aside className="cp-callout cp-callout--mistake cp-solver-callout" data-callout="mistake">
+            <p className="cp-callout-label">Sınav tuzağı</p>
+            <div className="cp-callout-body">
+              <p>{solution.trap.replace(/==/g, "")}</p>
+            </div>
+          </aside>
         ) : null}
       </section>
+
+      {/* Çözücünün "akılda kalacak kısa kuralı" (tip) üretiliyordu ama ekranda hiç gösterilmiyordu (8 Kasım 2026):
+          sohbetteki "Akılda kalsın" kartıyla; kilit kısmı işaretliyse "Tekrarıma ekle". */}
+      {!locked && solution.tip ? <RememberCard items={[solution.tip]} /> : null}
 
       {extra}
       <div className="cp-solver-actions">

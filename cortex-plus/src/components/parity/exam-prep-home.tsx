@@ -138,9 +138,25 @@ export type HomeNode = {
  * değil. Kilitli düğümde tür yerine kilit: "bu daha açılmadı" tek bakışta
  * okunuyor. Test düğümleri harfle (AB / ABCD), podcast altıgenle ayrılıyor.
  */
+/**
+ * Kilitli adım da türünü gösterir (8 Kasım 2026, ürün sahibi: "iç ekranlar premium olsun"): önceden bütün kilitli
+ * adımlar aynı gri kilitti, yol tek renk bir diziydi. Şimdi tür simgesi soluk ve köşede küçük kilit; renk türden
+ * (Çalışma Stüdyosu kartlarıyla aynı, `data-kind`).
+ */
 function NodeGlyph({ node }: { node: HomeNode }) {
   if (isLevelNode(node.id)) return <Flag className="h-6 w-6" aria-hidden />;
-  if (node.status === "locked") return <Lock className="h-5 w-5" aria-hidden />;
+  if (node.status === "locked") {
+    return (
+      <>
+        <KindGlyph node={node} />
+        <Lock className="cp-puck-lock" aria-hidden />
+      </>
+    );
+  }
+  return <KindGlyph node={node} />;
+}
+
+function KindGlyph({ node }: { node: HomeNode }) {
   const icon = "h-6 w-6";
   switch (node.kind) {
     case "quiz":
@@ -1555,6 +1571,7 @@ function StudyPath({
                   node.id === currentId && "is-current",
                   node.id === pickedId && "is-picked",
                 )}
+                data-kind={level ? "level" : node.kind}
                 aria-pressed={node.id === pickedId ? true : undefined}
                 aria-label={
                   level

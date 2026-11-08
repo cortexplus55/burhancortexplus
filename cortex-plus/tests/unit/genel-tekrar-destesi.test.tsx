@@ -158,3 +158,33 @@ describe("kaynak sözleşmeleri", () => {
     expect(read("src/lib/privacy/account-deletion.ts")).toContain('"general_review_cards"');
   });
 });
+
+describe("Soru Çöz aynı dilde (8 Kasım 2026)", () => {
+  it("tuzak 'Sık hata' kutusu, gösterilmeyen kural 'Akılda kalsın' kartı; sohbete kayıt da aynı biçimde", () => {
+    const view = read("src/components/learning/question-solver.tsx");
+    expect(view).toContain('<aside className="cp-callout cp-callout--mistake cp-solver-callout" data-callout="mistake">');
+    expect(view).toContain("{!locked && solution.tip ? <RememberCard items={[solution.tip]} /> : null}");
+    expect(view).not.toContain("cp-solver-trap");
+    const saved = read("src/lib/solve/solution-markdown.ts");
+    expect(saved).toContain("`> ⚠️ Sık hata: ${solution.trap}`");
+    expect(saved).toContain('"> ✅ Akılda kalsın:", `> - ${solution.tip}`');
+    // Ölçüm: çözücüye kilit bilgi işareti istemek kuralı bozuyordu (4 sorudan 3'ünde); istem değişmedi.
+    expect(read("src/lib/solve/question-solver.ts")).toContain('"- trap: öğrencinin en çok karıştırdığı nokta (bir cümle). tip: akılda kalacak kısa kural. "');
+  });
+});
+
+describe("yol adımları ve hazırlık kartı (8 Kasım 2026)", () => {
+  it("kilitli adım türünü gösterir (soluk simge + köşede kilit); renk türden", () => {
+    const home = read("src/components/parity/exam-prep-home.tsx");
+    expect(home).toContain('<Lock className="cp-puck-lock" aria-hidden />');
+    expect(home).toContain('data-kind={level ? "level" : node.kind}');
+    const shell = read("src/styles/parity-shell.css");
+    expect(shell).toContain('.cp-exam-trail-node[data-kind="podcast"] { --node-accent: #ff7aa3; }');
+    expect(shell).toMatch(/\.cp-path-next--focus \.cp-path-next-actions \{\n\s*display: grid;/);
+  });
+
+  it("hazırlık kartında sınav tarihi varsa kalan süre çipi", () => {
+    expect(read("src/components/parity/exam-prep.tsx")).toContain("{card.dated && card.daysLabel ? (");
+    expect(read("src/lib/learning/prep-cards.ts")).toContain("dated: Boolean(prep.exam_date),");
+  });
+});
