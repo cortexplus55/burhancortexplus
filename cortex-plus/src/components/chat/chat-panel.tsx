@@ -1,7 +1,7 @@
 "use client";
 
 import { LIVE_HEADER, splitLiveBody } from "@/lib/ai/chat-live";
-import { useRef, useState, useEffect, type ComponentProps } from "react";
+import { useCallback, useRef, useState, useEffect, type ComponentProps } from "react";
 import { createPortal } from "react-dom";
 import { useLearningTimer } from "@/components/learning/use-learning-timer";
 import { isProblemQuestion, solvedLabel } from "@/lib/learning/solved-card";
@@ -521,15 +521,71 @@ function ChatPanelSession({
     return () => root.classList.remove("cs-sor-screen--active-chat");
   }, [isMinimalSor, sorChatActive]);
 
+  /*
+    Sohbetin sonuna kaydır (8 Kasım 2026). Önceden son satıra `scrollIntoView({ block: "end" })` deniyordu: satır
+    görünür alanın en altına, yani sabit yazma alanının arkasına oturuyordu; kayıtlı sohbet açılınca "Daha basit
+    anlat" önerileri görünmüyordu. Şimdi kaydırma kutusu sonuna kadar iner; alt boşluk (ölçülen yazma alanı
+    yüksekliği) son satırı yazma alanının üstünde tutar. Kutu kaymıyorsa (eski düzen) belge kaydırılır.
+  */
+  const scrollThreadToEnd = useCallback((smooth: boolean) => {
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const behavior: ScrollBehavior = smooth && !reduced ? "smooth" : "auto";
+    const box = messagesScrollRef.current;
+    if (box && box.scrollHeight > box.clientHeight + 1) {
+      box.scrollTo({ top: box.scrollHeight, behavior });
+      return;
+    }
+    if (box) window.scrollTo({ top: document.documentElement.scrollHeight, behavior });
+  }, []);
+  const scrollThreadToEndRef = useRef(scrollThreadToEnd);
+  scrollThreadToEndRef.current = scrollThreadToEnd;
+
+  /*
+    Sona yapışık kalma (8 Kasım 2026): kayıtlı sohbet açıldıktan sonra içerik büyüyebiliyor (formül yazısı geç yükleniyor,
+    öneri satırı sonradan geliyor); tek seferlik kaydırma telefonda son satırı yazma alanının arkasında bırakıyordu.
+    Öğrenci yukarı kaydırmadıkça içerik her büyüdüğünde kutu sona iner; yukarı kaydırınca bırakılır.
+  */
+  const threadOpen = isParitySor && (messages.length > 0 || loading);
+  const stickToEndRef = useRef(true);
+  const programmaticScrollRef = useRef(0);
+  useEffect(() => {
+    if (!threadOpen) return;
+    const box = messagesScrollRef.current;
+    if (!box) return;
+    stickToEndRef.current = true;
+    const onScroll = () => {
+      if (Date.now() < programmaticScrollRef.current) return;
+      stickToEndRef.current = box.scrollHeight - box.scrollTop - box.clientHeight < 120;
+    };
+    const pin = () => {
+      if (!stickToEndRef.current || box.scrollHeight <= box.clientHeight + 1) return;
+      programmaticScrollRef.current = Date.now() + 250;
+      box.scrollTop = box.scrollHeight;
+    };
+    box.addEventListener("scroll", onScroll, { passive: true });
+    const mutations = typeof MutationObserver === "undefined" ? null : new MutationObserver(pin);
+    mutations?.observe(box, { childList: true, subtree: true, characterData: true });
+    const sizes = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(pin);
+    sizes?.observe(box);
+    if (box.firstElementChild) sizes?.observe(box.firstElementChild);
+    pin();
+    return () => {
+      box.removeEventListener("scroll", onScroll);
+      mutations?.disconnect();
+      sizes?.disconnect();
+    };
+  }, [threadOpen]);
+
   useEffect(() => {
     if (!isMinimalSor && !isParitySor) return;
-    messagesEndRef.current?.scrollIntoView({
-      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
-        ? "auto"
-        : "smooth",
-      block: "end",
-    });
-  }, [messages, loading, isMinimalSor, isParitySor]);
+    if (isMinimalSor) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
+      return;
+    }
+    stickToEndRef.current = true;
+    programmaticScrollRef.current = Date.now() + 700;
+    scrollThreadToEnd(true);
+  }, [messages, loading, isMinimalSor, isParitySor, scrollThreadToEnd]);
 
   useEffect(() => {
     if (!attachMenuOpen) return;
@@ -668,8 +724,11 @@ function ChatPanelSession({
         return;
       }
       const clearance = Math.max(0, Math.ceil(window.innerHeight - zone.getBoundingClientRect().top));
+      const firstMeasure = !view.dataset.composerMeasured;
       view.style.setProperty("--cp-sor-composer-clearance", `${clearance}px`);
       view.dataset.composerMeasured = "1";
+      // İlk ölçümle alt boşluk büyür: açık sohbetin sonu yeniden yazma alanının üstüne gelsin.
+      if (firstMeasure) requestAnimationFrame(() => scrollThreadToEndRef.current(false));
     };
     const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(sync);
     observer?.observe(zone);
@@ -1575,6 +1634,17 @@ function ChatPanelSession({
                 );
               })}
               </div>
+
+              {/* Kayıtlı sohbet öğrencinin sorusuyla bitiyorsa (cevap yazılamadan bağlantı koptu ya da sayfa kapandı)
+                  öğrenci boşlukta kalmasın (8 Kasım 2026, canlıda görüldü): soruyu bir dokunuşla yeniden sor. */}
+              {!examChrome && !loading && messages.length > 0 && messages[messages.length - 1]?.role === "user" ? (
+                <div className="cp-sor-unanswered" role="status">
+                  <span>Bu soruya cevap gelmedi.</span>
+                  <button type="button" onClick={regenerateLast}>
+                    Tekrar sor
+                  </button>
+                </div>
+              ) : null}
 
               {/* Yanıt bittikten sonra devam önerileri. Öğrenci "peki şimdi ne
                   sorayım" diye kalmasın; bunlar gerçekten çalışan komutlar,

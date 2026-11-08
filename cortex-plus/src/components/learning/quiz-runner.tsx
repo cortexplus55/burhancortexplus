@@ -117,7 +117,7 @@ export function QuizRunner({
           aria-valuemax={questions.length}
         >
           <div
-            className="h-full rounded-full bg-amber-400 transition-[width] duration-300 ease-out"
+            className="h-full rounded-full bg-[var(--ls-accent,#5b6cff)] transition-[width] duration-300 ease-out"
             style={{ width: `${(answeredCount / questions.length) * 100}%` }}
           />
         </div>

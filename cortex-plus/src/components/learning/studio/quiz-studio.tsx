@@ -387,14 +387,14 @@ export function QuizStudio({
             {incorrect > 0 ? (
               <Link
                 href="/yanlislarim"
-                className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-bold text-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300"
+                className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-[var(--ls-accent,#5b6cff)] px-5 py-2.5 text-sm font-bold text-white hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ls-accent,#5b6cff)]"
               >
                 Yanlışlarımı tekrar et
               </Link>
             ) : (
               <Link
                 href="/araclar"
-                className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-bold text-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300"
+                className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-[var(--ls-accent,#5b6cff)] px-5 py-2.5 text-sm font-bold text-white hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ls-accent,#5b6cff)]"
               >
                 Çalışmaya devam et
               </Link>

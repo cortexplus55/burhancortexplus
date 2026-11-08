@@ -2159,3 +2159,16 @@ Fikstürler `/e2e/ana-ekran` (`?durum=sohbet`, `?plan=plus`, `?hazirlik=1`) ve `
 stüdyo kartı yok, son içerik geçişin üstünde, mod düğmeleri ortada ve kırpılmıyor; stüdyo sayfasında 8 kart, her
 birinin ortası tıklanınca kartın kendisi). E2E'yi tam birim paketiyle aynı anda koşmayın: yük altında sayfa açılışları
 zaman aşımına düşüyor.
+
+### İç ekranlar turu (8 Kasım 2026) — canlıda gezilip bulunan beş kusur
+
+| Kusur | Kural | Nerede |
+|---|---|---|
+| Kayıtlı sohbet açılınca son satır (devam önerileri) yazma alanının arkasında kalıyordu: son satıra `scrollIntoView({ block: "end" })` deniyordu, satır yazma alanının altına oturuyordu; telefonda formül yazısı sonradan yüklenip içeriği uzatıyordu | Açık sohbette kabuk sabit yükseklikte, kayan mesaj kutusu; sona kaydırma kutunun kendisinde; öğrenci yukarı kaydırmadıkça içerik büyüdükçe (Mutation/ResizeObserver) sona yapışık kalır; yazma alanının ilk ölçümünde yeniden sona iner | `chat-panel.tsx` (`scrollThreadToEnd`, `stickToEndRef`) |
+| İlerleme'nin beşgeninde "Tempo & Düzen" solda kesiliyordu | Yan etiketler dışa hizalı (`start`/`end`), çizim kutusu iki yana 104 birim genişler, etiket 13 SVG birimi | `prep-radar-chart.tsx` |
+| Stüdyo sayfalarında altın ışık ve boş kutu gibi CSS çizimi (`ls-world`); renkler kartlarla uyuşmuyordu; kullanılmayan tırnaklı yazı yükleniyordu | Başta kartın 3B simgesi, adı ve cümlesi (`StudioHero`, `STUDIOS`'tan); `--ls-accent` kart rengiyle aynı; birincil düğmeler ve ilerleme çubukları stüdyonun renginde (altın yok); geri bağlantısı "Çalışma Stüdyosu" | `studio-shared.tsx`, `learning-studio.css` |
+| Yanlışlar Defteri'nde altın birincil düğme ve "quiz" | Mavi düğme, "İlk testini çöz" | `mistake-notebook-view.tsx` |
+| Son soruya cevap gelmemiş sohbette tekrar sorma yolu yoktu | Son mesaj öğrencinin sorusuysa "Bu soruya cevap gelmedi · Tekrar sor" (`regenerateLast`) | `chat-panel.tsx` `.cp-sor-unanswered` |
+
+Fikstür `/e2e/ic-ekran` (`?ekran=radar|test|defter`), `/e2e/ana-ekran?durum=cevapsiz`. Bekçi: `ic-ekran-duzeltmeler.test.tsx`,
+e2e `ana-ekran.spec.ts` (sohbet elle kaydırılmadan sona iner; beşgen etiketleri kesilmez).

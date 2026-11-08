@@ -1,11 +1,9 @@
-@import url("https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&display=swap");
-
 .ls-studio {
   --ls-gold: #f4ae0b;
   --ls-gold-soft: rgba(244, 174, 11, 0.22);
   --ls-text: #fafafa;
   --ls-muted: #a3a3a3;
-  --ls-accent: #f4ae0b;
+  --ls-accent: #5b6cff;
   /* 19 Ekim 2026: tırnaklı başlık kalktı; tasarım sistemi tek yazı tipi (Figtree). */
   --ls-display: var(--font-ui), "Segoe UI", system-ui, sans-serif;
   position: relative;
@@ -17,12 +15,14 @@
   color: var(--ls-text);
 }
 
-.ls-studio--quiz { --ls-accent: #f4ae0b; }
-.ls-studio--tf { --ls-accent: #34d399; }
-.ls-studio--flash { --ls-accent: #60a5fa; }
-.ls-studio--podcast { --ls-accent: #a78bfa; }
-.ls-studio--sozlu { --ls-accent: #fb7185; }
-.ls-studio--yazili { --ls-accent: #e8a838; }
+/* 8 Kasım 2026: renkler Çalışma Stüdyosu kartlarıyla aynı (lib/parity/studios.ts); altın yalnız marka ve Plus. */
+.ls-studio--quiz { --ls-accent: #9b6bff; }
+.ls-studio--tf { --ls-accent: #3fc56b; }
+.ls-studio--flash { --ls-accent: #2fc7b6; }
+.ls-studio--podcast { --ls-accent: #ff5d8f; }
+.ls-studio--sozlu { --ls-accent: #ff7a59; }
+.ls-studio--yazili { --ls-accent: #36b6ff; }
+.ls-studio--anlat { --ls-accent: #c46bff; }
 
 .ls-studio-ambient {
   pointer-events: none;
@@ -90,113 +90,6 @@
   .ls-studio-body {
     padding-bottom: calc(5.2rem + env(safe-area-inset-bottom, 0px));
   }
-}
-
-.ls-world {
-  position: relative;
-  height: 5.4rem;
-  width: 7.5rem;
-  margin-bottom: 0.15rem;
-}
-
-.ls-world span {
-  position: absolute;
-  inset: 0;
-}
-
-.ls-world--quiz span:nth-child(1) {
-  background: radial-gradient(ellipse at 50% 0%, rgba(244, 174, 11, 0.45), transparent 68%);
-}
-
-.ls-world--quiz span:nth-child(2) {
-  left: 18%;
-  right: 18%;
-  top: 18%;
-  bottom: 8%;
-  border: 1px solid rgba(244, 174, 11, 0.28);
-  border-radius: 0.35rem 0.35rem 0.8rem 0.8rem;
-}
-
-.ls-world--sozlu span:nth-child(1),
-.ls-world--sozlu span:nth-child(2) {
-  left: 50%;
-  top: 50%;
-  border-radius: 9999px;
-  transform: translate(-50%, -50%);
-}
-
-.ls-world--sozlu span:nth-child(1) {
-  height: 4.6rem;
-  width: 4.6rem;
-  border: 2px solid rgba(251, 113, 133, 0.45);
-  box-shadow: 0 0 28px rgba(251, 113, 133, 0.25);
-}
-
-.ls-world--sozlu span:nth-child(2) {
-  height: 1.6rem;
-  width: 1.6rem;
-  background: #fb7185;
-}
-
-.ls-world--podcast span:nth-child(1) {
-  left: 50%;
-  top: 50%;
-  height: 5rem;
-  width: 5rem;
-  transform: translate(-50%, -50%);
-  border-radius: 9999px;
-  background:
-    radial-gradient(circle at 50% 50%, #111 16%, transparent 17%),
-    repeating-radial-gradient(circle at 50% 50%, transparent 0 4px, rgba(167, 139, 250, 0.3) 4px 5px);
-}
-
-.ls-world--tf span:nth-child(1),
-.ls-world--tf span:nth-child(2) {
-  top: 12%;
-  width: 32%;
-  height: 78%;
-  border-radius: 0.45rem 0.45rem 0 0;
-}
-
-.ls-world--tf span:nth-child(1) {
-  left: 12%;
-  background: rgba(52, 211, 153, 0.22);
-  border: 1px solid rgba(52, 211, 153, 0.4);
-}
-
-.ls-world--tf span:nth-child(2) {
-  right: 12%;
-  left: auto;
-  background: rgba(251, 113, 133, 0.18);
-  border: 1px solid rgba(251, 113, 133, 0.4);
-}
-
-.ls-world--flash span:nth-child(1),
-.ls-world--flash span:nth-child(2),
-.ls-world--flash span:nth-child(3) {
-  left: 50%;
-  top: 18%;
-  width: 46%;
-  height: 64%;
-  border-radius: 0.5rem;
-  border: 1px solid rgba(96, 165, 250, 0.4);
-  background: rgba(14, 22, 36, 0.85);
-}
-
-.ls-world--flash span:nth-child(1) { transform: translate(-70%, 10%) rotate(-10deg); }
-.ls-world--flash span:nth-child(2) { transform: translate(-50%, 4%) rotate(2deg); }
-.ls-world--flash span:nth-child(3) { transform: translate(-30%, 0) rotate(11deg); }
-
-.ls-world--yazili span:nth-child(1) {
-  left: 18%;
-  right: 18%;
-  top: 8%;
-  bottom: 6%;
-  border-radius: 0.3rem;
-  background:
-    linear-gradient(180deg, rgba(255, 248, 230, 0.08), transparent 20%),
-    repeating-linear-gradient(180deg, transparent 0 11px, rgba(232, 168, 56, 0.18) 11px 12px);
-  box-shadow: 0 16px 28px rgba(0, 0, 0, 0.28);
 }
 
 .ls-entry {
@@ -585,7 +478,7 @@
   background: linear-gradient(135deg, #ffc857, #d4922a);
   color: #140f05;
   cursor: pointer;
-  box-shadow: 0 0 48px var(--ls-gold-soft);
+  box-shadow: 0 0 48px color-mix(in srgb, var(--ls-accent) 22%, transparent);
 }
 
 .ls-wave {
@@ -1295,28 +1188,6 @@
   bir dalga. Burada üreten öğrenci, o yüzden dekor da konuşma balonu:
   ışık aşağıdan geliyor, sözü söyleyen tarafta.
 */
-.ls-world--anlat span:nth-child(1) {
-  background: radial-gradient(ellipse at 50% 100%, rgba(244, 174, 11, 0.4), transparent 70%);
-}
-
-.ls-world--anlat span:nth-child(2) {
-  left: 22%;
-  right: 22%;
-  top: 26%;
-  bottom: 26%;
-  border: 1px solid rgba(244, 174, 11, 0.3);
-  border-radius: 1rem 1rem 1rem 0.2rem;
-}
-
-.ls-world--anlat span:nth-child(3) {
-  left: 34%;
-  right: 34%;
-  top: 40%;
-  bottom: 46%;
-  border-top: 1px solid rgba(244, 174, 11, 0.22);
-  border-bottom: 1px solid rgba(244, 174, 11, 0.16);
-}
-
 
 /* ---- Araç kurulumu (19 Ekim 2026): kaynak, belge, sayı ve süre seçimi ---- */
 .ls-setup {
@@ -1444,4 +1315,71 @@
 .ls-open-answer:focus-visible {
   outline: 2px solid var(--c-action, #4353f3);
   outline-offset: 2px;
+}
+
+/* Stüdyonun başı (8 Kasım 2026): kartıyla aynı renk ve 3B simge. */
+.ls-hero {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 0.25rem 0 0.5rem;
+}
+
+.ls-hero-art {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 5.25rem;
+  height: 5.25rem;
+}
+
+.ls-hero-plate {
+  position: absolute;
+  inset: 0.35rem;
+  border-radius: 1.5rem;
+  background:
+    radial-gradient(80% 80% at 30% 20%, color-mix(in srgb, var(--ls-accent) 55%, transparent), transparent 70%),
+    color-mix(in srgb, var(--ls-accent) 16%, #1f1f1f);
+  border: 1px solid color-mix(in srgb, var(--ls-accent) 40%, transparent);
+  transform: rotate(-8deg);
+}
+
+.ls-hero-art img {
+  position: relative;
+  filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.45));
+}
+
+.ls-hero-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.ls-hero-title {
+  font-size: clamp(1.4rem, 3.2vw, 1.75rem);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--ls-text);
+}
+
+.ls-hero-blurb {
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  color: var(--ls-muted);
+}
+
+@media (max-width: 480px) {
+  .ls-hero-art {
+    width: 4.25rem;
+    height: 4.25rem;
+  }
+
+  .ls-hero-art img {
+    width: 56px !important;
+    height: 56px !important;
+  }
 }
