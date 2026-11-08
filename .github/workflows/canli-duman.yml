@@ -51,4 +51,6 @@ jobs:
         if: failure()
         with:
           name: canli-duman-raporu
-          path: cortex-plus/playwright-report
+          path: |
+            cortex-plus/playwright-report
+            cortex-plus/test-results
