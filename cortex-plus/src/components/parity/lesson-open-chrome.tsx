@@ -133,11 +133,14 @@ export function LessonOpenChrome({
 
   return (
     <article className="cp-exam-setup-card">
-      <p className="cp-lesson-kicker">{LESSON_OPEN_COPY.recommendedKicker}</p>
-      <h1>{LESSON_OPEN_COPY.exploreTitle}</h1>
+      {/* Konunun adı başlık (8 Kasım 2026, zor kullanıcı turu): genel "Konuyu öğretmeninle keşfet" büyük, asıl konu
+          küçük gri satırdaydı; süre tek başına bir satır kaplıyordu. */}
+      <p className="cp-lesson-kicker">
+        {LESSON_OPEN_COPY.recommendedKicker}
+        {minutes ? ` · ~${minutes} dk` : null}
+      </p>
+      <h1>{topicLabel || LESSON_OPEN_COPY.exploreTitle}</h1>
       <p className="cp-signal-lead">{LESSON_OPEN_COPY.exploreLead}</p>
-      {minutes ? <p className="text-sm text-[var(--cp-muted)]">~{minutes} dk</p> : null}
-      {topicLabel ? <p className="text-sm text-[var(--cp-muted)]">{topicLabel}</p> : null}
       {onChangeLevel && familiarity ? (
         <p className="cp-open-level text-sm text-[var(--cp-muted)]">
           {LESSON_OPEN_COPY.levelLabel}:{" "}

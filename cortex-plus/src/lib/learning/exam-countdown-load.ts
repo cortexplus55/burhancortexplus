@@ -21,7 +21,7 @@ export async function loadNearestExamCountdown(
   const [{ data: preps }, { data: goal }] = await Promise.all([
     supabase
       .from("exam_preps")
-      .select("title, exam_date, created_at")
+      .select("id, title, exam_date, created_at")
       .eq("user_id", userId)
       .neq("exam_type", "hedef")
       .neq("exam_type", STUDIO_EXAM_TYPE)
@@ -43,6 +43,7 @@ export async function loadNearestExamCountdown(
     if (typeof row.exam_date !== "string") return [];
     return [{
       examDate: row.exam_date,
+      prepId: typeof row.id === "string" ? row.id : null,
       title: typeof row.title === "string" ? row.title : null,
       createdAt: typeof row.created_at === "string" ? row.created_at : null,
     }];

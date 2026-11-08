@@ -5,7 +5,7 @@ import { dedupePathLabels } from "@/lib/learning/path-labels";
 import { LESSON_WAIT_LIMIT_MS, showsWaitStep } from "./lesson-wait";
 import { Fragment, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { nearDuplicateSentence } from "@/lib/text/turkish";
+import { nearDuplicateSentence, sentenceCoveredBy } from "@/lib/text/turkish";
 import { Check, ChevronLeft, CornerDownLeft, Info, Star, X } from "lucide-react";
 import { honestReadingMinutes } from "@/lib/learning/lesson-coherence";
 import { activityDurationMinutes, lessonStepCounter, type LessonStepCounter } from "@/lib/learning/activity-duration";
@@ -1226,7 +1226,19 @@ export function ExamLessonSteps({
         {closeControl ?? <span className="als-icon als-icon--ghost" aria-hidden />}
         <LessonSpark text={spark.text} token={spark.token} />
       </header>
-      {toolbar ? <div className="als-toolbar">{toolbar}</div> : null}
+      {toolbar || (sourcePreview && !figureSource) ? (
+        <div className="als-toolbar">
+          {toolbar}
+          {sourcePreview && !figureSource ? (
+            <SourcePageButton
+              documentId={sourcePreview.documentId}
+              page={sourcePreview.page}
+              fileName={sourcePreview.fileName}
+              compact
+            />
+          ) : null}
+        </div>
+      ) : null}
       {figureSource ? (
         <SourceFigureCard
           documentId={figureSource.documentId}
@@ -1234,8 +1246,6 @@ export function ExamLessonSteps({
           fileName={figureSource.fileName}
           hints={figureHintsFor(figureSource, sourceDocs)}
         />
-      ) : sourcePreview ? (
-        <SourcePageButton documentId={sourcePreview.documentId} page={sourcePreview.page} fileName={sourcePreview.fileName} />
       ) : null}
 
       {closeConfirmOpen ? (
@@ -1802,7 +1812,8 @@ function Explanation({
   const rightBody = (answerWhy || (structured && whyRight ? whyRight : explanation)).trim();
   const body = cleanFeedbackText(wrong ? wrongBody : rightBody);
   // "Doğrusu" açıklamanın kendisini tekrar ediyorsa gösterilmez (19 Ekim 2026, canlı ders).
-  const showCorrected = Boolean(corrected) && !nearDuplicateSentence(corrected, body);
+  const showCorrected =
+    Boolean(corrected) && !nearDuplicateSentence(corrected, body) && !sentenceCoveredBy(corrected, body);
   // Boş AÇIKLAMA kutusu gösterme (28 Eyl olayı).
   if (!body && !corrected && !misconception?.trim() && !hint?.trim() && !(wrong && optionWhy.length > 1)) {
     return wrong && revisit ? (

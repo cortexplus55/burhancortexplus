@@ -9,6 +9,8 @@ import { officialExamOn } from "@/lib/curriculum/calendar";
 
 export type CountdownCandidate = {
   examDate: string;
+  /** Hazırlığın kimliği: şerit o hazırlığa gider (8 Kasım 2026). */
+  prepId?: string | null;
   title?: string | null;
   createdAt?: string | null;
 };
@@ -22,6 +24,8 @@ export type ExamCountdown =
       examTitle: string | null;
       /** Tarih resmî merkezî sınav günüyse (ÖSYM / LGS) o sınavın adı. */
       officialExam: string | null;
+      /** Şeridin gittiği hazırlık; hedef tarihinde yok. */
+      href?: string | null;
     }
   | {
       state: "missing";
@@ -133,6 +137,7 @@ export function resolveExamCountdown(input: {
         : `${name} · ${daysLeft} gün kaldı`,
     examTitle,
     officialExam: officialExamOn(examDate),
+    href: prepExamDate && picked?.prepId ? `/deneme-sinavlari/${picked.prepId}` : null,
   };
 }
 

@@ -37,7 +37,11 @@ describe("açık tema", () => {
   });
 
   it("koyu tema değişmez: açık tema kuralları yalnız :root:not(.dark) altında", () => {
-    const lightBlock = shell.slice(shell.indexOf("Açık tema tamamlaması"));
+    // Bölüm "Açık tema tamamlaması sonu" işaretinde biter; arkasından gelen kurallar başka konular.
+    const start = shell.indexOf("Açık tema tamamlaması (");
+    const end = shell.indexOf("Açık tema tamamlaması sonu");
+    expect(end).toBeGreaterThan(start);
+    const lightBlock = shell.slice(start, shell.lastIndexOf("/*", end));
     const rules = lightBlock.split("}").filter((rule) => rule.includes("{") && !rule.trim().startsWith("/*"));
     for (const rule of rules) expect(rule.slice(rule.lastIndexOf("*/") + 2).trim()).toMatch(/^:root:not\(\.dark\)/);
   });

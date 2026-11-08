@@ -165,3 +165,54 @@ export async function loadPrepCards(
     ),
   );
 }
+
+export type ContinueStep = { prepId: string; prepTitle: string; next: NonNullable<ExamPrepCard["next"]> };
+
+/**
+ * Ana ekranın "Kaldığın yerden devam" satırı (8 Kasım 2026, ürün sahibinin onayı): en son çalışılan hazırlığın
+ * sıradaki adımı. Hiç çalışılmadıysa en yeni hazırlık. Sınavı geçmiş ya da açık adımı olmayan hazırlıkta satır yok.
+ */
+export async function loadContinueStep(
+  supabase: SupabaseClient,
+  userId: string,
+  skipKinds: ReadonlySet<string> = new Set(),
+): Promise<ContinueStep | null> {
+  const { data: lastAttempt } = await supabase
+    .from("exam_prep_node_attempts")
+    .select("exam_prep_id")
+    .eq("user_id", userId)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  let query = supabase
+    .from("exam_preps")
+    .select("id, title, exam_type, exam_date")
+    .eq("user_id", userId)
+    .neq("exam_type", "hedef")
+    .or(NOT_STUDIO_EXAM_FILTER);
+  query = lastAttempt?.exam_prep_id
+    ? query.eq("id", String(lastAttempt.exam_prep_id))
+    : query.order("created_at", { ascending: false });
+  const { data: prep } = await query.limit(1).maybeSingle();
+  if (!prep?.id) return null;
+  if (prep.exam_date && String(prep.exam_date) < istanbulDay()) return null;
+  const { data: nodes } = await supabase
+    .from("exam_prep_nodes")
+    .select("id, status, kind, title, sort_order, session_meta")
+    .eq("exam_prep_id", prep.id)
+    .eq("status", "ready");
+  const next = nextPrepStep(
+    String(prep.id),
+    (nodes ?? []).map((row) => ({
+      status: "ready" as const,
+      id: String(row.id),
+      kind: row.kind as string | null,
+      title: row.title as string | null,
+      sortOrder: row.sort_order as number | null,
+      sessionMeta: (row.session_meta as PrepCardNode["sessionMeta"]) ?? null,
+    })),
+    skipKinds,
+  );
+  if (!next) return null;
+  return { prepId: String(prep.id), prepTitle: String(prep.title ?? prep.exam_type), next };
+}

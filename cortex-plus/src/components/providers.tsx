@@ -6,10 +6,12 @@ import { Toaster } from "@/components/ui/sonner";
 import { Analytics } from "@/components/analytics";
 import { CookieBanner } from "@/components/legal/cookie-banner";
 import { ConsentGate } from "@/components/legal/consent-gate";
+import { NavigationProgress } from "@/components/layout/navigation-progress";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+      <NavigationProgress />
       {children}
       <Toaster richColors closeButton position="top-center" />
       {/*

@@ -141,7 +141,7 @@ export function IcEkranFixture({ screen }: { screen: string }) {
               readinessPct: 0,
               targetScore: 95,
               axes: [
-                { id: "coverage", label: "Konu Kapsamı", pct: 0 },
+                { id: "coverage", label: "Ölçülen Konular", pct: 0 },
                 { id: "accuracy", label: "Test Doğruluğu", pct: 0 },
                 { id: "mock", label: "Deneme Performansı", pct: 0 },
                 { id: "retention", label: "Tekrar & Kalıcılık", pct: 0 },

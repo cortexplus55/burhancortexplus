@@ -70,7 +70,11 @@ export function pathNodeWhenLabel(
 ): string {
   if (node.status === "done") return doneDayLabel(options.doneOn);
   const date = node.calendarDate;
-  return isIsoDay(date) ? pathDayLabel(date, options.today ?? istanbulDay(), { weekday: options.weekday }) : "";
+  if (!isIsoDay(date)) return "";
+  const today = options.today ?? istanbulDay();
+  // Bitmemiş adımın günü geçtiyse geçmiş tarih yazılmaz (8 Kasım 2026, zor kullanıcı turu: "Sıradaki · 6 Kas"
+  // planın bayat olduğunu söylüyordu); yapılacak gün bugündür. Plan arka planda yeniden dağıtılır.
+  return pathDayLabel(date < today ? today : date, today, { weekday: options.weekday });
 }
 
 function mondayOnOrBefore(iso: string): string {

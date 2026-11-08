@@ -1758,3 +1758,16 @@
 :root:not(.dark) .als-explain-kicker { color: #3730a3; }
 :root:not(.dark) .als-explain--why .als-explain-kicker { color: #0f766e; }
 :root:not(.dark) .als-stars { color: #7a5600; }
+
+/* Kaynak sayfa düğmesi "N kaynak" hapının yanında (8 Kasım 2026): her adımın üstünde iki satır kaynak tekrarı vardı. */
+.als-toolbar {
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.als-source-page--compact {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+}

@@ -17,7 +17,7 @@ export type RunnerFeedback = {
 };
 
 const SOURCE_LABEL: Record<MistakeQuestion["source"], string> = {
-  quiz: "Quiz",
+  quiz: "Test",
   deneme: "Deneme",
 };
 

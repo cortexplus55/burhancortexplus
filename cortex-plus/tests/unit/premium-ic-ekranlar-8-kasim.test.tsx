@@ -175,7 +175,7 @@ describe("ikinci tur: kalan sayfalar", () => {
           readinessPct: 40,
           targetScore: 80,
           axes: [
-            { id: "coverage", label: "Konu Kapsamı", pct: 40 },
+            { id: "coverage", label: "Ölçülen Konular", pct: 40 },
             { id: "accuracy", label: "Test Doğruluğu", pct: 55 },
             { id: "mock", label: "Deneme Performansı", pct: 0 },
           ],

@@ -2308,3 +2308,32 @@ Gerçek hesapla dönem bitişi henüz denenmedi: 1 günlük beta kodu ile yapıl
 Ürün sahibinde: Supabase Pro (otomatik yedek; ücretsiz planda yedek yok).
 
 Bekçi: `admin-etkinlik.test.ts`, `premium-ic-ekranlar-8-kasim.test.tsx`, e2e `ana-ekran.spec.ts` ("Başla").
+
+### Zor kullanıcı turu (8 Kasım 2026) — eski bir Astra kullanıcısı gözüyle canlıda gezildi
+
+Ürün sahibi: "çok zor beğenen bir kullanıcı gibi gez; nerelerden şikâyet ederdin". Kurucu hesabıyla telefonda ve
+masaüstünde. Yeniden açmayın:
+
+| Şikâyet | Kural | Nerede |
+|---|---|---|
+| Bağlantıya basınca hiçbir şey olmuyor (hazırlık sayfası 1,4 sn, boş sayfa yasağı yüzünden yükleniyor işareti yok) | Üstte 2 px geçiş çizgisi: uygulama içi bağlantıda 120 ms sonra belirir (anında açılan sayfada görünmez), yeni adreste tamamlanır, 15 sn'de kendiliğinden kapanır. Tıklama **yakalama aşamasında** dinlenir: Next'in `<Link>`'i tıklamayı kendi işleyicisinde iptal ediyor, bubble'da her bağlantı "iptal edilmiş" görünür. Sayfa içeriğine dokunmaz, Suspense değildir | `navigation-progress.tsx`, `tokens.css` `.cp-nav-progress` |
+| Geri dönen öğrenci kaldığı yeri görmüyor | Ana ekranda hazırlığı olana tek satır "Kaldığın yerden devam": en son çalışılan hazırlığın (yoksa en yeninin) sıradaki adımı; ücretsizde Plus adımı atlanır (`pathSkipKinds`); sınavı geçmiş hazırlıkta yok. Satış değil, Sınavlar kartının "Sıradaki" görünümü | `continue-line.tsx`, `prep-cards.ts` `loadContinueStep` |
+| "Sınavına 5 gün kaldı — Bugünkü hedefin hazır" şeridi tıklanmıyor | Şerit o hazırlığa gider (`countdown.href`); hedef tarihinde bağlantı yok | `exam-countdown*.ts`, `exam-countdown-badge.tsx` |
+| "burhan, iyi akşamlar!"; ad yoksa e-posta adresi selamda | Adın baş harfi Türkçe kuralla büyür (gerisine dokunulmaz); e-posta ad sayılmaz ("Merhaba") | `app-utils.ts` `parityGreetingName` |
+| "Sıradaki · 6 Kas" (bugün 8 Kas): plan bayat görünüyor | Bitmemiş adımın günü geçtiyse "Bugün" yazılır; hazırlık sayfası açılınca kaçırılan günler `after()` ile yeniden dağıtılır (`maybeRescheduleMissedDays` yalnız deneme notlanınca çağrılıyordu; `prepId` ile tek hazırlık, yoksa en yeni iki) | `path-dates.ts`, `missed-day-reschedule.ts`, `[prepId]/page.tsx` |
+| Hazırlık yolunda video hapının üstüne sıradaki düğümün simgesi biniyor; "Sıradaki" etiketi 375 px'te kartın 14 px dışına taşıyor | Açık bölümde hap düğümlerin üstünde, altında 2,4 rem boşluk; telefonda etiket `min(8.5rem, 50vw − 5.4rem)` | `parity-shell.css` |
+| Masaüstünde (1280 px) "Kurucu · Sınırsız" rozeti "Daha fazla"nın 41 px üstüne biniyor | 1180 px üstünde de sekme grubu akışta, boşlukta ortalı (mutlak ortalama kalktı) | `parity-shell.css` |
+| Ders açılış kartında genel "Konuyu öğretmeninle keşfet" büyük, asıl konu küçük gri; süre tek başına satır | Başlık konunun adı; "ÖNERİLEN DERS · ~N dk" üst etiket | `lesson-open-chrome.tsx` |
+| Her ders adımının üstünde iki satır kaynak ("1 kaynak" + tam genişlik "Kaynak Sayfayı Gör (Sayfa 1)") | Tek satır: "N kaynak" hapının yanında "Sayfa N" hapı (`SourcePageButton compact`); şekil kartı eskisi gibi | `exam-lesson-steps.tsx`, `source-page-drawer.tsx` |
+| Doğru cevaptan sonra "Doğrusu" açıklamanın ilk cümlesini yineliyor | Kısa cümlenin köklerinin %75'i açıklamada geçiyorsa "Doğrusu" gizli (`sentenceCoveredBy`) | `turkish.ts`, `exam-lesson-steps.tsx` |
+| İlerleme'de "Konu Kapsamı %100" ama kartta "0/5 konu" | Eksen adı "Ölçülen Konular" (en az 3 cevapla ölçülen konu; biten ders değil) | `prep-radar.ts` |
+| Öğrenciye "Quiz", "Flashcard" | "Test" / "Konu Testi", "Kartlar" (Çalışma Stüdyosu kartlarıyla aynı) | `ilerleme/page.tsx`, `student-shell-nav.ts`, `mistake-runner.tsx`, `studio-share-card.ts` |
+| Sentry bağlı mı bilinmiyordu | **Bağlı** (canlı istemci paketinde DSN var). Eksik olan uyarı kuralları (Sentry panelinde, ürün sahibinin hesabı) | — |
+| Giriş yapılmış gerçek akış hiçbir otomatik testte koşmuyordu (GitHub'da sır yok) | **Canlı duman testi**: her üretim yayınından sonra (`deployment_status`, ya da elle) test hesabıyla cortexplus.app'e girip öğrenci sayfalarını gezer (durum < 400, üst çubuk var, 390 px'te taşma yok). Yalnız okur, kredi harcamaz. Sırlar `E2E_USER_EMAIL`, `E2E_USER_PASSWORD` ürün sahibinde; yoksa iş atlanır. `E2E_BASE_URL` verilince Playwright yerel sunucu kaldırmaz | `.github/workflows/canli-duman.yml`, `playwright.config.ts`, `authenticated.spec.ts` |
+
+Açık bırakılanlar (ürün kararı ya da ölçüm ister): ruh hali ekranı derse hiçbir şey katmıyor ama her gün soruluyor;
+"hedefe ~N günde" ilk dersten sonra gösteriliyor (19 Ekim kararı) ve test doğruluğu %0 iken bile iyimser; yoldaki
+"Hücre Zarının Yapısı…" adımından açılan ders organelleri de anlatıyor (konu yalıtımı); ders ekranları telefonda
+uzun (metin + iki genel bilgi + sınav tuzağı tek ekranda).
+
+Bekçi: `zor-kullanici-turu.test.tsx`, `acik-tema-8-kasim.test.ts` (açık tema bölümü "sonu" işaretinde biter).

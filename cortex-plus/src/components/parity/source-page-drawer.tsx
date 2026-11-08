@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X } from "lucide-react";
+import { FileText, X } from "lucide-react";
 import { DocumentPdfPreview } from "@/components/documents/document-pdf-preview";
 
 type Preview = {
@@ -12,7 +12,18 @@ type Preview = {
 };
 
 /** Kaynak sayfa dersin içinde açılır. Yeni sekme yok. */
-export function SourcePageButton({ documentId, page, fileName }: { documentId: string; page: number; fileName: string }) {
+export function SourcePageButton({
+  documentId,
+  page,
+  fileName,
+  compact = false,
+}: {
+  documentId: string;
+  page: number;
+  fileName: string;
+  /** Ders üst satırında kısa hap ("Sayfa 3"); 8 Kasım 2026'dan önce her adımda tam genişlik ikinci bir satırdı. */
+  compact?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,9 +65,21 @@ export function SourcePageButton({ documentId, page, fileName }: { documentId: s
 
   return (
     <>
-      <button type="button" className="als-source-page" onClick={() => void show()}>
-        Kaynak Sayfayı Gör (Sayfa {page})
-      </button>
+      {compact ? (
+        <button
+          type="button"
+          className="als-source-page als-source-page--compact"
+          aria-label={`Kaynak sayfayı gör: sayfa ${page}`}
+          onClick={() => void show()}
+        >
+          <FileText className="h-3.5 w-3.5" aria-hidden />
+          Sayfa {page}
+        </button>
+      ) : (
+        <button type="button" className="als-source-page" onClick={() => void show()}>
+          Kaynak Sayfayı Gör (Sayfa {page})
+        </button>
+      )}
       {open ? (
         <div className="als-source-drawer-back" role="presentation" onClick={() => setOpen(false)}>
           <div
