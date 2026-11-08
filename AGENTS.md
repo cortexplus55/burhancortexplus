@@ -2391,3 +2391,19 @@ Yeniden açmayın:
 **Ürün sahibinde (kod değil):** Resend panelinde `cortexplus.app` alan adının DNS kayıtlarıyla **doğrulanmış** olması (yönetimdeki "Gönderim yolu" kartı durumu söyler) ve anahtarın tam yetkili olması (yalnız-gönderim anahtarı e-posta gönderir ama alan adı durumunu okutmaz). İsteğe bağlı: Supabase → Authentication → SMTP'yi Resend'e yönlendirmek (kodda Supabase e-postası kalmadığı için gerekmiyor).
 
 Bekçi: `eposta-tek-hat.test.ts`, `eposta-resend-oncelik.test.ts`, `sifre-sifirla.test.ts`.
+
+### Otomatik karşılama e-postaları (8 Kasım 2026) — hoş geldin, pakete göre satın alma, deneme
+
+Ürün sahibi: "siteye yeni kaydolana bizim ismimizle bir mail; premium alana okkalı ve samimi bir mail, hangi paketi aldığına
+göre değişsin; Google ile kaydolsa bile; profesyonellik için çok önemli." Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| **Hoş geldin:** kayıt ve kurulum bitince bir kez (`once:welcome`). İki tetik: `completeSignup` (e-posta ve Google aynı yoldan) ve `/onboarding` (başka cihazda açılan doğrulama; profil tarayıcıdan yazılır) → `triggerWelcomeEmail`. İçerik: ilk 10 dakika (not yükle / hazır müfredat, ilk ders, soru çöz), ücretsiz hesabın sınırları (sabitlerden), varsa sınava kalan gün ve kaldığı yer, şifreyle açılıp doğrulanmamışsa doğrulama notu | `lifecycle.ts` `sendWelcomeOnce`, `lifecycle-templates.ts` `renderWelcomeMail`, `kayit/actions.ts`, `onboarding/page.tsx` |
+| **Satın alma:** PayTR geri çağrısı `completed` dönünce, yararlanıcıya (veli ödemesinde öğrenciye, "velinin ödemesiyle" notuyla), sipariş başına bir kez (`once:purchase:<sipariş>`). Tür paket satırından (`purchaseKindFor`): **Plus aylık** (her şey açık), **Sınav Haftası** (7 günlük yol önerisi, Sınav Sabahı kâğıdı), **Plus yıllık**, **Sigma** (`sigmaBenefitLines`), **ek paket** (`allowanceInWork`). Sayılar kredi tablosundan (`workCount`), "her biri tek başına; aynı haktan düşer" notuyla; bitiş tarihi abonelikten; "otomatik yenileme yok, 3 gün önce haber veririz" (gerçek); sözleşme örneği ayrı e-postada | `sendPurchaseMail`, `renderPurchaseMail`, `paytr/callback` |
+| **Beta kodu denemesi:** Plus günü açılınca bir kez (`once:trial`): kart istenmez, ücret alınmaz, süre bitince ücretsize döner; hak gün sayısıyla orantılı | `sendTrialMail`, `api/promo/redeem` |
+| **Telafi:** günlük tur (`study-reminders`, yeni cron yok) kurulumu son 3 günde biten ama hoş geldin e-postası gitmemiş hesapları yeniden dener (son 20 dk hariç). Gönderim düşerse `once:` satırı silinir | `sendWelcomeCatchUp` |
+| Hepsi **hizmet e-postası** (hesapla ilgili bilgilendirme; izin istemez, çıkış bağlantısı yok), hepsi `sendEmail` (Resend). Satış dili, indirim, aciliyet yok; uydurma söz yok; ad baş harfi büyük (`properName`). İmza "Cortex Plus ekibi"; "bu e-postayı yanıtla" (yanıt adresi `cortexplus@cortexplus.app`) | `lifecycle-templates.ts` |
+| **Yönetim:** `/admin/eposta` "Otomatik e-postalar" kartı: her türün ne zaman gittiği, gönderim sayısı (`email_events`), örnek verilerle önizleme (kimseye gitmez) ve "Kendime gönder" | `lifecycle-mails-card.tsx`, `eposta-actions.ts` `previewLifecycleMail` / `sendLifecycleTest` |
+
+"Bir kez" yardımcıları tek yerde: `email/once.ts` (`claimOnce` / `settleOnce`). Bekçi: `yasam-dongusu-epostalari.test.ts`.

@@ -2,6 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isFeatureEnabled, MARKETING_EMAIL_FLAG } from "@/lib/admin/feature-flags";
 import { sendEmail } from "@/lib/email/mailer";
+import { claimOnce, settleOnce } from "@/lib/email/once";
 import { renderReferralGiftMail, renderReferralInviteMail } from "@/lib/email/templates";
 import { signUnsubscribeToken, unsubscribeHeaders, unsubscribePageUrl } from "@/lib/email/unsubscribe";
 import { ensureReferralCode, inviteUrlFor } from "@/lib/credits/invite-code";
@@ -24,15 +25,6 @@ import { appOrigin } from "@/lib/app-url";
 
 type Row = { user_id: string; email: string; first_name: string | null };
 
-async function claimOnce(service: SupabaseClient, userId: string, key: string): Promise<boolean> {
-  const { error } = await service.from("email_events").insert({ user_id: userId, template_key: key, status: "claimed" });
-  return !error;
-}
-
-async function settleOnce(service: SupabaseClient, userId: string, key: string, sent: boolean): Promise<void> {
-  if (sent) await service.from("email_events").update({ status: "sent" }).eq("user_id", userId).eq("template_key", key);
-  else await service.from("email_events").delete().eq("user_id", userId).eq("template_key", key).eq("status", "claimed");
-}
 
 export async function sendReferralInviteMails(
   service: SupabaseClient,

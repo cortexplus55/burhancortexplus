@@ -70,7 +70,7 @@ export function unknownTokens(text: string): string[] {
   return [...new Set(found.filter((token) => !/^\{(ad|g[üu]n)\}$/i.test(token)))];
 }
 
-function ctaButton(label: string, href: string): string {
+export function ctaButton(label: string, href: string): string {
   return (
     `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:6px 0 4px;"><tr><td style="border-radius:999px;background:${BRAND};">` +
     `<a href="${escapeHtml(href)}" style="display:inline-block;padding:13px 26px;font:600 15px/1 ${FONT};color:#ffffff;text-decoration:none;border-radius:999px;">${escapeHtml(label)}</a>` +
@@ -78,7 +78,7 @@ function ctaButton(label: string, href: string): string {
   );
 }
 
-function footerHtml(kind: MailKind, unsubscribeUrl: string | null): string {
+export function footerHtml(kind: MailKind, unsubscribeUrl: string | null): string {
   const line = (text: string) => `<p style="margin:0 0 6px;font:12px/1.6 ${FONT};color:${MUTED};">${text}</p>`;
   if (kind === "service") {
     return (
@@ -102,7 +102,7 @@ function footerHtml(kind: MailKind, unsubscribeUrl: string | null): string {
   );
 }
 
-function footerText(kind: MailKind, unsubscribeUrl: string | null): string {
+export function footerText(kind: MailKind, unsubscribeUrl: string | null): string {
   if (kind === "service") return `Bu e-posta Cortex Plus hesabınla ilgili bilgilendirme olarak gönderildi. Sorular: ${SELLER.email}`;
   if (kind === "reminder") {
     return `Bu hatırlatmayı çalışma hatırlatmalarını açık tuttuğun için aldın.${unsubscribeUrl ? ` Çıkmak için: ${unsubscribeUrl}` : ""}`;

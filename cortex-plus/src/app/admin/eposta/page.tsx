@@ -8,6 +8,8 @@ import { listCampaigns, type CampaignRow } from "@/lib/email/campaign";
 import { resendConfigured } from "@/lib/email/mailer";
 import { describeResendStatus, readResendStatus } from "@/lib/email/resend-status";
 import { ResendProbeButton } from "@/components/admin/resend-status-card";
+import { LifecycleMailsCard } from "@/components/admin/lifecycle-mails-card";
+import { LIFECYCLE_MAILS } from "@/lib/email/lifecycle-templates";
 import { formatDate, formatNumber } from "@/lib/format";
 import { createServiceClient } from "@/lib/supabase/server";
 
@@ -40,6 +42,23 @@ export default async function AdminEpostaPage() {
     service.rpc("referral_top_inviters", { p_limit: 5 }),
   ]);
 
+  // Otomatik e-postaların gönderim sayıları ("once:" olayları, yalnız gönderilmiş olanlar).
+  const countKey = async (pattern: string, like = false) => {
+    const query = service.from("email_events").select("id", { count: "exact", head: true }).eq("status", "sent");
+    const { count } = await (like ? query.like("template_key", pattern) : query.eq("template_key", pattern));
+    return count ?? 0;
+  };
+  const [welcomeSent, purchaseSent, trialSent] = await Promise.all([
+    countKey("once:welcome"),
+    countKey("once:purchase:%", true),
+    countKey("once:trial"),
+  ]);
+  const lifecycleRows = LIFECYCLE_MAILS.map((mail) => ({
+    id: mail.id as string,
+    name: mail.name as string,
+    when: mail.when as string,
+    sent: mail.id === "welcome" ? welcomeSent : mail.id === "trial" ? trialSent : null,
+  }));
   const resendReady = resendConfigured();
   const resendStatus = describeResendStatus(await readResendStatus());
   const stats = ((Array.isArray(referral.data) ? referral.data[0] : referral.data) ?? null) as ReferralStats | null;
@@ -77,6 +96,13 @@ export default async function AdminEpostaPage() {
         </div>
         <p className="mb-3 text-sm text-[var(--adm-muted)]">{resendStatus.action}</p>
         <ResendProbeButton />
+      </AdminCard>
+
+      <AdminCard
+        title="Otomatik e-postalar"
+        desc="Öğrenciye kendiliğinden giden karşılama e-postaları. Hepsi Resend'den, hesapla ilgili bilgilendirme olarak gider ve her biri bir kez gönderilir. Önizle ya da kendi adresine gönder."
+      >
+        <LifecycleMailsCard rows={lifecycleRows} purchaseSent={purchaseSent} />
       </AdminCard>
 
       <AdminCard title="Mesaj yaz" desc="Önce «Kendime deneme gönder» ile nasıl göründüğüne bak.">

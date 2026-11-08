@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
+import { sendWelcomeOnce } from "@/lib/email/lifecycle";
 import { z } from "zod";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { homePathForRole, isOptionalPhoneValid } from "@/lib/parity/signup";
@@ -168,6 +170,16 @@ async function completeSignupInner(
 
   if (user.email) {
     await claimPendingInvites(user.id, user.email);
+  }
+
+  // Hoş geldin e-postası (8 Kasım 2026): kurulum bitince bir kez, Resend'den; yanıtı bekletmez, düşerse günlük tur
+  // yeniden dener. Google ile de e-posta ile de bu fonksiyondan geçilir. `after` istek dışında kurulamazsa (birim
+  // testi) iş atlanır.
+  try {
+    const welcomeFor = user.id;
+    after(() => sendWelcomeOnce(createServiceClient(), welcomeFor).then(() => undefined));
+  } catch {
+    /* istek dışı */
   }
 
   revalidatePath("/", "layout");
@@ -526,6 +538,25 @@ async function applyReferral(
  * Kayıt başka tarayıcıda doğrulandıysa (tarayıcıdaki yük yok, kurulum sayfasından devam): hesaba kayıtta yazılan davet
  * kodu burada bağlanır (31 Ekim 2026). Kod yoksa ya da zaten bağlıysa bir şey yapmaz.
  */
+/**
+ * Hoş geldin e-postası (8 Kasım 2026): `/onboarding` sayfası profili tarayıcıdan yazar (başka cihazda açılan doğrulama
+ * bağlantısı, sihirbaz yükü yok); `completeSignup` bu yolda çalışmaz. Kurulum bitince buradan tetiklenir. Bir kez
+ * gider (`once:welcome`); iki yoldan da çağrılması çift e-posta üretmez.
+ */
+export async function triggerWelcomeEmail(): Promise<void> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+    const userId = user.id;
+    after(() => sendWelcomeOnce(createServiceClient(), userId).then(() => undefined));
+  } catch (error) {
+    console.error("[triggerWelcomeEmail]", error);
+  }
+}
+
 export async function applySignupReferral(): Promise<void> {
   try {
     const supabase = await createClient();

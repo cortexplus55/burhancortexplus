@@ -5,6 +5,7 @@ import { sendEmail } from "@/lib/email/mailer";
 import { renderReminderMail } from "@/lib/email/templates";
 import { signUnsubscribeToken, unsubscribeHeaders, unsubscribePageUrl } from "@/lib/email/unsubscribe";
 import { sendReferralGiftMails, sendReferralInviteMails, verifiedUserIds } from "@/lib/email/daily-mails";
+import { sendWelcomeCatchUp } from "@/lib/email/lifecycle";
 import { isFeatureEnabled, SPACED_REVIEW_FLAG } from "@/lib/admin/feature-flags";
 import { istanbulDay } from "@/lib/istanbul-day";
 import { examPrepDueReviewHref } from "@/lib/learning/exam-prep-hrefs";
@@ -173,7 +174,14 @@ export async function GET(request: Request) {
       skipped: 0,
       reason: "hata",
     }));
-    return { gift: hediye.mailed, invite: davet.mailed, inviteReason: "reason" in davet ? davet.reason : undefined };
+    // Hoş geldin telafisi (8 Kasım 2026): kurulumu bitip e-postası gitmemiş hesaplar (Resend o an düşmüş olabilir).
+    const hosgeldin = await sendWelcomeCatchUp(service, { deadline: startedAt + MAIL_BUDGET_MS }).catch(() => ({ mailed: 0, skipped: 0 }));
+    return {
+      gift: hediye.mailed,
+      invite: davet.mailed,
+      welcome: hosgeldin.mailed,
+      inviteReason: "reason" in davet ? davet.reason : undefined,
+    };
   };
 
   if (!rows.length) {
