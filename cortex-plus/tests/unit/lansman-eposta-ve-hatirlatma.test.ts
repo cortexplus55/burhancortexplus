@@ -91,7 +91,8 @@ describe("aynı posta kutusu: normalize_email = normalizeEmail", () => {
       expect(sql).toContain(`REVOKE ALL ON FUNCTION public.${fn} FROM PUBLIC, anon, authenticated;`);
       expect(sql).toContain(`GRANT EXECUTE ON FUNCTION public.${fn} TO service_role;`);
     }
-    expect(read("src/app/kayit/email-check.ts")).toContain('rpc("email_alias_taken", { p_email: address })');
+    // Aynı kutunun başka yazımı kapıda sunucuda reddedilir (8 Kasım 2026: istemci yedeği kalktı).
+    expect(read("src/app/api/auth/signup/route.ts")).toContain('rpc("email_alias_taken", { p_email: email })');
   });
 });
 

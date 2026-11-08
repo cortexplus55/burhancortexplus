@@ -24,6 +24,7 @@ export const AUDIT_LABELS: Record<string, string> = {
   "email.campaign_cancelled": "Toplu e-posta gönderimi durduruldu",
   "email.single_sent": "Tek kişiye e-posta gönderildi",
   "email.test_sent": "Deneme e-postası gönderildi",
+  "email.resend_probe": "Resend gönderim testi yapıldı",
   "email.referral_cap.saved": "Davet hediyesi günlük tavanı değiştirildi",
   "cockpit.fx_rate.saved": "Dolar kuru kaydedildi",
   "cockpit.spend_cap.saved": "Günlük harcama tavanı kaydedildi",

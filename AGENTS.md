@@ -2372,3 +2372,22 @@ Bekçi: `dost-katmani.test.tsx` (satır öncelikleri, kararlı seçim, ilk söz,
 | **Canlı duman testi** (`.github/workflows/canli-duman.yml`) her üretim yayınından sonra test hesabıyla girer. Giriş artık yolun kendisini bekler (`/giris?next=/ogretmen` "girdi" sayılmıyordu); düşerse ekrandaki uyarı hata iletisine yazılır. **Hata kaydı (artifact) yüklenmez:** Playwright sayfa görüntüsü giriş kutularının içeriğini, yani şifreyi düz yazıyla taşıyordu (8 Kasım'da bir kayıt bu yüzden silindi). Test hesabı e-posta + şifreyle girebilmeli (Google'la açılmış hesabın şifresi yoktur) | `auth.setup.ts` |
 
 Bekçi: `sifre-sifirla.test.ts`.
+
+### Bütün e-postalar tek hatta: Resend (8 Kasım 2026)
+
+Ürün sahibi: "doğrulama maili gelmedi; bütün e-posta işlemlerini Resend'e taşı, yönetici toplu maili de oradan atsın."
+**Supabase'in kendi e-postası (saatte 30, Gmail SMTP) gelmiyordu; kodda onu tetikleyen üç yedek yol vardı, kaldırıldı.**
+Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| **Supabase'in e-posta gönderen çağrısı kodda yok:** `auth.signUp(`, `auth.resend(`, `resetPasswordForEmail(`, `signInWithOtp(`, `inviteUserByEmail(` yasak (bekçi `src` altını tarar). Kayıt yalnız `/api/auth/signup` (düşerse aynı uca bir kez daha; Supabase'e düşülmez), şifre sıfırlama `/api/auth/sifre-sifirla` (`generateLink` + Resend), doğrulamayı yeniden gönderme `/api/auth/eposta-dogrula/gonder` (oturumlu). Yeni bir e-posta gerekirse `sendEmail` kullanılır, Supabase'e e-posta yaptırılmaz | `eposta-tek-hat.test.ts` |
+| **Gönderim sırası** `deliveryOrder`: Resend tanımlıysa önce Resend, düşerse Workspace SMTP **yalnız acil yedek**. Sonuç artık `via` ("resend" / "smtp") ve düşünce `tried` taşır. **Resend düşünce sebebi `email_resend_failed` diye işlev günlüğüne yazılır** (alıcı adresi yazılmaz); önce sessizce yedeğe geçiliyordu ve sorun görünmüyordu | `mailer.ts` |
+| **Yönetimde "Gönderim yolu" kartı** (`/admin/eposta`): Resend'in alan adı listesi okunur ve EMAIL_FROM'un alan adı eşlenir (hazır / eklenmemiş / doğrulanmamış / anahtar reddedildi / yalnız-gönderim anahtarı) — e-posta göndermez. "Resend ile kendime deneme gönder" YALNIZ Resend'den gönderir (yedeğe düşmez) ve Resend'in gerçek cevabını yazar. Tek kişi ve deneme gönderimlerinin hata iletisi artık sebebi söyler | `resend-status.ts`, `eposta-actions.ts` `testResendDelivery`, `resend-status-card.tsx` |
+| **Toplu gönderim** (hizmet duyurusu, kampanya, tek kişi) zaten yalnız Resend'in toplu ucundan (`/emails/batch`) çalışıyor ve kota dolunca durup sürdürülüyor; yeni bir şey gerekmedi. Kampanya (pazarlama) anahtarı İYS kaydı olana kadar kapalı | `send-batch.ts`, `campaign.ts` |
+| **Giriş ipucu:** e-posta + şifreyle giriş reddedilince `/api/auth/giris-ipucu` yalnız "hesap Google ile açılmış, şifresi yok" ise yol gösterir; başka her durumda cevap aynı (`{hint:null}`). Bedel: kayıtlı bir adresin Google'la açıldığı dışarıdan öğrenilebilir (Notion/Canva gibi); sınır IP 10/10 dk, adres 5/saat. Kullanıcı arama `listUsers` taraması (en çok 2.000 hesap); hesap sayısı birkaç bini geçerse SQL işleviyle değişmeli | `find-user.ts`, `giris-ipucu/route.ts`, `giris-inner.tsx` |
+| `/email-dogrula` artık yalnız oturumlu öğrencinin bağlantıyı yeniden istediği sayfa (Resend); girişi olmayana "önce giriş yap". Canlıda e-postası doğrulanmamış (giriş engelli) hesap 0 idi | `email-dogrula/page.tsx` |
+
+**Ürün sahibinde (kod değil):** Resend panelinde `cortexplus.app` alan adının DNS kayıtlarıyla **doğrulanmış** olması (yönetimdeki "Gönderim yolu" kartı durumu söyler) ve anahtarın tam yetkili olması (yalnız-gönderim anahtarı e-posta gönderir ama alan adı durumunu okutmaz). İsteğe bağlı: Supabase → Authentication → SMTP'yi Resend'e yönlendirmek (kodda Supabase e-postası kalmadığı için gerekmiyor).
+
+Bekçi: `eposta-tek-hat.test.ts`, `eposta-resend-oncelik.test.ts`, `sifre-sifirla.test.ts`.

@@ -381,7 +381,9 @@ export async function sendSingleMail(service: SupabaseClient, actorId: string, i
     entityId: id,
     metadata: { known_account: Boolean(user), ok: result.ok, subject: input.subject },
   });
-  return result.ok ? { ok: true, id, known: Boolean(user) } : { ok: false, error: "E-posta gönderilemedi. Adresi ve e-posta altyapısını kontrol et." };
+  return result.ok
+    ? { ok: true, id, known: Boolean(user) }
+    : { ok: false, error: `E-posta gönderilemedi: ${result.reason.slice(0, 160)}. «Gönderim yolu» kartından Resend durumuna bak.` };
 }
 
 /** Kendine deneme: gerçek şablonla, örnek değerlerle; kurucunun kendi adresine. */
@@ -389,7 +391,7 @@ export async function sendTestMail(
   to: string,
   input: { kind: "service" | "marketing"; subject: string; body: string; ctaLabel: string; ctaPath: string },
   sample: { firstName: string | null; daysToExam: number | null; userId: string },
-): Promise<{ ok: boolean }> {
+): Promise<{ ok: boolean; reason?: string }> {
   const token = input.kind === "marketing" ? signUnsubscribeToken(sample.userId, "marketing") : null;
   const mail = renderCampaignMail({
     kind: input.kind,
@@ -407,7 +409,7 @@ export async function sendTestMail(
     text: mail.text,
     ...(token ? { headers: unsubscribeHeaders(token) } : {}),
   });
-  return { ok: result.ok };
+  return result.ok ? { ok: true } : { ok: false, reason: result.reason };
 }
 
 export type CampaignRow = {

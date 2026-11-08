@@ -34,12 +34,15 @@ export default function GirisPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [unconfirmed, setUnconfirmed] = useState(false);
+  // Hesap Google ile açılmış ve şifresi yoksa (8 Kasım 2026): "Giriş başarısız" yerine nedeni söyleyen not.
+  const [googleHint, setGoogleHint] = useState<string | null>(null);
   // Instagram / Facebook / TikTok tarayıcısında Google girişi reddediliyor (beta duyurusu, 20 Ekim 2026).
   const blockedApp = useGoogleBlockedWebViewApp();
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
+    setGoogleHint(null);
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
@@ -56,6 +59,16 @@ export default function GirisPage() {
         }
       }
       toast.error(authErrorMessage(error));
+      // Yanlış şifrenin tek sebebi şifrenin hiç olmaması olabilir: Google ile açılmış hesap.
+      if (!needsConfirm) {
+        const response = await fetch("/api/auth/giris-ipucu", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+        }).catch(() => null);
+        const body = (await response?.json().catch(() => null)) as { hint?: string | null } | null;
+        setGoogleHint(body?.hint ?? null);
+      }
       return;
     }
     router.push(next);
@@ -165,6 +178,14 @@ export default function GirisPage() {
             Giriş yap
           </button>
         </form>
+        {googleHint ? (
+          <p
+            role="status"
+            className="rounded-xl border border-[var(--cx-border)] px-4 py-3 text-sm text-[var(--cx-muted)]"
+          >
+            {googleHint}
+          </p>
+        ) : null}
         {unconfirmed ? (
           <p className="text-center text-sm text-[var(--cx-muted)]" role="status">
             Doğrulama e-postası gelmediyse{" "}

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { PremiumAuthShell } from "@/components/layout/premium-auth-shell";
-import { createClient } from "@/lib/supabase/client";
+import { toast } from "sonner";
 
 export default function SifremiUnuttumPage() {
   const [email, setEmail] = useState("");
@@ -14,20 +14,23 @@ export default function SifremiUnuttumPage() {
     event.preventDefault();
     setLoading(true);
     try {
-      // Bizim posta hattımız (8 Kasım 2026): Supabase'in kendi e-postası gelmiyordu. Uç düşerse eski yol.
+      // Bağlantı bizim posta hattımızdan (Resend) gider (8 Kasım 2026): Supabase'in kendi e-postası gelmiyordu ve
+      // yedek olarak ona düşmek öğrenciyi "gönderdik" cümlesiyle bekletiyordu. Uç düşerse nedeni söylenir.
       const response = await fetch("/api/auth/sifre-sifirla", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       }).catch(() => null);
-      if (!response || response.status >= 500) {
-        const supabase = createClient();
-        await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/auth/confirm?next=/sifre-yenile`,
-        });
+      if (response?.ok) {
+        setSent(true);
+      } else if (response?.status === 429) {
+        toast.error("Çok sık denendi. Biraz bekleyip yeniden dene.");
+      } else if (response?.status === 400) {
+        toast.error("Geçerli bir e-posta adresi yaz.");
+      } else {
+        toast.error("Şu an gönderilemedi. Birkaç dakika sonra yeniden dene.");
       }
     } finally {
-      setSent(true);
       setLoading(false);
     }
   }
