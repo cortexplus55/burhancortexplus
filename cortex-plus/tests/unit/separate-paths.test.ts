@@ -30,7 +30,7 @@ describe("her hazırlığın kendi yolu", () => {
     expect(WIZARD_STEP_ORDER.indexOf("material")).toBeGreaterThan(WIZARD_STEP_ORDER.indexOf("target"));
     const wizard = readFileSync("src/components/parity/exam-create-wizard.tsx", "utf8");
     expect(wizard).not.toContain("Daha önce yüklediklerin");
-    expect(wizard).toContain("Yalnızca {subject} materyali");
+    expect(wizard).toContain("Yalnızca <strong>{subject}</strong> materyali");
     expect(wizard).toContain('useState<Step>("subject")');
   });
 

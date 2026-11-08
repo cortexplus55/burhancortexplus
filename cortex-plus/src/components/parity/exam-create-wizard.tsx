@@ -13,14 +13,20 @@ import {
 import { clampText } from "@/lib/text/clamp-text";
 import { cutAtWord } from "@/lib/curriculum/topic-map";
 import {
+  BookOpen,
   Check,
-  ChevronLeft,
+  ChevronRight,
+  ClipboardPaste,
   FileText,
+  Link2,
   Plus,
   Smartphone,
   Upload,
   X,
 } from "lucide-react";
+import { CortexLogoMotion } from "@/components/brand/cortex-logo-motion";
+import { PrepTicket, TeacherSay, WizardHeader, type TicketRow } from "@/components/parity/exam-wizard-chrome";
+import { subjectLook } from "@/lib/ui/subject-look";
 import {
   DAILY_MINUTE_CHOICES,
   DEFAULT_EXAM_LEAD_DAYS,
@@ -727,7 +733,6 @@ export function ExamCreateWizard({
   const progressStep =
     step === "building" || step === "shaping" ? "topics" : step;
   const stepIndex = Math.max(0, STEP_ORDER.indexOf(progressStep));
-  const progress = ((stepIndex + 1) / STEP_ORDER.length) * 100;
 
   function goBack() {
     if (planning) {
@@ -1575,11 +1580,58 @@ export function ExamCreateWizard({
     Boolean(processAlert) ||
     failedMaterials.length > 0;
 
+  const busy = planning || step === "building" || step === "shaping";
+  const answered = (at: Step) => stepIndex > STEP_ORDER.indexOf(at);
+  const trackLabel = EXAM_TRACKS.find((t) => t.id === examTrack)?.label ?? null;
+  const daysToExam = examDate ? daysBetweenIso(isoOf(new Date()), examDate) : null;
+  const ticketRows: TicketRow[] = [
+    { key: "exam", label: "Sınav", value: trackLabel, step: "subject" },
+    { key: "subject", label: "Ders", value: subject.trim() || null, step: "subject" },
+    {
+      key: "date",
+      label: "Tarih",
+      value: answered("date") && examDate ? longLabel(examDate) : null,
+      detail: daysToExam != null && daysToExam > 0 ? `${daysToExam} gün kaldı` : null,
+      step: "date",
+    },
+    { key: "daily", label: "Her gün", value: answered("date") ? `${dailyMinutes} dk` : null, step: "date" },
+    { key: "target", label: "Hedef", value: answered("target") ? `%${target}` : null, step: "target" },
+    {
+      key: "material",
+      label: "Materyal",
+      value: curriculumRef ? "Resmî müfredat" : materials.length ? `${materials.length} dosya` : null,
+      step: "material",
+    },
+    {
+      key: "level",
+      label: "Düzey",
+      value: answered("familiarity") ? FAMILIARITY_OPTIONS.find((o) => o.id === familiarity)?.title ?? null : null,
+      step: "familiarity",
+    },
+    {
+      key: "topics",
+      label: "Konular",
+      value: topics.length && answered("topics") ? `${topics.length} konu` : null,
+      step: "topics",
+    },
+  ];
+
+  /** Hazırlığın kartındaki satırdan o adıma dönüş (yalnız geçilmiş adımlar; hazırlanıyor ekranlarında yok). */
+  function jumpTo(next: string) {
+    if (busy) return;
+    const at = STEP_ORDER.indexOf(next as Step);
+    if (at < 0 || at >= stepIndex) return;
+    setStep(next as Step);
+  }
+
   return (
     <div className="apw">
-      <div className="apw-progress" aria-hidden>
-        <div className="apw-progress-fill" style={{ width: `${progress}%` }} />
-      </div>
+      <WizardHeader
+        order={STEP_ORDER}
+        current={planning ? "plan" : progressStep}
+        onBack={stepIndex > 0 && !busy ? goBack : undefined}
+      />
+      <div className="apw-main">
 
       {draftResumeBanner ? (
         <div className="apw-draft-resume" role="status">
@@ -1628,18 +1680,12 @@ export function ExamCreateWizard({
         />
       ) : null}
 
-      {stepIndex > 0 && step !== "building" && step !== "shaping" ? (
-        <button type="button" className="apw-back" onClick={goBack}>
-          <ChevronLeft className="h-4 w-4" aria-hidden /> Geri
-        </button>
-      ) : null}
-
       {step === "subject" ? (
         <section className="apw-step">
           {/* 8 Kasım 2026: başlık "Hangi ders?" diyordu ama ilk sorulan sınav türüydü; 11 tür tek sütunda ders kutusunu
               telefonda ilk ekranın dışına itiyordu. Sınav türü küçük haplar, ders aynı ekranda. */}
           <h1>Hangi sınava, hangi derse?</h1>
-          <p className="apw-lead">Önce sınav türünü, sonra dersini seç. Hazırlığın bu dersin altında toplanır.</p>
+          <TeacherSay>Birlikte hazırlanalım. Önce sınavını ve dersini söyle; planı adım adım birlikte kuracağız.</TeacherSay>
           <p className="apw-sublabel">Sınav türü</p>
           <div className="apw-quick apw-tracks" role="group" aria-label="Sınav türü">
             {EXAM_TRACKS.map((track) => (
@@ -1660,10 +1706,16 @@ export function ExamCreateWizard({
               data-testid="official-setup-entry"
               href={officialSetupHrefForTrack(examTrack) ?? undefined}
             >
-              <strong>Dosyam yok — resmî müfredattan seç</strong>
-              <span>
-                {EXAM_TRACKS.find((t) => t.id === examTrack)?.label} dersleri ve konuları hazır; belge yüklemeden başla →
+              <span className="apw-official-entry-icon" aria-hidden>
+                <BookOpen className="h-5 w-5" />
               </span>
+              <span className="apw-official-entry-text">
+                <strong>Dosyam yok — resmî müfredattan seç</strong>
+                <span>
+                  {EXAM_TRACKS.find((t) => t.id === examTrack)?.label} dersleri ve konuları hazır; belge yüklemeden başla.
+                </span>
+              </span>
+              <ChevronRight className="apw-official-entry-go h-5 w-5" aria-hidden />
             </a>
           ) : null}
           <p className="apw-sublabel">Ders</p>
@@ -1691,19 +1743,9 @@ export function ExamCreateWizard({
             <>
               <h2 className="apw-group">Devam ettiklerin</h2>
               <div className="apw-grid">
-                {recentMatches
-                  .map((item) => (
-                    <button
-                      key={item}
-                      type="button"
-                      className="apw-tile"
-                      onClick={() => {
-                        pickSubject(item);
-                      }}
-                    >
-                      {item}
-                    </button>
-                  ))}
+                {recentMatches.map((item) => (
+                  <SubjectTile key={item} name={item} onPick={() => pickSubject(item)} />
+                ))}
               </div>
             </>
           ) : null}
@@ -1712,16 +1754,7 @@ export function ExamCreateWizard({
               <h2 className="apw-group">Dersler</h2>
               <div className="apw-grid">
                 {commonMatches.map((item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    className="apw-tile"
-                    onClick={() => {
-                      pickSubject(item);
-                    }}
-                  >
-                    {item}
-                  </button>
+                  <SubjectTile key={item} name={item} onPick={() => pickSubject(item)} />
                 ))}
               </div>
             </>
@@ -1752,9 +1785,7 @@ export function ExamCreateWizard({
       {step === "target" ? (
         <section className="apw-step">
           <h1>Hedefin ne?</h1>
-          <p className="apw-lead">
-            Plan bu hedefe göre sıkılaşır. Sonradan değiştirebilirsin.
-          </p>
+          <TeacherSay>Sınavda kaç alırsan mutlu olursun? Planı bu hedefe göre sıkılaştırırım; sonradan değiştirebilirsin.</TeacherSay>
           <div className="apw-target">
             <span className="apw-target-value">%{target}</span>
             <input
@@ -1763,12 +1794,22 @@ export function ExamCreateWizard({
               max={100}
               step={5}
               value={target}
+              style={{ ["--apw-range" as string]: `${((target - 50) / 50) * 100}%` }}
               onChange={(e) => setTarget(Number(e.target.value))}
               aria-label="Hedef ustalık yüzdesi"
             />
-            <div className="apw-target-scale">
-              <span>%50</span>
-              <span>%100</span>
+            <div className="apw-target-scale" role="group" aria-label="Hazır hedefler">
+              {[50, 60, 70, 80, 90, 100].map((mark) => (
+                <button
+                  key={mark}
+                  type="button"
+                  className={target === mark ? "apw-target-mark apw-target-mark--on" : "apw-target-mark"}
+                  aria-pressed={target === mark}
+                  onClick={() => setTarget(mark)}
+                >
+                  %{mark}
+                </button>
+              ))}
             </div>
             <p className={`apw-target-hint apw-target-hint--${targetPlanHint(target).mode}`} role="status">
               {targetPlanHint(target).badge}
@@ -1787,12 +1828,10 @@ export function ExamCreateWizard({
       {step === "material" ? (
         <section className="apw-step">
           <h1>Çalışma materyalini ekle</h1>
-          {subject ? <p className="apw-scope">Yalnızca {subject} materyali</p> : null}
-          <p className="apw-lead">
-            PDF, Word, slayt ya da fotoğraf yükle. El yazısı not, basılı sayfa
-            ve slayt fotoğrafı (JPG, PNG, HEIC) de olur. Konular senin
-            materyalinden çıkar.
-          </p>
+          <TeacherSay>
+            Ders notunu, slaytını ya da defterinin fotoğrafını ver; konuları senin materyalinden çıkarayım.
+            {subject ? <> Yalnızca <strong>{subject}</strong> materyali ekle.</> : null}
+          </TeacherSay>
           {/* Konu çıkarma bu ekrana geri düşürdüyse nedeni burada da görünsün;
               eskiden yalnız konular adımında çiziliyordu ve öğrenci açıklamasız
               materyal ekranına dönüyordu (18 Ekim 2026). */}
@@ -1825,7 +1864,9 @@ export function ExamCreateWizard({
               void takeFiles(e.dataTransfer.files);
             }}
           >
-            <Upload className="h-7 w-7 opacity-70" aria-hidden />
+            <span className="apw-drop-icon" aria-hidden>
+              <Upload className="h-6 w-6" />
+            </span>
             {/* Dokunmatik ekranda sürükle-bırak yok (2 Kasım 2026); başlık cihaza göre. */}
             <p className="apw-drop-title">
               <span className="apw-only-desktop">Dosyanı buraya bırak</span>
@@ -1856,7 +1897,7 @@ export function ExamCreateWizard({
             </p>
             <button
               type="button"
-              className="apw-drop-pick"
+              className="apw-drop-pick apw-drop-pick--main"
               disabled={uploading}
               onClick={() => fileRef.current?.click()}
             >
@@ -1904,6 +1945,7 @@ export function ExamCreateWizard({
             </ul>
           ) : null}
 
+          <p className="apw-or">Ya da</p>
           <div className="apw-file-actions">
             {materials.length ? (
               <button
@@ -1932,6 +1974,7 @@ export function ExamCreateWizard({
               aria-expanded={importPanel === "paste"}
               onClick={() => setImportPanel((current) => (current === "paste" ? "none" : "paste"))}
             >
+              <ClipboardPaste className="h-4 w-4" aria-hidden />
               {WIZARD_COPY.pasteText}
             </button>
             <button
@@ -1941,6 +1984,7 @@ export function ExamCreateWizard({
               aria-expanded={importPanel === "url"}
               onClick={() => setImportPanel((current) => (current === "url" ? "none" : "url"))}
             >
+              <Link2 className="h-4 w-4" aria-hidden />
               {WIZARD_COPY.addUrl}
             </button>
           </div>
@@ -2015,11 +2059,18 @@ export function ExamCreateWizard({
           )}
           <button
             type="button"
-            className="apw-drop-pick"
+            className="apw-drop-pick apw-curriculum-pick"
             aria-expanded={importPanel === "curriculum"}
             onClick={() => setImportPanel((current) => (current === "curriculum" ? "none" : "curriculum"))}
           >
-            {WIZARD_COPY.pickCurriculum}
+            <span className="apw-official-entry-icon" aria-hidden>
+              <BookOpen className="h-5 w-5" />
+            </span>
+            <span className="apw-official-entry-text">
+              <strong>{WIZARD_COPY.pickCurriculum}</strong>
+              <span>Konular resmî programdan gelir; belge gerekmez.</span>
+            </span>
+            <ChevronRight className="apw-official-entry-go h-5 w-5" aria-hidden />
           </button>
           {/* Tek "belgem yok" seçeneği (2 Kasım 2026): resmî müfredat paneli; listede olmayan ders için panelin
               içindeki "Sohbetle kur" bağlantısı konudan çalışmaya götürür. */}
@@ -2029,9 +2080,7 @@ export function ExamCreateWizard({
       {step === "language" ? (
         <section className="apw-step">
           <h1>{WIZARD_COPY.languageTitle}</h1>
-          <p className="apw-lead">
-            Dersler, sorular ve podcast bu dilde hazırlanır.
-          </p>
+          <TeacherSay>Dersler, sorular ve podcast bu dilde hazırlanır. Materyalin başka dilde olsa da olur.</TeacherSay>
           <div className="apw-lang">
             {(
               [
@@ -2048,6 +2097,7 @@ export function ExamCreateWizard({
                 aria-pressed={language === option.id}
                 onClick={() => setLanguage(option.id)}
               >
+                <b>{option.id === "tr" ? "TR" : "EN"}</b>
                 {option.label}
               </button>
             ))}
@@ -2070,6 +2120,7 @@ export function ExamCreateWizard({
 
       {step === "building" ? (
         <section className="apw-step apw-step--center">
+          <CortexLogoMotion size={84} mode="loop" className="apw-wait-mark" />
           <h1>{WIZARD_COPY.analyzing}</h1>
           <p className="apw-lead">{processDetail ?? "Konular materyalinin kapsamından çıkarılıyor."}</p>
           <ul className="apw-stages">
@@ -2090,6 +2141,7 @@ export function ExamCreateWizard({
 
       {step === "shaping" ? (
         <section className="apw-step apw-step--center">
+          <CortexLogoMotion size={84} mode="loop" className="apw-wait-mark" />
           <h1>{WIZARD_COPY.shapingTitle}</h1>
           <p className="apw-lead">{WIZARD_COPY.shapingLead}</p>
         </section>
@@ -2097,6 +2149,7 @@ export function ExamCreateWizard({
 
       {planning ? (
         <section className="apw-step apw-step--center">
+          <CortexLogoMotion size={84} mode="loop" className="apw-wait-mark" />
           <h1>{WIZARD_COPY.planningTitle}</h1>
           <p className="apw-lead">{WIZARD_COPY.planningLead}</p>
         </section>
@@ -2107,9 +2160,7 @@ export function ExamCreateWizard({
           <h1>
             {topics.length ? "Konuları düzenle" : "Konuları birlikte yazalım"}
           </h1>
-          <p className="apw-lead">
-            Yanlış olanı değiştir, eksik olanı ekle.
-          </p>
+          <TeacherSay>Materyalinden bu konuları çıkardım. Yanlış olanı değiştir, eksik olanı ekle; yol bu sırayla kurulur.</TeacherSay>
           {intakeAlert ? (
             <div
               className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-50"
@@ -2176,7 +2227,7 @@ export function ExamCreateWizard({
       {!planning && step === "modality" ? (
         <section className="apw-step">
           <h1>{WIZARD_COPY.modalityTitle}</h1>
-          <p className="apw-lead">{WIZARD_COPY.modalityLead}</p>
+          <TeacherSay>{WIZARD_COPY.modalityLead}</TeacherSay>
           <div className="apw-choices" role="group" aria-label="Çalışma biçimi">
             {MODALITIES.map((option) => {
               const on = modalities.includes(option.id);
@@ -2208,8 +2259,8 @@ export function ExamCreateWizard({
       {!planning && step === "familiarity" ? (
         <section className="apw-step">
           <h1>{WIZARD_COPY.familiarityTitle}</h1>
-          <p className="apw-lead">{WIZARD_COPY.familiarityLead}</p>
-          <div className="apw-choices" role="radiogroup" aria-label="Aşinalık">
+          <TeacherSay>{WIZARD_COPY.familiarityLead}</TeacherSay>
+          <div className="apw-choices apw-ladder" role="radiogroup" aria-label="Aşinalık">
             {FAMILIARITY_OPTIONS.map((option) => (
               <button
                 key={option.id}
@@ -2222,7 +2273,10 @@ export function ExamCreateWizard({
                   openTopics();
                 }}
               >
-                <span aria-hidden>{option.emoji}</span> {option.title}
+                <span className="apw-ladder-emoji" aria-hidden>
+                  {option.emoji}
+                </span>
+                <span className="apw-ladder-title">{option.title}</span>
               </button>
             ))}
           </div>
@@ -2232,7 +2286,7 @@ export function ExamCreateWizard({
       {!planning && step === "focus" ? (
         <section className="apw-step">
           <h1>{WIZARD_COPY.focusTitle}</h1>
-          <p className="apw-lead">{WIZARD_COPY.focusLead}</p>
+          <TeacherSay>{WIZARD_COPY.focusLead}</TeacherSay>
           {/* kıyas ürünündeki gibi: eşit odakta bütün konular işaretli; birinin işaretini kaldırınca
               işaretli kalanlar öne çıkar. Hepsi ya da hiçbiri işaretliyse eşit odak. */}
           <div className="apw-choices" role="group" aria-label="Odak konular">
@@ -2274,10 +2328,31 @@ export function ExamCreateWizard({
         <section className="apw-step">
           <h1>{WIZARD_COPY.planReady}</h1>
           {/* "Konuları düzenle" ile aynı listeyi ikinci kez açmıyoruz (2 Kasım 2026): burada kısa özet. */}
-          <p className="apw-lead" data-testid="plan-summary">
-            {WIZARD_COPY.planSummary(topics.length)}
-            {!equalFocus && focusTopics.length ? ` ${WIZARD_COPY.planFocus(focusTopics.length)}` : ""}
-          </p>
+          <TeacherSay>
+            <span data-testid="plan-summary">
+              {WIZARD_COPY.planSummary(topics.length)}
+              {!equalFocus && focusTopics.length ? ` ${WIZARD_COPY.planFocus(focusTopics.length)}` : ""}
+            </span>{" "}
+            Hazırsan ilk dersi açalım.
+          </TeacherSay>
+          {/* Ne olacağı (8 Kasım 2026): sayılar zaten Hazırlığın kartında; burada düğmeden sonra olanlar, sırayla. */}
+          <ol className="apw-next">
+            <li>
+              <strong>Yolun kurulur</strong>
+              <span>{topics.length} konu ders, test ve tekrar adımlarına bölünür.</span>
+            </li>
+            <li>
+              <strong>İlk dersin yazılmaya başlar</strong>
+              <span>Sen yolu açarken arka planda hazırlanır.</span>
+            </li>
+            <li>
+              <strong>Her gün sıradaki adım</strong>
+              <span>
+                Günde {dailyMinutes} dakika
+                {daysToExam != null && daysToExam > 0 ? `; sınava ${daysToExam} gün var.` : "."}
+              </span>
+            </li>
+          </ol>
           {!equalFocus && focusTopics.length ? (
             <div className="apw-chips">
               {focusTopics.map((title) => (
@@ -2305,6 +2380,18 @@ export function ExamCreateWizard({
           ) : null}
         </section>
       ) : null}
+
+      </div>
+      {/* Kart ana içerikten sonra: ekran okuyucu önce adımı okur; yerini CSS ızgarası belirler (telefonda üstte, masaüstünde sağda). */}
+      <aside className="apw-side">
+        <PrepTicket
+          subject={subject.trim()}
+          rows={ticketRows}
+          order={STEP_ORDER}
+          current={progressStep}
+          onJump={busy ? undefined : jumpTo}
+        />
+      </aside>
 
       <CreditGate
         open={paywall}
@@ -2810,7 +2897,7 @@ export function DateStep({
   return (
     <section className="apw-step apw-when">
       <h1>Sınav ne zaman?</h1>
-      <p className="apw-lead">Tarihi seç; çalışma planın kalan güne göre sıkışır ya da rahatlar.</p>
+      <TeacherSay>Tarihi seç; planı kalan güne göre sıkıştırır ya da rahatlatırım. Her gün ne kadar vakit ayırabileceğini de söyle.</TeacherSay>
 
       {askLevel ? (
         <div className="apw-card">
@@ -3012,6 +3099,26 @@ export function DateStep({
         {WIZARD_COPY.continue}
       </button>
     </section>
+  );
+}
+
+/** Ders kutusu: dersin simgesi kendi renginde, adı yanında (8 Kasım 2026). Renk yalnız simgede; seçim mavi kalır. */
+function SubjectTile({ name, onPick }: { name: string; onPick: () => void }) {
+  const look = subjectLook(name);
+  const Icon = look.icon;
+  return (
+    <button
+      type="button"
+      className="apw-tile apw-subject-tile"
+      style={{ ["--apw-subject" as string]: look.accent }}
+      onClick={onPick}
+    >
+      <span className="apw-subject-icon" aria-hidden>
+        <Icon className="h-[1.15rem] w-[1.15rem]" />
+      </span>
+      <span className="apw-subject-name">{name}</span>
+      <ChevronRight className="apw-subject-go h-4 w-4" aria-hidden />
+    </button>
   );
 }
 

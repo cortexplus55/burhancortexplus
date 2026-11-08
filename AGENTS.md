@@ -2407,3 +2407,24 @@ göre değişsin; Google ile kaydolsa bile; profesyonellik için çok önemli." 
 | **Yönetim:** `/admin/eposta` "Otomatik e-postalar" kartı: her türün ne zaman gittiği, gönderim sayısı (`email_events`), örnek verilerle önizleme (kimseye gitmez) ve "Kendime gönder" | `lifecycle-mails-card.tsx`, `eposta-actions.ts` `previewLifecycleMail` / `sendLifecycleTest` |
 
 "Bir kez" yardımcıları tek yerde: `email/once.ts` (`claimOnce` / `settleOnce`). Bekçi: `yasam-dongusu-epostalari.test.ts`.
+
+## Kurulum sihirbazı yeniden tasarım (8 Kasım 2026) — "Hazırlığın" kartı, dört aşama, öğretmenin sesi
+
+Ürün sahibi: "bu ekranı ve devamındaki ekranları daha premium, profesyonel, samimi ve üstünde düşünülmüş tasarla".
+`/deneme-sinavlari/olustur`'un on adımı tek sistemde. Akış, adım sırası, API ve taslak değişmedi; yalnız görünüm ve metin.
+Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| **Üst çubuk:** solda "Geri" (ilk adımda "Yeni sınav hazırlığı"), sağda "3 / 10"; altında dört aşama (Sınav · Materyal · Sen · Plan), genişliği adım sayısıyla orantılı, biten aşama yeşil ve tikli. Eski 3 px çubuk ve sayfanın ortasındaki "Geri" kalktı | `exam-wizard-chrome.tsx` `WizardHeader`, `WIZARD_PHASES` |
+| **"Hazırlığın" kartı** (imza öge): cevaplar geldikçe satır satır dolar (sınav, ders, tarih + kalan gün, günlük süre, hedef, materyal, düzey, konu sayısı). Varsayılan değer (30 gün sonrası, %75) adım geçilmeden yazılmaz. Masaüstünde (≥1100 px) sağda yapışkan, üst kenarı dersin renginde, bilet delikli; telefonda adım çubuğunun altında yalnız dolu satırlardan yatay şerit. Geçilmiş satıra dokunmak o adıma döner (hazırlanıyor ekranlarında dönülmez). DOM'da ana içerikten sonra (ekran okuyucu önce adımı okur; bir test kartın "Sınav: TYT" düğmesini sayfadaki ilk TYT sanmıştı) | `PrepTicket`, `exam-create-wizard.tsx` `ticketRows`, `jumpTo` |
+| **Öğretmenin sesi:** her adımın açıklaması küçük marka işaretiyle öğretmenin ağzından (`TeacherSay`); başlıklar (h1) testlerin dayandığı metinlerle aynı | `TeacherSay` |
+| **Ders kutuları** dersin simgesi ve renginde; simge/renk listesi tek kaynak (müfredat kartları da buradan). Eşleşme `toLocaleLowerCase("tr")` ile ("İngilizce" düz `/i` ile eşleşmiyordu). Renk yalnız simgede: **seçim mavi kalır** | `src/lib/ui/subject-look.ts` |
+| **Seçim mavi, tamam yeşil:** yeni katmanda mor (`--c-ai`) ve mavi-mor geçişli düğme yok; büyük harfli izli etiket yok (cümle düzeni); bağlantı metninde "→" yok (yön simgeyle) | `exam-create-wizard.css` "Kurulum 2.0" |
+| **Tek mavi düğme yapışkan:** telefonda alt menünün üstünde (`4.4rem + safe-area`), masaüstünde ekranın altında. Devre dışı hâli **dolu gri** (yarı saydam düğme altındaki takvimi içinden gösteriyordu) | `.apw .apw-step > .apw-cta` |
+| Telefonda yan boşluk `clamp(1rem, 4vw, 1.5rem)`: kabuğun ana alanı boşluk vermiyor, sihirbaz eskiden kenardan kenara yapışıktı. Şeritte gizli etiketin kapsayıcısı satır (`position: relative`), yoksa sayfa 560 px'e taşıyordu | aynı dosya |
+| Adımlar: hedefte büyük yüzde + dolan sürgü + %50–%100 hazır seçimler; materyalde büyük bırakma alanı, "Ya da" altında simgeli seçenekler, resmî müfredat kartı; dilde TR/EN rozetli kutular; aşinalıkta basamak çizgisiyle bağlı sıralı düzeyler; konular numaralı; hazırlanıyor ekranlarında hareketli marka (`CortexLogoMotion loop`); planda düğmeden sonra olanlar sırayla (yol kurulur → ilk ders arka planda yazılmaya başlar → her gün sıradaki adım) — sayılar zaten kartta | `exam-create-wizard.tsx` |
+| Metinler emojisiz: "Metin ya da konu listesi yapıştır", "Web ya da ders bağlantısı ekle", "Dosyam yok — resmî MEB / ÖSYM müfredatından seç", dil başlığı "Hangi dilde çalışalım?" | `exam-wizard-copy.ts` |
+
+Fikstür `/e2e/sihirbaz?adim=<adım>` (taslağı tarayıcı kopyasına yazıp o adımda açar; veritabanısız). Bekçi:
+`kurulum-tasarim-8-kasim.test.tsx`, `wizard-tyt-onsecim.test.tsx`, `mobil-denetim-6-kasim.test.ts` (konu düğmeleri telefonda 44 px).
