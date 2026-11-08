@@ -69,6 +69,7 @@ import { MathKeyboard } from "@/components/parity/math-keyboard";
 import { useStudentShellAccount } from "@/lib/student/student-shell-context";
 import { MessageActions, type Rating } from "@/components/chat/message-actions";
 import { TutorReplyView } from "@/components/chat/tutor-reply-view";
+import { SourceModePill } from "@/components/chat/source-mode-pill";
 import { TutorModeSwitcher } from "@/components/chat/tutor-mode-switcher";
 import {
   DEFAULT_TUTOR_STYLE,
@@ -210,10 +211,11 @@ const quickActions = [
  * Referans ürün bunları yapay zekâya ürettiriyor; biz sabit tutuyoruz çünkü üçü de her
  * konuda geçerli ve fazladan bir AI çağrısı (yani fazladan kredi) yakmıyor.
  */
+/** Devam önerileri; simge ve renk (8 Kasım 2026, ürün sahibinin onayı): "Beni test et" belirgin. */
 const FOLLOW_UPS = [
-  { id: "simpler", label: "Daha basit anlat", prompt: "Aynı konuyu daha basit anlat." },
-  { id: "similar", label: "Benzer örnek ver", prompt: "Aynı mantıkta benzer bir örnek soru üret ve çöz." },
-  { id: "quiz", label: "Beni test et", prompt: "Bu konudan bana 3 soru sor ve yanıtlarımı bekle." },
+  { id: "simpler", icon: "🧩", label: "Daha basit anlat", prompt: "Aynı konuyu daha basit anlat." },
+  { id: "similar", icon: "🔁", label: "Benzer örnek ver", prompt: "Aynı mantıkta benzer bir örnek soru üret ve çöz." },
+  { id: "quiz", icon: "✅", label: "Beni test et", prompt: "Bu konudan bana 3 soru sor ve yanıtlarımı bekle." },
 ] as const;
 
 const COMPOSER_MODES = [
@@ -1631,7 +1633,14 @@ function ChatPanelSession({
                   {message.role === "user" ? (
                     displayUserText(message.content)
                   ) : (
-                    assistantBody
+                    <>
+                      {/* Öğretmen imzası (8 Kasım 2026, ürün sahibinin onayı): cevabın başında küçük işaret ve ad. */}
+                      <p className="cp-teacher-sign" aria-hidden>
+                        <CortexMark size={14} />
+                        Cortex öğretmen
+                      </p>
+                      {assistantBody}
+                    </>
                   )}
                 </div>
                 );
@@ -1658,9 +1667,10 @@ function ChatPanelSession({
                     <button
                       key={item.id}
                       type="button"
-                      className="cp-followup"
+                      className={cn("cp-followup", `cp-followup--${item.id}`)}
                       onClick={() => void send(item.prompt)}
                     >
+                      <span aria-hidden>{item.icon}</span>
                       {item.label}
                     </button>
                   ))}
@@ -1710,11 +1720,40 @@ function ChatPanelSession({
             <div className="cp-sor-composer-main">
             {/* Ana sayfa ilk mesaja kadar sade; varsayılan genel sohbet.
                 Bir belgeden gelindiyse seçim baştan görünür. */}
-            {showParityEmpty && !examChrome && !initialDocumentId ? null : renderSourceMode(true)}
-            {/* Mod şeridi ders sekmesinin üstünde durur. Sekme, alttaki yazı kutusuna
-                yapışacak biçimde eksi kenar boşluğu taşır; araya girerse şeritlerin üstüne biner. */}
-            <TutorModeSwitcher value={tutorStyle} onChange={persistTutorStyle} disabled={loading} />
-            {showSubjectPicker ? (
+            {examChrome ? null : (
+              // Tek ince denetim satırı (8 Kasım 2026, ürün sahibinin onayı): kaynak hapı, öğretmen modu ve ders
+              // seçimi yan yana. Önce üç ayrı satırdı; telefonda ekranın yarısını alıyordu.
+              <div className="cp-sor-controls">
+                {showSourceMode && !(showParityEmpty && !initialDocumentId) ? (
+                  <SourceModePill
+                    value={!useDocuments ? "general" : documentsOnly ? "only" : "mixed"}
+                    disabled={loading}
+                    onChange={(next) => {
+                      setUseDocuments(next !== "general");
+                      if (next !== "general") setDocumentsOnly(next === "only");
+                    }}
+                  />
+                ) : null}
+                <TutorModeSwitcher value={tutorStyle} onChange={persistTutorStyle} disabled={loading} />
+                {showSubjectPicker ? (
+                  <button
+                    type="button"
+                    className="cp-ctrl-pill cp-sor-subject-pill"
+                    aria-expanded={subjectOpen}
+                    aria-label={subject ? `Ders: ${subject}` : "Ders seç"}
+                    onClick={() => setSubjectOpen(true)}
+                  >
+                    <span aria-hidden>📚</span>
+                    <span className="cp-ctrl-pill-label">{subject || "Ders seç"}</span>
+                    <ChevronsUpDown className="h-3.5 w-3.5 opacity-70" aria-hidden />
+                  </button>
+                ) : null}
+              </div>
+            )}
+            {examChrome ? renderSourceMode(true) : null}
+            {/* Sınav sohbetinde mod şeridi ders sekmesinin üstünde durur (eski düzen). */}
+            {examChrome ? <TutorModeSwitcher value={tutorStyle} onChange={persistTutorStyle} disabled={loading} /> : null}
+            {examChrome && showSubjectPicker ? (
               <div className="cp-sor-subject-wrap">
                 <button
                   type="button"

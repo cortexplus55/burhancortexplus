@@ -103,7 +103,7 @@ export function AnaEkranFixture({
                 : MESSAGES
             : []
         }
-        hasDocuments={false}
+        hasDocuments={teaching}
         isPremium={plus}
         tutorStyleLabel="Adım adım"
         initialTutorStyle="step_by_step"

@@ -362,3 +362,199 @@ mark.cp-key {
     animation: none;
   }
 }
+
+/* --- Kompakt denetim satırı (8 Kasım 2026, ürün sahibinin onayı) -------------------------------------------
+   Kaynak hapı + öğretmen modu + ders seçimi tek satırda. Önce kaynak satırı, mod satırı ve yazma kutusuna yapışık ders
+   sekmesi üç ayrı katmandı; telefonda alt blok ekranın %48'ini alıyordu. */
+.cp-sor-controls {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  margin: 0 0 0.5rem;
+}
+
+.cp-sor-controls .cp-tutor-mode {
+  margin: 0;
+  flex: none;
+  overflow: visible;
+}
+
+.cp-ctrl-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 36px;
+  padding: 0 0.75rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #1c1c1e;
+  color: #dfe3ec;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.cp-ctrl-pill:hover {
+  border-color: color-mix(in srgb, var(--c-action) 55%, transparent);
+}
+
+.cp-ctrl-pill[aria-expanded="true"] {
+  border-color: var(--c-action);
+  background: color-mix(in srgb, var(--c-action) 16%, #1c1c1e);
+}
+
+.cp-sor-subject-pill {
+  border-color: color-mix(in srgb, #6b8cff 55%, transparent);
+  background: rgba(107, 140, 255, 0.1);
+  color: var(--cp-subject, #b9c6ff);
+}
+
+.cp-ctrl-pill-label {
+  max-width: 9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cp-source-pill {
+  position: relative;
+}
+
+.cp-source-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  z-index: 60;
+  width: min(18.5rem, calc(100vw - 2rem));
+  padding: 0.35rem;
+  border-radius: 1rem;
+  border: 1px solid var(--cp-border-strong);
+  background: #19191b;
+  box-shadow: 0 18px 50px -12px rgba(0, 0, 0, 0.7);
+}
+
+.cp-source-menu-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  min-height: 48px;
+  padding: 0.5rem 0.65rem;
+  border: 0;
+  border-radius: 0.7rem;
+  background: transparent;
+  color: var(--cp-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.cp-source-menu-item:hover,
+.cp-source-menu-item[aria-checked="true"] {
+  background: color-mix(in srgb, var(--c-action) 12%, transparent);
+}
+
+.cp-source-menu-icon {
+  font-size: 1.05rem;
+}
+
+.cp-source-menu-text {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.cp-source-menu-text strong {
+  font-size: 0.875rem;
+  color: var(--cp-text);
+}
+
+.cp-source-menu-text span {
+  font-size: 0.875rem;
+  line-height: 1.35;
+  color: var(--cp-muted);
+}
+
+/* Telefonda haplar kısalır (kaynak hapı yalnız simge); sığmazsa en çok iki sıra, hiçbiri kesilmez. */
+@media (max-width: 480px) {
+  .cp-sor-controls {
+    gap: 0.3rem;
+  }
+
+  .cp-sor-controls .cp-tutor-mode-pill {
+    padding: 0.28rem 0.55rem;
+  }
+
+  .cp-source-pill .cp-ctrl-pill-label {
+    display: none;
+  }
+
+  .cp-ctrl-pill {
+    padding: 0 0.6rem;
+  }
+
+  .cp-sor-subject-pill .cp-ctrl-pill-label {
+    max-width: 4.5rem;
+  }
+}
+
+/* Açık sohbette sınav geri sayım bandı gizli: okuma alanına yer (ana ekranda ve öbür sayfalarda durur). */
+.cp-sor-root:not(.cp-sor-root--exam):has(.cp-sor-view > .cp-sor-messages) .cp-exam-due-bar {
+  display: none;
+}
+
+/* --- Öğretmen imzası, öğrenci balonu, devam çipleri (8 Kasım 2026, ürün sahibinin onayı) ---------------------- */
+.cp-teacher-sign {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.45rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--c-action) 55%, #fff);
+}
+
+/* Öğrencinin balonu: hafif mavi geçişli, sağa yaslı (öğretmenin sol çizgili cevabıyla ayrışır). */
+.cp-sor-root .cp-sor-messages .cp-sor-msg-user {
+  border: 1px solid color-mix(in srgb, var(--c-action) 35%, transparent);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--c-action) 26%, #1c1c22), color-mix(in srgb, var(--c-ai, #8b8ef7) 16%, #18181c));
+  color: #eef0ff;
+  border-bottom-right-radius: 0.45rem;
+}
+
+.cp-sor-root .cp-sor-messages .cp-followup {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 40px;
+  padding: 0 0.95rem;
+  border-color: var(--cp-border-strong);
+  color: var(--cp-text);
+  font-size: 0.875rem;
+  font-weight: 550;
+}
+
+.cp-sor-root .cp-followup--simpler:hover {
+  border-color: color-mix(in srgb, #2fc7b6 60%, transparent);
+  background: color-mix(in srgb, #2fc7b6 12%, transparent);
+}
+
+.cp-sor-root .cp-followup--similar:hover {
+  border-color: color-mix(in srgb, #9b6bff 60%, transparent);
+  background: color-mix(in srgb, #9b6bff 12%, transparent);
+}
+
+/* "Beni test et" öne çıkar: öğrenmeyi yoklayan en değerli adım. */
+.cp-sor-root .cp-followup--quiz {
+  border-color: color-mix(in srgb, #3fc56b 55%, transparent);
+  background: color-mix(in srgb, #3fc56b 14%, transparent);
+  color: #c9f5d6;
+}
+
+.cp-sor-root .cp-followup--quiz:hover {
+  background: color-mix(in srgb, #3fc56b 22%, transparent);
+}

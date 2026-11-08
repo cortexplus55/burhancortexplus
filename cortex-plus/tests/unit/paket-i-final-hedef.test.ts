@@ -98,7 +98,7 @@ describe("tek seçici: en düşük ölçülen başarı, sonra en çok açık yan
       expect(ALL_TOPICS_KINDS.has(kind)).toBe(true);
       expect(prepWideTargetTopic({ kind, requestedTopic: "", adaptiveFocus: null, practiceTopics: ["Heap"], mastery: [], plannedTopics: planned })).toBeNull();
     }
-    expect(read("src/components/parity/exam-prep-home.tsx")).toContain("if (ALL_TOPICS_KINDS.has(node.kind))");
+    expect(read("src/lib/learning/node-heading.ts")).toContain("if (ALL_TOPICS_KINDS.has(node.kind))");
     expect(read("src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/page.tsx")).toContain(
       "else if (ALL_TOPICS_KINDS.has(node.kind as PlanNodeKind)) topicLabel = ALL_TOPICS_LABEL;",
     );

@@ -98,11 +98,13 @@ describe("rozet ve soru çöz", () => {
     expect(badges).toContain('{ label: "Belge yükle", href: "/deneme-sinavlari/olustur" }');
   });
 
-  it("/soru-coz başlığı bir kez (kabuğun h1'i), açıklama kalır", () => {
+  it("/soru-coz başlığı bir kez (stüdyo kartının adı, 8 Kasım 2026), kabuk ikinci h1 yazmaz", () => {
     const page = read("src/app/soru-coz/page.tsx");
-    expect(page).toContain('<AppShell title="Soru çöz">');
-    expect(page).not.toContain("<h1>Soru çöz</h1>");
-    expect(page).toContain("Sorunun fotoğrafını çek ya da soruyu yaz.");
+    expect(page).toContain("<AppShell>");
+    expect(page).not.toContain("<h1");
+    const hero = read("src/components/learning/solver-hero.tsx");
+    expect(hero.match(/<h1/g)?.length).toBe(1);
+    expect(hero).toContain("{STUDIO.blurb}");
   });
 });
 

@@ -4,6 +4,8 @@ import { ParitySorShell } from "@/components/parity/sor-shell";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { loadPrepCards } from "@/lib/learning/prep-cards";
+import { pathSkipKinds } from "@/lib/billing/node-free-meter";
+import { createServiceClient } from "@/lib/supabase/server";
 import { loadNearestExamCountdown } from "@/lib/learning/exam-countdown-load";
 
 export const metadata = { title: "Sınav hazırlığı" };
@@ -33,7 +35,9 @@ export default async function DenemeSinavlariPage({
   const { supabase, user } = await requireStudentArea();
   const [shell, cards, countdown] = await Promise.all([
     loadParityShellProps(supabase, user.id, user.email),
-    loadPrepCards(supabase, user.id, 24),
+    pathSkipKinds(createServiceClient(), user.id)
+      .catch(() => new Set<string>())
+      .then((skip) => loadPrepCards(supabase, user.id, 24, skip)),
     loadNearestExamCountdown(supabase, user.id),
   ]);
 

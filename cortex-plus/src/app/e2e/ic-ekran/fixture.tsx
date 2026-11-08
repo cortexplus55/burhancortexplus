@@ -4,7 +4,10 @@ import { ParitySorShell } from "@/components/parity/sor-shell";
 import { PrepRadarChart } from "@/components/parity/prep-radar-chart";
 import { QuizStudio } from "@/components/learning/studio/quiz-studio";
 import { MistakeNotebookView } from "@/components/parity/mistake-notebook-view";
-import { SolutionView } from "@/components/learning/question-solver";
+import { QuestionSolver, SolutionView } from "@/components/learning/question-solver";
+import { SOLVER_ACCENT, SolverHero } from "@/components/learning/solver-hero";
+import { PodcastStudio } from "@/components/learning/studio/podcast-studio";
+import { ParityExamPrep, type ExamPrepCard } from "@/components/parity/exam-prep";
 import { ExamPrepHome, type HomeNode } from "@/components/parity/exam-prep-home";
 import { fixtureAccount } from "../ana-ekran/fixture";
 
@@ -27,6 +30,34 @@ const PATH_NODES: HomeNode[] = KINDS.map(([kind, title], index) => ({
   sortOrder: index,
   status: index < 2 ? "done" : index === 2 ? "ready" : "locked",
 }));
+
+const PREP_CARDS: ExamPrepCard[] = [
+  {
+    id: "p1",
+    title: "Biyoloji: Hücre bölünmeleri",
+    examType: "YKS",
+    progressPct: 34,
+    daysLabel: "12 gün kaldı",
+    topicsDone: 2,
+    topicsTotal: 6,
+    targetScore: 80,
+    dated: true,
+    continueHref: "/deneme-sinavlari/p1",
+    next: { kind: "podcast", kindLabel: "Podcast Dinle", heading: "Mayoz bölünmenin evreleri ve genetik çeşitlilik", minutes: 6, href: "/deneme-sinavlari/p1/dugum/n4" },
+  },
+  {
+    id: "p2",
+    title: "Matematik: Fonksiyonlar",
+    examType: "Okul",
+    progressPct: 0,
+    daysLabel: "Yola başla",
+    topicsDone: 0,
+    topicsTotal: 4,
+    targetScore: null,
+    continueHref: "/deneme-sinavlari/p2",
+    next: { kind: "lesson", kindLabel: "Giriş Dersi", heading: "Fonksiyon kavramı", minutes: 5, href: "/deneme-sinavlari/p2/dugum/n0" },
+  },
+];
 
 /** Yalnız test fikstürü (E2E_FIXTURE=1). */
 export function IcEkranFixture({ screen }: { screen: string }) {
@@ -85,6 +116,17 @@ export function IcEkranFixture({ screen }: { screen: string }) {
             } as never}
           />
         </main>
+      ) : screen === "soru" ? (
+        <div className="cp-page">
+          <div className="cp-solver-page" style={{ ["--solver-accent" as string]: SOLVER_ACCENT }}>
+            <SolverHero freeAccount={false} />
+            <QuestionSolver tutorStyle="direct_solve" />
+          </div>
+        </div>
+      ) : screen === "sinavlar" ? (
+        <ParityExamPrep cards={PREP_CARDS} userId={null} />
+      ) : screen === "podcast" ? (
+        <PodcastStudio creditCost={12} />
       ) : screen === "test" ? (
         <QuizStudio creditCost={10} documents={[]} initialDocumentId={null} />
       ) : screen === "defter" ? (

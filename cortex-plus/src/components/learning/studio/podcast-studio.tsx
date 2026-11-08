@@ -519,14 +519,17 @@ export function PodcastStudio({
     <StudioFrame tool="podcast" kicker="Podcast">
       {phase === "entry" ? (
         <>
-          <p className="ls-pod-lock">
-            <a href="/ornek" className="ls-pod-lock-link">
-              Örnek bölümü dinle
-            </a>
-          </p>
           <StudioEntry
             tool="podcast"
             title="Podcast"
+            belowHero={
+              // 8 Kasım 2026: tam genişlik şerit yerine başlığın altında küçük bir düğme (ürün sahibinin onayı).
+              <p className="ls-pod-sample-row">
+                <a href="/ornek" className="ls-pod-lock-link ls-pod-sample">
+                  <span aria-hidden>🎧</span> Örnek bölümü dinle
+                </a>
+              </p>
+            }
             placeholder={sourceDocument ? "Örn. Belgenin tamamı ya da bir bölüm" : "Örn. Hücre bölünmesi"}
             submitLabel="Yayını hazırla"
             creditCost={creditCost}

@@ -167,3 +167,43 @@ test("Soru Çöz ve hazırlık yolu: tuzak kutusu, Akılda kalsın, renkli adım
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
   }
 });
+
+test("kurucu turu: sohbet altı tek satır, Soru Çöz başlığı, Sınavlar kartında sıradaki adım, anket şeridi", { tag: ["@public"] }, async ({ page }) => {
+  await page.route("**/api/feedback/weekly", (route) =>
+    route.request().method() === "GET" ? route.fulfill({ json: { show: true } }) : route.fulfill({ json: { ok: true } }),
+  );
+  for (const size of [{ width: 375, height: 812 }, { width: 768, height: 1024 }, { width: 1280, height: 800 }]) {
+    await page.setViewportSize(size);
+
+    await page.goto("/e2e/ana-ekran?durum=ogretim");
+    await expect(page.locator(".cp-sor-view[data-composer-measured]")).toBeAttached({ timeout: 30_000 });
+    const controls = await page.evaluate(() => {
+      const row = document.querySelector(".cp-sor-controls")!.getBoundingClientRect();
+      const messages = document.querySelector(".cp-sor-messages")!.getBoundingClientRect();
+      const zone = document.querySelector(".cp-sor-composer-zone")!.getBoundingClientRect();
+      return { rowH: Math.round(row.height), readable: Math.round(zone.top - messages.top) };
+    });
+    // Tek satır (telefonda en çok iki); okuma alanı telefonda da 300 px'ten fazla.
+    expect(controls.rowH).toBeLessThanOrEqual(84);
+    expect(controls.readable).toBeGreaterThan(300);
+    await page.locator(".cp-source-pill .cp-ctrl-pill").click();
+    await expect(page.getByRole("menuitemradio")).toHaveCount(3);
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("menu", { name: "Kaynak modu" })).toHaveCount(0);
+    await expect(page.locator(".cp-teacher-sign").first()).toBeAttached();
+
+    await page.goto("/e2e/ic-ekran?ekran=soru");
+    await expect(page.getByRole("heading", { level: 1, name: "Fotoğraftan Çözüm" })).toBeVisible();
+    await expect(page.locator(".cp-solver-hero-quota")).toHaveCount(0);
+
+    await page.goto("/e2e/ic-ekran?ekran=sinavlar");
+    const first = page.locator(".cp-prep-card").first();
+    await expect(first.locator(".cp-prep-card-next")).toContainText("Sıradaki");
+    await expect(first.getByRole("link", { name: "Devam et" })).toHaveAttribute("href", "/deneme-sinavlari/p1/dugum/n4");
+    await expect(page.locator(".cp-survey-strip")).toBeVisible();
+    await expect(page.getByRole("radio", { name: "4" })).toHaveCount(0);
+    await page.getByRole("button", { name: "Yanıtla" }).click();
+    await expect(page.getByRole("radio", { name: "4" }).first()).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+  }
+});

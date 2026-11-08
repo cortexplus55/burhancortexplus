@@ -34,6 +34,14 @@ export type ExamPrepCard = {
   past?: boolean;
   /** Okulda paylaşıldıysa katılım sayısı. */
   joinCount?: number;
+  /** Yolda sıradaki adım (8 Kasım 2026): kartta "Sıradaki" satırı; "Devam et" doğrudan oraya gider. */
+  next?: {
+    kind: string;
+    kindLabel: string;
+    heading: string;
+    minutes: number;
+    href: string;
+  } | null;
 };
 
 /**
@@ -295,6 +303,16 @@ export function PrepCard({ card, showTargetLabel }: { card: ExamPrepCard; showTa
           </div>
           <span className="cp-prep-meter-pct">{card.progressPct}%</span>
         </div>
+        {card.next && !finished ? (
+          <p className="cp-prep-card-next" data-kind={card.next.kind}>
+            <span className="cp-prep-card-next-dot" aria-hidden />
+            <span className="cp-prep-card-next-text">
+              <small>Sıradaki · {card.next.kindLabel}</small>
+              <strong>{card.next.heading}</strong>
+            </span>
+            <span className="cp-prep-card-next-min">~{card.next.minutes} dk</span>
+          </p>
+        ) : null}
       </div>
       <div className="cp-prep-card-foot">
         <span className="cp-prep-card-meta">
@@ -310,7 +328,7 @@ export function PrepCard({ card, showTargetLabel }: { card: ExamPrepCard; showTa
           </strong>{" "}
           <small>konu</small>
         </span>
-        <Link href={card.continueHref} className="cp-prep-card-go">
+        <Link href={card.next && !finished ? card.next.href : card.continueHref} className="cp-prep-card-go">
           {finished ? "Deneme çöz" : "Devam et"}
         </Link>
       </div>

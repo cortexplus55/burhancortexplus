@@ -77,7 +77,7 @@ export function MistakeNotebookView({
               <button
                 type="button"
                 onClick={() => startTopic(activeTopic)}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-bold text-black transition-colors hover:bg-amber-400"
+                className="inline-flex items-center justify-center gap-2 min-h-11 rounded-xl bg-[var(--c-action)] px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[var(--c-action-hover)]"
               >
                 <RotateCcw className="h-4 w-4" aria-hidden="true" />
                 Bir tur daha
@@ -170,7 +170,7 @@ export function MistakeNotebookView({
                 Konulara dağıtılmış 10 soru, beş dakika
               </span>
             </span>
-            <span className="shrink-0 text-xs font-semibold text-amber-400">
+            <span className="shrink-0 text-sm font-semibold text-[#9aa6ff]">
               Başla →
             </span>
           </Link>
@@ -208,7 +208,7 @@ export function MistakeNotebookView({
                           : ""}
                       </span>
                     </span>
-                    <span className="inline-flex shrink-0 items-center gap-2 text-xs font-semibold text-amber-400">
+                    <span className="inline-flex shrink-0 items-center gap-2 text-sm font-semibold text-[#9aa6ff]">
                       Tekrar et
                       <ArrowRight className="h-4 w-4" aria-hidden="true" />
                     </span>
@@ -217,7 +217,7 @@ export function MistakeNotebookView({
                   {stuck ? (
                     <Link
                       href={`/studio/anlat?topic=${encodeURIComponent(group.label)}`}
-                      className="cp-tap mt-3 inline-flex items-center gap-2 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-[var(--cs-muted)] transition-colors hover:border-amber-500/50 hover:text-[var(--cs-text)]"
+                      className="cp-tap mt-3 inline-flex items-center gap-2 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-[var(--cs-muted)] transition-colors hover:border-[var(--c-action)] hover:text-[var(--cs-text)]"
                     >
                       Bu konu sana zor geliyor — bir de sen anlat
                     </Link>

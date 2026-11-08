@@ -27,6 +27,9 @@ export const SURVEY_COPY = {
   submit: "Gönder",
   dismiss: "Şimdi değil",
   thanks: "Teşekkürler! Cevabın ekibe ulaştı.",
+  /** Kapalı şerit (8 Kasım 2026). */
+  stripHint: "4 kısa soru · ürünü birlikte geliştirelim",
+  open: "Yanıtla",
 } as const;
 
 export const MOST_USED_OPTIONS = [

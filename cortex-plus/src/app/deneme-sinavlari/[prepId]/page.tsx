@@ -702,7 +702,13 @@ export default async function ExamPrepDetailPage({
       prep.exam_date && !examPassed
         ? Promise.all([getUserEntitlements(service, user.id), loadPlusPrices(service)])
             .then(([ent, prices]) =>
-              campOffer({ daysLeft: daysUntilExam(prep.exam_date as string), examPassed, showsUpgradeChrome: ent.showsUpgradeChrome, weeklyKurus: prices.plusWeekly }),
+              // Hesap bağlamının bayrağı da şart (8 Kasım 2026): yetkiler kurucuyu ücretsiz sayıyordu, kurucuya Plus satılıyordu.
+              campOffer({
+                daysLeft: daysUntilExam(prep.exam_date as string),
+                examPassed,
+                showsUpgradeChrome: ent.showsUpgradeChrome && (shell.account?.showsUpgradeChrome ?? false),
+                weeklyKurus: prices.plusWeekly,
+              }),
             )
             .catch(() => null)
         : Promise.resolve(null),

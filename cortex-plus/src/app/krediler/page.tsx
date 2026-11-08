@@ -24,7 +24,7 @@ import { loadFreeMeters } from "@/lib/billing/free-usage-server";
 import { FREE_TIER_SENTENCE, freeMeterResetLine } from "@/lib/billing/free-meters";
 import { freeExtraLine } from "@/lib/billing/tier-presentation";
 
-export const metadata = { title: "Limitler" };
+export const metadata = { title: "Kullanım limitleri" };
 
 /**
  * Ücretsiz hesabın ana kartı (24 Ekim 2026): kredi yüzdesi değil, sayaçlar. Ücretsiz günlük kredi 0

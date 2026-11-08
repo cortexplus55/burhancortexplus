@@ -2,7 +2,7 @@
 
 import { markNodeClick } from "@/lib/learning/node-open-click";
 import { primeInstantLesson, type LessonPreview } from "@/lib/learning/instant-lesson";
-import { gradeOfLabel, topicOnlyLabel, withoutGradeParts } from "@/lib/learning/path-labels";
+import { gradeOfLabel, topicOnlyLabel } from "@/lib/learning/path-labels";
 import { FirstTopicLockCard } from "@/components/parity/first-topic-lock";
 import type { FirstTopicSummary } from "@/components/parity/exam-node/gates";
 import Link from "next/link";
@@ -82,7 +82,7 @@ import {
   type PrepProgressView,
 } from "@/lib/learning/prep-progress-view";
 import { METRIC_HINT, METRIC_LABEL } from "@/lib/learning/prep-metrics";
-import { ALL_TOPICS_KINDS, ALL_TOPICS_LABEL } from "@/lib/learning/prep-wide-target";
+import { nodeHeading } from "@/lib/learning/node-heading";
 import { groupNodesByPhase } from "@/lib/learning/exam-plan-phases";
 import { cn } from "@/lib/utils";
 import { formatDayLong } from "@/lib/format";
@@ -222,23 +222,6 @@ export function pathNodeLabel(heading: string, kindTitle: string, sectionTitle?:
   return `${heading} · ${kindTitle}`;
 }
 
-function nodeHeading(node: HomeNode): string {
-  const raw = node.title || PLAN_NODE_META[node.kind].title;
-  // "9. Sınıf · Konu" kartta "9. Sınıf" yazıyordu (2 Kasım 2026): sınıf parçası başlık olmaz.
-  const parts = withoutGradeParts(raw.split(" · ").map((part) => part.trim()));
-  // Kavram birimli ders: "Konu · Ders 2/9: Hukukun kaynakları · dosya s.…" → dersin
-  // kendi adı. kıyas ürünü kartta ana konuyu değil dersin adını yazar (3 Ekim 2026).
-  const unit = parts.find((part) => /^Ders \d+\/\d+: /.test(part));
-  if (unit) return unit.replace(/^Ders \d+\/\d+: /, "");
-  const heading = parts[0] || raw;
-  // Bütün konuları kapsayan adım (son kontrol, yazılı deneme, Hazırsın) devraldığı 1. konunun adını yazmaz
-  // (30 Ekim 2026, Paket I #8): kart "1. konu" derken sorular bütün konulardan geliyordu.
-  if (ALL_TOPICS_KINDS.has(node.kind)) return heading === PLAN_NODE_META[node.kind].title ? `${heading} · ${ALL_TOPICS_LABEL}` : heading;
-  // Başlık yalnız etkinliğin türüyse ("Podcast Dinle") konunun adı yazılır; tür zaten
-  // etiketinde. kıyas ürününde "SIRADAKİ · AKILLI METİN · Büyüme Eğrileri…" (18 Ekim 2026).
-  const topic = node.sessionMeta?.topicTitle?.trim();
-  return topic && heading === PLAN_NODE_META[node.kind].title ? topicOnlyLabel(topic) : heading;
-}
 
 export type PrepMaterial = {
   id: string;
@@ -823,13 +806,6 @@ export function ExamPrepHome({
       ) : null}
 
       {view === "yol" ? <PrepDueReviewCard prepId={prepId} count={dueReviews} /> : null}
-      {view === "yol" ? (
-        <PrepShareTools
-          prepId={prepId}
-          inviteUrl={shareTools?.inviteUrl ?? null}
-          whatsappHref={shareTools?.whatsappHref ?? null}
-        />
-      ) : null}
 
       {view === "ilerleme" ? (
         <ExamPrepProgress
@@ -891,6 +867,13 @@ export function ExamPrepHome({
               Deneme sınavı oluştur
             </Link>
           </section>
+          {/* 8 Kasım 2026 (ürün sahibinin onayı: "yol önce"): sınav sabahı kâğıdı ve paylaşım yolun altında; önce
+              yolun üstündeydi, telefonda yol ancak ikinci ekranda başlıyordu. */}
+          <PrepShareTools
+            prepId={prepId}
+            inviteUrl={shareTools?.inviteUrl ?? null}
+            whatsappHref={shareTools?.whatsappHref ?? null}
+          />
         </>
       ) : null}
 

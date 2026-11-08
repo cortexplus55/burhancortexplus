@@ -41,8 +41,8 @@ describe("sınav hazırlıklarım", () => {
   });
 
   it("ana liste Yaklaşan / Geçmiş ızgarası; başlık hazırlıklarım sayfasını açar", () => {
-    expect(readFileSync("src/app/deneme-sinavlari/page.tsx", "utf8")).toContain("loadPrepCards(supabase, user.id, 24)");
-    expect(readFileSync("src/app/deneme-sinavlari/hazirliklarim/page.tsx", "utf8")).toContain("loadPrepCards(supabase, user.id, 100)");
+    expect(readFileSync("src/app/deneme-sinavlari/page.tsx", "utf8")).toContain("loadPrepCards(supabase, user.id, 24, skip)");
+    expect(readFileSync("src/app/deneme-sinavlari/hazirliklarim/page.tsx", "utf8")).toContain("loadPrepCards(supabase, user.id, 100, skip)");
     expect(readFileSync("src/components/parity/exam-prep.tsx", "utf8")).toContain('href="/deneme-sinavlari/hazirliklarim"');
   });
 });
