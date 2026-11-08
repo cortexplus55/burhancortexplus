@@ -1405,3 +1405,64 @@
 .ls-pod-sample:hover {
   background: color-mix(in srgb, var(--ls-accent) 20%, transparent);
 }
+
+/* ── Açık tema (8 Kasım 2026, ürün sahibinin kararı: "açık temayı tamamla") ─────────────────────────────────────
+   Stüdyolar koyu tema için yazılmıştı: beyaz yazı değişkeni, yarı saydam beyaz çerçeveler, koyu yarı saydam
+   alanlar. Açık temada başlık beyaz zeminde beyazdı, seçili düğmenin yazısı görünmüyordu. Yazı değişkenleri
+   temadan, koyu alanlar yüzey renginden, çerçeveler temanın çerçeve renginden. */
+:root:not(.dark) .ls-studio {
+  --ls-text: var(--c-text);
+  --ls-muted: var(--c-text-muted);
+}
+
+:root:not(.dark) .ls-studio :is(
+  .ls-back, .ls-chapter, .ls-chip, .ls-explain, .ls-field, .ls-flash-face, .ls-ghost, .ls-letter,
+  .ls-msg-mark, .ls-next-card, .ls-open-answer, .ls-option, .ls-pod-lock, .ls-pod-preflight, .ls-script,
+  .ls-seg button, .ls-select, .ls-setup, .ls-tf-card, .ls-upload, .ls-vibe
+) {
+  border-color: var(--c-border-strong);
+}
+
+:root:not(.dark) .ls-studio :is(.ls-field, .ls-option, .ls-tf-card, .ls-script, .ls-select, .ls-open-answer, .ls-flash-face) {
+  background: var(--c-surface-1);
+  color: var(--c-text);
+}
+
+:root:not(.dark) .ls-studio :is(.ls-setup, .ls-pod-lock, .ls-pod-preflight, .ls-next-card, .ls-explain) {
+  background: var(--c-surface-1);
+}
+
+:root:not(.dark) .ls-studio .ls-option.is-selected {
+  background: color-mix(in srgb, var(--ls-accent) 12%, #ffffff);
+}
+
+:root:not(.dark) .ls-studio .ls-score {
+  background: color-mix(in srgb, var(--ls-accent) 10%, #ffffff);
+}
+
+:root:not(.dark) .ls-studio .ls-mic-orb {
+  background: color-mix(in srgb, var(--ls-accent) 16%, #ffffff);
+}
+
+:root:not(.dark) .ls-studio .ls-seg button {
+  color: var(--c-text-muted);
+}
+
+:root:not(.dark) .ls-studio .ls-seg button[aria-pressed="true"] {
+  color: color-mix(in srgb, var(--ls-accent) 75%, #000000);
+}
+
+:root:not(.dark) .ls-studio .ls-chip.is-on,
+:root:not(.dark) .ls-studio .ls-pod-sample {
+  color: color-mix(in srgb, var(--ls-accent) 75%, #000000);
+}
+
+:root:not(.dark) .ls-studio .ls-hero-plate {
+  background:
+    radial-gradient(80% 80% at 30% 20%, color-mix(in srgb, var(--ls-accent) 40%, transparent), transparent 70%),
+    color-mix(in srgb, var(--ls-accent) 12%, #ffffff);
+}
+
+:root:not(.dark) .ls-studio .ls-pod-line .cp-pod-word.is-spoken {
+  color: var(--c-text);
+}
