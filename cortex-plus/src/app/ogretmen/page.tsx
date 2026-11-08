@@ -17,6 +17,7 @@ import { defaultStartPrompt } from "@/lib/student/first-prompts";
 import { getStudentAccountContext } from "@/lib/student/account-context";
 import { getUserStreak } from "@/lib/streak/record-activity";
 import { FirstStepLauncher } from "@/components/parity/first-step-launcher";
+import { HomeStudios } from "@/components/parity/home-studios";
 import { PlusMonth } from "@/components/marketing/plus-month";
 import { loadPlusPrices } from "@/lib/billing/plan-prices";
 import { loadNearestExamCountdown } from "@/lib/learning/exam-countdown-load";
@@ -146,12 +147,15 @@ export default async function OgretmenPage({
     goal: goalText,
   });
   const style = parseTutorStyle(profile?.tutor_style);
-  // Ücretsiz öğrenciye Plus'ın bir ayı somut sayıyla (20 Ekim 2026). Hiç hazırlığı yoksa önce ilk
-  // hazırlık kartı: değeri yaşamadan satın alma istemek dönüşmüyor; Plus kartı hemen altında.
+  // Ana ekranın sırası (8 Kasım 2026): selam ve Başla → Çalışma Stüdyoları (herkese; ilk ekranda, özellikler arka
+  // planda kalmasın) → hiç hazırlığı yoksa ilk adım → ücretsiz öğrenciye Plus'ın bir ayı. Hepsi akışta, sabit yazma
+  // alanının üstünde kayar; hiçbiri yazma alanının yanına ya da üstüne binmez. Değeri yaşamadan satın alma istemek
+  // dönüşmüyor: Plus en sonda.
   const showPlus = account.showsUpgradeChrome;
   const heroCards =
-    !params.sohbet && (prepCount === 0 || showPlus) ? (
+    !params.sohbet ? (
       <>
+        <HomeStudios freeAccount={showPlus} />
         {prepCount === 0 ? (
           <FirstStepLauncher firstName={firstName} gradeLevel={profile?.grade_level} goalText={goalText} />
         ) : null}

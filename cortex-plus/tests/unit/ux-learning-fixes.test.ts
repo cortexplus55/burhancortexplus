@@ -36,7 +36,8 @@ describe("öğrenme ekranları kaynak denetimi", () => {
     const pm = read("src/components/marketing/plus-month.tsx");
     expect(pm).not.toContain("sınav ayı temposu");
     const chat = read("src/components/chat/chat-panel.tsx");
-    expect(chat).toContain("showUpgrade && !(showParityEmpty && heroFooter)");
+    // 8 Kasım 2026: yazma alanının yanındaki ikinci kart tümden kalktı; Plus kartı yalnız ana ekranın akışında.
+    expect(chat).not.toContain("UpgradeAside");
   });
   it("test: sabit eylem çubuğu, şık açıklaması çift noktalama üretmez, eylem görünür", () => {
     const play = read("src/components/parity/exam-quiz-play.tsx");

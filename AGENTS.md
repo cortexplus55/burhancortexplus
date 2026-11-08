@@ -2137,3 +2137,23 @@ günlük çalışma süresiyle sınav tarihi birbirine karışmış". Yeniden a�
 Bekçi: `kurulum-ve-egitmen-8-kasim.test.tsx`, `paket1-tutor-scratchpad.test.tsx`, e2e `kurulum-gorsel.spec.ts` (375/360 px taşma 0,
 dokunma ≥ 40 px, tarih özeti, eğitmen sohbeti soruya bağlı), `mufredat.spec.ts`. Telefonda kök düzendeki 36 px tabanı
 (`mobile-tap-targets.css`, `:root` + sınıf) eğitmen çiplerini eziyordu: kural `.cp-exam-coach .cp-coach-asks` ile daha özgül.
+
+## Ana ekran (8 Kasım 2026) — üst üste binme yok, stüdyolar ilk ekranda
+
+Ürün sahibi, ücretsiz öğrencinin kayıttan sonra gördüğü ilk ekran için: "Plus ile bu ay kartı altta kalıyor, mod
+düğmeleri ortalanmıyor, yükselt bandı düğmelerin arkasında; kabul edilemez. Çalışma stüdyoları ana ekranda olsun,
+telefon ve tablette de." Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| **Yazma alanının yanında kart yok.** `UpgradeAside` (yazma alanının yanındaki Plus kartı) silindi: masaüstünde besteciyi sola itiyor, sohbetin üstüne biniyordu. Plus bilgisi yalnız akışta: ana ekranda `PlusMonth` en sonda, sohbetin sonunda ince `.cp-sor-upgrade-row` (yanıt yazılırken yok), üst çubukta Plus düğmesi | `chat-panel.tsx`, `ogretmen/page.tsx` |
+| **Sıra:** selam + Başla → Çalışma Stüdyoları (herkese) → hiç hazırlığı yoksa ilk adım → ücretsize Plus kartı. Kartlar 56rem sütunda, aynı kenarlarda | `home-studios.tsx`, `.cp-sor-hero--rich` |
+| **Stüdyolar:** 8 kart (Fotoğraftan Çözüm, Konu Testi, Kartlar, Doğru/Yanlış, Podcast, Sözlü, Yazılı Deneme, Anlatarak Öğren), her biri kendi stüdyosunu açar; ücretsizde yalnız `PLUS_ONLY_ACTIONS` işleri "Plus" rozeti taşır. Masaüstünde 4, 820 px altında 2 sütun | `HOME_STUDIOS`, `home-studios.css` |
+| **Sabit besteci arkasını örter** (`::before` geçişi + zemin); mod düğmeleri `safe center`; sohbet sütunu 48rem ortada; kartlı ana ekran sabit yükseklikte kabuk (`.cp-sor-root:has(.cp-sor-hero--rich)`, önce vh sonra dvh), kayan yalnız kart kutusu; ölçülen boşluğa geçiş payı (+2.5rem) ve `scroll-padding-bottom` (klavyeyle odaklanan kart yazma alanının arkasında kalmaz) | `parity-shell.css` sonu |
+| Öğrencinin mesaj balonu okunur (yazı rengi zemin rengiydi); "Geri / Yeni sohbet" satırı sütun hizasında, 44 px | `parity-shell.css` |
+| **Üst menü tablette (768–1179 px) yalnız simge** (yazılar simgelerle çakışıyordu; ad `title` ve ekran okuyucuda); telefonda yandaki "Daha fazla" yalnız simge | `sor-shell.tsx` `.cp-sor-topnav-label` |
+
+Doğrulama fikstürü `/e2e/ana-ekran` (`?durum=sohbet`, `?plan=plus`, `?hazirlik=1`). Bekçi: `ana-ekran-8-kasim.test.tsx`,
+e2e `ana-ekran.spec.ts` (375, 360, 768, 1024, 1280 px: taşma 0, son kart geçişin üstünde, mod düğmeleri ortada ve
+kırpılmıyor, her stüdyo kartının ortası tıklanınca kartın kendisi). E2E'yi tam birim paketiyle aynı anda koşmayın:
+yük altında sayfa açılışları zaman aşımına düşüyor.

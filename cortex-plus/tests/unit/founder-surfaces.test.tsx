@@ -8,7 +8,6 @@ import { CreditGate } from "@/components/paywall/credit-gate";
 import { CreditLimitToast } from "@/components/paywall/credit-limit-toast";
 import { PlusLimitBanner } from "@/components/paywall/plus-limit-banner";
 import { PromoBanner } from "@/components/paywall/promo-banner";
-import { UpgradeAside } from "@/components/paywall/upgrade-aside";
 import { UpgradeSheet } from "@/components/paywall/upgrade-sheet";
 import { FounderBadge, FounderChip } from "@/components/student/founder-chip";
 import { FounderCreditsView } from "@/components/student/founder-credits-view";
@@ -61,7 +60,6 @@ const paywalls: [string, () => ReactNode][] = [
   ["CreditGate (ücretsiz)", () => <CreditGate open onOpenChange={noop} message="Hakkın doldu." isPremium={false} />],
   ["CreditGate (Plus)", () => <CreditGate open onOpenChange={noop} message="Hakkın doldu." isPremium />],
   ["UpgradeSheet", () => <UpgradeSheet open onOpenChange={noop} message="Hakkın doldu." />],
-  ["UpgradeAside", () => <UpgradeAside returnPath="/ogretmen" />],
   ["PlusLimitBanner", () => <PlusLimitBanner onDismiss={noop} />],
   ["CreditLimitToast", () => <CreditLimitToast open onOpenChange={noop} message="Hakkın doldu." />],
   ["PromoBanner", () => <PromoBanner campaign={{ title: "Kampanya", description: "İndirim var.", href: "/pay", endsAt: future }} />],
@@ -90,8 +88,8 @@ describe("satın alma yüzeyleri kurucuda hiç render edilmez", () => {
   });
 
   it("kabuk bağlamı yoksa (misafir sayfası) kurucu sayılmaz", () => {
-    const { container } = render(<UpgradeAside />);
-    expect(container.textContent).toContain("Plus'a geç");
+    const { container } = render(<UpgradeSheet open onOpenChange={noop} message="Hakkın doldu." />);
+    expect(container.textContent).toContain("Plus'a yükselt");
   });
 });
 
