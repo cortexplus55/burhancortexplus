@@ -93,6 +93,18 @@ describe("derste ruh hali", () => {
   });
 });
 
+describe("sonuç ekranı ruh halini anar", () => {
+  it("stresli günde bitirmek sayılır; ruh hali yoksa eski cümleler", async () => {
+    const { resultMood } = await import("@/lib/learning/result-mood");
+    expect(resultMood(7, 7, "stressed").text).toBe("Stresli başladın, harika bitirdin.");
+    expect(resultMood(2, 7, "stressed").text).toContain("buraya kadar gelmek de sayılır");
+    expect(resultMood(2, 7, "low_energy").text).toContain("bugünkü payın tamam");
+    expect(resultMood(7, 7, "ready").text).toBe("Hazırım demiştin; haklıymışsın.");
+    expect(resultMood(7, 7).text).toBe("Harika iş çıkardın!");
+    expect(resultMood(2, 7, "curious").tone).toBe("work");
+  });
+});
+
 describe("hatırlatma: uzun arada dost sesi", () => {
   const input = {
     hasUnfinishedPath: true,
