@@ -137,7 +137,7 @@ export const studentMenuGroups: {
   {
     title: "Hesap",
     items: [
-      { href: "/krediler", label: "Limitler", icon: CreditCard },
+      { href: "/krediler", label: "Kullanım limitleri", icon: CreditCard },
       { href: "/pay", label: "Plus'a yükselt", icon: GraduationCap },
       { href: "/profil", label: "Profil", icon: User },
       { href: "/ayarlar", label: "Ayarlar", icon: Settings },

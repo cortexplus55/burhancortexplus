@@ -760,3 +760,18 @@
     height: 56px !important;
   }
 }
+
+/* Açık tema: koyu tema için beyazla karıştırılmış yazılar okunmuyordu (8 Kasım 2026). */
+:root:not(.dark) .cp-solver-hero-facts > span {
+  color: color-mix(in srgb, var(--solver-accent) 80%, #000000);
+}
+
+:root:not(.dark) .cp-solver-page .cp-solver-pick svg {
+  color: var(--solver-accent);
+}
+
+:root:not(.dark) .cp-solver-hero-plate {
+  background:
+    radial-gradient(80% 80% at 30% 20%, color-mix(in srgb, var(--solver-accent) 45%, transparent), transparent 70%),
+    color-mix(in srgb, var(--solver-accent) 14%, #ffffff);
+}

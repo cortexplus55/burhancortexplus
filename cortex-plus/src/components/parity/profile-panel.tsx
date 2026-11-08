@@ -25,10 +25,10 @@ import { AvatarPicker } from "@/components/parity/avatar-picker";
  * dağınık duran şeyleri (streak, davet, plan, kısayollar) tek yerde topluyor.
  */
 
+// 8 Kasım 2026: "Ayarlar" kartın üstündeki düğmede; listede ikinci kez durmuyor. Adlar sayfa adlarıyla aynı.
 const MENU = [
-  { href: "/profil?dialog=profile", label: "Ayarlar", icon: Settings },
-  { href: "/krediler", label: "Kullanım", icon: TrendingUp },
-  { href: "/pay", label: "Abonelikler", icon: CreditCard },
+  { href: "/krediler", label: "Kullanım limitleri", icon: TrendingUp },
+  { href: "/pay", label: "Abonelik", icon: CreditCard },
   { href: "/sohbetler", label: "Geçmiş konuşmalar", icon: History },
   { href: "/yardim", label: "Yardım ve destek", icon: HelpCircle },
   { href: "/mobil-uygulama", label: "Telefondan kullan", icon: Download },

@@ -2225,3 +2225,19 @@ Yeniden açmayın:
 
 Fikstür `/e2e/ic-ekran?ekran=soru|sinavlar|podcast`, `/e2e/ana-ekran?durum=ogretim`. Bekçi: `premium-ic-ekranlar-8-kasim.test.tsx`,
 `weekly-survey.test.tsx`, e2e `ana-ekran.spec.ts`.
+
+**İkinci tur (aynı gün, ürün sahibi: "kendini kullanıcı yerine koy; fazlalık, düzeltilecek ve eklenecek yerleri hallet").**
+Menüdeki bütün sayfalar ve hazırlığın alt sayfaları kurucu hesabıyla, telefonda, koyu ve açık temada gezildi:
+
+| Kural | Nerede |
+|---|---|
+| **Açık tema:** yeni parçalar koyu tema için beyazla karıştırılmış yazı kullanıyordu (Soru Çöz çipleri, kartın "Sıradaki" etiketi, gün çipi okunmuyordu; kaynak menüsünde koyu zeminde koyu yazı). Renkler token'dan; açık tema düzeltmeleri `:root:not(.dark)` altında | `parity-shell.css`, `question-solver.css`, `chat-teaching.css` |
+| **İlerleme beşgeni:** her eksenin adı ve yüzdesi altta okunur listede; telefonda çizimde ad yerine numara ve çizim boş yan payı kadar büyür (ad 8 px'e iniyordu). "Uydurma yükseliş yok" cümlesi kalktı | `prep-radar-chart.tsx` `.cp-radar-legend`, `.cp-radar-num` |
+| **Ayarlar penceresi** telefonda tam genişlik (solda bulanık başlık paneli 283 px'e sıkıştırıyordu) | `.cp-profile-scrim` |
+| **Profil:** listede "Ayarlar" ikinci kez durmuyor (kartın düğmesi kalır); menü adları sayfa adlarıyla aynı ("Kullanım limitleri", "Abonelik") | `profile-panel.tsx`, `sor-shell.tsx`, `student-shell-nav.ts` |
+| **Boş durum düğmesi** mavi birincil (`cp-empty-action`); altın sınıf öğrenci kabuğunda yüklenmiyor, "Plus planları" düz yazı kalıyordu | `empty-state.tsx` |
+| **Müfredat ve resmî sınavlar:** kart dersin simgesi ve renginde (yalnız görünüm, addan; konu listesi değil), "Başla →" hapı | `exam-catalog-pages.tsx` `SUBJECT_LOOK` |
+| **Çalışma Stüdyosu:** laboratuvarlar "Laboratuvar" etiketli (önce "Hesap"); kısayollar dört büyük kart yerine tek satır hap (menüyü tekrar ediyordu) | `tools-hub.tsx` |
+| Küçükler: Belgelerim'de ikincil işler simgeli hap; Sınıflar emekli öğretmen paneline gönderme yapmıyor ("arkadaşının paylaştığı kodla"); katılım kodu ipucu küçük harf; Düello'da tek robot simgesi | `dokumanlar/page.tsx`, `siniflar/page.tsx`, `join-class-form.tsx`, `new-duel-button.tsx` |
+
+Bekçi: `premium-ic-ekranlar-8-kasim.test.tsx` ("ikinci tur"), e2e `ana-ekran.spec.ts` (beşgen: gizli ad sayılmaz).

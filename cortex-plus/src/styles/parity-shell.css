@@ -15113,3 +15113,253 @@ a.cp-exam-search {
   color: var(--cp-muted, #a1a1a1);
   font-variant-numeric: tabular-nums;
 }
+
+/* Açık tema (8 Kasım 2026): gün çipi ve "Sıradaki" etiketi koyu tema için açık renkteydi, beyaz kartta okunmuyordu. */
+:root:not(.dark) .cp-prep-card-days {
+  color: var(--c-action);
+}
+
+:root:not(.dark) .cp-prep-card-next-text small {
+  color: color-mix(in srgb, var(--next-accent) 70%, #000000);
+}
+
+/* Ayarlar penceresi telefonda tam genişlik (8 Kasım 2026): soldaki boşluk (bulanık "Ayarlar" yazısı) paneli 283 px'e
+   sıkıştırıyordu. Kapatma × ve geri düğmesiyle. */
+@media (max-width: 560px) {
+  .cp-profile-scrim {
+    display: none;
+  }
+
+  .cp-profile-panel {
+    flex: 1 1 auto;
+    width: 100%;
+    border-left: 0;
+  }
+}
+
+/* Beşgen açıklaması (8 Kasım 2026): eksenin adı ve yüzdesi okunur boyutta; telefonda çizimde ad yerine numara. */
+.cp-radar-num {
+  display: none;
+  font-size: 22px;
+  font-weight: 700;
+  fill: var(--c-text, #fff);
+}
+
+.cp-radar-legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
+  gap: 0.35rem 0.75rem;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-radar-legend li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  font-size: 0.875rem;
+}
+
+.cp-radar-legend-num {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--c-action) 18%, transparent);
+  color: var(--c-text);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.cp-radar-legend-label {
+  flex: 1;
+  min-width: 0;
+  color: var(--c-text-muted);
+}
+
+.cp-radar-legend strong {
+  font-variant-numeric: tabular-nums;
+  color: var(--c-text);
+}
+
+@media (max-width: 560px) {
+  .cp-radar .cp-radar-label {
+    display: none;
+  }
+
+  .cp-radar .cp-radar-num {
+    display: inline;
+  }
+}
+
+/* Müfredat ve resmî sınav kartları (8 Kasım 2026): dersin rengi ve simgesi, sağda "Başla →" hapı. */
+.cp-catalog-card {
+  --cat-accent: #7b88ff;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 0.85rem;
+  row-gap: 0.6rem;
+  border-color: color-mix(in srgb, var(--cat-accent) 22%, var(--cp-border));
+  background:
+    radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--cat-accent) 12%, transparent), transparent 60%),
+    var(--cp-surface);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.cp-catalog-card:hover {
+  border-color: color-mix(in srgb, var(--cat-accent) 55%, transparent);
+  transform: translateY(-1px);
+}
+
+.cp-catalog-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, var(--cat-accent) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--cat-accent) 40%, transparent);
+  color: color-mix(in srgb, var(--cat-accent) 55%, #ffffff);
+}
+
+:root:not(.dark) .cp-catalog-icon {
+  color: color-mix(in srgb, var(--cat-accent) 85%, #000000);
+}
+
+.cp-catalog-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.cp-catalog-text > span {
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--cp-muted);
+}
+
+.cp-catalog-card em {
+  grid-column: 1 / -1;
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  background: var(--c-action);
+  color: var(--c-on-action, #fff);
+  font-size: 0.8125rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-catalog-card,
+  .cp-catalog-card:hover {
+    transition: none;
+    transform: none;
+  }
+}
+
+/* Boş durum düğmesi (8 Kasım 2026): her öğrenci sayfasında aynı mavi birincil düğme. */
+.cp-empty-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 10rem;
+  min-height: 44px;
+  margin-top: 1.25rem;
+  padding: 0 1.5rem;
+  border-radius: 999px;
+  background: var(--c-action);
+  color: var(--c-on-action, #fff);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.cp-empty-action:hover {
+  background: var(--c-action-hover, #5170ff);
+}
+
+/* Çalışma Stüdyosu kısayolları tek satır hap (8 Kasım 2026). */
+.tools-shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.tools-shortcut {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 40px;
+  padding: 0 0.95rem;
+  border-radius: 999px;
+  border: 1px solid var(--cp-border-strong, var(--c-border-strong));
+  background: var(--c-surface-1);
+  color: var(--c-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.tools-shortcut:hover {
+  border-color: color-mix(in srgb, var(--c-action) 55%, transparent);
+}
+
+.tools-shortcut svg {
+  color: var(--c-text-muted);
+}
+
+/* Belgelerim kartı (8 Kasım 2026): ikincil işler altı çizili küçük yazı yerine simgeli hap; birincil düğme marka mavisi. */
+.cp-docs-primary {
+  background: var(--c-action);
+  color: var(--c-on-action, #fff);
+}
+
+.cp-docs-primary:hover {
+  background: var(--c-action-hover, #5170ff);
+}
+
+.cp-docs-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 36px;
+  padding: 0 0.8rem;
+  border-radius: 999px;
+  border: 1px solid var(--cp-border-strong, var(--c-border-strong));
+  color: var(--c-text);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.cp-docs-link:hover {
+  border-color: color-mix(in srgb, var(--c-action) 55%, transparent);
+}
+
+.cp-docs-link svg {
+  color: var(--c-text-muted);
+}
+
+/* Telefonda yan etiket payı boş kalıyor (ad yerine numara): çizim o pay kadar büyür, figür taşanı keser.
+   viewBox 488 birim, çekirdek 280: genişlik 488/280, sola kayma 104/280. */
+@media (max-width: 560px) {
+  .cp-radar {
+    overflow: hidden;
+  }
+
+  .cp-radar .cp-radar-svg {
+    width: 174.3%;
+    max-width: none;
+    margin-left: -37.15%;
+  }
+}

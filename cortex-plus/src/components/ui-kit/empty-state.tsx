@@ -52,7 +52,8 @@ export function EmptyState({
         {actionHref && actionLabel ? (
           <Link
             href={actionHref}
-            className="cortex-premium-btn-primary mt-5 inline-flex w-auto min-w-[10rem] px-6"
+            // 8 Kasım 2026: altın düğme sınıfı öğrenci kabuğunda yüklenmiyordu, düğme düz yazı kalıyordu; mavi birincil.
+            className="cp-empty-action"
           >
             {actionLabel}
           </Link>

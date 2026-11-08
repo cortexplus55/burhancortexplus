@@ -2,7 +2,23 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { GraduationCap, Landmark, Star } from "lucide-react";
+import {
+  ArrowRight,
+  Atom,
+  BookOpen,
+  Brain,
+  Dna,
+  Feather,
+  FlaskConical,
+  Globe2,
+  GraduationCap,
+  Landmark,
+  Languages,
+  type LucideIcon,
+  Scale,
+  Sigma,
+  Star,
+} from "lucide-react";
 import { toast } from "sonner";
 import { SchoolFeedView } from "@/components/parity/school-feed-view";
 import {
@@ -164,19 +180,56 @@ export function OfficialExamsPage() {
   );
 }
 
-function CatalogGrid({ items, icon = false }: { items: CatalogItem[]; icon?: boolean }) {
+/**
+ * Kartın simgesi ve rengi dersin adından (8 Kasım 2026, kurucu turu): önce her kart düz metindi, resmî sınavlarda hepsi
+ * aynı simgeydi. Konu listesi değil, yalnız görünüm; ad tanınmazsa genel simge. Renkler Çalışma Stüdyosu paletinden.
+ */
+const SUBJECT_LOOK: { test: RegExp; icon: LucideIcon; accent: string }[] = [
+  { test: /matemat|geometri|sayısal|ales|dgs/i, icon: Sigma, accent: "#5b6cff" },
+  { test: /fizik/i, icon: Atom, accent: "#36b6ff" },
+  { test: /kimya/i, icon: FlaskConical, accent: "#2fc7b6" },
+  { test: /biyoloji|tus|dus/i, icon: Dna, accent: "#3fc56b" },
+  { test: /türkçe|edebiyat|dil ve anlatım/i, icon: Feather, accent: "#ff7a59" },
+  { test: /tarih|inkılap|kpss/i, icon: Landmark, accent: "#c46bff" },
+  { test: /coğrafya/i, icon: Globe2, accent: "#2fc7b6" },
+  { test: /felsefe|psikoloji|mantık/i, icon: Brain, accent: "#9b6bff" },
+  { test: /ingilizce|yds|almanca|yabancı/i, icon: Languages, accent: "#ff5d8f" },
+  { test: /din|vatandaşlık|hukuk/i, icon: Scale, accent: "#ff9478" },
+  { test: /tyt|ayt|yks|lgs|fen|sosyal/i, icon: BookOpen, accent: "#7b88ff" },
+];
+
+function catalogLook(item: CatalogItem): { icon: LucideIcon; accent: string } {
+  const hit = SUBJECT_LOOK.find((look) => look.test.test(`${item.title} ${item.subject}`));
+  return hit ?? { icon: GraduationCap, accent: "#7b88ff" };
+}
+
+function CatalogGrid({ items }: { items: CatalogItem[]; icon?: boolean }) {
   return (
     <ul className="cp-catalog-grid">
-      {items.map((item) => (
-        <li key={item.id}>
-          <Link href={catalogCreateHref(item)} className="cp-catalog-card">
-            {icon ? <Landmark className="h-5 w-5" aria-hidden /> : null}
-            <strong>{item.title}</strong>
-            <span>{item.detail}</span>
-            <em>Başla</em>
-          </Link>
-        </li>
-      ))}
+      {items.map((item) => {
+        const look = catalogLook(item);
+        const Icon = look.icon;
+        return (
+          <li key={item.id}>
+            <Link
+              href={catalogCreateHref(item)}
+              className="cp-catalog-card"
+              style={{ ["--cat-accent" as string]: look.accent }}
+            >
+              <span className="cp-catalog-icon" aria-hidden>
+                <Icon className="h-5 w-5" />
+              </span>
+              <span className="cp-catalog-text">
+                <strong>{item.title}</strong>
+                <span>{item.detail}</span>
+              </span>
+              <em>
+                Başla <ArrowRight className="h-4 w-4" aria-hidden />
+              </em>
+            </Link>
+          </li>
+        );
+      })}
     </ul>
   );
 }

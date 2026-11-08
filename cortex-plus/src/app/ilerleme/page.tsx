@@ -192,7 +192,7 @@ export default async function IlerlemePage() {
         {prepInsights ? (
           <SectionCard
             title="Hazırlık düzeyi"
-            description={`${prepInsights.title} · 5 eksen ve 14 günlük tahmin. Uydurma yükseliş yok.`}
+            description={`${prepInsights.title} · 5 eksen ve 14 günlük tahmin; tahmin yalnız çözdüğün sorulara dayanır.`}
           >
             <div className="cp-prep-insights">
               <PrepRadarChart view={prepInsights.radar} compact />
