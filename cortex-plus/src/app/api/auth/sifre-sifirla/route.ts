@@ -27,7 +27,14 @@ export async function POST(request: Request) {
   });
   if (perAddress) return perAddress;
 
-  const outcome = await sendPasswordReset(createServiceClient(), email, appOrigin()).catch(() => "link_failed" as const);
+  // Her iç hata yutulur ve günlüğe yazılır: servis anahtarı yok, bağlantı üretilemedi, e-posta gitmedi. Cevap yine
+  // aynı kalır ("hesap varsa gönderdik"); aksi hâlde hata ekranı hesabın var olup olmadığını ele verirdi.
+  let outcome: Awaited<ReturnType<typeof sendPasswordReset>> | "link_failed" = "link_failed";
+  try {
+    outcome = await sendPasswordReset(createServiceClient(), email, appOrigin());
+  } catch {
+    outcome = "link_failed";
+  }
   if (outcome === "send_failed" || outcome === "link_failed") {
     console.error("password_reset_failed", { outcome });
   }
