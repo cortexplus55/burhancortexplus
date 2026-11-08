@@ -26,9 +26,20 @@ export function withoutGradeParts(parts: readonly string[]): string[] {
   return kept.length ? kept : [...parts];
 }
 
+/**
+ * Başındaki MEB kazanım kodu ("T.O.5.5 Metinde geçen …" → "Metinde geçen …"). 8 Kasım 2026: hazır müfredattan kurulan
+ * hazırlıkta yol başlıkları ve "Sıradaki" kartı ham kodla başlıyordu; kod öğrenciye bir şey anlatmıyor. Yalnız
+ * harf ve noktalarla başlayıp sayıyla biten kod silinir ("9. Sınıf", "T.C. Anayasası", "M.Ö. 3000" dokunulmaz);
+ * koddan sonra metin yoksa olduğu gibi kalır.
+ */
+export function withoutOutcomeCode(label: string): string {
+  const stripped = label.replace(/^[A-ZÇĞİÖŞÜ]{1,4}(?:\.[A-ZÇĞİÖŞÜ0-9]{1,4})*\.\d+(?:\.\d+)*\.?\s+(?=\S)/u, "");
+  return stripped.trim() ? stripped : label;
+}
+
 /** "9. Sınıf · Konu" → "Konu": sınıf düzeyi bağlam olarak bir kez yazılır, etiket yalnız konudur. */
 export function topicOnlyLabel(label: string): string {
-  return withoutGradeParts(label.split(" · ").map((part) => part.trim())).join(" · ");
+  return withoutGradeParts(label.split(" · ").map((part) => withoutOutcomeCode(part.trim()))).join(" · ");
 }
 
 /** "9. Sınıf · Konu" → "9. Sınıf"; sınıf parçası yoksa null. */
