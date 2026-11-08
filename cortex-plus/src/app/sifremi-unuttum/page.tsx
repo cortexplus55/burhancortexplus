@@ -14,10 +14,18 @@ export default function SifremiUnuttumPage() {
     event.preventDefault();
     setLoading(true);
     try {
-      const supabase = createClient();
-      await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/confirm?next=/sifre-yenile`,
-      });
+      // Bizim posta hattımız (8 Kasım 2026): Supabase'in kendi e-postası gelmiyordu. Uç düşerse eski yol.
+      const response = await fetch("/api/auth/sifre-sifirla", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      }).catch(() => null);
+      if (!response || response.status >= 500) {
+        const supabase = createClient();
+        await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/auth/confirm?next=/sifre-yenile`,
+        });
+      }
     } finally {
       setSent(true);
       setLoading(false);

@@ -47,10 +47,5 @@ jobs:
         if: steps.creds.outputs.ok == '1'
       - run: npx playwright test --project=chromium-authenticated --reporter=line
         if: steps.creds.outputs.ok == '1'
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: canli-duman-raporu
-          path: |
-            cortex-plus/playwright-report
-            cortex-plus/test-results
+      # Hata kaydı yüklenmez (8 Kasım 2026): Playwright sayfa görüntüsü giriş kutularının içeriğini, yani test
+      # hesabının şifresini düz yazıyla taşıyordu. Neden, yalnız günlükteki hata iletisinden okunur.
