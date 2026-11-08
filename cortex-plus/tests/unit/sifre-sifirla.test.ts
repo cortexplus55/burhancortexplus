@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
   Şifre sıfırlama bizim posta hattımızdan (8 Kasım 2026): Supabase'in kendi e-postası gelmiyordu. Uç her durumda aynı
   cevabı verir (kayıtlı adres dışarıdan sınanamasın); bağlantı /auth/confirm üzerinden şifre yenilemeye açılır.
 */
-const state = { linkError: null as string | null, sendOk: true, sent: [] as { to: string; url: string }[] };
+const state = { linkError: null as string | null, sendOk: true, serviceThrows: false, sent: [] as { to: string; url: string }[] };
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/email/mailer", () => ({
@@ -15,7 +15,9 @@ vi.mock("@/lib/email/mailer", () => ({
 }));
 vi.mock("@/lib/api/guards", () => ({ guestLimit: async () => null }));
 vi.mock("@/lib/supabase/server", () => ({
-  createServiceClient: () => ({
+  createServiceClient: () => {
+    if (state.serviceThrows) throw new Error("SUPABASE_SECRET_KEY eksik");
+    return {
     auth: {
       admin: {
         generateLink: async () =>
@@ -24,7 +26,8 @@ vi.mock("@/lib/supabase/server", () => ({
             : { data: { properties: { hashed_token: "abc123" } }, error: null },
       },
     },
-  }),
+    };
+  },
 }));
 vi.mock("@/lib/app-url", () => ({ appOrigin: () => "https://cortexplus.app" }));
 
@@ -36,6 +39,7 @@ const request = (body: unknown) =>
 
 beforeEach(() => {
   state.linkError = null;
+  state.serviceThrows = false;
   state.sendOk = true;
   state.sent = [];
 });
@@ -62,6 +66,14 @@ describe("şifre sıfırlama", () => {
     state.linkError = null;
     state.sendOk = false;
     expect(await (await POST(request({ email: "var@ornek.com" }))).json()).toEqual({ ok: true });
+  });
+
+  it("iç hata (servis anahtarı yok) cevabı değiştirmez: hata ekranı hesabın varlığını ele vermesin", async () => {
+    state.serviceThrows = true;
+    const response = await POST(request({ email: "var@ornek.com" }));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true });
+    expect(state.sent).toEqual([]);
   });
 
   it("bozuk adres 400", async () => {
