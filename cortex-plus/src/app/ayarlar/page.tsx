@@ -25,6 +25,7 @@ import { formatDate } from "@/lib/format";
 import { getStudentAccountContext } from "@/lib/student/account-context";
 import { createServiceClient } from "@/lib/supabase/server";
 import { FounderBadge } from "@/components/student/founder-chip";
+import { DialogLink } from "@/components/parity/dialog-link";
 
 export const metadata = { title: "Ayarlar" };
 
@@ -39,9 +40,11 @@ type Row = { href: string; icon: LucideIcon; title: string; hint: string };
 function SettingsRows({ rows }: { rows: Row[] }) {
   return (
     <ul className="cp-set-rows">
-      {rows.map(({ href, icon: Icon, title, hint }) => (
+      {rows.map(({ href, icon: Icon, title, hint }) => {
+        const RowLink = href.includes("dialog=") ? DialogLink : Link;
+        return (
         <li key={href}>
-          <Link href={href} className="cp-set-row" scroll={false}>
+          <RowLink href={href} className="cp-set-row">
             <span className="cp-set-row-icon" aria-hidden>
               <Icon className="h-[18px] w-[18px]" />
             </span>
@@ -50,9 +53,10 @@ function SettingsRows({ rows }: { rows: Row[] }) {
               <span>{hint}</span>
             </span>
             <ChevronRight className="cp-set-row-chev h-4 w-4" aria-hidden />
-          </Link>
+          </RowLink>
         </li>
-      ))}
+        );
+      })}
     </ul>
   );
 }
@@ -120,9 +124,9 @@ export default async function AyarlarPage() {
               )}
             </span>
           </span>
-          <Link href="/ayarlar?dialog=profile&sekme=hesap" className="cp-set-hero-edit" scroll={false}>
+          <DialogLink href="/ayarlar?dialog=profile&sekme=hesap" className="cp-set-hero-edit">
             Profili düzenle
-          </Link>
+          </DialogLink>
         </section>
 
         <Group title="Profil ve öğrenme">

@@ -15661,3 +15661,18 @@ a.cp-exam-search {
   font-weight: 600;
   text-decoration: none;
 }
+
+/* Telefonda kurucu çipi yalnız üst çubukta gizli; Ayarlar ve Abonelik sayfasındaki rozet görünür (8 Kasım 2026). */
+@media (max-width: 480px) {
+  .cp-sor-root .cp-set-hero-plan .cp-founder-chip,
+  .cp-sor-root .cp-pay-founder .cp-founder-chip {
+    display: inline-flex;
+  }
+}
+
+/* Ayarlar'daki tema seçimi dokunmaya rahat (28 px'ti). */
+.cp-set-group-body .cp-pp-appearance-options button {
+  min-height: 40px;
+  padding: 0 0.85rem;
+  font-size: 0.875rem;
+}

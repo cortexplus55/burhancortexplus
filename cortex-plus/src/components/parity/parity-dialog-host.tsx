@@ -32,8 +32,11 @@ function ParityDialogHostInner({
     params.delete("dialog");
     params.delete("sekme");
     const q = params.toString();
-    router.replace(q ? `${pathname}?${q}` : pathname, { scroll: false });
-  }, [pathname, router, searchParams]);
+    // 8 Kasım 2026: pencere anında kapansın (router.replace sunucu çizimini bekliyor, × 2-3 sn açık kalıyordu);
+    // pencerede kaydedilen ad, okul gibi bilgiler sayfaya arkadan tazelemeyle gelir.
+    window.history.replaceState(null, "", q ? `${pathname}?${q}` : pathname);
+    if (dialog === "profile") router.refresh();
+  }, [dialog, pathname, router, searchParams]);
 
   useEffect(() => {
     if (dialog === "menu") {

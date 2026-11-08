@@ -267,3 +267,18 @@ describe("ayarlar tek merkez", () => {
     expect(pay).toContain("entitlements.showsUpgradeChrome && !founder");
   });
 });
+
+describe("ayarlar penceresi anında açılır ve kapanır", () => {
+  it("satırlar sunucuya gitmeden adresi yazar; kapanış geçmişi değiştirir, yalnız profil penceresinde tazeler", async () => {
+    const { DialogLink } = await import("@/components/parity/dialog-link");
+    const push = vi.spyOn(window.history, "pushState");
+    render(<DialogLink href="/ayarlar?dialog=profile&sekme=okul">Okulum</DialogLink>);
+    fireEvent.click(screen.getByText("Okulum"));
+    expect(push).toHaveBeenCalledWith(null, "", "/ayarlar?dialog=profile&sekme=okul");
+    push.mockRestore();
+    const host = read("src/components/parity/parity-dialog-host.tsx");
+    expect(host).toContain("window.history.replaceState(");
+    expect(host).toContain('if (dialog === "profile") router.refresh();');
+    expect(read("src/app/ayarlar/page.tsx")).toContain('href.includes("dialog=") ? DialogLink : Link');
+  });
+});
