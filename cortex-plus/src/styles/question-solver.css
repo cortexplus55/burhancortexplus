@@ -422,10 +422,9 @@
   font: var(--t-body-14);
 }
 
-.cp-solver-trap {
-  margin: 10px 0 0;
-  font: var(--t-body-14);
-  color: var(--c-text);
+/* Sınav tuzağı sohbetin "Sık hata" kutusuyla aynı (chat-teaching.css); cevap kartının içinde üstten boşluk. */
+.cp-solver-callout {
+  margin: 12px 0 0;
 }
 
 .cp-solver-badge,

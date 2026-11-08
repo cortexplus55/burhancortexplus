@@ -34,7 +34,7 @@ export function solutionReviewItem(solution: Solution): StoredReviewItem | null 
     const text = solution.options.find((o) => o.letter === why.letter)?.text.trim();
     if (text && why.why.trim()) optionWhy[text] = why.why.trim();
   }
-  const explanation = [solution.steps.map((s) => s.say).filter(Boolean).join(" "), solution.tip]
+  const explanation = [solution.steps.map((s) => s.say).filter(Boolean).join(" "), solution.tip.replace(/==/g, "")]
     .filter(Boolean)
     .join(" ")
     .slice(0, 1200);

@@ -4,13 +4,88 @@ import { ParitySorShell } from "@/components/parity/sor-shell";
 import { PrepRadarChart } from "@/components/parity/prep-radar-chart";
 import { QuizStudio } from "@/components/learning/studio/quiz-studio";
 import { MistakeNotebookView } from "@/components/parity/mistake-notebook-view";
+import { SolutionView } from "@/components/learning/question-solver";
+import { ExamPrepHome, type HomeNode } from "@/components/parity/exam-prep-home";
 import { fixtureAccount } from "../ana-ekran/fixture";
+
+const KINDS: [HomeNode["kind"], string][] = [
+  ["lesson", "Konu anlatımı"],
+  ["quiz", "Konu testi"],
+  ["flashcards", "Kartlarla tekrar"],
+  ["true_false", "Doğru / Yanlış"],
+  ["podcast", "Podcast"],
+  ["oral", "Sözlü"],
+  ["lesson", "İkinci ders"],
+  ["quiz", "İkinci test"],
+  ["written_exam", "Yazılı deneme"],
+];
+const PATH_NODES: HomeNode[] = KINDS.map(([kind, title], index) => ({
+  id: `n${index}`,
+  kind,
+  title,
+  dayIndex: 1 + Math.floor(index / 3),
+  sortOrder: index,
+  status: index < 2 ? "done" : index === 2 ? "ready" : "locked",
+}));
 
 /** Yalnız test fikstürü (E2E_FIXTURE=1). */
 export function IcEkranFixture({ screen }: { screen: string }) {
   return (
     <ParitySorShell userInitial="Ö" streak={2} account={fixtureAccount(false)}>
-      {screen === "test" ? (
+      {screen === "yol" ? (
+        <ExamPrepHome
+          prepId="fixture-prep"
+          title="Fikstür hazırlığı"
+          examType="Okul"
+          examDate={null}
+          daysLabel=""
+          progressPct={20}
+          nodes={PATH_NODES}
+          hasTopic
+          needsIntro={false}
+          startHref="/deneme-sinavlari"
+          topicCount={3}
+          topicsDone={1}
+          topicLabels={["Birinci konu", "İkinci konu", "Üçüncü konu"]}
+          materials={[]}
+        />
+      ) : screen === "cozum" ? (
+        <main style={{ padding: "1.5rem 1rem", maxWidth: "44rem", margin: "0 auto" }}>
+          <SolutionView
+            initialTutorStyle="direct_solve"
+            phase={{
+              kind: "done",
+              status: "verified",
+              ms: 4200,
+              verifying: false,
+              agreed: true,
+              solution: {
+                readable: true,
+                subject: "Fizik",
+                question: "Seri bağlı 2 Ω ve 4 Ω dirençlerin uçlarına 12 V uygulanıyor. Devreden geçen akım kaç amperdir?",
+                options: [
+                  { letter: "A", text: "1" },
+                  { letter: "B", text: "2" },
+                  { letter: "C", text: "3" },
+                ],
+                kind: "mcq",
+                intro: "Önce eşdeğer direnci bulalım.",
+                given: ["R1 = 2 Ω", "R2 = 4 Ω", "V = 12 V"],
+                asked: "Akım",
+                steps: [
+                  { title: "Eşdeğer direnç", math: "R = 2 + 4 = 6 Ω", say: "Seride dirençler toplanır." },
+                  { title: "Ohm yasası", math: "I = V / R = 12 / 6 = 2 A", say: "Akım gerilimin dirence bölümüdür." },
+                ],
+                answer: { letter: "B", value: "2 A", text: "Devreden 2 amper akım geçer." },
+                optionsWhy: [],
+                trap: "Seri bağlamada dirençleri paralel gibi ters toplarsan 1,33 Ω bulur, yanlış akıma gidersin.",
+                tip: "Seri bağlamada eşdeğer direnç dirençlerin toplamıdır: R = R1 + R2.",
+                check: "Kontrol: 2 A × 6 Ω = 12 V.",
+              },
+            } as never}
+          />
+        </main>
+      ) : screen === "test" ? (
         <QuizStudio creditCost={10} documents={[]} initialDocumentId={null} />
       ) : screen === "defter" ? (
         <main style={{ padding: "1.5rem 1rem", maxWidth: "48rem", margin: "0 auto" }}>

@@ -184,7 +184,8 @@ describe("sohbete kaydedilen metin", () => {
   it("cevap, adımlar, şıklar ve kutular kartla aynı sırada", () => {
     const text = solutionMarkdown(mcq());
     expect(text.startsWith("**Doğru cevap: C) 4**")).toBe(true);
-    const order = ["Verilenler", "Çözüm adımları", "Şıklar", "Karıştırılan nokta", "Akılda tut", "Kontrol:"];
+    // 8 Kasım 2026: tuzak "Sık hata" kutusu, kural en sonda "Akılda kalsın" kartı (sohbette Tekrarıma ekle).
+    const order = ["Verilenler", "Çözüm adımları", "Şıklar", "> ⚠️ Sık hata:", "Kontrol:", "> ✅ Akılda kalsın:"];
     const at = order.map((word) => text.indexOf(word));
     expect(at.every((index) => index > 0)).toBe(true);
     expect([...at].sort((a, b) => a - b)).toEqual(at);

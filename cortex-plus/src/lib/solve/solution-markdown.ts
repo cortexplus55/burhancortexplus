@@ -33,9 +33,10 @@ export function solutionMarkdown(solution: Solution, note?: string): string {
       lines.push(`- ${correct ? "✓ " : ""}**${o.letter}** — ${o.why}`);
     }
   }
-  if (solution.trap) lines.push("", `**Karıştırılan nokta:** ${solution.trap}`);
-  if (solution.tip) lines.push("", `**Akılda tut:** ${solution.tip}`);
+  // Sohbette de öğretim dili (8 Kasım 2026): tuzak "Sık hata" kutusu, kural "Akılda kalsın" kartı (Tekrarıma ekle).
+  if (solution.trap) lines.push("", `> ⚠️ Sık hata: ${solution.trap}`);
   if (solution.check) lines.push("", solution.check);
+  if (solution.tip) lines.push("", "> ✅ Akılda kalsın:", `> - ${solution.tip}`);
   return lines.join("\n").trim();
 }
 

@@ -148,3 +148,22 @@ test("sohbet öğretim dili: kilit bilgi, kutular ve Akılda kalsın kartı çiz
     expect(state).toEqual({ overflow: 0, raw: false, smallButtons: 0 });
   }
 });
+
+test("Soru Çöz ve hazırlık yolu: tuzak kutusu, Akılda kalsın, renkli adımlar, sıkışmayan düğmeler", { tag: ["@public"] }, async ({ page }) => {
+  for (const size of [{ width: 375, height: 900 }, { width: 1280, height: 900 }]) {
+    await page.setViewportSize(size);
+    await page.goto("/e2e/ic-ekran?ekran=cozum");
+    await expect(page.locator(".cp-solver-callout.cp-callout--mistake")).toBeVisible();
+    await expect(page.locator(".cp-remember")).toContainText("eşdeğer direnç");
+
+    await page.goto("/e2e/ic-ekran?ekran=yol");
+    await expect(page.locator(".cp-exam-trail-node[data-kind]").first()).toBeAttached();
+    const heights = await page.evaluate(() =>
+      [...document.querySelectorAll(".cp-path-next--focus .cp-path-next-actions > *")].map((node) => Math.round(node.getBoundingClientRect().height)),
+    );
+    expect(heights.length).toBe(3);
+    // Önceden "Başka Bir Konu veya Etkinlik Seç" üç satıra sıkışıyordu (~70 px).
+    expect(Math.max(...heights)).toBeLessThanOrEqual(60);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+  }
+});

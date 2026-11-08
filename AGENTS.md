@@ -2193,3 +2193,15 @@ cümleye koyuyordu (20 maddeden 3'ü karta dönüşüyordu); kurala "Doğru/Yanl
 kuralı "değer kattığında" iken kutu çıkmıyordu; "en az 1" ile kavram anlatan her cevapta bir kutu. Fikstür
 `/e2e/ana-ekran?durum=ogretim` (ölçümden iki gerçek cevap). Bekçi: `sohbet-ogretim-dili.test.ts`,
 `genel-tekrar-destesi.test.tsx` (göçü PGlite'ta), e2e `ana-ekran.spec.ts` ("öğretim dili").
+
+### Soru Çöz, hazırlık yolu ve hazırlık kartı (8 Kasım 2026, aynı tur)
+
+| Kural | Nerede |
+|---|---|
+| Çözücünün "akılda kalacak kısa kuralı" (`tip`) üretiliyordu ama ekranda hiç gösterilmiyordu: artık "Akılda kalsın" kartında; sınav tuzağı sohbetin "Sık hata" kutusu görünümünde. Sohbete kaydedilen çözüm de aynı biçimde (`> ⚠️ Sık hata:`, en sonda `> ✅ Akılda kalsın:`) | `question-solver.tsx`, `solution-markdown.ts` |
+| Çözücünün istemi **değişmedi**: kuralın kilit kısmını `==…==` ile işaretletmek denendi (canlı, 4 soru, ~0,002 $): 4 kuralın 3'ü ya bütünüyle işaretlendi ya da kısaltılıp bozuldu ("Kökler toplamı"). Kural tam yazılır; kart düğmesi yalnız kilit bilgisi işaretli maddede çıkar | `question-solver.ts` |
+| Yol adımları türünün rengini taşır (Çalışma Stüdyosu renkleri, `data-kind`); kilitli adımda tür simgesi soluk ve köşede küçük kilit (önce bütün kilitliler aynı gri kilitti) | `exam-prep-home.tsx` `NodeGlyph`, `parity-shell.css` |
+| Sıradaki adım kartında "Devam et" üstte tam genişlik, iki seçim düğmesi altta (önce "Başka Bir Konu veya Etkinlik Seç" üç satıra sıkışıyordu) | `.cp-path-next--focus` |
+| Sınavlar kartında sınav tarihi varsa kalan süre çipi; mavi ışıklı yüzey | `exam-prep.tsx` `PrepCard`, `prep-cards.ts` `dated` |
+
+Fikstür `/e2e/ic-ekran?ekran=cozum|yol`. Bekçi: `genel-tekrar-destesi.test.tsx`, e2e `ana-ekran.spec.ts`.

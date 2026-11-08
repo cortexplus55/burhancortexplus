@@ -40,6 +40,7 @@ export function toPrepCard(
     topicsDone: progress.done,
     topicsTotal: progress.total,
     targetScore: prep.target_score,
+    dated: Boolean(prep.exam_date),
     continueHref: `/deneme-sinavlari/${prep.id}`,
     // "Geçmiş" sekmesi: sınav günü geride kalanlar (İstanbul günü).
     past: Boolean(prep.exam_date && prep.exam_date < today),
