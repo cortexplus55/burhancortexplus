@@ -1,0 +1,54 @@
+name: Canlı duman testi
+
+# Her canlı yayından sonra test hesabıyla cortexplus.app'e girip ana öğrenci sayfalarını gezer (8 Kasım 2026).
+# CI'daki e2e veritabanısız örnek ekranlarla çalışır; giriş yapılmış gerçek akış hiç sınanmıyordu.
+# Gerekli GitHub sırları (ürün sahibi ekler; koda yazılmaz): E2E_USER_EMAIL, E2E_USER_PASSWORD.
+# Sır yoksa iş sessizce atlanır. Yalnız okur: sayfa açar, hiçbir içerik üretmez, kredi harcamaz.
+
+on:
+  deployment_status:
+  workflow_dispatch:
+
+concurrency:
+  group: canli-duman
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.deployment_status.state == 'success' && github.event.deployment.environment == 'Production')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: cortex-plus
+    env:
+      E2E_BASE_URL: https://cortexplus.app
+      E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
+      E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+    steps:
+      - name: Sır var mı
+        id: creds
+        run: |
+          if [ -n "$E2E_USER_EMAIL" ] && [ -n "$E2E_USER_PASSWORD" ]; then echo "ok=1" >> "$GITHUB_OUTPUT"; else echo "E2E_USER_* sırları yok; atlandı."; fi
+        working-directory: .
+      - uses: actions/checkout@v4
+        if: steps.creds.outputs.ok == '1'
+      - uses: actions/setup-node@v4
+        if: steps.creds.outputs.ok == '1'
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: cortex-plus/package-lock.json
+      - run: npm ci
+        if: steps.creds.outputs.ok == '1'
+      - run: npx playwright install --with-deps chromium
+        if: steps.creds.outputs.ok == '1'
+      - run: npx playwright test --project=chromium-authenticated --reporter=line
+        if: steps.creds.outputs.ok == '1'
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: canli-duman-raporu
+          path: cortex-plus/playwright-report
