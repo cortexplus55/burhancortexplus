@@ -1720,3 +1720,41 @@
     --als-top-h: 3.5rem;
   }
 }
+
+/* ── Açık tema (8 Kasım 2026, son kontrol) ──────────────────────────────────────────────────────────────────────
+   Ders blokları koyu tema için açık yazılarla yazılmıştı; açık temada "Formül & Kural", "Sınav tuzağı", "Hafıza çivisi",
+   "Dikkat", "Sakın / Doğrusu", doğru şık ve açıklama kutusu okunmuyordu (kontrast 1,6–2,0). Koyu tema değişmez. */
+:root:not(.dark) .als-kicker {
+  background: rgba(0, 0, 0, 0.05);
+  color: #404040;
+}
+:root:not(.dark) .als-kicker--formula { background: rgba(226, 179, 64, 0.2); color: #7a5600; }
+:root:not(.dark) .als-kicker--trap { background: rgba(232, 93, 58, 0.14); color: #a8321a; }
+:root:not(.dark) .als-kicker--hook { background: rgba(139, 92, 246, 0.14); color: #5b21b6; }
+:root:not(.dark) .als-kicker--carousel { background: rgba(67, 83, 243, 0.12); color: #3730a3; }
+:root:not(.dark) .als-kicker--general { background: rgba(56, 189, 248, 0.14); color: #075985; }
+:root:not(.dark) .als-tag--warn { color: #7a5600; }
+:root:not(.dark) .als-tag--ok { color: #166534; }
+:root:not(.dark) .als-note-title,
+:root:not(.dark) .als-formula-card-title { color: #7a5600; }
+:root:not(.dark) .als-note--warn { background: rgba(224, 90, 79, 0.1); }
+:root:not(.dark) .als-note--warn .als-note-title { color: #b91c1c; }
+:root:not(.dark) .als-note--exam .als-note-title { color: #c2410c; }
+:root:not(.dark) .als-note--remember .als-note-title { color: #15803d; }
+:root:not(.dark) .als-note--mnemonic .als-note-title { color: #6d28d9; }
+:root:not(.dark) .als-note--general .als-note-title { color: #1d4ed8; }
+:root:not(.dark) .als-exam { background: rgba(255, 138, 61, 0.18); color: #9a3412; }
+:root:not(.dark) .als-option.is-right,
+:root:not(.dark) .als-check.is-right,
+:root:not(.dark) .als-feedback.is-right { color: #166534; }
+:root:not(.dark) .als-check.is-right { background: rgba(46, 158, 79, 0.12); }
+:root:not(.dark) .als-check.is-wrong { background: rgba(224, 90, 79, 0.1); }
+:root:not(.dark) .als-check.is-wrong,
+:root:not(.dark) .als-feedback.is-wrong { color: #b91c1c; }
+:root:not(.dark) .als-explain {
+  background: color-mix(in srgb, var(--c-action) 6%, #ffffff);
+  color: var(--c-text);
+}
+:root:not(.dark) .als-explain-kicker { color: #3730a3; }
+:root:not(.dark) .als-explain--why .als-explain-kicker { color: #0f766e; }
+:root:not(.dark) .als-stars { color: #7a5600; }

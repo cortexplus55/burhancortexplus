@@ -7,7 +7,8 @@
 | **Repo** | `cortexplus55/burhancortexplus` — **tek repo** |
 | **Yerel klasör** | `C:\Users\burha\OneDrive\Masaüstü\Cortex-Plus-Dev` |
 | **Vercel** | scope `cortexplus55` → proje `burhancortexplus-app` → `cortexplus.app` (Root Directory: `cortex-plus/`) |
-| **Supabase** | `dgjfyewgrukglsehyntc` |
+| **Supabase** | `dgjfyewgrukglsehyntc` (ücretsiz plan: 500 MB, **otomatik yedek yok**; 8 Kasım 2026'da 96 MB) |
+| **Vercel planı** | **Pro** (Kasım 2026; Hobby'nin ticari kullanım yasağı kalktı). Aşağıdaki "Hobby" bölümleri tarihçedir |
 | **GitHub hesabı** | `cortexplus55` (repoya `git config --local` ile sabitlendi) |
 
 "Commit et" / "deploy et" denince gidilecek yer budur. Başka repo, başka klasör,
@@ -302,6 +303,9 @@ hesabı var) → ayrı yerel adlı takma ad; iFrame API'de `store_card` yok, ilk
 
 ## Ücretsiz katman (3 Ekim 2026) — günde bir ders, bir hazırlık, toplam 5 sayfa
 
+> **Güncel (bu bölümün sayıları değişti):** 24 Ekim'den beri sayaçla (haftada 3 ders, günde 3 mesaj, günde 1 fotoğraf;
+> "Kredi v3"), 31 Ekim'den beri belge sınırı **25 sayfa** ve her hazırlığın **1. konusu** açık ("Paket J1" #3).
+
 Ürün sahibinin kararı, aynı gün Astra'nın ücretsiz hesabı ölçülerek: Astra'da
 **tek sohbet mesajı günlük hakkın %64'ünü** yedi; ikinci mesajla hak doldu,
 üçüncüsünde cevap bulanık + geri sayımlı yükseltme kapısı çıktı. Sayaç %0'dayken
@@ -311,7 +315,7 @@ bile ücretsiz hesap yeni hazırlık kuramıyordu.
 |---|---|
 | ~~Günlük hak 6 kredi~~ → **24 Ekim 2026'dan beri sayaç:** haftada 3 ders, günde 3 mesaj, günde 1 fotoğraf; günlük kredi 0 (aşağıdaki "Kredi v3") | `free-meters.ts`, göç `20261024121000` |
 | **Bir** sınav hazırlığı ("Hedef puan" kaydı sayılmaz); ders seçilince kapı | `free-prep-limit.ts`, sihirbaz + sohbet + okul kopyası |
-| Hesap başına **toplam 5 sayfa** belge işleme (silinenler dahil); fazlası işlenmez, "ilk N sayfa işlendi" yazar | `free-pages.ts`, `pdf-ingestion.ts`, `pipeline.ts`, `documents.source_page_count` |
+| Hesap başına **toplam 5 sayfa** (31 Ekim 2026'dan beri 25) belge işleme (silinenler dahil); fazlası işlenmez, "ilk N sayfa işlendi" yazar | `free-pages.ts`, `pdf-ingestion.ts`, `pipeline.ts`, `documents.source_page_count` |
 | Resim sayfası hakkı dolunca belge **reddedilmez**; o sayfalar atlanır | `scan_pages_skipped` |
 | Konu haritası, kurulum sohbeti ve ücretsizde belge işleme **ders hakkından yemez** | `generateJson({ chargeCredits: false })` |
 | Kapıda geri sayım + "neden ücretsiz değil" | `upgrade-sheet.tsx` |
@@ -370,6 +374,10 @@ eksik sayılabilir.
 ---
 
 ## Vercel Hobby: en fazla 2 cron, her biri günde 1 kez — aşarsan HİÇBİR deploy çıkmaz
+
+> **Kasım 2026: Vercel Pro'ya geçildi.** Bu sınır Hobby içindi. Yine de yeni bir zamanlanmış iş açmadan önce Vercel
+> panelinde Pro'nun cron sınırını doğrula; işi mevcut günlük cron'a bağlamak hâlâ en sade yol ve bekçi test
+> (`uat-gate-guards.test.ts` "vercel.json cron kotası") 2 cron'u tutuyor — kuralı gevşetmek ürün sahibinin kararı.
 
 **23 Eylül 2026'da dört commit main'e gitti, hiçbiri yayına çıkmadı.** Vercel'de
 ne READY ne ERROR kaydı vardı; tek iz GitHub commit statüsündeki "Deployment
@@ -600,7 +608,7 @@ Atlantik'i gidip geliyordu. Kayıtlı bir dersi yalnızca geri getiren istek
 başlığındaki `x-vercel-id: fra1::iad1::…` bunu gösteriyordu: giriş Frankfurt,
 çalışma Washington.
 
-`vercel.json` → `"regions": ["fra1"]`. Hobby planı tek bölgeye izin veriyor;
+`vercel.json` → `"regions": ["fra1"]`. Tek bölge (Hobby zorunluydu; Pro'da da tek bölge doğru);
 o bölge veritabanının yanı olmalı. Supabase bölgesi değişirse bu da değişir.
 Bekçi test: `uat-gate-guards.test.ts` → "vercel.json fonksiyon bölgesi".
 
@@ -862,8 +870,8 @@ geçici karşılaştırma raporundaydı (5 Kasım 2026'da depodan kaldırıldı;
 | Çok dosyalı yükleme: ücretli hesapta en çok 3 dosya aynı anda (kredi ve taranmış sayfa hakkı atomik), ücretsizde sırayla (5 sayfalık sınır belge kaydından sayılıyor, atomik değil); bitince seçim sırası geri kurulur (ilk belge kursun belgesi). Bekleyen belge kaydı belge başına; temizleme belgeye/yüzeye göre (tek kayıt bir sekmenin temizliğiyle öbürünün kaydını da siliyordu) | `upload-batch.ts`, `pending-doc-process.ts`, `exam-create-wizard.tsx` |
 | Kurulumun konu listesinde birden çok dosyadan beslenen konuya "N kaynak" (yardımcı dosyalar dahil, adları üzerine gelince); tek dosyalıda yazılmaz. Tek konulu ünitenin başlığı konunun adıyla aynıysa yazılmaz | `supportFilesForTopics`, `topicSourcesChip`, `redundantUnitHeader` |
 
-Vercel Hobby'de günlük yayın sınırı var: önizlemeler de sayılır; sınıra takılan yayın kendiliğinden
-yeniden denenmez, sonraki push ya da paneldeki "Redeploy" gerekir.
+Vercel Hobby'de günlük yayın sınırı vardı (Kasım 2026'dan beri Pro): önizlemeler de sayılıyordu; sınıra takılan yayın
+kendiliğinden yeniden denenmez, sonraki push ya da paneldeki "Redeploy" gerekir.
 
 Bekçi: `exam-set-plan.test.ts`, `topic-support-pages.test.ts`, `node-open-no-resume-wait.test.tsx`,
 `office-documents.test.ts`, `outline-grounding.test.ts`, `prep-schedule-reload.test.ts`, `upload-batch.test.ts`,
@@ -1729,8 +1737,7 @@ kodu, ben canlı veritabanını taradım. Ürün kararı gerektirmeyen her şey 
 | Düello yalnız "Bağlantıyı kopyala"; misafirin kayıt bağlantısı davetsizdi | "WhatsApp'ta gönder" (girişte çağrı, sonuçta "6/7 yaptım, geçebilir misin?"); misafirin kayıt bağlantısı düelloyu kuranın davet koduyla. Davet kartında da WhatsApp | `duel-share.ts`, `duel-play.tsx`, `referral-reward-card.tsx` |
 | Hatırlatma: tarihsiz hazırlık hiç hatırlatılmıyordu; birkaç yüz kullanıcıda sessizce kırılacaktı (tek sorgu 1.000 satır, `.in()` ile yüzlerce kimlik URL'de, düğümler satır satır, e-postalar sırayla — 300 sn'yi aşar) | 100'erli sayfa, sayılar SQL'den (`reminder_*`, göç `163000`; yoksa eski sorgular), tarihsiz hazırlık son 21 günde kurulmuş/çalışılmışsa, e-posta 4 eşzamanlı ve 200 sn içinde (kalanlar uygulama içi bildirimi alır) | `reminder-facts.ts`, `cron/study-reminders` |
 
-**Ürün sahibinde kalanlar (kod değil):** Supabase Pro (500 MB, yedek, tek dosya 50 MB), Vercel Pro (Hobby ticari kullanımı
-yasaklıyor), OpenAI kullanım katmanı ve aylık bütçe, Supabase kimlik ayarları (e-posta gönderimi saatte 30 / Gmail SMTP →
+**Ürün sahibinde kalanlar (kod değil):** Supabase Pro (500 MB, yedek, tek dosya 50 MB), ~~Vercel Pro~~ (Kasım 2026'da geçildi), OpenAI kullanım katmanı ve aylık bütçe, Supabase kimlik ayarları (e-posta gönderimi saatte 30 / Gmail SMTP →
 Resend gibi işlem e-postası sağlayıcısı; kayıt+giriş 5 dakikada IP başına 30; captcha; sızdırılmış şifre koruması) —
 güvenlik ayarlarını değiştirmek bize yasak. Ürün kararı bekleyenler (kodlanmadı): ücretsiz katmanda "ilk doz", 2 cihaz
 sınırı, e-posta onayı politikası, kayıt sihirbazının 5 kişiselleştirme adımı.
@@ -2083,7 +2090,7 @@ bir yerde saklayalım; önceden okuyup onayladıysa bir daha sormasın; profesyo
 Ürün sahibi: "Resend tarafını sen kur; yönetim panelinden toplu ya da tek kişiye mesaj; sınavı olana her akşam kaç gün
 kaldığını yazan e-posta; kayıttan sonra arkadaş davet e-postası; kredi kazanma oradan patlamasın." Göç
 `20261107150000_eposta_agi.sql` (yalnız ekleme; **önce göç, sonra kod**: göçsüz kodda yönetim sayfası "okunamadı" der,
-cron eski yolda kalır, hiçbir şey düşmez). Yeni cron yok (Hobby'de en çok iki): her şey `study-reminders` içinde.
+cron eski yolda kalır, hiçbir şey düşmez). Yeni cron yok (o gün Hobby'de en çok ikiydi; bugün Pro): her şey `study-reminders` içinde.
 
 | Kural | Nerede |
 |---|---|
@@ -2282,4 +2289,22 @@ edebiliyor mu?" Kodda baştan sona okundu. Yeniden açmayın:
 | **Videolar, deneme sonuçları, defter** zaten Plus'a bakmıyor; ücretsiz kuralları (hazırlık başına 1. konu, haftada 3 ders) daha önce açılmış adımı kilitlemez | `free-topic-gate.ts` |
 | **Bitiş hatırlatması e-postayla da** (3 gün önce ve bitiş günü; hizmet e-postası, izin istemez, tekillik anahtarı `plan-<tür>-<abonelik>`); uygulama içi bildirim aynen. Gönderim düşerse tur düşmez | `plan-notice-mails.ts`, `renderPlanNoticeMail` |
 
-Bekçi: `plus-yasam-dongusu.test.ts`, `node-route-contract.test.ts` (tekrar açılışında abonelik sorgusu yok).
+Bekçi: `plus-yasam-dongusu.test.ts`, `plus-yasam-dongusu-davranis.test.ts` (uçları gerçek koduyla çağırır), `node-route-contract.test.ts` (tekrar açılışında abonelik sorgusu yok).
+Gerçek hesapla dönem bitişi henüz denenmedi: 1 günlük beta kodu ile yapılacak (ürün sahibinin kararı, 8 Kasım 2026).
+
+
+### Kullanıcı Etkinlikleri ve son içe sinmeyenler (8 Kasım 2026)
+
+Ürün sahibi: "kullanıcıların ne zaman girip ne işlem yaptıklarını görebileceğim kapsamlı bir ekran". Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| **`/admin/etkinlik`** (yönetici): kim, ne zaman, ne yaptı tek akışta; Türkiye günüyle gün gün. Kaynaklar: giriş oturumu (cihaz ve tarayıcı adı, ham imza yok), yol etkinliği (açtı / bitirdi ve puanı), hazırlık, belge (parça kopyası değil), sohbet ve araçlar (`ai_usage_events`; önceden yazım, havuz, kalite örneği gibi arka plan işleri sayılmaz), deneme sınavı, ödeme ve abonelik (iptal / sürdürme denetim kaydından), destek, hata bildirimi, anket. Süzgeçler: 24 saat / 7 / 30 gün, işlem türü, kişi (kimlik, ad ya da e-posta; birden çok eşleşmede seçim listesi). Kaynak başına en çok 400, akışta 600 olay; düşen kaynak sarı notta adıyla, sayfa düşmez. **İçerik gösterilmez** (mesaj, belge metni, cevap). Kullanıcı sayfasında "📋 Etkinlikleri" | `activity-feed.ts` (saf), `activity-load.ts`, `admin/etkinlik/page.tsx` |
+| **Başla öğrenci adına yazmaz:** öğrencinin ağzından gönderilen yönerge balonu kalktı; öğretmen ilk sözü kendisi söyler ("Merhaba {ad}! Bugün ne çalışmak istersin? …"), yazma alanına odaklanır. Bu selam yalnız ekranda (`local`): modele gitmez, kaydedilmez, model çağrısı yok | `chat-panel.tsx` (`startGreeting`), `first-prompts.ts` `startGreetingFor` |
+| **Açık tema ders, test, sözlü, düello ve tekrar ekranlarında da:** koyu temaya göre yazılmış açık yazılar `:root:not(.dark)` altında koyu tonlara çevrildi (etiketler, doğru/yanlış, açıklama, koç cümlesi, düello yüzeyleri, kart arka yüzü). Fikstürlerde koyu zemin ve düşük karşıtlık taraması temiz | `exam-lesson-steps.css`, `coach.css`, `oral-exam-chrome.css`, `duel.css`, `review-deck.css`, `prep-review.css` |
+| **Beşgen e2e'si yanlış alarm veriyordu:** gizli (`display: none`) öğe 0×0 kutu döndürür ve "kırpılmış" sayılıyordu; asıl düzeltme hiç kaydedilmemişti, çünkü betikteki değiştirme hedefini bulamayınca sessizce hiçbir şey yapmamıştı. **Kural: dosya düzenleyen betik hedefini bulamazsa hata versin** | `tests/e2e/ana-ekran.spec.ts` |
+| Kritik bekçiler kod metnine değil davranışa bakar: podcast sesi kapısı ve anketin ekibe çıkmaması uçlar gerçek koduyla çağrılarak sınanır | `plus-yasam-dongusu-davranis.test.ts` |
+
+Ürün sahibinde: Supabase Pro (otomatik yedek; ücretsiz planda yedek yok).
+
+Bekçi: `admin-etkinlik.test.ts`, `premium-ic-ekranlar-8-kasim.test.tsx`, e2e `ana-ekran.spec.ts` ("Başla").

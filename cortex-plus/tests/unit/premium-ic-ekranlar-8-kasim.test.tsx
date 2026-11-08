@@ -286,10 +286,13 @@ describe("ayarlar penceresi anında açılır ve kapanır", () => {
 /* Dördüncü tur (8 Kasım 2026): ürün sahibiyle birlikte seçilen mantık düzeltmeleri. */
 describe("mantık düzeltmeleri", () => {
   it("Başla genel bir soruyla açılır; kayıtta seçilen ders ilk mesaja yazılmaz", async () => {
-    const { defaultStartPrompt, START_PROMPT } = await import("@/lib/student/first-prompts");
-    expect(defaultStartPrompt()).toBe(START_PROMPT);
-    expect(START_PROMPT).toContain("aklımda ne olduğunu sor");
-    expect(read("src/app/ogretmen/page.tsx")).toContain("defaultStartPrompt()");
+    // 8 Kasım 2026 ikinci tur: öğretmen ilk sözü kendisi söyler (öğrenci adına talimat cümlesi yok, model çağrısı yok).
+    const { startGreetingFor } = await import("@/lib/student/first-prompts");
+    expect(startGreetingFor("Ada")).toMatch(/^Merhaba Ada! Bugün ne çalışmak istersin?/);
+    expect(startGreetingFor(null)).toMatch(/^Merhaba! /);
+    const page = read("src/app/ogretmen/page.tsx");
+    expect(page).toContain("startGreeting={startGreeting}");
+    expect(page).not.toContain("startPrompt=");
   });
 
   it("kurulumun ilk ekranı sınav türünü ve dersi birlikte sorar", () => {
@@ -299,11 +302,7 @@ describe("mantık düzeltmeleri", () => {
     expect(wizard).toContain('className="apw-quick apw-tracks"');
   });
 
-  it("haftalık anket kurucu ve yöneticilere çıkmaz", () => {
-    const route = read("src/app/api/feedback/weekly/route.ts");
-    expect(route).toContain("show: show && !staff");
-    expect(route).toContain("if (!eligibility.show || staff)");
-  });
+  // Haftalık anketin ekibe çıkmadığı davranış testinde: plus-yasam-dongusu-davranis.test.ts.
 
   it("tek ad İlerleme; Sınıflar 'Çalışma grupları'", () => {
     expect(read("src/app/ilerleme/page.tsx")).toContain('title: "İlerleme"');

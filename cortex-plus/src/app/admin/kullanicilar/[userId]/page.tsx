@@ -208,6 +208,9 @@ export default async function AdminKullaniciPage({ params }: { params: Promise<{
             👤 Benim hesabım
           </Link>
         )}
+        <Link href={`/admin/etkinlik?kim=${userId}`} className="underline">
+          📋 Etkinlikleri
+        </Link>
       </p>
 
       <AdminCard

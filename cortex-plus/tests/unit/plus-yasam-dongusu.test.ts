@@ -25,14 +25,7 @@ describe("Plus bitince kendi içeriği açık kalır", () => {
     expect(reopen).toBeLessThan(meter);
     expect(start).toContain("if (parsed.data.review === true || parsed.data.replay === true)");
   });
-
-  it("ücretsiz hesapta podcast sesi yalnız önbellekten; yeni satır Plus ister", () => {
-    const audio = read("src/app/api/learning/podcast/audio/route.ts");
-    expect(audio).toContain("const newChars = await countNewAudioChars(guard.ctx.service, speech).catch(() => -1);");
-    expect(audio).toContain('if (newChars !== 0) return errorResponse(402, "premium_required");');
-    // Genel duvar kalktı: önce her istekte, kayıt okunmadan 402 dönüyordu.
-    expect(audio).not.toMatch(/if \(!requireFeature\(entitlements, "podcast"\)\) \{\s*return errorResponse\(402/);
-  });
+  // Podcast sesinin ücretsizde önbellekten çalması davranış testinde: plus-yasam-dongusu-davranis.test.ts.
 });
 
 describe("Plus bitiş hatırlatması e-postayla da gider", () => {

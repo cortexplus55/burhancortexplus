@@ -214,3 +214,12 @@
     transition: none;
   }
 }
+
+/* Açık tema (8 Kasım 2026): kartın arka yüzü ve uyarı açık zeminde okunmuyordu. */
+:root:not(.dark) .rd-back-text {
+  color: #9a3412;
+}
+
+:root:not(.dark) .rd-warn {
+  color: #b91c1c;
+}

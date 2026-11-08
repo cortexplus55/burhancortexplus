@@ -87,7 +87,7 @@ export function AnaEkranFixture({
         variant="parity"
         composerMode="parity"
         greetingLine="Öğrenci, iyi akşamlar! 🌙"
-        startPrompt="Merhaba"
+        startGreeting="Merhaba Öğrenci! Bugün ne çalışmak istersin? Aklındaki dersi ya da konuyu yaz; takıldığın bir soru varsa fotoğrafını da gönderebilirsin."
         showEmptyStarter
         startLabel="Başla"
         heroFooter={heroFooter}

@@ -1226,3 +1226,35 @@
   height: 44px;
   transform: translate(-50%, -50%);
 }
+
+/* Açık tema (8 Kasım 2026, son kontrol): sözlü ekranının yazıları koyu tema için açık griydi, açık zeminde okunmuyordu. */
+:root:not(.dark) :is(.cp-oral-mood-check, .cp-oral-modal p, .cp-oral-review-card p, .cp-oral-score-pill.is-pct strong) {
+  color: var(--c-text);
+}
+
+:root:not(.dark) :is(.cp-oral-bar p, .cp-oral-status, .cp-oral-review-head p, .cp-oral-tabs button) {
+  color: var(--c-text-muted);
+}
+
+:root:not(.dark) .cp-oral-tabs button[aria-selected="true"] {
+  background: var(--c-text);
+  color: var(--c-bg);
+}
+
+:root:not(.dark) .cp-oral-mood-badge {
+  background: rgba(226, 179, 64, 0.18);
+  color: #7a5600;
+}
+
+:root:not(.dark) .cp-oral-mood-badge.is-no {
+  background: var(--c-surface-2);
+  color: var(--c-text-muted);
+}
+
+:root:not(.dark) .cp-oral-review-link {
+  color: var(--c-action);
+}
+
+:root:not(.dark) .cp-oral-textbtn:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
