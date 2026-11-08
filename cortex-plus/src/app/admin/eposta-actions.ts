@@ -18,7 +18,9 @@ import {
   type CampaignProgress,
 } from "@/lib/email/campaign";
 import { REFERRAL_CAP_MAX, REFERRAL_CAP_MIN } from "@/lib/email/referral-cap";
-import { sendResendProbe } from "@/lib/email/mailer";
+import { sendEmail, sendResendProbe } from "@/lib/email/mailer";
+import { renderLifecycleSample } from "@/lib/email/lifecycle";
+import { LIFECYCLE_MAILS, type LifecycleMailId } from "@/lib/email/lifecycle-templates";
 import { describeResendStatus, readResendStatus } from "@/lib/email/resend-status";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 
@@ -227,4 +229,42 @@ export async function testResendDelivery(): Promise<
     return { ok: false, error: `Resend gönderemedi: ${result.reason.slice(0, 220)}`, summary };
   }
   return { ok: true, to: user.email, summary };
+}
+
+const lifecycleIds = new Set<string>(LIFECYCLE_MAILS.map((mail) => mail.id));
+
+/**
+ * Otomatik e-postaların önizlemesi (8 Kasım 2026): hoş geldin, Plus / Sınav Haftası / Sigma / ek paket / deneme.
+ * Örnek verilerle çizilir; kimseye gitmez, kayıt yazmaz.
+ */
+export async function previewLifecycleMail(id: string): Promise<{ ok: true; subject: string; html: string } | Fail> {
+  const actor = await checkFounderActor();
+  if (!actor.ok) return actor;
+  if (!lifecycleIds.has(id)) return { ok: false, error: "Bilinmeyen e-posta türü." };
+  const mail = renderLifecycleSample(id as LifecycleMailId);
+  return { ok: true, subject: mail.subject, html: mail.html };
+}
+
+/** Seçilen otomatik e-postayı kurucunun kendi adresine gönderir (örnek verilerle; "[Deneme]" ön ekiyle). */
+export async function sendLifecycleTest(id: string): Promise<{ ok: true; to: string; via: string } | Fail> {
+  const actor = await checkFounderActor();
+  if (!actor.ok) return actor;
+  if (!lifecycleIds.has(id)) return { ok: false, error: "Bilinmeyen e-posta türü." };
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.email) return { ok: false, error: "Hesabının e-posta adresi okunamadı." };
+  const mail = renderLifecycleSample(id as LifecycleMailId);
+  const result = await sendEmail({ to: user.email, subject: "[Deneme] " + mail.subject, html: mail.html, text: mail.text });
+  if (!result.ok) {
+    return { ok: false, error: "Gönderilemedi: " + result.reason.slice(0, 160) + ". «Gönderim yolu» kartından Resend durumuna bak." };
+  }
+  await auditLog(createServiceClient(), {
+    actorId: actor.userId,
+    action: "email.lifecycle_test",
+    entityType: "email_campaign",
+    metadata: { template: id },
+  });
+  return { ok: true, to: user.email, via: result.via === "smtp" ? "yedek SMTP" : "Resend" };
 }

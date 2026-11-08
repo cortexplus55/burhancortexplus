@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
+import { sendTrialMail } from "@/lib/email/lifecycle";
 import { z } from "zod";
 import { withUser } from "@/lib/api/guards";
 import { auditLog } from "@/lib/audit";
@@ -68,6 +69,15 @@ export async function POST(request: Request) {
     entityId: code,
     metadata: result,
   }).catch(() => undefined);
+
+  // Plus denemesi açıldıysa karşılama e-postası (8 Kasım 2026); hesap başına bir kez, yanıtı bekletmez.
+  if (result.plusDays) {
+    try {
+      after(() => sendTrialMail(service, userId, { plusDays: result.plusDays, plusUntil: result.plusUntil }).then(() => undefined));
+    } catch {
+      /* istek dışı */
+    }
+  }
 
   return NextResponse.json({ ok: true, ...result, message: redeemSuccessMessage(result) });
 }
