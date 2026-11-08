@@ -1,13 +1,25 @@
+import Link from "next/link";
+import type { LucideIcon } from "lucide-react";
+import {
+  BookOpenCheck,
+  ChevronRight,
+  CreditCard,
+  FileText,
+  Gauge,
+  GraduationCap,
+  Receipt,
+  Scale,
+  ShieldCheck,
+  UserRound,
+} from "lucide-react";
 import { PLAN_WORK_BY_ID, workCount } from "@/lib/billing/plan-value";
 import { PLAN_ALLOWANCES } from "@/lib/credits/price-table";
-import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
-import { SectionCard } from "@/components/ui-kit/empty-state";
 import { DataDeletionButton } from "@/components/profile/data-deletion-button";
 import { CookiePreferencesButton } from "@/components/legal/cookie-banner";
 import { EmailChangeCard } from "@/components/profile/email-change-card";
 import { EmailPreferencesCard } from "@/components/profile/email-preferences-card";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { AppearanceRow } from "@/components/parity/appearance-row";
 import { requireUser } from "@/lib/auth/session";
 import { formatDate } from "@/lib/format";
 import { getStudentAccountContext } from "@/lib/student/account-context";
@@ -16,11 +28,50 @@ import { FounderBadge } from "@/components/student/founder-chip";
 
 export const metadata = { title: "Ayarlar" };
 
+/*
+  Ayarlar: bütün ayarların tek adresi (8 Kasım 2026, ürün sahibi: "hangisi daha mantıklı ve premium ise").
+  Önce üç yer vardı: profil sayfası, Ayarlar penceresi ve bu sayfa; tema seçimi üçünde ayrı ayrıydı. Şimdi profil
+  sayfasındaki "Ayarlar" düğmesi, üst menü ve sohbetin "Tüm ayarlar"ı buraya gelir. Ad, avatar, rol, okul ve öğrenme
+  tercihleri satırları düzenleme penceresini doğru sekmeyle açar (`?dialog=profile&sekme=…`).
+*/
+type Row = { href: string; icon: LucideIcon; title: string; hint: string };
+
+function SettingsRows({ rows }: { rows: Row[] }) {
+  return (
+    <ul className="cp-set-rows">
+      {rows.map(({ href, icon: Icon, title, hint }) => (
+        <li key={href}>
+          <Link href={href} className="cp-set-row" scroll={false}>
+            <span className="cp-set-row-icon" aria-hidden>
+              <Icon className="h-[18px] w-[18px]" />
+            </span>
+            <span className="cp-set-row-text">
+              <strong>{title}</strong>
+              <span>{hint}</span>
+            </span>
+            <ChevronRight className="cp-set-row-chev h-4 w-4" aria-hidden />
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function Group({ title, description, children, tone }: { title: string; description?: string; children: React.ReactNode; tone?: "danger" }) {
+  return (
+    <section className={tone === "danger" ? "cp-set-group cp-set-group--danger" : "cp-set-group"}>
+      <h2 className="cp-set-group-title">{title}</h2>
+      {description ? <p className="cp-set-group-desc">{description}</p> : null}
+      <div className="cp-set-group-body">{children}</div>
+    </section>
+  );
+}
+
 export default async function AyarlarPage() {
   const { supabase, user } = await requireUser();
 
-  // Üç okuma paralel (2 Kasım 2026, O12): hatırlatma tercihi önceden ayrı, sırayla bekleniyordu.
-  const [{ data: deletionRequest }, account, { data: reminderPref }] = await Promise.all([
+  // Okumalar paralel (2 Kasım 2026, O12).
+  const [{ data: deletionRequest }, account, { data: reminderPref }, { data: profile }] = await Promise.all([
     supabase
       .from("data_deletion_requests")
       .select("id, status, requested_at")
@@ -31,6 +82,7 @@ export default async function AyarlarPage() {
     getStudentAccountContext(supabase, user.id),
     // Kolon yoksa sorgu hata verir ve tercih "açık" varsayılır.
     supabase.from("profiles").select("study_reminder_email").eq("id", user.id).maybeSingle(),
+    supabase.from("profiles").select("full_name, avatar_url, school_name, grade_level").eq("id", user.id).maybeSingle(),
   ]);
   // Kampanya izni yalnız sunucu anahtarıyla okunur (satır güvenliği tarayıcıya kapalı). 7 Kasım 2026.
   const { data: marketingPref } = await createServiceClient()
@@ -39,50 +91,84 @@ export default async function AyarlarPage() {
     .eq("user_id", user.id)
     .maybeSingle();
 
+  const name = (profile?.full_name as string | null)?.trim() || "Öğrenci";
+  const avatarRaw = (profile?.avatar_url as string | null) ?? null;
+  // Avatar yalnız emoji olarak saklanıyor; adres gibi görünen eski değer baş harfe düşer.
+  const avatar = avatarRaw && !/^https?:|\//.test(avatarRaw) ? avatarRaw : name.slice(0, 1).toLocaleUpperCase("tr-TR");
+  const school = (profile?.school_name as string | null)?.trim() || null;
+  const grade = (profile?.grade_level as string | null)?.trim() || null;
+  const lessons = workCount(PLAN_ALLOWANCES.plusMonthly, PLAN_WORK_BY_ID.lesson).toLocaleString("tr-TR");
+  const planLabel = account.isAdmin ? null : account.isPremium ? (account.subscriptionBadge ?? "Plus") : "Ücretsiz";
+
   return (
-    <AppShell title="Ayarlar">
-      <div className="space-y-6">
-        <Link href="/ogretmen?dialog=profile" className="cp-exam-continue inline-flex">
-          Hızlı ayarlar paneli
-        </Link>
-        {account.isAdmin ? (
-          // Kurucuda abonelik yükseltme ya da iptal düğmesi yok.
-          <SectionCard title="Hesap">
-            <div className="cp-founder-row">
-              <span className="text-sm text-[var(--cp-text)]">Hesap türü</span>
-              <FounderBadge />
-            </div>
-            <p className="cp-founder-note">Kredi sınırı yok.</p>
-          </SectionCard>
-        ) : (
-          <SectionCard
-            title="Plan"
-            description={
-              account.isPremium
-                ? "Plus aboneliğin aktif. Kullanımını ve ödemelerini Kullanım sayfasından takip edebilirsin."
-                : `Ücretsiz plandasın. Plus ile podcast, sözlü ve yazılı deneme, video ders ve ayda yaklaşık ${workCount(PLAN_ALLOWANCES.plusMonthly, PLAN_WORK_BY_ID.lesson).toLocaleString("tr-TR")} ders hakkı açılır.`
-            }
-          >
-            <Link
-              href={account.isPremium ? "/krediler" : "/pay"}
-              className="text-sm font-medium underline"
-            >
-              {account.isPremium ? "Krediler" : "Plus’a yükselt"}
-            </Link>
-          </SectionCard>
-        )}
+    <AppShell>
+      <div className="cp-set-page">
+        <h1 className="cp-set-title">Ayarlar</h1>
 
-        <SectionCard
-          title="Öğrenme tercihleri"
-          description="Öğretmen stili, günlük çalışma hedefi, önerilen sorular, okuma ve ses ayarları."
-        >
-          <Link href="/profil?dialog=profile" className="text-sm font-medium underline">
-            Ayarları aç
+        <section className="cp-set-hero" aria-label="Hesabın">
+          <span className="cp-set-avatar" aria-hidden>
+            {avatar}
+          </span>
+          <span className="cp-set-hero-text">
+            <strong>{name}</strong>
+            <span>{[grade, school].filter(Boolean).join(" · ") || user.email}</span>
+            <span className="cp-set-hero-plan">
+              {account.isAdmin ? (
+                <FounderBadge />
+              ) : (
+                <span className={account.isPremium ? "cp-set-plan cp-set-plan--plus" : "cp-set-plan"}>{planLabel}</span>
+              )}
+            </span>
+          </span>
+          <Link href="/ayarlar?dialog=profile&sekme=hesap" className="cp-set-hero-edit" scroll={false}>
+            Profili düzenle
           </Link>
-        </SectionCard>
+        </section>
 
-        <SectionCard
-          title="E-posta tercihleri"
+        <Group title="Profil ve öğrenme">
+          <SettingsRows
+            rows={[
+              { href: "/ayarlar?dialog=profile&sekme=hesap", icon: UserRound, title: "Ad, avatar ve rol", hint: name },
+              { href: "/ayarlar?dialog=profile&sekme=okul", icon: GraduationCap, title: "Okulum", hint: school ?? "Okulunu seç: okul sıralaması ve paylaşılan hazırlıklar" },
+              { href: "/ayarlar?dialog=profile&sekme=tercihler", icon: BookOpenCheck, title: "Öğrenme tercihleri", hint: "Öğretmen stili, günlük hedef, öneriler, okuma ve ses" },
+            ]}
+          />
+        </Group>
+
+        <Group
+          title="Plan ve kullanım"
+          description={
+            account.isAdmin
+              ? "Kurucu hesabında kredi sınırı yok."
+              : account.isPremium
+                ? "Plus aboneliğin aktif."
+                : `Ücretsiz plandasın. Plus ile podcast, sözlü ve yazılı deneme, video ders ve ayda yaklaşık ${lessons} ders hakkı açılır.`
+          }
+        >
+          <SettingsRows
+            rows={[
+              { href: "/krediler", icon: Gauge, title: "Kullanım limitleri", hint: "Bu ay ne kadar kullandığın" },
+              ...(account.isAdmin
+                ? []
+                : [
+                    {
+                      href: "/pay",
+                      icon: CreditCard,
+                      title: "Abonelik",
+                      hint: account.isPremium ? "Planın ve ek paketler" : "Plus'a geç",
+                    },
+                  ]),
+              { href: "/odemeler", icon: Receipt, title: "Ödemeler", hint: "Makbuzlar ve sözleşme örnekleri" },
+            ]}
+          />
+        </Group>
+
+        <Group title="Görünüm" description="Uygulamanın teması. Sistem, cihazının ayarını izler.">
+          <AppearanceRow />
+        </Group>
+
+        <Group
+          title="Bildirimler ve e-posta"
           description="Hesabınla ilgili bilgilendirmeler (doğrulama, ödeme, iade) her zaman gelir; aşağıdakileri istediğin gibi ayarla. Günde en fazla bir hatırlatma gönderiyoruz."
         >
           <EmailPreferencesCard
@@ -91,48 +177,9 @@ export default async function AyarlarPage() {
               marketing: marketingPref?.marketing === true,
             }}
           />
-        </SectionCard>
+        </Group>
 
-        <SectionCard
-          title="Görünüm"
-          description="Açık ve koyu tema arasında geçiş yapabilirsin."
-        >
-          <ThemeToggle />
-        </SectionCard>
-
-        <SectionCard
-          title="Gizlilik"
-          description="Verilerinin nasıl işlendiğini ilgili metinlerden inceleyebilirsin."
-        >
-          <div className="flex flex-wrap gap-4 text-sm">
-            <Link href="/gizlilik" className="underline">
-              Gizlilik politikası
-            </Link>
-            <Link href="/kvkk" className="underline">
-              KVKK aydınlatma metni
-            </Link>
-            <Link href="/kullanim-kosullari" className="underline">
-              Kullanım koşulları
-            </Link>
-            <Link href="/cerez-politikasi" className="underline">
-              Çerez politikası
-            </Link>
-            <CookiePreferencesButton className="underline" />
-            <Link href="/destek?konu=kvkk" className="underline">
-              Kişisel veri başvurusu
-            </Link>
-            {account.isAdmin ? null : (
-              <Link href="/pay" className="underline">
-                Paketler
-              </Link>
-            )}
-          </div>
-        </SectionCard>
-
-        <SectionCard
-          title="E-posta ve şifre"
-          description="Giriş yaptığın adres ve şifren."
-        >
+        <Group title="Giriş ve güvenlik" description="Giriş yaptığın adres ve şifren.">
           <EmailChangeCard
             email={user.email ?? null}
             pendingEmail={(user as { new_email?: string | null }).new_email ?? null}
@@ -141,18 +188,26 @@ export default async function AyarlarPage() {
               user.app_metadata?.provider === "email"
             }
           />
-        </SectionCard>
+        </Group>
+
+        <Group title="Gizlilik ve yasal" description="Verilerinin nasıl işlendiğini ilgili metinlerden inceleyebilirsin.">
+          <SettingsRows
+            rows={[
+              { href: "/gizlilik", icon: ShieldCheck, title: "Gizlilik politikası", hint: "Hangi veriyi neden tutuyoruz" },
+              { href: "/kvkk", icon: FileText, title: "KVKK aydınlatma metni", hint: "Hakların ve başvuru yolu" },
+              { href: "/kullanim-kosullari", icon: Scale, title: "Kullanım koşulları", hint: "Hizmetin kuralları" },
+              { href: "/cerez-politikasi", icon: FileText, title: "Çerez politikası", hint: "Hangi çerezleri kullanıyoruz" },
+              { href: "/destek?konu=kvkk", icon: ShieldCheck, title: "Kişisel veri başvurusu", hint: "Verilerin hakkında talep gönder" },
+            ]}
+          />
+          <CookiePreferencesButton className="cp-set-inline-btn" />
+        </Group>
 
         {/*
-          Silme bir ekip işi değil: talep anında işleniyor, yarım kalırsa
-          günlük cron yeniden deniyor (processPendingDeletionRequests). Eski
-          metin "ekibimiz KVKK süresi içinde" diyor, durumu ham "pending"
-          olarak gösteriyordu.
+          Silme bir ekip işi değil: talep anında işleniyor, yarım kalırsa günlük cron yeniden deniyor
+          (processPendingDeletionRequests).
         */}
-        <SectionCard
-          title="Hesap verisi"
-          description="Silme talebi hemen işlenir; tamamlandığında hesabın kapanır."
-        >
+        <Group title="Hesap verisi" description="Silme talebi hemen işlenir; tamamlandığında hesabın kapanır." tone="danger">
           {deletionRequest ? (
             <p className="text-sm">
               {deletionRequest.status === "completed"
@@ -163,7 +218,7 @@ export default async function AyarlarPage() {
           ) : (
             <DataDeletionButton />
           )}
-        </SectionCard>
+        </Group>
       </div>
     </AppShell>
   );

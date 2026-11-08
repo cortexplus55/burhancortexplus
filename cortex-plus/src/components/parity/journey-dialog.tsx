@@ -218,7 +218,7 @@ function StreakTab({
       ) : null}
 
       {journey.dailyGoal ? (
-        <Link href="/profil?dialog=profile" className="cp-jr-goal">
+        <Link href="/ayarlar?dialog=profile&sekme=tercihler" className="cp-jr-goal">
           <span>Günlük çalışma hedefi</span>
           <strong>{dailyGoalLabel(journey.dailyGoal.todayMinutes, journey.dailyGoal.goalMinutes)}</strong>
           <em>Düzenle</em>

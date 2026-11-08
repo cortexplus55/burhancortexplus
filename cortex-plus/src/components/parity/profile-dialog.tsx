@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { ChevronLeft, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { AppearanceRow } from "@/components/parity/appearance-row";
 import { AvatarPicker } from "@/components/parity/avatar-picker";
 import { TUTOR_STYLE_OPTIONS, type TutorStyle } from "@/lib/learning/tutor-style";
 import {
@@ -17,7 +16,8 @@ import {
 import { prefsFromProfile, writeLearningPrefs } from "@/lib/client/learning-prefs-store";
 import "@/styles/parity-shell.css";
 
-type TabId = "account" | "school" | "learning";
+export type ProfileTabId = "account" | "school" | "learning";
+type TabId = ProfileTabId;
 
 // "Veli" seçeneği kaldırıldı: ürün yalnızca öğrenciye (AGENTS.md, 29 Ağustos
 // 2026 kararı); veliyi seçen öğrenciyi bekleyen bir veli arayüzü yok.
@@ -36,16 +36,29 @@ export type ProfilePlanView = {
   isPremium: boolean;
 };
 
+/**
+ * Profil düzenleme penceresi (ad, avatar, rol, okul, öğrenme tercihleri). 8 Kasım 2026: bütün ayarların tek adresi
+ * `/ayarlar`; pencere oradaki satırlardan istenen sekmeyle açılır (`?dialog=profile&sekme=okul`). Tema ve hesap
+ * bağlantıları pencereden kalktı (üç ayrı yerde tema seçimi vardı).
+ */
 export function ProfileDialog({
   open,
   onClose,
   plan,
+  initialTab = "account",
+  showAllSettingsLink = true,
 }: {
   open: boolean;
   onClose: () => void;
   plan?: ProfilePlanView | null;
+  initialTab?: TabId;
+  /** Ayarlar sayfasının kendisinde "Bütün ayarlar" bağlantısı gösterilmez. */
+  showAllSettingsLink?: boolean;
 }) {
-  const [tab, setTab] = useState<TabId>("account");
+  const [tab, setTab] = useState<TabId>(initialTab);
+  useEffect(() => {
+    if (open) setTab(initialTab);
+  }, [open, initialTab]);
   const [role, setRole] = useState("student");
   const [schoolQuery, setSchoolQuery] = useState("");
   const [schoolOptions, setSchoolOptions] = useState<SchoolOption[]>([]);
@@ -261,10 +274,6 @@ export function ProfileDialog({
           (referans üründe de öyle) abone öğrencinin paketini görebileceği hiçbir
           yol kalmıyordu — bu boşluğu kapatıyor.
         */}
-        <div className="cp-profile-links">
-          <a href="/krediler">Kullanımım</a>
-          <a href="/odemeler">Aboneliğim</a>
-        </div>
 
         {tab === "account" ? (
           <div className="cp-profile-body">
@@ -305,12 +314,11 @@ export function ProfileDialog({
                 </li>
               ))}
             </ul>
-            <div className="mt-6">
-              <AppearanceRow />
-            </div>
-            <a className="cp-settings-link" href="/ayarlar">
-              E-posta, şifre, hatırlatma ve hesap silme →
-            </a>
+            {!showAllSettingsLink ? null : (
+              <a className="cp-settings-link" href="/ayarlar">
+                Bütün ayarlar: görünüm, e-posta, şifre, gizlilik →
+              </a>
+            )}
           </div>
         ) : null}
 

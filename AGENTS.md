@@ -2241,3 +2241,14 @@ Menüdeki bütün sayfalar ve hazırlığın alt sayfaları kurucu hesabıyla, t
 | Küçükler: Belgelerim'de ikincil işler simgeli hap; Sınıflar emekli öğretmen paneline gönderme yapmıyor ("arkadaşının paylaştığı kodla"); katılım kodu ipucu küçük harf; Düello'da tek robot simgesi | `dokumanlar/page.tsx`, `siniflar/page.tsx`, `join-class-form.tsx`, `new-duel-button.tsx` |
 
 Bekçi: `premium-ic-ekranlar-8-kasim.test.tsx` ("ikinci tur"), e2e `ana-ekran.spec.ts` (beşgen: gizli ad sayılmaz).
+
+**Üçüncü tur (aynı gün, ürün sahibi: "hangisi mantıklı ve daha premium ise").** Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| **Ayarlar tek merkez:** bütün ayarların adresi `/ayarlar` (profil özeti; "Profil ve öğrenme", "Plan ve kullanım", "Görünüm", "Bildirimler ve e-posta", "Giriş ve güvenlik", "Gizlilik ve yasal", "Hesap verisi" grupları). Önce üç yer vardı (profil, pencere, sayfa) ve tema üçünde ayrıydı. Profildeki "Ayarlar", üst çubuğun ayar bağlantısı ve sohbetin "Tüm ayarlar"ı (sınav sohbeti hariç: orada pencere açılır) buraya gider | `ayarlar/page.tsx`, `profile-panel.tsx`, `sor-shell.tsx`, `chat-panel.tsx` |
+| **Düzenleme penceresi** ad, avatar, rol, okul ve öğrenme tercihleri için kalır; `/ayarlar` satırlarından doğru sekmeyle açılır (`?dialog=profile&sekme=hesap|okul|tercihler`). Tema seçimi ve "Kullanımım / Aboneliğim" bağlantıları pencereden kalktı; `/ayarlar`'da pencerede "Bütün ayarlar" bağlantısı yok | `profile-dialog.tsx` `initialTab`, `showAllSettingsLink`; `parity-dialog-host.tsx` `PROFILE_TABS` |
+| **Tema yalnız Ayarlar'da** (yazılı Açık / Koyu / Sistem; önce profil menüsünde de vardı, Ayarlar'da yalnız simgeydi) | `AppearanceRow` |
+| **Abonelik sayfası kurucuya satış göstermez:** "Bütün özellikler açık" kartı, "Plus'ın bir ayı" bölümü gizli; planlar öğrencinin gördüğü hâliyle altta. Plus abonesi zaten "Aboneliğin aktif" görüyor | `pay/page.tsx` |
+
+Bekçi: `premium-ic-ekranlar-8-kasim.test.tsx` ("ayarlar tek merkez"), `profile-dialog.test.tsx` ("ayarlar tek yerde"), `profile-appearance.test.tsx`.

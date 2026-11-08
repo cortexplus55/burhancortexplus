@@ -2022,7 +2022,7 @@ function ChatPanelSession({
                           Tüm ayarlar
                         </button>
                       ) : (
-                        <Link href="/ogretmen?dialog=profile" role="menuitem" className="cp-mood-menu-more">
+                        <Link href="/ayarlar" role="menuitem" className="cp-mood-menu-more">
                           Tüm ayarlar
                         </Link>
                       )}

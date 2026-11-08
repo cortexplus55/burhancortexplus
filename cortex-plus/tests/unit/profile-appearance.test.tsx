@@ -28,18 +28,11 @@ const data: ProfileDashboard = {
   avatarEmoji: null,
 };
 
-describe("profil menüsü (kıyas ürünü: Görünüm menüde)", () => {
-  it("Geçmiş konuşmaların altında Görünüm seçimi var ve temayı değiştiriyor", () => {
+describe("profil menüsü", () => {
+  it("tema seçimi profilde değil, tek yerde (/ayarlar); Ayarlar düğmesi oraya gider (8 Kasım 2026)", () => {
     render(<ProfilePanel data={data} email={null} isPremium={false} subscriptionBadge={null} />);
-    const group = screen.getByRole("radiogroup", { name: "Görünüm" });
-    expect(group).toBeTruthy();
-    expect(screen.getByRole("radio", { name: "Koyu" }).getAttribute("aria-checked")).toBe("true");
-    fireEvent.click(screen.getByRole("radio", { name: "Açık" }));
-    expect(setTheme).toHaveBeenCalledWith("light");
-    const menu = screen.getByRole("navigation", { name: "Hesap" });
-    const order = Array.from(menu.children).map((el) => el.textContent ?? "");
-    const history = order.findIndex((text) => text.includes("Geçmiş konuşmalar"));
-    expect(order[history + 1]).toMatch(/^Görünüm/);
+    expect(screen.queryByRole("radiogroup", { name: "Görünüm" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Ayarlar" }).getAttribute("href")).toBe("/ayarlar");
   });
 
   it("kurucuda 'Ücretsiz plan' değil 'Kurucu' yazıyor ve satın alma yok", () => {

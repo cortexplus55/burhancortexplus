@@ -174,7 +174,8 @@ describe("nerede görünür", () => {
     const home = readFileSync("src/app/ogretmen/page.tsx", "utf8");
     expect(home).not.toContain("PlusMonth");
     const pay = readFileSync("src/app/pay/page.tsx", "utf8");
-    expect(pay).toContain("entitlements.showsUpgradeChrome ? (");
+    // 8 Kasım 2026: kurucu hesabına satış bölümü yok.
+    expect(pay).toContain("entitlements.showsUpgradeChrome && !founder ? (");
     expect(pay).toContain('id="planlar"');
     const sheet = readFileSync("src/components/paywall/upgrade-sheet.tsx", "utf8");
     expect(sheet).toContain("<PlusCountsInline />");

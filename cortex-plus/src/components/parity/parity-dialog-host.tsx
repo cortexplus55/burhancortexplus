@@ -2,7 +2,10 @@
 
 import { Suspense, useCallback, useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ProfileDialog, type ProfilePlanView } from "@/components/parity/profile-dialog";
+import { ProfileDialog, type ProfilePlanView, type ProfileTabId } from "@/components/parity/profile-dialog";
+
+/** `?sekme=` → pencerenin sekmesi (Ayarlar sayfasındaki satırlar doğru sekmeyi açar). */
+const PROFILE_TABS: Record<string, ProfileTabId> = { hesap: "account", okul: "school", tercihler: "learning" };
 import { SketchDialog } from "@/components/parity/sketch-dialog";
 import { StarsDialog } from "@/components/parity/stars-dialog";
 import { UploadModal } from "@/components/parity/upload-modal";
@@ -22,10 +25,12 @@ function ParityDialogHostInner({
   const pathname = usePathname();
   const router = useRouter();
   const dialog = searchParams.get("dialog");
+  const profileTab = PROFILE_TABS[searchParams.get("sekme") ?? ""] ?? "account";
 
   const closeDialog = useCallback(() => {
     const params = new URLSearchParams(searchParams.toString());
     params.delete("dialog");
+    params.delete("sekme");
     const q = params.toString();
     router.replace(q ? `${pathname}?${q}` : pathname, { scroll: false });
   }, [pathname, router, searchParams]);
@@ -42,6 +47,8 @@ function ParityDialogHostInner({
         open={dialog === "profile"}
         onClose={closeDialog}
         plan={plan}
+        initialTab={profileTab}
+        showAllSettingsLink={pathname !== "/ayarlar"}
       />
       <UploadModal
         open={dialog === "image_upload"}
