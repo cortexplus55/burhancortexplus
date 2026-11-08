@@ -100,3 +100,12 @@
 .tf-focus-coach {
   margin: 0.35rem 0 0.6rem;
 }
+
+/* Açık temada koç cümlesi okunur (8 Kasım 2026): başarı yeşili açık zeminde 2,3 kontrastta kalıyordu. */
+:root:not(.dark) .cp-coach--right {
+  color: #166534;
+}
+
+:root:not(.dark) .cp-coach--partial {
+  color: #92400e;
+}

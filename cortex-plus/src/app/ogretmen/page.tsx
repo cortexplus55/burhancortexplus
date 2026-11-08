@@ -13,7 +13,7 @@ import { isPremiumUser } from "@/lib/ai/generate";
 import { parseTutorStyle, tutorStyleLabel } from "@/lib/learning/tutor-style";
 import { messageFeedbackEnabled } from "@/lib/learning/message-feedback";
 import { turkishLower } from "@/lib/text/turkish";
-import { defaultStartPrompt } from "@/lib/student/first-prompts";
+import { startGreetingFor } from "@/lib/student/first-prompts";
 import { getStudentAccountContext } from "@/lib/student/account-context";
 import { getUserStreak } from "@/lib/streak/record-activity";
 import { FirstStepLauncher } from "@/components/parity/first-step-launcher";
@@ -136,8 +136,8 @@ export default async function OgretmenPage({
   // ekranda "i̇yi günler" diye çift noktalı görünüyordu.
   const greetingLine = `${firstName}, ${turkishLower(timeGreeting)}!${moon}`;
   const goalText = goal?.goal_text ?? null;
-  // Başla genel bir soruyla açılır (8 Kasım 2026): kayıtta seçilen ders artık ilk mesaja yazılmıyor.
-  const bootPrompt = defaultStartPrompt();
+  // Başla (8 Kasım 2026): öğretmen ilk sözü kendisi söyler, öğrenci adına talimat cümlesi gönderilmez; model çağrısı yok.
+  const startGreeting = startGreetingFor(firstName);
   const style = parseTutorStyle(profile?.tutor_style);
   // Ana ekran öğretmenle sohbet alanıdır (8 Kasım 2026, ürün sahibi): selam, Başla ve hiç hazırlığı olmayan öğrenciye
   // ilk adım kartları. Plus kartı ve stüdyo kartları burada yok; stüdyolar üstteki "Çalışma Stüdyosu" sekmesinde.
@@ -166,7 +166,7 @@ export default async function OgretmenPage({
         composerMode="parity"
         feedbackEnabled={feedbackOn}
         greetingLine={greetingLine}
-        startPrompt={bootPrompt}
+        startGreeting={startGreeting}
         showEmptyStarter
         startLabel="Başla"
         heroFooter={heroCards}

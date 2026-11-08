@@ -609,3 +609,20 @@
   text-align: center;
   color: var(--cp-muted);
 }
+
+/* Açık tema (8 Kasım 2026): yarı saydam beyaz zeminler açık temada görünmüyordu; satırlar ve şıklar ayrışsın. */
+:root:not(.dark) :is(.cp-duel-rules li, .cp-duel-option, .cp-duel-review li, .cp-duel-board li, .cp-duel-bot, .cp-duel-versus, .cp-duel-versus-rows li) {
+  background: rgba(0, 0, 0, 0.035);
+}
+
+:root:not(.dark) .cp-duel-bar {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+:root:not(.dark) .cp-duel-bot-track li {
+  background: rgba(0, 0, 0, 0.12);
+}
+
+:root:not(.dark) .cp-duel-review li.is-wrong {
+  color: #b91c1c;
+}

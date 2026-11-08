@@ -210,3 +210,18 @@ for (const size of [{ width: 375, height: 812 }, { width: 768, height: 1024 }, {
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
   });
 }
+
+test("Başla: öğretmen ilk sözü kendisi söyler, model çağrısı yok, devam önerisi yok, yazma alanı odakta", { tag: ["@public"] }, async ({ page }) => {
+  const chatCalls: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().includes("/api/ai/chat")) chatCalls.push(request.url());
+  });
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto("/e2e/ana-ekran");
+  await page.getByRole("button", { name: "Başla" }).click();
+  await expect(page.locator(".cp-teacher-greeting")).toContainText("Bugün ne çalışmak istersin?");
+  await expect(page.locator(".cp-sor-msg-user")).toHaveCount(0);
+  await expect(page.locator(".cp-followups")).toHaveCount(0);
+  await expect(page.locator(".cp-sor-composer-box textarea")).toBeFocused();
+  expect(chatCalls).toEqual([]);
+});

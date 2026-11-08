@@ -577,3 +577,11 @@ mark.cp-key {
 :root:not(.dark) .cp-sor-root .cp-sor-messages .cp-followup--quiz {
   color: #146c34;
 }
+
+/* Öğretmenin ilk sözü (Başla): model cevabı değil, kısa karşılama. */
+.cp-teacher-greeting {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--c-text);
+}

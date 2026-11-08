@@ -10,6 +10,7 @@ import {
   History,
   LifeBuoy,
   LayoutDashboard,
+  ListChecks,
   Mail,
   MessageSquare,
   Package,
@@ -83,6 +84,12 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         label: "Kullanıcı Yönetimi",
         icon: Users,
         blurb: "Hesapları ara; paket tanımla ya da iptal et, hediye kredi ve yıldız ver ya da al, e-postayı onayla, cihaz oturumlarını sıfırla, hesabı askıya al. Hazırlık ve belgeyi yalnız kurucu kalıcı siler.",
+      },
+      {
+        href: "/admin/etkinlik",
+        label: "Kullanıcı Etkinlikleri",
+        icon: ListChecks,
+        blurb: "Kim ne zaman girdi, ne yaptı: giriş, yol etkinlikleri ve puanları, hazırlık, belge, sohbet ve araçlar, deneme, ödeme, destek. Kişiye, türe ve güne göre süz; içerik gösterilmez.",
       },
       {
         href: "/admin/yoneticiler",

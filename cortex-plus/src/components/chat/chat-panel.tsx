@@ -100,6 +100,11 @@ type Message = {
   /** Fotoğraftan çözüm (23 Ekim 2026): kart olarak çizilir; `content` sohbete kaydedilen metin. */
   solve?: SolveDone;
   solveKey?: string;
+  /**
+   * Öğretmenin ilk sözü (8 Kasım 2026): "Başla"ya basınca model çağrısı olmadan yazılan karşılama. Kaydedilmez,
+   * oylanmaz, devam önerisi çıkarmaz; öğrenci yazınca asıl sohbet başlar.
+   */
+  local?: boolean;
 };
 
 function isImageName(name: string): boolean {
@@ -263,6 +268,7 @@ function ChatPanelSession({
   greetingSubline,
   audience = "student",
   startPrompt,
+  startGreeting,
   startLabel = "Başla",
   heroFooter,
   showEmptyStarter = true,
@@ -289,6 +295,8 @@ function ChatPanelSession({
   greetingSubline?: string;
   audience?: "student" | "parent";
   startPrompt?: string;
+  /** Verilirse "Başla" öğrenci adına mesaj göndermez; öğretmen bu cümleyle ilk sözü söyler (model çağrısı yok). */
+  startGreeting?: string;
   startLabel?: string;
   /** Selam ve Başla düğmesinin altında (ana sayfada ilk hazırlık kartı). */
   heroFooter?: React.ReactNode;
@@ -1240,6 +1248,7 @@ function ChatPanelSession({
   const lastIsAnswer =
     lastMessage?.role === "assistant" &&
     !lastMessage.isError &&
+    !lastMessage.local &&
     lastMessage.content.trim().length > 0;
 
   // Jenerik "yükleniyor" yerine ne beklediğini söylüyor — kıyas ürünündeki "Çözüm
@@ -1509,6 +1518,11 @@ function ChatPanelSession({
                 aria-label={startLabel}
                 disabled={loading}
                 onClick={() => {
+                  if (startGreeting) {
+                    setMessages([{ role: "assistant", content: startGreeting, local: true }]);
+                    window.setTimeout(() => composerRef.current?.focus(), 0);
+                    return;
+                  }
                   if (startPrompt) {
                     void send(startPrompt);
                     return;
@@ -1543,7 +1557,9 @@ function ChatPanelSession({
               {messages.map((message, index) => {
                 const assistantBody = message.content ? (
                   <>
-                    {message.isError ? (
+                    {message.local ? (
+                      <p className="cp-teacher-greeting">{message.content}</p>
+                    ) : message.isError ? (
                       <div role="alert">
                         <TutorReplyView
                           content={message.content}

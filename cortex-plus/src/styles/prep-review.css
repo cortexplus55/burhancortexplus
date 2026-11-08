@@ -453,3 +453,8 @@
     padding: 8px 4px;
   }
 }
+
+/* Açık tema (8 Kasım 2026): "Sınav noktası" çipi açık zeminde okunur. */
+:root:not(.dark) .cp-review-chip--exam {
+  color: #92400e;
+}
