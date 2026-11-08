@@ -132,7 +132,7 @@ export default async function AyarlarPage() {
         <Group title="Profil ve öğrenme">
           <SettingsRows
             rows={[
-              { href: "/ayarlar?dialog=profile&sekme=hesap", icon: UserRound, title: "Ad, avatar ve rol", hint: name },
+              { href: "/ayarlar?dialog=profile&sekme=hesap", icon: UserRound, title: "Ad ve avatar", hint: name },
               { href: "/ayarlar?dialog=profile&sekme=okul", icon: GraduationCap, title: "Okulum", hint: school ?? "Okulunu seç: okul sıralaması ve paylaşılan hazırlıklar" },
               { href: "/ayarlar?dialog=profile&sekme=tercihler", icon: BookOpenCheck, title: "Öğrenme tercihleri", hint: "Öğretmen stili, günlük hedef, öneriler, okuma ve ses" },
             ]}

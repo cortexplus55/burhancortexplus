@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { Trash2 } from "lucide-react";
 
 export function DocumentDeleteButton({ documentId }: { documentId: string }) {
   const router = useRouter();
@@ -13,9 +14,11 @@ export function DocumentDeleteButton({ documentId }: { documentId: string }) {
     return (
       <button
         type="button"
-        className="inline-flex min-h-8 items-center justify-center px-1 text-xs text-red-300/80 underline hover:text-red-200 cp-tap"
+        // 8 Kasım 2026: küçük, altı çizili kırmızı yazı açık temada okunmuyordu; ikincil ama okunur hap.
+        className="cp-docs-delete cp-tap"
         onClick={() => setConfirming(true)}
       >
+        <Trash2 className="h-4 w-4" aria-hidden />
         Sil
       </button>
     );

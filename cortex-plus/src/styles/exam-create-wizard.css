@@ -1926,3 +1926,30 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* Kurulumun ilk ekranı (8 Kasım 2026): sınav türü küçük haplar, ders kutusu aynı ekranda. */
+.apw-sublabel {
+  margin: 0.9rem 0 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cp-muted);
+}
+
+.apw .apw-tracks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.apw .apw-tracks .apw-quick-btn {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 0.9rem;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}

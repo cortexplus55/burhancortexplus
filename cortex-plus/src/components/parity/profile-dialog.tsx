@@ -19,12 +19,13 @@ import "@/styles/parity-shell.css";
 export type ProfileTabId = "account" | "school" | "learning";
 type TabId = ProfileTabId;
 
-// "Veli" seçeneği kaldırıldı: ürün yalnızca öğrenciye (AGENTS.md, 29 Ağustos
-// 2026 kararı); veliyi seçen öğrenciyi bekleyen bir veli arayüzü yok.
-const ROLES = [
-  { id: "student", label: "Öğrenci", hint: "Sınav ve ders odaklı AI" },
-  { id: "graduate", label: "Mezun", hint: "KPSS, TUS ve yetişkin hedefler" },
-] as const;
+/**
+ * Rol seviyeden (8 Kasım 2026, ürün sahibinin kararı): "Rolüm: Öğrenci / Mezun" seçimi ile "Sınıf / seviye" alanı
+ * ayrıydı ve çelişebiliyordu (rol Öğrenci, seviye Mezun). Rol seçimi kalktı; seviye kaydedilince rol ondan yazılır.
+ */
+export function roleForGrade(grade: string): "student" | "graduate" {
+  return /mezun/i.test(grade) ? "graduate" : "student";
+}
 
 type SchoolOption = { id: string; name: string; city: string | null };
 
@@ -59,7 +60,6 @@ export function ProfileDialog({
   useEffect(() => {
     if (open) setTab(initialTab);
   }, [open, initialTab]);
-  const [role, setRole] = useState("student");
   const [schoolQuery, setSchoolQuery] = useState("");
   const [schoolOptions, setSchoolOptions] = useState<SchoolOption[]>([]);
   const [schoolName, setSchoolName] = useState("");
@@ -84,7 +84,6 @@ export function ProfileDialog({
           setSchoolQuery(data.school_name);
         }
         if (data.daily_goal_minutes) setDailyGoal(Number(data.daily_goal_minutes));
-        if (data.learning_role) setRole(data.learning_role);
         setTodayMinutes(Number(data.today_minutes) || 0);
         setFullName(data.full_name ?? "");
         setGradeLevel(data.grade_level ?? "");
@@ -164,23 +163,6 @@ export function ProfileDialog({
       return;
     }
     toast.success(message);
-  }
-
-  /*
-    Rol "Hesabım" sekmesinde seçiliyordu ama o sekmede kaydet yoktu; seçim
-    ancak "Öğrenme" sekmesindeki Kaydet'e basılırsa gidiyordu. Artık
-    seçildiği anda kaydediliyor.
-  */
-  async function saveRole(next: string) {
-    const previous = role;
-    setRole(next);
-    const ok = await patchProfile({ learning_role: next });
-    if (!ok) {
-      setRole(previous);
-      toast.error("Rol kaydedilemedi.");
-      return;
-    }
-    toast.success("Rolün güncellendi.");
   }
 
   /*
@@ -295,25 +277,6 @@ export function ProfileDialog({
             >
               İsmi kaydet
             </button>
-            <h2 className="cp-profile-heading mt-6">Rolüm</h2>
-            <ul className="cp-profile-role-list">
-              {ROLES.map((item) => (
-                <li key={item.id}>
-                  <button
-                    type="button"
-                    className={cn(
-                      "cp-profile-role",
-                      role === item.id && "cp-profile-role--active",
-                    )}
-                    aria-pressed={role === item.id}
-                    onClick={() => void saveRole(item.id)}
-                  >
-                    <strong>{item.label}</strong>
-                    <span>{item.hint}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
             {!showAllSettingsLink ? null : (
               <a className="cp-settings-link" href="/ayarlar">
                 Bütün ayarlar: görünüm, e-posta, şifre, gizlilik →
@@ -353,7 +316,7 @@ export function ProfileDialog({
               <input
                 value={gradeLevel}
                 maxLength={40}
-                placeholder="Örn. 11. sınıf, üniversite 2. sınıf"
+                placeholder="Örn. 11. sınıf, üniversite 2. sınıf, Mezun"
                 onChange={(e) => setGradeLevel(e.target.value)}
               />
             </label>
@@ -361,7 +324,12 @@ export function ProfileDialog({
               type="button"
               className="cp-exam-continue mt-2 w-full"
               disabled={loading}
-              onClick={() => void saveText({ grade_level: gradeLevel.trim() }, "Seviyen güncellendi.")}
+              onClick={() =>
+                void saveText(
+                  { grade_level: gradeLevel.trim(), learning_role: roleForGrade(gradeLevel.trim()) },
+                  "Seviyen güncellendi.",
+                )
+              }
             >
               Seviyeyi kaydet
             </button>

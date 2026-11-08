@@ -65,7 +65,7 @@ describe("2) beşgen etiketleri kutuya sığar", () => {
     );
     const svg = container.querySelector("svg")!;
     expect(svg.getAttribute("viewBox")).toBe("-104 0 488 280");
-    const anchors = [...container.querySelectorAll(".cp-radar-label")].map((node) => node.getAttribute("text-anchor"));
+    const anchors = [...container.querySelectorAll(".cp-radar-num")].map((node) => node.getAttribute("text-anchor"));
     expect(anchors).toEqual(["middle", "start", "start", "end", "end"]);
   });
 });

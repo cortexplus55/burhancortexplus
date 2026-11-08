@@ -2253,3 +2253,15 @@ Bekçi: `premium-ic-ekranlar-8-kasim.test.tsx` ("ikinci tur"), e2e `ana-ekran.sp
 
 Bekçi: `premium-ic-ekranlar-8-kasim.test.tsx` ("ayarlar tek merkez"), `profile-dialog.test.tsx` ("ayarlar tek yerde"), `profile-appearance.test.tsx`.
 | **Pencere anında açılır ve kapanır:** Ayarlar satırları `?dialog=…` adresini sunucuya gitmeden yazar (`DialogLink`, `history.pushState`; Next.js `useSearchParams` ile eşler); kapanış `history.replaceState`, yalnız profil penceresinde arkadan `router.refresh()`. Düz `<Link>` / `router.replace` bütün sayfayı sunucuda çizip pencereyi 2-3 sn geç açıp kapatıyordu. Telefonda kurucu rozeti yalnız üst çubukta gizli; Ayarlar ve Abonelik sayfasında görünür | `dialog-link.tsx`, `parity-dialog-host.tsx` |
+
+**Dördüncü tur (aynı gün, ürün sahibiyle birlikte seçildi).** Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| **Başla genel soruyla açılır:** ilk mesaj kayıtta seçilen ders ve hedeften kurulmuyor (öğretmen aylar önce seçilmiş dersle açıyordu); öğrenci "henüz karar vermedim, önce aklımda ne olduğunu sor" der | `first-prompts.ts` `START_PROMPT` |
+| **Kurulumun ilk ekranı** "Hangi sınava, hangi derse?": sınav türü küçük haplar, ders kutusu aynı ekranda (başlık "Hangi ders?" diyordu, ilk sorulan sınav türüydü) | `exam-create-wizard.tsx` `.apw-tracks` |
+| **Haftalık anket ekibe çıkmaz** (kurucu/yönetici cevapları öğrenci sonuçlarına karışıyordu); karar API'de (`isAdminUser`), okuma düşerse ekip sayılmaz | `api/feedback/weekly` |
+| **Tek ad:** sayfa, menü, Stüdyo kısayolu, profil kartı "İlerleme" (önce "Aktivitelerim" / "İlerleme Analizi" / "İlerleme"); "Sınıflar" → "Çalışma grupları" (öğretmen sınıfı gibi okunuyordu) | `ilerleme/page.tsx`, `sor-shell.tsx`, `tools.ts`, `siniflar/page.tsx` |
+| **Rol seviyeden:** ayrı "Rolüm: Öğrenci/Mezun" seçimi kalktı (seviyeyle çelişebiliyordu); seviye kaydedilince `learning_role` ondan yazılır (`roleForGrade`) | `profile-dialog.tsx` |
+| Beşgen her genişlikte numaralı, ad ve yüzde alttaki listede (çizim ≤ 30rem, ortalı); Belgelerim "Sil" okunur hap | `parity-shell.css`, `document-delete-button.tsx` |
+| Bilerek dokunulmayan: Yanlışlarım'da alt menüde "Stüdyo" seçili — Yanlışlar Defteri Stüdyo kısayolu | `student-shell-nav.ts` |

@@ -90,7 +90,8 @@ for (const size of SIZES) {
     await page.goto("/e2e/ic-ekran?ekran=radar");
     const clipped = await page.evaluate(() => {
       const svg = document.querySelector(".cp-radar-svg")!.getBoundingClientRect();
-      return [...document.querySelectorAll(".cp-radar-label")]
+      // 8 Kasım 2026: çizimde ad yok, numara var; ad ve yüzde alttaki listede.
+      return [...document.querySelectorAll(".cp-radar-num")]
         .filter((node) => {
           const box = node.getBoundingClientRect();
           return box.left < svg.left - 1 || box.right > svg.right + 1;
@@ -98,6 +99,7 @@ for (const size of SIZES) {
         .map((node) => node.textContent);
     });
     expect(clipped).toEqual([]);
+    expect(await page.locator(".cp-radar-legend li").count()).toBe(5);
 
     await page.goto("/e2e/ic-ekran?ekran=test");
     await expect(page.locator(".ls-hero")).toContainText("Konu Testi");

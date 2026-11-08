@@ -1,31 +1,13 @@
 /**
- * Ana sayfadaki Başla düğmesinin göndereceği ilk mesaj.
- * Kayıt sırasındaki sınıf / ders / hedef ile kişiselleşir.
- * AI'ya ürettirilmez: her açılışta kredi yakmamak için sabit şablon.
+ * Ana ekrandaki "Başla"nın öğrenci adına gönderdiği ilk mesaj.
  *
- * Boş ekrandaki üç kısayol ve alt satır 30 Eylül 2026'da kalktı: kıyas ürününün
- * ana sayfasında yalnızca selam ve Başla var.
+ * 8 Kasım 2026 (ürün sahibi): önce kayıtta seçilen ders ve hedeften kurulan bir cümleydi ("Mezun Fizik çalışmak
+ * istiyorum…"); öğretmen her seferinde aylar önce seçilmiş dersle açıyordu. Başla genel bir soruyla açılır: öğretmen
+ * önce bugün ne çalışmak istediğini sorar. Ders ya da konu önermez; öğrenci söyler.
  */
-export function defaultStartPrompt({
-  grade,
-  subject,
-  goal,
-}: {
-  grade?: string | null;
-  subject?: string | null;
-  goal?: string | null;
-}): string {
-  const ders = (subject ?? "").trim();
-  const sinif = (grade ?? "").trim();
-  const hedef = (goal ?? "").trim();
-  const seviye = sinif ? `${sinif} ` : "";
-  const konu = ders || "bugün çalışacağım konu";
-  if (hedef.startsWith("YKS") || hedef.startsWith("LGS")) {
-    const shortGoal = hedef.split(/[—\-|]/)[0].trim();
-    return `${shortGoal} için ${seviye}${konu} çalışmak istiyorum. Kısa bir tanışma sorusu sor, sonra birlikte bir başlangıç noktası seçelim.`;
-  }
-  if (ders) {
-    return `${seviye}${ders} çalışmak istiyorum. Önce bir soruyla seviyemi yokla, sonra bugün için tek bir net hedef öner.`;
-  }
-  return "Bugün verimli bir çalışma başlatmak istiyorum. Bana tek bir soru sorup neye odaklanacağımı birlikte seçelim.";
+export const START_PROMPT =
+  "Merhaba! Çalışmaya başlamak istiyorum ama bugün ne çalışacağıma henüz karar vermedim. Önce aklımda ne olduğunu sor.";
+
+export function defaultStartPrompt(): string {
+  return START_PROMPT;
 }

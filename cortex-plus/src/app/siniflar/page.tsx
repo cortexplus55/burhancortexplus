@@ -6,7 +6,7 @@ import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { createServiceClient } from "@/lib/supabase/server";
 
-export const metadata = { title: "Sınıflar" };
+export const metadata = { title: "Çalışma grupları" };
 export const dynamic = "force-dynamic";
 
 /** Davet bağlantısındaki kod: /siniflar?kod=ABC123 */
@@ -57,7 +57,7 @@ export default async function SiniflarPage({
     <ParitySorShell {...shell}>
       <div className="cp-exam-page space-y-6">
         <div>
-          <h1 className="text-xl font-semibold">Sınıflar</h1>
+          <h1 className="text-xl font-semibold">Çalışma grupları</h1>
           <p className="mt-1 text-sm text-[var(--cs-muted)]">
             Kendi çalışma grubunu kur ya da arkadaşının paylaştığı kodla katıl.
           </p>
@@ -83,7 +83,7 @@ export default async function SiniflarPage({
                   <div className="cp-classroom-icon cp-classroom-icon--joined" aria-hidden />
                   <div>
                     <p className="font-semibold">{room.name}</p>
-                    <p className="text-xs text-[var(--cp-muted)]">Katıldığın sınıf</p>
+                    <p className="text-xs text-[var(--cp-muted)]">Katıldığın grup</p>
                   </div>
                   <div className="cp-classroom-side">
                     <p className="text-xs text-[var(--cp-muted)]">Sınav hazırlıkları</p>
@@ -95,7 +95,7 @@ export default async function SiniflarPage({
           </ul>
         ) : (
           <div className="cp-class-empty">
-            <h1>İlk sınıfına katıl veya oluştur</h1>
+            <h1>İlk çalışma grubuna katıl ya da kur</h1>
             <p>
               Öğretmeninin verdiği kodla gir; ya da arkadaşlarınla çalışmak için
               kendi grubunu aç.

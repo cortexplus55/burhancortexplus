@@ -47,8 +47,8 @@ const MORE_LINKS = [
   { href: "/dokumanlar", label: "Belgelerim", icon: FileText },
   // 19 Ekim 2026: testlerdeki yanlışlar ve günlük 10 soruluk tur; önceden yalnız Araçlar'dan ulaşılıyordu.
   { href: "/yanlislarim", label: "Yanlışlarım", icon: NotebookPen },
-  { href: "/siniflar", label: "Sınıflar", icon: Users },
-  { href: "/ilerleme", label: "Aktivitelerim", icon: LineChart },
+  { href: "/siniflar", label: "Çalışma grupları", icon: Users },
+  { href: "/ilerleme", label: "İlerleme", icon: LineChart },
   { href: "/takvimim", label: "Takvimim", icon: CalendarDays },
   { href: "/krediler", label: "Kullanım limitleri", icon: Gauge },
   { href: "/davet", label: "Davet et", icon: Gift },

@@ -136,11 +136,8 @@ export default async function OgretmenPage({
   // ekranda "i̇yi günler" diye çift noktalı görünüyordu.
   const greetingLine = `${firstName}, ${turkishLower(timeGreeting)}!${moon}`;
   const goalText = goal?.goal_text ?? null;
-  const bootPrompt = defaultStartPrompt({
-    grade: profile?.grade_level,
-    subject: profile?.focus_subject,
-    goal: goalText,
-  });
+  // Başla genel bir soruyla açılır (8 Kasım 2026): kayıtta seçilen ders artık ilk mesaja yazılmıyor.
+  const bootPrompt = defaultStartPrompt();
   const style = parseTutorStyle(profile?.tutor_style);
   // Ana ekran öğretmenle sohbet alanıdır (8 Kasım 2026, ürün sahibi): selam, Başla ve hiç hazırlığı olmayan öğrenciye
   // ilk adım kartları. Plus kartı ve stüdyo kartları burada yok; stüdyolar üstteki "Çalışma Stüdyosu" sekmesinde.

@@ -15350,19 +15350,6 @@ a.cp-exam-search {
   color: var(--c-text-muted);
 }
 
-/* Telefonda yan etiket payı boş kalıyor (ad yerine numara): çizim o pay kadar büyür, figür taşanı keser.
-   viewBox 488 birim, çekirdek 280: genişlik 488/280, sola kayma 104/280. */
-@media (max-width: 560px) {
-  .cp-radar {
-    overflow: hidden;
-  }
-
-  .cp-radar .cp-radar-svg {
-    width: 174.3%;
-    max-width: none;
-    margin-left: -37.15%;
-  }
-}
 
 /* ── Ayarlar: tek merkez (8 Kasım 2026) ─────────────────────────────────────────────────────────────────────── */
 .cp-set-page {
@@ -15675,4 +15662,46 @@ a.cp-exam-search {
   min-height: 40px;
   padding: 0 0.85rem;
   font-size: 0.875rem;
+}
+
+/* Belgelerim "Sil": ikincil hap, kırmızı ama okunur (koyu ve açık temada). */
+.cp-docs-delete {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 36px;
+  padding: 0 0.8rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, #ef4444 40%, transparent);
+  color: #f87171;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.cp-docs-delete:hover {
+  background: color-mix(in srgb, #ef4444 12%, transparent);
+}
+
+:root:not(.dark) .cp-docs-delete {
+  color: #b91c1c;
+}
+
+/* Beşgen her genişlikte numaralı; adlar ve yüzdeler alttaki listede (masaüstünde ad iki kez yazıyordu).
+   Çizim yan payı kadar büyür ama 30rem'i geçmez, ortalanır. */
+.cp-radar {
+  overflow: hidden;
+}
+
+.cp-radar .cp-radar-label {
+  display: none;
+}
+
+.cp-radar .cp-radar-num {
+  display: inline;
+}
+
+.cp-radar .cp-radar-svg {
+  width: min(174.3%, 30rem);
+  max-width: none;
+  margin-left: calc((100% - min(174.3%, 30rem)) / 2);
 }

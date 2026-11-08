@@ -44,16 +44,14 @@ afterEach(() => {
 const patches = () => calls.filter((c) => c.method === "PATCH").map((c) => c.body);
 
 describe("profil penceresi", () => {
-  it("offers no parent role (the product is student-only)", () => {
-    render(<ProfileDialog open onClose={() => undefined} />);
+  // 8 Kasım 2026: ayrı rol seçimi yok (seviyeyle çelişebiliyordu); rol seviyeden yazılır. Veli rolü hiç yok.
+  it("rol seçimi ve veli yok; Mezun seviyesi mezun rolünü yazar", async () => {
+    render(<ProfileDialog open onClose={() => undefined} initialTab="school" />);
+    expect(screen.queryByText("Rolüm")).toBeNull();
     expect(screen.queryByText("Veli")).toBeNull();
-    expect(screen.getByText("Öğrenci")).toBeTruthy();
-  });
-
-  it("saves the role as soon as it is picked", async () => {
-    render(<ProfileDialog open onClose={() => undefined} />);
-    fireEvent.click(screen.getByText("Mezun"));
-    await waitFor(() => expect(patches()).toContainEqual({ learning_role: "graduate" }));
+    fireEvent.change(screen.getByPlaceholderText(/11. sınıf/), { target: { value: "Mezun" } });
+    fireEvent.click(screen.getByRole("button", { name: "Seviyeyi kaydet" }));
+    await waitFor(() => expect(patches()).toContainEqual({ grade_level: "Mezun", learning_role: "graduate" }));
   });
 
   it("saves the picked school with its id, not just a free-text name", async () => {
@@ -106,7 +104,7 @@ describe("profil penceresi", () => {
     fireEvent.click(screen.getByRole("button", { name: "Okulum" }));
     fireEvent.change(screen.getByPlaceholderText(/11\. sınıf/), { target: { value: "12. sınıf" } });
     fireEvent.click(screen.getByRole("button", { name: "Seviyeyi kaydet" }));
-    await waitFor(() => expect(patches()).toContainEqual({ grade_level: "12. sınıf" }));
+    await waitFor(() => expect(patches()).toContainEqual({ grade_level: "12. sınıf", learning_role: "student" }));
   });
 });
 
