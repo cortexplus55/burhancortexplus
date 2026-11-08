@@ -6,6 +6,8 @@ import { isFeatureEnabled, MARKETING_EMAIL_FLAG } from "@/lib/admin/feature-flag
 import { requireFounderPage } from "@/lib/auth/admin-guard";
 import { listCampaigns, type CampaignRow } from "@/lib/email/campaign";
 import { resendConfigured } from "@/lib/email/mailer";
+import { describeResendStatus, readResendStatus } from "@/lib/email/resend-status";
+import { ResendProbeButton } from "@/components/admin/resend-status-card";
 import { formatDate, formatNumber } from "@/lib/format";
 import { createServiceClient } from "@/lib/supabase/server";
 
@@ -39,6 +41,7 @@ export default async function AdminEpostaPage() {
   ]);
 
   const resendReady = resendConfigured();
+  const resendStatus = describeResendStatus(await readResendStatus());
   const stats = ((Array.isArray(referral.data) ? referral.data[0] : referral.data) ?? null) as ReferralStats | null;
   const top = (inviters.data ?? []) as Inviter[];
 
@@ -63,6 +66,17 @@ export default async function AdminEpostaPage() {
           Ücretsiz Resend planında günde 100, ayda 3.000 e-posta gönderilebilir; kota dolarsa gönderim durur ve kimse kaybolmaz, ertesi gün «Devam et» ile sürer.
           Öğrenci sayısı arttıkça Resend planını yükselt (Resend → Ayarlar → Faturalama).
         </p>
+      </AdminCard>
+
+      <AdminCard
+        title="Gönderim yolu"
+        desc="Bütün e-postalar (kayıt doğrulaması, şifre sıfırlama, hatırlatma, toplu mesaj) Resend üzerinden gider. Resend düşerse yalnız yedek SMTP devreye girer ve sebebi işlev günlüğüne yazılır."
+      >
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <AdminBadge tone={resendStatus.tone}>{resendStatus.title}</AdminBadge>
+        </div>
+        <p className="mb-3 text-sm text-[var(--adm-muted)]">{resendStatus.action}</p>
+        <ResendProbeButton />
       </AdminCard>
 
       <AdminCard title="Mesaj yaz" desc="Önce «Kendime deneme gönder» ile nasıl göründüğüne bak.">

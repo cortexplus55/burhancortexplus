@@ -88,7 +88,11 @@ describe("kayıt onayı kaydı", () => {
   it("the wizard sends the consent time on both email and Google signup", () => {
     const wizard = readFileSync("src/app/kayit/signup-wizard.tsx", "utf8");
     expect(wizard.match(/consentAcceptedAt: new Date\(\)\.toISOString\(\)/g)).toHaveLength(2);
-    expect(wizard).toContain("legal_consent_at: payload.consentAcceptedAt");
-    expect(wizard).toContain("legal_consent_evidence: payload.consentEvidence ?? null");
+    // 8 Kasım 2026: e-posta kaydı sunucu ucundan; onay anı ve kanıtı uca gider, uç hesabın üst verisine yazar.
+    expect(wizard).toContain("consentAcceptedAt: payload.consentAcceptedAt");
+    expect(wizard).toContain("consentEvidence: payload.consentEvidence");
+    const route = readFileSync("src/app/api/auth/signup/route.ts", "utf8");
+    expect(route).toContain("legal_consent_at: input.consentAcceptedAt");
+    expect(route).toContain("legal_consent_evidence: input.consentEvidence ?? null");
   });
 });

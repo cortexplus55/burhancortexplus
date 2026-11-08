@@ -1,36 +1,28 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { MarketingPage } from "@/components/layout/marketing-page";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
-import { authCallbackUrl } from "@/lib/auth/messages";
 
-const SIGNUP_EMAIL_KEY = "cortex-signup-email";
-
-function isHotmailLike(value: string) {
-  const domain = value.split("@")[1]?.toLowerCase() ?? "";
-  return ["hotmail.com", "outlook.com", "live.com", "msn.com"].some((d) =>
-    domain === d || domain.endsWith(`.${d}`),
-  );
-}
-
+/**
+ * E-posta doğrulama (8 Kasım 2026). Kayıt artık doğrulama beklemeden içeri alır (31 Ekim, Paket J1 #1) ve doğrulama
+ * bağlantısı Resend üzerinden gider; Supabase'in kendi doğrulama e-postası kalktı. Bu sayfa iki işe yarar:
+ * giriş yapmış öğrenci bağlantıyı buradan yeniden ister, girişi olmayan önce giriş yapar.
+ */
 export default function EmailDogrulaPage() {
-  const [email, setEmail] = useState("");
+  const [signedIn, setSignedIn] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
   const [cooldownUntil, setCooldownUntil] = useState(0);
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
-    try {
-      const stored = sessionStorage.getItem(SIGNUP_EMAIL_KEY);
-      if (stored) setEmail(stored);
-    } catch {
-      /* ignore */
-    }
+    createClient()
+      .auth.getUser()
+      .then(({ data }) => setSignedIn(Boolean(data.user)))
+      .catch(() => setSignedIn(false));
   }, []);
 
   useEffect(() => {
@@ -41,32 +33,25 @@ export default function EmailDogrulaPage() {
 
   const coolSeconds = Math.max(0, Math.ceil((cooldownUntil - now) / 1000));
 
-  async function resend(event: React.FormEvent) {
-    event.preventDefault();
-    if (coolSeconds > 0) return;
+  async function resend() {
+    if (coolSeconds > 0 || loading) return;
     setLoading(true);
     try {
-      const supabase = createClient();
-      const { error } = await supabase.auth.resend({
-        type: "signup",
-        email,
-        options: {
-          emailRedirectTo: authCallbackUrl("/kayit/tamamla"),
-        },
-      });
-      if (error) {
-        toast.error(
-          error.message.includes("rate") || error.status === 429
-            ? "Çok sık istek. Bir dakika sonra tekrar dene."
-            : "Gönderilemedi. E-posta adresini kontrol edip tekrar dene.",
-        );
+      const response = await fetch("/api/auth/eposta-dogrula/gonder", { method: "POST" });
+      const body = (await response.json().catch(() => ({}))) as { ok?: boolean; verified?: boolean; error?: string };
+      if (response.ok && body.verified) {
+        toast.success("E-postan zaten doğrulanmış.");
         return;
       }
-      setCooldownUntil(Date.now() + 60_000);
-      toast.success(
-        isHotmailLike(email)
-          ? "Bağlantı gönderildi. Hotmail/Outlook’ta Gelen, Gereksiz ve Diğer sekmelerini kontrol et."
-          : "Hesabın doğrulanmamışsa yeni bir bağlantı gönderdik.",
+      if (response.ok) {
+        setCooldownUntil(Date.now() + 60_000);
+        toast.success("Doğrulama bağlantısı gönderildi. Gelen kutunu ve spam klasörünü kontrol et.");
+        return;
+      }
+      toast.error(
+        response.status === 429
+          ? "Çok sık istek. Biraz bekleyip yeniden dene."
+          : (body.error ?? "Gönderilemedi. Birkaç dakika sonra yeniden dene."),
       );
     } finally {
       setLoading(false);
@@ -77,63 +62,31 @@ export default function EmailDogrulaPage() {
     <MarketingPage
       variant="auth"
       title="E-posta doğrulama"
-      description="Kayıt sırasında gönderdiğimiz bağlantıya tıklayarak hesabını etkinleştir."
+      description="Hesabın açık: doğrulama bağlantısı e-postana gelir, çalışmaya hemen başlayabilirsin."
     >
       <div className="mk-card space-y-6 p-6">
         <p className="text-sm text-[var(--mk-muted)]">
-          Bağlantı gelmediyse spam / gereksiz klasörünü kontrol et veya aşağıdan
-          yeniden gönder. Gönderen genelde{" "}
-          <span className="text-[var(--mk-text)]">cortexplus@cortexplus.app</span>.
+          Bağlantı gelmediyse spam / gereksiz klasörünü kontrol et. Gönderen{" "}
+          <span className="text-[var(--mk-text)]">cortexplus@cortexplus.app</span>. Hotmail ve Outlook&apos;ta Gelen,
+          Gereksiz ve Diğer sekmelerine de bak.
         </p>
-        {/* Oturum PKCE ile açılıyor: anahtar kayıt olunan tarayıcıda. Başka
-            cihazda açılan bağlantı e-postayı yine doğrular ama oturum orada
-            açılmaz (bkz. lib/auth/link-failure.ts). */}
         <p className="text-sm text-[var(--mk-muted)]">
-          Bağlantıyı kayıt olduğun cihazda ve tarayıcıda açarsan oturumun kendiliğinden açılır. Başka bir
-          cihazda açarsan e-postan yine doğrulanır; o cihazda bir kez giriş yapman yeterli.
+          Bağlantı 7 gün geçerli ve başka cihazda açılsa da e-postanı doğrular.
         </p>
 
-        {isHotmailLike(email) ? (
-          <div
-            role="note"
-            className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm leading-relaxed text-amber-100"
-          >
-            <p className="font-medium text-amber-50">Hotmail / Outlook ipucu</p>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-amber-100/90">
-              <li>Gelen, Gereksiz ve Diğer sekmelerini kontrol et.</li>
-              <li>
-                cortexplus@cortexplus.app adresini güvenilir gönderenlere ekle,
-                sonra yeniden gönder.
-              </li>
-              <li>Linkler kısa süreli; eski maildeki linki kullanma.</li>
-            </ul>
-          </div>
-        ) : null}
-
-        <form onSubmit={resend} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">E-posta</Label>
-            <Input
-              id="email"
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-            />
-          </div>
-          <Button
-            type="submit"
-            disabled={loading || coolSeconds > 0}
-            className="w-full"
-          >
+        {signedIn === false ? (
+          <Link href="/giris?next=/email-dogrula" className={`${buttonVariants()} w-full`}>
+            Giriş yap ve bağlantıyı yeniden iste
+          </Link>
+        ) : (
+          <Button type="button" disabled={loading || coolSeconds > 0 || signedIn === null} className="w-full" onClick={() => void resend()}>
             {loading
               ? "Gönderiliyor…"
               : coolSeconds > 0
                 ? `Yeniden gönder (${coolSeconds}s)`
-                : "Doğrulama e-postasını yeniden gönder"}
+                : "Doğrulama bağlantısını yeniden gönder"}
           </Button>
-        </form>
+        )}
       </div>
     </MarketingPage>
   );

@@ -177,12 +177,15 @@ describe("#1 hemen gir, içeride onayla", () => {
     expect(bad.headers.get("location")).toBe("https://cortexplus.app/ogretmen?eposta=gecersiz");
   });
 
-  it("sihirbaz önce sunucu kaydı + şifreyle giriş; düşerse eski yol; şerit kabukta; Google ile girilince şifre değişir", () => {
+  it("sihirbaz sunucu kaydı + şifreyle giriş; düşerse AYNI uca yeniden (Supabase'in kendi e-postası yok); şerit kabukta; Google ile girilince şifre değişir", () => {
     const wizard = read("src/app/kayit/signup-wizard.tsx");
     expect(wizard).toContain('await fetch("/api/auth/signup"');
     expect(wizard).toContain("await createClient().auth.signInWithPassword({ email, password })");
-    expect(wizard.indexOf('fetch("/api/auth/signup"')).toBeLessThan(wizard.indexOf("supabase.auth.signUp("));
-    expect(wizard).toContain("if (response.status >= 500 || body.fallback)");
+    // 8 Kasım 2026: Supabase'in kendi kayıt yolu ve e-postası kalktı; yalnız bizim uç (doğrulama Resend'den).
+    expect(wizard).not.toContain("auth.signUp(");
+    expect(wizard).not.toContain("emailRedirectTo");
+    expect(wizard).toContain("if (response.status < 500 && !body.fallback)");
+    expect(wizard).toContain("attempt < 2");
     expect(read("src/components/parity/sor-shell.tsx")).toContain("{account?.isAdmin ? null : <EmailVerifyBanner initialUnverified={emailUnverified} />}");
     const banner = read("src/components/auth/email-verify-banner.tsx");
     expect(banner).toContain("📩 Hesabını güvenceye almak için e-postanı doğrula.");

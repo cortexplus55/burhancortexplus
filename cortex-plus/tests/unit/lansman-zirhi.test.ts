@@ -253,7 +253,9 @@ describe("paylaşım ve davet", () => {
 
   it("davet kodu hesaba da yazılır; doğrulama başka tarayıcıda açılınca kurulum bağlar", () => {
     const wizard = read("src/app/kayit/signup-wizard.tsx");
-    expect(wizard).toContain('referral_code: payload.referralCode ?? ""');
+    // 8 Kasım 2026: kayıt yalnız sunucu ucundan (Supabase yedeği kalktı); kod uçta hesabın üst verisine yazılır.
+    expect(wizard).toContain("referralCode: payload.referralCode");
+    expect(read("src/app/api/auth/signup/route.ts")).toContain('referral_code: input.referralCode ?? ""');
     const actions = read("src/app/kayit/actions.ts");
     expect(actions).toContain("payload.referralCode || metadataReferralCode(user.user_metadata)");
     expect(actions).toContain("export async function applySignupReferral()");
@@ -270,6 +272,7 @@ describe("paylaşım ve davet", () => {
     expect(consent).toBeGreaterThan(0);
     expect(consent).toBeLessThan(google);
     expect(google).toBeLessThan(form);
-    expect(wizard).toContain("await checkSignupEmail(email)");
+    // Takma ad denetimi sunucuda (`/api/auth/signup`); istemcide ikinci kontrol yok.
+    expect(wizard).not.toContain("checkSignupEmail");
   });
 });

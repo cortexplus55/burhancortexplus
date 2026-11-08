@@ -2,7 +2,14 @@ import "server-only";
 import { createSmtpTransport, getSmtpConfig } from "@/lib/email/smtp";
 import { escapeHtml, personName } from "@/lib/email/escape";
 
-type SendResult = { ok: true } | { ok: false; reason: string };
+/**
+ * Gönderim sonucu (8 Kasım 2026): `via` e-postayı hangi yolun taşıdığını söyler (yönetimdeki tanı bunu gösterir);
+ * düşen sonuçta `tried` hangi yolların denendiğini söyler. Alıcı adresi hiçbir yerde yazılmaz.
+ */
+// `via` ve `tried` gerçek gönderimde hep dolu; testlerdeki sahte göndericiler eski `{ ok: true }` biçimini döndürüyor.
+export type SendResult = { ok: true; via?: "resend" | "smtp" } | { ok: false; reason: string; tried?: ("resend" | "smtp")[] };
+
+type ResendResult = { ok: true } | { ok: false; reason: string };
 
 async function sendViaResend({
   to,
@@ -18,7 +25,7 @@ async function sendViaResend({
   text: string;
   headers?: Record<string, string>;
   idempotencyKey?: string;
-}): Promise<SendResult> {
+}): Promise<ResendResult> {
   const apiKey = process.env.RESEND_API_KEY?.trim();
   const from = process.env.EMAIL_FROM?.trim();
   if (!apiKey || !from) {
@@ -100,11 +107,15 @@ export async function sendEmail({
   const config = getSmtpConfig();
   const order = deliveryOrder({ resend: resendConfigured(), smtp: Boolean(config) });
   let lastReason = "email_not_configured";
+  const tried: ("resend" | "smtp")[] = [];
   for (const via of order) {
+    tried.push(via);
     if (via === "resend") {
       const result = await sendViaResend({ to, subject, html, text, headers, idempotencyKey });
-      if (result.ok) return result;
+      if (result.ok) return { ok: true, via: "resend" };
       lastReason = result.reason;
+      // Resend düşünce sessizce yedeğe geçmek sorunu saklıyordu (8 Kasım 2026): sebep günlüğe yazılır.
+      console.warn("email_resend_failed", { reason: result.reason.slice(0, 200), fallbackSmtp: Boolean(config) });
       continue;
     }
     if (!config) continue;
@@ -120,12 +131,26 @@ export async function sendEmail({
         replyTo: config.user,
         headers: { "X-Entity-Ref-ID": `cortexplus-${Date.now()}`, ...(headers ?? UNSUBSCRIBE_HEADERS) },
       });
-      return { ok: true };
+      return { ok: true, via: "smtp" };
     } catch {
       lastReason = "smtp_send_failed";
     }
   }
-  return { ok: false, reason: lastReason };
+  console.error("email_send_failed", { tried, reason: lastReason.slice(0, 200) });
+  return { ok: false, reason: lastReason, tried };
+}
+
+/**
+ * Yönetim tanısı (8 Kasım 2026): YALNIZ Resend ile, yedeğe düşmeden gönderir ve Resend'in gerçek cevabını döner.
+ * "Gönderilemedi" demek yetmiyordu: alan adı doğrulanmamış mı, anahtar mı yanlış, kota mı doldu belli olmuyordu.
+ */
+export async function sendResendProbe(input: {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+}): Promise<{ ok: true } | { ok: false; reason: string }> {
+  return sendViaResend({ ...input, headers: undefined, idempotencyKey: undefined });
 }
 
 function layout(title: string, body: string, cta?: { href: string; label: string }) {

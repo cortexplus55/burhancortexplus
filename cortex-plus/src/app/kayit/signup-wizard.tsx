@@ -37,11 +37,10 @@ import {
   TUTOR_STYLE_OPTIONS,
   type SignupPayload,
 } from "@/lib/parity/signup";
-import { authCallbackUrl, authErrorMessage } from "@/lib/auth/messages";
+import { authCallbackUrl } from "@/lib/auth/messages";
 import { signInWithGoogle } from "@/lib/auth/google-oauth";
 import { useGoogleBlockedWebViewApp } from "@/lib/auth/in-app-browser";
 import { safeNextPath } from "@/lib/auth/safe-next-path";
-import { checkSignupEmail } from "./email-check";
 import { GoogleBlockedNote } from "@/components/auth/google-blocked-note";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 import { foldTr } from "@/lib/documents/page-analysis";
@@ -233,126 +232,57 @@ export function SignupWizard() {
     }
 
     // Hemen gir, içeride onayla (31 Ekim 2026, Paket J1 #1): hesap sunucuda açılır, öğrenci şifresiyle hemen girer;
-    // doğrulama bağlantısı arkadan gider ve içeride şerit hatırlatır. Uç düşerse (5xx, ağ) eski yol: Supabase kaydı
-    // ve doğrulama ekranı — kayıt hiçbir koşulda kapanmaz.
-    let fallback = false;
-    try {
-      const response = await fetch("/api/auth/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email,
-          password,
-          fullName: payload.fullName,
-          gradeLevel: payload.gradeLevel,
-          learningGoal: payload.learningGoal,
-          tutorStyle: payload.tutorStyle,
-          avatarEmoji: payload.avatarEmoji,
-          consentAcceptedAt: payload.consentAcceptedAt,
-          consentEvidence: payload.consentEvidence,
-          ageDeclaration: payload.ageDeclaration,
-          marketingEmail: payload.marketingEmail,
-          next: safeNextPath(searchParams.get("next"), ""),
-          referralCode: payload.referralCode,
-        }),
-      });
-      const body = (await response.json().catch(() => ({}))) as { error?: string; fallback?: boolean };
-      if (response.ok) {
-        const { error: signInError } = await createClient().auth.signInWithPassword({ email, password });
-        if (!signInError) {
-          router.refresh();
-          router.push("/kayit/tamamla");
+    // doğrulama bağlantısı arkadan, Resend üzerinden gider ve içeride şerit hatırlatır.
+    // 8 Kasım 2026: Supabase'in kendi kayıt yolu (`auth.signUp` + kendi e-postası) KALDIRILDI. O e-posta gelmiyordu
+    // (saatte 30, Gmail SMTP) ve öğrenciyi "doğrulama e-postası bekleniyor" ekranında bırakıyordu. Uç düşerse
+    // (5xx, ağ) aynı uca bir kez daha denenir; yine düşerse öğrenci nedenini bilerek yeniden dener.
+    const failedText = "Kayıt şu an tamamlanamadı. Birkaç saniye sonra yeniden dene.";
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const response = await fetch("/api/auth/signup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email,
+            password,
+            fullName: payload.fullName,
+            gradeLevel: payload.gradeLevel,
+            learningGoal: payload.learningGoal,
+            tutorStyle: payload.tutorStyle,
+            avatarEmoji: payload.avatarEmoji,
+            consentAcceptedAt: payload.consentAcceptedAt,
+            consentEvidence: payload.consentEvidence,
+            ageDeclaration: payload.ageDeclaration,
+            marketingEmail: payload.marketingEmail,
+            next: safeNextPath(searchParams.get("next"), ""),
+            referralCode: payload.referralCode,
+          }),
+        });
+        const body = (await response.json().catch(() => ({}))) as { error?: string; fallback?: boolean };
+        if (response.ok) {
+          const { error: signInError } = await createClient().auth.signInWithPassword({ email, password });
+          if (!signInError) {
+            router.refresh();
+            router.push("/kayit/tamamla");
+            return;
+          }
+          setLoading(false);
+          toast.error("Hesabın açıldı ama giriş yapılamadı. Giriş sayfasından e-posta ve şifrenle devam et.");
+          router.push("/giris");
           return;
         }
-        setLoading(false);
-        toast.error("Hesabın açıldı ama giriş yapılamadı. Giriş sayfasından e-posta ve şifrenle devam et.");
-        router.push("/giris");
-        return;
+        if (response.status < 500 && !body.fallback) {
+          setLoading(false);
+          toast.error(body.error ?? failedText);
+          return;
+        }
+      } catch {
+        /* ağ kopması: bir kez daha denenir */
       }
-      if (response.status >= 500 || body.fallback) {
-        fallback = true;
-      } else {
-        setLoading(false);
-        toast.error(body.error ?? "Kayıt şu an tamamlanamadı.");
-        return;
-      }
-    } catch {
-      fallback = true;
+      if (attempt === 0) await new Promise((resolve) => window.setTimeout(resolve, 1_500));
     }
-    if (!fallback) return;
-
-    // Aynı posta kutusunun başka yazımı (31 Ekim 2026): eski yolda sunucu kapısı yok; kontrol düşerse kayıt sürer.
-    const alias = await checkSignupEmail(email).catch(() => ({ ok: true }) as const);
-    if (!alias.ok) {
-      setLoading(false);
-      toast.error(alias.error);
-      return;
-    }
-
-    const supabase = createClient();
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: authCallbackUrl("/kayit/tamamla"),
-        data: {
-          full_name: payload.fullName,
-          primary_role: payload.role,
-          grade_level: payload.gradeLevel ?? "",
-          school_name: payload.schoolName ?? payload.teacherInstitution ?? "",
-          focus_subject: payload.focusSubject ?? payload.teacherBranch ?? "",
-          learning_goal: payload.learningGoal ?? "",
-          tutor_style: payload.tutorStyle ?? "step_by_step",
-          onboarding_done: "false",
-          parent_relation: payload.parentRelation ?? "",
-          phone: payload.parentPhone ?? "",
-          // Doğrulama bağlantısı başka tarayıcıda açılırsa localStorage'daki
-          // yük kaybolur; onay anı hesapta da dursun ki sunucu kaydedebilsin.
-          legal_consent_at: payload.consentAcceptedAt,
-          // Okuma kanıtı ve yaş beyanı da (7 Kasım 2026): bağlantı başka tarayıcıda açılınca tamamla sayfası
-          // yükü bulamaz; onay kapısı metni yeniden sormasın diye kanıt hesapta durur.
-          legal_consent_evidence: payload.consentEvidence ?? null,
-          age_declaration: payload.ageDeclaration ?? null,
-          marketing_email: payload.marketingEmail === true,
-          // Dönüş adresi de (ör. beta kodlu /pay?kod=…) hesapta dursun: Instagram'ın tarayıcısında
-          // kayıt olup onayı e-posta uygulamasından açan öğrencide kod kayboluyordu (20 Ekim 2026).
-          // Kurulum sonunda onboarding buradan okur.
-          signup_next: safeNextPath(searchParams.get("next"), ""),
-          // Davet kodu da (31 Ekim 2026): doğrulama başka tarayıcıda açılınca tarayıcıdaki yükle birlikte kayboluyordu.
-          referral_code: payload.referralCode ?? "",
-        },
-      },
-    });
-
-    if (error) {
-      setLoading(false);
-      const detail = authErrorMessage(error);
-      toast.error(detail);
-      console.error("[signup]", error.message, error);
-      return;
-    }
-
-    if (data.user && data.user.identities?.length === 0) {
-      setLoading(false);
-      toast.error("Bu e-posta zaten kayıtlı. Giriş yap veya şifreni sıfırla.");
-      return;
-    }
-
-    if (data.session) {
-      setLoading(false);
-      router.refresh();
-      router.push("/kayit/tamamla");
-      return;
-    }
-
     setLoading(false);
-    toast.success("Doğrulama e-postası gönderildi.");
-    try {
-      sessionStorage.setItem("cortex-signup-email", email);
-    } catch {
-      /* ignore */
-    }
-    router.push("/email-dogrula");
+    toast.error(failedText);
   }
 
   async function googleSignup() {

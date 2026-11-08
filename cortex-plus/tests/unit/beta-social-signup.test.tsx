@@ -85,7 +85,9 @@ describe("uygulamanın tarayıcısı: Google girişi", () => {
 describe("başka tarayıcıda onaylanan kayıt: dönüş adresi kaybolmaz", () => {
   it("kayıt dönüş adresini hesaba yazar; kurulum sonunda oraya gider", () => {
     const wizard = read("src/app/kayit/signup-wizard.tsx");
-    expect(wizard).toContain('signup_next: safeNextPath(searchParams.get("next"), ""),');
+    // 8 Kasım 2026: kayıt sunucu ucundan; dönüş adresi uçta hesabın üst verisine yazılır.
+    expect(wizard).toContain('next: safeNextPath(searchParams.get("next"), ""),');
+    expect(read("src/app/api/auth/signup/route.ts")).toContain('signup_next: safeNextPath(input.next ?? null, ""),');
     const onboarding = read("src/app/onboarding/page.tsx");
     expect(onboarding).toContain('typeof user.user_metadata?.signup_next === "string" ? user.user_metadata.signup_next : null');
     expect(onboarding).toMatch(/router\.push\(\s*signupNext \|\|/);

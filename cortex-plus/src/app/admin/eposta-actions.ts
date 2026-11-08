@@ -18,6 +18,8 @@ import {
   type CampaignProgress,
 } from "@/lib/email/campaign";
 import { REFERRAL_CAP_MAX, REFERRAL_CAP_MIN } from "@/lib/email/referral-cap";
+import { sendResendProbe } from "@/lib/email/mailer";
+import { describeResendStatus, readResendStatus } from "@/lib/email/resend-status";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 /*
@@ -80,7 +82,9 @@ export async function sendEmailTest(raw: unknown): Promise<{ ok: true; to: strin
     },
     { firstName: String(user.user_metadata?.full_name ?? "").split(" ")[0] || null, daysToExam: 30, userId: user.id },
   );
-  if (!result.ok) return { ok: false, error: "Deneme e-postası gönderilemedi. E-posta altyapısını kontrol et." };
+  if (!result.ok) {
+    return { ok: false, error: `Deneme e-postası gönderilemedi: ${(result.reason ?? "bilinmeyen sebep").slice(0, 160)}. «Gönderim yolu» kartından Resend durumuna bak.` };
+  }
 
   await auditLog(createServiceClient(), {
     actorId: actor.userId,
@@ -186,4 +190,41 @@ export async function sendSingleEmail(raw: unknown): Promise<{ ok: true; known: 
   if (!result.ok) return result;
   revalidatePath("/admin/eposta");
   return { ok: true, known: result.known };
+}
+
+/**
+ * Resend tanısı (8 Kasım 2026): kurucunun kendi adresine, YALNIZ Resend ile (yedeğe düşmeden) bir deneme gönderir ve
+ * Resend'in gerçek cevabını yazar. "Doğrulama e-postası gelmedi" şikâyetinde ilk bakılacak yer: alan adı doğrulanmamışsa
+ * burada açıkça yazar. Alan adı durumu da aynı turda okunur.
+ */
+export async function testResendDelivery(): Promise<
+  { ok: true; to: string; summary: string } | { ok: false; error: string; summary: string }
+> {
+  const actor = await checkFounderActor();
+  if (!actor.ok) return { ok: false, error: actor.error, summary: "" };
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.email) return { ok: false, error: "Hesabının e-posta adresi okunamadı.", summary: "" };
+
+  const status = await readResendStatus();
+  const described = describeResendStatus(status);
+  const summary = `${described.title}. ${described.action}`;
+  const result = await sendResendProbe({
+    to: user.email,
+    subject: "[Deneme] Cortex Plus · Resend gönderim testi",
+    html: "<p>Bu bir gönderim testidir: Resend üzerinden, yedek yola düşmeden gönderildi. Bu e-postayı görüyorsan Resend çalışıyor.</p>",
+    text: "Bu bir gönderim testidir: Resend üzerinden, yedek yola düşmeden gönderildi. Bu e-postayı görüyorsan Resend çalışıyor.",
+  });
+  await auditLog(createServiceClient(), {
+    actorId: actor.userId,
+    action: "email.resend_probe",
+    entityType: "email_campaign",
+    metadata: { ok: result.ok, status: status.state },
+  });
+  if (!result.ok) {
+    return { ok: false, error: `Resend gönderemedi: ${result.reason.slice(0, 220)}`, summary };
+  }
+  return { ok: true, to: user.email, summary };
 }
