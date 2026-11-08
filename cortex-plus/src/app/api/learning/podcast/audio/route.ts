@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { getUserEntitlements, requireFeature } from "@/lib/billing/entitlements";
-import { synthesizeCharged, synthesizeShared, type AudioTrack } from "@/lib/learning/audio-cache";
+import { countNewAudioChars, synthesizeCharged, synthesizeShared, type AudioTrack } from "@/lib/learning/audio-cache";
 import { isSharedPodcastScript, sharedBudgetAllows } from "@/lib/content-pool/shared-media";
 import { speakVerified } from "@/lib/learning/speech-normalizer";
 import { flattenLines, normalizeChapters } from "@/lib/learning/podcast-script";
@@ -60,9 +60,7 @@ export async function POST(request: Request) {
   if (!guard.ok) return guard.response;
 
   const entitlements = await getUserEntitlements(guard.ctx.service, guard.ctx.userId);
-  if (!requireFeature(entitlements, "podcast")) {
-    return errorResponse(402, "premium_required");
-  }
+  const premium = requireFeature(entitlements, "podcast");
 
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return errorResponse(400, "invalid_input");
@@ -81,6 +79,13 @@ export async function POST(request: Request) {
   if (speech.some((line) => line.text.length > MAX_SPEECH_LINE_CHARS) ||
       speech.reduce((sum, line) => sum + line.text.length, 0) > MAX_PODCAST_AUDIO_CHARS) {
     return errorResponse(400, "invalid_input");
+  }
+
+  // Ücretsiz hesapta yalnız daha önce üretilmiş ses (8 Kasım 2026): Plus'tan dönen öğrenci kendi podcast'ini yeniden
+  // dinleyebilsin; önbellekte olmayan tek satır bile varsa yeni ses demektir, Plus'ta. Önbellekten ses bize maliyetsiz.
+  if (!premium) {
+    const newChars = await countNewAudioChars(guard.ctx.service, speech).catch(() => -1);
+    if (newChars !== 0) return errorResponse(402, "premium_required");
   }
 
   // Paylaşımlı ünite podcast'i: kredi yok, maliyet SHARED_CONTENT_MEDIA; tavan doluysa bugünkü ücretli yol.

@@ -20,6 +20,7 @@ import { sendDailyDigest } from "@/lib/admin/daily-digest";
 import { sampleLessonQuality } from "@/lib/learning/lesson-quality-judge";
 import { pumpDueGenerationJobs } from "@/lib/learning/mock-exam-durable";
 import { sweepAbandonedMockBuilds } from "@/lib/learning/mock-exam/fallback-exam";
+import { sendPlanNoticeMails, type PlanNoticeMail } from "@/lib/email/plan-notice-mails";
 
 export const dynamic = "force-dynamic";
 // Günlük kalite örneği (üç model çağrısı) özetten sonra çalışır; tur 300 sn'ye sığar.
@@ -90,6 +91,12 @@ export async function GET(request: Request) {
 
   const rows = (data ?? []) as unknown as SubRow[];
   const notices: { user_id: string; title: string; body: string }[] = [];
+  // 8 Kasım 2026: plan bildirimleri e-postayla da gider (otomatik yenileme yok; bitişi kaçırmasın).
+  const mails: PlanNoticeMail[] = [];
+  const pushNotice = (sub: SubRow, kind: PlanNoticeMail["kind"], notice: { title: string; body: string }) => {
+    notices.push({ user_id: sub.user_id, ...notice });
+    mails.push({ userId: sub.user_id, subscriptionId: sub.id, kind, ...notice });
+  };
   const reminded: string[] = [];
   const expired: string[] = [];
 
@@ -105,10 +112,9 @@ export async function GET(request: Request) {
     if (hasExpired(sub, now)) {
       expired.push(sub.id);
       if (!sub.expired_notified_at && trial) {
-        notices.push({ user_id: sub.user_id, ...trialNotice("expired") });
+        pushNotice(sub, "expired", trialNotice("expired"));
       } else if (!sub.expired_notified_at) {
-        notices.push({
-          user_id: sub.user_id,
+        pushNotice(sub, "expired", {
           title: `${planName} aboneliğin sona erdi`,
           body: sub.cancel_at_period_end
             ? `${planName} aboneliğin bugün kapandı. İstediğin an geri dönebilirsin — çalışman ve defterin yerinde duruyor.`
@@ -124,11 +130,10 @@ export async function GET(request: Request) {
         left <= 0 ? "bugün" : left === 1 ? "yarın" : `${left} gün sonra`;
       reminded.push(sub.id);
       if (trial) {
-        notices.push({ user_id: sub.user_id, ...trialNotice("reminder", whenText) });
+        pushNotice(sub, "reminder", trialNotice("reminder", whenText));
         continue;
       }
-      notices.push({
-        user_id: sub.user_id,
+      pushNotice(sub, "reminder", {
         title: `${planName} aboneliğin ${whenText} bitiyor`,
         body: `${periodLabel(period)} dönemin ${whenText} doluyor. Tek dokunuşla yenileyebilirsin; erken yenilersen kalan günlerin yanmaz, üstüne eklenir.`,
       });
@@ -157,6 +162,14 @@ export async function GET(request: Request) {
         updated_at: stamp,
       })
       .in("id", expired);
+  }
+
+  // Bildirim yazıldıktan sonra e-posta; düşen gönderim turu durdurmaz (bildirim uygulamada duruyor).
+  let planMails = { sent: 0, failed: 0, skipped: 0 };
+  try {
+    planMails = await sendPlanNoticeMails(service, mails, now);
+  } catch {
+    logOpsEvent("subscription_sync_failed", { stage: "plan_notice_mail", count: mails.length });
   }
 
   /*
@@ -260,6 +273,7 @@ export async function GET(request: Request) {
     reminded: reminded.length,
     expired: expired.length,
     notified: notices.length,
+    planMails,
     deletion,
     expiredUploads,
     staleReservations,

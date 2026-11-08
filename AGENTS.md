@@ -2267,3 +2267,19 @@ Bekçi: `premium-ic-ekranlar-8-kasim.test.tsx` ("ayarlar tek merkez"), `profile-
 | Bilerek dokunulmayan: Yanlışlarım'da alt menüde "Stüdyo" seçili — Yanlışlar Defteri Stüdyo kısayolu | `student-shell-nav.ts` |
 | **Açık tema tamamlandı:** canlıda her sayfa açık temada tarandı (koyu zemin ölçümü). Hazırlık yolu, takvim, yazma alanı, mod düğmeleri, ruh hali seçimi, Okulum düğmesi koyu zeminde koyu yazıydı; stüdyoların başlığı ve seçili düğmesi beyaz zeminde beyazdı. Açık tema kuralları yalnız `:root:not(.dark)` altında (koyu tema değişmez); stüdyo yazı değişkenleri temadan. **Yeni bileşende renk değişkenden alınır, sabit koyu renk yazılmaz** | `parity-shell.css` "Açık tema tamamlaması", `learning-studio.css`, bekçi `acik-tema-8-kasim.test.ts` |
 | **Kazanım kodu öğrenciye gösterilmez:** hazır müfredattan kurulan hazırlıkta yol başlıkları, "Sıradaki" ve Sınavlar kartı "T.O.5.5 Metinde geçen …" diye başlıyordu (ücretsiz hesap turunda bulundu). Kod yalnız görünümde atılır (`withoutOutcomeCode`; "9. Sınıf", "T.C.", "M.Ö. 3000" dokunulmaz) | `path-labels.ts`, `node-heading.ts`, bekçi `kazanim-kodu-etiket.test.ts` |
+
+### Plus yaşam döngüsü (8 Kasım 2026, son kontrol)
+
+Ürün sahibi: "Plus alıp iptal eden ücretsize geçiyor mu, süresi biten sorun yaşıyor mu, Plus'tayken yaptıklarını tekrar
+edebiliyor mu?" Kodda baştan sona okundu. Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| **İptal = yenilemeyeceğim:** dönem sonuna kadar Plus açık kalır, sonra ücretsize döner (`cancel_at_period_end`); otomatik yenileme olmadığı için ekranda "Yenilemeyeceğim" | `api/payments/subscription`, `subscription-card.tsx` |
+| **Süre bitişi:** günlük işte `inactive`; hak hesabı `current_period_end`'e bakar, cron gecikse de bitiş anında ücretsiz | `subscription-renewal`, `entitlements.ts` |
+| **Kendi içeriği açık kalır:** "Tekrar incele" / "Dersi tekrarla" kayıtlı adımı Plus ve hak kapılarından ÖNCE açar (kredisiz, modelsiz). Plus'tan dönen öğrenci Plus'tayken ürettiği podcast ve sözlüyü açamıyordu. Yeni üretim yine kapıdan geçer | `node/start.ts` (`reopenedEarly`) |
+| **Podcast sesi:** ücretsiz hesapta yalnız önbellekteki ses çalar (bize maliyetsiz); tek satır yeni ses gerekiyorsa 402 `premium_required`. Önce her istekte kayıt okunmadan 402 dönüyordu | `api/learning/podcast/audio` (`countNewAudioChars`) |
+| **Videolar, deneme sonuçları, defter** zaten Plus'a bakmıyor; ücretsiz kuralları (hazırlık başına 1. konu, haftada 3 ders) daha önce açılmış adımı kilitlemez | `free-topic-gate.ts` |
+| **Bitiş hatırlatması e-postayla da** (3 gün önce ve bitiş günü; hizmet e-postası, izin istemez, tekillik anahtarı `plan-<tür>-<abonelik>`); uygulama içi bildirim aynen. Gönderim düşerse tur düşmez | `plan-notice-mails.ts`, `renderPlanNoticeMail` |
+
+Bekçi: `plus-yasam-dongusu.test.ts`, `node-route-contract.test.ts` (tekrar açılışında abonelik sorgusu yok).

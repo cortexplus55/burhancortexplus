@@ -278,3 +278,40 @@ export function renderReferralGiftMail(input: { firstName?: string | null; lesso
   ].join("\n");
   return { subject, html, text };
 }
+
+/**
+ * Plan bildirimi (8 Kasım 2026): "Plus'ın 3 gün sonra bitiyor" ve "Plus'ın bugün bitti". Otomatik yenileme olmadığı
+ * için (`AUTO_RENEW_SUPPORTED = false`) öğrencinin bitişi kaçırmaması gerekiyordu; önce yalnız uygulama içi
+ * bildirimdi. Hesabın kendisiyle ilgili bilgi (hizmet e-postası): izin istemez, çıkış bağlantısı yok.
+ */
+export function renderPlanNoticeMail(input: {
+  firstName?: string | null;
+  title: string;
+  body: string;
+  ctaLabel: string;
+  ctaUrl: string;
+}): RenderedMail {
+  const name = personName(input.firstName, 1);
+  const html = emailShell({
+    preheader: input.body.slice(0, 110),
+    title: input.title,
+    bodyHtml:
+      `<p style="margin:0 0 12px;font:15px/1.6 ${FONT};color:${MUTED};">${name ? `Merhaba ${escapeHtml(name)},` : "Merhaba,"}</p>` +
+      `<h1 style="margin:0 0 14px;font:700 21px/1.3 ${FONT};color:${INK};">${escapeHtml(input.title)}</h1>` +
+      paragraphsHtml(input.body) +
+      ctaButton(input.ctaLabel, input.ctaUrl),
+    footer: footerHtml("service", null),
+  });
+  const text = [
+    name ? `Merhaba ${name},` : "Merhaba,",
+    "",
+    input.title,
+    "",
+    input.body,
+    "",
+    `${input.ctaLabel}: ${input.ctaUrl}`,
+    "",
+    footerText("service", null),
+  ].join("\n");
+  return { subject: input.title, html, text };
+}
