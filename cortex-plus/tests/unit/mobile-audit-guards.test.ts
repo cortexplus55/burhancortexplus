@@ -43,7 +43,7 @@ describe("telefon denetimi bekçileri", () => {
 
   it("belge kartındaki Sil ve belge sayfasındaki geri bağlantısı parmakla basılır boyda", () => {
     expect(read("src/components/documents/document-delete-button.tsx")).toMatch(
-      /className="inline-flex min-h-8 items-center[^"]*"\s*\n\s*onClick=\{\(\) => setConfirming\(true\)\}/,
+      /className="cp-docs-delete cp-tap"\s*\n\s*onClick=\{\(\) => setConfirming\(true\)\}/,
     );
     expect(read("src/app/dokumanlar/[documentId]/page.tsx")).toContain(
       'className="inline-flex min-h-8 items-center text-xs text-[var(--cs-muted)] underline"',

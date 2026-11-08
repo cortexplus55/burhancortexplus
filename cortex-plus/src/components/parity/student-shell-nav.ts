@@ -42,7 +42,7 @@ export const CANONICAL_FEATURES = {
   photoSolve: "Fotoğraftan Çözüm",
   mistakeNotebook: "Yanlışlar Defteri",
   studyPlan: "Çalışma Planı",
-  progress: "İlerleme Analizi",
+  progress: "İlerleme",
 } as const;
 
 /**
@@ -124,7 +124,7 @@ export const studentMenuGroups: {
       { href: "/studio/sozlu", label: CANONICAL_FEATURES.oral, icon: Mic },
       { href: "/yanlislarim", label: CANONICAL_FEATURES.mistakeNotebook, icon: NotebookPen },
       { href: "/ilerleme", label: CANONICAL_FEATURES.progress, icon: Sparkles },
-      { href: "/siniflar", label: "Sınıflar", icon: Users },
+      { href: "/siniflar", label: "Çalışma grupları", icon: Users },
       { href: "/davet", label: "Davet et", icon: Sparkles },
     ],
   },

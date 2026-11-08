@@ -103,7 +103,7 @@ export function ExamChatMenu({
             <div className="cp-exam-tiles">
               <Link href="/ilerleme" className="cp-exam-tile" onClick={onClose}>
                 <LineChart className="h-6 w-6" aria-hidden />
-                Aktivitelerim
+                İlerleme
               </Link>
               <Link href="/takvimim" className="cp-exam-tile" onClick={onClose}>
                 <CalendarDays className="h-6 w-6" aria-hidden />

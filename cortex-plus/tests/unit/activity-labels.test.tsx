@@ -6,11 +6,11 @@ import { ActivityHistory } from "@/components/student/activity-history";
 
 afterEach(cleanup);
 
-describe("Aktivitelerim", () => {
+describe("İlerleme sayfası (8 Kasım 2026'ya kadar Aktivitelerim)", () => {
   it("sayfa başlığı menüdeki adla aynı", () => {
     const page = readFileSync("src/app/ilerleme/page.tsx", "utf8");
-    expect(page).toContain('title: "Aktivitelerim"');
-    expect(page).toContain(">Aktivitelerim</h1>");
+    expect(page).toContain('title: "İlerleme"');
+    expect(page).toContain(">İlerleme</h1>");
     expect(page).toContain("PrepRadarChart");
     expect(page).toContain("PrepForecastChart");
     expect(page).toContain("loadNearestPrepInsights");

@@ -117,7 +117,8 @@ describe("telefon dokunma alanı tabanı (36 px)", () => {
 
   it("Tailwind sınıflı küçük düğmeler cp-tap taşır", () => {
     const uses: Array<[string, RegExp]> = [
-      ["src/components/documents/document-delete-button.tsx", /className="inline-flex min-h-8 items-center[^"]*\bcp-tap\b[^"]*"\s*\n\s*onClick=\{\(\) => setConfirming\(true\)\}/],
+      // 8 Kasım 2026: "Sil" hap (cp-docs-delete, 36 px).
+      ["src/components/documents/document-delete-button.tsx", /className="cp-docs-delete cp-tap"\s*\n\s*onClick=\{\(\) => setConfirming\(true\)\}/],
       ["src/components/parity/subscription-cards.tsx", /className="cp-tap [^"]*"\s*\n\s*onClick=\{\(\) => setPlusOpen/],
       ["src/components/parity/mistake-notebook-view.tsx", /className="cp-tap mt-3 inline-flex/],
       ["src/components/layout/premium-auth-shell.tsx", /className="cp-tap [^"]*"\s*\n\s*>\s*\n\s*Ücretsiz dene/],

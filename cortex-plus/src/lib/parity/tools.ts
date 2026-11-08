@@ -157,7 +157,7 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "ilerleme",
-    title: "İlerleme Analizi",
+    title: "İlerleme",
     blurb: "Neyi ne kadar çalıştığını gör.",
     subject: "Genel",
     kind: "kisayol",

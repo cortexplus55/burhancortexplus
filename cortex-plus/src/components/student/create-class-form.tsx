@@ -23,7 +23,7 @@ export function CreateClassForm() {
       });
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error("Sınıf oluşturulamadı.");
+        toast.error("Grup oluşturulamadı.");
         return;
       }
       toast.success(`Sınıf hazır. Katılım kodu: ${payload.joinCode}`);
@@ -54,7 +54,7 @@ export function CreateClassForm() {
         />
       </div>
       <Button type="submit" disabled={loading || name.trim().length < 2}>
-        Sınıf oluştur
+        Grubu kur
       </Button>
     </form>
   );

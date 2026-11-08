@@ -1636,9 +1636,12 @@ export function ExamCreateWizard({
 
       {step === "subject" ? (
         <section className="apw-step">
-          <h1>Hangi ders?</h1>
-          <p className="apw-lead">Sınav hazırlığın bu dersin altında toplanır.</p>
-          <div className="apw-quick" role="group" aria-label="Sınav türü">
+          {/* 8 Kasım 2026: başlık "Hangi ders?" diyordu ama ilk sorulan sınav türüydü; 11 tür tek sütunda ders kutusunu
+              telefonda ilk ekranın dışına itiyordu. Sınav türü küçük haplar, ders aynı ekranda. */}
+          <h1>Hangi sınava, hangi derse?</h1>
+          <p className="apw-lead">Önce sınav türünü, sonra dersini seç. Hazırlığın bu dersin altında toplanır.</p>
+          <p className="apw-sublabel">Sınav türü</p>
+          <div className="apw-quick apw-tracks" role="group" aria-label="Sınav türü">
             {EXAM_TRACKS.map((track) => (
               <button
                 key={track.id}
@@ -1663,6 +1666,7 @@ export function ExamCreateWizard({
               </span>
             </a>
           ) : null}
+          <p className="apw-sublabel">Ders</p>
           <input
             className="apw-search"
             value={subjectQuery}

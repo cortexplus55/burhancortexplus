@@ -137,7 +137,7 @@ export function ProfilePanel({
       <div className="cp-pp-cards">
         <Link href="/ilerleme" className="cp-pp-card">
           <TrendingUp className="h-5 w-5" aria-hidden />
-          <strong>Aktivitelerim</strong>
+          <strong>İlerleme</strong>
           <span>Öğrenme ilerlemeni takip et</span>
         </Link>
         <Link href="/takvimim" className="cp-pp-card">

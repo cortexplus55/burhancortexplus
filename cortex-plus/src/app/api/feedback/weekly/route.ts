@@ -2,6 +2,16 @@ import { NextResponse } from "next/server";
 import { withUser } from "@/lib/api/guards";
 import { surveyAnswerSchema } from "@/lib/feedback/weekly-survey";
 import { surveyEligibility, surveySegment } from "@/lib/feedback/weekly-survey-server";
+import { isAdminUser } from "@/lib/auth/roles";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+/**
+ * Kurucu ve yöneticiler anketi görmez (8 Kasım 2026): cevapları /admin/anket'teki öğrenci sonuçlarına karışıyordu.
+ * Okuma düşerse ekip sayılmaz (anket görünür, öğrenci etkilenmez).
+ */
+async function isStaff(service: SupabaseClient, userId: string): Promise<boolean> {
+  return isAdminUser(service, userId).catch(() => false);
+}
 
 export const dynamic = "force-dynamic";
 
@@ -15,8 +25,8 @@ export async function GET(request: Request) {
   const guard = await withUser(request, { scope: "weekly-survey-read", limit: 30 });
   if (!guard.ok) return guard.response;
   const { userId, service } = guard.ctx;
-  const { show, week } = await surveyEligibility(service, userId);
-  return NextResponse.json({ show, week });
+  const [{ show, week }, staff] = await Promise.all([surveyEligibility(service, userId), isStaff(service, userId)]);
+  return NextResponse.json({ show: show && !staff, week });
 }
 
 export async function POST(request: Request) {
@@ -27,8 +37,8 @@ export async function POST(request: Request) {
   const parsed = surveyAnswerSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ ok: false, error: "Cevap okunamadı." }, { status: 400 });
 
-  const eligibility = await surveyEligibility(service, userId);
-  if (!eligibility.show) return NextResponse.json({ ok: true, recorded: false });
+  const [eligibility, staff] = await Promise.all([surveyEligibility(service, userId), isStaff(service, userId)]);
+  if (!eligibility.show || staff) return NextResponse.json({ ok: true, recorded: false });
 
   const answer = parsed.data;
   const row =

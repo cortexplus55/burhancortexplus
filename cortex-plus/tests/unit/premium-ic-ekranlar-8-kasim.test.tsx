@@ -282,3 +282,44 @@ describe("ayarlar penceresi anında açılır ve kapanır", () => {
     expect(read("src/app/ayarlar/page.tsx")).toContain('href.includes("dialog=") ? DialogLink : Link');
   });
 });
+
+/* Dördüncü tur (8 Kasım 2026): ürün sahibiyle birlikte seçilen mantık düzeltmeleri. */
+describe("mantık düzeltmeleri", () => {
+  it("Başla genel bir soruyla açılır; kayıtta seçilen ders ilk mesaja yazılmaz", async () => {
+    const { defaultStartPrompt, START_PROMPT } = await import("@/lib/student/first-prompts");
+    expect(defaultStartPrompt()).toBe(START_PROMPT);
+    expect(START_PROMPT).toContain("aklımda ne olduğunu sor");
+    expect(read("src/app/ogretmen/page.tsx")).toContain("defaultStartPrompt()");
+  });
+
+  it("kurulumun ilk ekranı sınav türünü ve dersi birlikte sorar", () => {
+    const wizard = read("src/components/parity/exam-create-wizard.tsx");
+    expect(wizard).toContain("<h1>Hangi sınava, hangi derse?</h1>");
+    expect(wizard).not.toContain("<h1>Hangi ders?</h1>");
+    expect(wizard).toContain('className="apw-quick apw-tracks"');
+  });
+
+  it("haftalık anket kurucu ve yöneticilere çıkmaz", () => {
+    const route = read("src/app/api/feedback/weekly/route.ts");
+    expect(route).toContain("show: show && !staff");
+    expect(route).toContain("if (!eligibility.show || staff)");
+  });
+
+  it("tek ad İlerleme; Sınıflar 'Çalışma grupları'", () => {
+    expect(read("src/app/ilerleme/page.tsx")).toContain('title: "İlerleme"');
+    expect(read("src/lib/parity/tools.ts")).not.toContain("İlerleme Analizi");
+    expect(read("src/components/parity/sor-shell.tsx")).toContain('label: "Çalışma grupları"');
+    expect(read("src/app/siniflar/page.tsx")).toContain('title: "Çalışma grupları"');
+  });
+
+  it("rol seviyeden: Mezun yazan mezun sayılır", async () => {
+    const { roleForGrade } = await import("@/components/parity/profile-dialog");
+    expect(roleForGrade("Mezun")).toBe("graduate");
+    expect(roleForGrade("11. sınıf")).toBe("student");
+    expect(read("src/components/parity/profile-dialog.tsx")).not.toContain("cp-profile-heading mt-6\">Rolüm");
+  });
+
+  it("beşgen her genişlikte numaralı (ad yalnız alttaki listede)", () => {
+    expect(read("src/styles/parity-shell.css")).toMatch(/\n\.cp-radar \.cp-radar-label \{\s*display: none;/);
+  });
+});

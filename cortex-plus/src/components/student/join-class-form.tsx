@@ -70,7 +70,7 @@ export function JoinClassForm({ initialCode = "" }: { initialCode?: string }) {
         />
       </div>
       <Button type="submit" disabled={loading || code.trim().length < 4}>
-        Sınıfa katıl
+        Gruba katıl
       </Button>
     </form>
   );

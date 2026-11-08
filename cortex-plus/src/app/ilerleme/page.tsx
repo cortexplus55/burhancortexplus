@@ -24,7 +24,7 @@ import { normalizeLearningRows, type LearningTimeRow } from "@/lib/learning/lear
 import { loadStudentMemory, type StudentMemory } from "@/lib/learning/student-memory";
 import { LearningDnaCard } from "@/components/student/learning-dna-card";
 
-export const metadata = { title: "Aktivitelerim" };
+export const metadata = { title: "İlerleme" };
 export const dynamic = "force-dynamic";
 
 type CountResult = { count: number | null };
@@ -186,7 +186,7 @@ export default async function IlerlemePage() {
       {/* Sayfanın h1'i yoktu: ekran okuyucu "burası neresi" sorusunu
           yanıtlayamıyordu, sekme başlığı dışında hiçbir işaret yoktu. */}
       <div className="cp-page-head">
-        <h1 className="cp-page-title">Aktivitelerim</h1>
+        <h1 className="cp-page-title">İlerleme</h1>
       </div>
       <div className="space-y-6">
         {prepInsights ? (
