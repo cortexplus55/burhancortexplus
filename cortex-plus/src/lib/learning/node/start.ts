@@ -267,12 +267,19 @@ export async function startAction(context: NodeContext): Promise<NextResponse> {
     }
   }
 
+  const voiceSession = voiceMode && (kind === "qa" || kind === "oral");
+  // Kayıtlı içeriği yeniden açmak ("Tekrar incele", "Dersi tekrarla") Plus ve hak kapılarından ÖNCE (8 Kasım 2026):
+  // Plus'tan ücretsize dönen öğrenci, Plus'tayken ürettiği podcast ve sözlüyü açamıyordu ("Plus gerekli"); kendi
+  // içeriği kredisiz ve model çağrısız açılır. Yeni üretim aşağıdaki kapılardan geçer; kayıt yoksa bu adım boş döner.
+  if (parsed.data.review === true || parsed.data.replay === true) {
+    const reopenedEarly = await reopenSavedAttempt(context, { topic, topicLabel, title, clientRequestId, voiceSession });
+    if (reopenedEarly) return reopenedEarly;
+  }
   const entitlements = await getUserEntitlements(service, userId);
   const premium = entitlements.isPremium;
   if (kind === "podcast" && !requireFeature(entitlements, "podcast")) {
     return errorResponse(402, "premium_required");
   }
-  const voiceSession = voiceMode && (kind === "qa" || kind === "oral");
   // Ücretsiz katman sayıya dayalı (24 Ekim 2026): ders haftalık hakkı; konunun dersi açıldıysa ardındaki
   // test/kartlar derse dahil; podcast, sözlü, yazılı deneme Plus'ta. Abone ve kurucu (önizleme kapalı) yok.
   // Hazırlık geneli adımın kendi konusu yok: devraldığı 1. konu ya da yöneldiği zayıf konu sayacı
@@ -322,9 +329,6 @@ export async function startAction(context: NodeContext): Promise<NextResponse> {
       return NextResponse.json({ ok: true, skipped: "credits" });
     }
   }
-
-  const reopened = await reopenSavedAttempt(context, { topic, topicLabel, title, clientRequestId, voiceSession });
-  if (reopened) return reopened;
 
   const adopted = await adoptBuildingLesson(context, {
     topic,
