@@ -1,5 +1,5 @@
 import { PLAN_NODE_META, type PlanNodeKind } from "@/lib/learning/exam-prep-plan";
-import { topicOnlyLabel, withoutGradeParts } from "@/lib/learning/path-labels";
+import { topicOnlyLabel, withoutGradeParts, withoutOutcomeCode } from "@/lib/learning/path-labels";
 import { ALL_TOPICS_KINDS, ALL_TOPICS_LABEL } from "@/lib/learning/prep-wide-target";
 
 /**
@@ -13,7 +13,7 @@ export function nodeHeading(node: {
 }): string {
   const raw = node.title || PLAN_NODE_META[node.kind].title;
   // "9. Sınıf · Konu" kartta "9. Sınıf" yazıyordu (2 Kasım 2026): sınıf parçası başlık olmaz.
-  const parts = withoutGradeParts(raw.split(" · ").map((part) => part.trim()));
+  const parts = withoutGradeParts(raw.split(" · ").map((part) => withoutOutcomeCode(part.trim())));
   // Kavram birimli ders: "Konu · Ders 2/9: Hukukun kaynakları · dosya s.…" → dersin
   // kendi adı. kıyas ürünü kartta ana konuyu değil dersin adını yazar (3 Ekim 2026).
   const unit = parts.find((part) => /^Ders \d+\/\d+: /.test(part));
