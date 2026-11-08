@@ -298,8 +298,13 @@ export function PrepCard({ card, showTargetLabel }: { card: ExamPrepCard; showTa
       </div>
       <div className="cp-prep-card-foot">
         <span className="cp-prep-card-meta">
-          {card.daysLabel}
-          <span aria-hidden> · </span>
+          {/* Tarihli kartta gün üstteki çipte; altta ikinci kez yazılmaz. */}
+          {card.dated && card.daysLabel ? null : (
+            <>
+              {card.daysLabel}
+              <span aria-hidden> · </span>
+            </>
+          )}
           <strong>
             {card.topicsDone} / {card.topicsTotal}
           </strong>{" "}

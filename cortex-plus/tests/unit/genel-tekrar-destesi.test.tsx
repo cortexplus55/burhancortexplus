@@ -188,3 +188,9 @@ describe("yol adımları ve hazırlık kartı (8 Kasım 2026)", () => {
     expect(read("src/lib/learning/prep-cards.ts")).toContain("dated: Boolean(prep.exam_date),");
   });
 });
+
+describe("hazırlık kartı gün tekrarı", () => {
+  it("tarihli kartta gün yalnız çipte, alt şeritte yok", () => {
+    expect(read("src/components/parity/exam-prep.tsx")).toMatch(/\{card\.dated && card\.daysLabel \? null : \(\n\s*<>\n\s*\{card\.daysLabel\}/);
+  });
+});
