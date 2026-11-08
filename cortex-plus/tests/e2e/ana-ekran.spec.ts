@@ -62,14 +62,50 @@ for (const size of SIZES) {
     expect(empty.clipped).toBe(false);
     await page.screenshot({ path: `test-results/ana-ekran-${size.width}-bos.png` });
 
+    // Kayıtlı sohbet açılınca sayfa kendiliğinden sona iner: testte elle kaydırma yok (8 Kasım 2026).
     await page.goto("/e2e/ana-ekran?durum=sohbet");
-    await expect(page.getByText("Peki ikinci türev neyi gösterir?")).toBeVisible();
+    await expect(page.getByText("Peki ikinci türev neyi gösterir?")).toBeAttached();
     await expect(page.locator(".pm-card, .cp-sor-upgrade-row")).toHaveCount(0);
-    await scrollToEnd(page);
-    const thread = await layout(page, ".cp-sor-msg-assistant, .cp-followups");
-    expect(thread.overflow).toBeLessThanOrEqual(1);
-    expect(thread.gap).toBeGreaterThanOrEqual(0);
-    expect(thread.centered).toBe(true);
+    await expect(page.locator(".cp-sor-view[data-composer-measured]")).toBeAttached({ timeout: 30_000 });
+    await expect(page.locator(".cp-followups")).toBeVisible();
+    await expect(async () => {
+      const thread = await layout(page, ".cp-followups");
+      expect(thread.overflow).toBeLessThanOrEqual(1);
+      expect(thread.gap).toBeGreaterThanOrEqual(0);
+      expect(thread.centered).toBe(true);
+    }).toPass({ timeout: 10_000 });
+
+    // Cevabı gelmemiş son soru: "Tekrar sor" görünür ve yazma alanının üstünde.
+    await page.goto("/e2e/ana-ekran?durum=cevapsiz");
+    await expect(page.locator(".cp-sor-view[data-composer-measured]")).toBeAttached({ timeout: 30_000 });
+    await expect(page.getByRole("button", { name: "Tekrar sor" })).toBeVisible();
+    await expect(async () => {
+      const unanswered = await layout(page, ".cp-sor-unanswered");
+      expect(unanswered.gap).toBeGreaterThanOrEqual(0);
+    }).toPass({ timeout: 10_000 });
+  });
+
+  test(`iç ekranlar ${size.width}×${size.height}: beşgen etiketleri kesilmez, stüdyo başı ve defter`, { tag: ["@public"] }, async ({ page }) => {
+    await page.setViewportSize(size);
+    await page.goto("/e2e/ic-ekran?ekran=radar");
+    const clipped = await page.evaluate(() => {
+      const svg = document.querySelector(".cp-radar-svg")!.getBoundingClientRect();
+      return [...document.querySelectorAll(".cp-radar-label")]
+        .filter((node) => {
+          const box = node.getBoundingClientRect();
+          return box.left < svg.left - 1 || box.right > svg.right + 1;
+        })
+        .map((node) => node.textContent);
+    });
+    expect(clipped).toEqual([]);
+
+    await page.goto("/e2e/ic-ekran?ekran=test");
+    await expect(page.locator(".ls-hero")).toContainText("Konu Testi");
+    await expect(page.getByRole("link", { name: "Çalışma Stüdyosu" }).first()).toBeAttached();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+
+    await page.goto("/e2e/ic-ekran?ekran=defter");
+    await expect(page.getByRole("link", { name: "İlk testini çöz" })).toBeVisible();
   });
 
   test(`Çalışma Stüdyosu ${size.width}×${size.height}: sekiz kart, taşma yok, kartlar tıklanır`, { tag: ["@public"] }, async ({ page }) => {

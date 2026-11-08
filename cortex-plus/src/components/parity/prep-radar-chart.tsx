@@ -6,6 +6,11 @@ const CX = SIZE / 2;
 const CY = SIZE / 2 + 6;
 const RADIUS = 92;
 const RINGS = [0.25, 0.5, 0.75, 1];
+/**
+ * Yan etiketlerin payı (8 Kasım 2026): etiketler ortalanıp 280 birimlik kutuya sığmıyordu, solda "Tempo & Düzen"
+ * "mpo & Düzen" diye kesiliyordu. Yan etiketler grafikten dışa doğru hizalanır ve kutu iki yana genişler.
+ */
+const PAD_X = 104;
 
 function polar(index: number, total: number, ratio: number) {
   const angle = -Math.PI / 2 + (index / total) * Math.PI * 2;
@@ -49,7 +54,7 @@ export function PrepRadarChart({
     <figure className={compact ? "cp-radar cp-radar--compact" : "cp-radar"}>
       <svg
         className="cp-radar-svg"
-        viewBox={`0 0 ${SIZE} ${SIZE}`}
+        viewBox={`${-PAD_X} 0 ${SIZE + PAD_X * 2} ${SIZE}`}
         role="img"
         aria-label={`Hazırlık skoru yüzde ${readinessPct}, hedef yüzde ${targetScore}. ${axes
           .map((axis) => `${axis.label} yüzde ${axis.pct}`)
@@ -75,15 +80,17 @@ export function PrepRadarChart({
         <path className="cp-radar-fill" d={valuePath} />
         {axes.map((axis, index) => {
           const p = polar(index, n, axis.pct / 100);
-          const label = polar(index, n, 1.28);
+          const label = polar(index, n, 1.16);
+          const side = label.x < CX - 8 ? "end" : label.x > CX + 8 ? "start" : "middle";
+          const nudge = side === "end" ? -6 : side === "start" ? 6 : 0;
           return (
             <g key={axis.id}>
               <circle className="cp-radar-dot" cx={p.x} cy={p.y} r={3.4} />
               <text
                 className="cp-radar-label"
-                x={label.x}
-                y={label.y}
-                textAnchor="middle"
+                x={label.x + nudge}
+                y={side === "middle" ? label.y + (label.y < CY ? -6 : 6) : label.y}
+                textAnchor={side}
                 dominantBaseline="middle"
               >
                 {axis.label}

@@ -299,7 +299,7 @@ export function ExplainStudio({
             <button
               type="button"
               onClick={() => restart(review.followUp)}
-              className="mt-3 inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-bold text-black transition-colors hover:bg-amber-400"
+              className="mt-3 inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--ls-accent,#5b6cff)] px-5 py-2.5 text-sm font-bold text-white transition-[filter] hover:brightness-110"
             >
               Bunu anlatarak cevapla
             </button>
@@ -314,7 +314,7 @@ export function ExplainStudio({
                   review.gaps,
                 )
               }
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-bold text-black transition-colors hover:bg-amber-400"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--ls-accent,#5b6cff)] px-5 py-2.5 text-sm font-bold text-white transition-[filter] hover:brightness-110"
             >
               Eksiklerimi tamamlayarak tekrar anlat
             </button>
@@ -381,7 +381,7 @@ export function ExplainStudio({
             type="button"
             onClick={submit}
             disabled={!ready}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-bold text-black transition-colors hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--ls-accent,#5b6cff)] px-5 py-2.5 text-sm font-bold text-white transition-[filter] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Anlatımımı değerlendir
           </button>

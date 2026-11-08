@@ -117,7 +117,7 @@ export function MistakeNotebookView({
       </div>
 
       <p className="text-sm text-[var(--cs-muted)]">
-        Denemede ve quizde yanlış yaptığın sorular burada birikiyor. Bir soru
+        Denemede ve testte yanlış yaptığın sorular burada birikiyor. Bir soru
         defterden ancak <strong>üst üste iki kez</strong> doğru yaptığında
         çıkıyor — tek doğru şans olabilir.
       </p>
@@ -132,13 +132,13 @@ export function MistakeNotebookView({
           <p className="mt-2 text-sm text-[var(--cs-muted)]">
             {masteredCount > 0
               ? `Bugüne kadar ${masteredCount} soruyu defterden çıkardın.`
-              : "İlk quizini çöz; yanlış yaptığın sorular buraya düşer, üst üste iki doğruyla çıkar."}
+              : "İlk testini çöz; yanlış yaptığın sorular buraya düşer, üst üste iki doğruyla çıkar."}
           </p>
           <Link
             href="/studio/quiz"
-            className="mt-4 inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-bold text-black transition-colors hover:bg-amber-400"
+            className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--c-action)] px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[var(--c-action-hover)]"
           >
-            {masteredCount > 0 ? "Quiz çöz" : "İlk quizini çöz"}
+            {masteredCount > 0 ? "Test çöz" : "İlk testini çöz"}
           </Link>
         </div>
       ) : (

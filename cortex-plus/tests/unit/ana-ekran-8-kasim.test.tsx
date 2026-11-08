@@ -62,7 +62,9 @@ describe("yerleşim: üste binme yok (#604)", () => {
     expect(shell).toMatch(/\.cp-sor-hero\.cp-sor-hero--rich \{[^}]*justify-content: flex-start/);
     expect(shell).toContain("padding-bottom: calc(var(--cp-sor-composer-clearance) + 2.5rem);");
     expect(shell).toContain("scroll-padding-bottom: calc(var(--cp-sor-composer-clearance) + 2.5rem);");
-    expect(shell).toContain(".cp-sor-root:has(.cp-sor-hero--rich) {\n  height: 100vh;\n  height: 100dvh;");
+    expect(shell).toContain(
+      ".cp-sor-root:has(.cp-sor-hero--rich),\n.cp-sor-root:not(.cp-sor-root--exam):has(.cp-sor-view > .cp-sor-messages) {\n  height: 100vh;\n  height: 100dvh;",
+    );
   });
 
   it("öğrenci balonu okunur; tablette üst menü yalnız simge", () => {

@@ -113,7 +113,7 @@ export function FlashcardDeck({ title, cards }: { title: string; cards: Card[] }
             key={c.id}
             className={cn(
               "h-1.5 rounded-full transition-all duration-200",
-              i === safeIndex ? "w-4 bg-amber-400" : i < safeIndex ? "w-1.5 bg-amber-400/40" : "w-1.5 bg-white/15",
+              i === safeIndex ? "w-4 bg-[var(--ls-accent,#5b6cff)]" : i < safeIndex ? "w-1.5 bg-[var(--ls-accent,#5b6cff)]/40" : "w-1.5 bg-white/15",
             )}
           />
         ))}

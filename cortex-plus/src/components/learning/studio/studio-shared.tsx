@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { Icon3D } from "@/components/ui/icon-3d";
+import { STUDIOS } from "@/lib/parity/studios";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
 import { CreditGate } from "@/components/paywall/credit-gate";
@@ -62,9 +64,10 @@ export function StudioFrame({
     <div className={cn("ls-studio", `ls-studio--${tool}`, isPlus && "ls-studio--plus")}>
       <div className="ls-studio-ambient" aria-hidden />
       <header className="ls-studio-bar">
-        <Link href="/ogretmen" className="ls-back">
+        {/* 8 Kasım 2026: stüdyolar "Çalışma Stüdyosu" sekmesinde; geri oraya döner (önce "Sor" ana ekrana gidiyordu). */}
+        <Link href="/araclar" className="ls-back">
           <ArrowLeft className="h-4 w-4" aria-hidden />
-          Sor
+          Çalışma Stüdyosu
         </Link>
         <p className="ls-studio-kicker">{kicker}</p>
       </header>
@@ -124,15 +127,9 @@ export function StudioEntry({
 
   return (
     <div className="ls-chat">
-      {/* Başlık ekranda değil ama sayfanın bir adı olmalı: ekran okuyucu ve
-          sekme başlığı için duruyor. */}
       <h1 className="sr-only">{title}</h1>
 
-      <div className={cn("ls-world", `ls-world--${tool}`)} aria-hidden>
-        <span />
-        <span />
-        <span />
-      </div>
+      <StudioHero tool={tool} />
 
       {setup}
 
@@ -333,5 +330,37 @@ export function StudioPaywall({
       meter={gateMeter}
       returnPath={returnPath}
     />
+  );
+}
+
+/** Stüdyo id'si (sayfa) → Çalışma Stüdyosu kartı: aynı ad, renk ve 3B simge. */
+const STUDIO_CARD: Record<StudioToolId, string> = {
+  quiz: "quiz",
+  tf: "dogru-yanlis",
+  flash: "flashcard",
+  podcast: "podcast",
+  sozlu: "sozlu",
+  yazili: "yazili",
+  anlat: "anlat",
+};
+
+/**
+ * Stüdyonun başı (8 Kasım 2026): kartıyla aynı renk ve 3B simge, görünür başlık ve tek cümle. Önceki CSS çizimi
+ * ("ls-world") Konu Testi'nde altın kenarlı boş bir kutu gibi görünüyordu.
+ */
+export function StudioHero({ tool }: { tool: StudioToolId }) {
+  const studio = STUDIOS.find((item) => item.id === STUDIO_CARD[tool]);
+  if (!studio) return null;
+  return (
+    <div className="ls-hero" aria-hidden>
+      <span className="ls-hero-art">
+        <span className="ls-hero-plate" />
+        <Icon3D name={studio.icon} size={72} />
+      </span>
+      <span className="ls-hero-text">
+        <span className="ls-hero-title">{studio.title}</span>
+        <span className="ls-hero-blurb">{studio.blurb}</span>
+      </span>
+    </div>
   );
 }

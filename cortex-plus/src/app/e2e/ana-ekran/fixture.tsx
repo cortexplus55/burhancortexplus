@@ -48,10 +48,12 @@ export function AnaEkranFixture({
   conversation,
   plus,
   hasPrep,
+  unanswered = false,
 }: {
   conversation: boolean;
   plus: boolean;
   hasPrep: boolean;
+  unanswered?: boolean;
 }) {
   const heroFooter =
     conversation || hasPrep ? undefined : (
@@ -70,7 +72,13 @@ export function AnaEkranFixture({
         showSubjectPicker
         placeholder="Sor, konuş veya dosya gönder"
         initialConversationId={conversation ? "fixture" : undefined}
-        initialMessages={conversation ? MESSAGES : []}
+        initialMessages={
+          conversation
+            ? unanswered
+              ? [...MESSAGES, { role: "user" as const, content: "Aynı mantıkla benzer bir örnek soru üret ve çöz." }]
+              : MESSAGES
+            : []
+        }
         hasDocuments={false}
         isPremium={plus}
         tutorStyleLabel="Adım adım"

@@ -17,7 +17,8 @@ export default async function E2eAnaEkranPage({
   const params = await searchParams;
   return (
     <AnaEkranFixture
-      conversation={params.durum === "sohbet"}
+      conversation={params.durum === "sohbet" || params.durum === "cevapsiz"}
+      unanswered={params.durum === "cevapsiz"}
       plus={params.plan === "plus"}
       hasPrep={params.hazirlik === "1"}
     />

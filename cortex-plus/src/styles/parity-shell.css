@@ -13337,7 +13337,8 @@ a.cp-exam-search {
 
 .cp-radar-label {
   fill: var(--cp-muted);
-  font-size: 9px;
+  /* SVG birimi (8 Kasım 2026): kutu iki yana genişleyince çizim küçüldü; telefonda ~10 px okunur. */
+  font-size: 13px;
   font-family: var(--font-mono);
   letter-spacing: 0.04em;
 }
@@ -13433,9 +13434,6 @@ a.cp-exam-search {
     padding: 0.3rem 0.6rem;
   }
 
-  .cp-radar-label {
-    font-size: 8px;
-  }
 }
 
 .cp-prep-goal h2 {
@@ -14671,11 +14669,12 @@ a.cp-exam-search {
 }
 
 /*
-  Ana ekran kartlı hâlde sabit yükseklikte bir kabuk (8 Kasım 2026): kaydırılan yalnız selam ve kartların kutusu, üst
+  Ana ekran kartlı hâlde ve açık sohbette sabit yükseklikte bir kabuk (8 Kasım 2026): kaydırılan yalnız selam ve kartların kutusu, üst
   çubuk, alt menü ve yazma alanı yerinde kalır. Belge kaydırınca scroll-padding işlemiyordu; klavyeyle odaklanan kart
   yazma alanının arkasında kalabiliyordu. Önce vh (eski tarayıcı), sonra dvh (tarayıcı çubuğu ve klavye).
 */
-.cp-sor-root:has(.cp-sor-hero--rich) {
+.cp-sor-root:has(.cp-sor-hero--rich),
+.cp-sor-root:not(.cp-sor-root--exam):has(.cp-sor-view > .cp-sor-messages) {
   height: 100vh;
   height: 100dvh;
   max-height: 100vh;
@@ -14788,4 +14787,32 @@ a.cp-exam-search {
 
 .tools .tool-blurb {
   font-size: 0.875rem;
+}
+
+/* Cevapsız kalmış son soru (8 Kasım 2026): bir dokunuşla yeniden sorulur. */
+.cp-sor-unanswered {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0.25rem 0 0.75rem auto;
+  max-width: min(85%, 36rem);
+  padding: 0.5rem 0.6rem 0.5rem 0.9rem;
+  border-radius: 1rem;
+  border: 1px dashed var(--cp-border-strong);
+  color: var(--cp-muted);
+  font-size: 0.875rem;
+}
+
+.cp-sor-unanswered button {
+  flex: none;
+  min-height: 40px;
+  padding: 0 0.9rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--c-action);
+  color: var(--c-on-action);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
 }
