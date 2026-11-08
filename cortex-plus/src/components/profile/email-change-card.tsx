@@ -103,13 +103,13 @@ export function EmailChangeCard({
           </button>
         </form>
       ) : (
-        <button type="button" className="font-medium underline" onClick={() => setEditing(true)}>
+        <button type="button" className="inline-flex min-h-10 items-center rounded-full border border-[var(--cp-border)] px-4 font-medium hover:border-[var(--c-action)]" onClick={() => setEditing(true)}>
           E-posta adresini değiştir
         </button>
       )}
 
       <p>
-        <Link href="/sifre-yenile" className="font-medium underline">
+        <Link href="/sifre-yenile" className="inline-flex min-h-10 items-center rounded-full border border-[var(--cp-border)] px-4 font-medium hover:border-[var(--c-action)]">
           {hasPasswordLogin ? "Şifreni değiştir" : "Şifre belirle"}
         </Link>
       </p>

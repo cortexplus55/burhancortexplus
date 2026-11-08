@@ -2252,3 +2252,4 @@ Bekçi: `premium-ic-ekranlar-8-kasim.test.tsx` ("ikinci tur"), e2e `ana-ekran.sp
 | **Abonelik sayfası kurucuya satış göstermez:** "Bütün özellikler açık" kartı, "Plus'ın bir ayı" bölümü gizli; planlar öğrencinin gördüğü hâliyle altta. Plus abonesi zaten "Aboneliğin aktif" görüyor | `pay/page.tsx` |
 
 Bekçi: `premium-ic-ekranlar-8-kasim.test.tsx` ("ayarlar tek merkez"), `profile-dialog.test.tsx` ("ayarlar tek yerde"), `profile-appearance.test.tsx`.
+| **Pencere anında açılır ve kapanır:** Ayarlar satırları `?dialog=…` adresini sunucuya gitmeden yazar (`DialogLink`, `history.pushState`; Next.js `useSearchParams` ile eşler); kapanış `history.replaceState`, yalnız profil penceresinde arkadan `router.refresh()`. Düz `<Link>` / `router.replace` bütün sayfayı sunucuda çizip pencereyi 2-3 sn geç açıp kapatıyordu. Telefonda kurucu rozeti yalnız üst çubukta gizli; Ayarlar ve Abonelik sayfasında görünür | `dialog-link.tsx`, `parity-dialog-host.tsx` |
