@@ -88,12 +88,28 @@ test.describe("Hakimiyet Haritası + Kişisel Program", { tag: ["@public"] }, ()
 
     // Ünite Seviye Kontrolü → sonuç: harita, plan ve pekiştirme önerisi tam gezinti olmadan güncellenir.
     await page.getByRole("button", { name: "Kontrolü başlat" }).click();
+    /*
+      Kararsızlık (8 Kasım 2026, CI run 42527442582): sonuç kutusu hemen çizilir, harita ise `router.refresh()`ün
+      sunucudan getirdiği yeni veriyle güncellenir. CI'ın yüklü geliştirme sunucusunda bu yenileme 5 sn'lik bekleme
+      süresini aştı ve test eski haritayı ("Henüz yeterli veri yok") gördü. Ürün hatası değil: sonuç anında, harita
+      yenileme gelince. Test süreye değil olaya bağlı: son cevaptan önce yenileme cevabını (RSC isteği) beklemeye başlar,
+      haritaya ancak cevap geldikten sonra bakar. Yenileme hiç gelmezse test burada, nedenini söyleyerek düşer.
+    */
+    const refreshed = page.waitForResponse(
+      (res) =>
+        new URL(res.url()).pathname === "/e2e/hakimiyet-tyt" &&
+        res.request().method() === "GET" &&
+        res.request().headers()["rsc"] === "1" &&
+        !res.request().headers()["next-router-prefetch"],
+      { timeout: 60_000 },
+    );
     for (let i = 0; i < 4; i++) {
       await expect(page.getByTestId("level-runner")).toContainText(`${i + 1} / 4`);
       await page.getByTestId("level-runner").getByRole("button", { name: i % 2 ? /Yanlış şık C/ : /Doğru şık/ }).click();
       await page.getByTestId("level-feedback").getByRole("button").click();
     }
     await expect(page.getByTestId("unit-check-result")).toBeVisible();
+    expect((await refreshed).ok()).toBe(true);
     await expect(weak).toContainText("Bu konuya %43 hakimsin · 4 yanıta dayalı");
     // Zayıf 3 kazanımın doğrulanmış soruları tükenmiş: söz verilmez, dürüst satır gösterilir.
     await expect(page.getByTestId("mm-no-extra")).toHaveText("Şu an ek soru kalmadı; yeni sorular eklendikçe burada görünecek");
