@@ -72,9 +72,7 @@ describe("başlatıcı kartı", () => {
     const page = read("src/app/ogretmen/page.tsx");
     expect(page).toContain(`.neq("exam_type", "hedef")`);
     expect(page).toContain("<FirstStepLauncher firstName={firstName} gradeLevel={profile?.grade_level} goalText={goalText} />");
-    expect(page).toContain("{prepCount === 0 ? (");
-    // 8 Kasım 2026: stüdyolar herkese, ilk adımdan önce.
-    expect(page.indexOf("<HomeStudios")).toBeLessThan(page.indexOf("<FirstStepLauncher"));
+    expect(page).toContain("!params.sohbet && prepCount === 0 ? (");
     expect(page).toContain("heroFooter={heroCards}");
     expect(page).not.toContain("FirstPrepCard");
   });

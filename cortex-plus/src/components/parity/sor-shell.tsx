@@ -362,7 +362,7 @@ export function ParitySorShell({
               aria-current={active ? "page" : undefined}
             >
               <Icon className="h-5 w-5" aria-hidden />
-              <span>{tab.label}</span>
+              <span>{tab.shortLabel ?? tab.label}</span>
             </Link>
           );
         })}

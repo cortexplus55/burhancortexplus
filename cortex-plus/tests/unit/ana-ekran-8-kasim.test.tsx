@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 
@@ -11,26 +11,89 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-import { HOME_STUDIOS, HomeStudios, studioNeedsPlus } from "@/components/parity/home-studios";
+import { StudioGallery } from "@/components/parity/studio-gallery";
+import { STUDIOS, studioNeedsPlus } from "@/lib/parity/studios";
 import { PLUS_ONLY_ACTIONS } from "@/lib/billing/free-meters";
+import { studentBottomTabs } from "@/components/parity/student-shell-nav";
 
 /*
-  8 Kasım 2026, ürün sahibi (ücretsiz öğrencinin ilk gördüğü ekran): "Plus ile bu ay" kartı altta kalıyor, yanında
-  ikinci bir Plus kartı sohbetin üstüne biniyor, "yükselt" bandı mod düğmelerinin arkasında, Sokratik / Adım Adım /
-  Doğrudan Çöz ortalanmıyor; Çalışma Stüdyoları ana ekranda yok. Telefonda ve tablette de kullanılmalı.
+  8 Kasım 2026, ürün sahibi:
+  1) Ücretsiz öğrencinin ilk ekranında Plus kartları üst üste biniyor, mod düğmeleri ortalanmıyor (#604).
+  2) "Plus ile bu ay kartını oradan tamamen kaldır; orası öğretmenle konuşma alanı." Araçlar sekmesinin adı
+     "Çalışma Stüdyosu" olsun, doğrudan stüdyolarımızı kullanacak şekilde ve daha iyi kartlarla tasarlansın.
+     Stüdyo kartları ana ekrandan da kalksın (ürün sahibinin seçimi).
 */
 
 const read = (path: string) => readFileSync(path, "utf8").replace(/\r\n/g, "\n");
 
 afterEach(() => cleanup());
 
-describe("Çalışma Stüdyoları ana ekranda", () => {
-  it("sekiz stüdyo, her biri kendi sayfasına gider", () => {
-    render(<HomeStudios freeAccount={false} />);
-    expect(screen.getByRole("heading", { name: "Bugün nasıl çalışmak istersin?" })).toBeTruthy();
+describe("ana ekran yalnız öğretmenle sohbet", () => {
+  const page = read("src/app/ogretmen/page.tsx");
+  const chat = read("src/components/chat/chat-panel.tsx");
+
+  it("Plus kartı ve stüdyo kartları ana ekranda yok; yalnız yeni öğrenciye ilk adım", () => {
+    expect(page).not.toContain("PlusMonth");
+    expect(page).not.toContain("loadPlusPrices");
+    expect(page).not.toContain("HomeStudios");
+    expect(page).not.toContain("StudioGallery");
+    expect(page).toContain("!params.sohbet && prepCount === 0 ? (");
+    expect(existsSync("src/components/parity/home-studios.tsx")).toBe(false);
+  });
+
+  it("sohbette de Plus tanıtımı yok: yan kart, bant ve satır kalktı", () => {
+    expect(chat).not.toContain("UpgradeAside");
+    expect(chat).not.toContain("cp-upgrade-banner");
+    expect(chat).not.toContain("cp-sor-upgrade-row");
+    expect(chat).not.toContain("showUpgrade");
+    expect(read("src/styles/upgrade-gate.css")).not.toContain(".ug-aside");
+  });
+});
+
+describe("yerleşim: üste binme yok (#604)", () => {
+  const chat = read("src/components/chat/chat-panel.tsx");
+  const shell = read("src/styles/parity-shell.css");
+
+  it("besteci arkasını örter, mod düğmeleri ortada, kart varsa selam üstten başlar", () => {
+    expect(chat).toContain('className="cp-sor-composer-zone"');
+    expect(shell).toContain(".cp-sor-root:not(.cp-sor-root--exam) .cp-sor-composer-zone::before");
+    expect(shell).toMatch(/\.cp-sor-root:not\(\.cp-sor-root--exam\) \.cp-tutor-mode \{[^}]*justify-content: safe center/);
+    expect(chat).toContain('cn("cp-sor-hero", heroFooter ? "cp-sor-hero--rich" : null)');
+    expect(shell).toMatch(/\.cp-sor-hero\.cp-sor-hero--rich \{[^}]*justify-content: flex-start/);
+    expect(shell).toContain("padding-bottom: calc(var(--cp-sor-composer-clearance) + 2.5rem);");
+    expect(shell).toContain("scroll-padding-bottom: calc(var(--cp-sor-composer-clearance) + 2.5rem);");
+    expect(shell).toContain(".cp-sor-root:has(.cp-sor-hero--rich) {\n  height: 100vh;\n  height: 100dvh;");
+  });
+
+  it("öğrenci balonu okunur; tablette üst menü yalnız simge", () => {
+    expect(shell).toMatch(/\.cp-sor-root \.cp-sor-msg-user \{[^}]*color: var\(--cp-text\)/);
+    expect(read("src/components/parity/sor-shell.tsx")).toContain('<span className="cp-sor-topnav-label">{tab.label}</span>');
+    expect(shell).toMatch(/\.cp-sor-topnav-label,\n\s*\.cp-sor-more--center \.cp-sor-more-label \{[^}]*clip: rect\(0 0 0 0\)/);
+  });
+});
+
+describe("Çalışma Stüdyosu sekmesi", () => {
+  it("sekmenin adı Çalışma Stüdyosu; telefonun alt menüsünde Stüdyo; adres aynı", () => {
+    const tab = studentBottomTabs.find((item) => item.id === "tools")!;
+    expect(tab.label).toBe("Çalışma Stüdyosu");
+    expect(tab.shortLabel).toBe("Stüdyo");
+    expect(tab.href).toBe("/araclar");
+    expect(read("src/components/parity/sor-shell.tsx")).toContain("{tab.shortLabel ?? tab.label}");
+    expect(read("src/app/araclar/page.tsx")).toContain('title: "Çalışma Stüdyosu"');
+  });
+
+  it("sayfa stüdyolarla başlar; sekme, arama ve ders süzgeci kalktı", () => {
+    const hub = read("src/components/parity/tools-hub.tsx");
+    expect(hub).toContain("<StudioGallery freeAccount={freeAccount} />");
+    expect(hub.indexOf("<StudioGallery")).toBeLessThan(hub.indexOf("İnteraktif laboratuvarlar"));
+    expect(hub).not.toContain("tools-tabs");
+    expect(hub).not.toContain("tools-search");
+  });
+
+  it("sekiz stüdyo, her biri kendi sayfasını açar; sayfalar depoda var", () => {
+    render(<StudioGallery freeAccount={false} />);
     const hrefs = screen.getAllByRole("link").map((link) => link.getAttribute("href"));
     expect(hrefs).toEqual([
-      "/araclar",
       "/soru-coz",
       "/studio/quiz",
       "/studio/flashcard",
@@ -40,78 +103,31 @@ describe("Çalışma Stüdyoları ana ekranda", () => {
       "/studio/yazili",
       "/studio/anlat",
     ]);
-    // Plus hesapta rozet yok.
-    expect(screen.queryByText("Plus")).toBeNull();
-  });
-
-  it("ücretsiz hesapta yalnız Plus'ta açılan işler rozet taşır (açık liste, fiyattan türetilmez)", () => {
-    render(<HomeStudios freeAccount />);
-    const badged = HOME_STUDIOS.filter((studio) => studioNeedsPlus(studio, true)).map((studio) => studio.id);
-    expect(badged).toEqual(["podcast", "sozlu", "yazili"]);
-    expect(screen.getAllByText("Plus")).toHaveLength(3);
-    for (const studio of HOME_STUDIOS) {
-      if (studio.action) expect(PLUS_ONLY_ACTIONS).toContain(studio.action);
-    }
-  });
-
-  it("her stüdyonun sayfası depoda var", () => {
-    for (const studio of HOME_STUDIOS) {
+    expect(screen.getAllByText("Başla")).toHaveLength(8);
+    for (const studio of STUDIOS) {
       const path = studio.href === "/soru-coz" ? "src/app/soru-coz/page.tsx" : `src/app${studio.href}/page.tsx`;
-      expect(() => read(path), studio.href).not.toThrow();
+      expect(existsSync(path), studio.href).toBe(true);
+      expect(studio.facts).toHaveLength(2);
     }
   });
-});
 
-describe("ana ekran sırası ve üste binmeler", () => {
-  const page = read("src/app/ogretmen/page.tsx");
-  const chat = read("src/components/chat/chat-panel.tsx");
-  const shell = read("src/styles/parity-shell.css");
-  const css = read("src/styles/home-studios.css");
-
-  it("stüdyolar herkese; sıra: stüdyolar → ilk adım → Plus", () => {
-    expect(page).toContain("<HomeStudios freeAccount={showPlus} />");
-    const studios = page.indexOf("<HomeStudios");
-    expect(studios).toBeLessThan(page.indexOf("<FirstStepLauncher"));
-    expect(page.indexOf("<FirstStepLauncher")).toBeLessThan(page.indexOf("<PlusMonth"));
+  it("ücretsizde yalnız Plus işleri rozetli ve 'İncele' der (açık liste)", () => {
+    render(<StudioGallery freeAccount />);
+    expect(STUDIOS.filter((studio) => studioNeedsPlus(studio, true)).map((studio) => studio.id)).toEqual([
+      "podcast",
+      "sozlu",
+      "yazili",
+    ]);
+    expect(screen.getAllByText("Plus")).toHaveLength(3);
+    expect(screen.getAllByText("İncele")).toHaveLength(3);
+    for (const studio of STUDIOS) if (studio.action) expect(PLUS_ONLY_ACTIONS).toContain(studio.action);
   });
 
-  it("yazma alanı tek başına ve ortada; yanında kart yok", () => {
-    expect(chat).not.toContain("UpgradeAside");
-    expect(chat).toContain('className="cp-sor-composer-zone"');
-    expect(read("src/styles/upgrade-gate.css")).not.toContain(".ug-aside");
-  });
-
-  it("besteci arkasını örter, mod düğmeleri ortada, kart varsa selam üstten başlar", () => {
-    expect(shell).toContain(".cp-sor-root:not(.cp-sor-root--exam) .cp-sor-composer-zone::before");
-    expect(shell).toMatch(/\.cp-sor-root:not\(\.cp-sor-root--exam\) \.cp-tutor-mode \{[^}]*justify-content: safe center/);
-    expect(chat).toContain('cn("cp-sor-hero", heroFooter ? "cp-sor-hero--rich" : null)');
-    expect(shell).toMatch(/\.cp-sor-hero\.cp-sor-hero--rich \{[^}]*justify-content: flex-start/);
-    // Ölçülen boşluğa bestecinin üstündeki geçiş payı eklenir: son kart geçişin altında kalmaz.
-    expect(shell).toContain("padding-bottom: calc(var(--cp-sor-composer-clearance) + 2.5rem);");
-    expect(shell).toContain("scroll-padding-bottom: calc(var(--cp-sor-composer-clearance) + 2.5rem);");
-    // Kartlı ana ekran sabit yükseklikte kabuk: kaydırılan yalnız kartların kutusu (önce vh, sonra dvh).
-    expect(shell).toContain(".cp-sor-root:has(.cp-sor-hero--rich) {\n  height: 100vh;\n  height: 100dvh;");
-  });
-
-  it("sohbet sonundaki Plus satırı akışta ve yanıt yazılırken görünmez", () => {
-    expect(chat).toContain("showUpgrade && messages.length > 0 && !loading ?");
-    expect(chat).not.toContain("cp-upgrade-banner");
-  });
-
-  it("öğrenci balonu okunur: yazı rengi zemin rengi değil", () => {
-    expect(shell).toMatch(/\.cp-sor-root \.cp-sor-msg-user \{[^}]*color: var\(--cp-text\)/);
-  });
-
-  it("tablette üst menü yalnız simge; ad ekran okuyucuda kalır", () => {
-    expect(read("src/components/parity/sor-shell.tsx")).toContain('<span className="cp-sor-topnav-label">{tab.label}</span>');
-    expect(shell).toContain("@media (min-width: 768px) and (max-width: 1179px)");
-    expect(shell).toMatch(/\.cp-sor-topnav-label,\n\s*\.cp-sor-more--center \.cp-sor-more-label \{[^}]*clip: rect\(0 0 0 0\)/);
-  });
-
-  it("stüdyo kartları: telefonda iki sütun, metin 14 px altına inmez, hareket azaltmada durur", () => {
-    expect(css).toContain("grid-template-columns: repeat(4, minmax(0, 1fr));");
-    expect(css).toContain("grid-template-columns: repeat(2, minmax(0, 1fr));");
-    expect(css).not.toMatch(/\.hs-blurb \{[^}]*font-size: 0\.8125rem/);
+  it("kartlar: telefonda tek sütun, masaüstünde üç; metin 14 px altına inmez; hareket azaltmada durur", () => {
+    const css = read("src/styles/studio-gallery.css");
+    expect(css).toContain("grid-template-columns: repeat(3, minmax(0, 1fr));");
+    expect(css).toMatch(/@media \(max-width: 560px\) \{\n  \.sg-grid \{\n    grid-template-columns: minmax\(0, 1fr\);/);
+    expect(css).not.toMatch(/\.sg-blurb \{[^}]*font-size: 0\.8125rem/);
     expect(css).toContain("@media (prefers-reduced-motion: reduce)");
   });
 });

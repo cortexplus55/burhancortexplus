@@ -3,7 +3,7 @@ import { ToolsHub } from "@/components/parity/tools-hub";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 
-export const metadata = { title: "Araçlar" };
+export const metadata = { title: "Çalışma Stüdyosu" };
 
 export default async function AraclarPage() {
   const { supabase, user } = await requireStudentArea();

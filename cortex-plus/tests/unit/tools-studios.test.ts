@@ -18,12 +18,12 @@ describe("Araçlar kısayolları", () => {
     }
   });
 
-  it("ücretsiz hesapta podcast ve sözlü Plus rozetli; fotoğraf günde 3 kez ücretsiz (23 Ekim 2026)", () => {
-    const hub = readFileSync("src/components/parity/tools-hub.tsx", "utf8");
-    expect(hub).not.toContain(`"soru-coz": "IMAGE_SOLUTION"`);
-    expect(hub).toContain(`podcast: "PODCAST_GENERATE"`);
-    expect(hub).toContain(`sozlu: "ORAL_EXAM_GENERATE"`);
-    expect(hub).toContain(`<span className="tool-kind is-plus">Plus</span>`);
+  it("ücretsiz hesapta podcast, sözlü ve yazılı deneme Plus rozetli; fotoğraf rozetsiz (8 Kasım 2026: studios.ts)", () => {
+    const studios = readFileSync("src/lib/parity/studios.ts", "utf8");
+    expect(studios).not.toContain("IMAGE_SOLUTION");
+    expect(studios).toContain(`action: "PODCAST_GENERATE"`);
+    expect(studios).toContain(`action: "ORAL_EXAM_GENERATE"`);
+    expect(studios).toContain(`action: "PRACTICE_EXAM_GENERATE"`);
   });
 
   it("üç kategori ve üç simülasyon laboratuvarı vardır", () => {
@@ -38,9 +38,10 @@ describe("Araçlar kısayolları", () => {
       "Çalışma Stüdyoları",
       "Zihin & Odak Araçları",
     ]);
+    // 8 Kasım 2026: sekmeler kalktı; sayfa stüdyolar, laboratuvarlar, hesap araçları ve kısayollar bölümleriyle.
     const hub = readFileSync("src/components/parity/tools-hub.tsx", "utf8");
-    expect(hub).toContain("TOOL_CATEGORIES");
-    expect(hub).toContain("tools-tabs");
+    expect(hub).toContain("StudioGallery");
+    expect(hub).toContain("İnteraktif laboratuvarlar");
     for (const id of ["birim-cember", "parabol", "hucre"]) {
       expect(existsSync(`src/app/araclar/[id]/page.tsx`)).toBe(true);
       expect(readFileSync("src/app/araclar/[id]/page.tsx", "utf8")).toContain(id === "birim-cember" ? "BirimCemberLab" : id === "parabol" ? "ParabolKesif" : "HucreLab");

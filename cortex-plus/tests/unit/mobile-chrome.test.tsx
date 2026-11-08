@@ -43,11 +43,11 @@ const plans = [
 ];
 
 describe("öğretmen ekranında yükseltme kartı yazma alanının yanında değil (8 Kasım 2026)", () => {
-  it("yan kart ve onun yerleşimi kalktı; Plus satırı sohbet akışında", () => {
+  it("yan kart ve onun yerleşimi kalktı; sohbette Plus tanıtımı yok", () => {
     expect(chat).not.toContain("UpgradeAside");
     expect(chat).not.toContain("cp-sor-composer-upgrade");
     expect(chat).not.toContain("cp-sor-composer-zone--aside");
-    expect(chat).toContain('className="cp-sor-upgrade-row"');
+    expect(chat).not.toContain("cp-sor-upgrade-row");
     expect(shell).not.toContain("composer-zone--aside");
     expect(shell).not.toContain("cp-sor-composer-upgrade");
     expect(upgrade).not.toContain("ug-aside");

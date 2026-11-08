@@ -17,9 +17,6 @@ import { defaultStartPrompt } from "@/lib/student/first-prompts";
 import { getStudentAccountContext } from "@/lib/student/account-context";
 import { getUserStreak } from "@/lib/streak/record-activity";
 import { FirstStepLauncher } from "@/components/parity/first-step-launcher";
-import { HomeStudios } from "@/components/parity/home-studios";
-import { PlusMonth } from "@/components/marketing/plus-month";
-import { loadPlusPrices } from "@/lib/billing/plan-prices";
 import { loadNearestExamCountdown } from "@/lib/learning/exam-countdown-load";
 
 export const metadata = { title: "Sor" };
@@ -42,7 +39,6 @@ export default async function OgretmenPage({
     { data: goal },
     { data: conversations },
     { count: prepCount },
-    prices,
     countdown,
   ] =
     await Promise.all([
@@ -84,7 +80,6 @@ export default async function OgretmenPage({
         .eq("user_id", user.id)
         .neq("exam_type", "hedef")
         .neq("exam_type", STUDIO_EXAM_TYPE),
-      loadPlusPrices(supabase),
       loadNearestExamCountdown(supabase, user.id),
     ]);
 
@@ -147,27 +142,11 @@ export default async function OgretmenPage({
     goal: goalText,
   });
   const style = parseTutorStyle(profile?.tutor_style);
-  // Ana ekranın sırası (8 Kasım 2026): selam ve Başla → Çalışma Stüdyoları (herkese; ilk ekranda, özellikler arka
-  // planda kalmasın) → hiç hazırlığı yoksa ilk adım → ücretsiz öğrenciye Plus'ın bir ayı. Hepsi akışta, sabit yazma
-  // alanının üstünde kayar; hiçbiri yazma alanının yanına ya da üstüne binmez. Değeri yaşamadan satın alma istemek
-  // dönüşmüyor: Plus en sonda.
-  const showPlus = account.showsUpgradeChrome;
+  // Ana ekran öğretmenle sohbet alanıdır (8 Kasım 2026, ürün sahibi): selam, Başla ve hiç hazırlığı olmayan öğrenciye
+  // ilk adım kartları. Plus kartı ve stüdyo kartları burada yok; stüdyolar üstteki "Çalışma Stüdyosu" sekmesinde.
   const heroCards =
-    !params.sohbet ? (
-      <>
-        <HomeStudios freeAccount={showPlus} />
-        {prepCount === 0 ? (
-          <FirstStepLauncher firstName={firstName} gradeLevel={profile?.grade_level} goalText={goalText} />
-        ) : null}
-        {showPlus ? (
-          <PlusMonth
-            variant="compact"
-            monthlyKurus={prices.plusMonthly}
-            primary={{ label: "Plus'a geç", href: "/pay" }}
-            secondary={{ label: "Bir ayda neler var?", href: "/pay#plus-ay" }}
-          />
-        ) : null}
-      </>
+    !params.sohbet && prepCount === 0 ? (
+      <FirstStepLauncher firstName={firstName} gradeLevel={profile?.grade_level} goalText={goalText} />
     ) : undefined;
   const avatar = profile?.avatar_url as string | null | undefined;
 
