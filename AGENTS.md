@@ -2428,3 +2428,18 @@ Yeniden açmayın:
 
 Fikstür `/e2e/sihirbaz?adim=<adım>` (taslağı tarayıcı kopyasına yazıp o adımda açar; veritabanısız). Bekçi:
 `kurulum-tasarim-8-kasim.test.tsx`, `wizard-tyt-onsecim.test.tsx`, `mobil-denetim-6-kasim.test.ts` (konu düğmeleri telefonda 44 px).
+
+### "Kaldığın yerden devam" kartı (8 Kasım 2026, aynı gün ikinci tur)
+
+Ürün sahibi: "çok özensiz ve gösterişsiz; kullanıcı girdiğinde çok özel bir görünüm görsün". Ana ekrandaki tek satır karta dönüştü.
+Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| Kart üç katlı: hazırlığın kimliği (dersin simgesi ve rengi, adı, "Sınava N gün" / "yarın" / "bugün"; geçmiş tarih yazılmaz), sıradaki adım (türün renginde halka içinde tür simgesi, "Sıradaki: <tür>", adım adı, süre), alt satırda "%X tamamlandı · N / M adım" ve mavi "Devam et". Hiç adım bitmemişse "Yeni hazırlığın", "İlk adım seni bekliyor", "Başla". Bütün kart tek bağlantı, doğrudan sıradaki adıma | `continue-line.tsx` (`ContinueLine`) |
+| Halka = yolun **Tamamlama**'sı (İlerleme ile aynı hesap, `pathCompletion`; ücretsizde Plus adımları sayılmaz, `pathSkipKinds`). Yükleyici artık bütün adımları okur (yalnız açık olanları değil) | `prep-cards.ts` `loadContinueStep` (`progress`, `daysLeft`, `subject`) |
+| Tek hareket anı: açılışta kart yükselir, halka biten kısma kadar dolar, düğmenin üstünden bir kez ışık geçer; hareket azaltmada hiçbiri | `parity-shell.css` `.cp-resume` |
+| Tür renkleri Sınavlar kartının "Sıradaki" satırıyla tek listeden (`:is(.cp-prep-card-next, .cp-resume)[data-kind=…]`); ders simgesi `subject-look.ts` | aynı |
+| Telefonda (≤480 px) düğme adımın yanında yuvarlak oynat düğmesi (yazı ekran okuyucuda), "Sınava" sözcüğü gizli: kart kısa kalsın, alttaki mod düğmelerinin arkasına düşmesin. Kart `flex: none` (ana ekranın kart kutusu sütun; kart küçülüp içeriğini kesiyordu). Halkanın kuralı yalnız halkanın `svg`'sine (`.cp-resume-ring-svg`): genel `svg` seçicisi içteki tür simgesini de döndürüp geriyordu | aynı |
+
+Fikstür `/e2e/ana-ekran?hazirlik=1` (başlanmış) ve `?hazirlik=yeni`. Bekçi: `zor-kullanici-turu.test.tsx` ("Kaldığın yerden devam").
