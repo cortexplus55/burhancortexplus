@@ -389,9 +389,9 @@ mark.cp-key {
   min-height: 36px;
   padding: 0 0.75rem;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: #1c1c1e;
-  color: #dfe3ec;
+  border: 1px solid var(--c-border-strong, rgba(255, 255, 255, 0.12));
+  background: var(--c-surface-2, #1c1c1e);
+  color: var(--c-text, #dfe3ec);
   font-size: 0.8125rem;
   font-weight: 600;
   cursor: pointer;
@@ -404,7 +404,7 @@ mark.cp-key {
 
 .cp-ctrl-pill[aria-expanded="true"] {
   border-color: var(--c-action);
-  background: color-mix(in srgb, var(--c-action) 16%, #1c1c1e);
+  background: color-mix(in srgb, var(--c-action) 16%, var(--c-surface-2, #1c1c1e));
 }
 
 .cp-sor-subject-pill {
@@ -432,7 +432,7 @@ mark.cp-key {
   padding: 0.35rem;
   border-radius: 1rem;
   border: 1px solid var(--cp-border-strong);
-  background: #19191b;
+  background: var(--c-surface-1, #19191b);
   box-shadow: 0 18px 50px -12px rgba(0, 0, 0, 0.7);
 }
 
@@ -557,4 +557,23 @@ mark.cp-key {
 
 .cp-sor-root .cp-followup--quiz:hover {
   background: color-mix(in srgb, #3fc56b 22%, transparent);
+}
+
+/* Açık tema (8 Kasım 2026, kurucu turu): koyu tema için karıştırılmış açık yazılar beyaz zeminde okunmuyordu. */
+:root:not(.dark) .cp-teacher-sign {
+  color: var(--c-action);
+}
+
+:root:not(.dark) .cp-sor-subject-pill {
+  color: var(--c-action);
+}
+
+:root:not(.dark) .cp-sor-root .cp-sor-messages .cp-sor-msg-user {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--c-action) 16%, #ffffff), color-mix(in srgb, var(--c-ai, #8b8ef7) 12%, #ffffff));
+  color: var(--c-text);
+  border-color: color-mix(in srgb, var(--c-action) 22%, transparent);
+}
+
+:root:not(.dark) .cp-sor-root .cp-sor-messages .cp-followup--quiz {
+  color: #146c34;
 }

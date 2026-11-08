@@ -162,3 +162,77 @@ describe("gezide bulunan kusurlar", () => {
     expect(read("src/styles/parity-shell.css")).toMatch(/\.cp-radar-score,\s*\.cp-radar-goal\s*\{[^}]*paint-order: stroke/);
   });
 });
+
+/* İkinci tur (8 Kasım 2026, "kendini kullanıcı yerine koy"): kalan sayfalar kurucu hesabıyla ve açık temada gezildi. */
+describe("ikinci tur: kalan sayfalar", () => {
+  it("beşgen her eksenin adını ve yüzdesini okunur listede verir; telefonda çizimde numara", async () => {
+    const { PrepRadarChart } = await import("@/components/parity/prep-radar-chart");
+    render(
+      <PrepRadarChart
+        compact
+        view={{
+          label: "Hazırlık",
+          readinessPct: 40,
+          targetScore: 80,
+          axes: [
+            { id: "coverage", label: "Konu Kapsamı", pct: 40 },
+            { id: "accuracy", label: "Test Doğruluğu", pct: 55 },
+            { id: "mock", label: "Deneme Performansı", pct: 0 },
+          ],
+        }}
+      />,
+    );
+    const items = document.querySelectorAll(".cp-radar-legend li");
+    expect(items).toHaveLength(3);
+    expect(items[1]?.textContent).toContain("Test Doğruluğu");
+    expect(items[1]?.textContent).toContain("%55");
+    expect(document.querySelectorAll(".cp-radar-num")).toHaveLength(3);
+    const css = read("src/styles/parity-shell.css");
+    expect(css).toMatch(/@media \(max-width: 560px\)\s*\{\s*\.cp-radar \.cp-radar-label \{\s*display: none;/);
+  });
+
+  it("profil listesinde Ayarlar ikinci kez yok; menü adları sayfa adlarıyla aynı", () => {
+    const panel = read("src/components/parity/profile-panel.tsx");
+    expect(panel).not.toMatch(/label: "Ayarlar"/);
+    expect(panel).toContain('label: "Kullanım limitleri"');
+    expect(read("src/components/parity/sor-shell.tsx")).toContain('label: "Kullanım limitleri"');
+    expect(read("src/components/parity/student-shell-nav.ts")).not.toContain('label: "Limitler"');
+  });
+
+  it("Ayarlar penceresi telefonda tam genişlik", () => {
+    expect(read("src/styles/parity-shell.css")).toMatch(/@media \(max-width: 560px\)\s*\{\s*\.cp-profile-scrim \{\s*display: none;/);
+  });
+
+  it("boş durum düğmesi mavi birincil (altın sınıf öğrenci kabuğunda yüklenmiyordu)", () => {
+    const empty = read("src/components/ui-kit/empty-state.tsx");
+    expect(empty).toContain('className="cp-empty-action"');
+    expect(empty).not.toContain("cortex-premium-btn-primary");
+  });
+
+  it("Stüdyo: laboratuvar 'Hesap' yazmaz; kısayollar tek satır hap", () => {
+    const hub = read("src/components/parity/tools-hub.tsx");
+    expect(hub).toContain('tool.category === "simulasyon" ? "Laboratuvar" : "Hesap"');
+    expect(hub).toContain('className="tools-shortcut"');
+  });
+
+  it("müfredat ve resmî sınav kartları dersin simgesi ve rengiyle, Başla hapı", () => {
+    const catalog = read("src/components/parity/exam-catalog-pages.tsx");
+    expect(catalog).toContain('className="cp-catalog-icon"');
+    expect(catalog).toContain('["--cat-accent" as string]: look.accent');
+  });
+
+  it("açık temada yeni parçalar koyu yazı alır", () => {
+    expect(read("src/styles/parity-shell.css")).toContain(":root:not(.dark) .cp-prep-card-days");
+    expect(read("src/styles/question-solver.css")).toContain(":root:not(.dark) .cp-solver-hero-facts > span");
+    expect(read("src/styles/chat-teaching.css")).toContain(":root:not(.dark) .cp-teacher-sign");
+    // Kaynak menüsü zemini temadan (açık temada koyu yazı koyu zeminde kalıyordu).
+    expect(read("src/styles/chat-teaching.css")).toContain("background: var(--c-surface-1, #19191b);");
+  });
+
+  it("küçük kusurlar: Sınıflar emekli öğretmen paneline gönderme yapmaz; düelloda tek robot simgesi; belge bağlantıları hap", () => {
+    expect(read("src/app/siniflar/page.tsx")).not.toContain("öğretmen koduyla");
+    expect(read("src/components/duel/new-duel-button.tsx")).not.toContain("🤖");
+    expect(read("src/app/dokumanlar/page.tsx")).toContain("<MessageCircle");
+    expect(read("src/app/ilerleme/page.tsx")).not.toContain("Uydurma");
+  });
+});

@@ -50,7 +50,7 @@ const MORE_LINKS = [
   { href: "/siniflar", label: "Sınıflar", icon: Users },
   { href: "/ilerleme", label: "Aktivitelerim", icon: LineChart },
   { href: "/takvimim", label: "Takvimim", icon: CalendarDays },
-  { href: "/krediler", label: "Limitler", icon: Gauge },
+  { href: "/krediler", label: "Kullanım limitleri", icon: Gauge },
   { href: "/davet", label: "Davet et", icon: Gift },
 ] as const;
 

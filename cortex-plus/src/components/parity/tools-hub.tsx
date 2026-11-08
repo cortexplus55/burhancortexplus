@@ -113,15 +113,20 @@ export function ToolsHub({ deck }: { deck?: { dueCount: number; total: number } 
         </div>
       </section>
 
-      <section className="tools-section">
-        <h2>
-          Kısayollar
-          <span>{shortcuts.length}</span>
-        </h2>
-        <div className="tools-grid">
-          {shortcuts.map((t) => (
-            <ToolCard key={t.id} tool={t} />
-          ))}
+      {/* 8 Kasım 2026 (kurucu turu): kısayollar menüdeki sayfaları tekrar ediyordu, dört büyük kart ekranın yarısını
+          alıyordu. Tek satırlık haplar; hepsi yine bir dokunuşta. */}
+      <section className="tools-section tools-section--shortcuts" aria-label="Kısayollar">
+        <h2>Kısayollar</h2>
+        <div className="tools-shortcuts">
+          {shortcuts.map((t) => {
+            const Icon = ICONS[t.id] ?? Layers;
+            return (
+              <Link key={t.id} href={t.href} className="tools-shortcut">
+                <Icon className="h-4 w-4" aria-hidden />
+                {t.title}
+              </Link>
+            );
+          })}
         </div>
       </section>
     </div>
@@ -161,7 +166,8 @@ function ToolCard({ tool }: { tool: Tool }) {
       </span>
       <span className="tool-meta">
         <span className={cn("tool-kind", isShortcut ? "is-shortcut" : "is-hesap")}>
-          {isShortcut ? "Kısayol" : "Hesap"}
+          {/* Laboratuvar "Hesap" yazıyordu (8 Kasım 2026). */}
+          {isShortcut ? "Kısayol" : tool.category === "simulasyon" ? "Laboratuvar" : "Hesap"}
         </span>
         <span className="tool-subject">{tool.subject}</span>
       </span>

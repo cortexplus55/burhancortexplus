@@ -95,6 +95,16 @@ export function PrepRadarChart({
               >
                 {axis.label}
               </text>
+              {/* Telefonda ad yerine numara: çizim ekrana sığmak için küçülüyor, ad 8 px'e iniyordu (8 Kasım 2026). */}
+              <text
+                className="cp-radar-num"
+                x={label.x + nudge}
+                y={side === "middle" ? label.y + (label.y < CY ? -6 : 6) : label.y}
+                textAnchor={side}
+                dominantBaseline="middle"
+              >
+                {index + 1}
+              </text>
             </g>
           );
         })}
@@ -105,6 +115,17 @@ export function PrepRadarChart({
           hedef %{targetScore}
         </text>
       </svg>
+      <ol className="cp-radar-legend">
+        {axes.map((axis, index) => (
+          <li key={axis.id}>
+            <span className="cp-radar-legend-num" aria-hidden>
+              {index + 1}
+            </span>
+            <span className="cp-radar-legend-label">{axis.label}</span>
+            <strong>%{axis.pct}</strong>
+          </li>
+        ))}
+      </ol>
       <figcaption className="cp-radar-caption">{view.label}</figcaption>
     </figure>
   );

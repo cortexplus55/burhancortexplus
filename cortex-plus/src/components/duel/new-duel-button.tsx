@@ -40,7 +40,7 @@ export function NewDuelButton({ prepId }: { prepId: string }) {
       </button>
       <button type="button" className="cp-duel-secondary" disabled={busy != null} onClick={() => void create("bot")}>
         <Bot className="h-4 w-4" aria-hidden />
-        {busy === "bot" ? "Sorular hazırlanıyor…" : "🤖 AI rakiple hemen başla"}
+        {busy === "bot" ? "Sorular hazırlanıyor…" : "AI rakiple hemen başla"}
       </button>
     </div>
   );

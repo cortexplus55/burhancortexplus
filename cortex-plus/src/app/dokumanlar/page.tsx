@@ -1,4 +1,4 @@
-import { FileText, Plus } from "lucide-react";
+import { FileText, ListTree, MessageCircle, Plus } from "lucide-react";
 import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
 import { DocumentRetryButton } from "@/components/documents/document-retry-button";
@@ -173,9 +173,11 @@ export default async function DokumanlarPage() {
                     {completed ? (
                       <>
                         <Link href={`/ogretmen?belge=${document.id}`} className="cp-docs-link">
+                          <MessageCircle className="h-4 w-4" aria-hidden />
                           Belgeye soru sor
                         </Link>
                         <Link href={`/dokumanlar/${document.id}`} className="cp-docs-link">
+                          <ListTree className="h-4 w-4" aria-hidden />
                           {ready ? "Belge detayı" : "Konu haritasını aç"}
                         </Link>
                       </>

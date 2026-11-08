@@ -59,7 +59,7 @@ export default async function SiniflarPage({
         <div>
           <h1 className="text-xl font-semibold">Sınıflar</h1>
           <p className="mt-1 text-sm text-[var(--cs-muted)]">
-            Kendi çalışma grubunu oluştur veya öğretmen koduyla katıl.
+            Kendi çalışma grubunu kur ya da arkadaşının paylaştığı kodla katıl.
           </p>
         </div>
 
