@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { multiPartialPercent, sameOptionSet, selectedOptions, type PublicQuizQuestion } from "@/lib/learning/exam-quiz";
 import { RichBody } from "@/components/parity/lesson-rich-text";
 import { CoachLine, StreakBadge } from "@/components/learning/coach-chrome";
+import type { Mood } from "@/lib/learning/session-signals";
 import { VOIDED_FIXED_LINE, VOIDED_LINE } from "@/lib/learning/question-report/copy";
 import "@/styles/question-report.css";
 
@@ -26,6 +27,7 @@ export function ExamQuizPlay({
   plannedTotal,
   streakBefore = 0,
   usedHint = false,
+  mood = null,
 }: {
   questions: PublicQuizQuestion[];
   index: number;
@@ -52,6 +54,8 @@ export function ExamQuizPlay({
   streakBefore?: number;
   /** Bu soruda "İki şık arasında kaldım" ipucu alındı: koç bunu söyler. */
   usedHint?: boolean;
+  /** Bugünkü ruh hali: yanlış cevaptaki koç cümlesi buna göre (8 Kasım 2026). */
+  mood?: Mood | null;
 }) {
   const [revealed, setRevealed] = useState(locked);
   const [acting, setActing] = useState(false);
@@ -254,7 +258,7 @@ export function ExamQuizPlay({
               </>
             )}
           </div>
-          {!question.voided ? <CoachLine input={{ correct: isCorrect, streak: streakNow, usedHint, partial }} /> : null}
+          {!question.voided ? <CoachLine input={{ correct: isCorrect, streak: streakNow, usedHint, partial, mood }} /> : null}
           {question.explanation ? (
             <p className="text-sm text-[var(--cp-text)] leading-relaxed">
               <RichBody text={question.explanation} />

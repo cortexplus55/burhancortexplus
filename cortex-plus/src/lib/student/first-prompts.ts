@@ -1,12 +1,10 @@
+import { startGreeting } from "@/lib/companion/voice";
+
 /**
- * Ana ekrandaki "Başla".
- *
- * 8 Kasım 2026 (ürün sahibi): önce kayıtta seçilen ders ve hedeften kurulan bir cümle öğrenci adına gönderiliyordu
- * ("Mezun Fizik çalışmak istiyorum…"); sonra genel bir cümleye çevrildi ama öğrencinin balonunda "Önce aklımda ne
- * olduğunu sor" diye öğretmene talimat veriyormuş gibi okunuyordu. Şimdi öğretmen ilk sözü kendisi söyler; model
- * çağrısı yok, kredi yok, kaydedilmez. Öğrenci cevap yazınca asıl sohbet başlar.
+ * Ana ekrandaki "Başla": öğretmen ilk sözü kendisi söyler (8 Kasım 2026); model çağrısı yok, kaydedilmez.
+ * Asıl cümle dost katmanında (`companion/voice.ts`), sinyale göre değişir; bu yardımcı sinyalsiz sade hâli verir
+ * (örnek ekranlar ve testler).
  */
 export function startGreetingFor(firstName: string | null | undefined): string {
-  const name = (firstName ?? "").trim();
-  return `${name ? `Merhaba ${name}!` : "Merhaba!"} Bugün ne çalışmak istersin? Aklındaki dersi ya da konuyu yaz; takıldığın bir soru varsa fotoğrafını da gönderebilirsin.`;
+  return startGreeting({ firstName: firstName ?? null, mood: null, streak: 0, daysSinceLast: null, examDaysLeft: null, hour: 12, seed: "sabit" });
 }

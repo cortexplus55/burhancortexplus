@@ -2337,3 +2337,29 @@ Açık bırakılanlar (ürün kararı ya da ölçüm ister): ruh hali ekranı de
 uzun (metin + iki genel bilgi + sınav tuzağı tek ekranda).
 
 Bekçi: `zor-kullanici-turu.test.tsx`, `acik-tema-8-kasim.test.ts` (açık tema bölümü "sonu" işaretinde biter).
+
+## Dost katmanı (8 Kasım 2026) — ruh hali tonu değiştirir, tahmin gerçek veriden, öğrenci geri çağrılır
+
+Ürün sahibi: "ruh hali kalsın ve gerçekten kullanıcıyı içeri çeksin; duygu durumuna göre konuşma tarzımız değişsin.
+Spora birlikte yazılan iki arkadaştan biri gitmek istemeyince öbürü onu ikna eder ya — o arkadaş biz olalım. Her
+ekranda samimiyet. Tahmin saçma sapan kurgu olmasın." **18-19 Ekim'in "ruh hali yalnız kaydedilir, içeriğe nötr gider"
+kararı bilerek değişti:** içerik (önceden yazılan ders) yine ruh haline göre değişmez, ama içeriğin ÇEVRESİNDEKİ
+her ses değişir. Hepsi modelsiz ve deterministik; cümle yalnız elimizdeki gerçek sinyalden kurulur (uydurma anı,
+tutulamayan söz, azar yok). Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| **Günün ruh hali tek kaynak:** `study_session_moods` (dersteki kart ve sohbetteki hap aynı tabloya yazar; sohbet hapı `POST /api/student/mood`). Ana ekran, sohbet ucu (tarayıcı göndermediyse) ve ders aynı günün kaydını okur | `companion/today-mood.ts`, `api/student/mood` |
+| **Ses tek yerde:** `companion/voice.ts`. Ana ekranda selamın altında tek satır (`homeLine`; öncelik: sınav günü > yarın sınav > 3+ gün ara > sınava ≤3 gün > dün kaçtı > ruh hali > bugün çalıştı/seri > saate göre); öğretmenin ilk sözü (`startGreeting`: uzun aradan dönene "bir süredir yoktun, sorun değil", stresliye "en kolay yerden başlayalım"); ders açılış kartında ruh hali cümlesi (`moodAcknowledgement`); yanlış cevapta koç cümlesi (`wrongAnswerLine`: stresliye "nefes al, bu yanlış burada çıktı", düşük enerjiye "olsun"; ruh hali yoksa eski cümle). Seçim güne bağlı ve kararlı (`pickBySeed`): sunucu ve tarayıcı aynı cümleyi çizer, ertesi gün değişir | `voice.ts`, `ogretmen/page.tsx`, `lesson-open-chrome.tsx`, `coach-reactions.ts` (`CoachInput.mood`) |
+| **Sonuç ekranı** günün ruh halini anar (`resultMood(score,total,mood)`: "Stresli başladın, harika bitirdin", "Yorgun günde bitirdin; bugünkü payın tamam"); ruh hali yoksa eski cümleler | `result-mood.ts`, `exam-node/result.tsx` |
+| **Öğretmen istemi** ruh halini arkadaş gibi okur (`moodPrompt`: stresliye önce bir cümle sakinleştirme, tek küçük adım, "yetişemezsin" yok; düşük enerjiye kısa cümleler, "bu kadarı bugün için yeter"). Yalnız sohbet ve sözlü; ders/test/podcast içeriği nötr kalır (önceden yazım) | `session-signals.ts` |
+| **Hatırlatma:** 3+ gün ara "N gündür görüşmedik · Dert değil; kaldığın yer hâlâ burada. Beş dakika, tek adım, gerisi yarın"; seri kırılıyor "seriyi birlikte koruyalım". Sayı gerçek (son etkinlikten) | `study-reminder.ts` |
+| **Tahmin kapısı:** "Sınav günü için tahmin" ve tempo kartı ancak ölçülmüş hazırlık + en az iki ayrı çalışma günü + puanlı etkinliklerde en az bir doğru varsa; yoksa nedenini söyler ("Tek günden eğilim çıkmaz", "Ölçülen doğruluk henüz %0"), eğri düz (`forecastSeries.pending`), "~N günde" yok. 19 Ekim'in "ilk dersten hemen sonra göster" kararı bilerek değişti: tek dersten "+%2 → 37 ders → ~13 günde" türetiliyordu | `prep-progress-view.ts`, `prep-forecast-chart.tsx`, `exam-prep-progress.tsx` |
+| **Genel bilgi kutusu kapalı başlar** (başlık ve etiket özet satırında, dokununca açılır): telefonda bir ekranda metin + iki genel bilgi + sınav tuzağı üst üste geliyordu. Belgede olmayan destek bilgisi olduğu için gizlenebilir; sınav ipucu, akılda tut, uyarı, ezber kodu, "Neden böyle" açık kalır | `exam-lesson-steps.tsx` (`als-note--fold`) |
+| 30 Eylül'ün "ana ekranda yalnız selam ve Başla" kuralı şu kadar esnedi: selamın altında tek dost satırı (`greetingSubline`); satış, kısayol, günün turu yine yok | `home-simple.test.ts` |
+
+Canlı tarama (8 Kasım, kurucu, 375 / 768 / 1280 px, ~40 sayfa; betik: yana taşan öğe, sayfa sonunda sabit alt menünün
+altında kalan yazı, kesişen blok yazılar): gerçek taşma ve binme yok. Satır sonu sarmasıyla kesişen satır içi öğeler
+ve kartın köşesindeki mutlak rozetler yanlış alarmdır; ölçüde satır içi öğeler dışlanır.
+
+Bekçi: `dost-katmani.test.tsx` (satır öncelikleri, kararlı seçim, ilk söz, ders kartı, koç, hatırlatma, tahmin kapısı, ruh hali ucu).

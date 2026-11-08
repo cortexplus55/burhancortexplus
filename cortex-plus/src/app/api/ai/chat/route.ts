@@ -27,6 +27,7 @@ import { moderate } from "@/lib/ai/moderation";
 import { recordAbuse } from "@/lib/abuse/record";
 import { parseTutorStyle } from "@/lib/learning/tutor-style";
 import { moodPrompt, parseMood } from "@/lib/learning/session-signals";
+import { loadTodayMood } from "@/lib/companion/today-mood";
 import { env, type ActionCode } from "@/lib/env";
 import { recordUsage, refundCredits, refusalCode, reserveCredits } from "@/lib/credits/service";
 import { titleConversation } from "@/lib/ai/conversation-title";
@@ -420,7 +421,8 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
           })
         : "";
       // Nötr varsayılan: istem uzamasın diye ayrıca yazılmaz.
-      const chatMood = parseMood(rest.mood);
+      // Tarayıcı ruh hali göndermediyse günün kaydı (dersten ya da sohbetten işaretlenmiş olabilir; 8 Kasım 2026).
+      const chatMood = rest.mood ? parseMood(rest.mood) : ((await loadTodayMood(service, userId).catch(() => null)) ?? "neutral");
       const moodLine = chatMood === "neutral" ? "" : ` ${moodPrompt(chatMood)}`;
       const requestMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
         { role: "system", content: `${SYSTEM_GUARDRAIL} ${studentInstruction} ${teacherTurn} ${teacherStyleLine(tutorStyle)} ${CHAT_NATURAL_VOICE}${rest.prepId && prepGrounding ? "" : `\n\n${CHAT_TEACHING_MARKUP}\n\n`} ${answerFirstLine(message, tutorStyle)}${moodLine}${examContext?.block ?? ""}${attachedBrief ? `\n${SOURCE_PAGE_FORMULA_RULE}\n${attachedBrief}` : ""}${contextBlock}${tutorAddendum ? `\n\n${tutorAddendum}` : ""}${simplifyLine(message) ? `\n\n${simplifyLine(message)}` : ""}` },

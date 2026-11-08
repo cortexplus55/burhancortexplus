@@ -183,7 +183,7 @@ describe("exam prep home path (kıyas ürünü düzeni, 29 Eylül 2026)", () => 
     // Konu adı hem konu listesinde hem haftalık tabloda geçiyor.
     expect(screen.getAllByText("Sistemler").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Enerji").length).toBeGreaterThan(0);
-    expect(screen.getByText("Tahmin, ilk dersinden sonra görünür")).toBeTruthy();
+    expect(screen.getByText("Tahmin için biraz daha veri gerekiyor")).toBeTruthy();
   });
 
   it("shows a lock icon (not a step number) on a locked trail node", () => {

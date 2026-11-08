@@ -423,6 +423,12 @@ function ChatPanelSession({
     } catch {
       // Yalnızca bu oturum için geçerli olur.
     }
+    // Günün ruh hali tek kaynakta (8 Kasım 2026): ders açılışı ve ana ekran da okur. Düşerse yalnız tarayıcıda kalır.
+    void fetch("/api/student/mood", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mood }),
+    }).catch(() => undefined);
   }
   const [quickOpen, setQuickOpen] = useState(false);
   const [talking, setTalking] = useState(false);
@@ -1511,6 +1517,8 @@ function ChatPanelSession({
               <h1 className="cp-sor-hero-title">
                 {greetingLine ?? "Merhaba!"}
               </h1>
+              {/* Dost katmanı (8 Kasım 2026): selamın altında gerçek sinyalden tek satır (seri, ara, ruh hali, saat). */}
+              {greetingSubline ? <p className="cp-sor-hero-sub">{greetingSubline}</p> : null}
               {/* kıyas ürünü: büyük yuvarlak ışıltı düğmesi, altında küçük "BAŞLA". */}
               <button
                 type="button"

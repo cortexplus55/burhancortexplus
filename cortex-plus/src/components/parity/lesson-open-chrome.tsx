@@ -34,6 +34,7 @@ export function LessonOpenChrome({
   onChangeLevel,
   onSkip,
   minutes = null,
+  moodLine = null,
 }: {
   step: LessonOpenStep;
   familiarity?: Familiarity;
@@ -55,6 +56,8 @@ export function LessonOpenChrome({
   onSkip?: () => void;
   /** Yol kartıyla aynı süre. */
   minutes?: number | null;
+  /** Ruh hali işaretlendikten sonra tek cümle (8 Kasım 2026, dost katmanı); nötrde yok. */
+  moodLine?: string | null;
 }) {
   if (step === "familiarity" || step === "mood") {
     return (
@@ -141,6 +144,7 @@ export function LessonOpenChrome({
       </p>
       <h1>{topicLabel || LESSON_OPEN_COPY.exploreTitle}</h1>
       <p className="cp-signal-lead">{LESSON_OPEN_COPY.exploreLead}</p>
+      {moodLine ? <p className="cp-signal-lead cp-open-mood-line">{moodLine}</p> : null}
       {onChangeLevel && familiarity ? (
         <p className="cp-open-level text-sm text-[var(--cp-muted)]">
           {LESSON_OPEN_COPY.levelLabel}:{" "}

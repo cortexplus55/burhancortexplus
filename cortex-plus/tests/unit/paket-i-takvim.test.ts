@@ -195,7 +195,11 @@ describe("Paket I · uzun plan (230 gün)", () => {
     const now = new Date("2026-10-23T09:00:00+03:00");
     const view = buildPrepProgressView({
       nodes,
-      attempts: [{ nodeId: firstLessonId, score: 3, total: 3, createdAt: "2026-10-22T10:00:00+03:00" }],
+      // Tahmin kapısı (8 Kasım 2026): iki ayrı günde puanlı çalışma.
+      attempts: [
+        { nodeId: firstLessonId, score: 3, total: 3, createdAt: "2026-10-22T10:00:00+03:00" },
+        { nodeId: firstLessonId, score: 2, total: 3, createdAt: "2026-10-21T10:00:00+03:00" },
+      ],
       topicLabels: MIXED_TOPICS.map((t) => t.title),
       gaps: [],
       examDate,
@@ -231,7 +235,10 @@ describe("Paket I · uzun plan (230 gün)", () => {
     ];
     const view = buildPrepProgressView({
       nodes,
-      attempts: [{ nodeId: "a", score: 3, total: 3, createdAt: "2026-10-22T10:00:00+03:00" }],
+      attempts: [
+        { nodeId: "a", score: 3, total: 3, createdAt: "2026-10-22T10:00:00+03:00" },
+        { nodeId: "a", score: 2, total: 3, createdAt: "2026-10-21T10:00:00+03:00" },
+      ],
       topicLabels: ["A", "B"],
       gaps: [],
       examDate,

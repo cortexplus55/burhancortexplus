@@ -7,7 +7,12 @@
  * gösterilmez; koç cümlesi devreye girer.
  */
 
+import type { Mood } from "@/lib/learning/session-signals";
+import { wrongAnswerLine } from "@/lib/companion/voice";
+
 export type CoachInput = {
+  /** Bugünkü ruh hali (8 Kasım 2026, dost katmanı): yanlış cevaptaki cümle buna göre yumuşar ya da sertleşir. */
+  mood?: Mood | null;
   correct: boolean;
   /** Bu cevap dahil art arda doğru sayısı (yanlışta 0). */
   streak: number;
@@ -69,6 +74,8 @@ export function coachReaction(input: CoachInput): CoachReaction {
   if (typeof input.partial === "number" && input.partial > 0) {
     return { text: "🧩 Kısmen doğru: bir şık eksik ya da fazla. Açıklamada hangisi olduğunu gör, tam puan bir sonraki.", tone: "partial" };
   }
+  const byMood = wrongAnswerLine(input.mood);
+  if (byMood) return { text: byMood, tone: "off" };
   return {
     text: "💪 Moral bozmak yok! Bu şık, sınavlarda en çok düşülen tuzaklardan. Gel, 10 saniyede mantığını kilitleyelim 👇",
     tone: "off",

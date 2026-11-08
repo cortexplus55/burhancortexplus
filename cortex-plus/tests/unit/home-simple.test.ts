@@ -12,7 +12,10 @@ describe("ana sayfa sade", () => {
 
   it("boş ekrana kısayol, alt satır ve günün turu gönderilmiyor", () => {
     expect(page).not.toContain("starterPrompts=");
-    expect(page).not.toContain("greetingSubline=");
+    // 8 Kasım 2026 (dost katmanı, ürün sahibinin kararı): selamın altındaki satır geri geldi ama satış ya da kısayol
+    // değil, gerçek sinyalden tek cümle (`homeLine`); 30 Eylül'ün "yalnız selam ve Başla" kuralı bu kadar esnedi.
+    expect(page).toContain("greetingSubline={greetingSubline}");
+    expect(page).toContain("homeLine({");
     expect(page).not.toContain("dailyDrillCount");
     expect(page).toContain('startLabel="Başla"');
   });

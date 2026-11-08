@@ -39,6 +39,8 @@ export type ReadinessForecastSeries = {
   targetPct: number;
   horizonDays: number;
   hitsTargetOn: number | null;
+  /** Tahmin için veri yetersiz (8 Kasım 2026): eğri düz çizilir, "~N günde" denmez. */
+  pending?: boolean;
 };
 
 function pct(value: number | null | undefined): number {

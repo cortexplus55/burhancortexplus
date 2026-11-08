@@ -55,7 +55,7 @@ export function WrittenExamResult({ life }: { life: NodeLifecycle }) {
 }
 
 export function ResultScreen({ life }: { life: NodeLifecycle }) {
-  const { prepId, kind, topicId, rewriteHref, beginRewrite, resumeEnabled, isOral, stage, setStage, payload, attemptId, setIndex, setAnswers, setCardOffer, setCardRepeat, cardSummary, setCardSummary, score, spentMinutes, oralGrade, nextHref, levelHint, topicGain, pathChange, reviewScheduled, gainOpen, setGainOpen, feedback, setFeedback, feedbackLoading, podcastLoading, setPodcastCheckOpen, lessonPodcast, setLessonPodcast, isTimedExam, start, loadLessonPodcast, loadFeedback, structuredLesson, unscored, heroScore, heroTotal } = life;
+  const { prepId, kind, topicId, rewriteHref, beginRewrite, resumeEnabled, isOral, stage, setStage, payload, attemptId, setIndex, setAnswers, setCardOffer, setCardRepeat, cardSummary, setCardSummary, score, spentMinutes, oralGrade, nextHref, levelHint, topicGain, pathChange, reviewScheduled, gainOpen, setGainOpen, feedback, setFeedback, feedbackLoading, podcastLoading, setPodcastCheckOpen, lessonPodcast, setLessonPodcast, isTimedExam, start, loadLessonPodcast, loadFeedback, structuredLesson, unscored, heroScore, heroTotal, mood } = life;
   const { rewritePending } = life;
   return (
     <>
@@ -101,8 +101,8 @@ export function ResultScreen({ life }: { life: NodeLifecycle }) {
                 <span>/{heroTotal}</span>
               </p>
               <p className="cp-result-mood">
-                <span aria-hidden>{resultMood(heroScore, heroTotal).emoji}</span>{" "}
-                {resultMood(heroScore, heroTotal).text}
+                <span aria-hidden>{resultMood(heroScore, heroTotal, mood).emoji}</span>{" "}
+                {resultMood(heroScore, heroTotal, mood).text}
               </p>
             </>
           )}
