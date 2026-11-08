@@ -1816,3 +1816,9 @@
   margin-top: 0.35rem;
   color: var(--cp-text, #f2f2f2);
 }
+
+/* Kapalı genel bilgi kutusunda "Genel bilgi" etiketi iki satıra kırılıyordu (canlıda 375 px, 8 Kasım 2026). */
+.als-note--fold > summary .als-kicker {
+  flex: none;
+  white-space: nowrap;
+}
