@@ -236,3 +236,34 @@ describe("ikinci tur: kalan sayfalar", () => {
     expect(read("src/app/ilerleme/page.tsx")).not.toContain("Uydurma");
   });
 });
+
+/* Üçüncü tur (8 Kasım 2026): ayarlar tek merkezde, abonelik sayfası kurucuya satış yapmıyor. */
+describe("ayarlar tek merkez", () => {
+  const page = read("src/app/ayarlar/page.tsx");
+
+  it("Ayarlar sayfası profil, okul ve tercih satırlarıyla pencereyi doğru sekmede açar; tema burada", () => {
+    for (const tab of ["hesap", "okul", "tercihler"]) expect(page).toContain(`/ayarlar?dialog=profile&sekme=${tab}`);
+    expect(page).toContain("<AppearanceRow />");
+    expect(page).not.toContain("Hızlı ayarlar paneli");
+    expect(page).not.toContain("<ThemeToggle");
+  });
+
+  it("pencere sekmesi adresten; tema yalnız Ayarlar'da", () => {
+    const host = read("src/components/parity/parity-dialog-host.tsx");
+    expect(host).toContain('{ hesap: "account", okul: "school", tercihler: "learning" }');
+    expect(read("src/components/parity/profile-dialog.tsx")).not.toContain("AppearanceRow");
+    expect(read("src/components/parity/profile-panel.tsx")).not.toContain("AppearanceRow");
+  });
+
+  it("bütün 'Ayarlar' girişleri /ayarlar'a gider", () => {
+    expect(read("src/components/parity/profile-panel.tsx")).toContain('<Link href="/ayarlar" className="cp-pp-settings">');
+    expect(read("src/components/parity/sor-shell.tsx")).toMatch(/href="\/ayarlar"\s*className="cp-sor-settings-link/);
+    expect(read("src/components/chat/chat-panel.tsx")).toContain('<Link href="/ayarlar" role="menuitem" className="cp-mood-menu-more">');
+  });
+
+  it("abonelik sayfası kurucuya satış göstermez, durumunu söyler", () => {
+    const pay = read("src/app/pay/page.tsx");
+    expect(pay).toContain("Bütün özellikler açık");
+    expect(pay).toContain("entitlements.showsUpgradeChrome && !founder");
+  });
+});

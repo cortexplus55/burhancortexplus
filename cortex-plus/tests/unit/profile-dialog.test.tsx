@@ -109,3 +109,22 @@ describe("profil penceresi", () => {
     await waitFor(() => expect(patches()).toContainEqual({ grade_level: "12. sınıf" }));
   });
 });
+
+// 8 Kasım 2026: bütün ayarların tek adresi /ayarlar; pencere oradaki satırdan istenen sekmeyle açılır, tema seçimi
+// ve hesap bağlantıları pencerede değil.
+describe("ayarlar tek yerde", () => {
+  it("pencere istenen sekmeyle açılır; tema seçimi pencerede yok", () => {
+    render(<ProfileDialog open onClose={() => undefined} initialTab="school" />);
+    expect(screen.getByRole("heading", { name: "Okul" })).toBeTruthy();
+    expect(screen.queryByRole("radiogroup", { name: "Görünüm" })).toBeNull();
+    expect(screen.queryByText("Kullanımım")).toBeNull();
+  });
+
+  it("Ayarlar sayfasında 'Bütün ayarlar' bağlantısı gösterilmez", () => {
+    render(<ProfileDialog open onClose={() => undefined} showAllSettingsLink={false} />);
+    expect(screen.queryByText(/Bütün ayarlar/)).toBeNull();
+    cleanup();
+    render(<ProfileDialog open onClose={() => undefined} />);
+    expect(screen.getByText(/Bütün ayarlar/).closest("a")?.getAttribute("href")).toBe("/ayarlar");
+  });
+});

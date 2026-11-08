@@ -5,5 +5,5 @@ import { redirect } from "next/navigation";
  * Öğrenme tercihleri, 1 Ekim 2026). Eski bağlantılar pencereyi açar.
  */
 export default function ProfilDuzenlePage() {
-  redirect("/profil?dialog=profile");
+  redirect("/ayarlar?dialog=profile");
 }

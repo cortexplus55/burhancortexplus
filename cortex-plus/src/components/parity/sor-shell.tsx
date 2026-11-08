@@ -329,7 +329,7 @@ export function ParitySorShell({
             </>
           )}
           <Link
-            href="/ogretmen?dialog=profile"
+            href="/ayarlar"
             className="cp-sor-settings-link sr-only"
             aria-label="Ayarlar"
           >

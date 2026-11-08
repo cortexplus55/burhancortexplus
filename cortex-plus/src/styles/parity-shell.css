@@ -15363,3 +15363,301 @@ a.cp-exam-search {
     margin-left: -37.15%;
   }
 }
+
+/* ── Ayarlar: tek merkez (8 Kasım 2026) ─────────────────────────────────────────────────────────────────────── */
+.cp-set-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  width: 100%;
+  max-width: 44rem;
+  margin: 0 auto;
+  padding-block: 0.25rem 2.5rem;
+}
+
+.cp-set-title {
+  margin: 0;
+  font-size: clamp(1.6rem, 4vw, 2rem);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--c-text);
+}
+
+.cp-set-hero {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.1rem 1.15rem;
+  border-radius: 1.35rem;
+  border: 1px solid color-mix(in srgb, var(--c-action) 28%, var(--c-border));
+  background:
+    radial-gradient(120% 160% at 0% 0%, color-mix(in srgb, var(--c-action) 16%, transparent), transparent 60%),
+    var(--c-surface-1);
+}
+
+.cp-set-avatar {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--c-action) 18%, var(--c-surface-2));
+  border: 1px solid color-mix(in srgb, var(--c-action) 35%, transparent);
+  color: var(--c-text);
+  font-size: 1.6rem;
+  font-weight: 650;
+}
+
+.cp-set-hero-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.cp-set-hero-text > strong {
+  overflow: hidden;
+  font-size: 1.125rem;
+  font-weight: 650;
+  color: var(--c-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cp-set-hero-text > span:not(.cp-set-hero-plan) {
+  overflow: hidden;
+  font-size: 0.875rem;
+  color: var(--c-text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cp-set-hero-plan {
+  margin-top: 0.25rem;
+}
+
+.cp-set-plan {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--c-border-strong);
+  color: var(--c-text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+/* Sarı yalnız Plus'ta (tasarım kuralı). */
+.cp-set-plan--plus {
+  border-color: color-mix(in srgb, #f5c542 55%, transparent);
+  background: color-mix(in srgb, #f5c542 14%, transparent);
+  color: #f5c542;
+}
+
+:root:not(.dark) .cp-set-plan--plus {
+  color: #8a6400;
+}
+
+.cp-set-hero-edit {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 1rem;
+  border-radius: 999px;
+  background: var(--c-action);
+  color: var(--c-on-action, #fff);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.cp-set-hero-edit:hover {
+  background: var(--c-action-hover, #5170ff);
+}
+
+.cp-set-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.cp-set-group-title {
+  margin: 0 0 0 0.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--c-text-muted);
+}
+
+.cp-set-group-desc {
+  margin: 0 0 0 0.25rem;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--c-text-muted);
+}
+
+.cp-set-group-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.35rem;
+  border-radius: 1.1rem;
+  border: 1px solid var(--c-border);
+  background: var(--c-surface-1);
+}
+
+/* Kart içindeki formlar (e-posta, şifre, tercihler) kendi iç boşluğuyla. */
+.cp-set-group-body > :not(.cp-set-rows):not(.cp-pp-appearance):not(.cp-set-inline-btn) {
+  padding: 0.65rem 0.75rem;
+}
+
+.cp-set-group--danger .cp-set-group-body {
+  border-color: color-mix(in srgb, #ef4444 30%, var(--c-border));
+}
+
+.cp-set-rows {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-set-rows li + li {
+  border-top: 1px solid var(--c-border);
+}
+
+.cp-set-row {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  min-height: 56px;
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.8rem;
+  color: var(--c-text);
+  text-decoration: none;
+}
+
+.cp-set-row:hover {
+  background: var(--c-surface-2);
+}
+
+.cp-set-row-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.7rem;
+  background: color-mix(in srgb, var(--c-action) 14%, transparent);
+  color: color-mix(in srgb, var(--c-action) 55%, var(--c-text));
+}
+
+.cp-set-row-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.cp-set-row-text strong {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.cp-set-row-text span {
+  overflow: hidden;
+  font-size: 0.8125rem;
+  color: var(--c-text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cp-set-row-chev {
+  flex: none;
+  color: var(--c-text-muted);
+}
+
+.cp-set-group-body > .cp-pp-appearance {
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.8rem;
+  background: transparent;
+}
+
+.cp-set-inline-btn {
+  align-self: flex-start;
+  min-height: 40px;
+  margin: 0 0.75rem 0.5rem;
+  padding: 0 0.95rem;
+  border-radius: 999px;
+  border: 1px solid var(--c-border-strong);
+  color: var(--c-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+@media (max-width: 480px) {
+  .cp-set-hero {
+    flex-wrap: wrap;
+  }
+
+  .cp-set-hero-edit {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Abonelik sayfası, kurucu hesabı (8 Kasım 2026): satış yerine hesabın durumu. */
+.cp-pay-founder {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  max-width: 44rem;
+  margin: 0 auto 1.5rem;
+  padding: 1.1rem 1.2rem;
+  border-radius: 1.25rem;
+  border: 1px solid color-mix(in srgb, var(--c-action) 28%, var(--c-border));
+  background:
+    radial-gradient(120% 160% at 0% 0%, color-mix(in srgb, var(--c-action) 14%, transparent), transparent 60%),
+    var(--c-surface-1);
+}
+
+.cp-pay-founder h1 {
+  margin: 0;
+  font-size: 1.375rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--c-text);
+}
+
+.cp-pay-founder p {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--c-text-muted);
+}
+
+.cp-pay-founder-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  margin-top: 0.25rem;
+  padding: 0 1rem;
+  border-radius: 999px;
+  background: var(--c-action);
+  color: var(--c-on-action, #fff);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+}

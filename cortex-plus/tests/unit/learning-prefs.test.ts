@@ -42,7 +42,7 @@ describe("öğrenme tercihleri", () => {
     expect(sql).toContain("readable_font");
     expect(sql).toContain("tutor_voice");
     expect(sql).toContain("BETWEEN 5 AND 240");
-    expect(readFileSync("src/app/profil/duzenle/page.tsx", "utf8")).toContain('redirect("/profil?dialog=profile")');
+    expect(readFileSync("src/app/profil/duzenle/page.tsx", "utf8")).toContain('redirect("/ayarlar?dialog=profile")');
     expect(readFileSync("src/components/chat/chat-panel.tsx", "utf8")).toContain("lastIsAnswer && showSuggestions");
   });
 });

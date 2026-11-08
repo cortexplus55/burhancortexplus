@@ -7,6 +7,9 @@ import { getUserEntitlements } from "@/lib/billing/entitlements";
 import { isPaytrConfigured } from "@/lib/payments/paytr";
 import { PlusMonth } from "@/components/marketing/plus-month";
 import { loadPlusPrices } from "@/lib/billing/plan-prices";
+import Link from "next/link";
+import { getStudentAccountContext } from "@/lib/student/account-context";
+import { FounderBadge } from "@/components/student/founder-chip";
 
 export const metadata = { title: "Abonelik" };
 
@@ -17,7 +20,7 @@ export default async function PayPage({ searchParams }: { searchParams: Promise<
   const kodParam = (await searchParams).kod;
   const initialCode = (Array.isArray(kodParam) ? kodParam[0] : kodParam)?.slice(0, 40) ?? "";
 
-  const [extendedPlans, currentBadge, entitlements, prices] = await Promise.all([
+  const [extendedPlans, currentBadge, entitlements, prices, account] = await Promise.all([
     supabase
       .from("plans")
       .select(
@@ -28,7 +31,10 @@ export default async function PayPage({ searchParams }: { searchParams: Promise<
     getSubscriptionBadge(supabase, user.id),
     getUserEntitlements(supabase, user.id),
     loadPlusPrices(supabase),
+    getStudentAccountContext(supabase, user.id).catch(() => null),
   ]);
+  // Kurucu hesabı (8 Kasım 2026): bütün özellikler açık; "Plus'a yükselt" satışı yerine hesabın durumu.
+  const founder = account?.isAdmin === true;
 
   let plans = extendedPlans.data;
   if (extendedPlans.error) {
@@ -47,11 +53,21 @@ export default async function PayPage({ searchParams }: { searchParams: Promise<
 
   return (
     <AppShell>
+      {founder ? (
+        <section className="cp-pay-founder" aria-label="Hesabının durumu">
+          <FounderBadge />
+          <h1>Bütün özellikler açık</h1>
+          <p>Kurucu hesabında ödeme gerekmez ve işlemler haktan düşmez. Aşağıdaki planlar öğrencinin gördüğü hâliyle duruyor.</p>
+          <Link href="/krediler" className="cp-pay-founder-link">
+            Kullanım limitleri
+          </Link>
+        </section>
+      ) : null}
       <div id="planlar">
         <SubscriptionCards
           plans={plans ?? []}
           embedded
-          headingLevel="h1"
+          headingLevel={founder ? "h2" : "h1"}
           currentBadge={currentBadge}
           currentAllowance={entitlements.monthlyAllowance}
           checkoutEnabled={isPaytrConfigured()}
@@ -59,7 +75,7 @@ export default async function PayPage({ searchParams }: { searchParams: Promise<
       </div>
       <PromoRedeem initialCode={initialCode} />
       {/* Ücretsiz öğrenciye planların altında Plus'ın bir ayı ve "ayını kur" (20 Ekim 2026). */}
-      {entitlements.showsUpgradeChrome ? (
+      {entitlements.showsUpgradeChrome && !founder ? (
         <PlusMonth
           variant="full"
           headingLevel="h2"
