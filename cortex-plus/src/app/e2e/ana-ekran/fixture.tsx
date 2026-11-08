@@ -2,9 +2,7 @@
 
 import { ChatPanel } from "@/components/chat/chat-panel";
 import { ParitySorShell } from "@/components/parity/sor-shell";
-import { HomeStudios } from "@/components/parity/home-studios";
 import { FirstStepLauncher } from "@/components/parity/first-step-launcher";
-import { PlusMonth } from "@/components/marketing/plus-month";
 import type { StudentAccountContext } from "@/lib/student/account-context";
 
 /** Yalnız test fikstürü (E2E_FIXTURE=1): ana ekranın yerleşimini veritabanısız çizer. */
@@ -42,6 +40,10 @@ const MESSAGES = [
   },
 ];
 
+export function fixtureAccount(plus: boolean): StudentAccountContext {
+  return account(plus);
+}
+
 export function AnaEkranFixture({
   conversation,
   plus,
@@ -51,26 +53,10 @@ export function AnaEkranFixture({
   plus: boolean;
   hasPrep: boolean;
 }) {
-  const heroFooter = conversation ? undefined : (
-    <>
-      <HomeStudios freeAccount={!plus} />
-      {hasPrep ? null : (
-        <FirstStepLauncher
-          firstName="Öğrenci"
-          gradeLevel="12. sınıf"
-          goalText="YKS hazırlık"
-        />
-      )}
-      {plus ? null : (
-        <PlusMonth
-          variant="compact"
-          monthlyKurus={29900}
-          primary={{ label: "Plus'a geç", href: "/pay" }}
-          secondary={{ label: "Bir ayda neler var?", href: "/pay#plus-ay" }}
-        />
-      )}
-    </>
-  );
+  const heroFooter =
+    conversation || hasPrep ? undefined : (
+      <FirstStepLauncher firstName="Öğrenci" gradeLevel="12. sınıf" goalText="YKS hazırlık" />
+    );
   return (
     <ParitySorShell userInitial="Ö" streak={2} account={account(plus)}>
       <ChatPanel

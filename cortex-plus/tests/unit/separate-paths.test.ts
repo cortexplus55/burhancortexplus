@@ -16,7 +16,7 @@ import { TOOLS } from "@/lib/parity/tools";
 */
 describe("her hazırlığın kendi yolu", () => {
   it("menüde birleşik 'Çalış' ekranı yok; kıyas ürünü sırası", () => {
-    expect(studentBottomTabs.map((tab) => tab.label)).toEqual(["Ana Sayfa", "Sınavlar", "Araçlar", "Profil"]);
+    expect(studentBottomTabs.map((tab) => tab.label)).toEqual(["Ana Sayfa", "Sınavlar", "Çalışma Stüdyosu", "Profil"]);
     expect(studentBottomTabs.some((tab) => tab.href === "/calisma-plani")).toBe(false);
     expect(TOOLS.some((tool) => tool.href === "/calisma-plani")).toBe(false);
     // 6 Kasım 2026 (Paket 3): yönlendirme sayfa dosyasından `next.config.ts`'e taşındı.

@@ -321,8 +321,6 @@ function ChatPanelSession({
   const shellAccount = useStudentShellAccount();
   // Kurucuda kota ve mesaj başı maliyet satırı yok: hiçbir mesaj kredi düşürmüyor.
   const founder = shellAccount?.isAdmin === true;
-  const showUpgrade =
-    !examChrome && (shellAccount ? shellAccount.showsUpgradeChrome : !isPremium);
   const allowAdvanced = shellAccount?.audience === "sigma";
   // Kapı aboneyi kabuktan da tanır (CreditGate ile aynı sıra); cümle ona göre seçilir.
   const gatePremium = isPremium ?? shellAccount?.isPremium ?? false;
@@ -1615,19 +1613,6 @@ function ChatPanelSession({
                   <SorTypingDots label={thinkingLabel} />
                 </div>
               ) : null}
-              {/* 8 Kasım 2026: sohbetin sonunda ince bir satır; yazma alanının arkasına girmeyen, akıştaki tek Plus
-                  hatırlatması (eski altın kutu bestecinin altında kalıyordu, yandaki kart sohbetin üstüne biniyordu). */}
-              {showUpgrade && messages.length > 0 && !loading ? (
-                <Link href={`/pay?returnTo=${encodeURIComponent(returnPath)}`} className="cp-sor-upgrade-row">
-                  <span className="cp-sor-upgrade-row-text">
-                    <strong>Plus</strong> ile podcast, sözlü ve yazılı deneme de açılır
-                  </span>
-                  <span className="cp-sor-upgrade-row-cta">
-                    Plus&apos;a geç
-                    <ChevronRight className="h-4 w-4" aria-hidden />
-                  </span>
-                </Link>
-              ) : null}
               <div ref={messagesEndRef} className="h-px shrink-0" aria-hidden />
             </div>
           ) : null}
@@ -1642,8 +1627,8 @@ function ChatPanelSession({
           ) : null}
 
           {/* Yazma alanı ortada ve tek başına (8 Kasım 2026): yanındaki Plus kartı kalktı, sohbetin ve ana ekranın
-              üstüne biniyordu. Ücretsiz hesabın Plus bilgisi ana ekranda kahraman alanında, sohbette akıştaki ince
-              satırda ve üst çubuktaki Plus düğmesinde. Sınav sohbetinde satış yok; kota dolunca kredi kapısı açılır. */}
+              üstüne biniyordu. Öğretmenle sohbet alanında Plus tanıtımı yok (ürün sahibinin kararı): yalnız üst
+              çubuktaki Plus düğmesi. Kota dolunca kredi kapısı açılır. */}
           <div
             ref={composerZoneRef}
             className="cp-sor-composer-zone"

@@ -947,7 +947,7 @@ ve fütüristik". Yeniden açmayın:
 | "Ücretsizde kapalı" = `PLUS_ONLY_ACTIONS`: podcast, sözlü, yazılı deneme, video. Ücretsizde ders ayda ~12 (haftada 3), test ve kartlar "Derse dahil", mesaj 90, fotoğraf 30 (`free`, 24 Ekim 2026) | `PLAN_WORK[].plusOnly`, `free` |
 | "Kendi ayını kur": öğrenci temposunu (günde ders/test/soru, haftada podcast/deneme, ayda video) seçer; hakkın yüzdesi, kalan pay ve aynı tempo ücretsizle kaç gün sürerdi görünür. Hazır tempolar Plus'a sığar (kredi v3: düzenli %45, sınav ayı %67, son sprint %72; en yoğunu %75'in altında). Öğrenci **kredi sayısı görmez**, yüzde görür | `TEMPO_PRESETS`, `tempoMix`, `mixShare`, `freeDaysFor` |
 | Fiyat satırı: aylık fiyatın günlük karşılığı (yıllık plan 24 Ekim 2026'da kalktı), "Otomatik yenileme yok", "Kart bilgisi bize gelmez" — üçü de bugün doğru (`AUTO_RENEW_SUPPORTED = false`, PayTR iFrame). Sahte aciliyet, sahte yorum, indirim sayacı yok | `TrustLine` |
-| Misafir: ana sayfada ikinci bölüm (güven çubuğunun hemen ardından). Ücretsiz öğrenci (`showsUpgradeChrome`): ana ekranda kart — hiç hazırlığı yoksa önce "İlk hazırlığını kur" (değeri yaşatmadan satış dönüşmüyor), hemen altında Plus kartı; ödeme sayfasında planların altında tam bölüm; yükseltme kapısında dört sayı. Plus/Sigma ve kurucu görmez | `landing-page.tsx`, `ogretmen/page.tsx`, `pay/page.tsx`, `upgrade-sheet.tsx` |
+| Misafir: ana sayfada ikinci bölüm (güven çubuğunun hemen ardından). Ücretsiz öğrenci (`showsUpgradeChrome`): ~~ana ekranda kart~~ **8 Kasım 2026'dan beri ana ekranda (öğretmen sohbeti) Plus kartı yok** (ürün sahibi: "orası öğretmenle konuşma alanı"); ödeme sayfasında planların altında tam bölüm; yükseltme kapısında dört sayı. Plus/Sigma ve kurucu görmez | `landing-page.tsx`, `ogretmen/page.tsx`, `pay/page.tsx`, `upgrade-sheet.tsx` |
 | Tasarım: koyu zemin, yavaş mavi-altın ışık, ufka uzanan ızgara, tarama ışığı, dönen altın kenarlı kart; altın yalnız Plus. `overflow: clip` (hidden değil): hidden kaydırılabilir kutu kuruyor, #plus-ay bağlantısıyla gelince içerik telefonda 461 px sola kaçıyordu. Sayılar sunucuda son değerle yazılır, ekrana girince sayar; hareket azaltmada durur | `plus-month.tsx`, `plus-month.css` |
 
 Fiyatlar tek okuyucudan (`loadPlusPrices`). Bekçi: `plus-month.test.tsx`, `marketing-claims.test.ts`.
@@ -2138,22 +2138,24 @@ Bekçi: `kurulum-ve-egitmen-8-kasim.test.tsx`, `paket1-tutor-scratchpad.test.tsx
 dokunma ≥ 40 px, tarih özeti, eğitmen sohbeti soruya bağlı), `mufredat.spec.ts`. Telefonda kök düzendeki 36 px tabanı
 (`mobile-tap-targets.css`, `:root` + sınıf) eğitmen çiplerini eziyordu: kural `.cp-exam-coach .cp-coach-asks` ile daha özgül.
 
-## Ana ekran (8 Kasım 2026) — üst üste binme yok, stüdyolar ilk ekranda
+## Ana ekran ve Çalışma Stüdyosu (8 Kasım 2026) — sohbet alanında satış yok, stüdyolar kendi sekmesinde
 
-Ürün sahibi, ücretsiz öğrencinin kayıttan sonra gördüğü ilk ekran için: "Plus ile bu ay kartı altta kalıyor, mod
-düğmeleri ortalanmıyor, yükselt bandı düğmelerin arkasında; kabul edilemez. Çalışma stüdyoları ana ekranda olsun,
-telefon ve tablette de." Yeniden açmayın:
+Ürün sahibi iki turda: (1) "Plus kartı altta kalıyor, mod düğmeleri ortalanmıyor, yükselt bandı düğmelerin arkasında;
+kabul edilemez" (#604). (2) "Plus ile bu ay kartını oradan tamamen kaldır; orası öğretmenle konuşma alanı. Araçlar
+sekmesinin adı Çalışma Stüdyosu olsun, doğrudan özelliklerimizi kullanacak şekilde, daha iyi kartlarla." Stüdyo
+kartları ana ekrandan da kalktı (ürün sahibinin seçimi). Yeniden açmayın:
 
 | Kural | Nerede |
 |---|---|
-| **Yazma alanının yanında kart yok.** `UpgradeAside` (yazma alanının yanındaki Plus kartı) silindi: masaüstünde besteciyi sola itiyor, sohbetin üstüne biniyordu. Plus bilgisi yalnız akışta: ana ekranda `PlusMonth` en sonda, sohbetin sonunda ince `.cp-sor-upgrade-row` (yanıt yazılırken yok), üst çubukta Plus düğmesi | `chat-panel.tsx`, `ogretmen/page.tsx` |
-| **Sıra:** selam + Başla → Çalışma Stüdyoları (herkese) → hiç hazırlığı yoksa ilk adım → ücretsize Plus kartı. Kartlar 56rem sütunda, aynı kenarlarda | `home-studios.tsx`, `.cp-sor-hero--rich` |
-| **Stüdyolar:** 8 kart (Fotoğraftan Çözüm, Konu Testi, Kartlar, Doğru/Yanlış, Podcast, Sözlü, Yazılı Deneme, Anlatarak Öğren), her biri kendi stüdyosunu açar; ücretsizde yalnız `PLUS_ONLY_ACTIONS` işleri "Plus" rozeti taşır. Masaüstünde 4, 820 px altında 2 sütun | `HOME_STUDIOS`, `home-studios.css` |
-| **Sabit besteci arkasını örter** (`::before` geçişi + zemin); mod düğmeleri `safe center`; sohbet sütunu 48rem ortada; kartlı ana ekran sabit yükseklikte kabuk (`.cp-sor-root:has(.cp-sor-hero--rich)`, önce vh sonra dvh), kayan yalnız kart kutusu; ölçülen boşluğa geçiş payı (+2.5rem) ve `scroll-padding-bottom` (klavyeyle odaklanan kart yazma alanının arkasında kalmaz) | `parity-shell.css` sonu |
+| **Ana ekran yalnız öğretmenle sohbet:** selam, Başla ve hiç hazırlığı olmayan öğrenciye ilk adım kartları. Plus kartı, stüdyo kartları, yazma alanının yanındaki kart (`UpgradeAside`, silindi), sohbet sonundaki bant ya da satır **yok**. Plus yalnız üst çubuktaki düğmede; kota dolunca kredi kapısı | `ogretmen/page.tsx`, `chat-panel.tsx` |
+| **"Araçlar" sekmesinin adı "Çalışma Stüdyosu"** (adres `/araclar` aynı); telefonun alt menüsünde `shortLabel` "Stüdyo". Sayfa sekmesiz ve aramasız: başta 8 stüdyo (`StudioGallery`), sonra interaktif laboratuvarlar, hesap araçları, kısayollar | `student-shell-nav.ts`, `tools-hub.tsx` |
+| **Stüdyolar tek kaynak** `STUDIOS`: her biri kendi vurgu rengiyle (sarı yok), büyük 3B simge, iki kısa bilgi (bugün çalışan özellik, söz yok), "Başla"; ücretsizde yalnız `PLUS_ONLY_ACTIONS` işleri "Plus" rozeti ve "İncele". Masaüstünde 3 sütun ve ilk kart geniş; 900 px altında 2 sütun, öne çıkan iki kart tam satır; 560 px altında tek sütun, simge solda | `lib/parity/studios.ts`, `studio-gallery.tsx`, `studio-gallery.css` |
+| **Sabit besteci arkasını örter** (`::before` geçişi + zemin); mod düğmeleri `safe center`; sohbet sütunu 48rem ortada; kartlı ana ekran sabit yükseklikte kabuk (`.cp-sor-root:has(.cp-sor-hero--rich)`, önce vh sonra dvh), kayan yalnız kart kutusu; ölçülen boşluğa geçiş payı (+2.5rem) ve `scroll-padding-bottom` | `parity-shell.css` sonu |
 | Öğrencinin mesaj balonu okunur (yazı rengi zemin rengiydi); "Geri / Yeni sohbet" satırı sütun hizasında, 44 px | `parity-shell.css` |
 | **Üst menü tablette (768–1179 px) yalnız simge** (yazılar simgelerle çakışıyordu; ad `title` ve ekran okuyucuda); telefonda yandaki "Daha fazla" yalnız simge | `sor-shell.tsx` `.cp-sor-topnav-label` |
 
-Doğrulama fikstürü `/e2e/ana-ekran` (`?durum=sohbet`, `?plan=plus`, `?hazirlik=1`). Bekçi: `ana-ekran-8-kasim.test.tsx`,
-e2e `ana-ekran.spec.ts` (375, 360, 768, 1024, 1280 px: taşma 0, son kart geçişin üstünde, mod düğmeleri ortada ve
-kırpılmıyor, her stüdyo kartının ortası tıklanınca kartın kendisi). E2E'yi tam birim paketiyle aynı anda koşmayın:
-yük altında sayfa açılışları zaman aşımına düşüyor.
+Fikstürler `/e2e/ana-ekran` (`?durum=sohbet`, `?plan=plus`, `?hazirlik=1`) ve `/e2e/studyo` (`?plan=plus`). Bekçi:
+`ana-ekran-8-kasim.test.tsx`, e2e `ana-ekran.spec.ts` (375, 360, 768, 1024, 1280 px: taşma 0, ana ekranda Plus ve
+stüdyo kartı yok, son içerik geçişin üstünde, mod düğmeleri ortada ve kırpılmıyor; stüdyo sayfasında 8 kart, her
+birinin ortası tıklanınca kartın kendisi). E2E'yi tam birim paketiyle aynı anda koşmayın: yük altında sayfa açılışları
+zaman aşımına düşüyor.

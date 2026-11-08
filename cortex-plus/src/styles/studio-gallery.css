@@ -1,0 +1,397 @@
+/*
+  Çalışma Stüdyosu kartları (8 Kasım 2026, ürün sahibi: "kartlar çok sade ve basit olmuş"). Her stüdyonun kendi vurgu
+  rengi (--sg-accent): renkli ince kenar, köşede ışık, simgenin altında renkli plaka, renkli "Başla". Sarı yok (yalnız
+  marka ve Plus). Masaüstünde üç sütun ve iki geniş kart; tablette iki; telefonda tek sütun, simge solda.
+  Hareket azaltmada animasyon yok; dokunma alanı kartın tamamı.
+*/
+
+.sg {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.sg-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.sg-heading span {
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: var(--cp-surface-2);
+  color: var(--cp-muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.sg-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.sg-cell {
+  display: flex;
+  min-width: 0;
+  animation: sg-rise 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(var(--sg-i, 0) * 50ms);
+}
+
+.sg-cell--featured:first-child {
+  grid-column: span 2;
+}
+
+@keyframes sg-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.sg-card {
+  --sg-accent: var(--c-action);
+  position: relative;
+  isolation: isolate;
+  flex: 1;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 1rem;
+  min-height: 15rem;
+  padding: 1.25rem;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: 1.5rem;
+  background:
+    linear-gradient(165deg, color-mix(in srgb, var(--sg-accent) 12%, var(--cp-surface)), var(--cp-surface) 55%) padding-box,
+    linear-gradient(150deg, color-mix(in srgb, var(--sg-accent) 70%, transparent), var(--cp-border) 45%, var(--cp-border)) border-box;
+  color: var(--cp-text);
+  text-decoration: none;
+  transition:
+    transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 0.25s ease;
+}
+
+.sg-card:hover {
+  transform: translateY(-4px);
+  box-shadow:
+    0 24px 48px -28px color-mix(in srgb, var(--sg-accent) 85%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--sg-accent) 30%, transparent) inset;
+}
+
+.sg-card:focus-visible {
+  outline: 2px solid var(--sg-accent);
+  outline-offset: 3px;
+}
+
+/* Köşedeki renkli ışık; üzerine gelince güçlenir. */
+.sg-glow {
+  position: absolute;
+  z-index: -1;
+  top: -35%;
+  right: -25%;
+  width: 70%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--sg-accent) 38%, transparent), transparent 68%);
+  opacity: 0.55;
+  transition: opacity 0.3s ease, transform 0.4s ease;
+  pointer-events: none;
+}
+
+.sg-card:hover .sg-glow {
+  opacity: 0.95;
+  transform: scale(1.12);
+}
+
+.sg-art {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 5rem;
+  height: 5rem;
+}
+
+.sg-art-plate {
+  position: absolute;
+  inset: 0.4rem;
+  border-radius: 1.4rem;
+  background:
+    radial-gradient(80% 80% at 30% 20%, color-mix(in srgb, var(--sg-accent) 55%, transparent), transparent 70%),
+    color-mix(in srgb, var(--sg-accent) 16%, var(--cp-surface-2));
+  border: 1px solid color-mix(in srgb, var(--sg-accent) 40%, transparent);
+  transform: rotate(-8deg);
+  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.sg-art img {
+  position: relative;
+  filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.45));
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.sg-card:hover .sg-art img {
+  transform: translateY(-4px) scale(1.06);
+}
+
+.sg-card:hover .sg-art-plate {
+  transform: rotate(0deg) scale(1.04);
+}
+
+.sg-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.sg-name {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.125rem;
+  font-weight: 650;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.sg-blurb {
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--cp-muted);
+}
+
+.sg-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.15rem;
+}
+
+.sg-fact {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--sg-accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sg-accent) 28%, transparent);
+  color: var(--cp-text);
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.sg-fact svg {
+  color: var(--sg-accent);
+}
+
+.sg-plus {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--c-brand) 55%, transparent);
+  background: color-mix(in srgb, var(--c-brand) 15%, transparent);
+  color: var(--c-brand);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+}
+
+.sg-cta {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 44px;
+  padding: 0 1.1rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--sg-accent) 85%, #000);
+  color: #fff;
+  font-size: 0.9375rem;
+  font-weight: 650;
+  box-shadow: 0 10px 24px -14px var(--sg-accent);
+  transition: background 0.2s ease;
+}
+
+.sg-cta svg {
+  transition: transform 0.2s ease;
+}
+
+.sg-card:hover .sg-cta {
+  background: var(--sg-accent);
+}
+
+.sg-card:hover .sg-cta svg {
+  transform: translateX(3px);
+}
+
+/* Geniş kart (iki sütunluk ilk kart): simge solda büyük, metin sağda. Masaüstünde yalnız ilk kart geniş;
+   tablette iki öne çıkan kart da tam satır. */
+@media (min-width: 901px) {
+  .sg-cell--featured:first-child .sg-card--featured {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: 1fr auto;
+    column-gap: 1.5rem;
+    align-items: center;
+    padding: 1.5rem 1.6rem;
+  }
+
+  .sg-cell--featured:first-child .sg-card--featured .sg-art {
+    grid-row: 1 / span 2;
+    width: 7.5rem;
+    height: 7.5rem;
+  }
+
+  .sg-cell--featured:first-child .sg-card--featured .sg-art-plate {
+    inset: 0.5rem;
+    border-radius: 2rem;
+  }
+
+  .sg-cell--featured:first-child .sg-card--featured .sg-name {
+    font-size: 1.5rem;
+  }
+
+  .sg-cell--featured:first-child .sg-card--featured .sg-blurb {
+    font-size: 0.9375rem;
+    max-width: 34rem;
+  }
+
+  .sg-cell--featured:first-child .sg-card--featured .sg-cta {
+    grid-column: 2;
+  }
+}
+
+@media (min-width: 561px) and (max-width: 900px) {
+  .sg-cell--featured .sg-card--featured {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: 1fr auto;
+    column-gap: 1.5rem;
+    align-items: center;
+    padding: 1.5rem 1.6rem;
+  }
+
+  .sg-cell--featured .sg-card--featured .sg-art {
+    grid-row: 1 / span 2;
+    width: 7.5rem;
+    height: 7.5rem;
+  }
+
+  .sg-cell--featured .sg-card--featured .sg-art-plate {
+    inset: 0.5rem;
+    border-radius: 2rem;
+  }
+
+  .sg-cell--featured .sg-card--featured .sg-name {
+    font-size: 1.5rem;
+  }
+
+  .sg-cell--featured .sg-card--featured .sg-blurb {
+    font-size: 0.9375rem;
+    max-width: 34rem;
+  }
+
+  .sg-cell--featured .sg-card--featured .sg-cta {
+    grid-column: 2;
+  }
+}
+
+/* Tablet: iki sütun; iki geniş kart tam satır, kalan altı kart üç sıra. */
+@media (max-width: 900px) {
+  .sg-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sg-cell--featured,
+  .sg-cell--featured:first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Telefon: tek sütun, simge solda, kart kısa. */
+@media (max-width: 560px) {
+  .sg-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.75rem;
+  }
+
+  .sg-card,
+  .sg-card--featured {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    column-gap: 0.9rem;
+    row-gap: 0.75rem;
+    align-items: start;
+    min-height: 0;
+    padding: 1rem;
+    border-radius: 1.25rem;
+  }
+
+  .sg-art,
+  .sg-card--featured .sg-art {
+    grid-row: 1;
+    width: 4rem;
+    height: 4rem;
+  }
+
+  .sg-art img {
+    width: 52px !important;
+    height: 52px !important;
+  }
+
+  .sg-card--featured .sg-name {
+    font-size: 1.125rem;
+  }
+
+  .sg-card--featured .sg-blurb {
+    font-size: 0.875rem;
+  }
+
+  .sg-cta,
+  .sg-card--featured .sg-cta {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+    justify-content: center;
+  }
+
+  .sg-fact {
+    white-space: normal;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sg-cell {
+    animation: none;
+  }
+
+  .sg-card,
+  .sg-glow,
+  .sg-art-plate,
+  .sg-art img,
+  .sg-cta,
+  .sg-cta svg {
+    transition: none;
+  }
+
+  .sg-card:hover,
+  .sg-card:hover .sg-art img,
+  .sg-card:hover .sg-art-plate,
+  .sg-card:hover .sg-glow {
+    transform: none;
+  }
+}

@@ -1,9 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
 
 /*
-  8 Kasım 2026: öğrencinin ana ekranı (/ogretmen fikstürü). Telefon, tablet ve masaüstünde: yana taşma yok; mod
-  düğmeleri ortada ve kırpılmıyor; selamın altındaki son kart ve sohbetin son satırı en alta kaydırınca yazma alanının
-  (ve üstündeki geçişin) üstünde kalıyor; stüdyo kartlarının ortasına tıklanınca kartın kendisi yakalanıyor.
+  8 Kasım 2026: öğrencinin ana ekranı (/ogretmen fikstürü) ve Çalışma Stüdyosu sekmesi (/araclar fikstürü).
+  Telefon, tablet ve masaüstünde: yana taşma yok; ana ekranda Plus ve stüdyo kartı yok, mod düğmeleri ortada ve
+  kırpılmıyor, son içerik yazma alanının üstünde kalıyor; stüdyo sayfasında sekiz kart, her birinin ortası tıklanınca
+  kartın kendisi yakalanıyor.
 */
 
 const SIZES = [
@@ -47,14 +48,14 @@ async function layout(page: Page, lastSelector: string) {
 }
 
 for (const size of SIZES) {
-  test(`ana ekran ${size.width}×${size.height}: üst üste binme yok`, { tag: ["@public"] }, async ({ page }) => {
+  test(`ana ekran ${size.width}×${size.height}: Plus ve stüdyo kartı yok, üst üste binme yok`, { tag: ["@public"] }, async ({ page }) => {
     await page.setViewportSize(size);
 
     await page.goto("/e2e/ana-ekran");
-    await expect(page.getByRole("heading", { name: "Bugün nasıl çalışmak istersin?" })).toBeVisible();
-    await expect(page.locator(".hs-card")).toHaveCount(8);
+    await expect(page.getByRole("heading", { name: /Hoş geldin/ })).toBeVisible();
+    await expect(page.locator(".pm-card, .sg-card, .cp-sor-upgrade-row")).toHaveCount(0);
     await scrollToEnd(page);
-    const empty = await layout(page, ".hs, .cp-first-step, .pm-card");
+    const empty = await layout(page, ".cp-first-step");
     expect(empty.overflow).toBeLessThanOrEqual(1);
     expect(empty.gap).toBeGreaterThanOrEqual(0);
     expect(empty.centered).toBe(true);
@@ -62,33 +63,34 @@ for (const size of SIZES) {
     await page.screenshot({ path: `test-results/ana-ekran-${size.width}-bos.png` });
 
     await page.goto("/e2e/ana-ekran?durum=sohbet");
-    await expect(page.getByRole("link", { name: /Plus'a geç/ })).toBeAttached();
+    await expect(page.getByText("Peki ikinci türev neyi gösterir?")).toBeVisible();
+    await expect(page.locator(".pm-card, .cp-sor-upgrade-row")).toHaveCount(0);
     await scrollToEnd(page);
-    const thread = await layout(page, ".cp-sor-upgrade-row");
+    const thread = await layout(page, ".cp-sor-msg-assistant, .cp-followups");
     expect(thread.overflow).toBeLessThanOrEqual(1);
     expect(thread.gap).toBeGreaterThanOrEqual(0);
     expect(thread.centered).toBe(true);
-    await page.screenshot({ path: `test-results/ana-ekran-${size.width}-sohbet.png` });
+  });
+
+  test(`Çalışma Stüdyosu ${size.width}×${size.height}: sekiz kart, taşma yok, kartlar tıklanır`, { tag: ["@public"] }, async ({ page }) => {
+    await page.setViewportSize(size);
+    await page.goto("/e2e/studyo");
+    await expect(page.getByRole("heading", { name: "Bugün nasıl çalışmak istersin?" })).toBeVisible();
+    const tabName = size.width < 768 ? "Stüdyo" : "Çalışma Stüdyosu";
+    await expect(page.getByRole("link", { name: tabName, exact: true }).first()).toBeAttached();
+    const cards = page.locator(".sg-card");
+    await expect(cards).toHaveCount(8);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+    for (let index = 0; index < 8; index += 1) {
+      const card = cards.nth(index);
+      await card.scrollIntoViewIfNeeded();
+      const box = (await card.boundingBox())!;
+      const hit = await page.evaluate(
+        ([x, y]) => Boolean(document.elementFromPoint(x, y)?.closest(".sg-card")),
+        [box.x + box.width / 2, box.y + box.height / 2] as const,
+      );
+      expect(hit, `kart ${index}`).toBe(true);
+    }
+    await page.screenshot({ path: `test-results/studyo-${size.width}.png`, fullPage: true });
   });
 }
-
-test("stüdyo kartları tıklanabilir: ortalarında başka bir katman yok, dokunma alanı yeterli", { tag: ["@public"] }, async ({ page }) => {
-  await page.setViewportSize({ width: 375, height: 812 });
-  await page.goto("/e2e/ana-ekran");
-  const cards = page.locator(".hs-card");
-  await expect(cards).toHaveCount(8);
-  await expect(page.locator(".cp-sor-view[data-composer-measured]")).toBeAttached({ timeout: 30_000 });
-  for (let index = 0; index < 8; index += 1) {
-    const card = cards.nth(index);
-    // Klavyeyle odaklanır gibi: kaydırma kartı yazma alanının üstüne getirmeli (scroll-padding-bottom).
-    await card.focus();
-    await page.waitForTimeout(300);
-    const box = (await card.boundingBox())!;
-    expect(box.height).toBeGreaterThanOrEqual(44);
-    const hit = await page.evaluate(
-      ([x, y]) => Boolean(document.elementFromPoint(x, y)?.closest(".hs-card")),
-      [box.x + box.width / 2, box.y + box.height / 2] as const,
-    );
-    expect(hit, `kart ${index}`).toBe(true);
-  }
-});

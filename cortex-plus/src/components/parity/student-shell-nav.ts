@@ -18,13 +18,14 @@ import {
   Target,
   User,
   Users,
-  Wrench,
 } from "lucide-react";
 
 export type StudentNavItem = {
   id: string;
   href: string;
   label: string;
+  /** Alt menüde (telefon) sığmayan uzun adın kısası. */
+  shortLabel?: string;
   icon: typeof MessageCircle;
   match: (path: string) => boolean;
 };
@@ -79,8 +80,10 @@ export const studentBottomTabs: StudentNavItem[] = [
   {
     id: "tools",
     href: "/araclar",
-    label: "Araçlar",
-    icon: Wrench,
+    // 8 Kasım 2026: "Araçlar" → "Çalışma Stüdyosu" (sayfanın asıl işi stüdyolar). Telefonun alt menüsünde "Stüdyo".
+    label: "Çalışma Stüdyosu",
+    shortLabel: "Stüdyo",
+    icon: Sparkles,
     match: (p) =>
       p.startsWith("/araclar") ||
       p.startsWith("/studio") ||

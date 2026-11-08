@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
 import {
   ArrowUpRight,
   BookOpen,
@@ -21,30 +20,16 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Icon3D, type Icon3DName } from "@/components/ui/icon-3d";
-import { TOOLS, TOOL_SUBJECTS, TOOL_CATEGORIES, type Tool, type ToolCategory } from "@/lib/parity/tools";
-import { exceedsFreeDaily } from "@/lib/billing/free-reach";
+import { TOOLS, type Tool } from "@/lib/parity/tools";
+import { StudioGallery } from "@/components/parity/studio-gallery";
 import { useStudentShellAccount } from "@/lib/student/student-shell-context";
-import type { ActionCode } from "@/lib/env";
 
 /**
- * Ücretsiz günlük haktan büyük kısayollar (19 Ekim 2026): ücretsiz hesapta "Plus" rozeti. Fotoğraftan çözüm 23 Ekim
- * 2026'dan beri ücretsizde günde 3 (krediye dokunmadan); rozeti yok.
- */
-const TOOL_ACTION: Partial<Record<string, ActionCode>> = {
-  podcast: "PODCAST_GENERATE",
-  sozlu: "ORAL_EXAM_GENERATE",
-};
-
-/**
- * Araçlar merkezi.
- *
- * Önceki hâli bir uygulama mağazasıydı: puan, oynanma, öne çıkanlar, günün
- * bulmacaları. O vitrin bir oyun kataloğu için doğruydu ama burada
- * yapılacak iş belli — öğrenci bir araca gitmek istiyor. Vitrin kaldırıldı.
- *
- * Kalan tek tasarım kararı şu: hangi kartın burada bir araç AÇACAĞINI,
- * hangisinin başka bir bölüme GÖTÜRECEĞİNİ tıklamadan önce bilmek. İkisi
- * ayrı bölümde ve kısayollarda dışa açılan ok var.
+ * Çalışma Stüdyosu sekmesi (eski adı Araçlar; 8 Kasım 2026). Sayfanın ana bölümü sekiz stüdyo (StudioGallery):
+ * her biri kendi rengiyle büyük kart ve doğrudan stüdyosunu açar. Altında bu sayfada açılan interaktif
+ * laboratuvarlar ve hesap araçları, en altta başka bölüme götüren kısayollar (dışa açılan okla).
+ * Önceki sekmeli ve aramalı düzen kalktı: on sekiz araçtan ders filtresiyle arama, öğrencinin asıl işi olan
+ * stüdyoları üçüncü sekmenin arkasına saklıyordu.
  */
 
 const ICONS: Record<string, LucideIcon> = {
@@ -69,110 +54,60 @@ const ICONS: Record<string, LucideIcon> = {
 
 export function ToolsHub() {
   const shellAccount = useStudentShellAccount();
-  const freeAccount = shellAccount ? !shellAccount.isPremium : false;
-  const [query, setQuery] = useState("");
-  const [subject, setSubject] = useState<string>("Tümü");
-  const [category, setCategory] = useState<ToolCategory>("simulasyon");
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLocaleLowerCase("tr-TR");
-    return TOOLS.filter((t) => {
-      if (t.category !== category) return false;
-      if (subject !== "Tümü" && t.subject !== subject) return false;
-      if (!q) return true;
-      return (
-        t.title.toLocaleLowerCase("tr-TR").includes(q) ||
-        t.blurb.toLocaleLowerCase("tr-TR").includes(q)
-      );
-    });
-  }, [query, subject, category]);
-
-  const calculators = filtered.filter((t) => t.kind === "hesap");
-  const shortcuts = filtered.filter((t) => t.kind === "kisayol");
-  const activeCategory = TOOL_CATEGORIES.find((item) => item.id === category);
+  const freeAccount = shellAccount ? shellAccount.showsUpgradeChrome : false;
+  // Stüdyolar kendi galerisinde (studios.ts); burada yalnız laboratuvar, hesap aracı ve kısayol.
+  const labs = TOOLS.filter((t) => t.category === "simulasyon");
+  const calculators = TOOLS.filter((t) => t.category === "odak" && t.kind === "hesap");
+  const shortcuts = TOOLS.filter((t) => t.category === "odak" && t.kind === "kisayol");
 
   return (
     <div className="tools">
       <header className="tools-hero">
-        <h1>Araçlar</h1>
-        <p>
-          Üç kategori: canlı simülasyonlar bu sayfada açılır; stüdyolar ve odak araçları ilgili bölüme gider.
+        <p className="tools-kicker">
+          <span aria-hidden className="tools-kicker-dot" />
+          Çalışma Stüdyosu
         </p>
+        <h1>Bugün nasıl çalışmak istersin?</h1>
+        <p>Bir stüdyo seç; konunu yaz ya da belgeni seç, saniyeler içinde hazır.</p>
       </header>
 
-      <div className="tools-tabs" role="tablist" aria-label="Araç kategorileri">
-        {TOOL_CATEGORIES.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            role="tab"
-            aria-selected={item.id === category}
-            className={cn("tools-tab", item.id === category && "is-on")}
-            onClick={() => setCategory(item.id)}
-          >
-            <span aria-hidden>{item.emoji}</span> {item.label}
-          </button>
-        ))}
-      </div>
+      <StudioGallery freeAccount={freeAccount} />
 
-      <div className="tools-bar">
-        <input
-          className="tools-search"
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Araç ara"
-          aria-label="Araç ara"
-        />
-        <div className="tools-filters" role="group" aria-label="Ders filtresi">
-          {TOOL_SUBJECTS.map((s) => (
-            <button
-              key={s}
-              type="button"
-              aria-pressed={s === subject}
-              className={cn("tools-chip", s === subject && "is-on")}
-              onClick={() => setSubject(s)}
-            >
-              {s}
-            </button>
+      <section className="tools-section">
+        <h2>
+          İnteraktif laboratuvarlar
+          <span>{labs.length}</span>
+        </h2>
+        <div className="tools-grid">
+          {labs.map((t) => (
+            <ToolCard key={t.id} tool={t} />
           ))}
         </div>
-      </div>
+      </section>
 
-      {calculators.length ? (
-        <section className="tools-section">
-          <h2>
-            {category === "simulasyon" ? "İnteraktif laboratuvarlar" : "Hesap araçları"}
-            <span>{calculators.length}</span>
-          </h2>
-          <div className="tools-grid">
-            {calculators.map((t) => (
-              <ToolCard key={t.id} tool={t} plus={false} />
-            ))}
-          </div>
-        </section>
-      ) : null}
+      <section className="tools-section">
+        <h2>
+          Hesap araçları
+          <span>{calculators.length}</span>
+        </h2>
+        <div className="tools-grid">
+          {calculators.map((t) => (
+            <ToolCard key={t.id} tool={t} />
+          ))}
+        </div>
+      </section>
 
-      {shortcuts.length ? (
-        <section className="tools-section">
-          <h2>
-            {activeCategory?.id === "studio" ? "Stüdyolar" : "Kısayollar"}
-            <span>{shortcuts.length}</span>
-          </h2>
-          <div className="tools-grid">
-            {shortcuts.map((t) => {
-              const code = TOOL_ACTION[t.id];
-              return <ToolCard key={t.id} tool={t} plus={freeAccount && Boolean(code && exceedsFreeDaily(code))} />;
-            })}
-          </div>
-        </section>
-      ) : null}
-
-      {!filtered.length ? (
-        <p className="tools-empty">
-          “{query}” için araç bulunamadı.
-        </p>
-      ) : null}
+      <section className="tools-section">
+        <h2>
+          Kısayollar
+          <span>{shortcuts.length}</span>
+        </h2>
+        <div className="tools-grid">
+          {shortcuts.map((t) => (
+            <ToolCard key={t.id} tool={t} />
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
@@ -185,7 +120,7 @@ const ICONS_3D: Partial<Record<string, Icon3DName>> = {
   birim: "birim",
 };
 
-function ToolCard({ tool, plus }: { tool: Tool; plus: boolean }) {
+function ToolCard({ tool }: { tool: Tool }) {
   const Icon = ICONS[tool.id] ?? Layers;
   const art = ICONS_3D[tool.id];
   const isShortcut = tool.kind === "kisayol";
@@ -209,13 +144,9 @@ function ToolCard({ tool, plus }: { tool: Tool; plus: boolean }) {
         <span className="tool-blurb">{tool.blurb}</span>
       </span>
       <span className="tool-meta">
-        {plus ? (
-          <span className="tool-kind is-plus">Plus</span>
-        ) : (
-          <span className={cn("tool-kind", isShortcut ? "is-shortcut" : "is-hesap")}>
-            {isShortcut ? "Kısayol" : "Hesap"}
-          </span>
-        )}
+        <span className={cn("tool-kind", isShortcut ? "is-shortcut" : "is-hesap")}>
+          {isShortcut ? "Kısayol" : "Hesap"}
+        </span>
         <span className="tool-subject">{tool.subject}</span>
       </span>
     </Link>

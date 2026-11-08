@@ -169,10 +169,10 @@ describe("nerede görünür", () => {
     expect(landing.indexOf("<PlusMonth")).toBeLessThan(landing.indexOf('id="nasil"'));
   });
 
-  it("ücretsiz öğrenci: ana ekranda kart, ödeme sayfasında bölüm, kapıda sayılar; Plus'ta görünmez", () => {
+  it("ücretsiz öğrenci: ödeme sayfasında bölüm, kapıda sayılar; ana ekranda (öğretmen sohbeti) yok", () => {
+    // 8 Kasım 2026, ürün sahibi: "orası öğretmenle konuşma alanı, Plus kartının orada ne işi var".
     const home = readFileSync("src/app/ogretmen/page.tsx", "utf8");
-    expect(home).toContain("const showPlus = account.showsUpgradeChrome;");
-    expect(home).toContain('variant="compact"');
+    expect(home).not.toContain("PlusMonth");
     const pay = readFileSync("src/app/pay/page.tsx", "utf8");
     expect(pay).toContain("entitlements.showsUpgradeChrome ? (");
     expect(pay).toContain('id="planlar"');
