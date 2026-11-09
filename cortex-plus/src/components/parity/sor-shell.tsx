@@ -228,8 +228,10 @@ export function ParitySorShell({
         ) : (
           <>
             <Link href="/ogretmen" className="cp-sor-logo" aria-label="Cortex Plus Ana Sayfa">
-              <CortexMark size={20} />
-              <span className="cp-sor-logo-word">cortex</span>
+              <CortexMark size={22} priority />
+              <span className="cp-sor-logo-word">
+                Cortex <span className="cp-sor-logo-plus">Plus</span>
+              </span>
               {isPremium ? (
                 <span className="cp-sor-logo-badge">{planLabel}</span>
               ) : null}

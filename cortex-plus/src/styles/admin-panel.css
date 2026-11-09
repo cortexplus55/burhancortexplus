@@ -69,9 +69,15 @@
 }
 
 .adm-brand-word {
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.adm-brand-plus {
+  color: var(--adm-gold, #fdb300);
 }
 
 .adm-brand-tag {

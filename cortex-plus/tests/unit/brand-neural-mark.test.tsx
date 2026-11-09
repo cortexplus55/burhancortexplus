@@ -92,4 +92,15 @@ describe("yeni 3B logo", () => {
   it("pazarlama menüsünde bozuk Türkçe karakter yok", () => {
     expect(read("src/components/marketing/parity-site-header.tsx")).not.toMatch(/Ã|Ä±|Å/);
   });
+
+  it("uygulama üst çubuğu eski küçük harf cortex yazısını kullanmaz", () => {
+    const shell = read("src/components/parity/sor-shell.tsx");
+    expect(shell).toContain('className="cp-sor-logo-word"');
+    expect(shell).toContain('className="cp-sor-logo-plus"');
+    expect(shell).not.toContain('cp-sor-logo-word">cortex<');
+    expect(shell).toContain("<CortexMark size={22} priority />");
+    const css = read("src/styles/parity-shell.css");
+    expect(css).toMatch(/\.cp-sor-top \{[\s\S]*?flex-wrap:\s*nowrap/);
+    expect(css).toContain(".cp-sor-logo-plus");
+  });
 });

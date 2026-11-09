@@ -15,7 +15,9 @@ export default function NotFound() {
     <main className="cp-404">
       <Link href="/" className="cp-404-logo" aria-label="Cortex Plus">
         <CortexMark size={22} />
-        <span>cortex</span>
+        <span className="cp-404-logo-word">
+          Cortex <span className="cp-404-logo-plus">Plus</span>
+        </span>
       </Link>
       <p className="cp-404-art" aria-label="404">
         <span aria-hidden>4</span>

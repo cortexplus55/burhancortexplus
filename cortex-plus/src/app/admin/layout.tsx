@@ -34,7 +34,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <aside className="adm-side">
           <Link href="/admin" className="adm-brand">
             <CortexMark size={22} />
-            <span className="adm-brand-word">cortex</span>
+            <span className="adm-brand-word">
+              Cortex <span className="adm-brand-plus">Plus</span>
+            </span>
             <span className="adm-brand-tag">Yönetim</span>
           </Link>
 
