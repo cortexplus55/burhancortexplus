@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import "@/styles/parity-marketing.css";
@@ -7,6 +8,7 @@ import { MARKETING_NAV } from "@/lib/parity/marketing-nav";
 import { CinematicPageHero } from "@/components/marketing/cinematic-page-hero";
 import { CinematicScrollReveal } from "@/components/marketing/cinematic-scroll-reveal";
 import { CookiePreferencesButton } from "@/components/legal/cookie-banner";
+import { LOGO_FULL_ASPECT } from "@/components/brand/logo-oran";
 
 
 export { ParitySiteHeader } from "@/components/marketing/parity-site-header";
@@ -16,7 +18,21 @@ export function ParitySiteFooter() {
     <footer className="cs-marketing border-t border-[var(--mk-border)] py-12 text-sm text-[var(--mk-muted)]">
       <div className="mx-auto grid max-w-6xl gap-8 px-4 md:grid-cols-4">
         <div>
-          <p className="font-semibold text-[var(--mk-text)]">Cortex Plus</p>
+          {/* Yeni 3B logo (9 Kasım 2026): pazarlama kabuğu temadan bağımsız hep koyu, açık yazılı sürüm. */}
+          <Link
+            href="/"
+            aria-label="Cortex Plus ana sayfa"
+            className="inline-flex rounded-md outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--mk-primary)]"
+          >
+            <Image
+              src="/logo-full.png"
+              width={Math.round(36 * LOGO_FULL_ASPECT)}
+              height={36}
+              alt="Cortex Plus"
+              draggable={false}
+              className="h-9 w-auto select-none"
+            />
+          </Link>
           <p className="mt-2">Çalışma ve sınav hazırlığı için AI öğretmen.</p>
         </div>
         <div className="mk-footer-links flex flex-col gap-2">

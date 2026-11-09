@@ -1,6 +1,7 @@
 import "server-only";
 import { createSmtpTransport, getSmtpConfig } from "@/lib/email/smtp";
 import { escapeHtml, personName } from "@/lib/email/escape";
+import { emailBrandHeader } from "@/lib/email/brand-header";
 
 /**
  * Gönderim sonucu (8 Kasım 2026): `via` e-postayı hangi yolun taşıdığını söyler (yönetimdeki tanı bunu gösterir);
@@ -158,7 +159,7 @@ function layout(title: string, body: string, cta?: { href: string; label: string
 <html lang="tr">
   <body style="margin:0;background:#0c0c0c;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#fafafa;">
     <div style="max-width:520px;margin:0 auto;padding:32px 24px;">
-      <p style="font-size:18px;font-weight:600;margin:0 0 24px;">Cortex Plus</p>
+      <div style="margin:0 0 20px;">${emailBrandHeader("dark")}</div>
       <div style="background:#161616;border:1px solid #2a2a2a;border-radius:20px;padding:24px;">
         <h1 style="font-size:20px;margin:0 0 12px;">${escapeHtml(title)}</h1>
         <div style="font-size:14px;line-height:1.6;color:#c9c9c9;">${body}</div>

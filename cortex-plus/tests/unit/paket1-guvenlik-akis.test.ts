@@ -410,12 +410,12 @@ describe("PWA bildirimi: tema rengi ve maskeli simge", () => {
     expect(value.theme_color).toBe("#0d0d0d");
     expect(readFileSync("src/app/layout.tsx", "utf8")).toContain('color: "#0d0d0d"');
     const maskable = (value.icons ?? []).filter((icon) => icon.purpose === "maskable");
-    expect(maskable).toEqual([{ src: "/icon-maskable.png", sizes: "512x512", type: "image/png", purpose: "maskable" }]);
+    expect(maskable).toEqual([{ src: "/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" }]);
 
-    const route = readFileSync("src/app/icon-maskable.png/route.tsx", "utf8");
-    const ratio = Number(route.match(/MASKABLE_MARK_RATIO = ([\d.]+)/)?.[1]);
-    expect(ratio).toBeGreaterThan(0);
-    expect(ratio).toBeLessThanOrEqual(0.6);
-    expect(route).not.toMatch(/borderRadius/);
+    // 9 Kasım 2026: maskeli simge statik dosya (yeni 3B logo). Tam karo: köşeler opak, 512×512 PNG.
+    const png = readFileSync("public/icon-maskable-512.png");
+    expect(png.subarray(1, 4).toString("ascii")).toBe("PNG");
+    expect(png.readUInt32BE(16)).toBe(512);
+    expect(png.readUInt32BE(20)).toBe(512);
   });
 });

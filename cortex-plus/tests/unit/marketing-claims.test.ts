@@ -42,7 +42,7 @@ const SURFACES = [
   "src/app/mobil-uygulama/page.tsx",
   "src/app/iletisim/page.tsx",
   "src/app/layout.tsx",
-  "src/app/opengraph-image.tsx",
+  "src/app/opengraph-image.alt.txt",
   "src/app/ayarlar/page.tsx",
   "src/app/soru-coz/page.tsx",
   "src/components/marketing/premium-plan-hero.tsx",
