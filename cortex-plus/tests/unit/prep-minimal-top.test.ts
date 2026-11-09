@@ -8,7 +8,9 @@ describe("hazırlık sayfası sade üst çubuk", () => {
     const page = readFileSync("src/app/deneme-sinavlari/[prepId]/page.tsx", "utf8");
     expect(page).toContain('chrome="focus" backHref="/deneme-sinavlari" minimalTop');
     const shell = readFileSync("src/components/parity/sor-shell.tsx", "utf8");
-    expect(shell).toContain("{minimalTop ? null : isAdmin && account ? (");
+    // 9 Kasım 2026: uygulama kabuğunda plan bölmesi yıldız/avatar kapsülüne taşındı; sade üst çubukta yine yok.
+    expect(shell).toContain("{minimalTop || planInCapsule ? null : isAdmin && account ? (");
+    expect(shell).toContain('const planInCapsule = chrome === "app" && !minimalTop;');
     expect(shell).toMatch(/\{minimalTop \? null : \(\s*<>\s*<button\s+type="button"\s+className="cp-sor-streak"/);
   });
 });

@@ -5,7 +5,7 @@ import { syncLearningPrefsOnce } from "@/lib/client/learning-prefs-store";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { ArrowLeft, CalendarDays, ChevronRight, FileText, Flame, Gift, Gauge, LayoutGrid, LineChart, NotebookPen, ShieldCheck, Users, X } from "lucide-react";
+import { ArrowLeft, CalendarDays, ChevronRight, Crown, FileText, Flame, Gift, Gauge, LayoutGrid, LineChart, NotebookPen, ShieldCheck, Users, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { readStreakFromStorage } from "@/components/parity/gamification";
 import { StreakFreezeBadge, type StreakFreezeBadgeState } from "@/components/parity/streak-freeze-badge";
@@ -141,6 +141,8 @@ export function ParitySorShell({
   // "session": ders, test, podcast oturumu. kıyas ürününde üst çubuk yok; yalnız
   // ilerleme ve × (oturumun kendi çubuğu). 3 Ekim 2026.
   const examChrome = chrome === "exam" || chrome === "focus" || chrome === "session";
+  /** Plan bölmesi yıldız/avatar kapsülünde yalnız uygulama kabuğunda (sınav, odak, oturumda eski yerinde). */
+  const planInCapsule = chrome === "app" && !minimalTop;
   const openConversation = (id: string) =>
     conversationBaseHref
       ? `${conversationBaseHref}?sohbet=${encodeURIComponent(id)}`
@@ -247,10 +249,6 @@ export function ParitySorShell({
                 Cortex <span className="cp-sor-logo-plus">Plus</span>
               </span>
             </Link>
-            {/* Abone rozeti bağlantının dışında: telefonda avatarın altındaki etikete yerleşir. */}
-            {isPremium ? (
-              <span className="cp-sor-logo-badge">{planLabel}</span>
-            ) : null}
 
             {/* kıyas ürünü (17 Ekim 2026): simgeli sekme grubu ve yanında ayrı "Daha fazla" kutusu.
                 Telefonda sekmeler altta; "Daha fazla" sağ üstte kalır. */}
@@ -294,12 +292,9 @@ export function ParitySorShell({
         <div className="cp-sor-top-actions">
           {/* Hazırlık sayfasının simgeleri buraya taşınır (PREP_TOP_SLOT_ID). */}
           {chrome === "focus" ? <div id="cp-sor-top-slot" className="cp-sor-top-slot" /> : null}
-          {minimalTop ? null : isAdmin && account ? (
+          {/* Uygulama kabuğunda plan bölmesi yıldız/avatar kapsülünün başında (aşağıda); diğer kabuklarda burada. */}
+          {minimalTop || planInCapsule ? null : isAdmin && account ? (
             <FounderChip />
-          ) : examChrome ? null : showBuy ? (
-            <Link href="/pay" className="cp-sor-buy" aria-label="Plus planına bak">
-              Plus
-            </Link>
           ) : null}
           {/* Abonede kredi çipi yok (29 Eylül 2026): kıyas ürününde Plus'ın üst
               çubuğunda yalnızca seri, "Daha fazla" ve avatar duruyor; kullanım
@@ -322,6 +317,25 @@ export function ParitySorShell({
             </button>
             {/* Yıldızlar ve avatar tek cam kapsülde (kıyas ürünü, 17 Ekim 2026). */}
             <div className="cp-sor-me">
+            {/* Plan bölmesi (9 Kasım 2026, masaüstü 2. seçenek): abone altın taçlı plan adı, kurucu altın kurucu
+                çipi, ücretsiz mavi "Plus'a geç". Koşullar ve bağlantılar öncekiyle aynı; telefonda avatarın etiketi. */}
+            {planInCapsule && isPremium ? (
+              <span className="cp-sor-logo-badge cp-sor-plan">
+                <Crown className="cp-sor-plan-icon" aria-hidden />
+                {planLabel}
+              </span>
+            ) : null}
+            {planInCapsule ? (
+              isAdmin && account ? (
+                <FounderChip className="cp-sor-plan" />
+              ) : showBuy ? (
+                <Link href="/pay" className="cp-sor-buy cp-sor-plan" aria-label="Plus planına bak">
+                  <Crown className="cp-sor-plan-icon" aria-hidden />
+                  <span className="cp-sor-buy-full">Plus&apos;a geç</span>
+                  <span className="cp-sor-buy-short">Plus</span>
+                </Link>
+              ) : null
+            ) : null}
             <StarsButton />
             <button
               type="button"

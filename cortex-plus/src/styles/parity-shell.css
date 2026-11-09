@@ -16288,8 +16288,88 @@ a.cp-exam-search {
   letter-spacing: 0.2em;
 }
 
-.cp-sor-top > .cp-sor-logo-badge {
-  margin-left: -0.5rem;
+/* Plan bölmesi (9 Kasım 2026, masaüstü 2. seçenek): yıldız/avatar kapsülünün başında ayrı bir bölme.
+   Telefon görünümü aşağıdaki .cp-sor-head--c kurallarında (avatar etiketi). */
+.cp-sor-plan-icon {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+
+.cp-sor-buy-short {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .cp-sor-me:has(> .cp-sor-plan) {
+    padding-left: 0;
+  }
+
+  .cp-sor-me > .cp-sor-plan {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 40px;
+    min-height: 40px;
+    margin: 0;
+    padding: 0 12px 0 14px;
+    border: 0;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 999px 0 0 999px;
+    background: none;
+    box-shadow: none;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0;
+    line-height: 1;
+    white-space: nowrap;
+    text-decoration: none;
+    transform: none;
+  }
+
+  .cp-sor-me > a.cp-sor-plan:hover {
+    background: rgba(255, 255, 255, 0.04);
+    filter: none;
+  }
+
+  .cp-sor-me > .cp-sor-logo-badge,
+  .cp-sor-me > .cp-founder-chip {
+    color: #ffd45c;
+    text-shadow: 0 0 12px rgba(253, 179, 0, 0.35);
+  }
+
+  .cp-sor-me > .cp-founder-chip .cp-founder-chip__icon {
+    width: 15px;
+    height: 15px;
+  }
+
+  .cp-sor-me > .cp-sor-buy {
+    color: #8ea0ff;
+  }
+}
+
+/* Dar tablet (768–1023 px): kurucu bölmesi ve büyük yazıyla sekme grubu kırpılmasın. */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .cp-sor-top .cp-sor-logo-word {
+    font-size: 0.875rem;
+    letter-spacing: 0.12em;
+  }
+
+  .cp-sor-top .cp-sor-logo {
+    gap: 0.45rem;
+  }
+
+  .cp-sor-me > .cp-sor-plan {
+    padding: 0 10px 0 12px;
+  }
+
+  .cp-sor-me > .cp-sor-buy .cp-sor-buy-full {
+    display: none;
+  }
+
+  .cp-sor-me > .cp-sor-buy .cp-sor-buy-short {
+    display: inline;
+  }
 }
 
 @media (max-width: 767px) {
@@ -16389,7 +16469,7 @@ a.cp-exam-search {
 
   /* Avatarın altındaki etiket: Plus bağlantısı, abone rozeti ya da kurucu çipi (yalnız taç) */
   .cp-sor-head--c .cp-sor-buy,
-  .cp-sor-head--c .cp-sor-top > .cp-sor-logo-badge,
+  .cp-sor-head--c .cp-sor-logo-badge,
   .cp-sor-head--c .cp-founder-chip {
     grid-row: 1;
     grid-column: -2;
@@ -16430,7 +16510,7 @@ a.cp-exam-search {
     inset: -8px -6px;
   }
 
-  .cp-sor-head--c .cp-sor-top > .cp-sor-logo-badge {
+  .cp-sor-head--c .cp-sor-logo-badge {
     background: linear-gradient(180deg, #ffd45c, #fdb300);
     color: #0d0d0d;
     box-shadow: 0 0 10px rgba(253, 179, 0, 0.45);
@@ -16444,6 +16524,15 @@ a.cp-exam-search {
     color: #0d0d0d;
     box-shadow: 0 0 10px rgba(253, 179, 0, 0.45);
     transform: translate(calc(-23px + 50%), 24px);
+  }
+
+  .cp-sor-head--c .cp-sor-plan-icon,
+  .cp-sor-head--c .cp-sor-buy-full {
+    display: none;
+  }
+
+  .cp-sor-head--c .cp-sor-buy-short {
+    display: inline;
   }
 
   .cp-sor-head--c .cp-founder-chip__full,
