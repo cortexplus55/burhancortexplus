@@ -24,6 +24,18 @@
   text-decoration: none;
 }
 
+.cp-404-logo-word {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.cp-404-logo-plus {
+  color: var(--c-brand, #fdb300);
+}
+
+
 .cp-404-art {
   display: flex;
   align-items: center;

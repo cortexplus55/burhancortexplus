@@ -386,7 +386,9 @@ export function ExamVoiceTutor({
         <div className="cp-oral-live-stage">
           <p className="cp-oral-brand">
             <CortexMark size={26} />
-            <span>cortex</span>
+            <span>
+              Cortex <span className="cp-oral-brand-plus">Plus</span>
+            </span>
           </p>
           <div
             className={`cp-tutor-orb cp-oral-orb ${phase === "speaking" ? "is-talk" : ""} ${phase === "listening" ? "is-listen" : ""}`}

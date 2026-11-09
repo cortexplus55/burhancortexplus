@@ -94,17 +94,24 @@
 .cp-sor-logo {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.4rem;
   flex-shrink: 0;
+  min-width: 0;
   text-decoration: none;
   color: inherit;
 }
 
+/* 9 Kasım 2026: yeni 3B logo + Cortex Plus yazısı (#630 ile aynı). Telefonda yazı gizlenir, işaret kalır. */
 .cp-sor-logo-word {
-  font-size: 1.125rem;
+  font-size: 0.8125rem;
   font-weight: 700;
-  letter-spacing: -0.02em;
-  text-transform: lowercase;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.cp-sor-logo-plus {
+  color: var(--c-brand, #fdb300);
 }
 
 .cp-sor-logo-badge {
@@ -118,6 +125,7 @@
   font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.02em;
+  flex-shrink: 0;
 }
 
 .cp-sor-topnav {
@@ -191,14 +199,59 @@
 }
 
 @media (max-width: 767px) {
+  /*
+    9 Kasım 2026: telefonda sekme grubu zaten gizli (alt menüde); flex-wrap iki satıra
+    düşürüp logoyu üstte, Plus/seri/yıldız/avatarı altta bırakıyordu. Tek satır kalsın.
+  */
   .cp-sor-top {
-    flex-wrap: wrap;
-    row-gap: 0.65rem;
+    flex-wrap: nowrap;
+    gap: 0.5rem;
+    padding: 0.55rem 0.75rem;
+    min-height: 3.25rem;
   }
 
   .cp-sor-topnav {
-    order: 3;
-    flex: 1 1 100%;
+    display: none;
+  }
+
+  .cp-sor-topnav-group {
+    display: none;
+  }
+
+  .cp-sor-top-actions {
+    gap: 0.4rem;
+    min-width: 0;
+  }
+}
+
+/* Dar telefon (≤560 px): yazıyı kaldır, yalnız 3B işaret (+ abone rozeti) kalsın; 360–430 px tek satır. */
+@media (max-width: 560px) {
+  .cp-sor-logo-word {
+    display: none;
+  }
+
+  .cp-sor-top {
+    gap: 0.35rem;
+    padding: 0.45rem 0.6rem;
+  }
+
+  .cp-sor-top-actions {
+    gap: 0.3rem;
+  }
+
+  .cp-sor-buy {
+    padding: 0.4rem 0.7rem;
+    font-size: 0.75rem;
+  }
+
+  .cp-sor-streak {
+    padding: 0 0.55rem;
+    gap: 0.3rem;
+  }
+
+  .cp-sor-me {
+    gap: 0;
+    padding-left: 2px;
   }
 }
 
