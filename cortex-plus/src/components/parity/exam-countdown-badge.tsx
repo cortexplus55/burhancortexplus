@@ -22,7 +22,9 @@ export function ExamCountdownBadge({
     return (
       <div className="cp-exam-due-bar" role="status">
         <Link href={countdown.href} className="cp-exam-due-link">
-          {headline} →
+          <span className="cp-exam-due-text">
+            <HeadlineParts headline={headline} arrow />
+          </span>
         </Link>
         {countdown.officialExam ? (
           <span className="cp-exam-due-official"> · Resmî sınav günü: {countdown.officialExam}</span>
@@ -32,10 +34,37 @@ export function ExamCountdownBadge({
   }
   return (
     <div className="cp-exam-due-bar" role="status">
-      <span>{headline}</span>
+      <span className="cp-exam-due-text">
+        <HeadlineParts headline={headline} />
+      </span>
       {countdown.officialExam ? (
         <span className="cp-exam-due-official"> · Resmî sınav günü: {countdown.officialExam}</span>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Başlık metni aynı kalır; yalnız " — " iki parçaya bölünür (9 Kasım 2026, C tasarımı): telefonda kartta
+ * iki satır, masaüstünde tek satır ve ayraç görünür.
+ */
+function HeadlineParts({ headline, arrow = false }: { headline: string; arrow?: boolean }) {
+  const [main, ...rest] = headline.split(" — ");
+  const sub = rest.join(" — ");
+  return (
+    <>
+      <span className="cp-exam-due-main">{main}</span>
+      {sub ? (
+        <>
+          <span className="cp-exam-due-sep"> — </span>
+          <span className="cp-exam-due-sub">
+            {sub}
+            {arrow ? " →" : null}
+          </span>
+        </>
+      ) : arrow ? (
+        " →"
+      ) : null}
+    </>
   );
 }
