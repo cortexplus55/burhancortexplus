@@ -32,13 +32,13 @@ export default function manifest(): MetadataRoute.Manifest {
     categories: ["education"],
     icons: [
       {
-        src: "/icon/192",
+        src: "/icon-192.png",
         sizes: "192x192",
         type: "image/png",
         purpose: "any",
       },
       {
-        src: "/icon/512",
+        src: "/icon-512.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "any",
@@ -53,9 +53,10 @@ export default function manifest(): MetadataRoute.Manifest {
         yanlış sonuç veriyor: maskesiz yerde fazla boşluklu, maskeli yerde
         kesik görünüyor.
       */
-      // Maskeli girdinin kendi çizimi var: tam karo zemin, işaret %60 (`icon-maskable.png/route.tsx`).
+      // Maskeli girdinin kendi dosyası var (9 Kasım 2026, yeni 3B logo): tam karo zemin, köşe yok,
+      // işaret %80 güvenli dairenin içinde (`public/icon-maskable-512.png`).
       {
-        src: "/icon-maskable.png",
+        src: "/icon-maskable-512.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable",

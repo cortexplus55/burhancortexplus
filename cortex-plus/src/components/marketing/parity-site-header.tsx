@@ -23,7 +23,7 @@ export function ParitySiteHeader() {
             navFocus,
           )}
         >
-          <CortexMark size={26} />
+          <CortexMark size={30} priority />
           <span className="text-[13px] font-semibold uppercase tracking-[0.28em]">
             Cortex <span className="text-[var(--c-brand,#fdb300)]">Plus</span>
           </span>

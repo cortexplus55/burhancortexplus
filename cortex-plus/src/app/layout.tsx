@@ -73,7 +73,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://cortexplus.app"),
   manifest: "/manifest.webmanifest",
   applicationName: "Cortex Plus",
-  // Ana ekrandan açılınca tam ekran (28 Ekim 2026, /mobil-uygulama). Simge `apple-icon.tsx`.
+  // Ana ekrandan açılınca tam ekran (28 Ekim 2026, /mobil-uygulama). Simge `apple-icon.png` (180 px, opak).
   appleWebApp: {
     capable: true,
     title: "Cortex Plus",

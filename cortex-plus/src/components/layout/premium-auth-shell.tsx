@@ -16,7 +16,8 @@ export function PremiumAuthShell({
       <div className="cortex-premium-auth__grid">
         <aside className="cortex-premium-auth__hero" aria-hidden={true}>
           <div className="cortex-premium-auth__hero-inner">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--cx-gold)]">
+            <p className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.2em] text-[var(--cx-gold)]">
+              <CortexMark size={20} />
               Cortex Plus
             </p>
             {/*
@@ -44,7 +45,7 @@ export function PremiumAuthShell({
               href="/"
               className="cortex-premium-auth__logo inline-flex items-center gap-2"
             >
-              <CortexMark size={22} />
+              <CortexMark size={24} />
               Cortex Plus
             </Link>
             <Link
@@ -55,6 +56,10 @@ export function PremiumAuthShell({
             </Link>
           </div>
           <div className="cortex-premium-auth__card">
+            {/* Yeni 3B logo (9 Kasım 2026): kartın üstünde ortalanmış işaret. */}
+            <div className="mb-5 flex justify-center">
+              <CortexMark size={72} priority className="h-16 w-16 sm:h-[72px] sm:w-[72px]" />
+            </div>
             <h1 className="cortex-premium-auth__title">{title}</h1>
             {subtitle ? (
               <p className="cortex-premium-auth__subtitle">{subtitle}</p>

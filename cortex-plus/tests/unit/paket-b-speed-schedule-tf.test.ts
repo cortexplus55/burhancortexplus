@@ -440,7 +440,10 @@ describe("Paket B · 5 telefona uygulama olarak kurulum", () => {
     const layout = readSource("src/app/layout.tsx");
     expect(layout).toMatch(/appleWebApp: \{\s*capable: true/);
     expect(layout).toContain('"apple-mobile-web-app-capable": "yes"');
-    expect(readSource("src/app/apple-icon.tsx")).toContain("width: 180");
+    // 9 Kasım 2026: simge statik PNG (yeni 3B logo); başlıkta genişlik 180.
+    const appleIcon = readFileSync("src/app/apple-icon.png");
+    expect(appleIcon.readUInt32BE(16)).toBe(180);
+    expect(appleIcon.readUInt32BE(20)).toBe(180);
   });
 
   it("platform tanınır; iOS'ta Safari'nin Ana Ekrana Ekle adımları", () => {

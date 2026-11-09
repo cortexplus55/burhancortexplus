@@ -1,6 +1,7 @@
 import { escapeHtml, personName } from "@/lib/email/escape";
 import { SELLER } from "@/lib/legal/seller";
 import { appOrigin } from "@/lib/app-url";
+import { emailBrandHeader } from "@/lib/email/brand-header";
 
 /*
   E-posta şablonları (7 Kasım 2026). Hepsi saf işlev: aynı girdi, aynı çıktı; gönderim ayrı (`send.ts`). Tek yerden
@@ -22,7 +23,6 @@ export type RenderedMail = { subject: string; html: string; text: string };
 const INK = "#111827";
 const MUTED = "#6b7280";
 const BRAND = "#4353f3";
-const GOLD = "#fdb300";
 const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 
 /** Metindeki https bağlantıları tıklanır yapar (önce kaçış, sonra bağlantı; bağlantıdaki `&` bozulmaz). */
@@ -124,7 +124,7 @@ export function emailShell(options: { preheader: string; title: string; bodyHtml
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:#f3f4f6;">${escapeHtml(options.preheader)}</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;"><tr><td align="center" style="padding:24px 12px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:540px;">
-<tr><td style="padding:0 6px 14px;font:700 19px/1.2 ${FONT};color:${INK};">Cortex <span style="color:${GOLD};">Plus</span></td></tr>
+<tr><td style="padding:0 0 14px;">${emailBrandHeader("light")}</td></tr>
 <tr><td style="background:#ffffff;border:1px solid #e5e7eb;border-radius:20px;padding:28px 24px;">${options.bodyHtml}</td></tr>
 <tr><td style="padding:16px 8px 0;">${options.footer}</td></tr>
 </table></td></tr></table></body></html>`;

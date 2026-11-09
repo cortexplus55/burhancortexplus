@@ -63,6 +63,10 @@ export function SignupPremiumShell({
             <span className="text-xs text-[var(--cx-muted)]">{stepLabel}</span>
           </header>
           <main className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pb-10 lg:px-8">
+            {/* Yeni 3B logo (9 Kasım 2026): formun üstünde ortalanmış işaret. */}
+            <div className="mb-4 flex justify-center">
+              <CortexMark size={56} priority />
+            </div>
             {children}
           </main>
           <p className="mx-auto mb-8 max-w-sm px-4 text-center text-xs text-[var(--cx-muted)]">
