@@ -1,6 +1,6 @@
 "use client";
 
-import { CortexMark } from "@/components/brand/cortex-mark";
+import Image from "next/image";
 import { syncLearningPrefsOnce } from "@/lib/client/learning-prefs-store";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -219,6 +219,9 @@ export function ParitySorShell({
       ) : null}
       {/* Tek şerit, her öğrenci kabuğunda (Paket J takip #3): oturum ekranları dahil; kurucuda hiç. */}
       {account?.isAdmin ? null : <EmailVerifyBanner initialUnverified={emailUnverified} />}
+      {/* Üst çubuk ve sınav şeridi tek kapta (9 Kasım 2026, C tasarımı): telefonda seri ve yıldız şerit kartına,
+          Plus etiketi avatara yerleşir; yalnız CSS ile, öğeler ve tıklamalar aynı. */}
+      <div className={cn("cp-sor-head", chrome === "app" && !minimalTop && "cp-sor-head--c")}>
       {chrome === "session" ? null : <header className="cp-sor-top">
         {examChrome ? (
           <Link href={backHref} className="cp-exam-back">
@@ -227,15 +230,27 @@ export function ParitySorShell({
           </Link>
         ) : (
           <>
+            {/* 9 Kasım 2026 (C tasarımı): kırpılmış 3B işaret (şeffaf pay yok) ve her ekranda görünen yazı.
+                Telefonda ortada büyük, masaüstünde solda. */}
             <Link href="/ogretmen" className="cp-sor-logo" aria-label="Cortex Plus Ana Sayfa">
-              <CortexMark size={22} priority />
+              <Image
+                src="/logo-mark-trim.png"
+                width={432}
+                height={280}
+                alt=""
+                aria-hidden="true"
+                draggable={false}
+                priority
+                className="cp-sor-logo-mark"
+              />
               <span className="cp-sor-logo-word">
                 Cortex <span className="cp-sor-logo-plus">Plus</span>
               </span>
-              {isPremium ? (
-                <span className="cp-sor-logo-badge">{planLabel}</span>
-              ) : null}
             </Link>
+            {/* Abone rozeti bağlantının dışında: telefonda avatarın altındaki etikete yerleşir. */}
+            {isPremium ? (
+              <span className="cp-sor-logo-badge">{planLabel}</span>
+            ) : null}
 
             {/* kıyas ürünü (17 Ekim 2026): simgeli sekme grubu ve yanında ayrı "Daha fazla" kutusu.
                 Telefonda sekmeler altta; "Daha fazla" sağ üstte kalır. */}
@@ -341,6 +356,7 @@ export function ParitySorShell({
       </header>}
 
       {chrome === "app" ? <ExamCountdownBadge countdown={countdown} /> : null}
+      </div>
 
       {showPlusLimit ? (
         <PlusLimitBanner onDismiss={() => setLimitDismissed(true)} />

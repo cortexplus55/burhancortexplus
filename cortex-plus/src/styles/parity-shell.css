@@ -101,7 +101,7 @@
   color: inherit;
 }
 
-/* 9 Kasım 2026: yeni 3B logo + Cortex Plus yazısı (#630 ile aynı). Telefonda yazı gizlenir, işaret kalır. */
+/* 9 Kasım 2026: yeni 3B logo + Cortex Plus yazısı (#630 ile aynı). Yazı her genişlikte görünür. */
 .cp-sor-logo-word {
   font-size: 0.8125rem;
   font-weight: 700;
@@ -224,12 +224,8 @@
   }
 }
 
-/* Dar telefon (≤560 px): yazıyı kaldır, yalnız 3B işaret (+ abone rozeti) kalsın; 360–430 px tek satır. */
+/* Dar telefon (≤560 px). Yazı artık gizlenmez (9 Kasım 2026, C tasarımı: dosya sonundaki .cp-sor-head--c). */
 @media (max-width: 560px) {
-  .cp-sor-logo-word {
-    display: none;
-  }
-
   .cp-sor-top {
     gap: 0.35rem;
     padding: 0.45rem 0.6rem;
@@ -16262,5 +16258,315 @@ a.cp-exam-search {
     position: static;
     transform: none;
     margin-inline: auto;
+  }
+}
+
+/* =============================================================================
+   Üst çubuk C tasarımı (9 Kasım 2026, ürün sahibinin seçimi).
+   Masaüstü (≥768 px): düzen aynı; kırpılmış 3B işaret ve "CORTEX PLUS" yazısı büyüdü.
+   Telefon (≤767 px): ortada büyük işaret, altında aralıklı yazı; solda yuvarlak menü,
+   sağda Plus halkalı avatar ve etiketi; seri ve yıldız sınav şeridi kartının sağında.
+   Öğeler ve tıklamalar aynı: üst çubuk ile kapsül `display: contents` olur, öğeler kabın ızgarasına yerleşir.
+   ============================================================================= */
+.cp-sor-logo-mark {
+  display: block;
+  flex-shrink: 0;
+  width: auto;
+  height: 34px;
+  object-fit: contain;
+  user-select: none;
+  filter: drop-shadow(0 3px 10px rgba(130, 90, 255, 0.3));
+}
+
+.cp-sor-logo {
+  gap: 0.6rem;
+}
+
+.cp-sor-logo-word {
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+}
+
+.cp-sor-top > .cp-sor-logo-badge {
+  margin-left: -0.5rem;
+}
+
+@media (max-width: 767px) {
+  .cp-sor-head--c {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-rows: auto auto;
+    column-gap: 6px;
+    padding: 0 12px 10px;
+    background: radial-gradient(70% 120px at 50% 0%, rgba(112, 125, 255, 0.2), transparent 75%);
+  }
+
+  /* Geri sayım yokken seri ve yıldız ortada ince bir çip satırı. */
+  .cp-sor-head--c:not(:has(.cp-exam-due-bar)) {
+    grid-template-columns: minmax(0, 1fr) auto auto minmax(0, 1fr);
+  }
+
+  .cp-sor-head--c .cp-sor-top,
+  .cp-sor-head--c .cp-sor-top-actions,
+  .cp-sor-head--c .cp-sor-me {
+    display: contents;
+  }
+
+  /* Ortadaki marka */
+  .cp-sor-head--c .cp-sor-logo {
+    grid-row: 1;
+    grid-column: 1 / -1;
+    justify-self: center;
+    flex-direction: column;
+    gap: 7px;
+    padding: 14px 0 12px;
+  }
+
+  .cp-sor-head--c .cp-sor-logo-mark {
+    height: 58px;
+    filter: drop-shadow(0 6px 22px rgba(130, 90, 255, 0.45));
+  }
+
+  .cp-sor-head--c .cp-sor-logo-word {
+    font-size: 15px;
+    letter-spacing: 0.26em;
+    padding-left: 0.26em;
+    line-height: 1;
+  }
+
+  /* Soldaki menü */
+  .cp-sor-head--c .cp-sor-more--side {
+    grid-row: 1;
+    grid-column: 1;
+    justify-self: start;
+    align-self: center;
+    z-index: 1;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    padding: 0;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--glass-bg);
+    box-shadow: var(--glass-inset);
+    color: var(--c-text);
+  }
+
+  .cp-sor-head--c .cp-sor-more--side .cp-sor-more-label {
+    display: none;
+  }
+
+  /* Sağdaki avatar: Plus halkası (ücretsizde mavi, abone ve kurucuda altın) */
+  .cp-sor-head--c .cp-sor-avatar {
+    grid-row: 1;
+    grid-column: -2;
+    justify-self: end;
+    align-self: center;
+    z-index: 1;
+    width: 46px;
+    height: 46px;
+    border: 2.5px solid transparent;
+    background:
+      linear-gradient(#1b1b1b, #1b1b1b) padding-box,
+      conic-gradient(from 0deg, #4353f3, #8ea0ff, #4353f3, #707dff, #4353f3) border-box;
+    box-shadow: 0 0 16px rgba(67, 83, 243, 0.45);
+  }
+
+  .cp-sor-head--c:has(.cp-sor-logo-badge, .cp-founder-chip) .cp-sor-avatar {
+    background:
+      linear-gradient(#1b1b1b, #1b1b1b) padding-box,
+      conic-gradient(from 0deg, #fdb300, #ffd45c, #e79a00, #ffc233, #fdb300) border-box;
+    box-shadow: 0 0 16px rgba(253, 179, 0, 0.35);
+  }
+
+  .cp-sor-head--c:not(:has(.cp-sor-buy, .cp-sor-logo-badge, .cp-founder-chip)) .cp-sor-avatar {
+    border-color: var(--c-border-strong);
+    background: var(--glass-bg);
+    box-shadow: var(--glass-inset);
+  }
+
+  /* Avatarın altındaki etiket: Plus bağlantısı, abone rozeti ya da kurucu çipi (yalnız taç) */
+  .cp-sor-head--c .cp-sor-buy,
+  .cp-sor-head--c .cp-sor-top > .cp-sor-logo-badge,
+  .cp-sor-head--c .cp-founder-chip {
+    grid-row: 1;
+    grid-column: -2;
+    justify-self: end;
+    align-self: center;
+    z-index: 2;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    min-width: 0;
+    min-height: 0;
+    height: 21px;
+    margin: 0;
+    padding: 0 6px;
+    transform: translate(calc(-23px + 50%), 24px);
+    border: 2px solid var(--c-bg);
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .cp-sor-head--c .cp-sor-buy {
+    background: var(--c-action);
+    color: var(--c-on-action);
+    box-shadow: 0 0 10px rgba(67, 83, 243, 0.6);
+  }
+
+  /* Küçük etiketin dokunma alanı büyür. */
+  .cp-sor-head--c .cp-sor-buy::after {
+    content: "";
+    position: absolute;
+    inset: -8px -6px;
+  }
+
+  .cp-sor-head--c .cp-sor-top > .cp-sor-logo-badge {
+    background: linear-gradient(180deg, #ffd45c, #fdb300);
+    color: #0d0d0d;
+    box-shadow: 0 0 10px rgba(253, 179, 0, 0.45);
+  }
+
+  .cp-sor-root .cp-sor-head--c .cp-founder-chip {
+    display: inline-flex;
+    width: 26px;
+    padding: 0;
+    background: linear-gradient(180deg, #ffd45c, #fdb300);
+    color: #0d0d0d;
+    box-shadow: 0 0 10px rgba(253, 179, 0, 0.45);
+    transform: translate(calc(-23px + 50%), 24px);
+  }
+
+  .cp-sor-head--c .cp-founder-chip__full,
+  .cp-sor-head--c .cp-founder-chip__short,
+  .cp-sor-head--c .cp-founder-chip[data-tip]::after {
+    display: none;
+  }
+
+  .cp-sor-head--c .cp-founder-chip__icon {
+    width: 12px;
+    height: 12px;
+    margin: 0;
+  }
+
+  /* Sınav şeridi kart olur; seri ve yıldız çipleri kartın sağında */
+  .cp-sor-head--c:has(.cp-exam-due-bar)::before {
+    content: "";
+    grid-row: 2;
+    grid-column: 1 / -1;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: linear-gradient(90deg, rgba(67, 83, 243, 0.2), rgba(16, 185, 129, 0.12) 55%, rgba(246, 183, 60, 0.1));
+  }
+
+  .cp-sor-head--c:has(.cp-exam-due-bar--past)::before {
+    background: rgba(239, 68, 68, 0.1);
+  }
+
+  .cp-sor-head--c .cp-exam-due-bar {
+    grid-row: 2;
+    grid-column: 1 / 3;
+    z-index: 1;
+    display: block;
+    min-width: 0;
+    min-height: 0;
+    padding: 9px 4px 9px 14px;
+    border: 0;
+    background: none;
+    font-size: 12.5px;
+    font-weight: 650;
+    line-height: 1.3;
+    text-align: left;
+    text-wrap: pretty;
+  }
+
+  .cp-sor-head--c .cp-exam-due-bar .cp-exam-due-link {
+    display: block;
+    min-height: 0;
+  }
+
+  .cp-sor-head--c .cp-exam-due-text,
+  .cp-sor-head--c .cp-exam-due-main {
+    display: block;
+    font-size: 14px;
+    font-weight: 800;
+  }
+
+  .cp-sor-head--c .cp-exam-due-sep {
+    display: none;
+  }
+
+  .cp-sor-head--c .cp-exam-due-sub,
+  .cp-sor-head--c .cp-exam-due-official {
+    display: block;
+  }
+
+  .cp-sor-head--c .cp-exam-due-official {
+    margin-top: 2px;
+    color: var(--cp-muted);
+    font-size: 12px;
+  }
+
+  .cp-sor-head--c .cp-sor-streak,
+  .cp-sor-head--c .cp-stars-btn {
+    grid-row: 2;
+    z-index: 1;
+    align-self: center;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    min-height: 34px;
+    height: 34px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.35);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.06);
+    color: var(--c-text);
+    font-size: 14px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .cp-sor-head--c .cp-sor-streak {
+    grid-column: 3;
+  }
+
+  .cp-sor-head--c .cp-stars-btn {
+    grid-column: 4;
+    margin-right: 8px;
+  }
+
+  .cp-sor-head--c .cp-sor-streak .cp-streak-freeze {
+    margin-left: 0;
+    padding: 0 0 0 1px;
+    border: 0;
+    background: none;
+  }
+
+  .cp-sor-head--c:not(:has(.cp-exam-due-bar)) .cp-sor-streak {
+    grid-column: 2;
+    justify-self: end;
+    margin-right: 3px;
+    background: var(--glass-bg);
+    box-shadow: var(--glass-inset);
+  }
+
+  .cp-sor-head--c:not(:has(.cp-exam-due-bar)) .cp-stars-btn {
+    grid-column: 3;
+    justify-self: start;
+    margin-right: 0;
+    background: var(--glass-bg);
+    box-shadow: var(--glass-inset);
   }
 }

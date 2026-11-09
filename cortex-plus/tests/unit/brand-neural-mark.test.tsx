@@ -98,9 +98,13 @@ describe("yeni 3B logo", () => {
     expect(shell).toContain('className="cp-sor-logo-word"');
     expect(shell).toContain('className="cp-sor-logo-plus"');
     expect(shell).not.toContain('cp-sor-logo-word">cortex<');
-    expect(shell).toContain("<CortexMark size={22} priority />");
+    // C tasarımı (9 Kasım 2026): kırpılmış 3B işaret; yazı telefonda da görünür (gizleyen kural yok).
+    expect(shell).toContain('src="/logo-mark-trim.png"');
+    expect(shell).toContain('className="cp-sor-logo-mark"');
     const css = read("src/styles/parity-shell.css");
     expect(css).toMatch(/\.cp-sor-top \{[\s\S]*?flex-wrap:\s*nowrap/);
     expect(css).toContain(".cp-sor-logo-plus");
+    expect(css).not.toMatch(/\.cp-sor-logo-word \{\s*display:\s*none/);
+    expect(css).toContain(".cp-sor-head--c .cp-sor-logo-mark");
   });
 });
