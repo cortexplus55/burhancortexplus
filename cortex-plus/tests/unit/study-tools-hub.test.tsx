@@ -115,7 +115,7 @@ describe("study tools hub regression", () => {
     // yazılıyordu); Gazlar'ın kart destesi yok → aynı uçla kurulur.
     expect(screen.queryByRole("link", { name: "Kartlar" })).toBeNull();
     expect(screen.getByRole("button", { name: "Kartlar" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "AI öğretmen" }).getAttribute("href")).toBe(
+    expect(screen.getByRole("link", { name: "Soru-cevap turu" }).getAttribute("href")).toBe(
       studyActivityHref("prep-1", "qa-sto", "Gazlar"),
     );
     expect(screen.getByRole("link", { name: "Podcast" }).getAttribute("href")).toBe(

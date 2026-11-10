@@ -63,7 +63,8 @@ export const STUDY_TOOLS: StudyTool[] = [
   { id: "video", kind: "video", group: "learn", title: "Video", blurb: "1 dakikalık video ders" },
   { id: "flashcards", kind: "flashcards", group: "learn", title: "Kartlar", blurb: "Kısa tekrar" },
   { id: "gaps", kind: "gaps", group: "learn", title: "Bilgi boşlukları", blurb: "Eksiğini bul, kapat" },
-  { id: "qa", kind: "qa", group: "learn", title: "AI öğretmen", blurb: "Soru-cevap" },
+  // Çoktan seçmeli kısa sorular; sohbetteki AI öğretmenle karışmasın diye adı "tur" (10 Kasım 2026).
+  { id: "qa", kind: "qa", group: "learn", title: "Soru-cevap turu", blurb: "Çoktan seçmeli alıştırma" },
   { id: "focused", kind: "focused", group: "practice", title: "Alıştırma", blurb: "Zayıf noktaya odaklı" },
   { id: "quiz", kind: "quiz", group: "practice", title: "Konu testi", blurb: "Tek konu, kısa kontrol" },
   {

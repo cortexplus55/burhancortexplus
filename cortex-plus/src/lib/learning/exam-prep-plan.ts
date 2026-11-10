@@ -60,6 +60,11 @@ export type PlanNodeDraft = {
   meta?: PlanNodeSessionMeta;
 };
 
+/** Kayıtlı adımlarda kalmış eski tür adları; ekranda bugünkü adla okunur (`nodeHeading`). */
+export const LEGACY_NODE_TITLES: Partial<Record<PlanNodeKind, readonly string[]>> = {
+  qa: ["AI öğretmenle Soru-Cevap"],
+};
+
 export const PLAN_NODE_META: Record<
   PlanNodeKind,
   { title: string; blurb: string; setupLabel: string; voice: boolean }
@@ -77,8 +82,10 @@ export const PLAN_NODE_META: Record<
     voice: false,
   },
   qa: {
-    title: "AI öğretmenle Soru-Cevap",
-    blurb: "Yapay zeka öğretmenle alıştırma.",
+    // 10 Kasım 2026: "AI öğretmenle Soru-Cevap" adı sohbetteki AI öğretmenle karışıyordu; bu adım çoktan seçmeli
+    // kısa sorulardan oluşan bir turdur, sohbet değil.
+    title: "Soru-Cevap Turu",
+    blurb: "Çoktan seçmeli kısa sorularla konuyu yokla.",
     setupLabel: "Soru-Cevap",
     voice: true,
   },

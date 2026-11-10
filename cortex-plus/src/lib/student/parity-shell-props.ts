@@ -24,10 +24,16 @@ export async function loadParityShellProps(
   ]);
 
   // E-posta şeridi ilk çizimde gelsin (Paket J takip #3): oturum belirtecindeki bayrak (ağ isteği yok).
-  // Kurucu görmez; Google ve doğrulanmış hesapta bayrak zaten yok. İstemci taze kullanıcıyla bir kez teyit eder.
+  // Kurucu görmez; Google ve doğrulanmış hesapta bayrak zaten yok.
+  // 10 Kasım 2026: belirteç bayrağı doğrulamadan sonra bir saate kadar bayat kalır; yalnız ona bakan sayfalar
+  // (bu yükleyiciyi kullanan hepsi) doğrulanmış öğrenciye şeridi yeniden çiziyordu. Bayrak belirteçte varsa
+  // (az sayıda hesap) taze kullanıcıyla teyit edilir; okuma düşerse belirtecin dediği geçerli.
   const { data: sessionData } = await supabase.auth.getSession().catch(() => ({ data: { session: null } }));
-  const emailUnverified =
-    !account?.isAdmin && emailUnverifiedFromMetadata(sessionData?.session?.user?.app_metadata);
+  let emailUnverified = !account?.isAdmin && emailUnverifiedFromMetadata(sessionData?.session?.user?.app_metadata);
+  if (emailUnverified) {
+    const fresh = await supabase.auth.getUser().catch(() => null);
+    if (fresh?.data?.user) emailUnverified = emailUnverifiedFromMetadata(fresh.data.user.app_metadata);
+  }
 
   const avatar = profile?.avatar_url as string | null | undefined;
 

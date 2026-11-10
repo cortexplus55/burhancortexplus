@@ -1,4 +1,4 @@
-import { PLAN_NODE_META, type PlanNodeKind } from "@/lib/learning/exam-prep-plan";
+import { LEGACY_NODE_TITLES, PLAN_NODE_META, type PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { topicOnlyLabel, withoutGradeParts, withoutOutcomeCode } from "@/lib/learning/path-labels";
 import { ALL_TOPICS_KINDS, ALL_TOPICS_LABEL } from "@/lib/learning/prep-wide-target";
 
@@ -11,7 +11,9 @@ export function nodeHeading(node: {
   title?: string | null;
   sessionMeta?: { topicTitle?: string | null } | null;
 }): string {
-  const raw = node.title || PLAN_NODE_META[node.kind].title;
+  // Eski kayıtlardaki tür adı (10 Kasım 2026 öncesi "AI öğretmenle Soru-Cevap") bugünkü adla okunur.
+  const stored = node.title && LEGACY_NODE_TITLES[node.kind]?.includes(node.title.trim()) ? null : node.title;
+  const raw = stored || PLAN_NODE_META[node.kind].title;
   // "9. Sınıf · Konu" kartta "9. Sınıf" yazıyordu (2 Kasım 2026): sınıf parçası başlık olmaz.
   const parts = withoutGradeParts(raw.split(" · ").map((part) => withoutOutcomeCode(part.trim())));
   // Kavram birimli ders: "Konu · Ders 2/9: Hukukun kaynakları · dosya s.…" → dersin

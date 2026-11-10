@@ -7,6 +7,7 @@ import { DocumentStatusPoller } from "@/components/documents/document-status-pol
 import { EmptyState } from "@/components/ui-kit/empty-state";
 import { requireUser } from "@/lib/auth/session";
 import { formatDate } from "@/lib/format";
+import { pageCountLabel } from "@/lib/documents/page-count-label";
 import { cn } from "@/lib/utils";
 import {
   isFeatureEnabled,
@@ -118,7 +119,7 @@ export default async function DokumanlarPage() {
               const prepId = prepByDocument.get(document.id);
               const meta = [
                 document.page_count
-                  ? `${document.page_count} sayfa`
+                  ? pageCountLabel(document.file_name, document.page_count)
                   : `${Math.round((document.size_bytes ?? 0) / 1024)} KB`,
                 formatDate(document.created_at),
                 mapStopped

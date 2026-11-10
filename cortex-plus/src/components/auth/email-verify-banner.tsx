@@ -39,7 +39,12 @@ export function EmailVerifyBanner({
         return;
       }
       const { data: fresh } = await supabase.auth.getUser();
-      if (!cancelled) setUnverified(fresh.user?.app_metadata?.email_unverified === true);
+      const still = fresh.user?.app_metadata?.email_unverified === true;
+      if (!cancelled) setUnverified(still);
+      // Belirteç bayat (doğrulama başka sekmede ya da cihazda yapıldı): bir kez tazele ki sonraki sayfalar da temiz gelsin.
+      if (fresh.user && !still && data.session?.user.app_metadata?.email_unverified === true && result !== "dogrulandi") {
+        await supabase.auth.refreshSession().catch(() => null);
+      }
     })().catch(() => undefined);
     return () => {
       cancelled = true;
