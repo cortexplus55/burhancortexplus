@@ -2519,3 +2519,5 @@ Canlıda görülmesi gerekenler (model davranışı; birim testi istemin sözle�
 1. adımı yazması ve çiplerin çıkması (çip yanıtta 'Devam et' davetini arar), takipte yeni soru uydurulmaması, soru + duyguda ilk
 cümle, genel duygu ifadesinde kriz sorusunun gelmemesi. Bekçi: `guven-sohbet-turu.test.tsx`, `guven-duygu-kriz.test.ts`,
 `guven-turkce-aritmetik.test.ts`.
+
+**Kazanım kodu İlerleme'de de gizli (11 Kasım 2026):** hazır müfredat hazırlığının İlerleme sekmesinde (konu listesi, "ders oluştur" düğmesi, haftalık tablo, bilgi eksikleri) ve genel İlerleme'nin "Eksik konular" satırında konu adı `withoutOutcomeCode` ile yazılır; veri ve eşleştirme kodlu adla kalır. Bekçi: `ilerleme-kazanim-kodu.test.tsx`.
