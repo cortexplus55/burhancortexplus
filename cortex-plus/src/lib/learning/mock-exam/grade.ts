@@ -5,7 +5,7 @@
 import { sameOptionSet, selectedOptions } from "@/lib/learning/exam-quiz";
 import type { MockGradeItem, MockQuestionType, MockRubricItem } from "@/lib/learning/mock-exam/types";
 import { stepArithmeticIssues } from "@/lib/solve/step-arithmetic";
-import { finalResults } from "@/lib/learning/result-values";
+import { allValuesIn, finalResults, matchesExpected, modelResult } from "@/lib/learning/result-values";
 import { verdictCounts } from "@/lib/learning/mock-exam/verdict-counts";
 import { firstError, stepFeedbackLine, type WorkStepVerdict } from "@/lib/learning/mock-exam/work-steps";
 
@@ -145,9 +145,19 @@ export function finalAnswerCorrect(input: {
   const finals = finalResults(answer, input.modelAnswer);
   const num = finals.at(-1) ?? parseStudentNumber(answer);
   if (!finals.length && num == null) return null;
-  const tol = input.tolerance ?? Math.max(1e-6, Math.abs(expected) * 0.01);
-  const within = (value: number) => Math.abs(value - expected) <= tol;
+  const within = (value: number) => matchesExpected(value, expected, input.tolerance);
   return finals.length ? finals.some(within) : num != null && within(num);
+}
+
+/**
+ * Cevaptaki sayılardan (verilenler, ara işlem, kesir, sonuç) en az biri beklenen değeri tutuyor mu
+ * (10 Kasım 2026). Canlı bir denemede doğru oranı kesirle ve ondalıkla yazan cevap, metindeki ara işlem
+ * sayıları yüzünden "sonuç çelişiyor" diye sıfırlanmıştı. Beklenen değer ya da sayı yoksa false.
+ */
+export function answerReachesExpected(input: { answer: string; expected: number | null; tolerance?: number | null }): boolean {
+  const expected = input.expected;
+  if (expected == null || !Number.isFinite(expected)) return false;
+  return allValuesIn(input.answer).some((value) => matchesExpected(value, expected, input.tolerance));
 }
 
 /**
@@ -175,7 +185,10 @@ export function partialWorkCredit(input: {
   const hits = markers.filter((marker) => markerHit(answer, marker));
   const finals = finalResults(answer, input.modelAnswer);
   const num = finals.at(-1) ?? parseStudentNumber(answer);
-  const inRange = finalAnswerCorrect(input) === true;
+  // Sonuç: son değer tutuyorsa kesin; tutmuyorsa cevaptaki herhangi bir sayı beklenen değere eşitse ve denetçi
+  // cevabın en az yarısını karşılanmış saydıysa da doğru (ara işlem sayıları sonucu gölgelemesin).
+  const reaches = answerReachesExpected(input);
+  const inRange = finalAnswerCorrect(input) === true || (reaches && input.alreadyEarned >= input.maxPoints * 0.5);
   // Kısa ama sayılar arası işlem gösteren cevap ("a/b = c/d = e") çıplak sonuç değildir: eşdeğer zincir hesabı gösterir.
   const bare = num != null && answer.length < 32 && !/\p{L}{4,}/u.test(answer) && !/\d\s*[+\-*/×·÷:]\s*\d/.test(answer);
   if (inRange && markers.length && bare) {
@@ -195,7 +208,8 @@ export function partialWorkCredit(input: {
     if (earned <= input.alreadyEarned) return null;
     return { earned, step: "Kurulum doğru; son aritmetik adım hatalı." };
   }
-  if (!inRange && num != null && !hits.length && input.alreadyEarned >= input.maxPoints * 0.7) {
+  // Çelişki yalnız cevaptaki HİÇBİR sayı beklenen değeri tutmuyorsa: tek tutan sayı kararı düşürür.
+  if (!inRange && !reaches && num != null && !hits.length && input.alreadyEarned >= input.maxPoints * 0.7) {
     return { earned: 0, step: "Sonuç beklenen değerle çelişiyor." };
   }
   return null;
@@ -250,8 +264,10 @@ export function adjustScoredAnswer(input: {
   /** Satır satır karar (`work-steps.ts`); varsa `stepPartialCredit` eldeki puanı yükseltebilir, düşürmez. */
   steps?: readonly WorkStepVerdict[];
 }): { earned: number; step?: string } {
-  const expected =
-    input.expected ?? (/=/.test(input.modelAnswer ?? "") ? trailingNumber(input.modelAnswer ?? "") : null);
+  // Beklenen değer verilmemişse örnek cevabın vardığı sonuç: son eşitlik zincirinin değeri. Eskiden metnin SON
+  // sayısı okunuyordu; sonuçtan sonra gelen yorum cümlesindeki sayı "beklenen" sayılıyordu.
+  const model = input.modelAnswer ?? "";
+  const expected = input.expected ?? (/=/.test(model) ? (modelResult(model) ?? trailingNumber(model)) : null);
   const corpus = `${input.modelAnswer ?? ""}\n${(input.criteria ?? []).join("\n")}`;
   if (dateContradiction(input.answer, corpus)) {
     const cap = Math.round(input.maxPoints * 0.4 * 1000) / 1000;
@@ -263,7 +279,9 @@ export function adjustScoredAnswer(input: {
   const credit = stepPartialCredit({
     steps: input.steps,
     maxPoints: input.maxPoints,
-    finalCorrect: finalAnswerCorrect({ answer: input.answer, expected, tolerance: input.tolerance, modelAnswer: input.modelAnswer }) === true,
+    finalCorrect:
+      finalAnswerCorrect({ answer: input.answer, expected, tolerance: input.tolerance, modelAnswer: input.modelAnswer }) === true ||
+      (base.earned >= input.maxPoints * 0.5 && answerReachesExpected({ answer: input.answer, expected, tolerance: input.tolerance })),
     alreadyEarned: base.earned,
   });
   return credit ? { earned: credit.earned, step: credit.step } : base;

@@ -168,3 +168,44 @@ export function firstResultSentence(text: string): string {
   const [first = ""] = text.trim().split(/\n+|;|(?<=\D)\.\s+|\.\s+(?=\p{Lu})|[!?]\s+/u);
   return first.trim();
 }
+
+/**
+ * Metindeki bütün sayısal değerler (10 Kasım 2026): tek tek sayılar, "a/b" kesirlerinin bölümü ve eşitlik
+ * kuyruklarının değerleri. Açık uçlu cevapta verilenler, ara işlem sayıları ve sonuç birlikte durur; "sonuç
+ * çelişiyor" kararı tek bir sayıya değil bu kümenin tamamına bakar.
+ */
+export function allValuesIn(text: string): number[] {
+  const normalized = normalizeNumberText(text);
+  const values = [...numbersIn(text), ...chainsOf(text).flatMap((chain) => chain.values)];
+  for (const match of normalized.matchAll(/(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)/g)) {
+    const whole = Number(match[1]);
+    const divisor = Number(match[2]);
+    if (Number.isFinite(whole) && divisor) values.push(whole / divisor);
+  }
+  return values;
+}
+
+const decimalsOf = (value: number) => (String(value).split(".")[1] ?? "").length;
+
+/**
+ * Değer beklenen sonucu tutuyor mu: tolerans içinde (verilmemişse %1 bağıl) ya da beklenenin, öğrencinin yazdığı
+ * basamağa yuvarlanmış hâli (en az iki ondalık). Mutlak tolerans küçük sayılarda büyük hata geçirdiği için
+ * yuvarlama eşdeğerliği kullanılır.
+ */
+export function matchesExpected(value: number, expected: number, tolerance?: number | null): boolean {
+  const tol = tolerance ?? Math.max(1e-6, Math.abs(expected) * 0.01);
+  if (Math.abs(value - expected) <= tol) return true;
+  const decimals = decimalsOf(value);
+  if (decimals < 2 || decimals > 6) return false;
+  const scale = 10 ** decimals;
+  return sameNumber(Math.round(expected * scale) / scale, value);
+}
+
+/** Örnek cevabın vardığı sonuç: sonuç değişkeninin (yoksa son eşitlik zincirinin) son değeri; zincir yoksa null. */
+export function modelResult(modelAnswer: string): number | null {
+  const chains = chainsOf(modelAnswer).filter((chain) => chain.values.length);
+  if (!chains.length) return null;
+  const variable = resultVariable(modelAnswer);
+  const named = variable ? chains.filter((chain) => chain.left === variable) : [];
+  return (named.at(-1) ?? chains.at(-1))?.values.at(-1) ?? null;
+}
