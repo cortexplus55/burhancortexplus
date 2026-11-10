@@ -93,7 +93,12 @@ test.describe("authenticated student hub", { tag: ["@auth"] }, () => {
     for (const path of screens) {
       const response = await page.goto(path, { waitUntil: "domcontentloaded", timeout: 20_000 });
       expect(response?.status() ?? 0, `${path} durum kodu`).toBeLessThan(400);
-      await page.waitForLoadState("domcontentloaded");
+      /*
+        Üst çubuk süreyle değil olayla beklenir: `/sohbetler`'in yükleme iskeleti var (bilinen üç istisnadan biri),
+        içerik iskeletin ardından akar. İskelet ekrandayken bakan test "üst çubuk yok" diyordu. Çubuk 15 sn'de
+        gelmezse sayfa gerçekten boş kalmıştır (Suspense hatası) ve test sayfanın adıyla düşer.
+      */
+      await expect(page.locator("header.cp-sor-top").first(), `${path} üst çubuk yok`).toBeAttached({ timeout: 15_000 });
       const fit = await page.evaluate(() => {
         const root = document.documentElement;
         const header = document.querySelector("header.cp-sor-top");
