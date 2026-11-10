@@ -101,3 +101,30 @@ describe("kabuk", () => {
     expect(source).toContain("if (!held && reservation.reservationId) await commitCredits(service, reservation.reservationId)");
   });
 });
+
+describe("üst bilgi kartı (10 Kasım 2026)", () => {
+  it("sınavın tarihi, kapsamı, süresi ve dersin hocası kart olmaz; konunun bilgisi kart olur", async () => {
+    const { CARD_META_RULE, cardSetIssue, cardsSystem, cardsVerifySystem, logisticsCard } = await import("@/lib/learning/teacher-cards");
+    for (const front of [
+      "Vize sınavı ne zaman yapılacak?",
+      "Final sınavının kapsamı hangi ünitelerdir?",
+      "Yazılı sınavın süresi kaç dakikadır?",
+      "Quiz notun yüzde kaçını etkiler?",
+      "Bu dersin hocası kimdir?",
+    ]) {
+      expect(logisticsCard({ front, back: "…" }), front).toBe(true);
+      expect(cardSetIssue({ front, back: "…" }, [])).toContain("üst bilgisini");
+    }
+    for (const front of [
+      "Mitozun hangi evresinde kromozomlar ekvatora dizilir?",
+      "Sınav kaygısını azaltan iki teknik nedir?",
+      "Bir işin süresi yarıya inerse güç nasıl değişir?",
+      "Tanzimat Fermanı hangi tarihte ilan edildi?",
+    ]) {
+      expect(logisticsCard({ front, back: "…" }), front).toBe(false);
+    }
+    // Yazar ve denetçi aynı kuralı okur.
+    expect(cardsSystem("document")).toContain(CARD_META_RULE);
+    expect(cardsVerifySystem("document")).toContain(CARD_META_RULE);
+  });
+});

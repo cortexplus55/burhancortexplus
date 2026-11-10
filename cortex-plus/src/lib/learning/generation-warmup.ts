@@ -1,6 +1,10 @@
 /**
  * Üretim beklerken zihin ısıtma (25 Ekim 2026). Model çağırmaz, kredi düşmez:
- * konu adından deterministik kartlar, refleks soruları ve sınav ipuçları üretir.
+ * konu adından deterministik kartlar ve sınav ipuçları üretir.
+ *
+ * 10 Kasım 2026: "Refleks" sekmesi konu adından bağımsız sabit bir işlem sorusu gösteriyordu (kart destesi
+ * hazırlanırken öğrencinin dersiyle ilgisiz bir soru). Sabit sorular kaldırıldı; refleks sorusu yalnız çağıran
+ * yer hazırlığın kendi içeriğinden bir soru verirse (`WarmupQuiz`) gösterilir, yoksa sekme hiç çizilmez.
  */
 
 export type WarmupCard = { front: string; back: string };
@@ -14,14 +18,6 @@ const TIPS: WarmupTip[] = [
   { title: "Sayıyı yaz", body: "Eşik, yaş, süre veya oran soruluyorsa önce kaynaktaki sayıyı hatırla; 'yüksek/düşük' yetmez." },
   { title: "Kökü oku", body: "Kök 'hangisi yanlıştır' mı, 'hangisi doğrudur' mu? Bir kelime bütün şıkları çevirir." },
   { title: "Tablo satırı değil", body: "Tablo satırını ezberlemek soru çözmez; hangi sütunun neyi ayırdığını söyle." },
-];
-
-const REFLEX: WarmupQuiz[] = [
-  { prompt: "15'in %20'si kaçtır?", options: ["2", "3", "4", "5"], answerIndex: 1, why: "%20 = 1/5; 15 ÷ 5 = 3." },
-  { prompt: "12 × 8 = ?", options: ["86", "92", "96", "108"], answerIndex: 2, why: "12 × 8 = 96." },
-  { prompt: "Hangisi diğerlerinden farklıdır?", options: ["9", "16", "25", "28"], answerIndex: 3, why: "9, 16 ve 25 kare sayıdır; 28 değildir." },
-  { prompt: "Bir sayının 3 katının 2 eksiği 13 ise sayı kaçtır?", options: ["3", "5", "7", "9"], answerIndex: 1, why: "3x − 2 = 13 → 3x = 15 → x = 5." },
-  { prompt: "2, 6, 12, 20, … sıradaki sayı?", options: ["28", "30", "32", "36"], answerIndex: 1, why: "Farklar 4, 6, 8; sonraki fark 10 → 20 + 10 = 30." },
 ];
 
 function fold(value: string): string {
@@ -50,9 +46,4 @@ export function warmupCards(topic: string): WarmupCard[] {
 export function warmupTips(topic: string): WarmupTip[] {
   const start = hashTopic(topic) % TIPS.length;
   return [...TIPS.slice(start), ...TIPS.slice(0, start)];
-}
-
-/** Mini refleks: konu adından sabit bir soru seçilir. */
-export function warmupReflex(topic: string): WarmupQuiz {
-  return REFLEX[hashTopic(topic) % REFLEX.length]!;
 }
