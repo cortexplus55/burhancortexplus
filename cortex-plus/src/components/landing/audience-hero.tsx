@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { AudienceTabs } from "@/components/landing/audience-tabs";
+import { HeroStage } from "@/components/landing/hero-stage";
 import { InteractiveShowcase } from "@/components/landing/interactive-showcase";
 import { HERO } from "@/lib/marketing/landing-content";
 import {
@@ -16,9 +17,10 @@ import {
 /**
  * Kahraman + hedef kitle sekmeleri + canlı vitrin tek durumda (7 Kasım 2026). Sayfa önbellekten gelir (5 dk);
  * `?hedef=` ve `utm_campaign` tarayıcıda okunur, sekme ona göre açılır. Sekme değişince adres de değişir
- * (`replaceState`, gezinme yok) — paylaşılan bağlantı aynı sekmeyi açar. Sahne (`stage`) sunucuda çizilir.
+ * (`replaceState`, gezinme yok) — paylaşılan bağlantı aynı sekmeyi açar. Sahne (`HeroStage`) seçili sekmenin notunu,
+ * ders ekranını ve yolunu çizer (10 Kasım 2026); ilk çizim varsayılan sekmeyle sunucudan gelir.
  */
-export function AudienceHero({ stage }: { stage: ReactNode }) {
+export function AudienceHero() {
   const [segmentId, setSegmentId] = useState<AudienceSegmentId>(DEFAULT_SEGMENT);
 
   useEffect(() => {
@@ -67,7 +69,7 @@ export function AudienceHero({ stage }: { stage: ReactNode }) {
           </div>
           <p className="lp-fineprint">{HERO.fineprint}</p>
         </div>
-        {stage}
+        <HeroStage segmentId={segmentId} />
       </section>
 
       <InteractiveShowcase segmentId={segmentId} onPickSegment={pick} />

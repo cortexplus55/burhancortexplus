@@ -144,6 +144,15 @@ export function ExamPrepProgress({
               <>
                 <h3>%{view.forecast.pct}</h3>
                 <p>{view.forecast.text}</p>
+                <p className="cp-prog-confidence">Güven düzeyi: {view.forecast.confidence}</p>
+              </>
+            ) : view.forecast.kind === "estimate" ? (
+              <>
+                <h3>
+                  %{view.forecast.lowPct}–%{view.forecast.highPct}
+                </h3>
+                <p>{view.forecast.text}</p>
+                <p className="cp-prog-confidence">Güven düzeyi: {view.forecast.confidence}</p>
               </>
             ) : (
               <>
@@ -320,9 +329,17 @@ export function ExamPrepProgress({
                         day: "numeric",
                         month: "long",
                       })}
+                      {mock.questions ? ` · ${mock.questions} soru` : ""}
                     </em>
                   </span>
-                  <b>%{mock.pct}</b>
+                  <span className="cp-prog-mock-end">
+                    <b>{mock.pct}/100</b>
+                    {mock.href ? (
+                      <Link href={mock.href} className="cp-prog-mock-link">
+                        İncele
+                      </Link>
+                    ) : null}
+                  </span>
                 </li>
               ))}
             </ul>

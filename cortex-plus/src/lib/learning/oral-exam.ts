@@ -63,7 +63,12 @@ export const ORAL_JUDGE_RULES =
   "Her soruyu yalnız kendi bloğuyla değerlendir; dış metin ya da başka sorunun cümlesini doğrusu diye yazma. " +
   "Not İLK cevaba verilir: beklenen noktayı ilk cevap karşılıyorsa covered; ilk cevap beklenen noktayla DOĞRUDAN " +
   "çelişiyorsa o nokta missing kalır ve firstAnswerIssue {wrong: ilk cevaptan BİREBİR alıntı, correct: bu sorunun " +
-  "beklenen cevabından} yazılır; takipte düzeltme noktayı geri kazandırmaz. Çelişki yoksa firstAnswerIssue yok.";
+  "beklenen cevabından} yazılır; takipte düzeltme noktayı geri kazandırmaz. Çelişki yoksa firstAnswerIssue yok. " +
+  // 10 Kasım 2026: doğru sıralamayı ve bağıntıyı ilk cevabında yazan öğrenci %67 aldı. Tam cevap tam puandır.
+  "TAM CEVAP TAM PUAN: İlk cevap sorunun istediği temel kavramı, doğru karşılaştırma ya da sıralamayı veya bağıntıyı " +
+  "içeriyorsa beklenen noktaların hepsi covered'dır. Aynı bilginin başka sözcüklerle, kısaltmayla, simgeyle ya da " +
+  "kısa yazılması eksik değildir; gerekçe ya da ayrıntı eksikliği yalnız soru açıkça onu istiyorsa missing sayılır. " +
+  "quote alanına cevaptaki ifadeyi öğrencinin yazdığı gibi, harfi harfine kopyala.";
 
 export const ORAL_LENGTH_OPTIONS = [
   { questions: 3, minutes: 7 },
@@ -383,8 +388,15 @@ export function answerLooksIncomplete(question: string, answer: string): boolean
   if (asksQuantity && numbersIn(answer).length === 0) return true;
   const asksReason = /(neden|nicin|why|hangi|hangisi|acikla)/.test(foldedQuestion);
   const hasReason = /(cunku|dolayi|icin|nedeni|oran|bolun|katsay)/.test(foldedAnswer);
-  if (asksReason && !hasReason && answer.trim().length < 160) return true;
+  // Bağıntı ya da sıralama yazan cevap gerekçe sözcüğü taşımasa da eksik değildir (10 Kasım 2026).
+  if (asksReason && !hasReason && !answerShowsWork(answer) && answer.trim().length < 160) return true;
   return false;
+}
+
+/** Cevap iş gösteriyor mu: bağıntı ya da sıralama simgesi (=, <, >, →) ya da gerekçe bağlacı. */
+export function answerShowsWork(answer: string): boolean {
+  if (/[=<>≤≥→⇒]/.test(answer)) return true;
+  return /(?<![a-z])(cunku|dolayi|nedeniyle|yuzunden|oldugu icin|oldugundan|sayesinde|bu yuzden|bu nedenle)(?![a-z])/.test(fold(answer));
 }
 
 export function visibleProbe(input: {
@@ -401,18 +413,21 @@ export function visibleProbe(input: {
   const vibe = parseExaminerVibe(input.persona);
   const supportive = vibeGivesHints(vibe);
   const thin = answer.length < 80;
+  // Kısa ama iş gösteren cevap (bağıntı, sıralama, gerekçe) yeniden sorulmaz (10 Kasım 2026): doğru sıralamayı ve
+  // bağıntıyı yazan öğrenciye "Neden?" / "Biraz açar mısın?" deniyordu.
+  const showsWork = answerShowsWork(answer);
   let question: string | null = null;
   if (input.probeKind === "unit" && numbersIn(answer).length > 0 && !hasUnit(answer)) {
     question = "Birimi ne?";
-  } else if (input.probeKind === "why" && thin) {
+  } else if (input.probeKind === "why" && thin && !showsWork) {
     question = vibe === "challenger" ? "Emin misin? Neden bu sonuç?" : "Neden?";
-  } else if (input.probeKind === "detail" && answer.length < 40 && !/=/.test(answer)) {
+  } else if (input.probeKind === "detail" && answer.length < 40 && !showsWork) {
     question = vibe === "challenger" ? "Emin misin? Ya soruda şu öncül değişseydi?" : "Biraz açar mısın?";
   } else if (thin && numbersIn(answer).length > 0 && !hasUnit(answer)) {
     question = "Birimi ne?";
   } else if (supportive && answerLooksIncomplete(input.question ?? "", answer)) {
     question = numbersIn(answer).length > 0 && !hasUnit(answer) ? "Birimi ne?" : "Eksik kalan adımı da yazar mısın?";
-  } else if (vibe === "challenger" && thin) {
+  } else if (vibe === "challenger" && thin && !showsWork) {
     question = "Emin misin? Ya soruda şu öncül değişseydi?";
   }
   if (!question) return null;
@@ -443,11 +458,33 @@ function asksQuantity(prompt: string): boolean {
   return /(kac|hesapla|calculate|how many|how much)/.test(fold(prompt));
 }
 
-/** Alıntı, cevabın içinde birebir, katlanmış ya da sesçe yakın geçiyor mu? */
+/** Boşluk ve noktalama farkını yok sayan biçim: "P = F / A" ile "P=F/A", "a > b" ile "a>b" aynıdır. */
+function compactForm(text: string): string {
+  return fold(text)
+    .replace(/[×·]/g, "*")
+    .replace(/[−–]/g, "-")
+    .replace(/÷/g, "/")
+    .replace(/[^a-z0-9%=<>+\-*/^]/g, "");
+}
+
+/**
+ * Alıntı, cevabın içinde birebir, katlanmış ya da sesçe yakın geçiyor mu? 10 Kasım 2026: hakem bağıntıyı ya da
+ * sıralamayı boşluklarını değiştirerek alıntılayınca (ya da bir iki bağlacı atlayınca) karşılanan nokta "alıntı
+ * cevapta yok" diye düşüyordu. Boşluk/noktalama farkı ve alıntının sözcüklerinin en az beşte dördünün (sayıların
+ * tamamının) cevapta geçmesi de alıntıdır; cevapta hiç olmayan alıntı yine sayılmaz.
+ */
 function quoteInAnswer(answer: string, quote: string): boolean {
   const q = quote.trim();
   if (q.length < 3) return false;
-  return fold(answer).includes(fold(q)) || speechNear(answer, q);
+  if (fold(answer).includes(fold(q)) || speechNear(answer, q)) return true;
+  const compactQuote = compactForm(q);
+  if (compactQuote.length >= 3 && compactForm(answer).includes(compactQuote)) return true;
+  const words = fold(q).split(/[^a-z0-9%]+/).filter((word) => word.length >= 2);
+  if (words.length < 3) return false;
+  const hay = ` ${fold(answer).replace(/[^a-z0-9%]+/g, " ")} `;
+  const numbers = words.filter((word) => /\d/.test(word));
+  if (!numbers.every((word) => hay.includes(` ${word} `))) return false;
+  return words.filter((word) => hay.includes(` ${word} `)).length / words.length >= 0.8;
 }
 
 /**
@@ -571,6 +608,14 @@ export function gradeOralAnswer(
   // Yükseltme kalır: hakem yokken örnek çözümle örtüşen cevap tam puan.
   const matchesSolution = Boolean(answer && modelAnswer && answerCoversPoint(answer, modelAnswer));
   if (!semantic?.length && matchesSolution) {
+    ratio = 1;
+    covered = points.length ? points : covered;
+    missed = [];
+  }
+  // Tam cevap tam puan (10 Kasım 2026): ilk cevap beklenen noktaların hepsini (ya da örnek çözümü) taşıyorsa ve
+  // hakem çelişki işaretlemediyse, hakemin eksik saydığı nokta puanı düşürmez. Kod puanı yalnız yükseltir.
+  const coversAllPoints = Boolean(answer && points.length && points.every((point) => answerCoversPoint(answer, point)));
+  if (semantic?.length && ratio < 1 && !dontKnow && !judgeNote && (coversAllPoints || matchesSolution)) {
     ratio = 1;
     covered = points.length ? points : covered;
     missed = [];

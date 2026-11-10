@@ -143,7 +143,7 @@ export function FlashcardStudio({
       ) : null}
 
       {phase === "loading" ? (
-        <StudioLoading title="Desten kuruluyor" lead={`${count} kart${sourceDocument ? " belgenden" : ""}; her biri ikinci kez denetleniyor.`} />
+        <StudioLoading title="Desten kuruluyor" lead={`${count} kart${sourceDocument ? " belgenden" : ""} yazılıyor; hazır olunca kendiliğinden açılır.`} />
       ) : null}
 
       {phase === "play" && card ? (

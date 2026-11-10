@@ -39,7 +39,7 @@ export function StudyBar({ life }: { life: NodeLifecycle }) {
             ⏱ {formatTimer(timeLeft)}
           </span>
         ) : null}
-        <button type="button" className="cp-back-pill" aria-label="Oturumdan çık" onClick={requestExit}>
+        <button type="button" className="cp-back-pill" aria-label="Etkinliği kapat" title="Etkinliği kapat" onClick={requestExit}>
           ×
         </button>
       </div>

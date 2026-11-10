@@ -92,6 +92,10 @@ export function TrueFalseStudio({
     }
     setTopic(topic);
     setNotice(sourceNotice(result.data.source));
+    // Süre bütçesi dolduysa set eksik gelebilir (10 Kasım 2026): öğrenci beklemek yerine hazır olanla başlar.
+    if (result.data.items.length < count) {
+      toast.info(`${count} önermeden ${result.data.items.length} tanesi hazırlandı; hazır olanlarla başlıyoruz.`);
+    }
     setItems(result.data.items);
     setIndex(0);
     setPicked(null);
@@ -152,7 +156,7 @@ export function TrueFalseStudio({
       ) : null}
 
       {phase === "loading" ? (
-        <StudioLoading title="Önermeler hazırlanıyor" lead={`${count} önerme; her biri ikinci kez denetleniyor.`} />
+        <StudioLoading title="Önermeler hazırlanıyor" lead={`${count} önerme yazılıyor; hazır olunca kendiliğinden açılır.`} />
       ) : null}
 
       {(phase === "play" || phase === "reveal") && item ? (

@@ -103,6 +103,8 @@ export type NodePayloadInput = {
   practiceTopics?: string[];
   oralQuestionCount?: 3 | 5 | 8;
   oralCitation?: { file: string | null; pages: number[] } | null;
+  /** Sözlü tek konuya mı kurulu (10 Kasım 2026): kaynak konunun bölümüne daraltılır, kapsam satırı eklenir. */
+  oralSingleTopic?: boolean;
   syllabusLine?: string;
   podcastLength?: PodcastLength;
   requestId?: string | null;

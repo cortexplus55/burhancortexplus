@@ -57,6 +57,24 @@ export function prepTopicScopeLine(topic: string, siblings: readonly string[]): 
   );
 }
 
+/**
+ * Tek konulu sözlünün kapsam satırı (10 Kasım 2026). Sözlü, dersten farklı olarak sayfanın bütün noktalarını
+ * kapsamak zorunda değildir; kural daha dardır: sorular yalnız seçilen konudan, hazırlığın öbür konularına geçilmez.
+ * Öbür konu yoksa yalnız konunun adı söylenir.
+ */
+export function oralTopicScopeLine(topic: string, siblings: readonly string[]): string {
+  const title = topic.trim();
+  if (!title) return "";
+  const others = otherTopics(title, siblings).slice(0, 16);
+  return (
+    `Öğrenci sözlü için YALNIZ «${title}» konusunu seçti. Bütün soruları, beklenen noktaları ve örnek cevapları yalnız bu ` +
+    "konunun kapsamından yaz; kaynaktaki öbür ünite ya da alt başlıklara geçme." +
+    (others.length
+      ? ` Hazırlığın şu konuları bu sözlünün DIŞINDADIR, onlardan soru sorma: ${others.map((other) => `«${other}»`).join(", ")}.`
+      : "")
+  );
+}
+
 /** Ders omurgasından öbür konuların başlıkları çıkar (her alt başlık bir ekranda kuralı onları yazara dayatmasın). */
 export function backboneWithoutSiblings(backbone: readonly string[], topic: string, siblings: readonly string[]): string[] {
   const others = otherTopics(topic, siblings);

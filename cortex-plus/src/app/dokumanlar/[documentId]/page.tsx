@@ -8,6 +8,7 @@ import { DocumentReanalyzeButton } from "@/components/documents/document-reanaly
 import { isAdminUser } from "@/lib/auth/roles";
 import { DocumentStatusPoller } from "@/components/documents/document-status-poller";
 import { processErrorLabel } from "@/lib/documents/error-labels";
+import { pageCountLabel } from "@/lib/documents/page-count-label";
 import { isProcessingStuck } from "@/lib/documents/processing-stale";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
@@ -177,7 +178,7 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
           </h1>
           <p className="text-sm text-[var(--cs-muted)]">
             {statusLabels[doc.status] ?? doc.status}
-            {doc.page_count ? ` · ${doc.page_count} sayfa` : ""}
+            {doc.page_count ? ` · ${pageCountLabel(doc.file_name, doc.page_count)}` : ""}
             {doc.updated_at ? ` · Son işlem ${formatDate(doc.updated_at)}` : ""}
           </p>
         </div>

@@ -11464,6 +11464,42 @@
   color: var(--cp-muted);
 }
 
+/* Deneme satırının sonu: puan ve "İncele" (10 Kasım 2026). Satır dar ekranda sarar, taşmaz. */
+.cp-prog-mocks li > span:first-child {
+  min-width: 0;
+}
+
+.cp-prog-mocks .cp-prog-mock-end {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.6rem;
+  flex: none;
+}
+
+.cp-prog-mock-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--cp-border);
+  color: var(--cp-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.cp-prog-mock-link:hover {
+  border-color: var(--cp-accent, #4353f3);
+}
+
+.cp-prog-confidence {
+  margin-top: 0.35rem;
+  font-size: 0.875rem;
+  color: var(--cp-muted);
+}
+
 .cp-prog-tempo {
   list-style: none;
   margin: 0.75rem 0 0;

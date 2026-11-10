@@ -1871,6 +1871,27 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     return data;
   }
 
+  /**
+   * Ders adımını farklı anlat (10 Kasım 2026): ders içi yardım ucu. Hata öğrenciye kısa bir cümleyle döner;
+   * ders akışı etkilenmez.
+   */
+  async function reexplainStep(input: { heading: string; text: string; previous: string[] }): Promise<{ reply: string } | { error: string }> {
+    try {
+      const res = await fetch("/api/learning/exam-prep/reexplain", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prepId, nodeId, heading: input.heading, text: input.text, previous: input.previous.slice(-4) }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { reply?: string };
+      if (res.status === 402) return { error: "Bugünkü ders içi yardım hakkın doldu; yarın yenilenir." };
+      if (res.status === 429) return { error: "Biraz hızlı gittik; birkaç saniye sonra tekrar dene." };
+      if (!res.ok || !data.reply) return { error: "Bu sefer anlatılamadı. Tekrar dene." };
+      return { reply: data.reply };
+    } catch {
+      return { error: "Şu an ulaşılamadı. İnternetini kontrol edip tekrar dene." };
+    }
+  }
+
   // Sözlü sıradaki soru henüz yazılmadıysa (t260u): kayıttan yoklanır; 90 sn'de gelmezse sınav eldeki
   // sorularla biter (öğrenci takılmaz).
   const oralWaiting =
@@ -1920,6 +1941,7 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
 
   return {
     gradeLessonCheck,
+    reexplainStep,
     finishPodcast,
     prepId,
     nodeId,

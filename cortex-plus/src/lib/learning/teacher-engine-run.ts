@@ -25,6 +25,14 @@ function pedagogySurface(label: string): PedagogySurface {
 /** İlk geçiş düşerse ikinci geçiş ancak bu süreden önce başlar (rota tavanı 300 sn). */
 const RETRY_DEADLINE_MS = 90_000;
 
+/**
+ * İşin sert tavanı (10 Kasım 2026). Rota 300 sn'de platformca kesilir; kesilen işlevde iade çalışmaz ve ücretsiz
+ * öğrencinin haftalık hakkı içerik gelmeden düşmüş kalırdı (canlıda doğru/yanlış "hazırlanıyor"da kalırken sayaç
+ * doldu). İş bu süreyi aşarsa beklenmez: ayırma iade edilir, öğrenci "bu sefer tamamlanamadı" görür ve hakkı yerindedir.
+ */
+export const HARD_DEADLINE_MS = 270_000;
+const DEADLINE = Symbol("deadline");
+
 export type TeacherRunOutcome<R> =
   | { ok: true; result: R; calls: number; ms: number }
   | { ok: false; status: number; error: string; reasons: string[] };
@@ -63,6 +71,8 @@ async function runWithTeacherModelInner<R>(
      * gönderilir; verilmezse modelin varsayılanı (bugünkü davranış).
      */
     reasoningEffort?: "low" | "medium";
+    /** İşin sert tavanı (ms); verilmezse `HARD_DEADLINE_MS`. Aşılırsa ayırma iade edilir, 503 döner. */
+    hardDeadlineMs?: number;
     /** Günlük satırının adı ("teacher_cards"). */
     label: string;
     topic: string;
@@ -120,7 +130,12 @@ async function runWithTeacherModelInner<R>(
     return parseModelJson(response.choices[0]?.message?.content ?? "");
   };
 
-  try {
+  const entered = Date.now();
+  let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<typeof DEADLINE>((resolve) => {
+    deadlineTimer = setTimeout(() => resolve(DEADLINE), Math.max(1_000, options.hardDeadlineMs ?? HARD_DEADLINE_MS));
+  });
+  const run = async () => {
     let outcome = await options.work(ask, started).catch((error: unknown) => ({
       ok: false as const,
       reasons: ["model_error"],
@@ -136,6 +151,17 @@ async function runWithTeacherModelInner<R>(
       });
       outcome = await options.work(ask, started);
     }
+    return outcome;
+  };
+
+  try {
+    const raced = await Promise.race([run(), deadline]);
+    if (raced === DEADLINE) {
+      await refund();
+      console.error(`${options.label}_deadline`, { topic: options.topic.slice(0, 80), calls, ms: Date.now() - entered });
+      return { ok: false, status: 503, error: "generation_failed", reasons: ["deadline"] };
+    }
+    const outcome = raced;
     console.info(options.label, { topic: options.topic.slice(0, 80), ok: outcome.ok, calls, ms: Date.now() - started, ...outcome.log });
     if (!outcome.ok) {
       await refund();
@@ -151,6 +177,8 @@ async function runWithTeacherModelInner<R>(
       cause: error instanceof Error ? error.message.slice(0, 200) : "unknown",
     });
     return { ok: false, status: 503, error: "generation_failed", reasons: ["model_error"] };
+  } finally {
+    if (deadlineTimer) clearTimeout(deadlineTimer);
   }
 }
 

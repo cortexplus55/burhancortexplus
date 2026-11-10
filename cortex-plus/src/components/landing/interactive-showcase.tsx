@@ -11,6 +11,7 @@ import {
   bridgeCtaLabel,
   SHOWCASE,
   SHOWCASE_COPY,
+  twoOptionHeading,
   type AudienceSegmentId,
 } from "@/lib/marketing/landing-showcase";
 import { cn } from "@/lib/utils";
@@ -141,10 +142,7 @@ function ShowcaseCard({ segmentId }: { segmentId: AudienceSegmentId }) {
                 </button>
               ) : (
                 <p className="lp-show-hint" role="status">
-                  <strong>
-                    {question.twoOption.pair[0]} ↔ {question.twoOption.pair[1]}:
-                  </strong>{" "}
-                  {question.twoOption.hint}
+                  <strong>{twoOptionHeading(question)}</strong> {question.twoOption.hint}
                 </p>
               )}
               <button

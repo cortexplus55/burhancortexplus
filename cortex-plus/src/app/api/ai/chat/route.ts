@@ -74,6 +74,9 @@ import { runTeacherTutor } from "@/lib/ai/teacher-tutor-run";
 import { answerFirstLine, bestSourcePage } from "@/lib/learning/tutor-answer";
 import { CHAT_NATURAL_VOICE, CHAT_TEACHING_MARKUP, teacherStyleLine, tutorHistoryLine, tutorHistoryText } from "@/lib/ai/teacher-tutor";
 import { simplifyLine } from "@/lib/ai/simplify-request";
+import { chatTurnBlock, chatTurnLines, readChatTurn } from "@/lib/ai/chat-turn-lines";
+import { recentSupportVerdict, SUPPORT_NOTE_DEDUPE_SECONDS, SUPPORT_SCOPE } from "@/lib/ai/chat-safety-context";
+import { verifyAndFixTurkishMathExpressions } from "@/lib/learning/turkish-math-fix";
 import { loadStudentMemory, studentMemoryLines } from "@/lib/learning/student-memory";
 import { parseCheckExpected, gradeAgainstExpected } from "@/lib/learning/check-question";
 import { citationHref, type ChatCitation, type ChatEvidence } from "@/lib/ai/chat-citations";
@@ -266,6 +269,8 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
       moderationNoted = true;
       stage("moderation");
       if (v.action !== "allow") void recordAbuse({ signal: "moderation", severity: v.action === "flag" ? "low" : "high", scope: "chat", userId, request, metadata: { categories: v.categories, outcome: v.action } });
+      // Destek yanıtı sohbete kaydedilmez; sonraki turda "genel duygu ifadesi" hafife alınmasın diye ayrı kapsamla izlenir.
+      if (v.action === "support") void recordAbuse({ signal: "moderation", severity: "high", scope: SUPPORT_SCOPE, userId, request, dedupeSeconds: SUPPORT_NOTE_DEDUPE_SECONDS, metadata: { outcome: v.action } });
     };
     const blockedReply = (v: Extract<Verdict, { message: string }>) => new Response(v.message, {
       headers: { "Content-Type": "text/plain; charset=utf-8", "X-Credits-Used": "0" },
@@ -423,9 +428,14 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
       // Nötr varsayılan: istem uzamasın diye ayrıca yazılmaz.
       // Tarayıcı ruh hali göndermediyse günün kaydı (dersten ya da sohbetten işaretlenmiş olabilir; 8 Kasım 2026).
       const chatMood = rest.mood ? parseMood(rest.mood) : ((await loadTodayMood(service, userId).catch(() => null)) ?? "neutral");
-      const moodLine = chatMood === "neutral" ? "" : ` ${moodPrompt(chatMood)}`;
+      // Tur okuması (10 Kasım 2026, güven paketi): mesajdaki duygu o turun ruh halidir (hap işaretlenmese de), takip
+      // mesajı konuşmadaki soruya kilitlenir, Adım Adım modu yalnız sıradaki adımı yazar. Satırlar istemin en sonunda.
+      const turn = readChatTurn({ message, style: tutorStyle, history, baseMood: chatMood });
+      const priorSupport = turn.feelingOnly && !turn.crisis ? await recentSupportVerdict(service, userId) : false;
+      const turnLines = chatTurnLines(turn, tutorStyle, { priorSupport });
+      const moodLine = turn.mood === "neutral" ? "" : ` ${moodPrompt(turn.mood)}`;
       const requestMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-        { role: "system", content: `${SYSTEM_GUARDRAIL} ${studentInstruction} ${teacherTurn} ${teacherStyleLine(tutorStyle)} ${CHAT_NATURAL_VOICE}${rest.prepId && prepGrounding ? "" : `\n\n${CHAT_TEACHING_MARKUP}\n\n`} ${answerFirstLine(message, tutorStyle)}${moodLine}${examContext?.block ?? ""}${attachedBrief ? `\n${SOURCE_PAGE_FORMULA_RULE}\n${attachedBrief}` : ""}${contextBlock}${tutorAddendum ? `\n\n${tutorAddendum}` : ""}${simplifyLine(message) ? `\n\n${simplifyLine(message)}` : ""}` },
+        { role: "system", content: `${SYSTEM_GUARDRAIL} ${studentInstruction} ${teacherTurn} ${teacherStyleLine(tutorStyle)} ${CHAT_NATURAL_VOICE}${rest.prepId && prepGrounding ? "" : `\n\n${CHAT_TEACHING_MARKUP}\n\n`} ${answerFirstLine(message, tutorStyle)}${moodLine}${examContext?.block ?? ""}${attachedBrief ? `\n${SOURCE_PAGE_FORMULA_RULE}\n${attachedBrief}` : ""}${contextBlock}${tutorAddendum ? `\n\n${tutorAddendum}` : ""}${simplifyLine(message) ? `\n\n${simplifyLine(message)}` : ""}${chatTurnBlock(turnLines)}` },
         ...history,
         { role: "user", content: imageUrl ? [{ type: "text", text: message }, { type: "image_url", image_url: visionImage(imageUrl) }] : message },
       ];
@@ -459,7 +469,8 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
         if (settled.replaced) {
           next = settled.text;
         } else {
-          const audit = auditQuantitative(next, grounding.corpus);
+          // Sohbet denetimi binlik noktayı Türkçe okur (10 Kasım 2026): doğru eşitlik "onarılıp" bozulmasın.
+          const audit = auditQuantitative(next, grounding.corpus, { thousandsDots: true });
           if (!audit.ok) next = repairQuantitative(next, audit);
           else if (needsQuantModelCheck(next, audit)) {
             try {
@@ -554,6 +565,7 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
           ),
           message,
           style: tutorStyle,
+          turnLines,
           verify: tutorMode !== "general" && grounding.decision === "in",
           // "Yalnızca belgem" modunda denetlenmemiş taslak ekrana düşmez; öbür modlarda canlı akar.
           onDelta: rest.prepId && tutorMode !== "document" ? (text) => {
@@ -698,11 +710,16 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
       }
       // Fotoğraf veya şıklı/sayısal çözüm: cevap yazılmadan aritmetik kural ve,
       // fotoğrafta, bağımsız sağlama (25 Ekim 2026). İpucu modu ve red cevapları dışarıda.
-      if (charge && chatSolveNeedsGuard({ tutorStyle, hasImage: Boolean(imageUrl), message })) {
+      // Takipte tam çözüm istendiyse ("cevabı ve tüm adımları göster") sağlama konuşmadaki soruya göre yapılır.
+      const solveMessage = turn.plan.followUp === "full_solution" && turn.plan.active?.source === "student" ? turn.plan.active.text : message;
+      // Adım Adım turunda yalnız tek adım yazılır: nihai cevap yokken bağımsız çözümle karşılaştırılacak bir şey de yok
+      // (karşılaştırma, adımın yerine tam çözümü koyabiliyordu). Aritmetik kural yine çalışır.
+      const pacedTurn = tutorStyle === "step_by_step" && turn.plan.pacedStep != null;
+      if (charge && !turn.crisis && chatSolveNeedsGuard({ tutorStyle, hasImage: Boolean(imageUrl), message: solveMessage })) {
         content = prepareChatSolution(content);
-        try {
+        if (!pacedTurn) try {
           const checkModel = imageUrl ? env.OPENAI_ADVANCED_MODEL : contentModel();
-          const prompt = independentSolvePrompt(message);
+          const prompt = independentSolvePrompt(solveMessage);
           const checkUser = imageUrl
             ? [
                 { type: "text" as const, text: prompt.user },
@@ -729,11 +746,20 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
             reservationId,
           });
           const parsed = parseIndependentSolve(check.choices[0]?.message?.content ?? "");
-          if (parsed) content = mergeIndependentSolve(content, parsed, { preferWhenUnclaimed: Boolean(imageUrl) });
+          // Adım Adım modunda cevap bilerek yazılmamış olabilir; "cevap yoksa bağımsız çözümü yaz" yalnız tam çözümde.
+          if (parsed) content = mergeIndependentSolve(content, parsed, { preferWhenUnclaimed: Boolean(imageUrl) && (tutorStyle !== "step_by_step" || turn.plan.fullSolution) });
         } catch {
           // Bağımsız çağrı düşerse aritmetiği tutmayan satır zaten çıkarılmış cevap durur.
         }
       }
+    }
+    // Türkçe aritmetik sağlama (10 Kasım 2026, güven paketi): "A × B = C" eşitliğinde sonuç yalnız ayırıcı karışıklığının
+    // imzasıyla (bin katı) sapıyorsa düzeltilir. Kayıttan ÖNCE ve kaynak işaretlerinden önce: akan taslak bitişte kayıtlı
+    // metinle değiştiği için öğrencinin gördüğü ve saklanan metin aynıdır. Günlüğe yalnız sayı yazılır.
+    const mathFix = verifyAndFixTurkishMathExpressions(content);
+    if (mathFix.fixes) {
+      content = mathFix.text;
+      console.warn("chat_math_separator_fixed", { operationId, fixes: mathFix.fixes });
     }
     // Only server-verified metadata becomes a navigable source, never model URLs.
     if (rest.prepId && prepGrounding && charge) {

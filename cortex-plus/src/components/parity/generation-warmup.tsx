@@ -2,16 +2,16 @@
 
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Zap } from "lucide-react";
-import { warmupCards, warmupReflex, warmupTips } from "@/lib/learning/generation-warmup";
+import { warmupCards, warmupTips, type WarmupQuiz } from "@/lib/learning/generation-warmup";
 
 /**
- * Üretim beklerken açılır zihin ısıtma. Model çağırmaz; konu adından kart, ipucu ve
- * mini refleks üretir. Öğrenci sıkılmasın, kredi düşmesin.
+ * Üretim beklerken açılır zihin ısıtma. Model çağırmaz; konu adından kart ve ipucu üretir. Öğrenci sıkılmasın,
+ * kredi düşmesin. Refleks sorusu yalnız hazırlığın kendi içeriğinden verilirse (`reflex`) görünür: konuyla
+ * ilgisiz hazır soru gösterilmez (10 Kasım 2026).
  */
-export function GenerationWarmup({ topic = "" }: { topic?: string }) {
+export function GenerationWarmup({ topic = "", reflex = null }: { topic?: string; reflex?: WarmupQuiz | null }) {
   const cards = useMemo(() => warmupCards(topic), [topic]);
   const tips = useMemo(() => warmupTips(topic), [topic]);
-  const reflex = useMemo(() => warmupReflex(topic), [topic]);
   const [open, setOpen] = useState(true);
   const [tab, setTab] = useState<"cards" | "tips" | "reflex">("cards");
   const [cardAt, setCardAt] = useState(0);
@@ -41,7 +41,7 @@ export function GenerationWarmup({ topic = "" }: { topic?: string }) {
               [
                 ["cards", "Bil-geç"],
                 ["tips", "Sınav ipucu"],
-                ["reflex", "Refleks"],
+                ...(reflex ? ([["reflex", "Refleks"]] as const) : []),
               ] as const
             ).map(([id, label]) => (
               <button
@@ -121,7 +121,7 @@ export function GenerationWarmup({ topic = "" }: { topic?: string }) {
             </div>
           ) : null}
 
-          {tab === "reflex" ? (
+          {tab === "reflex" && reflex ? (
             <div className="apg-warmup-reflex">
               <p className="apg-warmup-tip-title">{reflex.prompt}</p>
               <div className="apg-warmup-options">

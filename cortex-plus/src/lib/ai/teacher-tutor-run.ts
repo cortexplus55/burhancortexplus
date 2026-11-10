@@ -41,6 +41,8 @@ export async function runTeacherTutor(input: {
   verify?: boolean;
   /** Öğrencinin anlatım tarzı; doğrudan cevap yüklemi okur. */
   style?: TutorStyle | null;
+  /** Yalnız bu tur için geçerli istem satırları (`chatTurnLines`); sistem isteminin sonuna eklenir. */
+  turnLines?: string[];
   /** Düşünme düzeyi (t260u); yalnız akıl yürüten modelde gönderilir. */
   reasoningEffort?: "low" | "medium";
   /**
@@ -52,7 +54,9 @@ export async function runTeacherTutor(input: {
   const effort = input.reasoningEffort && isReasoningModel(input.model) ? { reasoning_effort: input.reasoningEffort } : {};
   // Sadeleştirme isteği (6 Kasım 2026) en sonda: tarz ve öğretmen tavrı satırlarından sonra okunur, bu cevapta önce gelir.
   const simplify = simplifyLine(input.message);
-  const system = `${tutorSystemPrompt(input.context)}\n\n${answerFirstLine(input.message, input.style)}${simplify ? `\n\n${simplify}` : ""}`;
+  // Tura özel satırlar (10 Kasım 2026: adım kilidi, aktif soru, duygu açılışı) en sonda: bu cevapta son söz onlarındır.
+  const turn = (input.turnLines ?? []).filter(Boolean);
+  const system = `${tutorSystemPrompt(input.context)}\n\n${answerFirstLine(input.message, input.style)}${simplify ? `\n\n${simplify}` : ""}${turn.length ? `\n\n${turn.join("\n\n")}` : ""}`;
   let reasons: string[] = [];
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const note = reasons.length ? `\n\n${tutorRetryNote(reasons)}` : "";

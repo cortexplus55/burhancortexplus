@@ -14,6 +14,8 @@ import { ORAL_JUDGE_RULES, oralFirstAnswer, oralFollowAnswer, oralFollowQuestion
 import { loadPrepChatGrounding } from "@/lib/learning/prep-chat-grounding";
 import { sessionSignalsPrompt } from "@/lib/learning/session-signals";
 import { parseSessionMeta, teachingActivityForKind } from "@/lib/learning/teaching-standards";
+import { prepTopicLabels } from "@/lib/documents/generation-context";
+import { narrowPagesToTopic, oralTopicScopeLine } from "@/lib/learning/topic-section";
 import { NodeGenerationError, actionForKind } from "./shared";
 import type { NodePayloadInput } from "./generate";
 
@@ -59,7 +61,21 @@ export async function teacherOralPayload(
   asked: number,
 ) {
   const startedAt = Date.now();
-  const block = input.sourceBlock.trim();
+  /*
+    Konu kilidi (10 Kasım 2026). Canlıda tek konu seçilen sözlüde sorular belgedeki öbür konulardan geldi: ders,
+    konu testi ve podcast kaynağı konunun bölümüne daraltıp kapsam satırı ekliyordu (6 Kasım 2026), sözlü ise
+    sayfanın tamamını kapsamsız okuyordu; kısa notta bütün konular aynı sayfadadır. Tek konulu sözlüde kaynak
+    konunun kendi bölümüne iner ve yazar açık kapsam kuralını okur. "Tüm sınav" ve çok konulu sözlü değişmez.
+  */
+  const siblings =
+    input.oralSingleTopic && input.prepId ? await prepTopicLabels(input.service, input.prepId).catch(() => [] as string[]) : [];
+  const rawBlock = input.sourceBlock.trim();
+  const narrowed =
+    input.oralSingleTopic && rawBlock && siblings.length
+      ? narrowPagesToTopic([{ page: 0, text: rawBlock }], input.topicLabel, siblings)
+      : null;
+  const block = narrowed?.narrowed ? (narrowed.pages[0]?.text.trim() ?? rawBlock) : rawBlock;
+  const scopeLine = input.oralSingleTopic ? oralTopicScopeLine(input.topicLabel, siblings) : "";
   // Bu konuda önceki etkinliklerin sorduğu bilgiler (Paket I #8): sözlü aynı bilgiyi yeniden sormasın.
   const avoid =
     input.prepId && input.userId
@@ -84,7 +100,7 @@ export async function teacherOralPayload(
     pages: [],
     sourceBlock: block || undefined,
     mode: (block ? "document" : "topic") as "document" | "topic",
-    brief: input.syllabusLine?.trim() || undefined,
+    brief: [scopeLine, input.syllabusLine?.trim() ?? ""].filter(Boolean).join("\n") || undefined,
     learnerLine: sessionSignalsPrompt(input.familiarity, input.mood),
     examPoints: input.examPoints,
     examPointsUse: "oral" as const,

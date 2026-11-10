@@ -58,6 +58,7 @@ export function severityLabel(severity: AbuseSeverity | string): string {
  */
 export const ABUSE_SCOPE_LABELS: Record<string, string> = {
   chat: "Sohbet",
+  "chat-support": "Sohbet (destek yanıtı verildi)",
   solve: "Fotoğraftan soru çözme",
   "doc-upload": "Belge yükleme",
   "document-image": "Belgedeki resimleri okuma",

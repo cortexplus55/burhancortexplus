@@ -470,7 +470,7 @@ describe("(6) × ve 'Sınavı bitir' kayıt ya da gönderim sürerken çalışı
     expect(screen.queryByText("Cevapların kaydediliyor…")).toBeNull();
     await tick(1);
     expect(screen.getByText("Cevapların kaydediliyor…")).toBeTruthy();
-    const exit = screen.getByRole("button", { name: "Oturumdan çık" }) as HTMLButtonElement;
+    const exit = screen.getByRole("button", { name: "Etkinliği kapat" }) as HTMLButtonElement;
     expect(exit.disabled).toBe(false);
     fireEvent.click(exit);
     expect(screen.getByRole("dialog").textContent).toMatch(/0 cevap kaydedildi, 1 cevap kaydedilemedi/);
@@ -496,7 +496,7 @@ describe("(6) × ve 'Sınavı bitir' kayıt ya da gönderim sürerken çalışı
     fireEvent.click(end);
     await tick();
     expect(screen.getByText("Değerlendiriliyor…")).toBeTruthy();
-    expect((screen.getByRole("button", { name: "Oturumdan çık" }) as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByRole("button", { name: "Etkinliği kapat" }) as HTMLButtonElement).disabled).toBe(false);
   });
 
   it("cevap masası: busy yalnız gönderi kilitler", () => {

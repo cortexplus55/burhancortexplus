@@ -64,3 +64,6 @@ export async function POST(request: Request) {
     questions: outcome.result.map((item) => ({ prompt: item.prompt, hint: item.hint ?? "", expectedPoints: item.expectedPoints })),
   });
 }
+
+/** Platform işlevi 300 sn çalışabilir; motorun sert tavanı (270 sn) iadeyi ondan önce yapar (10 Kasım 2026). */
+export const maxDuration = 300;

@@ -721,6 +721,7 @@ export function ExamLessonSteps({
   onClose,
   closeHref,
   gradeCheck,
+  onReexplain,
   toolbar,
   plannedMinutes = null,
   writingDone = false,
@@ -767,6 +768,11 @@ export function ExamLessonSteps({
     answer: LessonCheckAnswer,
     variant?: CheckGradeVariant,
   ) => Promise<GradeCheckResult>;
+  /**
+   * Adımı farklı anlat (10 Kasım 2026): verilirse her anlatım adımının altında "🔄 Farklı anlat" düğmesi çıkar.
+   * İstek çağıran yerde (yaşam döngüsü kancası) atılır; bileşen yalnız sonucu çizer.
+   */
+  onReexplain?: ReexplainHandler;
 }) {
   const play = useMemo(() => toPlayV3(lesson), [lesson]);
   /** V2 görünümü: tekrar soruları, okuma süresi ve eski yardımcılar bunu okur (ekran i = bölüm i). */
@@ -1750,6 +1756,17 @@ export function ExamLessonSteps({
         );
       })()}
 
+      {/* Farklı anlat: anlatım görünürken (önce dene ekranında cevaptan sonra). Adım değişince durum sıfırlanır. */}
+      {onReexplain && step.kind === "section" && (!step.checkFirst || revealed) && step.body.trim().length >= 20 ? (
+        <StepReexplain
+          key={`reexplain-${index}`}
+          heading={step.heading}
+          text={step.body}
+          onReexplain={onReexplain}
+          topicHint={mathTopicHint}
+        />
+      ) : null}
+
       {revealed && check && ungradable ? (
         <div className="als-feedback" role="status">
           <span>{gradeResult?.message ?? "Notlandırılamadı. Yeniden dene."}</span>
@@ -1784,6 +1801,68 @@ export function ExamLessonSteps({
         </details>
       ) : null}
     </article>
+  );
+}
+
+/** "Farklı anlat" isteği: cevap ya da öğrenciye gösterilecek kısa hata. */
+export type ReexplainHandler = (input: {
+  heading: string;
+  text: string;
+  previous: string[];
+}) => Promise<{ reply: string } | { error: string }>;
+
+/**
+ * Adımın altındaki "🔄 Farklı anlat" (10 Kasım 2026). Her basışta aynı adım başka bir yoldan anlatılır; önceki
+ * farklı anlatımlar isteğe eklenir ki yenisi onları tekrar etmesin. Ders metni değişmez, kutu adımın altına eklenir.
+ */
+function StepReexplain({
+  heading,
+  text,
+  onReexplain,
+  topicHint,
+}: {
+  heading: string;
+  text: string;
+  onReexplain: ReexplainHandler;
+  topicHint?: string;
+}) {
+  const [replies, setReplies] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const latest = replies[replies.length - 1];
+
+  async function run() {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await onReexplain({ heading, text, previous: replies });
+      if ("reply" in result) setReplies((list) => [...list, result.reply]);
+      else setError(result.error);
+    } catch {
+      setError("Bu sefer anlatılamadı. Tekrar dene.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="als-reexplain">
+      {latest ? (
+        <div className="als-reexplain-box" aria-live="polite">
+          <p className="als-reexplain-kicker">Farklı bir yoldan</p>
+          <BoardBody text={latest} topicHint={topicHint} />
+        </div>
+      ) : null}
+      {error ? (
+        <p className="als-reexplain-error" role="status">
+          {error}
+        </p>
+      ) : null}
+      <button type="button" className="als-reexplain-btn" onClick={() => void run()} disabled={busy} aria-busy={busy}>
+        {busy ? "Farklı bir yoldan anlatılıyor…" : latest ? "🔄 Bir kez daha farklı anlat" : "🔄 Farklı anlat"}
+      </button>
+    </div>
   );
 }
 

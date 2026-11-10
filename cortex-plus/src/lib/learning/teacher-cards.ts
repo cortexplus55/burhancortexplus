@@ -21,6 +21,16 @@ export const CARD_DISTINCT_RULE =
   "ilişki ya da bir değişken değişince ne olduğu başka bir kartta.";
 
 /**
+ * Sınav lojistiği kart olmaz (10 Kasım 2026): canlı bir destede sınavın tarihi ve kapsamı birden çok kartta
+ * soruluyordu. Kart bir kavramı, kuralı ya da hesabı yoklar; belgenin üst bilgisi (sınav tarihi, saati, yeri,
+ * süresi, kapsamı, soru sayısı, puan ağırlığı, dersin hocası ya da dönemi) kart yapılmaz. Yazar ve denetçi aynı
+ * metni okur; kod (`logisticsCard`) böyle kartı kabul etmez.
+ */
+export const CARD_META_RULE =
+  "ÜST BİLGİ KART OLMAZ: Sınavın tarihi, saati, yeri, süresi, kapsamı, soru sayısı, puan ağırlığı; dersin hocası, " +
+  "dönemi ya da kodu kart yapılmaz. Her kart konunun bir kavramını, kuralını ya da hesabını yoklar.";
+
+/**
  * Öğretmen kart motoru (2 Ekim 2026, ürün sahibinin kararı: tüm içerik yeni
  * motora). Kart: ön yüz öğrenciyi HATIRLAMAYA zorlayan bir ipucu, arka yüz
  * kısa ve kesin cevap. Taslak → her kartı belgeyle eşleyen model denetimi →
@@ -74,6 +84,7 @@ function system(mode: TeacherLessonMode, focus: TeacherCardsInput["focus"]): str
     "('X ile Y'yi ayıran ne?'); kaynakta formül ya da sayı varsa onun anlamı.\n" +
     "- Arka yüz kısa ve kesin: 1-2 cümle; ayırt ettiren noktayı söyler. Tek kart tek bilgi.\n" +
     `- ${CARD_DISTINCT_RULE}\n` +
+    `- ${CARD_META_RULE}\n` +
     "- Ön yüzün tek doğru cevabı olsun; birden fazla terim akla geliyorsa ipucunu daralt.\n" +
     "- difficulty: zor kartlar listenin başında.\n" +
     (focus === "spaced" ? "- ARALIKLI TEKRAR: konunun çekirdek tanımları ve formülleri önce gelsin.\n" : "") +
@@ -119,7 +130,8 @@ export function cardsVerifySystem(mode: TeacherLessonMode = "document"): string 
     "D) Ön yüz cevabı veriyor.\n" +
     "E) Bozuk, anlamsız ya da yarım Türkçe cümle.\n" +
     `F) Destedeki başka bir kartla aynı bilgi. Yazarın kuralı (aynen): ${CARD_DISTINCT_RULE} Sonraki kartı yaz.\n` +
-    "A-F 'high'. Şunlar 'low': kolay kart.\n" +
+    `G) Konunun bilgisi yerine sınavın ya da dersin üst bilgisini soran kart. Yazarın kuralı (aynen): ${CARD_META_RULE}\n` +
+    "A-G 'high'. Şunlar 'low': kolay kart.\n" +
     'JSON döndür: {"issues":[{"item":0,"severity":"high","problem":"…","fix":"…"}]} — item, 0\'dan başlayan kart ' +
     "sırasıdır. Sorun yoksa issues boş dizi."
   );
@@ -231,8 +243,24 @@ export function formulaLetterCard(card: TeacherCard): string | null {
   return formula.replace(/\s+/g, "");
 }
 
-/** Destedeki kartlarla aynı bilgiyi taşıyan kartın sorunu; yoksa null. */
+const ASSESSMENT_WORD = /(?<![\p{L}])(sınav|vize|final|bütünleme|quiz|yazılı|ödev|proje)[\p{L}]*/iu;
+const LOGISTICS_ASK =
+  /ne zaman|hangi (?:gün|tarih|saat|salon|derslik|sınıf|amfi)|tarihi|saati|saat kaç|nerede|yeri(?![\p{L}])|süresi|kaç (?:soru|dakika|saat)|soru sayısı|kapsam[\p{L}]*|puan ağırlığ[\p{L}]*|yüzde kaç[\p{L}]*|notun yüzde/iu;
+const COURSE_META = /(?<![\p{L}])dersin (?:hocası|öğretim (?:üyesi|görevlisi|elemanı)|kredisi|dönemi|kodu)/iu;
+
+/**
+ * Kart konunun bilgisini değil sınavın/dersin üst bilgisini mi soruyor: ön yüzde bir değerlendirme sözcüğü
+ * (sınav, vize, final, quiz…) ile bir lojistik sorusu (ne zaman, kapsamı, süresi, kaç soru…) birlikte geçiyor ya
+ * da dersin hocası/dönemi soruluyor. Yalnız genel Türkçe sözcükler; ders ya da konu adı yok.
+ */
+export function logisticsCard(card: TeacherCard): boolean {
+  const front = card.front.toLocaleLowerCase("tr");
+  return COURSE_META.test(front) || (ASSESSMENT_WORD.test(front) && LOGISTICS_ASK.test(front));
+}
+
+/** Destedeki kartlarla aynı bilgiyi taşıyan (ya da üst bilgi soran) kartın sorunu; yoksa null. */
 export function cardSetIssue(card: TeacherCard, deck: readonly TeacherCard[]): string | null {
+  if (logisticsCard(card)) return "Kart sınavın ya da dersin üst bilgisini soruyor (tarih, kapsam, süre…); konunun bir kavramını, kuralını ya da hesabını yoklayan kart yaz.";
   const twin = deck.find((other) => sameCardFact(card, other));
   if (twin) return `Destedeki başka bir kartla aynı bilgi ('${twin.front.slice(0, 80)}'); başka bir bilgiyi yoklayan kart yaz.`;
   const formula = formulaLetterCard(card);

@@ -74,15 +74,25 @@ describe("ders ekranı görsel kartlar", () => {
 });
 
 describe("bekleme ısıtması", () => {
-  it("kartı çevirir ve refleks şıkkını işaretler", () => {
+  it("kartı çevirir; konuyla ilgisiz refleks sorusu göstermez", () => {
     render(<GenerationWarmup topic="Mitoz" />);
     expect(screen.getByText("Hazırlanırken Hızlı Zihin Isıtma")).toBeTruthy();
     fireEvent.click(screen.getByText("Çevir"));
     expect(screen.getByText("Soruya dön")).toBeTruthy();
+    // 10 Kasım 2026: hazır işlem sorusu kalktı; hazırlığın kendi sorusu verilmedikçe sekme yok.
+    expect(screen.queryByRole("tab", { name: "Refleks" })).toBeNull();
+  });
+
+  it("hazırlığın kendi sorusu verilirse refleks sekmesi o soruyu sorar", () => {
+    render(
+      <GenerationWarmup
+        topic="Mitoz"
+        reflex={{ prompt: "Mitozda kromozom sayısı nasıl değişir?", options: ["Yarıya iner", "Değişmez"], answerIndex: 1, why: "Mitozda kromozom sayısı korunur." }}
+      />,
+    );
     fireEvent.click(screen.getByRole("tab", { name: "Refleks" }));
-    const option = screen.getAllByRole("button").find((button) => /^\d+$/.test(button.textContent ?? ""));
-    expect(option).toBeTruthy();
-    fireEvent.click(option!);
-    expect(screen.getByText(/karedir|3x|96|1\/5|fark/i)).toBeTruthy();
+    expect(screen.getByText("Mitozda kromozom sayısı nasıl değişir?")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Değişmez" }));
+    expect(screen.getByText("Mitozda kromozom sayısı korunur.")).toBeTruthy();
   });
 });
