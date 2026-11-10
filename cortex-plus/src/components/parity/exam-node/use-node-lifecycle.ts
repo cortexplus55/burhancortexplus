@@ -1888,7 +1888,7 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
       if (!res.ok || !data.reply) return { error: "Bu sefer anlatılamadı. Tekrar dene." };
       return { reply: data.reply };
     } catch {
-      return { error: "Bağlantı kurulamadı. Tekrar dene." };
+      return { error: "Şu an ulaşılamadı. İnternetini kontrol edip tekrar dene." };
     }
   }
 

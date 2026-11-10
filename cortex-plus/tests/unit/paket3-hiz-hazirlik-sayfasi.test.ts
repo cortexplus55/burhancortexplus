@@ -213,7 +213,9 @@ describe("hazırlık sayfası veritabanı gidiş-dönüşleri", () => {
     expect(count("exam_prep_node_attempts")).toBe(1);
     expect(count("exam_prep_nodes")).toBe(1);
     expect(count("exam_prep_topic_mastery")).toBe(1);
-    expect(userCalls.length).toBeLessThanOrEqual(11);
+    // 10 Kasım 2026: notlanmış denemeler kendi kaydından (aynı paralel dalgada tek okuma; deneme yoksa ek okuma yok).
+    expect(count("practice_exams")).toBe(1);
+    expect(userCalls.length).toBeLessThanOrEqual(12);
 
     expect(home).not.toBeNull();
     expect(home!.activeTopicLabel).toBe(" Kalıtım ");
