@@ -38,10 +38,17 @@ export function asksSolvedProblem(message: string): boolean {
   return asks && /\d/.test(text);
 }
 
+/**
+ * Türkçe binlik nokta (10 Kasım 2026, güven paketi): denetim sayıyı nokta-ondalık okuyordu; binlik noktayla yazılmış
+ * doğru bir eşitlik "tutmuyor" sayılıp sonucu bin kat küçültülerek yeniden yazılıyor ya da satırı düşüyordu. Sohbet
+ * sağlaması iki denetimi de binlik nokta okumasıyla çağırır (`thousandsDots`); öbür çağıranların okuması değişmedi.
+ */
+const TURKISH_READING = { thousandsDots: true } as const;
+
 export function prepareChatSolution(draft: string): string {
-  const audit = auditQuantitative(draft);
+  const audit = auditQuantitative(draft, "", TURKISH_READING);
   const repaired = audit.ok ? draft : repairQuantitative(draft, audit);
-  const lines = repaired.split("\n").filter((line) => stepArithmeticIssues(line).length === 0);
+  const lines = repaired.split("\n").filter((line) => stepArithmeticIssues(line, TURKISH_READING).length === 0);
   const cleaned = lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
   return cleaned.length >= 20 ? cleaned : repaired.trim();
 }

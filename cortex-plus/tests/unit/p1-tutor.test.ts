@@ -25,8 +25,11 @@ describe("P1-5 doğrudan cevap yüklemi", () => {
     }
   });
 
-  it("Adım adım ve Doğrudan çöz tarzında her soru doğrudan cevaplanır; Sokratik problemde değil", () => {
-    expect(wantsDirectAnswer("Bu problemi çözelim", "step_by_step")).toBe(true);
+  // 10 Kasım 2026 (güven paketi, ürün sahibinin kararı): Adım Adım artık doğrudan cevap istemez; mod çözümü tek
+  // balonda döküyordu. 25 Ekim'deki "Adım adım tarzında her soru doğrudan cevaplanır" beklentisi bilerek değişti.
+  it("Doğrudan çöz tarzında her soru doğrudan cevaplanır; Adım adım ve Sokratik problemde değil", () => {
+    expect(wantsDirectAnswer("Bu problemi çözelim", "step_by_step")).toBe(false);
+    expect(wantsDirectAnswer("Bu kavram nedir?", "step_by_step")).toBe(true);
     expect(wantsDirectAnswer("Bu problemi çözelim", "direct_solve")).toBe(true);
     expect(wantsDirectAnswer("Bu problemi çözelim", "hints_first")).toBe(false);
     expect(wantsDirectAnswer("Bu kavram nedir?", "hints_first")).toBe(true);

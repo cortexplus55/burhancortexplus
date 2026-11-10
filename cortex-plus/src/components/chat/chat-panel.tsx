@@ -1614,6 +1614,7 @@ function ChatPanelSession({
                           onPrompt={(prompt) => void send(prompt)}
                           hideChips={!showSuggestions}
                           tutorStyle={tutorStyle}
+                          quickActions={index === messages.length - 1}
                         />
                         <MessageActions
                           content={message.content}
@@ -2405,6 +2406,7 @@ function ChatPanelSession({
                         disabled={loading}
                         onPrompt={(prompt) => void send(prompt)}
                         tutorStyle={tutorStyle}
+                        quickActions={index === messages.length - 1}
                       />
                     ) : null}
                   </div>
@@ -2456,6 +2458,7 @@ function ChatPanelSession({
                   disabled={loading}
                   onPrompt={(prompt) => void send(prompt)}
                   tutorStyle={tutorStyle}
+                  quickActions={index === messages.length - 1}
                 />
               )}
             </div>

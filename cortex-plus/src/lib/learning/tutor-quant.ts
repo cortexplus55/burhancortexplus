@@ -9,6 +9,7 @@
 
 import { foldTr } from "@/lib/documents/page-analysis";
 import { MEASURE } from "@/lib/learning/lesson-claims";
+import { normalizeNumberText } from "@/lib/learning/result-values";
 import { parseModelOutput } from "@/lib/ai/json-repair";
 
 const SUB: Record<string, string> = {
@@ -490,7 +491,30 @@ function spanForRepair(original: string, expanded: string, expandedSpan: string)
   return expanded === original ? expandedSpan : original.trim();
 }
 
-function arithmeticIssues(text: string): QuantIssue[] {
+/**
+ * Türkçe binlik nokta (10 Kasım 2026, güven paketi). Bu dosya sayıyı `\d+(?:[.,]\d+)?` ile okur: nokta ondalık
+ * sayılır. Binlik noktayla yazılmış DOĞRU bir eşitlik ("a.bcd ÷ n = m") böylece "tutmuyor" görünüyor, onarım da
+ * sonucu bin kat küçültüp ya da büyütüp yazıyordu; sohbetteki ayırıcı karışıklığının bir kaynağı buydu.
+ * Tutmayan eşitlik, sayılar binlik noktayla okununca (`normalizeNumberText`) tutuyorsa sorun değildir. Eşleşme bir
+ * sayının ortasından başladıysa ya da ortasında bittiyse ("1.250.000") baştaki ve sondaki gruplar da okunur.
+ *
+ * Varsayılan KAPALI: yalnız `auditQuantitative(…, { thousandsDots: true })` ile açılır (sohbet çözüm sağlaması).
+ * Yazılı deneme, sözlü, soru doğrulayıcı ve podcast denetimi eski okumayla çalışır; davranışları değişmedi.
+ */
+function thousandsReading(text: string, start: number, end: number): string | null {
+  const head = text.slice(0, start).match(/(?<![\d.,])\d{1,3}(?:\.\d{3})*\.$/)?.[0] ?? "";
+  const tail = text.slice(end).match(/^(?:\.\d{3})+(?![\d.])/)?.[0] ?? "";
+  const whole = `${head}${text.slice(start, end)}${tail}`;
+  if (!/(?<![\d.,])[1-9]\d{0,2}(?:\.\d{3})+(?![\d.])/.test(whole)) return null;
+  return normalizeNumberText(whole);
+}
+
+function holdsWithThousandsDots(text: string, start: number, end: number): boolean {
+  const reading = thousandsReading(text, start, end);
+  return reading != null && arithmeticIssues(reading).length === 0;
+}
+
+function arithmeticIssues(text: string, thousandsDots = false): QuantIssue[] {
   const issues: QuantIssue[] = [];
   const covered: { start: number; end: number }[] = [];
   const expanded = expandNumericParens(text);
@@ -505,6 +529,7 @@ function arithmeticIssues(text: string): QuantIssue[] {
     covered.push({ start, end: start + agreementSpan(expanded, match).length });
     const approx = match[2] !== "=";
     if (closeEnough(leftValue, stated, approx)) continue;
+    if (thousandsDots && holdsWithThousandsDots(expanded, start, start + match[0].length)) continue;
     if (rightValue != null) {
       issues.push({
         kind: "arithmetic",
@@ -560,6 +585,7 @@ function arithmeticIssues(text: string): QuantIssue[] {
     const actual = convertUnit(left, match[2], match[5]);
     if (actual == null || !Number.isFinite(right)) continue;
     if (closeEnough(actual, right, match[3] !== "=")) continue;
+    if (thousandsDots && holdsWithThousandsDots(expanded, start, end)) continue;
     const same = canonUnit(match[2]) === canonUnit(match[5]);
     const repair = same
       ? `${formatTr(left)} ${match[2]} ile ${formatTr(right)} ${match[5]} eşit değil.`
@@ -600,6 +626,7 @@ function arithmeticIssues(text: string): QuantIssue[] {
       continue;
     }
     if (closeEnough(actual, right, match[2] !== "=")) continue;
+    if (thousandsDots && holdsWithThousandsDots(expanded, start, end)) continue;
     const repair = leftUnit && rightUnit && canonUnit(leftUnit) !== canonUnit(rightUnit)
       ? `${formatTr(left)} ${leftUnit} = ${withUnit(actual, rightUnit)}`
       : `${match[1].trim()} ile ${match[3].trim()} eşit değil.`;
@@ -880,10 +907,10 @@ function absoluteIssues(text: string, source: string, general: boolean): QuantIs
 export function auditQuantitative(
   text: string,
   source = "",
-  options?: { generalAbsolutes?: boolean },
+  options?: { generalAbsolutes?: boolean; thousandsDots?: boolean },
 ): QuantAudit {
   const limiting = limitingIssues(text);
-  const arithmetic = arithmeticIssues(text);
+  const arithmetic = arithmeticIssues(text, options?.thousandsDots === true);
   const dates = dateIssues(text, source);
   const wording = wordingIssues(text);
   const identity = identityIssues(text);

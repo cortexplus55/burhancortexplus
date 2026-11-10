@@ -1,4 +1,5 @@
 import type { TutorStyle } from "@/lib/learning/tutor-style";
+import { holdsFinalAnswer } from "@/lib/learning/tutor-turn";
 
 /**
  * Öğretmen cevabının ilk cümlesi (25 Ekim 2026, canlı test P1-5). Yoldaki soru-cevapta öğrenci "X nedir?"
@@ -26,22 +27,34 @@ const OWN_ATTEMPT = wordPattern(
   "bence|benim\\s+cevab\\p{L}*|cevabım|çözümüm|şöyle\\s+(?:çözdüm|yaptım|düşündüm)|buldum|işaretledim|hesapladım|denedim|yanlış\\s+mı|doğru\\s+mu",
 );
 
+/** Çözüm isteyen soru cümlesi: eşitlik taşısa da öğrencinin denemesi değil, sorunun kendisidir. */
+const ASKS_TO_SOLVE = wordPattern("kaç\\p{L}*|nedir|bul(?:un|unuz|alım)?|çöz\\p{L}*|hesapla\\p{L}*|hangi\\p{L}*");
+
 export function hasOwnSolution(message: string): boolean {
   const text = message.trim();
   if (OWN_ATTEMPT.test(text)) return true;
-  // İşlem satırı ("2x + 3 = 7, x = 2"): eşittirin iki yanında sayı ya da değişken.
+  // İşlem satırı ("2x + 3 = 7, x = 2"): eşittirin iki yanında sayı ya da değişken. Soru soran mesajdaki eşitlik
+  // sorunun verilenidir (10 Kasım 2026): "… = … ise x kaçtır?" öğrencinin çözümü sayılıp cevap ilk cümleye çekiliyordu.
+  if (ASKS_TO_SOLVE.test(text)) return false;
   return /[\w)]\s*=\s*[-\w(]/u.test(text) && /\d/.test(text);
 }
 
 /**
  * Tek yüklem: doğrudan kavram sorusu, "doğrudan söyle / cevabı ver / nedir / hangisidir", ya da öğrencinin
- * seçtiği Adım adım / Doğrudan çöz tarzı. Kendi çözümünü yazan öğrencide önce o değerlendirilir.
+ * seçtiği Doğrudan çöz tarzı. Kendi çözümünü yazan öğrencide önce o değerlendirilir.
+ *
+ * 10 Kasım 2026 (güven paketi, ürün sahibinin kararı): Adım Adım tarzı artık doğrudan cevap istemez; bu yüklem o
+ * modda her mesaja "ilk cümle tam cevap" dedirtiyordu ve mod çözümü tek balonda döküyordu. Adım Adım ve Sokratik
+ * modda çözülecek bir problemde (açık "cevabı ver / direkt çöz" isteği yoksa) cevap saklanır (`holdsFinalAnswer`);
+ * soru "kaçtır" diye bitse de.
  */
 export function wantsDirectAnswer(message: string, style?: TutorStyle | null): boolean {
   const text = message.trim();
   if (!text || hasOwnSolution(text)) return false;
-  if (DIRECT_REQUEST.test(text) || CONCEPT_QUESTION.test(text)) return true;
-  return style === "step_by_step" || style === "direct_solve";
+  if (DIRECT_REQUEST.test(text)) return true;
+  if (holdsFinalAnswer(text, style)) return false;
+  if (CONCEPT_QUESTION.test(text)) return true;
+  return style === "direct_solve";
 }
 
 export const STUCK_POINT_RULE =

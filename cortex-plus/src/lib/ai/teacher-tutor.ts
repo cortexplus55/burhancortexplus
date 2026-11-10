@@ -76,8 +76,10 @@ const TEACHER_MANNER =
   "noktayı yalnız bu durumda adıyla göster. Öğrenci kendi çözümünü yazmadıysa 'Takıldığın nokta' gibi cümle yazma.\n" +
   "- İki kavramı karıştırıyorsa: ayırt ettiren tek ölçütü baştan söyle, sonra ikisini aynı başlıklarla karşılaştır " +
   "(kısa tablo ya da paralel maddeler) ve soruda hangi anahtar kelimelere bakacağını göster.\n" +
-  "- Bir problemi çözmek istiyorsa ve Sokratik modu seçtiyse ilk adımı göster, sonrakini ona sor; öbür modlarda sonucu " +
-  "ilk cümlede ver, sonra adımları göster. 'Sadece cevap' ya da 'direkt söyle' derse kısa cevap ve tek satır gerekçe ver. " +
+  "- Bir problemi çözmek istiyorsa ve Sokratik modu seçtiyse ilk adımı göster, sonrakini ona sor; Adım Adım modunu " +
+  "seçtiyse yalnız sıradaki tek adımı ver, nihai cevabı son adıma bırak; Doğrudan Çöz modunda ya da mod belirtilmediyse " +
+  "sonucu ilk cümlede ver, sonra adımları göster. " +
+  "'Sadece cevap' ya da 'direkt söyle' derse kısa cevap ve tek satır gerekçe ver. " +
   "Bir soruyu gerçekten çözeceksen (öğrenci çöz/cevabı ver dediğinde, fotoğraflı soruda veya doğru şık sorulduğunda) " +
   "sağlaması yapılmamış ilk tahmini yazma: önce soruyu ve bütün şıkları birebir oku (sayı, sembol, grafik/tablo, " +
   "Romen öncül I-II-III, olumsuz kelimeler: değildir/yanlıştır/ulaşılamaz/en az/kesinlikle); adım adım çöz; " +
@@ -300,7 +302,17 @@ export function teacherStyleLine(style: TutorStyle): string {
         "sonra anladığını tek soruyla yokla."
       );
     default:
-      return "Öğrenci adım adım anlatımı seçti: her adım ayrı satırda ve en çok iki kısa cümle; hepsini tek paragrafta dökme.";
+      // 10 Kasım 2026 (güven paketi): eski satır yalnız biçimi söylüyordu ("her adım ayrı satırda") ve `answerFirstLine`
+      // bu modda "ilk cümle tam cevap" diyordu; mod, çözümün tamamını tek balonda döküyordu.
+      return (
+        "ADIM ADIM MOD (kesin): Öğrenci çözülecek bir soru ya da problem getirdiyse çözümü tek mesajda dökme. Her " +
+        "mesajda YALNIZ sıradaki tek adımı yaz ve mesajı 'Devam et' davetiyle bitir; ilk mesajda yalnız 1. adım vardır " +
+        "(verilenler, kurulacak bağıntı, ilk işlemin kurgusu) ve nihai cevap, doğru şık ya da sayısal sonuç YAZILMAZ. " +
+        "Nihai cevap son adımda söylenir. Öğrenci açıkça 'cevabı ve tüm adımları göster', 'tam çözümü göster' ya da " +
+        "'direkt çöz' derse kalan bütün adımları ve nihai cevabı tek mesajda ver. Selamlaşmada, kavram sorusunda " +
+        "('nedir', 'fark ne') ve öğrencinin kendi çözümünü değerlendirirken bu kural geçmez: doğal cevap ver; adımlı " +
+        "anlatacaksan her adım ayrı satırda ve en çok iki kısa cümle."
+      );
   }
 }
 
