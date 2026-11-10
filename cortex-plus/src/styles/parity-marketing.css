@@ -540,3 +540,204 @@
   color: #4ade80;
 }
 
+
+/* ---------------------------------------------------------------------------
+   Üst menü (11 Kasım 2026): logo çubuktan taşan bir çekirdek, alt çizgi logonun şeridi.
+
+   Renkler logonun kendi renkleridir (kehribar → macenta → indigo → camgöbeği). Çekirdek çubuğun alt kenarını
+   aşar; sayfa kaydırılınca ya da telefonda menü açılınca çubuğun içine toplanır. Hareket yavaş ve küçük;
+   `prefers-reduced-motion`da durur.
+--------------------------------------------------------------------------- */
+
+.cs-marketing header.mkh {
+  --mkh-ribbon: linear-gradient(90deg, #f59e0b 0%, #ec4899 34%, #6366f1 66%, #06b6d4 100%);
+  border: 0;
+  background: rgba(9, 10, 15, 0.72);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  backdrop-filter: blur(16px) saturate(140%);
+  transition: background 0.3s ease;
+}
+
+.cs-marketing header.mkh[data-scrolled="true"] {
+  background: rgba(9, 10, 15, 0.9);
+}
+
+.mkh-core {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 3.75rem;
+  height: 3.75rem;
+  margin-block: -0.6rem;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, #0b0d14 74%, rgba(11, 13, 20, 0.7));
+  box-shadow:
+    0 0.6rem 1.6rem rgba(2, 6, 23, 0.65),
+    0 0 1.9rem rgba(99, 102, 241, 0.4);
+  transform: translateY(0.7rem);
+  transition:
+    transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.4s ease;
+}
+
+/* Halka: logonun renkleri çekirdeğin çevresinde yavaşça döner. */
+.mkh-halo {
+  position: absolute;
+  inset: 0;
+  padding: 1.5px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, #f59e0b, #ec4899, #6366f1, #06b6d4, #f59e0b);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: mkh-spin 9s linear infinite;
+}
+
+@keyframes mkh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.mkh-mark {
+  position: relative;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.mkh-brand:hover .mkh-mark {
+  transform: scale(1.08) rotate(-4deg);
+}
+
+.cs-marketing header.mkh[data-scrolled="true"] .mkh-core,
+.cs-marketing header.mkh[data-open="true"] .mkh-core {
+  transform: translateY(0) scale(0.8);
+  box-shadow: 0 0 1.2rem rgba(99, 102, 241, 0.3);
+}
+
+.mkh-word {
+  font-size: 1.1875rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+/* "Plus" logonun şeridini taşır; renk yavaşça akar. */
+.mkh-plus {
+  background: var(--mkh-ribbon);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-weight: 800;
+  animation: mkh-shimmer 7s ease-in-out infinite alternate;
+}
+
+@keyframes mkh-shimmer {
+  to {
+    background-position: 100% 0;
+  }
+}
+
+.mkh-link {
+  position: relative;
+  padding-block: 0.4rem;
+}
+
+.mkh-link::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--mkh-ribbon);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.mkh-link:hover::after,
+.mkh-link:focus-visible::after {
+  transform: scaleX(1);
+}
+
+.mkh-rail {
+  position: absolute;
+  inset: auto 0 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(245, 158, 11, 0.6) 10%,
+    rgba(236, 72, 153, 0.5) 36%,
+    rgba(99, 102, 241, 0.55) 64%,
+    rgba(6, 182, 212, 0.6) 90%,
+    transparent
+  );
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.mkh-glint {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 10rem;
+  background: linear-gradient(90deg, transparent, #fff, transparent);
+  animation: mkh-flow 5.5s cubic-bezier(0.45, 0, 0.2, 1) infinite;
+}
+
+@keyframes mkh-flow {
+  0% {
+    transform: translateX(-10rem);
+    opacity: 0;
+  }
+  12%,
+  82% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(100vw);
+    opacity: 0;
+  }
+}
+
+@media (max-width: 420px) {
+  .mkh-core {
+    width: 3.25rem;
+    height: 3.25rem;
+    transform: translateY(0.5rem);
+  }
+
+  .mkh-word {
+    font-size: 1.0625rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mkh-halo,
+  .mkh-plus,
+  .mkh-glint {
+    animation: none;
+  }
+
+  .mkh-core,
+  .mkh-mark,
+  .mkh-link::after {
+    transition: none;
+  }
+}
+
+/*
+  Menü kaydırmada sabit kalır. Sinematik kabuk bütün doğrudan çocuklarını `position: relative` yapıyor
+  (cinematic-home.css) ve Tailwind'in `sticky` sınıfını eziyordu: menü hiçbir zaman sabit kalmamıştı.
+*/
+:is(.cinematic-home, .cinematic-marketing) > header.mkh {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}

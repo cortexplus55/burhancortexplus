@@ -4,17 +4,14 @@ import {
   AUDIENCE_SEGMENT_IDS,
   AUDIENCE_SEGMENTS,
   audienceSegment,
-  bridgeCtaLabel,
   DEFAULT_SEGMENT,
   isAudienceSegmentId,
   resolveSegmentParam,
-  SHOWCASE,
 } from "@/lib/marketing/landing-showcase";
 
 /*
-  Ana sayfa hedef kitle sekmeleri ve kayıtsız canlı vitrin (7 Kasım 2026). Dört profil, her biri kayıt sayfasına
-  kendi `?hedef=` değeriyle gider; vitrin modelsizdir (hiç ağ isteği yok) ve her örnek kendi içinde tutarlıdır:
-  cevap şıklardan biri, "iki şık" çifti şıklardan ve cevabı içeriyor, ipucu cevabı söylemiyor.
+  Ana sayfa hedef kitle sekmeleri (7 Kasım 2026). Dört profil, her biri kayıt sayfasına kendi `?hedef=` değeriyle
+  gider. Kayıtsız vitrin 11 Kasım 2026'da 7 adımlı tura dönüştü (`misafir-turu.test.tsx`).
 */
 
 const read = (path: string) => readFileSync(path, "utf8").replace(/\r\n/g, "\n");
@@ -28,7 +25,6 @@ describe("hedef kitle sekmeleri", () => {
       expect(segment.badge.length).toBeGreaterThan(10);
       expect(segment.lead.length).toBeGreaterThan(80);
       expect(segment.ctaLabel).toMatch(/ücretsiz başlat$/);
-      expect(bridgeCtaLabel(segment)).toContain(segment.campName);
     }
     expect(audienceSegment(DEFAULT_SEGMENT).id).toBe("lise");
     expect(isAudienceSegmentId("lise")).toBe(true);
@@ -52,46 +48,18 @@ describe("hedef kitle sekmeleri", () => {
     const text = AUDIENCE_SEGMENTS.map((segment) => `${segment.badge} ${segment.lead} ${segment.ctaLabel}`).join("\n");
     expect(text).not.toMatch(/\bYDT\b/);
     expect(text).not.toMatch(/astra/i);
-    // Plus'ta olan tek vaat (video) etiketli; "gelişmiş model" gibi yasak sözler marketing-claims testinde.
-    expect(text).toMatch(/Plus'ta bir dakikalık çizimli video/);
+    // 11 Kasım 2026: kahraman cümleleri yalnız ücretsizde de açık olanları sayar; Plus'ta olan (podcast, video,
+    // sözlü, yazılı deneme, sınav sabahı kâğıdı) burada vaat edilmez, turun Plus adımında "Plus" rozetiyle gösterilir.
+    expect(text).not.toMatch(/podcast|video|sözlü|yazılı deneme|ikiz sınav|sınav sabahı/i);
   });
 });
 
-describe("canlı vitrin içeriği", () => {
-  for (const id of AUDIENCE_SEGMENT_IDS) {
-    it(`${id}: soru kendi içinde tutarlı, ipucu cevabı söylemiyor`, () => {
-      const item = SHOWCASE[id];
-      const { question } = item;
-      expect(question.options).toHaveLength(5);
-      expect(new Set(question.options).size).toBe(5);
-      expect(question.options).toContain(question.answer);
-      expect(question.twoOption.pair).toContain(question.answer);
-      for (const option of question.twoOption.pair) expect(question.options).toContain(option);
-      expect(question.twoOption.pair[0]).not.toBe(question.twoOption.pair[1]);
-      // İpucu iki şıkkın farkını hatırlatır; doğru şıkkı adıyla yazmaz.
-      const answerWord = new RegExp(`(^|[^\\d%])${question.answer.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}($|[^\\d])`);
-      expect(question.twoOption.hint).not.toMatch(answerWord);
-      expect(question.steps.length).toBeGreaterThanOrEqual(2);
-      expect(item.trap.wrong).not.toBe(item.trap.right);
-      expect(item.hook.body.length).toBeGreaterThan(40);
-      expect(["analogy", "image", "shortcut"]).toContain(item.hook.kind);
-    });
-  }
-
-  it("vitrin hiçbir ağ isteği yapmaz; içerik dosyası yalnız veri", () => {
-    const component = read("src/components/landing/interactive-showcase.tsx");
-    expect(component).not.toMatch(/fetch\(|\/api\/|axios|useSWR|openai/i);
-    const data = read("src/lib/marketing/landing-showcase.ts");
-    expect(data).not.toMatch(/^import /m);
-    // Uydurma istatistik yok ("öğrencilerin %78'i …" gibi): sayılar yalnız örneklerin kendi hesabı.
-    expect(data).not.toMatch(/öğrencilerin %\d+/i);
-  });
-
-  it("kahraman ve vitrin aynı sekme durumunu paylaşır; adres replaceState ile güncellenir", () => {
+describe("kahraman ve tur aynı sekme durumunu paylaşır", () => {
+  it("adres replaceState ile güncellenir; tur seçili sekmeyi kayıt bağlantısına taşır", () => {
     const hero = read("src/components/landing/audience-hero.tsx");
     expect(hero).toContain("resolveSegmentParam(window.location.search)");
     expect(hero).toContain("replaceState");
-    expect(hero).toContain("<InteractiveShowcase segmentId={segmentId}");
+    expect(hero).toContain("<FuturisticGuidedJourney segmentId={segmentId} />");
     expect(hero).toContain("href={segment.signupHref}");
     const page = read("src/components/landing/landing-page.tsx");
     expect(page).toContain("<AudienceHero />");

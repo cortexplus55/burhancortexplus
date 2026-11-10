@@ -1,4 +1,4 @@
-import { FREE_TIER_SENTENCE } from "@/lib/billing/free-meters";
+import { FREE_LIMITS, FREE_TIER_SENTENCE } from "@/lib/billing/free-meters";
 import { FREE_PAGE_TOTAL } from "@/lib/billing/free-tier-copy";
 import { allowanceWorkLine } from "@/lib/billing/tier-presentation";
 import { PLAN_ALLOWANCES } from "@/lib/credits/price-table";
@@ -24,7 +24,43 @@ export const HERO = {
     "Cortex Plus ders notunu konulara ayırır; her konu için ders, podcast, test ve sözlü pratik hazırlar. Hepsi senin notuna dayanır; notunda olmayan sayı ya da kural uydurmaz.",
   primary: { label: "Ücretsiz başla", href: "/kayit" },
   secondary: { label: "Önce örnek bir dersi incele →", href: "/ornek" },
-  fineprint: "Kart istemiyoruz · Haftada 3 ders ücretsiz",
+  fineprint: "Kart istemiyoruz · İlk dersin süresiz ücretsiz",
+} as const;
+
+/**
+ * Kahramanın altındaki üç gerçek (11 Kasım 2026, "kısa ve net"). Üçü de bugün doğru: kayıt kart istemez, ilk dersin
+ * temel adımları süre sınırı olmadan açık, abonelik kendiliğinden yenilenmez (`AUTO_RENEW_SUPPORTED = false`).
+ */
+export const HERO_FACTS = ["Kart istemiyoruz", "İlk dersin süresiz ücretsiz", "Otomatik yenileme yok"] as const;
+
+/**
+ * Ücretsiz ile Plus'ın tek ekranda karşılaştırması (11 Kasım 2026). Sayılar sabitlerden; Plus sütununda yalnız
+ * ücretsizde kapalı olanlar yazılır (`PLUS_ONLY_ACTIONS` ve sınav sabahı kâğıdı).
+ */
+export const FREE_PLAN_POINTS = [
+  "Konu anlatımı, akıllı kartlar, doğru/yanlış ve konu testi",
+  `AI öğretmene günde ${FREE_LIMITS.chat} mesaj, günde ${FREE_LIMITS.photo} fotoğraftan çözüm`,
+  `Bir sınav hazırlığı, toplam ${FREE_PAGE_TOTAL} sayfa belge`,
+] as const;
+
+export const PLUS_PLAN_POINTS = [
+  "Podcast ve 1 dakikalık çizimli video",
+  "Sözlü deneme, yazılı deneme ve ikiz sınav",
+  "Sınav sabahı kâğıdı",
+  "Belgenin tamamı, sınırsız hazırlık, daha hızlı yazım",
+] as const;
+
+/** Karşılaştırmanın altındaki üç güven cümlesi; üçü de bugün doğru. */
+export const TRUST_FACTS = [
+  { title: "Notuna sadık", body: "Ders ve test notundaki sayfalardan yazılır; notunda olmayan sayı uydurulmaz." },
+  { title: "Otomatik yenileme yok", body: "Dönem bitmeden hatırlatırız; yenilemezsen ücretsize dönersin." },
+  { title: "Kart bilgisi bize gelmez", body: "Ödeme PayTR ile alınır; velinin kartıyla da ödenir." },
+] as const;
+
+/** Kabul edilen kaynaklar ve notu olmayan öğrencinin yolu: en sık itirazın ("notum yok") tek satırlık cevabı. */
+export const HERO_INPUTS = {
+  accepts: "PDF, slayt, Word, fotoğraf, yapıştırılan metin ya da bağlantı.",
+  noNotes: { label: "Notun yok mu? Hazır müfredattan başla", href: "/mufredat" },
 } as const;
 
 /** Ölçülmüş ya da kodda kural olarak duran farklar; sayılar `docs/delivery/` ölçümlerinden. */

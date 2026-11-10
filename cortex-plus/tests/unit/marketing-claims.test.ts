@@ -28,7 +28,9 @@ const SURFACES = [
   // 7 Kasım 2026: hedef kitle sekmeleri ve kayıtsız vitrin de misafire gösterilen söz.
   "src/lib/marketing/landing-showcase.ts",
   "src/components/landing/audience-hero.tsx",
-  "src/components/landing/interactive-showcase.tsx",
+  // 11 Kasım 2026: 7 adımlı tanıtım turu vitrinin yerini aldı.
+  "src/lib/marketing/landing-journey.ts",
+  "src/components/landing/futuristic-guided-journey.tsx",
   "src/components/parity/first-step-launcher.tsx",
   "src/lib/student/first-step.ts",
   "src/lib/marketing/advantage-content.ts",

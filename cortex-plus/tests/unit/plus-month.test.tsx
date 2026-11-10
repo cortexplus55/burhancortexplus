@@ -163,10 +163,13 @@ describe("ekranda", () => {
 });
 
 describe("nerede görünür", () => {
-  it("misafir: ana sayfada ikinci bölüm", () => {
+  it("misafir: ana sayfa sade; Plus'ın sayıları karşılaştırma kartında, tam bölüm ödeme sayfasında", () => {
+    // 11 Kasım 2026 (ürün sahibi: "uzun ve tekrarlı olmasın"): ana sayfa üç bölüme indi; "Plus'ın bir ayı" bölümü
+    // ana sayfadan kalktı. Plus'ın aylık hakkı yine kredi tablosundan hesaplanıp karşılaştırma kartında yazılır.
     const landing = readFileSync("src/components/landing/landing-page.tsx", "utf8");
-    expect(landing).toContain("<PlusMonth");
-    expect(landing.indexOf("<PlusMonth")).toBeLessThan(landing.indexOf('id="nasil"'));
+    expect(landing).not.toContain("<PlusMonth");
+    expect(landing).toContain("allowanceInWork(PLAN_ALLOWANCES.plusMonthly)");
+    expect(landing).toContain("{fmtCount(plus.lessons)} ders ya da {fmtCount(plus.messages)} mesaj");
   });
 
   it("ücretsiz öğrenci: ödeme sayfasında bölüm, kapıda sayılar; ana ekranda (öğretmen sohbeti) yok", () => {
