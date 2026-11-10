@@ -113,10 +113,23 @@ export function ContinueLine({ step }: { step: ContinueStep }) {
           <KindIcon className="cp-resume-kind-icon h-6 w-6" />
         </span>
         <span className="cp-resume-step">
-          <span className="cp-resume-kind">Sıradaki: {step.next.kindLabel}</span>
+          <span className="cp-resume-kind">
+            Sıradaki: {step.next.kindLabel}
+            {/* Kompakt hâlde (telefon, kısa ekran) süre bu satıra, hazırlığın adı ve kalan gün alttaki bağlam satırına iner. */}
+            <span className="cp-resume-kind-min"> · ~{step.next.minutes} dk</span>
+          </span>
           <strong className="cp-resume-heading">{step.next.heading}</strong>
           <span className="cp-resume-meta">
             <Clock3 className="h-3.5 w-3.5" aria-hidden />~{step.next.minutes} dk
+          </span>
+          <span className="cp-resume-ctx">
+            <span className="cp-resume-ctx-title">{step.prepTitle}</span>
+            {days != null ? (
+              <span className={days <= 3 ? "cp-resume-ctx-days cp-resume-ctx-days--soon" : "cp-resume-ctx-days"}>
+                <DaysLabel days={days} />
+              </span>
+            ) : null}
+            {started ? <span className="cp-resume-ctx-pct">%{pct}</span> : null}
           </span>
         </span>
       </span>

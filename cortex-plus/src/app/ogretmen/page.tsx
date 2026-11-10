@@ -184,9 +184,10 @@ export default async function OgretmenPage({
   const heroCards =
     !params.sohbet && prepCount === 0 ? (
       <FirstStepLauncher firstName={firstName} gradeLevel={profile?.grade_level} goalText={goalText} />
-    ) : continueStep ? (
-      <ContinueLine step={continueStep} />
     ) : undefined;
+  // Kaldığın yerden devam selamla Başla'nın arasında (10 Kasım 2026): Başla'nın altındayken telefonda ilk ekranda
+  // hiç görünmüyordu. Dost satırı aynı adımı anıyorsa kartın hemen üstünde kalır, ikisi birlikte okunur.
+  const heroLead = continueStep ? <ContinueLine step={continueStep} /> : undefined;
   const avatar = profile?.avatar_url as string | null | undefined;
 
   return (
@@ -213,6 +214,7 @@ export default async function OgretmenPage({
         showEmptyStarter
         startLabel="Başla"
         heroFooter={heroCards}
+        heroLead={heroLead}
         showSubjectPicker
         placeholder="Sor, konuş veya dosya gönder"
         initialConversationId={conversationId}
