@@ -58,7 +58,8 @@ describe("yerleşim: üste binme yok (#604)", () => {
     expect(chat).toContain('className="cp-sor-composer-zone"');
     expect(shell).toContain(".cp-sor-root:not(.cp-sor-root--exam) .cp-sor-composer-zone::before");
     expect(shell).toMatch(/\.cp-sor-root:not\(\.cp-sor-root--exam\) \.cp-tutor-mode \{[^}]*justify-content: safe center/);
-    expect(chat).toContain('cn("cp-sor-hero", heroFooter ? "cp-sor-hero--rich" : null)');
+    // 10 Kasım 2026: kart selamla Başla'nın arasında da olabilir (heroLead); ikisi de kartlı kabuğu açar.
+    expect(chat).toContain('cn("cp-sor-hero", heroFooter || heroLead ? "cp-sor-hero--rich" : null');
     expect(shell).toMatch(/\.cp-sor-hero\.cp-sor-hero--rich \{[^}]*justify-content: flex-start/);
     expect(shell).toContain("padding-bottom: calc(var(--cp-sor-composer-clearance) + 2.5rem);");
     expect(shell).toContain("scroll-padding-bottom: calc(var(--cp-sor-composer-clearance) + 2.5rem);");

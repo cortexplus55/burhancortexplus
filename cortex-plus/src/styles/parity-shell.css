@@ -16128,6 +16128,19 @@ a.cp-exam-search {
   }
 }
 
+/*
+  Kompakt kart (10 Kasım 2026, canlı ölçüm): kart selamla Başla'nın arasına alındı, ama telefonda (375×667) ve kısa
+  dizüstü ekranında (1366×768) üç katlı kart yine görünen alana sığmıyordu: üstte sınav şeridi, selam ve dost satırı
+  yer kaplıyor, altta mod düğmeleri ve yazma alanı sabit. Kısa ekranda (eşik aşağıda) kart tek blok: halka,
+  üç kısa satır (sıradaki adım ve süresi, adımın adı, hazırlığın adı · kalan gün · yüzde) ve yuvarlak oynat düğmesi.
+  Kimlik satırı ve alt satır gizlenir; aynı bilgi bağlam satırında. Ekran okuyucu yine bütün kartı bir bağlantı olarak okur.
+*/
+.cp-resume-kind-min,
+.cp-resume-ctx {
+  display: none;
+}
+
+/* Telefonda tam kart (boyu yeten telefonda): düğme adımın yanında yuvarlak, "Sınava" sözcüğü gizli. */
 @media (max-width: 480px) {
   .cp-resume {
     grid-template-areas: "head head" "body go" "prog prog";
@@ -16173,7 +16186,6 @@ a.cp-exam-search {
     padding: 0 0.95rem 0.95rem;
   }
 
-  /* Telefonda yuvarlak oynat düğmesi; yazı ekran okuyucuda kalır. */
   .cp-resume-go {
     align-self: center;
     justify-content: center;
@@ -16199,6 +16211,130 @@ a.cp-exam-search {
     overflow: hidden;
     clip: rect(0 0 0 0);
     white-space: nowrap;
+  }
+}
+
+/*
+  Eşik ölçüldü (10 Kasım 2026, kart Başla'nın önünde): tam kart ~243 px, selamın altında ~280. px'ten başlıyor; mod
+  düğmeleri masaüstünde ekranın altından ~200 px, telefonda ~287 px yukarıda. Tam kart 1366×768'de ve 390×844'te sığıyor;
+  kompakt yalnız masaüstünde 740 px'ten, telefonda 820 px'ten kısa ekranda.
+*/
+@media (max-height: 740px), (max-width: 480px) and (max-height: 820px) {
+  .cp-resume {
+    grid-template-areas: "body go";
+    margin-top: 0.9rem;
+    border-radius: 20px;
+  }
+
+  .cp-resume-head,
+  .cp-resume-progress,
+  .cp-resume-meta {
+    display: none;
+  }
+
+  .cp-resume-body {
+    gap: 0.8rem;
+    padding: 0.75rem 0.5rem 0.75rem 0.85rem;
+  }
+
+  .cp-resume-ring {
+    width: 3rem;
+    height: 3rem;
+  }
+
+  .cp-resume-kind-icon {
+    width: 1.15rem;
+    height: 1.15rem;
+  }
+
+  .cp-resume-step {
+    gap: 0.1rem;
+  }
+
+  .cp-resume-kind {
+    font-size: 0.75rem;
+  }
+
+  .cp-resume-kind-min {
+    display: inline;
+    color: var(--c-text-muted, #999);
+    font-weight: 500;
+  }
+
+  .cp-resume-heading {
+    font-size: 1rem;
+    line-height: 1.3;
+    -webkit-line-clamp: 1;
+  }
+
+  .cp-resume-ctx {
+    display: flex;
+    align-items: baseline;
+    gap: 0.45rem;
+    min-width: 0;
+    font-size: 0.75rem;
+    color: var(--c-text-muted, #999);
+  }
+
+  .cp-resume-ctx-title {
+    overflow: hidden;
+    min-width: 0;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .cp-resume-ctx-days,
+  .cp-resume-ctx-pct {
+    flex: none;
+    font-weight: 600;
+    color: var(--c-text, #fff);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .cp-resume-ctx-days--soon {
+    color: color-mix(in srgb, #f59e0b 75%, var(--c-text, #fff));
+  }
+
+  .cp-resume-go {
+    align-self: center;
+    justify-content: center;
+    width: 2.75rem;
+    min-height: 2.75rem;
+    margin: 0 0.85rem 0 0;
+    padding: 0;
+  }
+
+  .cp-resume-go-icon {
+    background: none;
+  }
+
+  .cp-resume-go-icon svg {
+    width: 1.05rem;
+    height: 1.05rem;
+  }
+
+  .cp-resume-go-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  /* Kart Başla'nın önünde: Başla küçülür, ikisi aynı ekrana sığsın. */
+  .cp-sor-hero--lead .cp-sor-start {
+    margin-top: 0.9rem;
+  }
+
+  .cp-sor-hero--lead .cp-sor-start-orb {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  .cp-sor-hero--lead .cp-sor-start-orb svg {
+    width: 1.1rem;
+    height: 1.1rem;
   }
 }
 

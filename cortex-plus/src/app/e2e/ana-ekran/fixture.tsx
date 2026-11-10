@@ -81,7 +81,8 @@ export function AnaEkranFixture({
   unanswered?: boolean;
   teaching?: boolean;
 }) {
-  const heroFooter = conversation ? undefined : hasPrep ? (
+  // Canlıdaki gibi (10 Kasım 2026): hazırlığı olanda kart selamla Başla'nın arasında, üstünde dost satırı.
+  const heroLead = conversation || !hasPrep ? undefined : (
     <ContinueLine
       step={{
         prepId: "fixture",
@@ -98,11 +99,21 @@ export function AnaEkranFixture({
         },
       }}
     />
-  ) : (
+  );
+  const heroFooter = conversation || hasPrep ? undefined : (
     <FirstStepLauncher firstName="Öğrenci" gradeLevel="12. sınıf" goalText="YKS hazırlık" />
   );
   return (
-    <ParitySorShell userInitial="Ö" streak={2} account={account(plus)}>
+    <ParitySorShell
+      userInitial="Ö"
+      streak={2}
+      account={account(plus)}
+      countdown={
+        hasPrep
+          ? { state: "countdown", daysLeft: 35, examDate: "2026-12-15", label: "Sınavına 35 Gün Kaldı", examTitle: "Hücre Bölünmeleri ve Kalıtım", officialExam: null, href: "/e2e/ana-ekran?hazirlik=1" }
+          : null
+      }
+    >
       <ChatPanel
         variant="parity"
         composerMode="parity"
@@ -111,6 +122,8 @@ export function AnaEkranFixture({
         showEmptyStarter
         startLabel="Başla"
         heroFooter={heroFooter}
+        heroLead={heroLead}
+        greetingSubline={hasPrep ? "Dün ara verdin, olur. Bugün tek bir adımla ritmi geri alırız. Sıradaki: konu testi, ~8 dk." : undefined}
         showSubjectPicker
         placeholder="Sor, konuş veya dosya gönder"
         initialConversationId={conversation ? "fixture" : undefined}

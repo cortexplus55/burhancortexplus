@@ -7,6 +7,14 @@
       "runtimeArgs": ["run", "dev"],
       "port": 3000,
       "cwd": "cortex-plus"
+    },
+    {
+      "name": "cortex-plus-fikstur",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["next", "dev", "-p", "3005"],
+      "port": 3005,
+      "cwd": "cortex-plus",
+      "env": { "E2E_FIXTURE": "1" }
     }
   ]
 }

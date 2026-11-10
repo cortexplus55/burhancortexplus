@@ -271,6 +271,7 @@ function ChatPanelSession({
   startGreeting,
   startLabel = "Başla",
   heroFooter,
+  heroLead,
   showEmptyStarter = true,
   composerMode = "full",
   placeholder,
@@ -300,6 +301,11 @@ function ChatPanelSession({
   startLabel?: string;
   /** Selam ve Başla düğmesinin altında (ana sayfada ilk hazırlık kartı). */
   heroFooter?: React.ReactNode;
+  /**
+   * Selamla Başla düğmesinin arasında (10 Kasım 2026: "Kaldığın yerden devam" kartı). Başla'nın altındayken telefonda
+   * ilk ekranda hiç görünmüyor, dizüstünde yazma alanının arkasında kalıyordu; geri dönen öğrencinin asıl işi bu.
+   */
+  heroLead?: React.ReactNode;
   showEmptyStarter?: boolean;
   composerMode?: "full" | "minimal" | "parity";
   placeholder?: string;
@@ -1513,12 +1519,13 @@ function ChatPanelSession({
             </div>
           ) : null}
           {showParityEmpty && !examChrome ? (
-            <div className={cn("cp-sor-hero", heroFooter ? "cp-sor-hero--rich" : null)}>
+            <div className={cn("cp-sor-hero", heroFooter || heroLead ? "cp-sor-hero--rich" : null, heroLead ? "cp-sor-hero--lead" : null)}>
               <h1 className="cp-sor-hero-title">
                 {greetingLine ?? "Merhaba!"}
               </h1>
               {/* Dost katmanı (8 Kasım 2026): selamın altında gerçek sinyalden tek satır (seri, ara, ruh hali, saat). */}
               {greetingSubline ? <p className="cp-sor-hero-sub">{greetingSubline}</p> : null}
+              {heroLead}
               {/* kıyas ürünü: büyük yuvarlak ışıltı düğmesi, altında küçük "BAŞLA". */}
               <button
                 type="button"
