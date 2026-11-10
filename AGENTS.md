@@ -2451,3 +2451,15 @@ ise `router.refresh()`ün getirdiği sunucu verisiyle güncellenir; yüklü geli
 süresini aştı. Ürün hatası değil. Kural: `router.refresh()` sonrası değişen veriyi sınayan e2e, süreyi uzatmaz; yenileme
 cevabını (`rsc: 1`, `next-router-prefetch` yok) eylemden **önce** `page.waitForResponse` ile beklemeye başlar, cevap gelince
 bakar. Kanıt: yenilemeye yapay 8 sn gecikmeyle eski test CI'daki hatanın aynısıyla düştü, yenisi geçti; 10 tekrarda 30/30.
+
+### Canlı duman testi yeşile döndü (10 Kasım 2026)
+
+Test hesabı girebildiği hâlde duman testi her yayında kırmızıydı; üründe hata yoktu, üçü de testin kendi kusuruydu:
+
+| Kusur | Kural | Nerede |
+|---|---|---|
+| Canlı turda 18 sayfa tek testin 30 sn'sine sığmıyordu (17. sayfada "Test timeout") | Süre gezilen sayfa sayısına bağlı (30 sn + sayfa başına 10 sn); tek sayfa 20 sn'de açılmazsa o sayfanın adıyla düşer | `authenticated.spec.ts` |
+| `/sohbetler`'de "üst çubuk yok": sayfanın yükleme iskeleti var, test iskelet ekrandayken bakıyordu | Üst çubuk olayla beklenir (`toBeAttached`, 15 sn); gelmezse sayfa gerçekten boş kalmıştır (Suspense hatası) | aynı |
+| Dala her push'un önizleme yayını iş akışını tetikleyip atlanıyor, ama atlanmadan önce koşan üretim (ya da elle) testini iptal ediyordu | Eşzamanlılık grubu yayın ortamına göre (`canli-duman-<ortam ya da olay>`); yeni üretim yayını eskisinin testini yine iptal eder | `.github/workflows/canli-duman.yml` |
+
+Doğrulama: dalda elle koşu (`gh workflow run canli-duman.yml --ref <dal>`) canlı siteye karşı 3/3.

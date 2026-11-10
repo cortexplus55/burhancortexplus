@@ -84,10 +84,21 @@ test.describe("authenticated student hub", { tag: ["@auth"] }, () => {
         ? ["/araclar", "/ilerleme", "/ayarlar", "/krediler", "/pay", "/soru-coz", "/yanlislarim", "/siniflar", "/deneme-sinavlari/mufredat", "/tekrar", "/sohbetler", "/destek"]
         : []),
     ].filter((path) => isLive || process.env.SUPABASE_SECRET_KEY || !needsServiceKey.has(path));
+    /*
+      Süre gezilen sayfa sayısına bağlı (10 Kasım 2026): canlı turda 18 sayfa tek testin varsayılan 30 sn'sine
+      sığmıyordu (sayfa başına ~1,7 sn; 17. sayfada "Test timeout of 30000ms exceeded" ve duman testi her yayında
+      kırmızıydı, üründe hata yokken). Sayfa başına 10 sn pay; tek sayfa 20 sn'de açılmazsa o sayfanın adıyla düşer.
+    */
+    test.setTimeout(30_000 + screens.length * 10_000);
     for (const path of screens) {
-      const response = await page.goto(path);
+      const response = await page.goto(path, { waitUntil: "domcontentloaded", timeout: 20_000 });
       expect(response?.status() ?? 0, `${path} durum kodu`).toBeLessThan(400);
-      await page.waitForLoadState("domcontentloaded");
+      /*
+        Üst çubuk süreyle değil olayla beklenir: `/sohbetler`'in yükleme iskeleti var (bilinen üç istisnadan biri),
+        içerik iskeletin ardından akar. İskelet ekrandayken bakan test "üst çubuk yok" diyordu. Çubuk 15 sn'de
+        gelmezse sayfa gerçekten boş kalmıştır (Suspense hatası) ve test sayfanın adıyla düşer.
+      */
+      await expect(page.locator("header.cp-sor-top").first(), `${path} üst çubuk yok`).toBeAttached({ timeout: 15_000 });
       const fit = await page.evaluate(() => {
         const root = document.documentElement;
         const header = document.querySelector("header.cp-sor-top");

@@ -9,8 +9,11 @@ on:
   deployment_status:
   workflow_dispatch:
 
+# Grup yayın ortamına göre ayrılır (10 Kasım 2026): tek grupken dala yapılan her push'un önizleme yayını bu iş akışını
+# tetikliyor, iş "üretim değil" diye atlanıyor ama atlanmadan önce o sırada koşan üretim (ya da elle) testini iptal
+# ediyordu. Yeni üretim yayını eskisinin testini yine iptal eder; önizleme ve elle koşu ona dokunmaz.
 concurrency:
-  group: canli-duman
+  group: canli-duman-${{ github.event.deployment.environment || github.event_name }}
   cancel-in-progress: true
 
 jobs:
