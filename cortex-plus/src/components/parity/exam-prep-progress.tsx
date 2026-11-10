@@ -11,6 +11,7 @@ import { gapLines } from "@/lib/learning/feedback-copy";
 import { PrepRadarChart } from "@/components/parity/prep-radar-chart";
 import { PrepForecastChart } from "@/components/parity/prep-forecast-chart";
 import type { PrepRadarView } from "@/lib/learning/prep-radar";
+import { withoutOutcomeCode } from "@/lib/learning/path-labels";
 
 const TICKS = 40;
 /** İlerleme listesinde ilk bakışta görünen konu. Gerisi açılır. */
@@ -196,7 +197,7 @@ export function ExamPrepProgress({
                     const lines = gapLines(gap);
                     return (
                       <li key={`${lines.title}-${index}`}>
-                        <strong>{lines.title}</strong>
+                        <strong>{withoutOutcomeCode(lines.title)}</strong>
                         {lines.detail ? <p>{lines.detail}</p> : null}
                       </li>
                     );
@@ -233,7 +234,7 @@ export function ExamPrepProgress({
                 {(topicsOpen ? view.topics : view.topics.slice(0, TOPIC_PREVIEW)).map((topic) => (
                   <li key={topic.label}>
                     <div className="cp-prog-topic-row">
-                      <strong>{topic.label}</strong>
+                      <strong>{withoutOutcomeCode(topic.label)}</strong>
                       <span>
                         {topic.state && topic.state !== "unmeasured" ? (
                           <em className={cn("cp-prog-topic-state", `is-${topic.state}`)}>{MASTERY_STATE_LABEL[topic.state]}</em>
@@ -261,7 +262,7 @@ export function ExamPrepProgress({
                       className="cp-prog-topic-create"
                       onClick={() => onCreate(topic.label)}
                     >
-                      {topic.label} için ders oluştur
+                      {withoutOutcomeCode(topic.label)} için ders oluştur
                     </button>
                   </li>
                 ))}
@@ -297,7 +298,7 @@ export function ExamPrepProgress({
                   <tbody>
                     {view.weeks.rows.map((row) => (
                       <tr key={row.label}>
-                        <th scope="row">{row.label}</th>
+                        <th scope="row">{withoutOutcomeCode(row.label)}</th>
                         {row.counts.map((count, index) => (
                           <td key={index} className={cn(count > 0 && "is-on", count >= 3 && "is-hot")}>
                             {count}

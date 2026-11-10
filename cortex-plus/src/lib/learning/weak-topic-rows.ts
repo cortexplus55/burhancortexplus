@@ -5,6 +5,8 @@
  * ne ölçtüğünü söyler; aynı konu bir kez (en yeni ölçüm) ve kaç kez eksik çıktığıyla görünür.
  */
 
+import { withoutOutcomeCode } from "@/lib/learning/path-labels";
+
 export type WeakTopicSource = "quiz" | "practice_exam" | "chat" | "other";
 
 export type WeakTopicRow = {
@@ -54,7 +56,8 @@ export function weakTopicRows(
         : source === "chat"
           ? "Sohbette eksik ya da yanlış cevap"
           : "Eksik çıktı";
-    byKey.set(key, { label, wrongPct, source, times: 1, note });
+    // Kazanım kodu öğrenciye gösterilmez (11 Kasım 2026); eşleştirme anahtarı kodlu adla kalır.
+    byKey.set(key, { label: withoutOutcomeCode(label), wrongPct, source, times: 1, note });
   }
   return [...byKey.values()].slice(0, limit);
 }
