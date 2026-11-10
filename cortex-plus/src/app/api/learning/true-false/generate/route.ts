@@ -6,6 +6,8 @@ import { teacherTrueFalseLoop, type TrueFalseItem } from "@/lib/learning/teacher
 import { sameTrueFalseFact } from "@/lib/learning/true-false-quality";
 import { studioTeacherSource } from "@/lib/learning/studio-teacher-source";
 
+export const maxDuration = 300;
+
 function takeMixed(items: TrueFalseItem[], count: number): TrueFalseItem[] | null {
   if (items.length < count) return null;
   const yes = items.filter((item) => item.correct);
@@ -18,6 +20,14 @@ function takeMixed(items: TrueFalseItem[], count: number): TrueFalseItem[] | nul
     picked.push(item);
   }
   return picked.length === count ? picked : null;
+}
+
+/** Ek turların süre bütçesi: bu süreden sonra yeni tur başlamaz, eldeki set teslim edilir. */
+const TF_EXTRA_ROUND_BUDGET_MS = 75_000;
+
+/** Eksik teslimin tabanı: istenenin yarısı, en az dört önerme. */
+function trueFalseFloor(count: number): number {
+  return Math.max(4, Math.ceil(count / 2));
 }
 
 const bodySchema = z.object({
@@ -64,7 +74,9 @@ export async function POST(request: Request) {
       let items: TrueFalseItem[] = loop.items;
       let tries = 1;
       const mixed = (list: TrueFalseItem[]) => list.some((item) => item.correct) && list.some((item) => !item.correct);
-      while ((items.length < count || !mixed(items)) && tries < 4) {
+      // Ek tur ancak öğrenciyi makul süre bekletecekse (10 Kasım 2026): ücretsiz hesapta her tur normal hızda
+      // koşar; dört tur üst üste öğrenciyi dakikalarca "hazırlanıyor"da tutuyordu.
+      while ((items.length < count || !mixed(items)) && tries < 4 && Date.now() - started < TF_EXTRA_ROUND_BUDGET_MS) {
         tries += 1;
         const extra = await run(Math.max(1, count - items.length + 1)).catch(() => null);
         // Ek turun önermesi setteki bir önermenin çifti ya da tersiyse alınmaz (28 Ekim 2026).
@@ -73,8 +85,10 @@ export async function POST(request: Request) {
           items = [...items, item];
         }
       }
-      const delivered = takeMixed(items, count);
-      const log = { kept: delivered?.length ?? items.length, rejected: loop.rejected.length, rounds: loop.rounds, mixed: Boolean(delivered) };
+      // İstek düşmez (19 Ekim 2026): sayı dolmadıysa eldeki karışık set teslim edilir (en az yarısı ve dört önerme).
+      const partial = Math.min(items.length, count);
+      const delivered = takeMixed(items, count) ?? (partial >= trueFalseFloor(count) ? takeMixed(items, partial) : null);
+      const log = { kept: delivered?.length ?? items.length, rejected: loop.rejected.length, rounds: loop.rounds, mixed: Boolean(delivered), tries };
       return delivered
         ? { ok: true as const, result: delivered, log }
         : { ok: false as const, reasons: loop.rejected.slice(0, 4).map((row) => row.problems[0] ?? "sorun"), log };
@@ -105,6 +119,7 @@ export async function POST(request: Request) {
   return NextResponse.json({
     quizId: quiz?.id ?? null,
     title,
+    requested: count,
     source: documentId
       ? { kind: "document", documentId, fileName: source.fileName, wholeDocument: source.wholeDocument, matched: source.matched }
       : { kind: "topic" },
