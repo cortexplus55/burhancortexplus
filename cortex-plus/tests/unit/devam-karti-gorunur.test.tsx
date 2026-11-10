@@ -31,7 +31,7 @@ describe("devam kartı ilk ekranda", () => {
 
   it("kompakt hâl yalnız kısa ekranda; bağlam satırı hazırlığın adını, kalan günü ve yüzdeyi taşır", () => {
     const css = read("src/styles/parity-shell.css");
-    expect(css).toContain("@media (max-height: 740px), (max-width: 480px) and (max-height: 820px) {");
+    expect(css).toContain("@media (max-height: 760px), (max-width: 480px) and (max-height: 820px) {");
     expect(css).toMatch(/\.cp-resume-kind-min,\n\.cp-resume-ctx \{\n {2}display: none;/);
     const { container } = render(
       <ContinueLine

@@ -16217,9 +16217,9 @@ a.cp-exam-search {
 /*
   Eşik ölçüldü (10 Kasım 2026, kart Başla'nın önünde): tam kart ~243 px, selamın altında ~280. px'ten başlıyor; mod
   düğmeleri masaüstünde ekranın altından ~200 px, telefonda ~287 px yukarıda. Tam kart 1366×768'de ve 390×844'te sığıyor;
-  kompakt yalnız masaüstünde 740 px'ten, telefonda 820 px'ten kısa ekranda.
+  kompakt yalnız masaüstünde 760 px'ten, telefonda 820 px'ten kısa ekranda (canlıda adım adı iki satıra sarınca kart 267 px; 752 px'in altında masaüstünde yazma alanına değiyordu).
 */
-@media (max-height: 740px), (max-width: 480px) and (max-height: 820px) {
+@media (max-height: 760px), (max-width: 480px) and (max-height: 820px) {
   .cp-resume {
     grid-template-areas: "body go";
     margin-top: 0.9rem;
