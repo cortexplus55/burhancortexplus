@@ -422,6 +422,8 @@ export async function runStartGeneration(
             kind === "oral"
               ? [syllabusWeightLineFromChecklist(teachingPlan.checklist), oralPlanBrief(oralAllPlan)].filter(Boolean).join("\n")
               : "",
+          // "Tüm sınav" ve çok konulu sözlünün planı var; planı olmayan sözlü tek konuya kuruludur.
+          oralSingleTopic: kind === "oral" && oralAllPlan.length === 0,
           podcastLength: parsePodcastLength(parsed.data.podcastLength),
           requestId: clientRequestId ?? parsed.data.clientRequestId ?? null,
           grounding:
