@@ -10,6 +10,7 @@ import {
   topicMasteryView,
 } from "@/lib/learning/learning-tracking";
 import { attemptTopicFields, buildPrepProgressView, solvedQuestions } from "@/lib/learning/prep-progress-view";
+import { loadPrepMockResults } from "@/lib/learning/prep-mock-results";
 import {
   buildPrepRadarView,
   tempoFromProgress,
@@ -136,6 +137,8 @@ async function loadInsights(
     : 0;
   const measuredTopics = topicMastery.filter((row) => byTopic.has(row.label)).length;
 
+  const mockResults = await loadPrepMockResults(supabase, userId, String(prep.id));
+
   const progress = buildPrepProgressView({
     nodes,
     attempts: (attemptRows ?? []).map((row) => ({
@@ -160,6 +163,7 @@ async function loadInsights(
     targetScore: typeof prep.target_score === "number" ? prep.target_score : null,
     dailyMinutes: typeof prep.daily_minutes === "number" ? prep.daily_minutes : null,
     measuredReadinessPct: topicLabels.length ? readinessMean : null,
+    mockResults,
     topicMastery,
   });
 

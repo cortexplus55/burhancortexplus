@@ -57,6 +57,7 @@ import {
   type TopicContradiction,
 } from "@/lib/learning/source-contradictions";
 import { attemptTopicFields, buildPrepProgressView, solvedQuestions } from "@/lib/learning/prep-progress-view";
+import { loadPrepMockResults } from "@/lib/learning/prep-mock-results";
 import { retentionFromTopics } from "@/lib/learning/prep-radar";
 // Günü gelen tekrar (20 Ekim 2026): "Bugün N tekrar"; anahtar kapalıysa ya da tablo yoksa 0.
 import { dueReviewCountForPrep } from "@/lib/learning/review-items-store";
@@ -219,6 +220,7 @@ export default async function ExamPrepDetailPage({
     openCount,
     [{ data: attemptRows }, { data: gapRows }, { data: openMissRows }],
     topicWarnings,
+    mockResults,
   ] = await Promise.all([
     sourceIds.length
       ? supabase
@@ -289,6 +291,8 @@ export default async function ExamPrepDetailPage({
         : Promise.resolve({ data: [] as { topic_label: string | null }[] }),
     ]),
     loadTopicWarnings(supabase, prepId),
+    // Notlanmış denemeler kendi kaydından (10 Kasım 2026): yol adımı kilitliyken çözülen deneme de İlerleme'de görünür.
+    loadPrepMockResults(supabase, user.id, prepId),
   ]);
 
   const sourceById = new Map((sourceRows ?? []).map((row) => [row.id as string, row]));
@@ -449,6 +453,9 @@ export default async function ExamPrepDetailPage({
       mockScorePct = Math.round(
         (Number(mockAttempt.score ?? 0) / Number(mockAttempt.total)) * 100,
       );
+    } else if (mockResults[0]) {
+      // Yol adımı bitmemiş olsa da (kilitliyken çözülen deneme) en son notlanan denemenin puanı sayılır.
+      mockScorePct = mockResults[0].pct;
     }
 
     const indicators = buildLearningIndicators({
@@ -570,6 +577,7 @@ export default async function ExamPrepDetailPage({
     targetScore: typeof prep.target_score === "number" ? prep.target_score : null,
     dailyMinutes: typeof prep.daily_minutes === "number" ? prep.daily_minutes : null,
     measuredReadinessPct: learningTrackingView?.examReadinessPct ?? null,
+    mockResults,
   });
 
   // Yol kartında final adımının konusu (30 Ekim 2026, Paket I #8): açılışta sunucunun seçeceği konuyla aynı

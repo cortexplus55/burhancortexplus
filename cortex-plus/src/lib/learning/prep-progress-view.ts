@@ -18,6 +18,7 @@ import {
 } from "@/lib/learning/prep-radar";
 import type { TopicMasteryState } from "@/lib/learning/learning-tracking";
 import { istanbulDay } from "@/lib/istanbul-day";
+import type { PrepMockResult } from "@/lib/learning/prep-mock-results";
 import { contentSpansTopics, contentTestedTopic, createTopicIndex } from "@/lib/learning/topic-identity";
 
 export type ProgressNode = {
@@ -132,9 +133,15 @@ export type PrepProgressView = {
   /** "3/8 konu ölçüldü" (`coverageLine`); hâkimiyet bilgisi yoksa null. */
   coverageText: string | null;
   lessonsDone: number;
+  /**
+   * `estimate` (10 Kasım 2026): eğilim tahmini için veri yetmiyor ama ölçülmüş performans var (en az bir puanlı test
+   * ya da deneme). Kart "biraz daha veri gerekiyor" demek yerine eldeki ölçümün aralığını güven düzeyiyle yazar;
+   * eğilim ("bu tempoyla N günde") yine yalnız `ready` hâlinde.
+   */
   forecast:
     | { kind: "waiting"; reason: string }
-    | { kind: "ready"; pct: number; text: string };
+    | { kind: "estimate"; lowPct: number; highPct: number; confidence: ForecastConfidence; text: string }
+    | { kind: "ready"; pct: number; text: string; confidence: ForecastConfidence };
   /** 14 günlük (veya sınava kalan) hazırlık eğrisi — SVG çizgi grafik. */
   forecastSeries: ReadinessForecastSeries;
   /**
@@ -167,7 +174,8 @@ export type PrepProgressView = {
     labels: string[];
     rows: { label: string; counts: number[]; pct: number }[];
   };
-  mocks: { title: string; date: string; pct: number }[];
+  /** Notlanmış denemeler, yeniden eskiye. `href`: soru soru inceleme; `questions`: kâğıttaki soru sayısı. */
+  mocks: { title: string; date: string; pct: number; questions?: number | null; href?: string | null }[];
   tempo: {
     weeks: { label: string; activities: number; minutes: number }[];
     dailyGoalMinutes: number | null;
@@ -187,6 +195,16 @@ const FORECAST_MIN_LESSONS = 1;
 const WEEK_COUNT = 5;
 
 const MOCK_KINDS = new Set<PlanNodeKind>(["written_exam", "final_check"]);
+
+/** Tahminin güven düzeyi: kaç puanlı soruya ve kaç ayrı çalışma gününe dayandığı. */
+export type ForecastConfidence = "İlk ölçüm" | "Orta" | "Yüksek";
+
+/** Güven düzeyi ve aralığın yarı genişliği (yüzde puanı). Az veri geniş aralık demektir. */
+export function forecastConfidence(input: { scoredItems: number; activeDays: number }): { label: ForecastConfidence; margin: number } {
+  if (input.scoredItems >= 40 && input.activeDays >= 4) return { label: "Yüksek", margin: 5 };
+  if (input.scoredItems >= 12 && input.activeDays >= 2) return { label: "Orta", margin: 10 };
+  return { label: "İlk ölçüm", margin: 15 };
+}
 
 function topicOf(node: ProgressNode | undefined): string | null {
   const title = node?.sessionMeta?.topicTitle?.trim();
@@ -326,6 +344,12 @@ export function buildPrepProgressView(input: {
    * Yoksa yalnız ad.
    */
   topicRefs?: { id: string; label: string; documentTopicNodeId?: string | null }[];
+  /**
+   * Hazırlığın notlanmış denemeleri (`loadPrepMockResults`, 10 Kasım 2026). Verilince Denemeler listesi yazılı
+   * denemeyi kendi kaydından alır (yol adımı kilitliyken çözülen deneme de görünür); yol adımının yazılı deneme
+   * kayıtları aynı denemenin kopyası olduğu için listeye ikinci kez girmez.
+   */
+  mockResults?: PrepMockResult[];
   now?: Date;
 }): PrepProgressView {
   const now = (input.now ?? new Date()).getTime();
@@ -504,6 +528,35 @@ export function buildPrepProgressView(input: {
       : null;
 
   // Tahmin hazırlık yüzdesinden başlar. Gün sayısı tempo kartıyla aynı bölme: kalan ders / günde ders.
+  // Ölçülmüş performans: en son deneme, yoksa puanlı test etkinliklerinin doğruluğu (ders içi sorular ölçüm
+  // sayılmaz: öğretirken sorulur). Eğilim için veri yetmediğinde kart bunu güven düzeyiyle yazar (10 Kasım 2026).
+  const scoredTests = scoredAttempts.filter((attempt) => !LESSON_KINDS.has(nodeById.get(attempt.nodeId)?.kind as PlanNodeKind));
+  const scoredTotal = scoredTests.reduce((sum, attempt) => sum + Math.max(0, attempt.total ?? 0), 0);
+  const testCorrect = scoredTests.reduce((sum, attempt) => sum + Math.max(0, attempt.score ?? 0), 0);
+  const latestMock = (input.mockResults ?? [])[0] ?? null;
+  const mockQuestions = (input.mockResults ?? []).reduce((sum, mock) => sum + Math.max(0, mock.questions ?? 0), 0);
+  const mockDays = new Set(
+    (input.mockResults ?? []).map((mock) => Date.parse(mock.date)).filter(Number.isFinite).map((time) => istanbulDay(new Date(time))),
+  );
+  const measuredDays = new Set([
+    ...completed.map((attempt) => Date.parse(attempt.createdAt)).filter(Number.isFinite).map((time) => istanbulDay(new Date(time))),
+    ...mockDays,
+  ]).size;
+  const confidence = forecastConfidence({ scoredItems: scoredTotal + mockQuestions, activeDays: measuredDays });
+  const measuredPct = latestMock ? latestMock.pct : scoredTotal > 0 && testCorrect > 0 ? pct(testCorrect, scoredTotal) : null;
+  const estimate: PrepProgressView["forecast"] | null =
+    measuredPct == null
+      ? null
+      : {
+          kind: "estimate",
+          lowPct: Math.max(0, measuredPct - confidence.margin),
+          highPct: Math.min(100, measuredPct + confidence.margin),
+          confidence: confidence.label,
+          text: latestMock
+            ? `Son denemen %${latestMock.pct}. Sınav günü bu aralıkta bir sonuç beklenir; her yeni test ve deneme aralığı daraltır.`
+            : `Çözdüğün ${scoredTotal} sorunun doğruluğu %${measuredPct}. Her yeni test ve deneme aralığı daraltır.`,
+        };
+
   let forecast: PrepProgressView["forecast"];
   if (lessonsDone < FORECAST_MIN_LESSONS) {
     forecast = {
@@ -519,12 +572,14 @@ export function buildPrepProgressView(input: {
       kind: "ready",
       pct: scorePct,
       text: `Hazırlık %${scorePct}. Hedefin %${targetPct}.`,
+      confidence: confidence.label,
     };
   } else if (pace.daysToFinish === 0 || scorePct >= targetPct) {
     forecast = {
       kind: "ready",
       pct: scorePct,
       text: `Hazırlık %${scorePct}. Hedefin %${targetPct}.`,
+      confidence: confidence.label,
     };
   } else {
     const daysLeft = daysToExam ?? pace.daysToFinish;
@@ -537,22 +592,39 @@ export function buildPrepProgressView(input: {
       kind: "ready",
       pct: projected,
       text: `Bu tempoyla yaklaşık ${pace.daysToFinish} günde hazırlık %${projected} olur. ${pace.lessonsToTarget} ders, ${rate}.`,
+      confidence: confidence.label,
     };
   }
   const gapsMeasured = completed.some((attempt) => (attempt.total ?? 0) > 0);
 
-  const mocks = completed
-    .filter((attempt) => MOCK_KINDS.has(nodeById.get(attempt.nodeId)?.kind as PlanNodeKind))
-    .filter((attempt) => (attempt.total ?? 0) > 0)
-    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
-    .map((attempt) => {
-      const node = nodeById.get(attempt.nodeId)!;
-      return {
-        title: topicOf(node) ?? node.title,
-        date: attempt.createdAt,
-        pct: pct(Math.max(0, attempt.score ?? 0), attempt.total ?? 0),
-      };
-    });
+  // Eğilim için veri yetmiyorsa ("waiting") ama ölçüm varsa kart ölçümü yazar; ölçülen doğruluk %0 ise beklemede kalır.
+  if (forecast.kind === "waiting" && estimate) forecast = estimate;
+
+  // Yazılı deneme kendi kaydından (verildiyse); yol adımının yazılı deneme kayıtları aynı denemenin kopyasıdır.
+  const fromExams = input.mockResults;
+  const mocks: PrepProgressView["mocks"] = [
+    ...completed
+      .filter((attempt) => {
+        const kind = nodeById.get(attempt.nodeId)?.kind as PlanNodeKind;
+        return MOCK_KINDS.has(kind) && !(fromExams && kind === "written_exam");
+      })
+      .filter((attempt) => (attempt.total ?? 0) > 0)
+      .map((attempt) => {
+        const node = nodeById.get(attempt.nodeId)!;
+        return {
+          title: topicOf(node) ?? node.title,
+          date: attempt.createdAt,
+          pct: pct(Math.max(0, attempt.score ?? 0), attempt.total ?? 0),
+        };
+      }),
+    ...(fromExams ?? []).map((mock) => ({
+      title: mock.title,
+      date: mock.date,
+      pct: mock.pct,
+      questions: mock.questions,
+      href: mock.href,
+    })),
+  ].sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
 
   return {
     scorePct,
