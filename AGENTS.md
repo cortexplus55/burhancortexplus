@@ -2443,3 +2443,11 @@ Yeniden açmayın:
 | Telefonda (≤480 px) düğme adımın yanında yuvarlak oynat düğmesi (yazı ekran okuyucuda), "Sınava" sözcüğü gizli: kart kısa kalsın, alttaki mod düğmelerinin arkasına düşmesin. Kart `flex: none` (ana ekranın kart kutusu sütun; kart küçülüp içeriğini kesiyordu). Halkanın kuralı yalnız halkanın `svg`'sine (`.cp-resume-ring-svg`): genel `svg` seçicisi içteki tür simgesini de döndürüp geriyordu | aynı |
 
 Fikstür `/e2e/ana-ekran?hazirlik=1` (başlanmış) ve `?hazirlik=yeni`. Bekçi: `zor-kullanici-turu.test.tsx` ("Kaldığın yerden devam").
+
+### Kararsız e2e: sunucu yenilemesini süreyle değil olayla bekle (8 Kasım 2026)
+
+`hakimiyet.spec.ts` ("Canlı senaryo") CI'da bir kez düştü (run 42527442582): seviye kontrolünün sonucu anında çizilir, harita
+ise `router.refresh()`ün getirdiği sunucu verisiyle güncellenir; yüklü geliştirme sunucusunda yenileme 5 sn'lik `expect`
+süresini aştı. Ürün hatası değil. Kural: `router.refresh()` sonrası değişen veriyi sınayan e2e, süreyi uzatmaz; yenileme
+cevabını (`rsc: 1`, `next-router-prefetch` yok) eylemden **önce** `page.waitForResponse` ile beklemeye başlar, cevap gelince
+bakar. Kanıt: yenilemeye yapay 8 sn gecikmeyle eski test CI'daki hatanın aynısıyla düştü, yenisi geçti; 10 tekrarda 30/30.
