@@ -40,7 +40,7 @@ export type SourceStructure = "flow" | "cycle" | "matrix" | "tree";
 type FactScreen = {
   heading?: string;
   concept?: string;
-  blocks: readonly { type: string; text?: string; diagram?: { layout?: string } }[];
+  blocks: readonly { type: string; text?: string; diagram?: { layout?: string }; formula?: { expression?: string } }[];
 };
 
 const PRIORITY: KeyFactKind[] = [
@@ -554,6 +554,74 @@ export function lessonScreenCap(factCount: number): number {
 }
 
 /** Yazara giden kilit bilgi listesi. Metin kaynaktan gelir; kod örnek uydurmaz. */
+/**
+ * Kaynaktaki açık denklemler (10 Kasım 2026): iki yanında harf olan ve sağ yanı işlem taşıyan eşitlikler
+ * ("x = a / b", "y = m·t + n"). "Toplam = 100 puan" gibi atama satırı denklem değildir.
+ */
+export function sourceEquations(facts: readonly KeyFact[]): KeyFact[] {
+  return facts.filter((fact) => {
+    if (fact.kind !== "formula") return false;
+    const at = fact.text.indexOf("=");
+    if (at < 1) return false;
+    const left = fact.text.slice(0, at);
+    const right = fact.text.slice(at + 1);
+    return /\p{L}/u.test(left) && /\p{L}/u.test(right) && /[+\-−*/×·÷^√()]/.test(right);
+  });
+}
+
+/** Yazımdan bağımsız iskelet: LaTeX komutları ve işaretler düşer, harf ve rakamlar kalır. */
+function equationSkeleton(text: string): string {
+  return text
+    .replace(/\\[a-zA-Z]+/g, " ")
+    .normalize("NFKD")
+    .replace(/[^\p{L}\p{N}]/gu, "")
+    .toLocaleLowerCase("tr");
+}
+
+/** Denklem bir formül kartında gösterilmiş mi: kartın ifadesi denklemin harf ve rakamlarının en az %80'ini taşır. */
+function equationInCard(equation: string, expressions: readonly string[]): boolean {
+  // Satır başındaki etiket ("… bağıntısı: x = a / b") denklemin parçası değildir.
+  const label = equation.indexOf(":");
+  const body = label >= 0 && label < equation.indexOf("=") ? equation.slice(label + 1) : equation;
+  const need = [...equationSkeleton(body)];
+  if (!need.length) return true;
+  return expressions.some((expression) => {
+    const pool = [...equationSkeleton(expression)];
+    let hits = 0;
+    for (const char of need) {
+      const at = pool.indexOf(char);
+      if (at < 0) continue;
+      pool.splice(at, 1);
+      hits += 1;
+    }
+    return hits / need.length >= 0.8;
+  });
+}
+
+/**
+ * Derste formül kartında gösterilmeyen kaynak denklemleri (10 Kasım 2026). Canlıda kısa bir notun açık formülü
+ * derste yalnız sözle tarif edildi. Denklem "geçiyor" olması yetmez: bir `formula` bloğunda görünmelidir.
+ */
+export function equationsWithoutCard(screens: readonly FactScreen[], facts: readonly KeyFact[]): KeyFact[] {
+  const equations = sourceEquations(facts);
+  if (!equations.length) return [];
+  const expressions = screens.flatMap((screen) =>
+    screen.blocks.filter((block) => block.type === "formula").map((block) => block.formula?.expression ?? "").filter(Boolean),
+  );
+  return equations.filter((fact) => !equationInCard(fact.text, expressions));
+}
+
+/** Yazara: kaynaktaki açık formül sözle tarif edilmez, formül kartında gösterilir. */
+export function sourceEquationsBlock(facts: readonly KeyFact[]): string {
+  const equations = sourceEquations(facts).slice(0, 6);
+  if (!equations.length) return "";
+  return (
+    "KAYNAKTAKİ FORMÜLLER (her biri ilk anlatıldığı ekranda bir 'formula' bloğunda, kaynaktaki yazımıyla gösterilir; " +
+    "formülü yalnız sözle tarif etmek yetmez):\n" +
+    equations.map((fact, index) => `${index + 1}) ${fact.text}`).join("\n")
+  );
+}
+
 export function keyFactsBlock(facts: readonly KeyFact[]): string {
   if (!facts.length) return "";
   return (

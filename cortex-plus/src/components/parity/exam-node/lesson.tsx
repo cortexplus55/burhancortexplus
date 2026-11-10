@@ -9,7 +9,7 @@ import { readNoteWarnings } from "@/lib/learning/formula-typos";
 import type { NodeLifecycle } from "./use-node-lifecycle";
 
 export function LessonPlay({ life }: { life: NodeLifecycle }) {
-  const { prepId, language, sources, activityMinutes, router, stage, loading, payload, attemptId, finish, structuredLesson, lessonBuilding, gradeLessonCheck } = life;
+  const { prepId, language, sources, activityMinutes, router, stage, loading, payload, attemptId, finish, structuredLesson, lessonBuilding, gradeLessonCheck, reexplainStep } = life;
   return (
     <>
       {stage === "play" && payload.type === "lesson" ? (
@@ -30,6 +30,7 @@ export function LessonPlay({ life }: { life: NodeLifecycle }) {
             plannedMinutes={activityMinutes}
             language={language}
             gradeCheck={attemptId ? gradeLessonCheck : undefined}
+            onReexplain={reexplainStep}
             onFinish={(missed, lessonAnswers, retryAnswers) => {
               const indexes = (missed ?? []).filter((index) => Number.isInteger(index));
               const payloadAnswers: Record<string, unknown> = {};

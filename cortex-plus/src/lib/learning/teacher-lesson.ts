@@ -51,6 +51,8 @@ import { splitTableCells } from "@/lib/learning/interval-text";
 import { backboneBlock, lessonBackbone, uncoveredBackbone } from "@/lib/learning/lesson-backbone";
 import {
   keyFactsBlock,
+  equationsWithoutCard,
+  sourceEquationsBlock,
   lessonKeyFacts,
   lessonScreenCap,
   missingStructures,
@@ -577,6 +579,7 @@ export function teacherUserPrompt(input: TeacherLessonInput): string {
       : "",
     input.mode === "topic" ? "" : backboneBlock(inputBackbone(input)),
     input.mode === "topic" ? "" : keyFactsBlock(lessonFacts(input.pages, input.noteWarnings)),
+    input.mode === "topic" ? "" : sourceEquationsBlock(lessonFacts(input.pages, input.noteWarnings)),
     input.mode === "topic"
       ? approvedFactsBlock(input.approvedFacts) || "KAYNAK: (yok — belgesiz ders; konunun yerleşik bilgisiyle yaz)"
       : `KAYNAK:\n${sourceText(input.pages)}`,
@@ -2276,7 +2279,8 @@ export function lessonLevelStructureIssues(lesson: LessonV3, input: StructureInp
  */
 export const COVERAGE_COMPLETION_SCREENS = 2;
 
-export type LessonCoverageGaps = { headings: string[]; facts: string[] };
+/** `formulas`: derste formül kartında gösterilmeyen kaynak denklemleri (10 Kasım 2026); eski çağıranlarda yok. */
+export type LessonCoverageGaps = { headings: string[]; facts: string[]; formulas?: string[] };
 
 /**
  * Belgesiz (konu) derste alt sınır (3 Kasım 2026 canlı ölçüm: "Farklı anlat" 5 bölümle bitti, sayaç "Adım 1/8").
@@ -2299,14 +2303,17 @@ export function lessonCoverageGaps(lesson: LessonV3, input: StructureInput): Les
     return { headings: gap ? [gap] : [], facts: [] };
   }
   if (!input.pages?.length) return { headings: [], facts: [] };
+  const facts = lessonFacts(input.pages, input.noteWarnings);
   return {
     headings: uncoveredBackbone(lesson.screens, inputBackbone(input)),
-    facts: uncoveredKeyFacts(lesson.screens, lessonFacts(input.pages, input.noteWarnings)).map((fact) => fact.text),
+    facts: uncoveredKeyFacts(lesson.screens, facts).map((fact) => fact.text),
+    // Kaynaktaki açık formül bir formül kartında gösterilmeli (en çok üçü istenir: tamamlama iki ekranla sınırlı).
+    formulas: equationsWithoutCard(lesson.screens, facts).slice(0, 3).map((fact) => fact.text),
   };
 }
 
 export function coverageGapCount(gaps: LessonCoverageGaps): number {
-  return gaps.headings.length + gaps.facts.length;
+  return gaps.headings.length + gaps.facts.length + (gaps.formulas?.length ?? 0);
 }
 
 export function coverageCompletionUserPrompt(lesson: LessonV3, input: TeacherLessonInput, gaps: LessonCoverageGaps): string {
@@ -2314,6 +2321,7 @@ export function coverageCompletionUserPrompt(lesson: LessonV3, input: TeacherLes
   const missing = [
     ...gaps.headings.map((heading) => `- Alt başlık: ${heading}`),
     ...gaps.facts.slice(0, 8).map((fact) => `- Kilit bilgi: ${fact}`),
+    ...(gaps.formulas ?? []).map((formula) => `- Formül (bir 'formula' bloğunda, kaynaktaki yazımıyla göster): ${formula}`),
   ];
   return (
     `${teacherUserPrompt(input)}\n\nKAPSAM TAMAMLAMASI: Bu ders yazıldı ve öğrenciye gidiyor. Mevcut ekranlar:\n${screens.join("\n")}\n\n` +
