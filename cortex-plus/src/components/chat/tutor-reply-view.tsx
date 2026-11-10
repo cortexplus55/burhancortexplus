@@ -18,7 +18,7 @@ import { MathText } from "@/components/learning/math-text";
 import { formatSourceSections, generalOnlyAnswer } from "@/lib/ai/source-sections";
 import { splitTutorChrome, type ReplyChip, type ReplyQuote } from "@/lib/learning/tutor-reply";
 import "@/styles/chat-teaching.css";
-import { SOCRATIC_QUICK_CHIPS, type TutorStyle } from "@/lib/learning/tutor-style";
+import { SOCRATIC_QUICK_CHIPS, stepQuickChips, type TutorStyle } from "@/lib/learning/tutor-style";
 
 function TutorBody({
   body,
@@ -70,7 +70,10 @@ export function TutorReplyView({
   onRetry,
   hideChips = false,
   tutorStyle,
+  quickActions = true,
 }: {
+  /** Adım Adım modunun hızlı eylemleri yalnız sohbetin son yanıtında; çağıran son yanıt değilse false verir. */
+  quickActions?: boolean;
   /** Ayarlar > Önerilen sorular kapalıysa devam çipleri çizilmez. */
   hideChips?: boolean;
   content: string;
@@ -79,7 +82,7 @@ export function TutorReplyView({
   onPrompt?: (prompt: string) => void;
   error?: boolean;
   onRetry?: () => void;
-  /** Sokratik modda ipucu / adım / tam çözüm çipleri her yanıtın altında durur. */
+  /** Sokratik modda ipucu / adım / tam çözüm çipleri her yanıtın altında; Adım Adım modunda sıradaki adım / tam çözüm. */
   tutorStyle?: TutorStyle;
 }) {
   const checkRef = useRef<HTMLDivElement | null>(null);
@@ -89,22 +92,31 @@ export function TutorReplyView({
   );
   // "Akılda kalsın" kutusu cevaptan ayrılır, düğmeli kartla çizilir (8 Kasım 2026).
   const remember = useMemo(() => splitRememberBlock(view.body), [view.body]);
+  // Hızlı eylemler: Sokratik modda her yanıtın altında; Adım Adım modunda yalnız adımlı yanıtın ("N. adım" + "Devam et"
+  // daveti) ve yalnız son yanıtın altında (eski adımın çipi sıradaki adımı yanlış gösterirdi).
+  const quickChips = useMemo(
+    () =>
+      tutorStyle === "hints_first"
+        ? SOCRATIC_QUICK_CHIPS
+        : tutorStyle === "step_by_step" && quickActions
+          ? stepQuickChips(content)
+          : [],
+    [content, quickActions, tutorStyle],
+  );
   const chips = useMemo(() => {
-    const socratic = tutorStyle === "hints_first" ? SOCRATIC_QUICK_CHIPS : [];
     const extra = hideChips ? [] : view.chips;
     const seen = new Set<string>();
     const next: ReplyChip[] = [];
-    for (const chip of [...socratic, ...extra]) {
+    for (const chip of [...quickChips, ...extra]) {
       if (seen.has(chip.label) || seen.has(chip.prompt)) continue;
       seen.add(chip.label);
       seen.add(chip.prompt);
       next.push(chip);
     }
     return next;
-  }, [hideChips, tutorStyle, view.chips]);
-  const socraticLabels = tutorStyle === "hints_first"
-    ? new Set(SOCRATIC_QUICK_CHIPS.map((chip) => chip.label))
-    : null;
+  }, [hideChips, quickChips, view.chips]);
+  const quickLabels = new Set(quickChips.map((chip) => chip.label));
+  const quickClass = tutorStyle === "step_by_step" ? "cp-tutor-chip cp-tutor-chip--step" : "cp-tutor-chip cp-tutor-chip--socratic";
 
   useEffect(() => {
     if (!view.check || typeof window === "undefined") return;
@@ -229,11 +241,7 @@ export function TutorReplyView({
             <button
               key={chip.label}
               type="button"
-              className={
-                socraticLabels?.has(chip.label)
-                  ? "cp-tutor-chip cp-tutor-chip--socratic"
-                  : "cp-tutor-chip"
-              }
+              className={quickLabels.has(chip.label) ? quickClass : "cp-tutor-chip"}
               disabled={disabled}
               onClick={() => onPrompt?.(chip.prompt)}
             >

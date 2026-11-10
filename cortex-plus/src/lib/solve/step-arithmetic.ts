@@ -8,6 +8,11 @@
   Saf ve güvenli: `eval` yok; küçük bir özyinelemeli ayrıştırıcı (+ − × · ÷ / ^ ² ³ √ parantez, ondalık virgül, %).
 */
 
+import { normalizeNumberText } from "@/lib/learning/result-values";
+
+/** Binlik noktalı sayı ("1.250", "3.400.000"); "0.125" ve "2.5" ondalıktır. */
+const THOUSANDS_DOT = /(?<![\d.,])[1-9]\d{0,2}(?:\.\d{3})+(?![\d.])/;
+
 const UNIT_TAIL =
   /\s*(?:[a-zA-ZçğıöşüÇĞİÖŞÜµΩ°]+(?:\/[a-zA-ZçğıöşüÇĞİÖŞÜ]+)?[²³]?(?:\s*[·*/]\s*[a-zA-ZçğıöşüÇĞİÖŞÜ]+[²³]?)*)\s*$/u;
 /** Sayıya bitişik tek harf birim değil değişkendir ("2x", "3a"); bitişik yazılan birimler bunlar. */
@@ -123,28 +128,46 @@ export function segmentValue(segment: string): number | null {
  * Bir satırdaki eşitlik zincirinin hesabı: tutmayan ardışık parçalar (`issues`) ve birbirini tutan,
  * doğrulanmış parça çifti sayısı (`verified`). `verified` 0 ise satırda sınanacak hesap yoktu.
  */
-export function stepArithmeticCheck(line: string): { issues: string[]; verified: number } {
+export type StepArithmeticOptions = {
+  /**
+   * Türkçe binlik nokta okuması (10 Kasım 2026, güven paketi): varsayılan KAPALI, davranış değişmez. Açılınca
+   * "a.bcd ÷ n = m" gibi nokta ondalık okununca tutmaz görünen adım, iki parça da binlik okunuşla tutuyorsa doğru
+   * sayılır. Yalnız sohbet çözüm sağlaması açar (`prepareChatSolution`); yazılı deneme puanlayıcısı, soru çözücü ve
+   * öbür çağıranlar eski okumayla çalışır.
+   */
+  thousandsDots?: boolean;
+};
+
+export function stepArithmeticCheck(line: string, options: StepArithmeticOptions = {}): { issues: string[]; verified: number } {
   if (/[<>≤≥≈≠]/.test(line)) return { issues: [], verified: 0 };
   const parts = line.split(/=|⇒|→/).map((part) => part.trim()).filter(Boolean);
   const issues: string[] = [];
   let verified = 0;
-  let previous: { text: string; value: number } | null = null;
+  let previous: { text: string; value: number; grouped: number | null } | null = null;
   for (const part of parts) {
     const value = segmentValue(part);
     if (value === null) {
       previous = null;
       continue;
     }
+    const grouped = !options.thousandsDots
+      ? null
+      : THOUSANDS_DOT.test(part)
+        ? segmentValue(normalizeNumberText(part))
+        : value;
     if (previous) {
-      if (closeValues(previous.value, value)) verified += 1;
+      const holds =
+        closeValues(previous.value, value) ||
+        (previous.grouped !== null && grouped !== null && closeValues(previous.grouped, grouped));
+      if (holds) verified += 1;
       else issues.push(`${previous.text} ≠ ${part}`);
     }
-    previous = { text: part, value };
+    previous = { text: part, value, grouped };
   }
   return { issues, verified };
 }
 
 /** Bir satırdaki eşitlik zincirinde birbirini tutmayan ardışık hesaplanabilir parçalar. */
-export function stepArithmeticIssues(line: string): string[] {
-  return stepArithmeticCheck(line).issues;
+export function stepArithmeticIssues(line: string, options: StepArithmeticOptions = {}): string[] {
+  return stepArithmeticCheck(line, options).issues;
 }

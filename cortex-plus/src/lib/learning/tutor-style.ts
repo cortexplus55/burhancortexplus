@@ -28,17 +28,44 @@ export const TUTOR_STYLE_OPTIONS: {
 
 export const DEFAULT_TUTOR_STYLE: TutorStyle = "step_by_step";
 
-/** Sohbet yazı kutusunun üstündeki canlı anahtar; sıra Sokratik → adım adım → doğrudan. */
+/**
+ * Sohbet yazı kutusunun üstündeki canlı anahtar; sıra Sokratik → adım adım → doğrudan.
+ * `description` (10 Kasım 2026, güven paketi): modun ne yaptığını tek cümleyle söyler; ekrandaki açıklama, düğmenin
+ * ipucu ve ekran okuyucu metni aynı kaynaktan okunur.
+ */
 export const LIVE_TUTOR_STYLE_OPTIONS: {
   id: TutorStyle;
   label: string;
   short: string;
   emoji: string;
+  description: string;
 }[] = [
-  { id: "hints_first", label: "Sokratik (Önce İpucu)", short: "Sokratik", emoji: "💡" },
-  { id: "step_by_step", label: "Adım Adım", short: "Adım Adım", emoji: "🪜" },
-  { id: "direct_solve", label: "Doğrudan Çöz", short: "Çöz", emoji: "⚡" },
+  {
+    id: "hints_first",
+    label: "Sokratik (Önce İpucu)",
+    short: "Sokratik",
+    emoji: "💡",
+    description: "Cevabı hemen vermez; ipucu ve yönlendirici sorularla çözümü senin bulmanı sağlar.",
+  },
+  {
+    id: "step_by_step",
+    label: "Adım Adım",
+    short: "Adım Adım",
+    emoji: "🪜",
+    description: "Çözümü tek seferde dökmez; 1. adımdan başlar ve sen 'Devam et' dedikçe sıradaki adıma geçer.",
+  },
+  {
+    id: "direct_solve",
+    label: "Doğrudan Çöz",
+    short: "Çöz",
+    emoji: "⚡",
+    description: "Tüm işlem adımlarını ve nihai sonucu tek mesajda eksiksiz gösterir.",
+  },
 ];
+
+export function tutorStyleDescription(style: TutorStyle): string {
+  return LIVE_TUTOR_STYLE_OPTIONS.find((option) => option.id === style)?.description ?? "";
+}
 
 /** Sokratik yanıtın altındaki tek tık eylemler. */
 export const SOCRATIC_QUICK_CHIPS: { label: string; prompt: string }[] = [
@@ -46,6 +73,52 @@ export const SOCRATIC_QUICK_CHIPS: { label: string; prompt: string }[] = [
   { label: "🤔 İlk adımı göster", prompt: "İlk adımı göster; sonrası ve cevap bende kalsın." },
   { label: "⚡ Tam çözümü göster", prompt: "Tam çözümü göster." },
 ];
+
+/** Adım Adım modunun kapanış daveti ve tam çözüm isteği; istem, çipler ve takip tanıyıcı aynı sözü okur. */
+export const STEP_CONTINUE_WORD = "Devam et";
+export const STEP_FULL_SOLUTION_PROMPT = "Cevabı ve tüm adımları göster.";
+
+/** Tırnak ya da vurgu içindeki davet ("'Devam et' yaz"); "devam etmek istersen" gibi düz cümle davet sayılmaz. */
+const STEP_INVITE = /['"“”‘’«»*`]\s*devam et\s*['"“”‘’«»*`]/u;
+/** Satır başındaki adım başlığı ("**2. adım:**"); çekimli biçim ("2. adıma geçelim") başlık değildir. */
+const STEP_HEADING = /^[\s>#*_-]*(\d{1,2})\.\s*ad[ıi]m(?![\p{L}])/gimu;
+const STEP_NEXT_MENTION = /(?<![\p{L}\p{N}])(\d{1,2})\.\s*ad[ıi]ma(?![\p{L}])/giu;
+
+/** Yanıt, Adım Adım modunun "tek adım + Devam et daveti" biçiminde mi. */
+export function isPacedStepReply(reply: string): boolean {
+  return STEP_INVITE.test((reply ?? "").toLocaleLowerCase("tr"));
+}
+
+/**
+ * Adımlı yanıtın kaçıncı adımda kaldığı. Davet yoksa (tam çözüm, kavram cevabı, selamlaşma) null. Adım, satır
+ * başındaki en büyük "N. adım" başlığıdır; başlık yoksa davetin andığı sıradaki adımdan ("N. adıma") bir eksiği;
+ * o da yoksa 0 (adımlı ama numarası okunamadı).
+ */
+export function pacedStepNumber(reply: string): number | null {
+  const text = reply ?? "";
+  if (!isPacedStepReply(text)) return null;
+  let highest = 0;
+  for (const match of text.matchAll(STEP_HEADING)) {
+    const step = Number(match[1]);
+    if (step >= 1 && step <= 30 && step > highest) highest = step;
+  }
+  if (highest) return highest;
+  for (const match of text.matchAll(STEP_NEXT_MENTION)) {
+    const next = Number(match[1]);
+    if (next >= 2 && next <= 31 && next - 1 > highest) highest = next - 1;
+  }
+  return highest;
+}
+
+/** Adım Adım yanıtının altındaki tek tık eylemler: sıradaki adım ve tam çözüm. Adımlı yanıt değilse boş. */
+export function stepQuickChips(reply: string): { label: string; prompt: string }[] {
+  const step = pacedStepNumber(reply);
+  if (step == null) return [];
+  const forward = step > 0
+    ? { label: `🪜 ${step + 1}. adıma geç`, prompt: `${STEP_CONTINUE_WORD}: ${step + 1}. adıma geç.` }
+    : { label: "🪜 Sonraki adıma geç", prompt: `${STEP_CONTINUE_WORD}: sonraki adıma geç.` };
+  return [forward, { label: "⚡ Cevabı ve tüm adımları göster", prompt: STEP_FULL_SOLUTION_PROMPT }];
+}
 
 export function parseTutorStyle(value: unknown): TutorStyle {
   if (

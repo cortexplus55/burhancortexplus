@@ -382,6 +382,90 @@ mark.cp-key {
   overflow: visible;
 }
 
+/*
+  Anlatım modu açıklaması (10 Kasım 2026, güven paketi): moda dokununca altında tek cümle; mesaj gönderilince kapanır.
+  Renkler tasarım değişkenlerinden (iki temada da okunur); uzun cümle telefonda taşmadan sarar.
+*/
+.cp-tutor-mode-desc {
+  box-sizing: border-box;
+  max-width: 100%;
+  margin: 0 0.15rem 0.5rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--c-action) 28%, transparent);
+  background: color-mix(in srgb, var(--c-action) 8%, transparent);
+  color: var(--c-text);
+  font: var(--t-body-14);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.cp-tutor-mode-desc-name {
+  font-weight: 600;
+  color: var(--c-action);
+}
+
+/* Tek denetim satırında açıklama kendi satırına iner ve hapların altında kalır. */
+.cp-sor-controls .cp-tutor-mode-desc {
+  flex: 1 0 100%;
+  order: 10;
+  margin: 0;
+}
+
+/* Dokunma alanı 44 px: görünen hap 36 px kalır; görünmez alan kenarlığın içinden ölçülür (34 + 2 × 5). */
+.cp-tutor-mode-pill {
+  position: relative;
+}
+
+.cp-tutor-mode-pill::after {
+  content: "";
+  position: absolute;
+  inset: -5px 0;
+}
+
+/* Sınav sohbetinde şerit yana kayar (overflow-x: auto); taşan dokunma alanı kırpılmasın diye iç boşluk. */
+.cp-sor-root--exam .cp-tutor-mode {
+  padding-block: 5px;
+  margin-block: -5px calc(0.5rem - 5px);
+}
+
+/* Adım Adım yanıtının hızlı eylemleri: "N. adıma geç", "Cevabı ve tüm adımları göster". */
+.cp-tutor-chip.cp-tutor-chip--step {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  /* Dar ekranda yazı sıkışıp kırılmasın: çip kendi genişliğinde kalır, sığmazsa alt satıra iner. */
+  flex: none;
+  max-width: 100%;
+  min-height: 36px;
+  border-color: color-mix(in srgb, var(--c-action) 45%, transparent);
+  background: color-mix(in srgb, var(--c-action) 10%, transparent);
+  color: var(--c-text);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cp-tutor-chip.cp-tutor-chip--step::after {
+  content: "";
+  position: absolute;
+  inset: -5px 0;
+}
+
+.cp-tutor-chip.cp-tutor-chip--step:disabled {
+  cursor: default;
+}
+
+/* Telefonda çipler yana kayan tek satırdır (overflow-x: auto); taşan görünmez alan kırpılır, kutunun kendisi 44 px olur. */
+@media (max-width: 640px) {
+  .cp-tutor-chip.cp-tutor-chip--step {
+    min-height: 44px;
+  }
+
+  .cp-tutor-chip.cp-tutor-chip--step::after {
+    inset: 0;
+  }
+}
+
 .cp-ctrl-pill {
   display: inline-flex;
   align-items: center;
