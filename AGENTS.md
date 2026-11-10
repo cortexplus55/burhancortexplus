@@ -2472,7 +2472,7 @@ Kart Başla'nın altındaydı; canlıda sınav şeridi, selam ve dost satırı d
 | Kural | Nerede |
 |---|---|
 | Kart selamla Başla'nın arasında (`heroLead`); ilk adım kartı Başla'nın altında kalır (`heroFooter`). Dost satırı aynı adımı anıyorsa kartın hemen üstündedir, ikisi birlikte okunur. Kısa telefonda Başla kartın altında, kaydırınca görünür (yazma alanı zaten aynı işi yapar) | `chat-panel.tsx` `heroLead`, `ogretmen/page.tsx` |
-| **Kompakt hâl yalnız kısa ekranda** (`max-height: 740px`, telefonda `max-height: 820px`): tek blok, halka + üç kısa satır (sıradaki adım ve süresi, adımın adı, hazırlığın adı · kalan gün · yüzde) + yuvarlak oynat; kimlik ve alt satır gizli. Eşik ölçüldü: tam kart ~243 px ve selamın altında ~280. px'ten başlar; mod düğmeleri masaüstünde ekranın ~200 px, telefonda ~287 px yukarısında | `parity-shell.css` `.cp-resume-ctx`, `.cp-resume-kind-min` |
+| **Kompakt hâl yalnız kısa ekranda** (`max-height: 760px`, telefonda `max-height: 820px`; canlıda iki satırlık adım adıyla kart 267 px): tek blok, halka + üç kısa satır (sıradaki adım ve süresi, adımın adı, hazırlığın adı · kalan gün · yüzde) + yuvarlak oynat; kimlik ve alt satır gizli. Eşik ölçüldü: tam kart ~243 px ve selamın altında ~280. px'ten başlar; mod düğmeleri masaüstünde ekranın ~200 px, telefonda ~287 px yukarısında | `parity-shell.css` `.cp-resume-ctx`, `.cp-resume-kind-min` |
 | Ölçüm (fikstür canlıdaki gibi: sınav şeridi + dost satırı): 375×667, 360×740, 1280×720 kompakt; 390×844, 1366×768, 768×1024 tam; hepsinde kart mod düğmelerinin üstünde, taşma 0 | `/e2e/ana-ekran?hazirlik=1` |
 
 Bekçi: `devam-karti-gorunur.test.tsx`, `ana-ekran-8-kasim.test.tsx`, e2e `ana-ekran.spec.ts`.
