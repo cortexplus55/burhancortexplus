@@ -94,7 +94,7 @@ describe("canlı vitrin içeriği", () => {
     expect(hero).toContain("<InteractiveShowcase segmentId={segmentId}");
     expect(hero).toContain("href={segment.signupHref}");
     const page = read("src/components/landing/landing-page.tsx");
-    expect(page).toContain("<AudienceHero stage={<HeroStage />} />");
+    expect(page).toContain("<AudienceHero />");
     // Sayfa önbellekten gelmeye devam eder (O12): sunucu searchParams okumaz.
     expect(read("src/app/page.tsx")).not.toContain("searchParams");
   });

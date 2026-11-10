@@ -278,6 +278,61 @@ export const SHOWCASE_COPY = {
   again: "Başka bir profil dene",
 } as const;
 
+/**
+ * "İki şık arasında kaldım" kutusunun başlığı (10 Kasım 2026): ziyaretçi henüz iki şık seçmeden düğmeye basar;
+ * hangi iki şıktan söz edildiği harfiyle ve değeriyle açıkça yazılır. Cevabı söylemez.
+ */
+export function twoOptionHeading(question: ShowcaseCase["question"]): string {
+  const [first, second] = question.twoOption.pair.map((option) => {
+    const index = question.options.indexOf(option);
+    return index < 0 ? option : `${String.fromCharCode(65 + index)} (${option})`;
+  });
+  return `Bu soruda en çok karıştırılan iki şık ${first} ve ${second} şıklarıdır — aralarındaki fark:`;
+}
+
 export function bridgeCtaLabel(segment: AudienceSegment): string {
   return `🚀 Kendi notunu yükle ya da ${segment.campName} ücretsiz başlat →`;
+}
+
+/* ---------- Kahraman sahnesi: sekmeye göre not, ders ekranı ve yol ---------- */
+
+/** Sahnedeki not kartının dosyası: profilin gerçekten yüklediği türden bir ad (içerik vitrin örneğinden gelir). */
+const STAGE_FILES: Record<AudienceSegmentId, { file: string; subject: string }> = {
+  lise: { file: "Matematik yazılı notu.pdf", subject: "9. sınıf Matematik" },
+  "yks-lgs": { file: "TYT Matematik konu özeti.pdf", subject: "TYT Matematik" },
+  universite: { file: "İstatistik 3. hafta slaytı.pptx", subject: "İstatistik" },
+  akademik: { file: "KPSS Matematik notu.pdf", subject: "KPSS Matematik" },
+};
+
+export type HeroStageContent = {
+  note: { badge: string; file: string; heading: string; tip: string };
+  lesson: { topic: string; level: string; prompt: string; corrected: string };
+  path: { title: string; subtitle: string; nodes: { label: string; state: "done" | "next" | "todo"; plus?: boolean }[] };
+  gain: { value: string; detail: string };
+};
+
+/**
+ * Kahramandaki maket (10 Kasım 2026): sekme değişince not kartı, ders ekranı ve yol da o profilin vitrin örneğine
+ * döner. Eskiden hangi sekme seçilirse seçilsin aynı (tıp) notu duruyordu. Ders ekranındaki "önce dene" önermesi
+ * örneğin sınav tuzağıdır (yanlış inanç ve doğrusu); yeni içerik yazılmaz.
+ */
+export function heroStageFor(segmentId: AudienceSegmentId): HeroStageContent {
+  const item = SHOWCASE[segmentId];
+  const { file, subject } = STAGE_FILES[segmentId];
+  const heading = item.topic.split(" · ")[0] ?? item.topic;
+  return {
+    note: { badge: (file.split(".").pop() ?? "pdf").toLocaleUpperCase("tr"), file, heading, tip: item.trap.tell },
+    lesson: { topic: item.topic, level: item.level, prompt: item.trap.wrong, corrected: item.trap.right },
+    path: {
+      title: "Yolun",
+      subtitle: subject,
+      nodes: [
+        { label: "Seviye tespiti", state: "done" },
+        { label: `Ders · ${heading}`, state: "next" },
+        { label: "Konu testi", state: "todo" },
+        { label: "Podcast", state: "todo", plus: true },
+      ],
+    },
+    gain: { value: "+%12 kazandın", detail: "Konu hâkimiyeti %64" },
+  };
 }

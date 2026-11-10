@@ -128,29 +128,6 @@ export const LESSON_SCENE = {
   },
 } as const;
 
-/**
- * Kahraman sahnesi: notun sayfası → yol → ders ekranı. Hepsi üründe olan ekranlardan (hazırlık yolu,
- * "Sınavda sorulur" kutusu, "+%X kazandın" kartı); sayılar örnek olduğu için yalnız kart içinde.
- */
-export const STAGE = {
-  note: {
-    file: "Çocuk Sağlığı notu.pdf",
-    heading: "Döküntülü hastalıklar",
-    tip: "Suçiçeğinde makül, papül, vezikül ve kabuk aynı anda görülür.",
-  },
-  path: {
-    title: "Yolun",
-    subtitle: "Çocuk Sağlığı",
-    nodes: [
-      { label: "Seviye tespiti", state: "done" },
-      { label: "Ders · Döküntülü hastalıklar", state: "next" },
-      { label: "Konu testi", state: "todo" },
-      { label: "Podcast", state: "todo", plus: true },
-    ],
-  },
-  gain: { value: "+%12 kazandın", detail: "Konu hâkimiyeti %64" },
-} as const;
-
 export const TRUST = [
   {
     title: "Notuna sadık",
