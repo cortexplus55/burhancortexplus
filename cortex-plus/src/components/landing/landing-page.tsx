@@ -2,29 +2,38 @@ import Link from "next/link";
 import { ArrowRight, Check, Sparkles } from "lucide-react";
 import { CortexLogoReveal } from "@/components/brand/cortex-logo-reveal";
 import { AudienceHero } from "@/components/landing/audience-hero";
+import { FeatureReel } from "@/components/landing/feature-reel";
+import { LandingDuel } from "@/components/landing/landing-duel";
 import { FAQ, FREE_PLAN_POINTS, PLUS_PLAN_POINTS, TRUST_FACTS } from "@/lib/marketing/landing-content";
 import { WEEKLY_PLUS_PLAN_NAME } from "@/lib/billing/tier-presentation";
 import { PLAN_ALLOWANCES, allowanceInWork } from "@/lib/credits/price-table";
 import { formatTryWhole } from "@/lib/format";
 import type { PlusPrices } from "@/lib/billing/plan-prices";
 import "@/styles/landing.css";
+import "@/styles/home-cinema.css";
 
 export type LandingPrices = PlusPrices;
 
 const fmtCount = (n: number) => new Intl.NumberFormat("tr-TR").format(n);
 
 /**
- * Ana sayfa. 11 Kasım 2026'da üç bölüme indi (ürün sahibi: "uzun ve tekrarlı metin yığını olmasın; kısa ve net"):
+ * Ana sayfa. 11 Kasım 2026'da iki tur:
  *
- * 1. Kahraman + dört hedef kitle sekmesi ve 7 adımlı tanıtım turu (`AudienceHero`): ziyaretçi ürünü kendi
- *    tıklamasıyla yaşar.
- * 2. Ücretsiz ile Plus'ın tek ekranda karşılaştırması ve fiyatlar.
- * 3. Sık sorulanlar ve son çağrı.
+ * Sabah (ürün sahibi: "uzun ve tekrarlı metin yığını olmasın; kısa ve net"): eski ara bölümler kalktı.
+ * Akşam (ürün sahibi: "mavi zemin, mavi düğme klasik yapay zekâ sitesi gibi; yenilikçi, sinematik, fütüristik
+ * olsun; ana ekran boş kalmış, karşılaştırmalarımız da olsun"): sayfa bir filmin sahneleri gibi kuruldu.
  *
- * Eski ara bölümler (kanıt şeridi, "Plus'ın bir ayı", dört adım, özellik ızgarası, karşılaştırma tablosu) aynı
- * sözleri üç kez söylüyordu; kalktı. "Plus'ın bir ayı" ödeme sayfasında, özellikler `/ozellikler`de duruyor.
- * Bütün cümleler `landing-content.ts`, `landing-showcase.ts` ve `landing-journey.ts`te; ekrandaki her söz bugün
- * üründe çalışır. Hareket yalnız CSS ile ve `prefers-reduced-motion`da durur.
+ * 1. Kahraman: söz + sahne (ders notu ve ondan çıkan ışık şeridi), dört hedef kitle sekmesi (`AudienceHero`).
+ * 2. Tanıtım turu: ziyaretçi ürünü kendi tıklamasıyla yaşar.
+ * 3. Karşılaştırma düellosu ve kör deney kartı (`LandingDuel`, `#farklar`).
+ * 4. Film şeridi: ürünün etkinlikleri tek satırda (`FeatureReel`).
+ * 5. Ücretsiz ile Plus, güven satırı.
+ * 6. Sık sorulanlar ve son çağrı.
+ *
+ * Her sahnede tek başlık, en çok tek cümle; gerisini görsel söyler. Palet `home-cinema.css`te: sıcak siyah zemin,
+ * kâğıt beyazı eylem, logonun renk şeridi. Bütün cümleler `landing-content.ts`, `landing-showcase.ts`,
+ * `landing-journey.ts` ve `advantage-content.ts`te; ekrandaki her söz bugün üründe çalışır. Hareket CSS ile ve
+ * `prefers-reduced-motion`da durur.
  */
 export function LandingPage({ prices }: { prices: LandingPrices }) {
   const plus = allowanceInWork(PLAN_ALLOWANCES.plusMonthly);
@@ -32,15 +41,21 @@ export function LandingPage({ prices }: { prices: LandingPrices }) {
   const sigma = allowanceInWork(PLAN_ALLOWANCES.sigmaMonthly);
 
   return (
-    <div className="lp">
+    <div className="lp hm">
       {/* Kahraman, sekmeler ve tur tek durumda: sekme kayıt bağlantısını da değiştirir. */}
       <AudienceHero />
 
-      <section id="planlar" className="lp-section lp-compare" aria-labelledby="lp-plans-title">
+      <LandingDuel />
+
+      <FeatureReel />
+
+      <section id="planlar" className="hm-section lp-compare" aria-labelledby="lp-plans-title">
         <div className="lp-wrap" data-cinematic-reveal>
-          <h2 id="lp-plans-title" className="lp-h2">
-            Ücretsiz başla, sınav döneminde büyüt
-          </h2>
+          <div className="hm-head">
+            <h2 id="lp-plans-title" className="hm-h2">
+              Ücretsiz başla, sınav döneminde büyüt
+            </h2>
+          </div>
           <div className="lp-duo">
             <article className="lp-duo-card">
               <div className="lp-duo-head">
@@ -115,7 +130,7 @@ export function LandingPage({ prices }: { prices: LandingPrices }) {
 
       <section className="lp-section" aria-labelledby="lp-faq-title">
         <div className="lp-wrap lp-faq-wrap" data-cinematic-reveal>
-          <h2 id="lp-faq-title" className="lp-h2">
+          <h2 id="lp-faq-title" className="hm-h2 hm-h2--left">
             Sık sorulanlar
           </h2>
           <div className="lp-faq">
@@ -133,11 +148,11 @@ export function LandingPage({ prices }: { prices: LandingPrices }) {
         <div className="lp-horizon" aria-hidden />
         <div className="lp-wrap lp-final-inner">
           <CortexLogoReveal size={64} className="lp-final-mark" />
-          <h2 id="lp-final-title" className="lp-h2">
+          <h2 id="lp-final-title" className="hm-h2 hm-h2--end">
             İlk dersin birkaç dakika uzağında
           </h2>
           <p className="lp-muted">Notunu yükle ya da hazır müfredattan başla. Kart istemiyoruz.</p>
-          <Link href="/kayit" className="lp-btn lp-btn--primary">
+          <Link href="/kayit" className="lp-btn lp-btn--primary hm-cta">
             Ücretsiz başla
             <ArrowRight className="h-4 w-4" aria-hidden />
           </Link>

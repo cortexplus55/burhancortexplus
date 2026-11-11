@@ -31,6 +31,10 @@ const SURFACES = [
   // 11 Kasım 2026: 7 adımlı tanıtım turu vitrinin yerini aldı.
   "src/lib/marketing/landing-journey.ts",
   "src/components/landing/futuristic-guided-journey.tsx",
+  // 11 Kasım 2026, ikinci tur: sahne, karşılaştırma düellosu ve film şeridi.
+  "src/components/landing/hero-scene.tsx",
+  "src/components/landing/landing-duel.tsx",
+  "src/components/landing/feature-reel.tsx",
   "src/components/parity/first-step-launcher.tsx",
   "src/lib/student/first-step.ts",
   "src/lib/marketing/advantage-content.ts",

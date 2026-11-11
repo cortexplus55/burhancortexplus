@@ -22,6 +22,7 @@ const MARKETING_FILES = [
   "src/lib/marketing/landing-content.ts",
   "src/components/marketing/advantage-sections.tsx",
   "src/components/landing/landing-page.tsx",
+  "src/components/landing/landing-duel.tsx",
   "src/app/fiyatlandirma/page.tsx",
   "src/app/ozellikler/page.tsx",
   "src/app/ornek/page.tsx",
