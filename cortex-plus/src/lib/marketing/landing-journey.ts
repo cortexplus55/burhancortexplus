@@ -28,12 +28,20 @@ export type JourneyStep = {
 export const JOURNEY_STEPS: JourneyStep[] = [
   { id: "upload", short: "Not", title: "Notunu bırak", guide: "PDF'i tarama alanına sürükle ya da üstüne dokun" },
   { id: "roadmap", short: "Yol", title: "Yol haritan çıktı", guide: "1. dersi aç" },
-  { id: "lesson", short: "Ders", title: "Ansiklopedi değil, sınav mantığı", guide: "Kuralı oku, sonra soruda dene" },
-  { id: "question", short: "Soru", title: "Kuralı soruda dene", guide: "Bir şık seç; takılırsan ipucunu aç" },
-  { id: "cards", short: "Kart", title: "Dokun ve çevir", guide: "Karta dokun, arkasını gör" },
-  { id: "check", short: "D/Y", title: "Hızlı kontrol", guide: "Önerme doğru mu, yanlış mı?" },
+  { id: "lesson", short: "Ders", title: "Ders ekranın", guide: "Önce dene, sonra kuralı oku; dersi sonuna kadar ilerlet" },
+  { id: "question", short: "Soru", title: "Konu testi", guide: "Bir şık seç ve kontrol et; takılırsan iki şık ipucunu aç" },
+  { id: "cards", short: "Kart", title: "Akıllı kartlar", guide: "Önce hatırla, karta dokun, sonra kendini değerlendir" },
+  { id: "check", short: "D/Y", title: "Doğru / Yanlış", guide: "Önerme doğru mu, yanlış mı?" },
   { id: "plus", short: "Plus", title: "Aynı not, beş yol daha", guide: "İlk dersini ücretsiz başlat" },
 ];
+
+/** Ürünün kendi ekranıyla oynanan adımlar (`components/landing/tour/product-screens.tsx`). */
+export const JOURNEY_PRODUCT_STEPS = ["lesson", "question", "cards", "check"] as const satisfies readonly JourneyStepId[];
+export type JourneyProductStep = (typeof JOURNEY_PRODUCT_STEPS)[number];
+
+export function isProductStep(id: JourneyStepId): id is JourneyProductStep {
+  return (JOURNEY_PRODUCT_STEPS as readonly JourneyStepId[]).includes(id);
+}
 
 export const JOURNEY_COPY = {
   kicker: "Kayıt olmadan dene",
@@ -41,6 +49,12 @@ export const JOURNEY_COPY = {
   /** Dürüstlük notu: bu bir tanıtım turudur; örnek not hazırdır, hiçbir şey yüklenmez. */
   note: "Tanıtım turu: örnek not hazır, hiçbir dosya yüklenmez.",
   restart: "Turu baştan oyna",
+  /** Çerçevenin üstündeki söz: içindeki ekran çizim değil, ürünün kendisi. */
+  real: "Bu çerçevenin içi çizim değil, ürünün kendi ekranı. Kayıt olunca aynısıyla çalışırsın.",
+  loading: "Ekran açılıyor…",
+  failed: "Ekran açılamadı.",
+  retry: "Tekrar dene",
+  skip: "Bu adımı geç",
 } as const;
 
 /* ---------- 1. Not ---------- */
@@ -71,81 +85,11 @@ export const JOURNEY_ROADMAP = {
 
 /* ---------- 3. Ders ---------- */
 
-export const JOURNEY_LESSON = {
-  topic: "Köklü ifadelerin mantığı",
-  concept: "Köklü sayı şu sorunun cevabıdır: hangi sayının karesi (ya da n. kuvveti) kökün içindeki sayıyı verir?",
-  formula: {
-    title: "Kök dışına çıkarma kuralı",
-    rows: [
-      { label: "Tek dereceli kök", expression: "ⁿ√(aⁿ) = a", note: "İşaret korunur: ³√(−27) = −3" },
-      { label: "Çift dereceli kök", expression: "²ⁿ√(a²ⁿ) = |a|", note: "Mutlak değer olarak çıkar." },
-    ],
-  },
-  trap: {
-    title: "Sınav tuzağı",
-    wrong: "√((−5)²) = −5",
-    wrongWhy: "Kare ile kök birbirini götürür deyip eksiyi olduğu gibi çıkarmak.",
-    right: "√((−5)²) = |−5| = 5",
-    rightWhy: "Çift dereceli kökün sonucu negatif olamaz.",
-  },
-  hook: {
-    title: "Hafıza çivisi",
-    body: "Çift derece, çift muhafız: | |. Sayı kök dışına mutlak değer çizgilerinin arasından çıkar; eksi içeride kalır.",
-  },
-  cta: "Kuralı soruda dene",
-} as const;
-
-/* ---------- 4. Soru ---------- */
-
-export const JOURNEY_QUESTION = {
-  prompt: "√((−4)²) + ³√(−8) işleminin sonucu kaçtır?",
-  options: ["−6", "−2", "2", "6", "12"],
-  answer: "2",
-  /** Doğru cevabın gerekçesi (cevaptan sonra gösterilir). */
-  explanation: "Çift dereceli kökteki mutlak değer tuzağına düşmedin: |−4| + (−2) = 4 − 2 = 2.",
-  /** Yanlış şıkkın neden çekici olduğu; cevabı söylemez, öğrenciyi yeniden düşündürür. */
-  wrongWhy: {
-    "−6": "Bu, ilk terimi eksiyle çıkarınca bulunan sonuç: tuzağın ta kendisi. Çift dereceli kökten negatif sonuç çıkmaz; ilk terime yeniden bak.",
-    "−2": "Küp kökü doğru aldın, ama ilk terim hesaba girmedi. √((−4)²) kök dışına nasıl çıkar?",
-    "6": "İlk terim doğru, ama küp kökü de artı aldın. Tek dereceli kök işareti korur.",
-    "12": "Burada çarpma karışmış. İki terimi ayrı ayrı kök dışına çıkar, sonra topla.",
-  } as Record<string, string>,
-  /**
-   * "İki şık arasında kaldım": en çok karıştırılan iki şık ve aralarındaki farkı hatırlatan cümle. Cevabı söylemez
-   * (ürün kuralı; ipucunda hesap yapılmaz).
-   */
-  twoOption: {
-    pair: ["−6", "2"] as [string, string],
-    hint: "Biri kare ile kökün birbirini götürdüğünü varsayar; öbürü çift dereceli kökün sonucunun negatif olamayacağını kullanır. İlk terim kök dışına hangi işaretle çıkmalı?",
-  },
-  cta: "Akıllı kartlara geç",
-} as const;
-
-/* ---------- 5. Kart ---------- */
-
-export const JOURNEY_CARD = {
-  front: "√(a²) kök dışına nasıl çıkar, neden?",
-  back: "|a| olarak çıkar. Çünkü çift dereceli kökün sonucu gerçek sayılarda negatif olamaz.",
-  flipHint: "Karta dokun, arkasını çevir",
-  again: "Tekrar sor",
-  cta: "Öğrendim: doğru/yanlışa geç",
-} as const;
-
-/* ---------- 6. Doğru / Yanlış ---------- */
-
-export const JOURNEY_TRUTH = {
-  statement: "x < 0 olmak üzere, √(x²) ifadesi kök dışına −x olarak çıkar.",
-  answer: true,
-  explanation:
-    "İnce nokta: x zaten negatif (örneğin x = −3). Sonucun pozitif çıkması için önüne eksi alır: −x = −(−3) = 3. Önerme doğru.",
-  /** Doğru/yanlışta şık yoktur: koç cümlesi önermeye göre yazılır. */
-  rightLine: "🎯 İnce noktayı yakaladın.",
-  wrongLine: "💪 Çoğu kişi burada takılır; ince nokta şu:",
+/** Tur bitince (doğru/yanlıştan sonra) görünen sonuç satırı. Ders, soru, kart ve önermelerin kendisi `guest-tour.ts`te. */
+export const JOURNEY_RESULT = {
   doneTitle: "1. ders tamamlandı",
   cta: "Plus'ta başka neler var?",
 } as const;
-
-/* ---------- 7. Plus vitrini ---------- */
 
 export type JourneyPlusCard = { id: string; icon: string; title: string; body: string; preview?: { who: string; line: string }[] };
 
@@ -210,21 +154,22 @@ export function journeyGuideLine(id: JourneyStepId): string {
  * Turun sonucu: ziyaretçinin gerçekten verdiği cevaplardan. Cevaplanmayan soru sayılmaz; hiç cevap yoksa yüzde
  * yazılmaz (uydurma "%100" gösterilmez).
  */
-export function journeyScore(input: { questionCorrect: boolean | null; truthCorrect: boolean | null }): {
+/**
+ * Sonuç halkası ziyaretçinin gerçek cevaplarından: konu testi sorusu (ilk kilitlenen cevap) ve doğru/yanlış
+ * önermeleri. Atlanan adım sayılmaz; hiç cevap yoksa yüzde yazılmaz.
+ */
+export function journeyScore(input: { questionCorrect: boolean | null; truth: { right: number; total: number } | null }): {
   correct: number;
   answered: number;
   pct: number | null;
   line: string;
 } {
-  const results = [input.questionCorrect, input.truthCorrect].filter((value): value is boolean => value !== null);
-  const correct = results.filter(Boolean).length;
-  const answered = results.length;
-  const pct = answered ? Math.round((correct / answered) * 100) : null;
-  const line = answered ? `${answered} sorudan ${correct} doğru` : "Soruları atladın; istersen geri dönüp çöz";
-  return { correct, answered, pct, line };
+  const answered = (input.questionCorrect === null ? 0 : 1) + (input.truth?.total ?? 0);
+  const correct = (input.questionCorrect ? 1 : 0) + (input.truth?.right ?? 0);
+  if (!answered) return { correct: 0, answered: 0, pct: null, line: "Soruları atladın; kayıt olunca kendi notunla dene." };
+  return { correct, answered, pct: Math.round((correct / answered) * 100), line: `${answered} sorudan ${correct} doğru` };
 }
 
-/** Kayıt bağlantısı seçili hedef kitleyi taşır (`signup-preset.ts`). */
 export function journeySignupHref(segment: AudienceSegmentId): `/kayit?hedef=${AudienceSegmentId}` {
   return `/kayit?hedef=${segment}`;
 }

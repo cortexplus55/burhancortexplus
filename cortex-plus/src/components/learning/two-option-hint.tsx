@@ -10,17 +10,22 @@ import "@/styles/twin-question.css";
  * "🤔 İki şık arasında kaldım" (31 Ekim 2026, Paket J3 #12): cevap kilitlenmeden önce. Öğrenci iki şıkka dokunur;
  * sunucu ikisi arasındaki kavramsal farkı tek cümleyle hatırlatır, cevabı söylemez. İpucu alınan soru bağımsız başarı
  * sayılmaz (`onUsed` → `markHint`).
+ *
+ * `resolve` (11 Kasım 2026): ipucunu sunucu yerine çağıranın verdiği işlev üretir. Ana sayfadaki tanıtım turu aynı
+ * bileşeni örnek veriyle, istek atmadan kullanır; ürün içinde verilmez ve davranış değişmez.
  */
 export function TwoOptionHint({
   attemptId,
   index,
   options,
   onUsed,
+  resolve,
 }: {
   attemptId: string;
   index: number;
   options: string[];
   onUsed?: () => void;
+  resolve?: (pair: string[]) => string | null | Promise<string | null>;
 }) {
   const [open, setOpen] = useState(false);
   const [pair, setPair] = useState<string[]>([]);
@@ -31,6 +36,10 @@ export function TwoOptionHint({
     setLoading(true);
     onUsed?.();
     try {
+      if (resolve) {
+        setHint((await resolve(next)) || TWO_OPTION_FALLBACK);
+        return;
+      }
       const response = await fetch("/api/learning/two-option-hint", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
