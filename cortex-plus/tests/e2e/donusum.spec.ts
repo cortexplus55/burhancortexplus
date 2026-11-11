@@ -58,6 +58,16 @@ test.describe("dönüşüm paketi", { tag: ["@public"] }, () => {
       await tour.getByRole("button", { name: "1. dersi başlat" }).click();
       await expect(tour.locator(".lj-formula")).toBeVisible();
       await check("ders");
+      // Adım değişince ilerleme çizgisi sabit menünün altında kalmaz.
+      await expect
+        .poll(() =>
+          page.evaluate(
+            () =>
+              document.querySelector(".lj-rail")!.getBoundingClientRect().top -
+              document.querySelector("header.mkh")!.getBoundingClientRect().bottom,
+          ),
+        )
+        .toBeGreaterThanOrEqual(0);
       await tour.getByRole("button", { name: "Kuralı soruda dene", exact: true }).click();
       await tour.getByRole("button", { name: /İki şık arasında kaldım/ }).click();
       await expect(tour.locator(".lj-hint")).toBeVisible();

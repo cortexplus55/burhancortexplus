@@ -229,7 +229,8 @@
   position: relative;
   padding: 1rem clamp(1rem, 3.2vw, 2rem) clamp(1.25rem, 3.2vw, 2rem);
   outline: none;
-  scroll-margin-top: 6rem;
+  /* Sabit menü (4rem) ve ilerleme çizgisi (~5.6rem) adım değişince görünür kalsın. */
+  scroll-margin-top: 10.5rem;
 }
 
 .lj-stage-head {

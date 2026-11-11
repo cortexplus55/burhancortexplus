@@ -83,9 +83,14 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
     const stage = stageRef.current;
     if (!stage) return;
     stage.focus({ preventScroll: true });
-    if (typeof stage.scrollIntoView === "function") {
-      stage.scrollIntoView({ block: "nearest", behavior: prefersReducedMotion() ? "auto" : "smooth" });
-    }
+    if (typeof stage.scrollIntoView !== "function") return;
+    // Yeni adımın başı sabit menünün ve ilerleme çizgisinin altında, ekranın üst yarısındaysa sayfa kaymaz. Değilse
+    // (telefonda adım ekrandan uzunken önceki düğme aşağıda kalır) adımın başına hizalanır; boşluk CSS'teki
+    // `scroll-margin-top`tan gelir. "nearest" ekrandan uzun adımda hiç kaydırmıyordu.
+    const top = stage.getBoundingClientRect().top;
+    const margin = Number.parseFloat(getComputedStyle(stage).scrollMarginTop) || 0;
+    if (top >= margin - 1 && top <= window.innerHeight / 2) return;
+    stage.scrollIntoView({ block: "start", behavior: prefersReducedMotion() ? "auto" : "smooth" });
   }, [step]);
 
   useEffect(
