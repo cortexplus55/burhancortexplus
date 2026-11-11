@@ -43,7 +43,7 @@
 }
 
 .lp-aud-tab.is-on {
-  border-color: rgba(142, 152, 255, 0.7);
-  background: rgba(67, 83, 243, 0.2);
-  box-shadow: 0 0 0 1px rgba(142, 152, 255, 0.25) inset;
+  border-color: rgba(246, 236, 217, 0.56);
+  background: rgba(246, 236, 217, 0.11);
+  box-shadow: 0 0 0 1px rgba(246, 236, 217, 0.2) inset;
 }

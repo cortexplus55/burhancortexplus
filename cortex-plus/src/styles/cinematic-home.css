@@ -22,14 +22,17 @@
 }
 
 :is(.cinematic-home, .cinematic-marketing) .mk-btn-primary {
-  /* 19 Ekim 2026: birincil eylem uygulamadaki gibi mavi; altın yalnız marka ve Plus. */
-  background: #4353f3;
-  color: #fff;
-  box-shadow: 0 10px 30px -12px rgba(67, 83, 243, 0.7);
+  /* 11 Kasım 2026 (ürün sahibi): pazarlama sayfalarında birincil eylem mavi değil, kâğıt beyazı ışık; altın yine
+     yalnız marka ve Plus. Uygulamanın içi (öğrenci kabuğu) mavide kalır. */
+  background: #f6ecd9;
+  color: #1b140d;
+  box-shadow:
+    0 0 0 1px rgba(255, 250, 240, 0.6) inset,
+    0 10px 30px -12px rgba(255, 196, 140, 0.55);
 }
 
 :is(.cinematic-home, .cinematic-marketing) .mk-btn-primary:hover {
-  background: #5463ff;
+  background: #fffaf0;
 }
 
 :is(.cinematic-home, .cinematic-marketing) .mk-btn-play {

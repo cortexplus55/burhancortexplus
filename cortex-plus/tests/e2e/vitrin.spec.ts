@@ -7,9 +7,10 @@ import path from "node:path";
   VITRIN_SHOTS_DIR verilirse / ve /fiyatlandirma tam sayfa görüntüsü oraya kaydedilir.
 */
 
-// 11 Kasım 2026: ana sayfa üç bölüme indi (tanıtım turu + plan ikilisi); kanıt kartı ve tam karşılaştırma /ozellikler'de.
+// 11 Kasım 2026: ana sayfada tur, karşılaştırma düellosu (kör deney kartıyla), film şeridi ve plan ikilisi;
+// kanıt kartı ve tablo hâli /ozellikler'de de duruyor.
 const PAGES: { path: string; testIds?: string[]; selectors?: string[] }[] = [
-  { path: "/", selectors: ["section.lj", "#planlar"] },
+  { path: "/", testIds: ["blind-proof", "advantage-comparison"], selectors: ["section.lj", ".hs", ".hm-film", "#planlar"] },
   { path: "/fiyatlandirma", testIds: ["pricing-advantage"] },
   { path: "/ozellikler", testIds: ["advantage-showcase", "blind-proof", "advantage-badges", "advantage-comparison"] },
   { path: "/ornek", testIds: ["advantage-compact"] },

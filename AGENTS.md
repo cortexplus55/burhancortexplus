@@ -2528,7 +2528,7 @@ cümle, genel duygu ifadesinde kriz sorusunun gelmemesi. Bekçi: `guven-sohbet-t
 
 Ürün sahibi: "misafir ilk giriş ekranı kalabalık olmasın, kısa ve net anlatsın; logoyu daha öne çıkar; klasik tasarımın
 dışına çık, yenilikçi ve fütüristik olsun" ve aynı istekte: ücretsiz hesabın ilk dersi süreye ve haftalık hakka
-takılmasın. Aşağıdaki kararların bir kısmı eski kuralları **bilerek** değiştirir; geri almayın.
+takılmasın. Aşağıdaki kararların bir kısmı eski kuralları **bilerek** değiştirir; geri almayın. **Aynı gün ikinci turda renkler ve bölüm sayısı değişti:** bir sonraki bölüm ("Sinematik ana sayfa") geçerlidir; buradaki "üç bölüm" ve `#4f46e5` satırları tarihçedir.
 
 | Kural | Nerede |
 |---|---|
@@ -2552,3 +2552,25 @@ dokunulmayan davranış: `final_check` ve `readiness` adımı ilk konunun kimli�
 Bekçi: `misafir-turu.test.tsx`, `landing-showcase.test.ts`, `marketing-claims.test.ts`, `ilk-ders-dongusu.test.ts`,
 `sinav-sabahi-plus.test.tsx`, `free-tier-counts.test.ts` (PGlite), e2e `vitrin.spec.ts`, `donusum.spec.ts` (375 ve 360 px: tur baştan sona,
 taşma 0, dokunma ≥ 44 px, ağ isteği yok; menü sabit).
+
+## Sinematik ana sayfa (11 Kasım 2026, ikinci tur) — mavi yok: sıcak siyah, kâğıt beyazı ışık, logonun şeridi
+
+Ürün sahibi sabahki tasarımı görünce: "mavi arka ton, mavi düğmeler çok basit kaldı; klasik bir yapay zekâ sitesi gibi
+oldu. Yenilikçi, sinematik ve fütüristik olsun. Ana ekran çok boş olmuş; karşılaştırmalarımız da olsun. Her giren
+'vay be' desin." Mantık (tur, sekmeler, süresiz ilk ders) aynen kaldı; görünüm baştan kuruldu. Bu bölüm sabahki
+"Misafir ana sayfası" bölümünün **renk ve bölüm sayısı** satırlarını ve 19 Ekim'in "pazarlamada birincil eylem mavi"
+kuralını değiştirir. Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| **Palet (yalnız pazarlama sayfaları):** zemin sıcak siyah `#0b0907`, yüzeyler `#15110d` / `#1e1813`, metin `#f7f1e8`, soluk `#b9ada0`. **Birincil eylem kâğıt beyazı** `#f6ecd9`, üstündeki yazı mürekkep `#1b140d` (`--lp-action`, `--lp-on-action`, `.mk-btn-primary`, turda `--lj-paper`). Tek renk kaynağı **logonun şeridi**: kehribar `#ffb224` → gül `#ff4d8d` → mor `#8b5cf6` → camgöbeği `#22d3ee`. Mavi zemin, mavi düğme, çivit ve camgöbeği vurgu yok (bekçi stil dosyalarını tarar). Altın yine yalnız marka ve Plus. **Uygulamanın içi (öğrenci kabuğu) mavide kalır** (`tokens.css` değişmedi); `/ornek`teki ders ekranı ürünün kendi rengini gösterir | `landing.css` (belirteçler), `home-cinema.css`, `landing-journey.css`, `cinematic-home.css`, `parity-marketing.css`, `advantage.css` |
+| **Şerit sayfanın anlatıcısıdır:** kahramanda ders notundan çıkıp çalışma yoluna dönüşür, başlığın altını çizer, bölüm başlıklarının altındaki kısa çizgidir, karşılaştırmada iki tarafı ayıran omurgadır, birincil düğmenin ışığıdır, üst menüde sayfa kaydıkça açılan ilerleme çizgisidir (`animation-timeline: scroll()`; tanımayan tarayıcıda ve hareket azaltmada tamamı açık). Yeni bir süs rengi eklemeyin; renk gerekiyorsa şeritten alın | `home-cinema.css` (`--hm-ribbon`), `parity-marketing.css` (`.mkh-rail::before`) |
+| **Sahneler (sırayla):** (1) kahraman: söz + sahne, dört sekme; (2) 7 adımlı tur; (3) karşılaştırma düellosu, başında kör deney kartı (`#farklar`); (4) film şeridi; (5) Ücretsiz / Plus ve güven satırı; (6) sık sorulanlar, son çağrı. Her sahnede tek başlık ve en çok tek cümle; gerisini görsel söyler. Sabahki "üç bölüm" düzeni bununla değişti | `landing-page.tsx` |
+| **Kahramandaki sahne** (`HeroScene`): bir ders notu (kâğıt, el yazısı `--font-hand`, fosforlu satır) ve ondan çıkan ışık şeridi; şerit dört duraktan geçer ve "Sınava hazır" halkasında biter. Duraklar **ücretsiz ilk dersin adımlarıdır** (`FIRST_LESSON_STEPS` ile aynı sıra; bekçi karşılaştırır), simgeler ürünün 3B seti. Şeridin yolu ile durakların yeri aynı düzlemde (500 × 600) elle verilir, birlikte değişir. Ölçüler kabın genişliğine bağlı (`cqw`): telefonda da aynı kompozisyon. İmleç sahneyi birkaç derece eğer (yalnız fare, hareket azaltma kapalıyken). Ekran okuyucuya tek cümle (`role="img"`). Notta "sınavda çıkar" gibi söz yazılmaz | `hero-scene.tsx`, `landing-content.ts` `HERO_SCENE` |
+| **Karşılaştırma düellosu** (`LandingDuel`): metin `advantage-content.ts`ten (kanıtlı satırlar, rakip adı yok); yalnız sunum değişti. Ortada şerit omurga, satırın simgesi onun üstünde; sağda Cortex Plus ışıkta (çerçevesi şerit), solda genel botlar sönük ve kesik çizgili. Telefonda tek sütun, şerit solda. Tablo hâli `/ozellikler`de de duruyor | `landing-duel.tsx`, `HOME_COPY.duel` |
+| **Film şeridi** (`FeatureReel`): on iki etkinlik tek satırda, yana kayar (dokunma, tekerlek, klavye, iki düğme); sayfa uzamaz. Kareler koleksiyon, numara yok. Plus kareleri etiketli ve gerçek kilitlerle aynı (podcast, çizimli video, sözlü, yazılı deneme, sınav sabahı kâğıdı); ilk dersin adımları etiketsiz | `feature-reel.tsx`, `REEL_FRAMES` |
+| **Tuzaklar:** film greni sabit katmanda **karışım kipi olmadan** (hareketli öğelerin çevresinde dikdörtgen iz bırakıyordu). Projeksiyon ışını `conic-gradient` + `blur` değil, döndürülmüş radyal leke (kutunun kenarı görünüyordu). Kâğıt zeminde `color: #fff` kalmasın (`--lp-on-action`). Git Bash'te `node -e` içine ters eğik çizgili düzenli ifade yazmayın: MSYS yol çevirisi dizgeyi bozuyor; dosyayı Edit ile değiştirin | `home-cinema.css` |
+
+Bekçi: `sinematik-ana-sayfa.test.tsx` (palet, sahne durakları ↔ ilk ders adımları, düello satırları, film şeridi Plus etiketleri,
+sahne sırası, yazı tabanı), `misafir-turu.test.tsx`, `marketing-claims.test.ts`, e2e `vitrin.spec.ts` (ana sayfada sahne, kör deney,
+düello, film şeridi ve planlar 375 ve 1280 px'te görünür ve taşmaz), `donusum.spec.ts`, `responsive-a11y.spec.ts`.

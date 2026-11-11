@@ -229,11 +229,11 @@ describe("görünüm kuralları", () => {
     }
     expect(css).toMatch(/\.lj-ghost,\n\.lj-chip \{[^}]*min-height: 2\.75rem/);
     expect(css).toContain("@media (prefers-reduced-motion: reduce)");
-    // Dolu düğme zemini beyaz yazıyla okunur tonda (#6366f1 4,5:1'in altında kalıyordu).
-    expect(css).toMatch(/\.lj-cta \{[^}]*background: var\(--lj-indigo-deep\)/);
+    // Dolu düğme kâğıt beyazı, yazısı mürekkep (ikinci tur: mavi düğme kalktı).
+    expect(css).toMatch(/\.lj-cta \{[^}]*background: var\(--lj-paper\);[^}]*color: var\(--lj-paper-ink\)/);
   });
 
-  it("ana sayfa üç bölüm: kahraman + tur, karşılaştırma, SSS ve son çağrı", () => {
+  it("ana sayfa: kahraman + tur önce, planlar ve SSS sonda; eski ara bölümler geri gelmedi", () => {
     const page = withoutComments(read("src/components/landing/landing-page.tsx"));
     expect(page).toContain("<AudienceHero />");
     for (const removed of ["<PlusMonth", "<AdvantageShowcase", "<AdvantageComparison", "lp-proof", "lp-flow", "lp-bento"]) {
