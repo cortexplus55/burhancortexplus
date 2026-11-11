@@ -1,7 +1,12 @@
+import { FREE_FIRST_LESSON_SENTENCE, PLUS_ONLY_SENTENCE } from "@/lib/billing/free-tier-copy";
+
+/** 11 Kasım 2026: ücretsizde ne açık, Plus'a ne özel; cümleler tek kaynaktan (`free-tier-copy.ts`). */
+const DEFAULT_DESCRIPTION = `${FREE_FIRST_LESSON_SENTENCE} ${PLUS_ONLY_SENTENCE} Plus ayrıca bütün konuları ve geniş aylık hakkı açar; abonelik kendiliğinden yenilenmez.`;
+
 export function PremiumPlanHero({
   eyebrow = "Plus",
   title = "Daha fazla çalış, sınırda kalma",
-  description = "Ders, test, kartlar ve AI öğretmen ücretsiz planda da açık. Plus geniş aylık hak, podcast, sözlü ve yazılı deneme ile video ders ekler; abonelik kendiliğinden yenilenmez.",
+  description = DEFAULT_DESCRIPTION,
   align = "center",
   headingLevel = "h2",
 }: {

@@ -175,8 +175,9 @@ describe("ana sayfanın sayıları koddan", () => {
     expect(sql).toContain(`WHEN 'photo' THEN ${FREE_LIMITS.photo}`);
     // Ücretsiz günlük kredi 0: credit_reserve'ün son hâli ayrı göçte (20261024123000).
     expect(read("supabase/migrations/20261024123000_free_daily_zero.sql")).toContain("v_allowance := 0;");
-    // 31 Ekim 2026 (Paket J1 #3): ücretsizde ilk hazırlığın 1. konusu tam açık; ders sayacı o konunun içinde.
-    expect(text).toContain("ilk hazırlığında 1. konu tam açık (dersleri, testleri ve kartlarıyla; haftada 3 derse kadar), günde 3 sohbet mesajı ve günde 1 fotoğraftan soru çözümü");
+    // 11 Kasım 2026 (ürün sahibinin kararı): ilk dersin döngüsü süreye ve haftalık hakka takılmaz; haftalık ders hakkı
+    // Çalışma Stüdyosu ve "Farklı anlat" için (31 Ekim'de sayaç 1. konunun içinde de geçerliydi).
+    expect(text).toContain('ilk hazırlığında ilk dersin (konu anlatımı, kartlar, doğru/yanlış ve konu testi) süre sınırı olmadan açık; Çalışma Stüdyosu ve "Farklı anlat" için haftada 3 ders hakkı, günde 3 sohbet mesajı ve günde 1 fotoğraftan soru çözümü');
     expect(text).toContain("1. konusu tam açık, günde 3 mesaj");
     expect(text).not.toContain("günde bir ders");
   });

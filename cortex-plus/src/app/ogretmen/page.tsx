@@ -160,6 +160,8 @@ export default async function OgretmenPage({
     examTitle: countdown?.state === "countdown" ? countdown.examTitle : null,
     hour,
     seed: istanbulDay(),
+    // 11 Kasım 2026: sınav sabahı kâğıdı Plus'ta; ücretsiz hesaba (yükseltme kromu gören) kâğıt önerilmez.
+    cramSheetLocked: account?.showsUpgradeChrome === true,
   };
   const startGreeting = companionStartGreeting(companionSignals);
   const style = parseTutorStyle(profile?.tutor_style);

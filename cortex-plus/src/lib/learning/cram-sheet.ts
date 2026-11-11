@@ -10,6 +10,8 @@ import { formulaRelationKeys } from "@/lib/text/math-normalize";
  */
 
 export const CRAM_SHEET_TITLE = "⚡ Sınav Sabahı 15 Dakikalık Son Tekrar & Formül Kağıdı";
+/** Kısa ad: Plus kapısının cümlesi ve rozetin okunuşu (11 Kasım 2026: kâğıt ücretsiz hesapta açılmaz). */
+export const CRAM_SHEET_NAME = "Sınav sabahı kâğıdı";
 export const CRAM_PRINT_LABEL = "Yazdır / PDF olarak kaydet";
 export const CRAM_EMPTY_TEXT =
   "Önce birkaç ders bitir: formüller, sınav tuzakları, hafıza çivileri ve en çok yanıldığın noktalar burada tek sayfada toplanır.";

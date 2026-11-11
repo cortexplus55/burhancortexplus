@@ -1,5 +1,6 @@
 import type { ActionCode } from "@/lib/env";
 import { addDays, istanbulDay, isoWeekday, isoWeekKey } from "@/lib/istanbul-day";
+import { FREE_FIRST_LESSON_CLAUSE } from "@/lib/billing/free-tier-copy";
 
 /**
  * Sayıya dayalı ücretsiz katman (24 Ekim 2026, ürün sahibinin kararı). İstemci de okuduğu için
@@ -10,6 +11,9 @@ import { addDays, istanbulDay, isoWeekday, isoWeekKey } from "@/lib/istanbul-day
  * - Haftada 3 ders. Dersin içindeki yardımcılar (koç, eğitmen notu) ve yolda o dersin ardındaki test /
  *   kartlar derse dahil ("included"). Araçlar'dan açılan test, kart, doğru/yanlış dersten düşer;
  *   Araçlar'daki "Anlatarak öğren" mesaj sayacından.
+ * - 11 Kasım 2026: ilk hazırlığın 1. konusunda adımın ilk açılışı (konu anlatımı dahil) haftalık ders hakkından
+ *   düşmez, "included" ile ayrılır (`first-lesson-cycle.ts`). Haftalık hak Araçlar, "Farklı anlat" ve ilk hazırlık
+ *   dışındaki dersler için.
  * - Günde 3 sohbet mesajı (yazılı soru çözümü de mesajdır).
  * - Günde 1 fotoğraftan soru çözümü.
  * - Podcast, sözlü, yazılı deneme, video ve ses Plus'ta.
@@ -102,11 +106,13 @@ export function freeMeterResetLine(meter: FreeMeter): string {
 }
 
 /**
- * Pazarlama ve kapılarda tek cümle. 31 Ekim 2026 (Paket J1 #3, "ilk doz bedava"): ücretsiz hesapta ilk hazırlığın
- * 1. konusu tam açık (free-topic-gate.ts); haftalık ders sayacı o konunun içinde geçerli.
+ * Pazarlama ve kapılarda tek cümle; ardına "var", "açık" ya da "ücretsiz" gelir. 31 Ekim 2026 (Paket J1 #3, "ilk doz
+ * bedava"): ücretsiz hesapta ilk hazırlığın 1. konusu açık (free-topic-gate.ts). 11 Kasım 2026 (ürün sahibinin
+ * kararı): o ilk dersin adımları süreye ve haftalık ders hakkına takılmaz (first-lesson-cycle.ts); haftalık hak
+ * Çalışma Stüdyosu'ndaki üretimler ve "Farklı anlat" için.
  */
 export const FREE_TIER_SENTENCE =
-  `İlk hazırlığında 1. konu tam açık (dersleri, testleri ve kartlarıyla; haftada ${FREE_LESSONS_PER_WEEK} derse kadar), günde ${FREE_CHAT_PER_DAY} sohbet mesajı ve günde ${FREE_PHOTO_PER_DAY} fotoğraftan soru çözümü`;
+  `${FREE_FIRST_LESSON_CLAUSE}; Çalışma Stüdyosu ve "Farklı anlat" için haftada ${FREE_LESSONS_PER_WEEK} ders hakkı, günde ${FREE_CHAT_PER_DAY} sohbet mesajı ve günde ${FREE_PHOTO_PER_DAY} fotoğraftan soru çözümü`;
 
 /** Davet: iki tarafa bir kez hediye (SQL `grant_referral_gift`, 90 kredi = 3 ders). */
 export const REFERRAL_GIFT_LESSONS = 3;

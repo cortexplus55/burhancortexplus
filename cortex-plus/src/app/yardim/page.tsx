@@ -4,7 +4,7 @@ import { PLAN_ALLOWANCES } from "@/lib/credits/price-table";
 import Link from "next/link";
 import { LifeBuoy, Mail } from "lucide-react";
 import { MarketingPage } from "@/components/layout/marketing-page";
-import { FREE_PAGE_TOTAL } from "@/lib/billing/free-tier-copy";
+import { FREE_PAGE_TOTAL, PLUS_ONLY_SENTENCE } from "@/lib/billing/free-tier-copy";
 import { supportSlaLine } from "@/lib/support/sla";
 
 export const metadata = {
@@ -21,7 +21,8 @@ const faqs = [
   },
   {
     question: "Ücretsiz olarak ne yapabilirim?",
-    answer: `Ücretsiz hesapta ${FREE_TIER_SENTENCE.charAt(0).toLocaleLowerCase("tr")}${FREE_TIER_SENTENCE.slice(1)} var; ders hakkı Pazartesi, mesaj ve fotoğraf hakkı gece yarısı yenilenir. Bir sınav hazırlığı kurabilir, toplam ${FREE_PAGE_TOTAL} sayfa belge işletebilirsin. Podcast, sözlü ve yazılı deneme, video ders ve sesli dinleme Plus'ta.`,
+    // 11 Kasım 2026: ilk dersin döngüsü süreye ve haftalık hakka takılmaz; Plus'a özel olanlar tek kaynaktan.
+    answer: `Ücretsiz hesapta ${FREE_TIER_SENTENCE.charAt(0).toLocaleLowerCase("tr")}${FREE_TIER_SENTENCE.slice(1)} var; haftalık ders hakkı Pazartesi, mesaj ve fotoğraf hakkı gece yarısı yenilenir. Bir sınav hazırlığı kurabilir, toplam ${FREE_PAGE_TOTAL} sayfa belge işletebilirsin; ilk konudan sonraki konular Plus'ta açılır. ${PLUS_ONLY_SENTENCE} Sesli dinleme de Plus'ta.`,
   },
   {
     question: "Dosyalarım güvende mi?",
@@ -31,7 +32,7 @@ const faqs = [
   {
     question: "Plus ile ücretsiz arasındaki fark nedir?",
     answer:
-      `Plus hacim ve hız satar: ${allowanceWorkLine(PLAN_ALLOWANCES.plusMonthly).replace(/^A/, "a")}, belgenin tamamı, sınırsız hazırlık, podcast, sözlü ve yazılı deneme, video ders ve hazır içerik yokken daha hızlı yazım. Abonelik kendiliğinden yenilenmez.`,
+      `Plus hacim ve hız satar: ${allowanceWorkLine(PLAN_ALLOWANCES.plusMonthly).replace(/^A/, "a")}, belgenin tamamı ve bütün konular, sınırsız hazırlık, podcast, video ders, sözlü ve yazılı deneme, sınav sabahı kâğıdı ve hazır içerik yokken daha hızlı yazım. Abonelik kendiliğinden yenilenmez.`,
   },
   {
     question: "Destek ne kadar sürede döner?",

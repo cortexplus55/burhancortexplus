@@ -14,6 +14,33 @@ export const FREE_PREP_LIMIT = 1;
  */
 export const FREE_PAGE_TOTAL = 25;
 
+/**
+ * İlk dersin temel döngüsü (11 Kasım 2026, ürün sahibinin kararı): ücretsiz hesapta ilk hazırlığın ilk dersi süreye
+ * ve haftalık ders hakkına takılmadan açık (`first-lesson-cycle.ts`). Adımlar yoldaki sırasıyla.
+ */
+export const FIRST_LESSON_STEPS = ["Konu Anlatımı", "Kartlar", "Doğru/Yanlış", "Konu Testi"] as const;
+
+/**
+ * Ücretsiz hesapta hiç açılmayanlar: ilk dördü kredi kapısında (`PLUS_ONLY_ACTIONS`, SQL `plus_only_action`), sınav
+ * sabahı kâğıdı sayfa kapısında (kredi işi değil; `sinav-sabahi/page.tsx`). Bekçi test listeyi kapılarla karşılaştırır.
+ */
+export const PLUS_ONLY_FEATURES = ["Podcast", "Video", "Sözlü", "Yazılı Deneme", "Sınav Sabahı Kâğıdı"] as const;
+
+/** "A, B ve C". */
+function listWithAnd(items: readonly string[]): string {
+  return items.length < 2 ? items.join("") : `${items.slice(0, -1).join(", ")} ve ${items[items.length - 1]}`;
+}
+
+/** Pazarlama ve fiyat yüzeylerinin tek cümlesi. "Sınırsız" denmez: süre sınırı yok, günlük kötüye kullanım sınırı var. */
+export const FREE_FIRST_LESSON_SENTENCE = `İlk hazırlığında ilk dersin (${FIRST_LESSON_STEPS.join(" + ")}) süre sınırı olmadan ücretsiz.`;
+
+export const PLUS_ONLY_SENTENCE = `${listWithAnd(PLUS_ONLY_FEATURES)} Plus'a özeldir.`;
+
+/** Cümle içinde kullanılan hâli ("… açık; ayrıca …"): `FREE_TIER_SENTENCE` bununla başlar. */
+export const FREE_FIRST_LESSON_CLAUSE = `İlk hazırlığında ilk dersin (${listWithAnd(
+  FIRST_LESSON_STEPS.map((step) => step.toLocaleLowerCase("tr")),
+)}) süre sınırı olmadan açık`;
+
 export const FREE_PREP_LIMIT_MESSAGE =
   "Ücretsiz planda bir sınav hazırlığı kurabilirsin. Yenisini kurmak için Plus'a geç.";
 

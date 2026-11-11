@@ -25,6 +25,15 @@ export async function pathSkipKinds(service: SupabaseClient, userId: string): Pr
   }
 }
 
+/**
+ * Plus'a özel sayfa (kredi işi olmayan: sınav sabahı kâğıdı; 11 Kasım 2026, ürün sahibinin kararı) bu hesapta kilitli
+ * mi. Karar yolun Plus adımlarıyla aynı: abone, kodla açılan Plus denemesi ve önizlemesi kapalı kurucu açık;
+ * "ücretsiz gibi gör" önizlemesindeki kurucu ücretsiz. Okuma düşerse kilit yok (öğrenci aleyhine hata yapma).
+ */
+export async function plusOnlyLocked(service: SupabaseClient, userId: string): Promise<boolean> {
+  return (await pathSkipKinds(service, userId)).size > 0;
+}
+
 /** PostgREST `not in` süzgeci için tür listesi: `(podcast,oral,written_exam)`. */
 export function kindListFilter(kinds: ReadonlySet<string>): string {
   return `(${[...kinds].join(",")})`;
@@ -32,7 +41,8 @@ export function kindListFilter(kinds: ReadonlySet<string>): string {
 
 /**
  * Hazırlık yolundaki adımın ücretsiz sayacı (24 Ekim 2026, ürün sahibinin kararı).
- * - Ders: haftalık ders hakkı.
+ * - Ders: haftalık ders hakkı. İstisna (11 Kasım 2026): ilk hazırlığın 1. konusunda adımın ilk açılışı; çağıran
+ *   (`start.ts`) buradan "lesson" dönünce `firstLessonCycleFree`e sorar ve "included" ile ayırır.
  * - Podcast, sözlü, yazılı deneme: Plus'ta (çağıran 402 premium_required döner).
  * - Öteki adımlar (test, doğru/yanlış, kartlar, tekrar, odaklı pratik, son kontrol…): o konunun dersi bu
  *   hazırlıkta açılmışsa derse dahil ("included"); açılmamışsa ders hakkından düşer. Konusuz adımda

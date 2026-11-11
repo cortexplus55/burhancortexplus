@@ -26,6 +26,11 @@ export type CompanionSignals = {
   hour: number;
   /** Güne bağlı kararlı seçim için anahtar ("2026-11-08"). */
   seed: string;
+  /**
+   * Sınav sabahı kâğıdı bu hesapta kilitli mi (11 Kasım 2026: kâğıt Plus'ta). Kilitliyse sınav günü satırı
+   * açamayacağı bir aracı anmaz. Verilmezse açık sayılır (Plus ve kurucu).
+   */
+  cramSheetLocked?: boolean;
 };
 
 export type CompanionLine = {
@@ -93,7 +98,12 @@ function stepPhrase(step: CompanionSignals["nextStep"]): string {
 export function homeLine(signals: CompanionSignals): CompanionLine {
   const { daysSinceLast, examDaysLeft, mood, streak, seed } = signals;
   if (examDaysLeft === 0) {
-    return { text: "Bugün sınav günü. Yeni konu açma: sınav sabahı kâğıdıyla 15 dakikalık tekrar yeter.", reason: "exam_day" };
+    return {
+      text: signals.cramSheetLocked
+        ? "Bugün sınav günü. Yeni konu açma: bildiklerinin üstünden 15 dakikalık kısa bir tekrar yeter."
+        : "Bugün sınav günü. Yeni konu açma: sınav sabahı kâğıdıyla 15 dakikalık tekrar yeter.",
+      reason: "exam_day",
+    };
   }
   if (examDaysLeft === 1) {
     return { text: "Yarın sınav. Bugün ağır ders yok: kısa tekrar, erken uyku.", reason: "exam_tomorrow" };

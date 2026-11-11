@@ -5,7 +5,7 @@
  * yazılır: tablo, işlem, seçilen sütunlar, süzgeçler, gövde. Rota bölünmeden önce ve sonra aynı
  * senaryo aynı satırları üretmeli — "veritabanı yazımları aynı sırada aynı alanlarla".
  *
- * Süzgeçler gerçek satırlara uygulanır (eq, neq, in, is, gt, gte, lt, lte, not, or, order, limit);
+ * Süzgeçler gerçek satırlara uygulanır (eq, neq, in, is, gt, gte, lt, lte, like, not, or, order, limit);
  * `or` virgüllü `kolon.eq.değer`, `kolon.is.null`, `kolon.gt.değer`, `kolon.lt.değer` biçimlerini anlar.
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -66,6 +66,15 @@ export function makeRecordingDb(
       gte: (c: string, v: any) => push(`gte(${c},${stable(v)})`, (r) => r[c] >= v),
       lt: (c: string, v: any) => push(`lt(${c},${stable(v)})`, (r) => r[c] < v),
       lte: (c: string, v: any) => push(`lte(${c},${stable(v)})`, (r) => r[c] <= v),
+      // SQL LIKE: `%` herhangi bir dizi, `_` tek karakter.
+      like: (c: string, pattern: string) => {
+        const source = String(pattern)
+          .split("")
+          .map((ch) => (ch === "%" ? ".*" : ch === "_" ? "." : ch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))
+          .join("");
+        const re = new RegExp(`^${source}$`, "s");
+        return push(`like(${c},${stable(pattern)})`, (r) => typeof r[c] === "string" && re.test(r[c]));
+      },
       not: (c: string, o: string, v: any) =>
         push(`not(${c},${o},${stable(v)})`, (r) => {
           if (o === "in") {
