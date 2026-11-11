@@ -31,8 +31,9 @@ export async function gradeCheckAction(context: NodeContext): Promise<NextRespon
   // V2 ya da V3 kayıt: ekran i = bölüm i, ekranın sorusu bölümün sorusu.
   const lesson = readLessonV2((attempt.payload as { lesson?: unknown }).lesson);
   // Notlandırma ve tekrar sorusu tek işlevde (`gradeLessonSectionCheck`, 11 Kasım 2026): ana sorunun cevabından
-  // sonra mühürlü tekrar gönderilir (cevap zaten açık); tekrarın "doğrusu" kuralı (22 Ekim 2026 inceleme) aynen:
-  // yazarın tam öğesi kendi doğrusunu taşır, kodun kurduğu tekrar aynı olgunun başka ifadesidir.
+  // sonra mühürlü tekrar gönderilir (cevap zaten açık).
+  // Tekrarın "doğrusu" (22 Ekim 2026 inceleme): yazarın tam öğesi kendi doğrusunu taşır; kodun kurduğu tekrar aynı
+  // olgunun başka ifadesidir. Not olduğu gibi verilir.
   const result = gradeLessonSectionCheck(lesson, sectionIndex, checkAnswer, variant, prepLanguage(prep.learning_preferences));
   if (!result) return errorResponse(400, "invalid_input");
   return NextResponse.json({ ok: true, ...result });

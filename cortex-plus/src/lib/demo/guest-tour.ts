@@ -54,7 +54,7 @@ export const TOUR_LESSON: LessonV3 = {
           type: "formula",
           formula: {
             title: "Çift dereceli kök",
-            expression: "\\sqrt[2n]{a^{2n}} = |a|",
+            expression: "$\\sqrt[2n]{a^{2n}} = |a|$",
             symbols: [
               { symbol: "a", meaning: "kökün içindeki taban" },
               { symbol: "2n", meaning: "çift derece (2, 4, 6…)" },
@@ -84,7 +84,7 @@ export const TOUR_LESSON: LessonV3 = {
           type: "formula",
           formula: {
             title: "Tek dereceli kök",
-            expression: "\\sqrt[2n+1]{a^{2n+1}} = a",
+            expression: "$\\sqrt[2n+1]{a^{2n+1}} = a$",
             symbols: [
               { symbol: "a", meaning: "kökün içindeki taban" },
               { symbol: "2n+1", meaning: "tek derece (3, 5, 7…)" },

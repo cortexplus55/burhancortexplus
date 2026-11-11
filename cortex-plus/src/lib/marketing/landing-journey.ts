@@ -3,11 +3,12 @@
  * sona yaşasın").
  *
  * Misafir örnek bir notu tarama alanına bırakır; yol haritası, ilk ders, soru, kart, doğru/yanlış ve Plus vitrini
- * sırayla açılır. Tur model çağırmaz, ağ isteği atmaz, hiçbir şey yüklemez: bütün içerik bu dosyada yazılı ve
- * elle doğrulanmış evrensel bir matematik kuralıdır (çift dereceli kök mutlak değer verir). Ekranlar ürünün gerçek
- * ekranlarının küçültülmüş hâlidir (formül kartı, sınav tuzağı, hafıza çivisi, "İki şık arasında kaldım", koç
- * cümlesi); üründe olmayan bir şey gösterilmez. Plus'ta olan her şey "Plus" diye etiketlenir (bekçi
- * `marketing-claims.test.ts`).
+ * sırayla açılır. Tur model çağırmaz, ağ isteği atmaz, hiçbir şey yüklemez.
+ *
+ * Bu dosya turun kendi sözlerini tutar: adımlar, yönlendirme, not ve yol haritası adımı, Plus vitrini, sonuç.
+ * Ders, konu testi, kartlar ve doğru/yanlış adımlarının içeriği burada DEĞİL: o adımlarda ürünün kendi ekranı
+ * çalışır ve örnek veri ürünün veri biçiminde `lib/demo/guest-tour.ts`te durur (aynı gün, üçüncü tur). Üründe
+ * olmayan bir şey gösterilmez. Plus'ta olan her şey "Plus" diye etiketlenir (bekçi `marketing-claims.test.ts`).
  */
 
 import type { AudienceSegmentId } from "@/lib/marketing/landing-showcase";

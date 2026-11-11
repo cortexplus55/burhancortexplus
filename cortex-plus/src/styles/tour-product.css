@@ -121,3 +121,14 @@
     display: none;
   }
 }
+
+/* Ders ekranının üst çubuğundaki geri ve kapat düğmeleri telefonda 36 px; çerçevede dokunma alanı 44 px. */
+.tp-app .als-top button {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+}
+
+/* Ana sayfada her dokunma alanı en az 44 px: ürünün telefon tabanı 36 px, çerçevede bir basamak büyür. */
+.tp-app button {
+  min-height: 2.75rem;
+}

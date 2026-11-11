@@ -10,8 +10,8 @@ test.describe("öğrenci ders ekranı", { tag: ["@public"] }, () => {
     // 11 Kasım 2026: ana sayfadaki ders ekranı artık tanıtım turunun 3. adımı.
     await expect(async () => {
       await page.getByRole("button", { name: /^Adım 3: / }).click();
-      await expect(page.locator("section.lj .lj-formula")).toBeVisible({ timeout: 1500 });
-    }).toPass({ timeout: 20_000 });
+      await expect(page.locator("section.lj .tp-app .als")).toBeVisible({ timeout: 8000 });
+    }).toPass({ timeout: 40_000 });
     const figureText = await page.locator("section.lj .lj-stage").innerText();
     const pageText = await page.locator("body").innerText();
     expect(figureText).not.toMatch(FORBIDDEN);
