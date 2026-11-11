@@ -15,7 +15,7 @@ import { ACTION_CODES, CREDIT_PRICE_TABLE } from "@/lib/credits/price-table";
 
 type Rows = Record<string, unknown>;
 
-function service(options: { rpcError?: { message: string }; rows?: Rows; dailyAllowance?: unknown } = {}) {
+function service(options: { rpcError?: { message: string }; rows?: Rows; dailyAllowance?: unknown; lessonLimit?: unknown } = {}) {
   const rows = options.rows ?? {};
   // unverified_allowance(): 20261024123000'den sonra 0, v2'de 6. Varsayılan: göç uygulanmış.
   const daily = "dailyAllowance" in options ? options.dailyAllowance : 0;
@@ -23,6 +23,9 @@ function service(options: { rpcError?: { message: string }; rows?: Rows; dailyAl
     rpc: vi.fn(async (name: string) =>
       name === "unverified_allowance"
         ? { data: daily, error: null }
+        : // 11 Kasım 2026 akşamı: free_meter_limit('lesson') 20261111180000'den sonra 0 (önce 3). Varsayılan: uygulanmış.
+          name === "free_meter_limit"
+          ? { data: "lessonLimit" in options ? options.lessonLimit : 0, error: null }
         : // 29 Ekim 2026: plus_only_action(text) → boolean; sağlıklı canlıda Plus işleri için true.
           name === "plus_only_action"
           ? { data: true, error: null }
@@ -159,7 +162,7 @@ describe("credit_reserve_metered yoklaması", () => {
     sb.rpc = vi.fn(async (name: string) =>
       name === "credit_reserve_metered"
         ? { error: { code: "PGRST202", message: "Could not find the function public.credit_reserve_metered(p_action_code, p_idempotency_key, p_meter, p_quantity, p_user_id) in the schema cache" } }
-        : name === "unverified_allowance" || name === "email_audience_count"
+        : name === "unverified_allowance" || name === "email_audience_count" || name === "free_meter_limit"
           ? { data: 0, error: null }
           : name === "plus_only_action" || name === "is_founder"
             ? { data: name === "plus_only_action", error: null }
@@ -193,7 +196,9 @@ describe("diğer göç dosyaları", () => {
     // 6 Kasım 2026: +1 satır (kurucu rolü, is_founder).
     // 7 Kasım 2026: +2 satır (onay kanıtı, çerez tercihi kaydı).
     // 7 Kasım 2026: +2 satır (e-posta ağı, davet günlük tavanı).
-    expect(checks).toHaveLength(29);
+    // 11 Kasım 2026 akşamı: +1 satır (ücretsiz hesap = tek ders, SQL'deki ders sınırı).
+    expect(checks).toHaveLength(30);
+    expect(find(checks, "tek ders (SQL sınırı)")).toMatchObject({ ok: true, critical: false });
     expect(find(checks, "Kurucu rolü")).toMatchObject({ ok: true, critical: false });
     expect(find(checks, "Kredi kuralı satırları")).toMatchObject({ ok: true, critical: true });
     expect(find(checks, "Kredi kuralı satırları").detail).toContain(`${ACTION_CODES.length} eylem kodunun hepsi`);
@@ -212,7 +217,8 @@ describe("diğer göç dosyaları", () => {
     expect(find(checks, "Yanılgı çözümü").ok).toBe(true);
     expect(find(checks, "Öğretmen analizi").ok).toBe(true);
     expect(find(checks, "Kredi sistemi v2").detail).toBe("Mesaj 3, ders 30, podcast 12 kredi");
-    expect(find(checks, "Kredi v3").detail).toContain("ücretsiz haftada 3 ders, günde 3 mesaj, 1 fotoğraf");
+    expect(find(checks, "Kredi v3").detail).toContain("ücretsiz ilk ders, günde 3 mesaj, 1 fotoğraf");
+    expect(find(checks, "Kredi v3").detail).not.toContain("haftada");
     expect(find(checks, "Kredi v3").detail).toContain("günlük kredi 0");
     expect(find(checks, "Üretim işleri")).toMatchObject({ ok: true, critical: false });
     expect(find(checks, "Üretim işleri").detail).toContain("20261026120000");
@@ -242,6 +248,19 @@ describe("diğer göç dosyaları", () => {
     expect(v3.detail).not.toContain("free_usage yok");
     expect(v3.detail).toContain("günlük ücretsiz kredi 6 (0 olmalı: 20261024123000)");
     expect(checks.filter((check) => !check.ok).map((check) => check.name)).toEqual(["Kredi v3 ve ücretsiz sayaçlar"]);
+  });
+
+  /* 11 Kasım 2026 akşamı (ürün sahibinin kararı): ücretsiz hesap = tek ders. Asıl kapı kodda; göç (20261111180000)
+     ikinci hat. Uygulanmamışsa satır uyarı verir ama kritik değildir (/api/health kırmızıya dönmez). */
+  it("20261111180000 eksikse (SQL'de haftalık ders 3) uyarı; kritik değil", async () => {
+    const checks = await probeSchema(service({ rows: healthyRows, lessonLimit: 3 }));
+    const lesson = find(checks, "tek ders (SQL sınırı)");
+    expect(lesson).toMatchObject({ ok: false, critical: false });
+    expect(lesson.detail).toContain("sınırı 3 (0 olmalı: 20261111180000_free_lesson_trial)");
+    expect(lesson.detail).toContain("Kod kapısı çalışıyor");
+    expect(checks.filter((check) => check.critical && !check.ok)).toEqual([]);
+    const unreadable = await probeSchema(service({ rows: healthyRows, lessonLimit: null }));
+    expect(find(unreadable, "tek ders (SQL sınırı)")).toMatchObject({ ok: false, critical: false });
   });
 
   it("günlük krediyi argümansız, salt okunur unverified_allowance() ile soruyor", async () => {

@@ -20,7 +20,9 @@ export async function generateModule() {
   return {
     isPremiumUser: vi.fn(async () => false),
     generateJson: vi.fn(async (p: any) => {
-      const reservation = await credits.reserveCredits(p.service, p.userId, p.actionCode, p.idempotencyKey);
+      // Sayaçsız ayırma: bu yardımcı anahtarlı ayırmanın mekaniğini taklit eder, ücretsiz katman kuralını değil
+      // (konu haritası canlıda `chargeCredits: false`; ders sayacındaki iş ücretsiz hesapta `free-lesson-gate` ile durur).
+      const reservation = await credits.reserveCredits(p.service, p.userId, p.actionCode, p.idempotencyKey, 1, { freeMeter: null });
       if (!reservation.ok) return { ok: false, status: 409, error: reservation.reason };
       model.calls.push({ model: p.modelOverride, key: p.idempotencyKey, prompt: p.userPrompt });
       const out = model.impl(p);

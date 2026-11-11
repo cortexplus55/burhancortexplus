@@ -55,7 +55,7 @@ function serverProducers(): Producer[] {
             ? "photo"
             // 5 Kasım 2026: harcama sigortası (spend_cap_free) ve okunamayan fotoğraf döngüsü (free_photo_abuse_limit) de
             // yalnız ücretsiz hesabın reddidir; abone ve kurucu (önizleme kapalıyken) görmez.
-            : /free_page_limit|FREE_PAGE_LIMIT_CODE|free_prep_limit|FREE_PREP_LIMIT|free_(lesson|chat|photo|included|topic)_limit|FREE_TOPIC_LIMIT_CODE|spend_cap_free|SPEND_CAP_CODE|free_photo_abuse_limit|PHOTO_ABUSE_CODE/.test(window)
+            : /free_page_limit|FREE_PAGE_LIMIT_CODE|free_prep_limit|FREE_PREP_LIMIT|free_(lesson|chat|photo|included|topic)_limit|FREE_LESSON_CODE|FREE_TOPIC_LIMIT_CODE|spend_cap_free|SPEND_CAP_CODE|free_photo_abuse_limit|PHOTO_ABUSE_CODE/.test(window)
               ? "free"
               : "unknown";
       found.push({ file: path.relative(ROOT, file).replaceAll("\\", "/"), line: index + 1, kind });

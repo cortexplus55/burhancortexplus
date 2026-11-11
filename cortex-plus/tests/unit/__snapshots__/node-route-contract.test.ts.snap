@@ -10693,7 +10693,6 @@ exports[`yol etkinliği rotası: start × tür > önceden yazım isteği (imzal�
         "user_id": "00000000-0000-4000-8000-00000000aaaa",
       },
     ],
-    "free_usage": [],
     "lesson_generation_failures": [
       {
         "id": "lesson_generation_failures-2",
@@ -10727,7 +10726,6 @@ exports[`yol etkinliği rotası: start × tür > önceden yazım isteği (imzal�
     "db select admin_free_preview [user_id] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
     "rpc is_admin {"uid":"00000000-0000-4000-8000-00000000aaaa"}",
     "db select exam_prep_nodes [id] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") eq(kind,"lesson")",
-    "db select free_usage [used] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(meter,"lesson") eq(period_key,"2026-W44") maybe",
     "db select exam_prep_lessons [title, content_json, created_at] eq(topic_id,"00000000-0000-4000-8000-0000000000c1") not(content_json,is,null) order(created_at,desc) limit(8)",
     "db select exam_prep_nodes [id] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") eq(kind,"lesson")",
     "db select exam_preps [document_id, source_document_ids] eq(id,"00000000-0000-4000-8000-0000000000a1") eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",

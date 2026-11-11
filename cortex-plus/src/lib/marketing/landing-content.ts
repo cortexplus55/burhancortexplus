@@ -59,7 +59,7 @@ export const HOME_COPY = {
   },
   reel: {
     title: "Bir nottan çıkan her şey",
-    lead: "Hepsi aynı nottan yazılır. Etiketsizler ücretsiz hesapta da açık.",
+    lead: "Hepsi aynı nottan yazılır. Etiketsizleri ücretsiz hesapla denersin; devamı Plus'ta.",
     prev: "Önceki kareler",
     next: "Sonraki kareler",
   },
@@ -78,7 +78,7 @@ export const REEL_FRAMES: ReelFrame[] = [
   { id: "konu-testi", icon: "konu-testi", title: "Konu testi", body: "Her şıkkın neden doğru ya da yanlış olduğu ayrı ayrı açıklanır." },
   { id: "ogretmen", icon: "ogretmen", title: "AI öğretmen", body: "Takıldığın yeri sor; cevap kendi notuna dayanır." },
   { id: "soru-coz", icon: "denklem", title: "Fotoğraftan soru çözümü", body: "Sorunun fotoğrafını çek ya da yaz; adım adım çözüm gelir." },
-  { id: "duello", icon: "yildiz", title: "Düello ve yıldızlar", body: "Arkadaşına ya da bota meydan oku, seriyi koru." },
+  { id: "duello", icon: "yildiz", title: "Düello ve yıldızlar", body: "Arkadaşının düellosuna katıl, seriyi koru. Kendi düellonu kurmak Plus'ta." },
   { id: "podcast", icon: "podcast", title: "Podcast", body: "Ada ve Kerem konuyu konuşarak anlatır. Yolda, serviste dinle.", plusOnly: true },
   { id: "video", icon: "video", title: "Çizimli video", body: "Bir dakikada, çizim ve formülle anlatım.", plusOnly: true },
   { id: "sozlu", icon: "sozlu", title: "Sözlü deneme", body: "Sesli ya da yazılı cevapla; eksik bıraktığın yeri öğretmen bir kez sorar, sonunda not verir.", plusOnly: true },
@@ -129,9 +129,9 @@ export const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "Ücretsiz neler yapabilirim?",
-    // 11 Kasım 2026 (ürün sahibinin kararı): ilk dersin döngüsü süreye ve haftalık hakka takılmaz; Plus'a özel olanlar
-    // adıyla (bekçi test listeyi `PLUS_ONLY_FEATURES` ile karşılaştırır).
-    a: `Kart istemiyoruz. Ücretsiz hesapta ${FREE_TIER_SENTENCE.charAt(0).toLocaleLowerCase("tr")}${FREE_TIER_SENTENCE.slice(1)} var. Bir sınav hazırlığı kurabilir, toplam ${FREE_PAGE_TOTAL} sayfa belge işletebilirsin; ilk dersten sonraki konular Plus'ta açılır. Podcast, video, sözlü, yazılı deneme ve sınav sabahı kâğıdı Plus'a özeldir; sesli dinleme de Plus'ta.`,
+    // 11 Kasım 2026 (ürün sahibinin kararları): ücretsiz hesap yalnız ilk dersi dener (süre sınırı yok); haftalık ders
+    // hakkı kalktı. Plus'a özel olanlar adıyla (bekçi test listeyi `PLUS_ONLY_FEATURES` ile karşılaştırır).
+    a: `Kart istemiyoruz. Ücretsiz hesapta ${FREE_TIER_SENTENCE.charAt(0).toLocaleLowerCase("tr")}${FREE_TIER_SENTENCE.slice(1)} var. Bir sınav hazırlığı kurabilir, toplam ${FREE_PAGE_TOTAL} sayfa belge işletebilirsin. İlk dersten sonraki konular, yeni anlatımlar ve Çalışma Stüdyosu'ndaki test, kart ve doğru/yanlış üretimi Plus'ta açılır. Podcast, video, sözlü, yazılı deneme ve sınav sabahı kâğıdı Plus'a özeldir; sesli dinleme de Plus'ta.`,
   },
   {
     q: "Plus'ta ne değişiyor?",

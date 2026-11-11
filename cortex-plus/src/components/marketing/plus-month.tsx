@@ -20,6 +20,7 @@ import {
   type Tempo,
 } from "@/lib/billing/plan-value";
 import { PLAN_ALLOWANCES } from "@/lib/credits/price-table";
+import { FREE_CHAT_PER_DAY, FREE_PHOTO_PER_DAY } from "@/lib/billing/free-meters";
 import { formatTry } from "@/lib/format";
 import { possessiveSuffix } from "@/lib/text/number-suffix";
 import { cn } from "@/lib/utils";
@@ -327,7 +328,7 @@ function TempoMixer() {
           </p>
           <p className="pm-meter-free">
             {freeDays == null
-              ? "Ücretsiz planda podcast, yazılı deneme ve video ders kapalı."
+              ? `Bu tempo ücretsiz planla yürümez: ücretsizde ilk dersin, günde ${FREE_CHAT_PER_DAY} mesaj ve günde ${FREE_PHOTO_PER_DAY} fotoğraftan çözüm var.`
               : freeDays > 0
                 ? `Aynı tempo ücretsiz planla ${fmt(freeDays)} gün sürerdi.`
                 : null}

@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getUserEntitlements } from "@/lib/billing/entitlements";
 import { billingExempt } from "@/lib/billing/free-preview";
 import { topicIdsOf } from "@/lib/learning/topic-identity";
+import { STUDIO_EXAM_TYPE } from "@/lib/learning/studio-exam";
 import { firstTopicOwnNodes, gatePrepWide, nodeLockedForFree, type FirstTopicRef, type SummaryNode } from "@/lib/billing/free-topic-rule";
 
 /*
@@ -14,9 +15,10 @@ import { firstTopicOwnNodes, gatePrepWide, nodeLockedForFree, type FirstTopicRef
   Plus ekranını açar: "🚀 1. Konuyu Başarıyla Tamamladın!". Öğrenci tadını aldıktan sonra duvara çarpar; önceden
   yazım da o konulara harcanmaz.
 
-  11 Kasım 2026 (ürün sahibinin kararı): ilk hazırlıkta 1. konunun adımlarının ilk açılışı haftalık ders sayacından
-  (3) düşmez (`first-lesson-cycle.ts`); sayaç Çalışma Stüdyosu, "Farklı anlat" ve ilk hazırlık dışındaki dersler için
-  geçerli. Sohbet ve fotoğraf sayaçları değişmedi.
+  11 Kasım 2026 (ürün sahibinin kararı): ilk hazırlıkta 1. konunun adımlarının ilk açılışı "derse dahil" sayacıyla
+  ayrılır (`first-lesson-cycle.ts`). Aynı akşam haftalık ders hakkı kalktı (ücretsiz hesap = tek ders): Çalışma
+  Stüdyosu üretimleri, "Farklı anlat" ve ilk hazırlık dışındaki dersler Plus'a yönlenir (`free-lesson-gate.ts`).
+  Sohbet ve fotoğraf sayaçları değişmedi.
   "1. konu" = hazırlığın konu listesinde ilk konu (`exam_prep_topics.sort_order`; yol bu sırayla kurulur).
   Daha önce açılmış (kaydı olan) adım açılmaya devam eder: kararın yayınından önce başlanan konu yarıda kalmasın.
   Abone ve kurucu (önizleme kapalı) muaf; okuma düşerse kapı kapanmaz (öğrenci aleyhine hata yapma).
@@ -163,4 +165,40 @@ async function summarizeFirstTopic(
     bestScore,
     completed: mine.length > 0 && done.length === mine.length,
   };
+}
+
+/**
+ * Ücretsiz hesabın ilk dersi ne durumda (11 Kasım 2026 akşamı: ücretsiz hesap = tek ders). /krediler eski haftalık
+ * ders sayacının yerine bunu gösterir: hazırlık yok ("none"), ilk ders açık ("open") ya da 1. konunun ders adımları
+ * bitti ("done"). Okunamazsa null (sayfa durum yerine yalnız kuralı yazar).
+ */
+export type FirstLessonStatus = { state: "none" | "open" | "done"; prepId: string | null; title: string | null };
+
+export async function firstLessonStatus(service: SupabaseClient, userId: string): Promise<FirstLessonStatus | null> {
+  try {
+    const { data: prep, error } = await service
+      .from("exam_preps")
+      .select("id")
+      .eq("user_id", userId)
+      .neq("exam_type", "hedef")
+      .neq("exam_type", STUDIO_EXAM_TYPE)
+      .order("created_at")
+      .limit(1)
+      .maybeSingle();
+    if (error) return null;
+    if (!prep?.id) return { state: "none", prepId: null, title: null };
+    const prepId = prep.id as string;
+    const row = await readFirstTopic(service, prepId);
+    if (!row) return { state: "open", prepId, title: null };
+    const { data: nodes, error: nodesError } = await service
+      .from("exam_prep_nodes")
+      .select("id, kind, status, title, session_meta")
+      .eq("exam_prep_id", prepId);
+    if (nodesError) return null;
+    const lessons = firstTopicOwnNodes((nodes ?? []) as SummaryNode[], row.firstIds).filter((node) => node.kind === "lesson");
+    const done = lessons.length > 0 && lessons.every((node) => node.status === "done");
+    return { state: done ? "done" : "open", prepId, title: row.first.label || null };
+  } catch {
+    return null;
+  }
 }

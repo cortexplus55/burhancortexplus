@@ -61,6 +61,14 @@ vi.mock("@/lib/billing/free-topic-gate", async (importOriginal) => ({
 vi.mock("@/lib/billing/first-lesson-cycle", () => ({
   firstLessonCycleFree: async () => false,
 }));
+// Ücretsiz ders kapısı (11 Kasım 2026 akşamı: ücretsiz hesap = tek ders, haftalık hak kalktı) da kendi testinde
+// (ucretsiz-tek-ders.test.ts). Burada kapı açık: sözleşme, ders sayacıyla işaretli üretim yolunun mekaniğini sabitler
+// (canlıda bu yola ücretsiz hesap yalnız cüzdan bakiyesiyle girer; abone için sayaç zaten yok sayılır).
+vi.mock("@/lib/billing/free-lesson-gate", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/billing/free-lesson-gate")>()),
+  freeLessonGate: async () => "open",
+  freeLessonRefused: async () => false,
+}));
 vi.mock("@/lib/admin/feature-flags", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/admin/feature-flags")>()),
   isFeatureEnabled: async () => h.flag,

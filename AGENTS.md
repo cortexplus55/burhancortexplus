@@ -305,8 +305,9 @@ hesabı var) → ayrı yerel adlı takma ad; iFrame API'de `store_card` yok, ilk
 
 > **Güncel (bu bölümün sayıları değişti):** 24 Ekim'den beri sayaçla (haftada 3 ders, günde 3 mesaj, günde 1 fotoğraf;
 > "Kredi v3"), 31 Ekim'den beri belge sınırı **25 sayfa** ve her hazırlığın **1. konusu** açık ("Paket J1" #3).
-> 11 Kasım 2026'dan beri ilk dersin adımları haftalık ders hakkından düşmez ve sınav sabahı kâğıdı Plus'ta
-> ("Misafir ana sayfası ve süresiz ilk ders").
+> 11 Kasım 2026'dan beri ilk dersin adımları ders sayacından düşmez ve sınav sabahı kâğıdı Plus'ta
+> ("Misafir ana sayfası ve süresiz ilk ders"). **Aynı akşam haftalık 3 ders hakkı kalktı: ücretsiz hesap = tek ders**
+> ("Ücretsiz hesap = tek ders"). Bu dosyada "haftada 3 ders" yazan eski satırlar tarihçedir.
 
 Ürün sahibinin kararı, aynı gün Astra'nın ücretsiz hesabı ölçülerek: Astra'da
 **tek sohbet mesajı günlük hakkın %64'ünü** yedi; ikinci mesajla hak doldu,
@@ -2598,3 +2599,30 @@ taşırken cümleyi koruyun.
 
 Bekçi: `misafir-turu.test.tsx` (şema, hesap, notlandırma, ipucu, gerçek bileşenlerle ekranlar, parça yükleme, çerçeve
 kuralları), e2e `donusum.spec.ts` (375 ve 360 px: tur gerçek ekranlarla baştan sona, taşma 0, dokunma ≥ 44 px, ağ isteği yok).
+
+## Ücretsiz hesap = tek ders (11 Kasım 2026 akşamı) — haftalık 3 ders hakkı kalktı
+
+Ürün sahibi: "Yeni kayıt olan denemesi için kayıtlı kullanıcıya sadece 1 ders ücretsiz vereceğiz. Ama doküman olarak
+da bir sınır verelim. Daha fazlası için Plus'a yönlendireceğiz." İki soru soruldu; cevaplar: haftalık 3 ders
+**kalksın**, belge sınırı **toplam 25 sayfa kalsın** (kod değişmedi; kapıda ve fiyat tablosunda görünür). 24 Ekim'in
+"haftada 3 ders" ve sabahki "haftalık 3 ders Stüdyo ve Farklı anlat için" kuralları **bilerek** değişti. Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| **Ücretsiz hesapta açık olan:** ilk hazırlığın 1. konusunun ders döngüsü (konu anlatımı, konu testi, doğru/yanlış, kartlar, soru-cevap; "derse dahil" sayacı, günde 40), günde 3 sohbet mesajı, günde 1 fotoğraftan çözüm, 1 hazırlık, toplam 25 sayfa belge. Ders sayacının (`lesson`) hakkı **0** (`FREE_LIMITS.lesson`; `FREE_LESSONS_PER_WEEK` silindi) | `free-meters.ts`, `first-lesson-cycle.ts` |
+| **Ders sayacına düşen her iş ücretsizde Plus'a yönlenir:** Çalışma Stüdyosu'nda test, kart, doğru/yanlış ve çalışma planı üretimi; "Farklı anlat" (yeni ders); verilmiş adımın yeniden yazımı; ilk olmayan hazırlığın dersi; dersi açılmamış konunun testi; **düello kurma** ve **zor soru** üretimi (paylaşılan bir düelloyu oynamak açık; "AI rakiple hemen başla" da yeni düello kurduğu için Plus'ta). Kapı tek işlev: `freeLessonGate` → `open` (abone, Plus denemesi, önizlemesi kapalı kurucu) / `gift` (cüzdan bakiyesi işi karşılıyor: davet hediyesi, eski ek paket) / `plus` (402 `free_lesson_limit`). Kaynak okuma, kayıt, kredi ayırma ve model çağrısından ÖNCE; `reserveCredits`, yol adımı açılışı ve Stüdyo uçları aynı işlevi çağırır. Önceden yazım açılamayacak içeriği yazmaz. Okuma düşerse ücretsiz iş verilmez (plan okunamazsa karar SQL'de, cüzdan okunamazsa ayırma bakiyeden denenir) | `free-lesson-gate.ts`, `credits/service.ts`, `node/start.ts`, Stüdyo üretim uçları |
+| **Kayıtlı içerik açık kalır:** "Tekrar incele" ve "Dersi tekrarla" kapıdan önce döner (kredisiz, modelsiz); dersi açılmış konunun testi ve kartları "derse dahil" sayacıyla çalışmaya devam eder | `node/start.ts` |
+| **Kapı beklemeyi önermez:** haftalık geri sayım yok; "İlk dersini kullandın" + Plus (`FREE_LESSON_GATE_LINE`, `FREE_LESSON_REFUSAL_MESSAGE`). Stüdyo kartlarında Konu Testi, Kartlar ve Doğru/Yanlış ücretsizde "Plus" rozetli (bakiyesi olan ücretsiz hesapta da rozet görünür; iş yine bakiyeden açılır) | `credit-gate.tsx`, `upgrade-sheet.tsx`, `free-reach.ts`, `studios.ts` |
+| **`/krediler`** haftalık ders sayacı yerine ilk dersin durumunu yazar: "Hazırlığını kurunca açılır / Açık / Tamamlandı" (`firstLessonStatus`; okunamazsa yalnız kural) | `free-topic-gate.ts`, `krediler/page.tsx` |
+| **Metinler tek kaynaktan:** `FREE_TIER_SENTENCE` (ilk ders + günde 3 mesaj + günde 1 fotoğraf), `FREE_DOCUMENT_SENTENCE` (toplam 25 sayfa); fiyat tablosunda "Öbür konular ve yeni anlatım" ile "Stüdyoda test, kart ve doğru/yanlış üretimi" satırları ücretsizde "Plus'ta"; "Plus'ın bir ayı"nda ücretsiz sütunu "İlk ders"; ana sayfa SSS'si ve film şeridi buna göre ("Kendi düellonu kurmak Plus'ta"). Hoş geldin e-postası haftalık ders saymaz | `free-tier-copy.ts`, `tier-presentation.ts`, `plan-value.ts`, `landing-content.ts`, `lifecycle-templates.ts` |
+| **SQL ikinci hat:** göç `20261111180000_free_lesson_trial.sql` (`free_meter_limit('lesson')` 3 → 0; `credit_reserve_metered` sınırı 0 olan sayacı `free_usage`'a yazmadan "dolu" sayar; yalnız aynı imzayla yeniden tanımlama). **Yayın sırası: önce kod, sonra göç** (kod kapısı tek başına yeter; göç önce gelirse de bozulmaz). Geri almak: iki fonksiyon `20261024121000`'deki gövdeleriyle **ve** kod birlikte. `/admin/sistem` satırı "Ücretsiz hesap: tek ders (SQL sınırı)" | göç, `schema-probe.ts` |
+
+Davet hediyesi (90 kredi) artık "3 ders" değil, bakiye: Stüdyo üretimi ve "Farklı anlat" onunla açılır, ama 2. konuyu
+açmaz (konu kilidi `free_topic_limit` ayrı kapı). Hazır müfredat havuzundan gelen ders sayaçlara hiç girmez (model
+çağrısı yok); konu kilidi yine geçerli.
+
+**Ürün sahibinde açık:** hukuki metinler (`legal/terms-text.ts`, `legal/texts.ts`) hâlâ "haftalık ders … sayısı
+sınırlıdır" diyor; cümle yanlış değil ama eski. Değiştirmek sürüm değişikliği ve herkese yeniden onay demek.
+
+Bekçi: `ucretsiz-tek-ders.test.ts` (kapı kararları, uçlar, metinler, göç PGlite'ta), `free-tier-counts.test.ts`,
+`free-meters.test.ts`, `free-reach.test.tsx`, `marketing-claims.test.ts`, `node-route-contract.test.ts`, `schema-probe.test.ts`.

@@ -14,6 +14,12 @@ import { FREE_LIMITS, PLUS_ONLY_ACTIONS, REFERRAL_GIFT_LESSONS, freePeriodKey } 
  *   20261024123000 tek çalıştırmada → (d) 20261024122000 → geri alma dosyası (yalnız SQL, kod geri
  *   alınmadan önce).
  */
+/**
+ * 20261024121000'in haftalık ders sınırı. Bu dosya 24 Ekim göçlerini kendi yayın sırasıyla sınar; sınır 11 Kasım 2026
+ * akşamı 20261111180000_free_lesson_trial ile 0'a indi (ücretsiz hesap = tek ders). O göç ve `FREE_LIMITS.lesson`
+ * eşleşmesi `ucretsiz-tek-ders.test.ts`'te.
+ */
+const WEEKLY_LESSONS_V3 = 3;
 const read = (path: string) => readFileSync(path, "utf8");
 const migration = (name: string) => read(`supabase/migrations/${name}.sql`);
 const ROLLBACK = "supabase/rollback/20261024_kredi_v3_geri_al.sql";
@@ -210,7 +216,7 @@ describe("kredi v3 + ücretsiz sayaçlar: göçler canlıdaki sırayla", () => {
     it("yeni kod, yalnız bu göçle: ücretsiz fotoğraf, ders ve mesaj sayaçla açılıyor (v2 fiyatlarının üstünde)", async () => {
       await metered(early, "IMAGE_SOLUTION", "e-p1", "photo");
       await expect(metered(early, "IMAGE_SOLUTION", "e-p2", "photo")).rejects.toThrow("free_limit:photo");
-      for (let i = 1; i <= FREE_LIMITS.lesson; i += 1) await metered(early, "STUDY_PLAN_GENERATE", `e-l${i}`, "lesson");
+      for (let i = 1; i <= WEEKLY_LESSONS_V3; i += 1) await metered(early, "STUDY_PLAN_GENERATE", `e-l${i}`, "lesson");
       await expect(metered(early, "STUDY_PLAN_GENERATE", "e-l4", "lesson")).rejects.toThrow("free_limit:lesson");
       for (let i = 1; i <= FREE_LIMITS.chat; i += 1) await metered(early, "AI_CHAT_STANDARD", `e-c${i}`, "chat");
       expect([await used(early, "photo"), await used(early, "lesson"), await used(early, "chat")]).toEqual([1, 3, 3]);
@@ -303,7 +309,7 @@ describe("kredi v3 + ücretsiz sayaçlar: göçler canlıdaki sırayla", () => {
     });
 
     it("ücretsiz: haftada 3 ders, tutar 0; dördüncüsü free_limit:lesson; cüzdan değişmez", async () => {
-      for (let i = 1; i <= FREE_LIMITS.lesson; i += 1) {
+      for (let i = 1; i <= WEEKLY_LESSONS_V3; i += 1) {
         await metered(free, "STUDY_PLAN_GENERATE", `l${i}`, "lesson");
       }
       await expect(metered(free, "STUDY_PLAN_GENERATE", "l4", "lesson")).rejects.toThrow("free_limit:lesson");
@@ -353,13 +359,13 @@ describe("kredi v3 + ücretsiz sayaçlar: göçler canlıdaki sırayla", () => {
       await db.exec(`INSERT INTO profiles(id) VALUES ('${firstLesson}');
         INSERT INTO credit_wallets(user_id, balance, free_allowance_remaining) VALUES ('${firstLesson}', 0, 0);`);
       // Haftalık hak başka işlerle (Çalışma Stüdyosu, "Farklı anlat") dolmuş.
-      for (let i = 1; i <= FREE_LIMITS.lesson; i += 1) await metered(firstLesson, "QUIZ_GENERATE", `studio${i}`, "lesson");
+      for (let i = 1; i <= WEEKLY_LESSONS_V3; i += 1) await metered(firstLesson, "QUIZ_GENERATE", `studio${i}`, "lesson");
       await expect(metered(firstLesson, "STUDY_PLAN_GENERATE", "rewrite", "lesson")).rejects.toThrow("free_limit:lesson");
       // İlk dersin adımları: ders dahil hepsi açılır.
       const lesson = await metered(firstLesson, "STUDY_PLAN_GENERATE", "exam_node_slot_first_lesson", "included");
       await metered(firstLesson, "QUIZ_GENERATE", "exam_node_slot_first_quiz", "included");
       await metered(firstLesson, "FLASHCARD_GENERATE", "exam_node_slot_first_cards", "included");
-      expect(await used(firstLesson, "lesson")).toBe(FREE_LIMITS.lesson);
+      expect(await used(firstLesson, "lesson")).toBe(WEEKLY_LESSONS_V3);
       expect(await used(firstLesson, "included")).toBe(3);
       const rows = await db.query<{ amount: number; free_meter: string }>(
         "SELECT amount, free_meter FROM credit_reservations WHERE user_id = $1 AND idempotency_key LIKE 'exam_node_slot_first_%'", [firstLesson]);
@@ -369,7 +375,7 @@ describe("kredi v3 + ücretsiz sayaçlar: göçler canlıdaki sırayla", () => {
       // Düşen ders iade edilince derse dahil sayaç geri döner; haftalık hak yerinde kalır.
       await refund(lesson.rows[0]!.id);
       expect(await used(firstLesson, "included")).toBe(2);
-      expect(await used(firstLesson, "lesson")).toBe(FREE_LIMITS.lesson);
+      expect(await used(firstLesson, "lesson")).toBe(WEEKLY_LESSONS_V3);
       // Plus işi bu yoldan da açılmaz.
       await expect(metered(firstLesson, "PODCAST_GENERATE", "exam_node_slot_first_podcast", "included")).rejects.toThrow("plus_required");
     });
@@ -481,7 +487,7 @@ describe("kredi v3 + ücretsiz sayaçlar: göçler canlıdaki sırayla", () => {
 
     it("aboneliği olan yönetici de önizlemede sayaca girer (#1)", async () => {
       await db.exec(`INSERT INTO admin_free_preview(user_id) VALUES ('${previewPlus}');`);
-      for (let i = 1; i <= FREE_LIMITS.lesson; i += 1) await metered(previewPlus, "STUDY_PLAN_GENERATE", `pp${i}`, "lesson");
+      for (let i = 1; i <= WEEKLY_LESSONS_V3; i += 1) await metered(previewPlus, "STUDY_PLAN_GENERATE", `pp${i}`, "lesson");
       await expect(metered(previewPlus, "STUDY_PLAN_GENERATE", "pp4", "lesson")).rejects.toThrow("free_limit:lesson");
       await metered(previewPlus, "AI_CHAT_STANDARD", "pp-c1", "chat");
       await expect(metered(previewPlus, "PODCAST_GENERATE", "pp-pod")).rejects.toThrow("plus_required");

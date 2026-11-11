@@ -80,7 +80,7 @@ export type CycleNodeInput = {
  * bitirebileceği adımlarından biri mi — konu anlatımı, konu testi, doğru/yanlış, kartlarla tekrar ve aynı konunun
  * öbür kendi adımları (soru-cevap turu, o konunun odaklı pratiği). `firstTopicOwnNodes` ile aynı küme; ek olarak
  * bütün konuları kapsayan adım (son kontrol, hazırsın) girmez ve öğrenci başka bir konu istediyse (`?konu=`) adım
- * o konunun sayılır: 1. konunun adımı üzerinden başka konu çalışmak haftalık ders hakkından düşer.
+ * o konunun sayılır: 1. konunun adımı üzerinden başka konu çalışmak ders sayacına düşer (ücretsizde Plus'a yönlenir).
  */
 export function firstLessonCycleNode(first: FirstTopicRef, node: CycleNodeInput): boolean {
   if (ALL_TOPICS_KINDS.has(node.kind as PlanNodeKind)) return false;

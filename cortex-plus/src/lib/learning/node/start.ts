@@ -17,6 +17,7 @@ import type { FreeMeter } from "@/lib/billing/free-meters";
 import { billingExempt } from "@/lib/billing/free-preview";
 import { FREE_TOPIC_LIMIT_CODE, freeTopicGate } from "@/lib/billing/free-topic-gate";
 import { firstLessonCycleFree } from "@/lib/billing/first-lesson-cycle";
+import { FREE_LESSON_CODE, freeLessonRefused } from "@/lib/billing/free-lesson-gate";
 import { SPEND_CAP_CODE, spendBreakerBlocks } from "@/lib/billing/spend-breaker";
 import { gatePrepWide } from "@/lib/billing/free-topic-rule";
 import { practiceTopicKey } from "@/lib/learning/quiz-delivery";
@@ -282,8 +283,9 @@ export async function startAction(context: NodeContext): Promise<NextResponse> {
   if (kind === "podcast" && !requireFeature(entitlements, "podcast")) {
     return errorResponse(402, "premium_required");
   }
-  // Ücretsiz katman sayıya dayalı (24 Ekim 2026): ders haftalık hakkı; konunun dersi açıldıysa ardındaki
-  // test/kartlar derse dahil; podcast, sözlü, yazılı deneme Plus'ta. Abone ve kurucu (önizleme kapalı) yok.
+  // Ücretsiz katman sayıya dayalı (24 Ekim 2026): konunun dersi açıldıysa ardındaki test/kartlar derse dahil;
+  // podcast, sözlü, yazılı deneme Plus'ta. Ders sayacının hakkı yok (11 Kasım 2026 akşamı): ilk dersin döngüsü
+  // dışında ders sayacına düşen iş Plus'a yönlenir (aşağıdaki kapı). Abone ve kurucu (önizleme kapalı) sayaçsız.
   // Hazırlık geneli adımın kendi konusu yok: devraldığı 1. konu ya da yöneldiği zayıf konu sayacı
   // belirlemez, hazırlıkta herhangi bir ders açıldıysa derse dahil (`topicId: null`). Öğrenci konu
   // seçtiyse (`?konu=`) ya da uyarlamalı odaklı pratikse o konunun dersine bakılır.
@@ -291,7 +293,7 @@ export async function startAction(context: NodeContext): Promise<NextResponse> {
     PREP_WIDE_TARGET_KINDS.has(kind) && !requestedTopic && !adaptiveFocusTopic(kind, node.session_meta, topicLabel);
   const meterless = premium || (await billingExempt(service, userId).catch(() => false));
   // Havuz içeriği (2 Kasım 2026): resmî kurulumdaki ünitenin doğrulanmış anlatımı, kartları ve soruları 0 kredi;
-  // haftalık ders sayacına sayılmaz. Havuzda yoksa aşağıdaki bugünkü üretim yolu (fiyatıyla) çalışır.
+  // ders sayacına düşmez. Havuzda yoksa aşağıdaki bugünkü üretim yolu (fiyatıyla) çalışır.
   // "Farklı anlat" (3 Kasım 2026): öğrenci yeni anlatım istedi; havuzdaki aynı ders yeniden açılmaz, aşağıdaki ücretli
   // üretim yolu (belgeli dersle aynı kredi kuralı) havuz anlatımını "farklı anlat" girdisi olarak kullanır.
   const rewriteLesson = kind === "lesson" && parsed.data.rewrite === true;
@@ -310,9 +312,9 @@ export async function startAction(context: NodeContext): Promise<NextResponse> {
     return errorResponse(402, "premium_required");
   }
   // İlk dersin temel döngüsü (11 Kasım 2026, ürün sahibinin kararı): ilk hazırlığın 1. konusunda adımın İLK açılışı
-  // (konu anlatımı, kartlar, doğru/yanlış, konu testi) haftalık ders hakkından düşmez ve hak dolu diye reddedilmez;
-  // SQL'in "derse dahil" sayacıyla ayrılır (günde 40, kötüye kullanım sınırı; dolarsa `free_included_limit`).
-  // "Farklı anlat" ve verilmiş içeriği yeniden yazdırmak bugünkü gibi haftalık haktan. Kural `first-lesson-cycle.ts`.
+  // (konu anlatımı, kartlar, doğru/yanlış, konu testi, soru-cevap) SQL'in "derse dahil" sayacıyla ayrılır (günde 40,
+  // kötüye kullanım sınırı; dolarsa `free_included_limit`). Kural `first-lesson-cycle.ts`. "Farklı anlat" ve verilmiş
+  // içeriği yeniden yazdırmak bu döngüye girmez: ders sayacına düşer, yani aşağıdaki kapıda Plus'a yönlenir.
   const firstLessonFree =
     nodeMeter === "lesson" &&
     !rewriteLesson &&
@@ -332,10 +334,19 @@ export async function startAction(context: NodeContext): Promise<NextResponse> {
   }
   const freeMeter: FreeMeter | null = firstLessonFree ? "included" : nodeMeter;
 
+  // Ücretsiz hesap = tek ders (11 Kasım 2026 akşamı, ürün sahibinin kararı): ilk dersin döngüsü dışında ders sayacına
+  // düşen üretim ("Farklı anlat", verilmiş adımın yeniden yazımı, ilk olmayan hazırlığın dersi, dersi açılmamış
+  // konunun testi) ücretsiz hesapta açılmaz. Kaynak okuma, kayıt, kredi ayırma ve model çağrısından ÖNCE reddedilir;
+  // cüzdan bakiyesi (davet hediyesi) işi karşılıyorsa onunla açılır. Önceden yazım da açılamayacak içeriği yazmaz.
+  // Kayıtlı içeriği yeniden açmak ("Tekrar incele", "Dersi tekrarla") yukarıda, kapılardan önce döndü.
+  if (freeMeter === "lesson" && (await freeLessonRefused(service, userId, actionForKind(kind), { metered: true }))) {
+    if (prefetch) return NextResponse.json({ ok: true, skipped: "free_lesson" });
+    return errorResponse(402, FREE_LESSON_CODE);
+  }
+
   if (prefetch && freeMeter) {
-    // Ücretsiz öğrenciye açamayacağı dersi yazmıyoruz: haftalık ders hakkı bittiyse önceden yazım yok. İlk dersin
-    // döngüsünde bakılan sayaç derse dahil adımların günlük sınırıdır (haftalık hak dolu olsa da yazılır).
-    if ((freeMeter === "lesson" || firstLessonFree) && (await freeMeterRemaining(service, userId, freeMeter)) === 0) {
+    // İlk dersin döngüsünde bakılan sayaç derse dahil adımların günlük sınırıdır: dolduysa önceden yazım yok.
+    if (firstLessonFree && (await freeMeterRemaining(service, userId, freeMeter)) === 0) {
       return NextResponse.json({ ok: true, skipped: "free_limit" });
     }
   } else if (prefetch) {

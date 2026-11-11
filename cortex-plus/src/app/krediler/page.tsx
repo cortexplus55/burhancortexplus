@@ -22,7 +22,8 @@ import { FounderCreditsView } from "@/components/student/founder-credits-view";
 import { summarizeFounderUsage, turkeyMonthStart } from "@/lib/credits/founder-usage";
 import { loadFreeMeters } from "@/lib/billing/free-usage-server";
 import { FREE_TIER_SENTENCE, freeMeterResetLine } from "@/lib/billing/free-meters";
-import { PLUS_ONLY_SENTENCE } from "@/lib/billing/free-tier-copy";
+import { FREE_DOCUMENT_SENTENCE, FREE_FIRST_LESSON_SENTENCE, PLUS_ONLY_SENTENCE } from "@/lib/billing/free-tier-copy";
+import { firstLessonStatus, type FirstLessonStatus } from "@/lib/billing/free-topic-gate";
 import { freeExtraLine } from "@/lib/billing/tier-presentation";
 
 export const metadata = { title: "Kullanım limitleri" };
@@ -32,15 +33,13 @@ export const metadata = { title: "Kullanım limitleri" };
  * olduğundan eski kart "%0 kullanıldı" ya da hediye düşünce "%100 · aylık hakkına +%9000" yazıyordu.
  *
  * Notlar hangi işin hangi sayaçtan düştüğünü söyler (`defaultFreeMeter`): aşağıdaki limit listesinde
- * aynı satırlar gizlendiği için kural yalnız burada yazılı. Araçlar'daki test, kart ve doğru/yanlış
- * dersten; "Anlatarak öğren" (ürün sahibinin kararı) ve yazılı soru çözümü mesajdan düşer.
+ * aynı satırlar gizlendiği için kural yalnız burada yazılı. "Anlatarak öğren" (ürün sahibinin kararı) ve yazılı
+ * soru çözümü mesajdan düşer.
+ *
+ * 11 Kasım 2026 akşamı (ürün sahibinin kararı): ücretsiz hesap = tek ders. Eski haftalık ders sayacı (2/3) kalktı;
+ * yerinde ilk dersin durumu var (`FirstLessonRow`). Stüdyo'daki test, kart ve doğru/yanlış üretimi Plus'ta.
  */
 const FREE_METER_ROW: Record<string, { label: string; note?: string }> = {
-  lesson: {
-    label: "Bu haftaki ders",
-    // 11 Kasım 2026: ilk dersin temel döngüsü bu sayaçtan düşmez (`first-lesson-cycle.ts`).
-    note: "İlk hazırlığındaki ilk dersin adımları bu haktan düşmez. Dersin ardından gelen test ve kartlar derse dahil. Araçlar'daki test, kart ve doğru/yanlış da bu haktan düşer.",
-  },
   chat: {
     label: "Bugünkü sohbet mesajı",
     note: `Yazılı soru çözümü ve Araçlar'daki "Anlatarak öğren" de mesaj sayılır.`,
@@ -49,7 +48,35 @@ const FREE_METER_ROW: Record<string, { label: string; note?: string }> = {
 };
 
 /** `loadUsageLimits`'in ücretsiz sayaç satırları: ana kartta durdukları için aşağıda tekrar edilmez. */
-const FREE_METER_LIMIT_KEYS = new Set(["weekly-lessons", "daily-chat", "daily-photos"]);
+const FREE_METER_LIMIT_KEYS = new Set(["daily-chat", "daily-photos"]);
+
+const FIRST_LESSON_STATE: Record<FirstLessonStatus["state"], string> = {
+  none: "Hazırlığını kurunca açılır",
+  open: "Açık",
+  done: "Tamamlandı",
+};
+
+/** Ücretsiz hesabın ders hakkı: sayaç değil, ilk dersin durumu. Durum okunamazsa yalnız kural yazılır. */
+function FirstLessonRow({ status }: { status: FirstLessonStatus | null }) {
+  const href = status?.prepId ? `/deneme-sinavlari/${status.prepId}` : "/deneme-sinavlari/olustur";
+  return (
+    <div className="cp-limit-row">
+      <div className="cp-limit-head">
+        <span>İlk dersin</span>
+        {status ? <strong>{FIRST_LESSON_STATE[status.state]}</strong> : null}
+      </div>
+      <p>
+        {FREE_FIRST_LESSON_SENTENCE}{" "}
+        {status?.state === "done"
+          ? "Kayıtlı dersini dilediğin kadar yeniden açabilirsin; öbür konular, yeni anlatımlar ve Çalışma Stüdyosu'ndaki test, kart ve doğru/yanlış üretimi Plus'ta."
+          : "Öbür konular, yeni anlatımlar ve Çalışma Stüdyosu'ndaki test, kart ve doğru/yanlış üretimi Plus'ta."}{" "}
+        <Link href={href} className="underline">
+          {status?.state === "none" || !status ? "İlk hazırlığını kur" : status.state === "done" ? "Dersine dön" : "İlk dersine git"}
+        </Link>
+      </p>
+    </div>
+  );
+}
 
 function LimitBar({
   label,
@@ -148,6 +175,7 @@ export default async function KredilerPage() {
     ? []
     : (shell.account?.freeMeters ?? (await loadFreeMeters(service, user.id)));
   const extra = isPremium || preview ? null : freeExtraLine(wallet?.balance ?? 0);
+  const firstLesson = isPremium ? null : await firstLessonStatus(service, user.id);
 
   return (
     <ParitySorShell {...shell}>
@@ -204,6 +232,7 @@ export default async function KredilerPage() {
               <span className="cp-quota-plan">Ücretsiz plan</span>
             </div>
             <div className="mt-3">
+              <FirstLessonRow status={firstLesson} />
               {freeMeters.map((meter) => {
                 const row = FREE_METER_ROW[meter.meter];
                 if (!row) return null;
@@ -219,11 +248,12 @@ export default async function KredilerPage() {
               })}
             </div>
             {/* Cüzdan bakiyesi (davet hediyesi, aboneliği biten öğrencinin ek paketi, eski promosyon):
-                ücretsiz hak dolunca buradan düşer (SQL credit_reserve_metered). Kaynağı ayrılmadığı
-                için "Hediye" değil, "Ek hakkın" yazılır. */}
+                ilk dersin dışındaki üretim (yeni ders, Stüdyo'da test ve kart) ve dolan günlük hak buradan düşer
+                (`free-lesson-gate.ts`, SQL credit_reserve_metered). Kaynağı ayrılmadığı için "Hediye" değil,
+                "Ek hakkın" yazılır. */}
             {extra ? (
               <p className="cp-quota-detail">
-                <strong>{extra}</strong> · ücretsiz hakkın dolunca buradan kullanılır
+                <strong>{extra}</strong> · ilk dersinin dışındaki ders ve Stüdyo üretimleri buradan kullanılır
               </p>
             ) : null}
           </div>
@@ -254,7 +284,7 @@ export default async function KredilerPage() {
           description={
             isPremium
               ? "Bu işler ana kullanım hakkından düşmüyor; kendi sayaçları var."
-              : "Yüklediğin fotoğraf ve PDF sayfaları ders ve mesaj hakkından ayrı sayılır."
+              : `Yüklediğin fotoğraf ve PDF sayfaları mesaj hakkından ayrı sayılır. ${FREE_DOCUMENT_SENTENCE}`
           }
         >
           <div className="cp-limit-card">

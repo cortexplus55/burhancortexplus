@@ -41,11 +41,13 @@ export function kindListFilter(kinds: ReadonlySet<string>): string {
 
 /**
  * Hazırlık yolundaki adımın ücretsiz sayacı (24 Ekim 2026, ürün sahibinin kararı).
- * - Ders: haftalık ders hakkı. İstisna (11 Kasım 2026): ilk hazırlığın 1. konusunda adımın ilk açılışı; çağıran
- *   (`start.ts`) buradan "lesson" dönünce `firstLessonCycleFree`e sorar ve "included" ile ayırır.
+ * - Ders: ders sayacı ("lesson"). 11 Kasım 2026 akşamından beri bu sayaçta hak yok (ücretsiz hesap = tek ders):
+ *   çağıran (`start.ts`) buradan "lesson" dönünce `firstLessonCycleFree`e sorar; ilk hazırlığın 1. konusunda adımın
+ *   ilk açılışıysa "included" ile ayırır, değilse `free-lesson-gate.ts` kapısı işi Plus'a yönlendirir (cüzdan
+ *   bakiyesi yetiyorsa onunla açılır).
  * - Podcast, sözlü, yazılı deneme: Plus'ta (çağıran 402 premium_required döner).
  * - Öteki adımlar (test, doğru/yanlış, kartlar, tekrar, odaklı pratik, son kontrol…): o konunun dersi bu
- *   hazırlıkta açılmışsa derse dahil ("included"); açılmamışsa ders hakkından düşer. Konusuz adımda
+ *   hazırlıkta açılmışsa derse dahil ("included"); açılmamışsa ders sayacına düşer. Konusuz adımda
  *   (`topicId: null`) hazırlıkta herhangi bir ders açılmışsa dahil: rota hazırlık geneli adımı (boşluklar,
  *   odaklı pratik, son kontrol, son kartlar) öğrenci konu seçmediyse böyle sorar — zayıf konuya yönelmesi
  *   sayacı değiştirmez.

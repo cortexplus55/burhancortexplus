@@ -8,12 +8,15 @@ import { CREDIT_PRICE_TABLE, creditRuleSeed } from "@/lib/credits/price-table";
 import { parseDocumentReservationKey } from "@/lib/documents/document-reservation-key";
 import { SPEND_CAP_CODE, spendBreakerBlocks } from "@/lib/billing/spend-breaker";
 import { PHOTO_ABUSE_CODE, photoAbuseBlocked } from "@/lib/billing/photo-abuse-guard";
+import { freeLessonGate, type FreeLessonGate } from "@/lib/billing/free-lesson-gate";
 
 /**
  * Ücretsiz hesabın reddi (24 Ekim 2026): sayaç doldu ya da iş Plus'ta. Sebep yine
  * `insufficient_credits` (istemciler 402'yi ve bu kodu okuyor); ayrıntı `refusal`'da.
  * 5 Kasım 2026: küresel harcama sigortası (`spend_cap`) ve okunamayan fotoğraf döngüsü (`photo_abuse`) da
  * ücretsiz hesabın reddidir; abone ve kurucu bu ikisini görmez.
+ * 11 Kasım 2026 akşamı: `free_limit` + `lesson` artık "sayaç doldu" değil, "iş ücretsiz hesapta açılmıyor" demektir
+ * (ücretsiz hesap = tek ders; `free-lesson-gate.ts`). Kod aynı (`free_lesson_limit`): kod kapısı ve SQL aynı reddi verir.
  */
 export type FreeRefusal =
   | { kind: "free_limit"; meter: FreeMeter }
@@ -141,6 +144,19 @@ export async function reserveCredits(
   const units = Math.min(Math.max(Math.trunc(quantity) || 1, 1), 1000);
 
   const meter = options.freeMeter === undefined ? defaultFreeMeter(actionCode) : options.freeMeter;
+  // Ücretsiz hesap = tek ders (11 Kasım 2026 akşamı): ders sayacına düşecek iş ücretsiz hesapta açılmaz. Karar RPC'den
+  // ÖNCE ve kodda (`free-lesson-gate.ts`); SQL'deki sıfır sınır ikinci hat. Cüzdan bakiyesi (davet hediyesi) işi
+  // karşılıyorsa ayırma sayaçsız yapılır (`p_meter` boş → `credit_reserve`, bakiyeden): göç uygulanmadan önce de
+  // eski haftalık sayaç artmaz. Aynı anahtarla süren ya da bitmiş ayırma varsa karar SQL'e bırakılır (yineleme).
+  let rpcMeter = meter;
+  let lessonGate: FreeLessonGate | null = null;
+  if (meter === "lesson") {
+    lessonGate = await freeLessonGate(service, userId, actionCode, { quantity: units });
+    if (lessonGate === "plus" && !(await liveReservationExists(service, userId, idempotencyKey))) {
+      return { ok: false, reason: "insufficient_credits", refusal: { kind: "free_limit", meter: "lesson" } };
+    }
+    if (lessonGate !== "open") rpcMeter = null;
+  }
   // Lansman zırhı (5 Kasım 2026): günlük harcama sigortası atmışsa ücretsiz hesabın maliyetli işi burada durur
   // (derse dahil `included` yardım hariç); abone ve kurucu geçer. Okunamayan fotoğraf döngüsü yalnız fotoğraf işinde.
   if (await spendBreakerBlocks(service, userId, { meter })) {
@@ -156,7 +172,7 @@ export async function reserveCredits(
       p_action_code: actionCode,
       p_idempotency_key: idempotencyKey,
       p_quantity: units,
-      p_meter: meter,
+      p_meter: rpcMeter,
     });
     // Yayın sırası: kod göçten önce çıkarsa (fonksiyon yok) eski yola düşer. Sessiz kalmasın: ücretsiz hesabın
     // sayacı bu yolda çalışmıyor, düşen ayırma düz `insufficient_credits` döner (inceleme, 24 Ekim 2026).
@@ -183,6 +199,10 @@ export async function reserveCredits(
     const refusal = parseFreeRefusal(error.message ?? "");
     if (refusal) return { ok: false, reason: "insufficient_credits", refusal };
     if (error.message.includes("insufficient")) {
+      // Ücretsiz hesabın ders sayacındaki işi bakiyeden ödenemedi: "hakkın doldu" değil, iş Plus'ta.
+      if (lessonGate && lessonGate !== "open") {
+        return { ok: false, reason: "insufficient_credits", refusal: { kind: "free_limit", meter: "lesson" } };
+      }
       return { ok: false, reason: "insufficient_credits" };
     }
     if (error.message.includes("invalid_action")) {
@@ -202,6 +222,22 @@ export async function reserveCredits(
     reason: claim?.state === "busy" ? "operation_in_progress" : claim?.state === "committed" ? "operation_completed" : "error",
   };
   return { ok: true, reservationId: data, cost: claim.amount as number };
+}
+
+/** Bu anahtarla iade edilmemiş bir ayırma var mı (aynı isteğin yinelenmesi); okunamazsa yok sayılır. */
+async function liveReservationExists(service: SupabaseClient, userId: string, idempotencyKey: string): Promise<boolean> {
+  try {
+    const { data, error } = await service
+      .from("credit_reservations")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("idempotency_key", idempotencyKey)
+      .neq("status", "refunded")
+      .limit(1);
+    return !error && (data ?? []).length > 0;
+  } catch {
+    return false;
+  }
 }
 
 export async function commitCredits(

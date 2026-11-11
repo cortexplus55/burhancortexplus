@@ -7,7 +7,8 @@ import type { StudentAccountContext } from "@/lib/student/account-context";
 import { StudentShellProvider } from "@/lib/student/student-shell-context";
 import { UPGRADE_FREE_LINE, UPGRADE_INVITE_LINE, UpgradeSheet } from "@/components/paywall/upgrade-sheet";
 import { ExamPodcastPlayer } from "@/components/parity/exam-podcast-player";
-import { FREE_LIMITS, REFERRAL_GIFT_LESSONS, REFERRAL_MAX_INVITES, defaultFreeMeter } from "@/lib/billing/free-meters";
+import { FREE_LIMITS, REFERRAL_GIFT_LESSONS, REFERRAL_MAX_INVITES, defaultFreeMeter, needsPlusOutsideFirstLesson } from "@/lib/billing/free-meters";
+import { FREE_DOCUMENT_SENTENCE } from "@/lib/billing/free-tier-copy";
 
 /*
   Kredi v3 yeniden incelemesi (24 Ekim 2026), metin bulguları:
@@ -68,10 +69,17 @@ describe("/krediler ücretsiz kartı (#1, #2)", () => {
   });
 
   it("sayaç notları hangi işin hangi haktan düştüğünü söyler; kural koddakiyle aynı", () => {
-    expect(page).toContain("Araçlar'daki test, kart ve doğru/yanlış da bu haktan düşer.");
+    // 11 Kasım 2026 akşamı (ürün sahibinin kararı): haftalık ders sayacı yok. Sayfa ilk dersin durumunu gösterir ve
+    // Stüdyo'daki test, kart ve doğru/yanlış üretiminin Plus'ta olduğunu söyler.
+    expect(page).not.toMatch(/label: "Bu haftaki ders"|weekly-lessons|bu haktan düşer/);
+    expect(page).toContain("<FirstLessonRow status={firstLesson} />");
+    expect(page).toContain("Çalışma Stüdyosu'ndaki test, kart ve doğru/yanlış üretimi Plus'ta.");
+    expect(page).toContain("FREE_DOCUMENT_SENTENCE");
+    expect(needsPlusOutsideFirstLesson("QUIZ_GENERATE")).toBe(true);
+    expect(needsPlusOutsideFirstLesson("FLASHCARD_GENERATE")).toBe(true);
     expect(page).toContain(`Yazılı soru çözümü ve Araçlar'daki "Anlatarak öğren" de mesaj sayılır.`);
     expect(page).toContain("Okunmayan fotoğraf haktan düşmez.");
-    // Araçlar'daki test, kart ve doğru/yanlış dersten; "Anlatarak öğren" mesajdan.
+    // Stüdyo'daki test, kart ve doğru/yanlış ders sayacında (ücretsizde Plus'a yönlenir); "Anlatarak öğren" mesajdan.
     expect(defaultFreeMeter("QUIZ_GENERATE")).toBe("lesson");
     expect(defaultFreeMeter("FLASHCARD_GENERATE")).toBe("lesson");
     expect(defaultFreeMeter("AI_CHAT_STANDARD")).toBe("chat");
@@ -88,11 +96,13 @@ describe("yükseltme kapısı (#3)", () => {
       `Ya da arkadaşını davet et — o hesabını doğrulayıp ilk çalışmasını yapınca ikinize de ${REFERRAL_GIFT_LESSONS} ders hediye (en çok ${REFERRAL_MAX_INVITES} davet)`,
     );
     expect(UPGRADE_FREE_LINE).toBe(
-      // 11 Kasım 2026 (ürün sahibinin kararı): ilk dersin döngüsü süreye ve haftalık hakka takılmaz; haftalık ders hakkı
-      // Çalışma Stüdyosu ve "Farklı anlat" için (31 Ekim'de sayaç 1. konunun içinde de geçerliydi).
-      `Ücretsiz hesapta ilk hazırlığında ilk dersin (konu anlatımı, kartlar, doğru/yanlış ve konu testi) süre sınırı olmadan açık; Çalışma Stüdyosu ve "Farklı anlat" için haftada ${FREE_LIMITS.lesson} ders hakkı, günde ${FREE_LIMITS.chat} sohbet mesajı ve günde ${FREE_LIMITS.photo} fotoğraftan soru çözümü var; ` +
-        `davet ettiğin arkadaş hesabını doğrulayıp ilk çalışmasını yapınca ikinize de ${REFERRAL_GIFT_LESSONS} ders hediye; en çok ${REFERRAL_MAX_INVITES} davet için.`,
+      // 11 Kasım 2026 (ürün sahibinin kararı): ilk dersin döngüsü süreye takılmaz; aynı akşam haftalık ders hakkı
+      // kalktı (ücretsiz hesap = tek ders). Belge ve hazırlık sınırı kapıda da yazılı.
+      `Ücretsiz hesapta ilk hazırlığında ilk dersin (konu anlatımı, kartlar, doğru/yanlış ve konu testi) süre sınırı olmadan açık; ayrıca günde ${FREE_LIMITS.chat} sohbet mesajı ve günde ${FREE_LIMITS.photo} fotoğraftan soru çözümü var. ` +
+        `${FREE_DOCUMENT_SENTENCE} ` +
+        `Davet ettiğin arkadaş hesabını doğrulayıp ilk çalışmasını yapınca ikinize de ${REFERRAL_GIFT_LESSONS} ders hediye; en çok ${REFERRAL_MAX_INVITES} davet için.`,
     );
+    expect(UPGRADE_FREE_LINE).not.toMatch(/haftada|Pazartesi/);
   });
 
   it("ekranda iki satır da görünür", () => {

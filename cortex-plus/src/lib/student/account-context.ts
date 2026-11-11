@@ -47,17 +47,20 @@ export type StudentAccountContext = {
   usedPercent: number;
   /** Satın alınmış ek paketin dönem hakkına oranı (%); yoksa null. */
   extraPercent: number | null;
-  /** Ücretsiz hesabın sayaçları (haftalık ders, günlük mesaj ve fotoğraf; 24 Ekim 2026). */
+  /** Ücretsiz hesabın sayaçları (günlük mesaj ve fotoğraf; 24 Ekim 2026). Ders sayacı yok (11 Kasım 2026 akşamı). */
   freeMeters?: FreeMeterView[];
 };
 
-/** Ücretsiz hesabın görünümü: kredi yüzdesi yerine ders sayacı, yenilenme haftanın başı. */
+/**
+ * Ücretsiz hesabın görünümü: kredi yüzdesi yerine günlük mesaj sayacı, yenilenme gece yarısı. 11 Kasım 2026
+ * akşamına kadar haftalık ders sayacıydı; ücretsiz hesap artık tek ders (sayaç yok).
+ */
 function freeView(meters: FreeMeterView[]): Pick<StudentAccountContext, "freeMeters" | "usedPercent" | "resetsAtLabel" | "resetsAtIso"> {
-  const lesson = meters.find((item) => item.meter === "lesson");
-  const resetsAt = lesson ? new Date(lesson.resetsAtIso) : new Date();
+  const chat = meters.find((item) => item.meter === "chat");
+  const resetsAt = chat ? new Date(chat.resetsAtIso) : new Date();
   return {
     freeMeters: meters,
-    usedPercent: lesson ? Math.round((lesson.used / Math.max(1, lesson.limit)) * 100) : 0,
+    usedPercent: chat ? Math.round((chat.used / Math.max(1, chat.limit)) * 100) : 0,
     resetsAtLabel: formatResetAt(resetsAt),
     resetsAtIso: resetsAt.toISOString(),
   };

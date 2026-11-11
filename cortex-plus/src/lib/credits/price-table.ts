@@ -91,7 +91,7 @@ export const PLUS_CHAT_IS_FREE = false;
 
 /**
  * Dönem hakları (kredi). Haftalık plan haftalık, diğerleri aylık. Ücretsiz hesabın kredisi yok (24 Ekim 2026):
- * haftada 3 ders, günde 3 mesaj, günde 1 fotoğraf sayaçla. Yıllık planlar satıştan kalktı; satır elinde
+ * ilk ders, günde 3 mesaj, günde 1 fotoğraf sayaçla (`free-meters.ts`). Yıllık planlar satıştan kalktı; satır elinde
  * yıllık abonelik olan için duruyor.
  */
 export const PLAN_ALLOWANCES = {

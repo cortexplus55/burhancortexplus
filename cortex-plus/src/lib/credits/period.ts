@@ -39,7 +39,7 @@ export type PeriodKind = "daily" | "weekly" | "monthly";
 
 /**
  * Ücretsiz günlük kredi: 24 Ekim 2026'dan beri 0 (SQL: 20261024123000). Ücretsiz hesap sayaçla çalışır
- * (haftada 3 ders, günde 3 mesaj, günde 1 fotoğraf; `free-meters.ts`).
+ * (ilk ders, günde 3 mesaj, günde 1 fotoğraf; `free-meters.ts`).
  */
 export const FREE_DAILY_ALLOWANCE = 0;
 const PREMIUM_MONTHLY_ALLOWANCE = 7200;

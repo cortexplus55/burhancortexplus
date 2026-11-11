@@ -17,7 +17,7 @@ import {
   workCount,
 } from "@/lib/billing/plan-value";
 import { AUDIO_CHARS_PER_CREDIT_PRICE, CREDIT_PRICE_TABLE, PLAN_ALLOWANCES } from "@/lib/credits/price-table";
-import { FREE_CHAT_PER_DAY, FREE_LESSONS_PER_WEEK, FREE_PHOTO_PER_DAY, isPlusOnlyAction } from "@/lib/billing/free-meters";
+import { FREE_CHAT_PER_DAY, FREE_LIMITS, FREE_PHOTO_PER_DAY, isPlusOnlyAction, needsPlusOutsideFirstLesson } from "@/lib/billing/free-meters";
 import type { ActionCode } from "@/lib/env";
 
 /*
@@ -85,11 +85,19 @@ describe("Plus'ın bir ayı: sayılar kredi tablosundan", () => {
       expect(work.plusOnly, work.id).toBe(isPlusOnlyAction(WORK_ACTION[work.id]!));
       if (work.plusOnly) expect(freeMonthlyCount(work), work.id).toBe(0);
     }
-    // Haftada 3 ders → ayda 12; test ve kartlar derse dahil; günde 3 mesaj, günde 1 fotoğraf.
-    expect(freeMonthlyCount(PLAN_WORK_BY_ID.lesson)).toBe(Math.floor((FREE_LESSONS_PER_WEEK * 30) / 7));
-    expect(freeMonthlyCount(PLAN_WORK_BY_ID.lesson)).toBe(12);
+    // 11 Kasım 2026 akşamı (ürün sahibinin kararı): ücretsiz hesap = tek ders. "Ayda ~12 ders" artık yanlış: ders
+    // yalnız ilk ders, test ve kartlar o derse dahil; günde 3 mesaj, günde 1 fotoğraf.
+    expect(FREE_LIMITS.lesson).toBe(0);
+    expect(PLAN_WORK_BY_ID.lesson.free).toBe("first");
+    expect(freeMonthlyCount(PLAN_WORK_BY_ID.lesson)).toBe(1);
     expect(PLAN_WORK_BY_ID.quiz.free).toBe("included");
-    expect(freeMonthlyCount(PLAN_WORK_BY_ID.quiz)).toBe(12);
+    expect(PLAN_WORK_BY_ID.cards.free).toBe("included");
+    expect(freeMonthlyCount(PLAN_WORK_BY_ID.quiz)).toBe(1);
+    // İlk dersin dışında Plus'a yönlenen işler: "first" / "included" tam olarak ders sayacına düşenler.
+    for (const work of PLAN_WORK) {
+      const lessonMetered = work.free === "first" || work.free === "included";
+      expect(lessonMetered, work.id).toBe(!work.plusOnly && needsPlusOutsideFirstLesson(WORK_ACTION[work.id]!));
+    }
     expect(freeMonthlyCount(PLAN_WORK_BY_ID.chat)).toBe(FREE_CHAT_PER_DAY * 30);
     expect(freeMonthlyCount(PLAN_WORK_BY_ID.photo)).toBe(FREE_PHOTO_PER_DAY * 30);
   });
@@ -108,19 +116,25 @@ describe("Plus'ın bir ayı: sayılar kredi tablosundan", () => {
     expect(Math.max(...shares)).toBeLessThan(0.75);
   });
 
-  it("ücretsiz gün karşılığı: Plus'a özel iş varsa yok, yoksa sayaçlarla", () => {
+  it("ücretsiz gün karşılığı: Plus'a özel iş ya da ilk dersin ötesi varsa yok, yoksa günlük sayaçlarla", () => {
     expect(freeDaysFor({ podcast: 1 })).toBeNull();
-    // 30 ders haftada 3'le 70 gün; mesaj günde 3, fotoğraf günde 1; en uzun süren sayaç belirler.
-    expect(freeDaysFor({ lesson: 30 })).toBe(70);
+    // Ücretsiz hesap = tek ders: birden çok ders ya da dersin dışında test/kart ücretsizle yürümez.
+    expect(freeDaysFor({ lesson: 30 })).toBeNull();
+    expect(freeDaysFor({ lesson: 2 })).toBeNull();
+    expect(freeDaysFor({ lesson: 3, quiz: 3 })).toBeNull();
+    expect(freeDaysFor({ quiz: 1 })).toBeNull();
+    expect(freeDaysFor({ lesson: 1, quiz: 1, cards: 1 })).toBe(1);
+    // Mesaj günde 3, fotoğraf günde 1; en uzun süren sayaç belirler.
     expect(freeDaysFor({ chat: 9 })).toBe(3);
     expect(freeDaysFor({ photo: 2, chat: 3 })).toBe(2);
-    expect(freeDaysFor({ lesson: 3, quiz: 3 })).toBe(7);
+    // Hazır tempoların hepsi günde en az bir ders ister: hiçbiri ücretsizle yürümez.
+    for (const preset of TEMPO_PRESETS) expect(freeDaysFor(tempoMix(preset.tempo)), preset.id).toBeNull();
   });
 
   it("ücretsiz–Plus satırları ve günlük fiyat", () => {
     const rows = freeVsPlusRows(fmt);
-    expect(rows[0]).toEqual({ label: "Ders (ayda)", free: "12", plus: "240" });
-    expect(rows[1]).toEqual({ label: "Konu testi (ayda)", free: "Derse dahil", plus: "720" });
+    expect(rows[0]).toEqual({ label: "Ders (ayda)", free: "İlk ders", plus: "240" });
+    expect(rows[1]).toEqual({ label: "Konu testi (ayda)", free: "İlk derse dahil", plus: "720" });
     expect(rows.find((row) => row.label.startsWith("Podcast"))?.free).toBe("Kapalı");
     expect(perDayKurus(59900)).toBe(1997);
   });
