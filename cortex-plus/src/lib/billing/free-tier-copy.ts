@@ -16,7 +16,8 @@ export const FREE_PAGE_TOTAL = 25;
 
 /**
  * İlk dersin temel döngüsü (11 Kasım 2026, ürün sahibinin kararı): ücretsiz hesapta ilk hazırlığın ilk dersi süreye
- * ve haftalık ders hakkına takılmadan açık (`first-lesson-cycle.ts`). Adımlar yoldaki sırasıyla.
+ * takılmadan açık (`first-lesson-cycle.ts`). Aynı günün akşamı haftalık ders hakkı kalktı: ücretsiz hesapta ders
+ * yalnız bu ilk derstir, devamı Plus'ta (`free-lesson-gate.ts`). Adımlar yoldaki sırasıyla.
  */
 export const FIRST_LESSON_STEPS = ["Konu Anlatımı", "Kartlar", "Doğru/Yanlış", "Konu Testi"] as const;
 
@@ -40,6 +41,12 @@ export const PLUS_ONLY_SENTENCE = `${listWithAnd(PLUS_ONLY_FEATURES)} Plus'a öz
 export const FREE_FIRST_LESSON_CLAUSE = `İlk hazırlığında ilk dersin (${listWithAnd(
   FIRST_LESSON_STEPS.map((step) => step.toLocaleLowerCase("tr")),
 )}) süre sınırı olmadan açık`;
+
+/**
+ * Belge ve hazırlık sınırı (11 Kasım 2026 akşamı, ürün sahibinin kararı: sınır aynı kalır; kapıda ve fiyat
+ * yüzeylerinde görünür olur, Plus'a yönlendirir). Kapı, /krediler, /yardim ve hoş geldin e-postası bu cümleyi okur.
+ */
+export const FREE_DOCUMENT_SENTENCE = `Ücretsiz hesapta tek sınav hazırlığı ve toplam ${FREE_PAGE_TOTAL} sayfa belge var; daha fazlası Plus'ta.`;
 
 export const FREE_PREP_LIMIT_MESSAGE =
   "Ücretsiz planda bir sınav hazırlığı kurabilirsin. Yenisini kurmak için Plus'a geç.";

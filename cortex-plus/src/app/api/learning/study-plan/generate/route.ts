@@ -3,6 +3,7 @@ import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
 import { addDays, istanbulDay } from "@/lib/istanbul-day";
+import { FREE_LESSON_CODE, freeLessonRefused } from "@/lib/billing/free-lesson-gate";
 
 const bodySchema = z.object({
   goal: z.string().min(3).max(300),
@@ -33,6 +34,10 @@ export async function POST(request: Request) {
   const parsedBody = bodySchema.safeParse(await request.json());
   if (!parsedBody.success) return errorResponse(400, "invalid_input");
   const { goal, weeks, topicCount } = parsedBody.data;
+
+  // Ücretsiz hesap = tek ders (11 Kasım 2026 akşamı): bu üretim ders sayacına düşer, ücretsiz hesapta Plus'a yönlenir.
+  // Kaynak okuma, kredi ayırma ve model çağrısından ÖNCE; cüzdan bakiyesi (davet hediyesi) yetiyorsa iş onunla yapılır.
+  if (await freeLessonRefused(service, userId, "STUDY_PLAN_GENERATE")) return errorResponse(402, FREE_LESSON_CODE);
 
   const outcome = await generateJson({
     service,

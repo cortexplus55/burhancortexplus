@@ -13,7 +13,7 @@ vi.mock("next/link", () => ({
 
 import { StudioGallery } from "@/components/parity/studio-gallery";
 import { STUDIOS, studioNeedsPlus } from "@/lib/parity/studios";
-import { PLUS_ONLY_ACTIONS } from "@/lib/billing/free-meters";
+import { PLUS_ONLY_ACTIONS, defaultFreeMeter, needsPlusOutsideFirstLesson } from "@/lib/billing/free-meters";
 import { studentBottomTabs } from "@/components/parity/student-shell-nav";
 
 /*
@@ -114,16 +114,28 @@ describe("Çalışma Stüdyosu sekmesi", () => {
     }
   });
 
-  it("ücretsizde yalnız Plus işleri rozetli ve 'İncele' der (açık liste)", () => {
+  // 11 Kasım 2026 akşamı (ürün sahibinin kararı): ücretsiz hesap = tek ders. Stüdyo'da ders sayacına düşen üretimler
+  // (Konu Testi, Kartlar, Doğru / Yanlış) da Plus rozetli; Fotoğraftan Çözüm ve Anlatarak Öğren günlük haklarla açık.
+  it("ücretsizde Plus işleri ve ders sayacına düşen üretimler rozetli ve 'İncele' der (tek kural)", () => {
     render(<StudioGallery freeAccount />);
     expect(STUDIOS.filter((studio) => studioNeedsPlus(studio, true)).map((studio) => studio.id)).toEqual([
+      "quiz",
+      "flashcard",
+      "dogru-yanlis",
       "podcast",
       "sozlu",
       "yazili",
     ]);
-    expect(screen.getAllByText("Plus")).toHaveLength(3);
-    expect(screen.getAllByText("İncele")).toHaveLength(3);
-    for (const studio of STUDIOS) if (studio.action) expect(PLUS_ONLY_ACTIONS).toContain(studio.action);
+    expect(screen.getAllByText("Plus")).toHaveLength(6);
+    expect(screen.getAllByText("İncele")).toHaveLength(6);
+    expect(screen.getAllByText("Başla")).toHaveLength(2);
+    for (const studio of STUDIOS) {
+      if (!studio.action) continue;
+      expect(needsPlusOutsideFirstLesson(studio.action), studio.id).toBe(true);
+      expect(PLUS_ONLY_ACTIONS.includes(studio.action) || defaultFreeMeter(studio.action) === "lesson", studio.id).toBe(true);
+    }
+    // Abone ve kurucu rozet görmez.
+    expect(STUDIOS.some((studio) => studioNeedsPlus(studio, false))).toBe(false);
   });
 
   it("kartlar: telefonda tek sütun, masaüstünde üç; metin 14 px altına inmez; hareket azaltmada durur", () => {

@@ -3,7 +3,7 @@
 import { UpgradeSheet } from "@/components/paywall/upgrade-sheet";
 import { CreditLimitToast } from "@/components/paywall/credit-limit-toast";
 import { useIsFounder, useStudentShellAccount } from "@/lib/student/student-shell-context";
-import { beyondFreeMessage, exceedsFreeDaily } from "@/lib/billing/free-reach";
+import { FREE_LESSON_WORK_NAME, beyondFreeMessage, exceedsFreeDaily } from "@/lib/billing/free-reach";
 import {
   defaultFreeMeter,
   freeMeterResetLine,
@@ -42,7 +42,8 @@ export function CreditGate({
   actionLabel?: string;
   /**
    * Ücretsiz hesapta dolan sayaç (24 Ekim 2026); verilmezse işin varsayılanı. İkisi de yoksa yenilenme
-   * saati ve geri sayım gösterilmez.
+   * saati ve geri sayım gösterilmez. Ders sayacı ("lesson") dolmaz: iş ücretsiz hesapta açılmıyordur (11 Kasım
+   * 2026 akşamı, ücretsiz hesap = tek ders); kapı Plus cümlesini yazar, geri sayım göstermez.
    */
   meter?: FreeMeter;
   /** Kapının başlığı ve öğrencinin kazanımları (1. konu kapısı, Paket J1 #3). */
@@ -54,8 +55,15 @@ export function CreditGate({
   if (founder) return null;
   const isPremium = isPremiumProp ?? account?.isPremium ?? false;
   const actionBeyond = !isPremium && action ? exceedsFreeDaily(action) : false;
-  const beyondFreeDaily = beyondFreeDailyProp || actionBeyond;
-  const gateMessage = actionBeyond ? beyondFreeMessage(actionLabel ?? "Bu iş") : message;
+  const gateMeter = meter ?? (action ? defaultFreeMeter(action) : null);
+  // Ders sayacına düşen iş: beklemek çözmez, ilk ders açık ve devamı Plus'ta (tek cümle `beyondFreeMessage`).
+  const lessonBeyond = !isPremium && !beyondFreeDailyProp && gateMeter === "lesson";
+  const beyondFreeDaily = beyondFreeDailyProp || actionBeyond || lessonBeyond;
+  const gateMessage = actionBeyond
+    ? beyondFreeMessage(actionLabel ?? "Bu iş")
+    : lessonBeyond
+      ? beyondFreeMessage(actionLabel ?? FREE_LESSON_WORK_NAME)
+      : message;
 
   if (isPremium) {
     return (
@@ -67,7 +75,7 @@ export function CreditGate({
     );
   }
 
-  const reset = beyondFreeDaily ? null : freeGateReset(meter ?? (action ? defaultFreeMeter(action) : null), account?.freeMeters);
+  const reset = beyondFreeDaily ? null : freeGateReset(gateMeter, account?.freeMeters);
 
   return (
     <UpgradeSheet
@@ -85,8 +93,8 @@ export function CreditGate({
 
 /**
  * Yenilenme saati kapıya taşınıyor: "abone ol" tek çözüm değil, beklemek de çözüm ve bunu söylemek
- * dürüst olan. Ücretsiz hesapta sayacın kendi saati (ders Pazartesi, mesaj, fotoğraf ve derse dahil
- * adımlar gece yarısı).
+ * dürüst olan. Ücretsiz hesapta sayacın kendi saati (mesaj, fotoğraf ve derse dahil adımlar gece yarısı).
+ * Ders sayacının saati yok (11 Kasım 2026 akşamı): hak yenilenmez, iş Plus'ta.
  *
  * Sayaç bilinmiyorsa (kurulum, belge işleme, sınav hazırlığı sınırı) saat yazılmaz: 24 Ekim 2026'ya kadar
  * kapı burada ders sayacına düşüyor, beklemenin hiçbir şeyi çözmediği kapılarda Pazartesi'ye geri sayıyordu.
@@ -96,7 +104,7 @@ export function freeGateReset(
   meters: readonly FreeMeterView[] | undefined,
   now: Date = new Date(),
 ): { hint: string; resetsAt: string } | null {
-  if (!meter) return null;
+  if (!meter || meter === "lesson") return null;
   // "included" kabukta görünmez (sayaç listesinde yok); saati aynı kuraldan hesaplanır.
   const view = meters?.find((item) => item.meter === meter);
   return {

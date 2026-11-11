@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { FAQ, FREE_PLAN_POINTS, PLUS_PLAN_POINTS, TRUST_FACTS } from "@/lib/marketing/landing-content";
 import { PLAN_ALLOWANCES, allowanceInWork } from "@/lib/credits/price-table";
@@ -176,18 +176,24 @@ describe("ana sayfanın sayıları koddan", () => {
     ...TRUST_FACTS.map((fact) => `${fact.title}. ${fact.body}`),
   ].join("\n");
 
-  // 24 Ekim 2026: ücretsiz hesap sayaçla — haftada 3 ders, günde 3 mesaj, günde 1 fotoğraf (göç 20261024121000).
-  it("ücretsiz hak: haftada 3 ders, günde 3 mesaj, günde 1 fotoğraf; SQL ve kopya aynı", () => {
-    expect(FREE_LIMITS).toMatchObject({ lesson: 3, chat: 3, photo: 1 });
-    const sql = read("supabase/migrations/20261024121000_free_tier_counts.sql");
+  // 24 Ekim 2026: ücretsiz hesap sayaçla — günde 3 mesaj, günde 1 fotoğraf (göç 20261024121000). 11 Kasım 2026
+  // akşamı (ürün sahibinin kararı): haftalık 3 ders hakkı kalktı, ücretsiz hesap = tek ders (göç 20261111180000:
+  // `free_meter_limit('lesson')` 0; SQL'in son tanımı o dosyada).
+  it("ücretsiz hak: ilk ders, günde 3 mesaj, günde 1 fotoğraf; SQL ve kopya aynı", () => {
+    expect(FREE_LIMITS).toMatchObject({ lesson: 0, chat: 3, photo: 1, included: 40 });
+    const sql = read("supabase/migrations/20261111180000_free_lesson_trial.sql");
     expect(sql).toContain(`WHEN 'lesson' THEN ${FREE_LIMITS.lesson}`);
     expect(sql).toContain(`WHEN 'chat' THEN ${FREE_LIMITS.chat}`);
     expect(sql).toContain(`WHEN 'photo' THEN ${FREE_LIMITS.photo}`);
+    expect(sql).toContain(`WHEN 'included' THEN ${FREE_LIMITS.included}`);
+    // Sonraki hiçbir göç sınırı yeniden tanımlamıyor: son söz bu dosyada.
+    const later = readdirSync("supabase/migrations").filter((name) => name > "20261111180000_free_lesson_trial.sql");
+    for (const name of later) expect(read(`supabase/migrations/${name}`), name).not.toMatch(/FUNCTION public[.]free_meter_limit/);
     // Ücretsiz günlük kredi 0: credit_reserve'ün son hâli ayrı göçte (20261024123000).
     expect(read("supabase/migrations/20261024123000_free_daily_zero.sql")).toContain("v_allowance := 0;");
-    // 11 Kasım 2026 (ürün sahibinin kararı): ilk dersin döngüsü süreye ve haftalık hakka takılmaz; haftalık ders hakkı
-    // Çalışma Stüdyosu ve "Farklı anlat" için (31 Ekim'de sayaç 1. konunun içinde de geçerliydi).
-    expect(text).toContain('ilk hazırlığında ilk dersin (konu anlatımı, kartlar, doğru/yanlış ve konu testi) süre sınırı olmadan açık; Çalışma Stüdyosu ve "Farklı anlat" için haftada 3 ders hakkı, günde 3 sohbet mesajı ve günde 1 fotoğraftan soru çözümü');
+    // 11 Kasım 2026 (ürün sahibinin kararı): ilk dersin döngüsü süreye takılmaz; aynı akşam haftalık ders hakkı kalktı.
+    expect(text).toContain("ilk hazırlığında ilk dersin (konu anlatımı, kartlar, doğru/yanlış ve konu testi) süre sınırı olmadan açık; ayrıca günde 3 sohbet mesajı ve günde 1 fotoğraftan soru çözümü");
+    expect(text).not.toMatch(/haftada [0-9]+ ders|haftalık ders hakkı/);
     expect(text).not.toContain("günde bir ders");
   });
 

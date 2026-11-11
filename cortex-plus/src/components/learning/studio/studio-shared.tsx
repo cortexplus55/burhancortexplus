@@ -8,6 +8,7 @@ import { ArrowLeft } from "lucide-react";
 import { CreditGate } from "@/components/paywall/credit-gate";
 import type { ActionCode } from "@/lib/env";
 import { freeLimitReachedLine, type FreeMeter } from "@/lib/billing/free-meters";
+import { STUDIO_GENERATION_NAME } from "@/lib/billing/free-reach";
 import { CortexMark } from "@/components/brand/cortex-mark";
 import { STUDIO_INTRO } from "@/lib/learning/studio-intro";
 import { useStudentShellAccount } from "@/lib/student/student-shell-context";
@@ -317,8 +318,9 @@ export function StudioPaywall({
   action?: ActionCode;
   actionLabel?: string;
   /**
-   * Ücretsiz hesapta dolan sayaç (24 Ekim 2026). İş kodu verilmezse ders hakkı: Araçlar'daki test,
-   * kartlar ve doğru/yanlış dersten düşer. "Anlatarak öğren" mesaj hakkından.
+   * Ücretsiz hesabın sayacı (24 Ekim 2026). İş kodu verilmezse ders sayacı: Stüdyo'daki test, kartlar ve
+   * doğru/yanlış. 11 Kasım 2026 akşamından beri bu sayaçta hak yok (ücretsiz hesap = tek ders): kapı "doldu"
+   * demez, üretimin Plus'ta olduğunu söyler. "Anlatarak öğren" mesaj hakkından.
    */
   meter?: FreeMeter;
 }) {
@@ -331,7 +333,7 @@ export function StudioPaywall({
       onOpenChange={onOpenChange}
       message={free && gateMeter ? freeLimitReachedLine(gateMeter) : "Bu stüdyo için kullanım hakkın yetmiyor."}
       action={action}
-      actionLabel={actionLabel}
+      actionLabel={actionLabel ?? (gateMeter === "lesson" ? STUDIO_GENERATION_NAME : undefined)}
       meter={gateMeter}
       returnPath={returnPath}
     />

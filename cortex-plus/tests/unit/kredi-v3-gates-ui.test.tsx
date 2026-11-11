@@ -45,11 +45,12 @@ afterEach(() => {
 });
 
 const read = (path: string) => readSource(path).replace(/\r\n/g, "\n");
-// Salı 27 Ekim 2026 12:00 İstanbul (09:00 UTC): ders hakkı Pazartesi 2 Kasım 00:00'da yenilenir.
+// Salı 27 Ekim 2026 12:00 İstanbul (09:00 UTC). 11 Kasım 2026 akşamından beri haftalık ders sayacı yok
+// (ücretsiz hesap = tek ders): görünen sayaçlar günlük mesaj ve fotoğraf.
 const TUESDAY = new Date("2026-10-27T09:00:00Z");
 
 function meters(now: Date): FreeMeterView[] {
-  return (["lesson", "chat", "photo"] as const).map((meter) => ({
+  return (["chat", "photo"] as const).map((meter) => ({
     meter,
     used: 3,
     limit: meter === "photo" ? 1 : 3,
@@ -87,11 +88,8 @@ describe("kapının yenilenme saati (#18, #19)", () => {
     expect(freeGateReset(undefined, meters(TUESDAY), TUESDAY)).toBeNull();
   });
 
-  it("ders Pazartesi 00:00, derse dahil adımlar gece yarısı (kabukta görünmese de)", () => {
-    expect(freeGateReset("lesson", meters(TUESDAY), TUESDAY)).toEqual({
-      hint: "Ders hakkın Pazartesi 00:00'da yenilenir.",
-      resetsAt: "2026-11-01T21:00:00.000Z",
-    });
+  it("ders sayacının saati yok (hak yenilenmez, iş Plus'ta); derse dahil adımlar gece yarısı (kabukta görünmese de)", () => {
+    expect(freeGateReset("lesson", meters(TUESDAY), TUESDAY)).toBeNull();
     expect(freeGateReset("included", meters(TUESDAY), TUESDAY)).toEqual({
       hint: "Hakkın gece yarısı yenilenir.",
       resetsAt: "2026-10-27T21:00:00.000Z",
@@ -111,14 +109,17 @@ describe("kapının yenilenme saati (#18, #19)", () => {
     expect(countdownParts(86400).map((part) => part.unit)).toEqual(["saat", "dk", "sn"]);
   });
 
-  it("ders kapısı Pazartesi satırını ve günlü geri sayımı birlikte çizer", () => {
+  // 11 Kasım 2026 akşamı (ürün sahibinin kararı): "Bu haftaki 3 ücretsiz ders hakkın bitti" ve Pazartesi geri sayımı
+  // kalktı. Ders sayacındaki işin kapısı Plus cümlesini yazar; beklemek çözmez.
+  it("ders kapısı geri saymaz: ilk ders açık, devamı Plus'ta", () => {
     vi.useFakeTimers();
     vi.setSystemTime(TUESDAY);
     try {
       inShell(account(), <CreditGate open onOpenChange={() => undefined} message={freeLimitReachedLine("lesson")} meter="lesson" />);
-      expect(screen.getByText("Ders hakkın Pazartesi 00:00'da yenilenir.")).toBeTruthy();
-      expect(screen.getByText("Hakkın yenilenene kadar:")).toBeTruthy();
-      expect(screen.getByText("gün", { exact: false })).toBeTruthy();
+      expect(screen.getByText(/Bu çalışma Plus'ta[.] Ücretsiz hesapta ilk hazırlığında ilk dersin/)).toBeTruthy();
+      expect(screen.queryByText(/Pazartesi/)).toBeNull();
+      expect(screen.queryByText("Hakkın yenilenene kadar:")).toBeNull();
+      expect(screen.queryByText(/hakkın bitti/)).toBeNull();
     } finally {
       vi.useRealTimers();
     }
@@ -157,8 +158,11 @@ describe("kapının yenilenme saati (#18, #19)", () => {
 describe("düğüm kapısı 402'nin kodunu okur (#9, #18)", () => {
   const base: NodeGate = { message: freeLimitReachedLine("lesson"), beyondFreeDaily: false, meter: "lesson" };
 
-  it("ders hakkı, derse dahil sınır, Plus'taki iş", () => {
-    expect(nodeGateForCode("free_lesson_limit", base, false)).toMatchObject({ meter: "lesson", beyondFreeDaily: false });
+  it("ders sayacındaki iş (Plus kapısı, geri sayımsız), derse dahil sınır, Plus'taki iş", () => {
+    const lesson = nodeGateForCode("free_lesson_limit", base, false);
+    expect(lesson.beyondFreeDaily).toBe(true);
+    expect(lesson.meter).toBeUndefined();
+    expect(lesson.message).toContain("Bu çalışma Plus'ta. Ücretsiz hesapta ilk hazırlığında ilk dersin");
     const included = nodeGateForCode("free_included_limit", base, false);
     expect(included).toMatchObject({ meter: "included", beyondFreeDaily: false });
     expect(included.message).not.toMatch(/\d/);
@@ -245,7 +249,7 @@ describe("profil ve /krediler ücretsiz hesapta sayaç anlatır (#13, #17, #31, 
     for (const periodKind of ["daily", "weekly", "monthly"] as const) {
       expect(
         profilePlanView({ audience: "free", resetsAtLabel: "2 Kasım 2026 00:00", periodKind, subscriptionPeriodEnd: null })?.hint,
-      ).toBe("Ücretsiz plan · haftada 3 ders, günde 3 mesaj · Ders hakkın Pazartesi 00:00'da yenilenir.");
+      ).toBe("Ücretsiz plan · ilk dersin açık, günde 3 mesaj ve 1 fotoğraftan çözüm · devamı Plus'ta");
     }
   });
 
@@ -266,7 +270,9 @@ describe("profil ve /krediler ücretsiz hesapta sayaç anlatır (#13, #17, #31, 
     expect(page).toContain('"Belge sayfaları"');
     // Ana karttaki sayaç satırları aşağıda tekrar edilmez; anahtarlar usage-limits.ts ile aynı.
     const limits = read("src/lib/student/usage-limits.ts");
-    for (const key of ["weekly-lessons", "daily-chat", "daily-photos"]) {
+    expect(limits).not.toContain("weekly-lessons");
+    expect(page).not.toContain("weekly-lessons");
+    for (const key of ["daily-chat", "daily-photos"]) {
       expect(limits).toContain(`key: "${key}"`);
       expect(page).toContain(`"${key}"`);
     }

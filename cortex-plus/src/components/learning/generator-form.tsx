@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CreditGate } from "@/components/paywall/credit-gate";
+import { STUDIO_GENERATION_NAME } from "@/lib/billing/free-reach";
 import { useIsFounder } from "@/lib/student/student-shell-context";
 import { cn } from "@/lib/utils";
 
@@ -165,6 +166,9 @@ export function GeneratorForm({
         open={paywall}
         onOpenChange={setPaywall}
         message="Kullanım hakkın doldu."
+        // Test ve kart üretimi ders sayacına düşer: ücretsiz hesapta kapı Plus cümlesini yazar (11 Kasım 2026 akşamı).
+        meter="lesson"
+        actionLabel={STUDIO_GENERATION_NAME}
         returnPath={returnPath}
       />
     </>

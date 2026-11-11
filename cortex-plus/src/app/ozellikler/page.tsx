@@ -17,12 +17,13 @@ export const metadata = {
   19 Ekim 2026: sayfa "gelişmiş model", "çalışma planı ve günlük görevler", "her işlem öncesi kredi
   gösterilir" diyordu; üçü de yoktu. Her kart bugün çalışan bir araca karşılık gelir.
 
-  24 Ekim 2026 (kredi v3): ücretsiz hesap sayaçla — haftada 3 ders, günde 3 mesaj, günde 1 fotoğraf
+  24 Ekim 2026 (kredi v3): ücretsiz hesap sayaçla — günde 3 mesaj, günde 1 fotoğraf
   (`free-meters.ts`). "Plus" etiketliler ücretsiz hesapta hiç açılmayan işler (`PLUS_ONLY_ACTIONS`:
   podcast, sözlü, yazılı deneme, video, ses); sayılar koddan okunur, sayfaya elle yazılmaz.
 
-  11 Kasım 2026: ücretsizde ilk hazırlığın ilk dersi süreye ve haftalık hakka takılmaz (`first-lesson-cycle.ts`);
-  cümleler `free-tier-copy.ts` ve `free-meters.ts`ten.
+  11 Kasım 2026: ücretsizde ilk hazırlığın ilk dersi süreye takılmaz (`first-lesson-cycle.ts`). Aynı akşam haftalık
+  ders hakkı kalktı: ücretsiz hesap = tek ders, devamı Plus'ta (`free-lesson-gate.ts`). Cümleler `free-tier-copy.ts`
+  ve `free-meters.ts`ten.
 */
 
 type Feature = { icon: Icon3DName; title: string; body: string; plus?: boolean };
@@ -84,8 +85,8 @@ export default function OzelliklerPage() {
               Her konu için birçok yol, hepsi kendi notundan
             </h1>
             <p className="lp-hero-lead">
-              Aşağıdaki her şey bugün çalışıyor. Etiketsizler ücretsiz hesapta da açık: {FREE_TIER_LOWER}.
-              &quot;Plus&quot; etiketliler Plus&apos;ta açık.
+              Aşağıdaki her şey bugün çalışıyor. Ücretsiz hesapta {FREE_TIER_LOWER} var; etiketsizleri ilk
+              dersinde denersin. Dersin devamı ve &quot;Plus&quot; etiketliler Plus&apos;ta açık.
             </p>
             <div className="lp-cta-row">
               <Link href="/kayit" className="lp-btn lp-btn--primary">

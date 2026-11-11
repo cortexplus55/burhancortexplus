@@ -54,21 +54,34 @@ describe("ücretsiz hakkı aşan işler", () => {
     expect(["lesson", "quiz", "flashcards", "true_false"].some(toolBeyondFreeDaily)).toBe(false);
   });
 
-  it("kapı cümlesi: ücretsizde podcast 'doldu' demez; ders sayacı gerçekten doldu", () => {
+  it("kapı cümlesi: ücretsizde podcast 'doldu' demez; ders sayacındaki iş de Plus'a yönlenir (tek ders)", () => {
     expect(creditGateCopy("podcast", false)).toEqual({
       // 11 Kasım 2026: ücretsizde açık olan, ilk dersin süre sınırı olmayan döngüsü.
       message: expect.stringContaining("Podcast Plus'ta. Ücretsiz hesapta ilk hazırlığında ilk dersin (konu anlatımı, kartlar, doğru/yanlış ve konu testi) süre sınırı olmadan açık"),
       beyondFreeDaily: true,
     });
     expect(creditGateCopy("written_exam", false).beyondFreeDaily).toBe(true);
-    expect(creditGateCopy("lesson", false)).toEqual({
-      message: "Bu haftaki 3 ücretsiz ders hakkın bitti.",
-      beyondFreeDaily: false,
-      meter: "lesson",
-    });
-    // Yolda test ve kartlar derse dahil: dolan sayaç dersin sayacı.
-    expect(creditGateCopy("quiz", false).meter).toBe("lesson");
+    // 11 Kasım 2026 akşamı (ürün sahibinin kararı): haftalık ders hakkı yok. İlk dersin dışındaki ders "doldu"
+    // demez, geri sayım göstermez; Plus cümlesi ve ücretsizde açık olanlar.
+    const lesson = creditGateCopy("lesson", false);
+    expect(lesson.beyondFreeDaily).toBe(true);
+    expect(lesson.meter).toBeUndefined();
+    expect(lesson.message).toContain("Bu çalışma Plus'ta. Ücretsiz hesapta ilk hazırlığında ilk dersin");
+    expect(lesson.message).not.toMatch(/hafta|Pazartesi|hakkın bitti/);
+    expect(creditGateCopy("quiz", false)).toEqual(lesson);
     expect(creditGateCopy("podcast", true)).toEqual({ message: "Bu dönemki kullanım hakkın doldu.", beyondFreeDaily: false });
+  });
+
+  it("ders sayacına düşen işin kapısı: Plus cümlesi, geri sayım yok (Stüdyo'da test, kart, doğru/yanlış)", () => {
+    render(<CreditGate open onOpenChange={() => undefined} message="Kullanım hakkın doldu." action="QUIZ_GENERATE" />);
+    expect(screen.getByText(/Bu çalışma Plus'ta[.] Ücretsiz hesapta ilk hazırlığında ilk dersin/)).toBeTruthy();
+    expect(screen.queryByText(/hakkın doldu/)).toBeNull();
+    expect(screen.queryByText(/yenilenir|yenilenene kadar/)).toBeNull();
+    cleanup();
+    render(<CreditGate open onOpenChange={() => undefined} message="x" meter="lesson" actionLabel="Stüdyoda test, kart ve doğru/yanlış üretimi" />);
+    expect(screen.getByText(/Stüdyoda test, kart ve doğru.yanlış üretimi Plus'ta[.]/)).toBeTruthy();
+    expect(screen.queryByText(/yenilenir|yenilenene kadar/)).toBeNull();
+    cleanup();
   });
 
   it("kapı, iş Plus'taysa cümleyi kendisi değiştirir; sayaçlı işte verilen cümle kalır", () => {

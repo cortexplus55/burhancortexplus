@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Bot, Swords } from "lucide-react";
 import { toast } from "sonner";
+import { CreditGate } from "@/components/paywall/credit-gate";
 
 /**
  * Yeni düello kurar ve kurucuyu ilk tura götürür. "AI rakiple hemen başla" (29 Ekim 2026) aynı
@@ -12,6 +13,7 @@ import { toast } from "sonner";
 export function NewDuelButton({ prepId }: { prepId: string }) {
   const router = useRouter();
   const [busy, setBusy] = useState<"friend" | "bot" | null>(null);
+  const [paywall, setPaywall] = useState(false);
 
   async function create(mode: "friend" | "bot") {
     setBusy(mode);
@@ -22,6 +24,12 @@ export function NewDuelButton({ prepId }: { prepId: string }) {
         body: JSON.stringify({ prepId }),
       });
       const data = await res.json().catch(() => ({}));
+      // Düello kurmak soru üretimidir (ders sayacı): ücretsiz hesapta Plus kapısı açılır (11 Kasım 2026 akşamı).
+      if (res.status === 402) {
+        setPaywall(true);
+        setBusy(null);
+        return;
+      }
       if (!res.ok || !data.code) {
         throw new Error(data?.error ?? "Düello kurulamadı. Biraz sonra yeniden dene.");
       }
@@ -42,6 +50,14 @@ export function NewDuelButton({ prepId }: { prepId: string }) {
         <Bot className="h-4 w-4" aria-hidden />
         {busy === "bot" ? "Sorular hazırlanıyor…" : "AI rakiple hemen başla"}
       </button>
+      <CreditGate
+        open={paywall}
+        onOpenChange={setPaywall}
+        message="Yeni düello için kullanım hakkın yetmiyor."
+        meter="lesson"
+        actionLabel="Yeni düello kurmak"
+        returnPath={`/deneme-sinavlari/${prepId}`}
+      />
     </div>
   );
 }

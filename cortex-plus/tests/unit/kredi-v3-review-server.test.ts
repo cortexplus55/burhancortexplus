@@ -106,7 +106,9 @@ describe("sayaç fonksiyonu yokken eski yola düşüş (bulgu 24)", () => {
     };
     const result = await reserveCredits(service as never, USER, "STUDY_PLAN_GENERATE", "key-1");
     expect(result).toEqual({ ok: true, reservationId: "res-1", cost: 30 });
-    expect(calls).toEqual(["credit_reserve_metered", "credit_reserve", "credit_claim_operation"]);
+    // Ders sayacındaki işte önce ücretsiz ders kapısı hesabın planına bakar (11 Kasım 2026 akşamı); bu sahte
+    // istemcide plan okunamaz, kapı kararı SQL'e bırakır ("open") ve ayırma bugünkü sırayla sürer.
+    expect(calls.filter((name) => name !== "is_admin")).toEqual(["credit_reserve_metered", "credit_reserve", "credit_claim_operation"]);
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn).toHaveBeenCalledWith("credit_reserve_metered_missing", { actionCode: "STUDY_PLAN_GENERATE", meter: "lesson" });
   });
@@ -285,12 +287,17 @@ describe("ücretsiz sınır cümleleri Plus'ı sınırsız göstermez (bulgu 29)
   /* Plus'ın da aylık hakkı var (7.200 kredi: ~240 ders, 2.400 mesaj). generation-failure.ts zaten
      "Plus'a geçip beklemeden devam edebilirsin" diyordu; iki yüzey ayrışıyordu. */
   it("402 kodlarının metni", async () => {
-    for (const code of ["free_lesson_limit", "free_chat_limit", "free_photo_limit"]) {
+    for (const code of ["free_chat_limit", "free_photo_limit"]) {
       const body = (await (errorResponse(402, code) as Response).json()) as { error: string; code: string };
       expect(body.code).toBe(code);
       expect(body.error, code).toContain("Plus'a geçip beklemeden devam edebilirsin.");
       expect(body.error.toLocaleLowerCase("tr"), code).not.toMatch(/sınır yok|sınırsız|kredi/);
     }
+    // 11 Kasım 2026 akşamı (ürün sahibinin kararı): ücretsiz hesap = tek ders. Ders kodu "hak doldu, bekle" demez.
+    const lesson = (await (errorResponse(402, "free_lesson_limit") as Response).json()) as { error: string; code: string };
+    expect(lesson.code).toBe("free_lesson_limit");
+    expect(lesson.error).toContain("Ücretsiz hesapta ilk dersin açık; devamı Plus'ta.");
+    expect(lesson.error.toLocaleLowerCase("tr")).not.toMatch(/sınır yok|sınırsız|kredi|hafta|pazartesi|beklemeden|yenilenir/);
   });
 
   it("soru çözücünün ret metinleri de aynı", () => {
