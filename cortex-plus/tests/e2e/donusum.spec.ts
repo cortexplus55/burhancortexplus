@@ -13,7 +13,10 @@ async function overflow(page: Page): Promise<number> {
 async function smallestTouchTarget(page: Page, scope: string): Promise<number> {
   return page.evaluate((selector) => {
     const nodes = Array.from(document.querySelectorAll(`${selector} button, ${selector} a`)) as HTMLElement[];
-    const heights = nodes.filter((node) => node.offsetParent !== null).map((node) => node.getBoundingClientRect().height);
+    // Onda bir piksele yuvarlanır: hareket (ölçek) sürerken ölçülen 43,99997 px gerçek bir eksik değil (CI, 11 Kasım 2026).
+    const heights = nodes
+      .filter((node) => node.offsetParent !== null)
+      .map((node) => Math.round(node.getBoundingClientRect().height * 10) / 10);
     return heights.length ? Math.min(...heights) : 99;
   }, scope);
 }
