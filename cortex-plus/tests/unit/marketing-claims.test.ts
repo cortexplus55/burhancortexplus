@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { FAQ, FEATURES, PROOF } from "@/lib/marketing/landing-content";
+import { FAQ, FREE_PLAN_POINTS, PLUS_PLAN_POINTS, TRUST_FACTS } from "@/lib/marketing/landing-content";
 import { PLAN_ALLOWANCES, allowanceInWork } from "@/lib/credits/price-table";
 import { AUTO_RENEW_SUPPORTED } from "@/lib/payments/paytr-capability";
 import { tierComparisonRows } from "@/lib/billing/tier-presentation";
@@ -164,7 +164,13 @@ describe("yasak vaatler", () => {
 });
 
 describe("ana sayfanın sayıları koddan", () => {
-  const text = [...FAQ.map((item) => `${item.q} ${item.a}`), ...PROOF.map((item) => item.body)].join("\n");
+  // 11 Kasım 2026: kanıt şeridi ve özellik ızgarası kalktı; sayılar SSS, plan ikilisi ve güven satırında.
+  const text = [
+    ...FAQ.map((item) => `${item.q} ${item.a}`),
+    ...FREE_PLAN_POINTS,
+    ...PLUS_PLAN_POINTS,
+    ...TRUST_FACTS.map((fact) => `${fact.title}. ${fact.body}`),
+  ].join("\n");
 
   // 24 Ekim 2026: ücretsiz hesap sayaçla — haftada 3 ders, günde 3 mesaj, günde 1 fotoğraf (göç 20261024121000).
   it("ücretsiz hak: haftada 3 ders, günde 3 mesaj, günde 1 fotoğraf; SQL ve kopya aynı", () => {
@@ -178,23 +184,26 @@ describe("ana sayfanın sayıları koddan", () => {
     // 11 Kasım 2026 (ürün sahibinin kararı): ilk dersin döngüsü süreye ve haftalık hakka takılmaz; haftalık ders hakkı
     // Çalışma Stüdyosu ve "Farklı anlat" için (31 Ekim'de sayaç 1. konunun içinde de geçerliydi).
     expect(text).toContain('ilk hazırlığında ilk dersin (konu anlatımı, kartlar, doğru/yanlış ve konu testi) süre sınırı olmadan açık; Çalışma Stüdyosu ve "Farklı anlat" için haftada 3 ders hakkı, günde 3 sohbet mesajı ve günde 1 fotoğraftan soru çözümü');
-    expect(text).toContain("1. konusu tam açık, günde 3 mesaj");
     expect(text).not.toContain("günde bir ders");
   });
 
   it("Plus etiketi: ücretsiz hesapta açılmayan işler (açık liste)", () => {
-    const plusOnly = new Set(FEATURES.filter((feature) => feature.plusOnly).map((feature) => feature.title));
-    for (const [title, code] of [
-      ["Podcast", "PODCAST_GENERATE"],
-      ["Sözlü deneme", "ORAL_EXAM_GENERATE"],
-      ["Yazılı deneme", "PRACTICE_EXAM_GENERATE"],
-      ["Video ders", "VIDEO_GENERATE"],
+    // Plus sütunu yalnız ücretsizde kapalı işleri sayar; ücretsiz sütunda bunların hiçbiri geçmez.
+    const plusColumn = PLUS_PLAN_POINTS.join(" ").toLocaleLowerCase("tr");
+    const freeColumn = FREE_PLAN_POINTS.join(" ").toLocaleLowerCase("tr");
+    for (const [word, code] of [
+      ["podcast", "PODCAST_GENERATE"],
+      ["sözlü deneme", "ORAL_EXAM_GENERATE"],
+      ["yazılı deneme", "PRACTICE_EXAM_GENERATE"],
+      ["video", "VIDEO_GENERATE"],
     ] as const) {
-      expect(isPlusOnlyAction(code), title).toBe(true);
-      expect(plusOnly.has(title), title).toBe(true);
+      expect(isPlusOnlyAction(code), word).toBe(true);
+      expect(plusColumn, word).toContain(word);
+      expect(freeColumn, word).not.toContain(word);
     }
-    for (const title of ["Ders", "Konu testi", "Kartlar ve tekrar", "Doğru / Yanlış"]) {
-      expect(plusOnly.has(title), title).toBe(false);
+    for (const word of ["konu anlatımı", "kartlar", "doğru/yanlış", "konu testi"]) {
+      expect(freeColumn, word).toContain(word);
+      expect(plusColumn, word).not.toContain(word);
     }
   });
 
@@ -208,7 +217,7 @@ describe("ana sayfanın sayıları koddan", () => {
 
   it("otomatik yenileme sözü verilmiyor", () => {
     expect(AUTO_RENEW_SUPPORTED).toBe(false);
-    expect(text).toMatch(/kendiliğinden yenilenmez/);
+    expect(text).toMatch(/Otomatik yenileme yok/);
   });
 
   it("karşılaştırma tablosunda model satırı yok, hız satırı var", () => {
