@@ -344,6 +344,36 @@ describe("kredi v3 + ücretsiz sayaçlar: göçler canlıdaki sırayla", () => {
       expect(await used(free, "lesson")).toBe(before);
     });
 
+    /* 11 Kasım 2026 (ürün sahibinin kararı): ilk dersin temel döngüsü haftalık ders hakkına takılmaz. Uygulama
+       göçsüz: kod ilk hazırlığın 1. konusundaki adımın ilk açılışını "derse dahil" sayacıyla ayırır
+       (first-lesson-cycle.ts). Bu test SQL'in bunu ders işi (STUDY_PLAN_GENERATE) için de kabul ettiğini ve haftalık
+       sayaca dokunmadığını tutar; yeni göç yok. */
+    it("ilk dersin döngüsü: haftalık ders hakkı doluyken ders, test ve kart 'included' ile açılır; ders sayacı artmaz", async () => {
+      const firstLesson = "cccccccc-cccc-4ccc-8ccc-ccccccccccc7";
+      await db.exec(`INSERT INTO profiles(id) VALUES ('${firstLesson}');
+        INSERT INTO credit_wallets(user_id, balance, free_allowance_remaining) VALUES ('${firstLesson}', 0, 0);`);
+      // Haftalık hak başka işlerle (Çalışma Stüdyosu, "Farklı anlat") dolmuş.
+      for (let i = 1; i <= FREE_LIMITS.lesson; i += 1) await metered(firstLesson, "QUIZ_GENERATE", `studio${i}`, "lesson");
+      await expect(metered(firstLesson, "STUDY_PLAN_GENERATE", "rewrite", "lesson")).rejects.toThrow("free_limit:lesson");
+      // İlk dersin adımları: ders dahil hepsi açılır.
+      const lesson = await metered(firstLesson, "STUDY_PLAN_GENERATE", "exam_node_slot_first_lesson", "included");
+      await metered(firstLesson, "QUIZ_GENERATE", "exam_node_slot_first_quiz", "included");
+      await metered(firstLesson, "FLASHCARD_GENERATE", "exam_node_slot_first_cards", "included");
+      expect(await used(firstLesson, "lesson")).toBe(FREE_LIMITS.lesson);
+      expect(await used(firstLesson, "included")).toBe(3);
+      const rows = await db.query<{ amount: number; free_meter: string }>(
+        "SELECT amount, free_meter FROM credit_reservations WHERE user_id = $1 AND idempotency_key LIKE 'exam_node_slot_first_%'", [firstLesson]);
+      expect(rows.rows).toHaveLength(3);
+      expect(rows.rows.every((row) => row.amount === 0 && row.free_meter === "included")).toBe(true);
+      expect(await balance(firstLesson)).toBe(0);
+      // Düşen ders iade edilince derse dahil sayaç geri döner; haftalık hak yerinde kalır.
+      await refund(lesson.rows[0]!.id);
+      expect(await used(firstLesson, "included")).toBe(2);
+      expect(await used(firstLesson, "lesson")).toBe(FREE_LIMITS.lesson);
+      // Plus işi bu yoldan da açılmaz.
+      await expect(metered(firstLesson, "PODCAST_GENERATE", "exam_node_slot_first_podcast", "included")).rejects.toThrow("plus_required");
+    });
+
     it("günde 3 mesaj ve 1 fotoğraf; sayaçlar birbirini yemez", async () => {
       for (let i = 1; i <= FREE_LIMITS.chat; i += 1) await metered(free, "AI_CHAT_STANDARD", `c${i}`, "chat");
       await expect(metered(free, "AI_CHAT_STANDARD", "c4", "chat")).rejects.toThrow("free_limit:chat");

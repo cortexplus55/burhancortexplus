@@ -4,11 +4,14 @@ import { PricingAdvantageStrip } from "@/components/marketing/advantage-sections
 import { SubscriptionCards } from "@/components/parity/subscription-cards";
 import { createClient } from "@/lib/supabase/server";
 import { isPaytrConfigured } from "@/lib/payments/paytr";
+import { FREE_FIRST_LESSON_SENTENCE, PLUS_ONLY_SENTENCE } from "@/lib/billing/free-tier-copy";
+
+/** 11 Kasım 2026: ücretsizde ilk dersin döngüsü açık, Plus'a özel olanlar adıyla (tek kaynak `free-tier-copy.ts`). */
+const PRICING_DESCRIPTION = `${FREE_FIRST_LESSON_SENTENCE} ${PLUS_ONLY_SENTENCE} Plus ayrıca bütün konuları ve geniş aylık hakkı açar; Sigma en yüksek hakkı verir.`;
 
 export const metadata = {
   title: "Fiyatlandırma",
-  description:
-    "Ücretsiz plandaki her şey ve: Plus aylık geniş hak, podcast, sözlü ve yazılı deneme ile video ders ekler; Sigma en yüksek hakkı verir.",
+  description: PRICING_DESCRIPTION,
 };
 
 export const dynamic = "force-dynamic";
@@ -59,7 +62,7 @@ export default async function FiyatlandirmaPage() {
   return (
     <ParityMarketingPage
       title="Fiyatlandırma"
-      description="Ücretsiz plandaki her şey ve: Plus aylık geniş hak, podcast, sözlü ve yazılı deneme ile video ders ekler; Sigma en yüksek hakkı verir."
+      description={PRICING_DESCRIPTION}
     >
       <div data-cinematic-reveal className="space-y-4">
         {!checkoutEnabled ? (

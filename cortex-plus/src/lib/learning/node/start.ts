@@ -16,6 +16,8 @@ import { freeMeterRemaining, nodeFreeMeter } from "@/lib/billing/node-free-meter
 import type { FreeMeter } from "@/lib/billing/free-meters";
 import { billingExempt } from "@/lib/billing/free-preview";
 import { FREE_TOPIC_LIMIT_CODE, freeTopicGate } from "@/lib/billing/free-topic-gate";
+import { firstLessonCycleFree } from "@/lib/billing/first-lesson-cycle";
+import { SPEND_CAP_CODE, spendBreakerBlocks } from "@/lib/billing/spend-breaker";
 import { gatePrepWide } from "@/lib/billing/free-topic-rule";
 import { practiceTopicKey } from "@/lib/learning/quiz-delivery";
 import { prepLanguage } from "@/lib/learning/teacher-brain";
@@ -307,11 +309,33 @@ export async function startAction(context: NodeContext): Promise<NextResponse> {
     if (prefetch) return NextResponse.json({ ok: true, skipped: "premium" });
     return errorResponse(402, "premium_required");
   }
-  const freeMeter: FreeMeter | null = nodeMeter;
+  // İlk dersin temel döngüsü (11 Kasım 2026, ürün sahibinin kararı): ilk hazırlığın 1. konusunda adımın İLK açılışı
+  // (konu anlatımı, kartlar, doğru/yanlış, konu testi) haftalık ders hakkından düşmez ve hak dolu diye reddedilmez;
+  // SQL'in "derse dahil" sayacıyla ayrılır (günde 40, kötüye kullanım sınırı; dolarsa `free_included_limit`).
+  // "Farklı anlat" ve verilmiş içeriği yeniden yazdırmak bugünkü gibi haftalık haktan. Kural `first-lesson-cycle.ts`.
+  const firstLessonFree =
+    nodeMeter === "lesson" &&
+    !rewriteLesson &&
+    (await firstLessonCycleFree(service, {
+      userId,
+      prepId,
+      nodeId,
+      kind,
+      sessionMeta: node.session_meta,
+      topicLabel: context.topicLabel,
+      requestedTopicLabel: requestedTopic || null,
+    }).catch(() => false));
+  // Harcama sigortası "derse dahil" işi durdurmaz (ucuz yardım); bu adım ise ders fiyatında üretimdir: sigorta
+  // atmışsa bugünkü gibi durur. Önceden yazımda sigortaya rota bakar (`route.ts`, imzalı dal).
+  if (firstLessonFree && !prefetch && (await spendBreakerBlocks(service, userId, { meter: "lesson" }))) {
+    return errorResponse(402, SPEND_CAP_CODE);
+  }
+  const freeMeter: FreeMeter | null = firstLessonFree ? "included" : nodeMeter;
 
   if (prefetch && freeMeter) {
-    // Ücretsiz öğrenciye açamayacağı dersi yazmıyoruz: haftalık ders hakkı bittiyse önceden yazım yok.
-    if (freeMeter === "lesson" && (await freeMeterRemaining(service, userId, "lesson")) === 0) {
+    // Ücretsiz öğrenciye açamayacağı dersi yazmıyoruz: haftalık ders hakkı bittiyse önceden yazım yok. İlk dersin
+    // döngüsünde bakılan sayaç derse dahil adımların günlük sınırıdır (haftalık hak dolu olsa da yazılır).
+    if ((freeMeter === "lesson" || firstLessonFree) && (await freeMeterRemaining(service, userId, freeMeter)) === 0) {
       return NextResponse.json({ ok: true, skipped: "free_limit" });
     }
   } else if (prefetch) {

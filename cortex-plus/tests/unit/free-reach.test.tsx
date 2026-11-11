@@ -56,7 +56,8 @@ describe("ücretsiz hakkı aşan işler", () => {
 
   it("kapı cümlesi: ücretsizde podcast 'doldu' demez; ders sayacı gerçekten doldu", () => {
     expect(creditGateCopy("podcast", false)).toEqual({
-      message: expect.stringContaining("Podcast Plus'ta. Ücretsiz hesapta ilk hazırlığında 1. konu tam açık"),
+      // 11 Kasım 2026: ücretsizde açık olan, ilk dersin süre sınırı olmayan döngüsü.
+      message: expect.stringContaining("Podcast Plus'ta. Ücretsiz hesapta ilk hazırlığında ilk dersin (konu anlatımı, kartlar, doğru/yanlış ve konu testi) süre sınırı olmadan açık"),
       beyondFreeDaily: true,
     });
     expect(creditGateCopy("written_exam", false).beyondFreeDaily).toBe(true);

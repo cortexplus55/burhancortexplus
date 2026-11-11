@@ -150,11 +150,13 @@ export const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "Ücretsiz neler yapabilirim?",
-    a: `Kart istemiyoruz. Ücretsiz hesapta ${FREE_TIER_SENTENCE.charAt(0).toLocaleLowerCase("tr")}${FREE_TIER_SENTENCE.slice(1)} var. Bir sınav hazırlığı kurabilir, toplam ${FREE_PAGE_TOTAL} sayfa belge işletebilirsin; kalan konular Plus'ta. Podcast, sözlü ve yazılı deneme, video ders ve sesli dinleme Plus'ta.`,
+    // 11 Kasım 2026 (ürün sahibinin kararı): ilk dersin döngüsü süreye ve haftalık hakka takılmaz; Plus'a özel olanlar
+    // adıyla (bekçi test listeyi `PLUS_ONLY_FEATURES` ile karşılaştırır).
+    a: `Kart istemiyoruz. Ücretsiz hesapta ${FREE_TIER_SENTENCE.charAt(0).toLocaleLowerCase("tr")}${FREE_TIER_SENTENCE.slice(1)} var. Bir sınav hazırlığı kurabilir, toplam ${FREE_PAGE_TOTAL} sayfa belge işletebilirsin; ilk dersten sonraki konular Plus'ta açılır. Podcast, video, sözlü, yazılı deneme ve sınav sabahı kâğıdı Plus'a özeldir; sesli dinleme de Plus'ta.`,
   },
   {
     q: "Plus'ta ne değişiyor?",
-    a: `${allowanceWorkLine(PLAN_ALLOWANCES.plusMonthly)}; podcast, sözlü ve yazılı deneme, video ders; belgenin tamamı, sınırsız hazırlık ve hazır içerik yokken daha hızlı yazım. Yapay zekâ modeli aynı; fark ne kadar ve ne kadar hızlı çalışabildiğinde.`,
+    a: `${allowanceWorkLine(PLAN_ALLOWANCES.plusMonthly)}; bütün konular, podcast, video ders, sözlü ve yazılı deneme, sınav sabahı kâğıdı; belgenin tamamı, sınırsız hazırlık ve hazır içerik yokken daha hızlı yazım. Yapay zekâ modeli aynı; fark neyin açık olduğunda, ne kadar ve ne kadar hızlı çalışabildiğinde.`,
   },
   {
     q: "Notumda olmayan bir şeyi sorarsam?",

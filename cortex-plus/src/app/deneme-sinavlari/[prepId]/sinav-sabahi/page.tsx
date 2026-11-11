@@ -6,6 +6,9 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { examPrepHomeHref } from "@/lib/learning/exam-prep-hrefs";
 import { formatDayLong } from "@/lib/format";
 import { CramSheetView } from "@/components/parity/cram-sheet-view";
+import { PlusOnlyPage } from "@/components/parity/plus-only-gate";
+import { plusOnlyLocked } from "@/lib/billing/node-free-meter";
+import { CRAM_SHEET_NAME, examPrepCramSheetHref } from "@/lib/learning/cram-sheet";
 import { loadCramSheet } from "@/lib/learning/cram-sheet-load";
 
 export const metadata = { title: "Sınav sabahı kâğıdı" };
@@ -16,6 +19,10 @@ export const dynamic = "force-dynamic";
  * tuzaklar, hafıza çivileri, "Sınavda sorulur" maddeleri ve öğrencinin en çok yanıldığı noktalar tek sayfada.
  * Model çağrısı yok, kredi düşmez. Yazdır düğmesi tarayıcının penceresini açar ("PDF olarak kaydet" oradan).
  * Bekleme kutusu (Suspense, loading.tsx) yok: bu projede sayfayı boşaltıyor.
+ *
+ * 11 Kasım 2026 (ürün sahibinin kararı): kâğıt Plus'a özel. Kredi işi olmadığı için kapı burada, sayfada:
+ * ücretsiz hesapta kâğıt hiç yüklenmez, yerine yükseltme ekranı açılır (`plusOnlyLocked`: abone, Plus denemesi ve
+ * önizlemesi kapalı kurucu açık).
  */
 export default async function CramSheetPage({ params }: { params: Promise<{ prepId: string }> }) {
   const { prepId } = await params;
@@ -30,7 +37,16 @@ export default async function CramSheetPage({ params }: { params: Promise<{ prep
     .maybeSingle();
   if (!prep) notFound();
 
-  const sheet = await loadCramSheet(createServiceClient(), {
+  const service = createServiceClient();
+  if (await plusOnlyLocked(service, user.id)) {
+    return (
+      <ParitySorShell {...shell} chrome="focus" backHref={examPrepHomeHref(prepId)}>
+        <PlusOnlyPage featureName={CRAM_SHEET_NAME} returnPath={examPrepCramSheetHref(prepId)} exitHref={examPrepHomeHref(prepId)} />
+      </ParitySorShell>
+    );
+  }
+
+  const sheet = await loadCramSheet(service, {
     prepId,
     userId: user.id,
     targetScore: typeof prep.target_score === "number" ? prep.target_score : null,

@@ -99,9 +99,12 @@ describe("sayaçların saati ve cümleleri", () => {
     expect(freeLimitReachedLine("chat")).toBe("Bugünkü 3 ücretsiz sohbet mesajı hakkın bitti.");
     expect(freeLimitReachedLine("photo")).toBe("Bugünkü 1 ücretsiz fotoğraftan çözüm hakkın bitti.");
     expect(freeMeterResetLine("lesson")).toContain("Pazartesi");
+    // 11 Kasım 2026 (ürün sahibinin kararı): ilk dersin döngüsü süreye ve haftalık hakka takılmaz; haftalık ders
+    // hakkı Çalışma Stüdyosu ve "Farklı anlat" için. "Sınırsız" denmez (günlük kötüye kullanım sınırı duruyor).
     expect(FREE_TIER_SENTENCE).toBe(
-      "İlk hazırlığında 1. konu tam açık (dersleri, testleri ve kartlarıyla; haftada 3 derse kadar), günde 3 sohbet mesajı ve günde 1 fotoğraftan soru çözümü",
+      'İlk hazırlığında ilk dersin (konu anlatımı, kartlar, doğru/yanlış ve konu testi) süre sınırı olmadan açık; Çalışma Stüdyosu ve "Farklı anlat" için haftada 3 ders hakkı, günde 3 sohbet mesajı ve günde 1 fotoğraftan soru çözümü',
     );
+    expect(FREE_TIER_SENTENCE.toLocaleLowerCase("tr")).not.toContain("sınırsız");
     for (const line of [freeLimitReachedLine("lesson"), freeLimitReachedLine("chat"), FREE_TIER_SENTENCE]) {
       expect(line.toLocaleLowerCase("tr")).not.toContain("kredi");
     }

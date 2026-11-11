@@ -2,8 +2,8 @@ import { PHOTO_PAGE_LIMITS, type Audience } from "@/lib/billing/entitlements";
 import { periodLabel, type PeriodKind } from "@/lib/credits/period";
 import { formatDate } from "@/lib/format";
 
-import { FREE_PAGE_TOTAL, FREE_PREP_LIMIT } from "@/lib/billing/free-tier-copy";
-import { FREE_CHAT_PER_DAY, FREE_LESSONS_PER_WEEK, freeMeterResetLine } from "@/lib/billing/free-meters";
+import { FIRST_LESSON_STEPS, FREE_PAGE_TOTAL, FREE_PREP_LIMIT } from "@/lib/billing/free-tier-copy";
+import { FREE_CHAT_PER_DAY, FREE_LESSONS_PER_WEEK, FREE_PHOTO_PER_DAY, freeMeterResetLine } from "@/lib/billing/free-meters";
 import { PLAN_ALLOWANCES, allowanceInWork } from "@/lib/credits/price-table";
 
 /**
@@ -86,10 +86,18 @@ export type TierComparisonRow = {
 export function tierComparisonRows(): TierComparisonRow[] {
   return [
     {
+      // 11 Kasım 2026 (ürün sahibinin kararı): ilk dersin temel adımları süreye ve haftalık hakka takılmaz.
+      label: `İlk hazırlıkta ilk ders (${FIRST_LESSON_STEPS.join(" + ")})`,
+      guest: "—",
+      free: "Süre sınırı olmadan ücretsiz",
+      plus: "Bütün konular açık",
+      sigma: "Bütün konular açık",
+    },
+    {
       label: "AI kullanımı",
       guest: "Yok",
-      // Sayıya dayalı ücretsiz katman (24 Ekim 2026).
-      free: "Haftada 3 ders, günde 3 mesaj, günde 1 fotoğraf",
+      // Sayıya dayalı ücretsiz katman (24 Ekim 2026); haftalık ders hakkı Çalışma Stüdyosu ve "Farklı anlat" için.
+      free: `Haftada ${FREE_LESSONS_PER_WEEK} ders, günde ${FREE_CHAT_PER_DAY} mesaj, günde ${FREE_PHOTO_PER_DAY} fotoğraf`,
       plus: allowanceWorkLine(PLAN_ALLOWANCES.plusMonthly),
       sigma: allowanceWorkLine(PLAN_ALLOWANCES.sigmaMonthly),
     },
@@ -102,6 +110,14 @@ export function tierComparisonRows(): TierComparisonRow[] {
     },
     {
       label: "Podcast, sözlü ve yazılı deneme",
+      guest: "—",
+      free: "Plus'ta",
+      plus: "Açık",
+      sigma: "Açık",
+    },
+    {
+      // Sayfa kapısı (kredi işi değil): `deneme-sinavlari/[prepId]/sinav-sabahi`.
+      label: "Sınav sabahı kâğıdı",
       guest: "—",
       free: "Plus'ta",
       plus: "Açık",

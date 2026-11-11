@@ -22,6 +22,7 @@ import { FounderCreditsView } from "@/components/student/founder-credits-view";
 import { summarizeFounderUsage, turkeyMonthStart } from "@/lib/credits/founder-usage";
 import { loadFreeMeters } from "@/lib/billing/free-usage-server";
 import { FREE_TIER_SENTENCE, freeMeterResetLine } from "@/lib/billing/free-meters";
+import { PLUS_ONLY_SENTENCE } from "@/lib/billing/free-tier-copy";
 import { freeExtraLine } from "@/lib/billing/tier-presentation";
 
 export const metadata = { title: "Kullanım limitleri" };
@@ -37,7 +38,8 @@ export const metadata = { title: "Kullanım limitleri" };
 const FREE_METER_ROW: Record<string, { label: string; note?: string }> = {
   lesson: {
     label: "Bu haftaki ders",
-    note: "Dersin ardından gelen test ve kartlar derse dahil. Araçlar'daki test, kart ve doğru/yanlış da bu haktan düşer.",
+    // 11 Kasım 2026: ilk dersin temel döngüsü bu sayaçtan düşmez (`first-lesson-cycle.ts`).
+    note: "İlk hazırlığındaki ilk dersin adımları bu haktan düşmez. Dersin ardından gelen test ve kartlar derse dahil. Araçlar'daki test, kart ve doğru/yanlış da bu haktan düşer.",
   },
   chat: {
     label: "Bugünkü sohbet mesajı",
@@ -155,7 +157,7 @@ export default async function KredilerPage() {
           <p className="mt-1 text-sm text-[var(--cs-muted)]">
             {isPremium
               ? "Tüm özellikler açık; sınır yalnızca ne kadar üretebildiğinde."
-              : `${FREE_TIER_SENTENCE} ücretsiz. Podcast, sözlü ve yazılı deneme, video Plus'ta.`}
+              : `${FREE_TIER_SENTENCE} ücretsiz. ${PLUS_ONLY_SENTENCE}`}
           </p>
         </div>
 

@@ -242,6 +242,19 @@
   border-color: var(--c-action);
 }
 
+/* Ücretsiz hesapta sınav sabahı kâğıdı Plus'ta (11 Kasım 2026): düğmenin içinde küçük rozet. Altın yalnız Plus. */
+.cp-prep-extra-plus {
+  flex: none;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border: 1px solid var(--c-brand);
+  border-radius: var(--r-pill);
+  color: var(--c-brand);
+  font: var(--t-label-11);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
 .cp-prep-share-panel {
   display: flex;
   flex-wrap: wrap;

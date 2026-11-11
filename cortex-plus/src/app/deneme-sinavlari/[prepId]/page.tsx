@@ -780,6 +780,9 @@ export default async function ExamPrepDetailPage({
         shareTools={{
           inviteUrl,
           whatsappHref: inviteUrl ? prepInviteWhatsappHref((prep.title ?? prep.exam_type) as string | null, inviteUrl) : null,
+          // 11 Kasım 2026: sınav sabahı kâğıdı Plus'ta. Karar yolun Plus adımlarıyla aynı okumadan (`pathSkipKinds`:
+          // ücretsiz hesapta dolu küme); sayfanın kendisi de kapıyı gösterir (`plusOnlyLocked`).
+          cramSheetLocked: skipKinds.size > 0,
         }}
         examResult={examResultView}
         title={prep.title ?? prep.exam_type}
