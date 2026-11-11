@@ -741,3 +741,8 @@
   top: 0;
   z-index: 50;
 }
+
+/* Menü sabit olunca (11 Kasım 2026) sayfa içi bağlantının hedefi çubuğun altında kalmasın. */
+:is(.cinematic-home, .cinematic-marketing) section[id] {
+  scroll-margin-top: 5.5rem;
+}

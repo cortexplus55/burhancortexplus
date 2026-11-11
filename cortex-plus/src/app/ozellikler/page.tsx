@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { AdvantageCompact } from "@/components/marketing/advantage-sections";
+import { AdvantageComparison, AdvantageShowcase } from "@/components/marketing/advantage-sections";
 import { ParityMarketingPage } from "@/components/parity/marketing";
 import { Icon3D, type Icon3DName } from "@/components/ui/icon-3d";
 import { FREE_PHOTO_PER_DAY, FREE_TIER_SENTENCE } from "@/lib/billing/free-meters";
@@ -128,9 +128,9 @@ export default function OzelliklerPage() {
           </section>
         ))}
 
-        <div className="lp-wrap">
-          <AdvantageCompact />
-        </div>
+        {/* 11 Kasım 2026: ana sayfa üç bölüme inince kanıt kartı ve tam karşılaştırma buraya taşındı (#farklar). */}
+        <AdvantageShowcase />
+        <AdvantageComparison />
 
         <section className="lp-final" aria-labelledby="oz-final">
           <div className="lp-wrap lp-final-inner">

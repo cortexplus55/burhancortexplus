@@ -245,6 +245,19 @@ describe("görünüm kuralları", () => {
     expect(read("src/components/landing/futuristic-guided-journey.tsx")).toContain('<section id="nasil" className="lj"');
   });
 
+  it("kanıt kartı ve tam karşılaştırma Özellikler sayfasında; kısa sürümün bağlantısı oraya gider", () => {
+    const features = withoutComments(read("src/app/ozellikler/page.tsx"));
+    expect(features).toContain("<AdvantageShowcase />");
+    expect(features).toContain("<AdvantageComparison />");
+    const sections = read("src/components/marketing/advantage-sections.tsx");
+    expect(sections).toContain('<section id="farklar"');
+    expect(sections).toContain('href="/ozellikler#farklar"');
+    // Ana sayfada artık olmayan bölüme bağlantı kalmadı.
+    expect(sections).not.toContain('href="/#farklar"');
+    // Menü sabit: sayfa içi bağlantının hedefi çubuğun altında kalmaz.
+    expect(read("src/styles/parity-marketing.css")).toMatch(/section\[id\] \{\s*scroll-margin-top: 5\.5rem/);
+  });
+
   it("üst menü: logo çekirdeği, şerit ve kaydırmada sabit; kayıt telefonda da görünür", () => {
     const header = read("src/components/marketing/parity-site-header.tsx");
     expect(header).toContain('<CortexMark size={40} priority className="mkh-mark" />');
