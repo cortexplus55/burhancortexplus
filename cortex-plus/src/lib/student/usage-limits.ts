@@ -81,7 +81,8 @@ export async function loadUsageLimits(
     lesson: {
       key: "weekly-lessons",
       label: "Bu haftaki ders",
-      hint: "Dersin ardından gelen test ve kartlar derse dahil. Araçlar'daki test ve kartlar da bu haktan düşer. Pazartesi 00:00'da yenilenir.",
+      // 11 Kasım 2026: ilk dersin temel döngüsü bu sayaçtan düşmez (`first-lesson-cycle.ts`).
+      hint: "İlk hazırlığındaki ilk dersin adımları bu haktan düşmez. Dersin ardından gelen test ve kartlar derse dahil. Araçlar'daki test ve kartlar da bu haktan düşer. Pazartesi 00:00'da yenilenir.",
     },
     chat: { key: "daily-chat", label: "Bugünkü sohbet mesajı", hint: "Yazılı soru çözümü de mesaj sayılır. Gece yarısı yenilenir." },
     photo: { key: "daily-photos", label: "Bugünkü fotoğraftan çözüm", hint: "Okunmayan fotoğraf haktan düşmez. Gece yarısı yenilenir." },

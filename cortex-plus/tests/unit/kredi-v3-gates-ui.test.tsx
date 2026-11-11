@@ -261,7 +261,8 @@ describe("profil ve /krediler ücretsiz hesapta sayaç anlatır (#13, #17, #31, 
     const page = read("src/app/krediler/page.tsx");
     expect(page).toContain("{isPremium ? (");
     expect(page).toContain("freeMeterResetLine(meter.meter)");
-    expect(page).toContain("Podcast, sözlü ve yazılı deneme, video Plus'ta.");
+    // 11 Kasım 2026: Plus'a özel olanlar tek kaynaktan (sınav sabahı kâğıdı da listede); elle yazılmış liste kalktı.
+    expect(page).toContain("`${FREE_TIER_SENTENCE} ücretsiz. ${PLUS_ONLY_SENTENCE}`");
     expect(page).toContain('"Belge sayfaları"');
     // Ana karttaki sayaç satırları aşağıda tekrar edilmez; anahtarlar usage-limits.ts ile aynı.
     const limits = read("src/lib/student/usage-limits.ts");

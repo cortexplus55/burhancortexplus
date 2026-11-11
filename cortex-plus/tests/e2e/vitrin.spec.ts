@@ -7,10 +7,11 @@ import path from "node:path";
   VITRIN_SHOTS_DIR verilirse / ve /fiyatlandirma tam sayfa görüntüsü oraya kaydedilir.
 */
 
-const PAGES: { path: string; testIds: string[] }[] = [
-  { path: "/", testIds: ["advantage-showcase", "blind-proof", "advantage-badges", "advantage-comparison"] },
+// 11 Kasım 2026: ana sayfa üç bölüme indi (tanıtım turu + plan ikilisi); kanıt kartı ve tam karşılaştırma /ozellikler'de.
+const PAGES: { path: string; testIds?: string[]; selectors?: string[] }[] = [
+  { path: "/", selectors: ["section.lj", "#planlar"] },
   { path: "/fiyatlandirma", testIds: ["pricing-advantage"] },
-  { path: "/ozellikler", testIds: ["advantage-compact"] },
+  { path: "/ozellikler", testIds: ["advantage-showcase", "blind-proof", "advantage-badges", "advantage-comparison"] },
   { path: "/ornek", testIds: ["advantage-compact"] },
 ];
 
@@ -23,8 +24,11 @@ for (const width of WIDTHS) {
       test.setTimeout(90_000);
       await page.setViewportSize({ width, height: 900 });
       await page.goto(pageDef.path, { waitUntil: "domcontentloaded" });
-      for (const id of pageDef.testIds) {
-        const el = page.getByTestId(id).first();
+      const targets = [
+        ...(pageDef.testIds ?? []).map((id) => ({ id, el: page.getByTestId(id).first() })),
+        ...(pageDef.selectors ?? []).map((id) => ({ id, el: page.locator(id).first() })),
+      ];
+      for (const { id, el } of targets) {
         await el.scrollIntoViewIfNeeded();
         await expect(el).toBeVisible();
         const box = await el.boundingBox();

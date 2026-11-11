@@ -2,24 +2,11 @@ import Link from "next/link";
 import { ArrowRight, Check, Sparkles } from "lucide-react";
 import { CortexLogoReveal } from "@/components/brand/cortex-logo-reveal";
 import { AudienceHero } from "@/components/landing/audience-hero";
-import { Icon3D } from "@/components/ui/icon-3d";
-import {
-  FAQ,
-  FEATURES,
-  LESSON_SCENE,
-  PROOF,
-  STEPS,
-  TRUST,
-  type LandingFeature,
-} from "@/lib/marketing/landing-content";
-import { FREE_PAGE_TOTAL } from "@/lib/billing/free-tier-copy";
+import { FAQ, FREE_PLAN_POINTS, PLUS_PLAN_POINTS, TRUST_FACTS } from "@/lib/marketing/landing-content";
 import { WEEKLY_PLUS_PLAN_NAME } from "@/lib/billing/tier-presentation";
 import { PLAN_ALLOWANCES, allowanceInWork } from "@/lib/credits/price-table";
 import { formatTryWhole } from "@/lib/format";
-import { AdvantageComparison, AdvantageShowcase } from "@/components/marketing/advantage-sections";
-import { PlusMonth } from "@/components/marketing/plus-month";
 import type { PlusPrices } from "@/lib/billing/plan-prices";
-import { cn } from "@/lib/utils";
 import "@/styles/landing.css";
 
 export type LandingPrices = PlusPrices;
@@ -27,10 +14,17 @@ export type LandingPrices = PlusPrices;
 const fmtCount = (n: number) => new Intl.NumberFormat("tr-TR").format(n);
 
 /**
- * Ana sayfa. 19 Ekim 2026'da uygulamanın tasarım sistemiyle yazıldı; aynı gün ürün sahibinin
- * isteğiyle sinematik hale geldi ("daha fütüristik, ama dozu kararında"): kahramanda ışık, ufka
- * uzanan ızgara ve nottan ders ekranına uzanan bir sahne. Bütün cümleler `landing-content.ts`te;
- * sahnedeki her ekran üründe var. Hareket yalnız CSS ile ve `prefers-reduced-motion`da durur.
+ * Ana sayfa. 11 Kasım 2026'da üç bölüme indi (ürün sahibi: "uzun ve tekrarlı metin yığını olmasın; kısa ve net"):
+ *
+ * 1. Kahraman + dört hedef kitle sekmesi ve 7 adımlı tanıtım turu (`AudienceHero`): ziyaretçi ürünü kendi
+ *    tıklamasıyla yaşar.
+ * 2. Ücretsiz ile Plus'ın tek ekranda karşılaştırması ve fiyatlar.
+ * 3. Sık sorulanlar ve son çağrı.
+ *
+ * Eski ara bölümler (kanıt şeridi, "Plus'ın bir ayı", dört adım, özellik ızgarası, karşılaştırma tablosu) aynı
+ * sözleri üç kez söylüyordu; kalktı. "Plus'ın bir ayı" ödeme sayfasında, özellikler `/ozellikler`de duruyor.
+ * Bütün cümleler `landing-content.ts`, `landing-showcase.ts` ve `landing-journey.ts`te; ekrandaki her söz bugün
+ * üründe çalışır. Hareket yalnız CSS ile ve `prefers-reduced-motion`da durur.
  */
 export function LandingPage({ prices }: { prices: LandingPrices }) {
   const plus = allowanceInWork(PLAN_ALLOWANCES.plusMonthly);
@@ -39,153 +33,76 @@ export function LandingPage({ prices }: { prices: LandingPrices }) {
 
   return (
     <div className="lp">
-      {/* Kahraman + hedef kitle sekmeleri + kayıtsız canlı vitrin (7 Kasım 2026): tek durum, sahne sunucuda. */}
+      {/* Kahraman, sekmeler ve tur tek durumda: sekme kayıt bağlantısını da değiştirir. */}
       <AudienceHero />
 
-      <AdvantageShowcase />
-
-      <section className="lp-proof" aria-label="Neden Cortex Plus">
-        <div className="lp-wrap">
-          <div className="lp-proof-bar">
-            {PROOF.map((item) => (
-              <article key={item.title} className="lp-proof-item">
-                <p className="lp-proof-stat">{item.stat}</p>
-                <h2 className="lp-proof-title">{item.title}</h2>
-                <p className="lp-muted">{item.body}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Plus'ın değeri somut sayıyla (20 Ekim 2026): misafirin ikinci gördüğü şey. */}
-      <PlusMonth
-        variant="full"
-        monthlyKurus={prices.plusMonthly}
-        primary={{ label: "Plus ile başla", href: "/kayit?next=%2Fpay" }}
-        secondary={{ label: "Önce ücretsiz dene", href: "/kayit" }}
-      />
-
-      <section id="nasil" className="lp-section" aria-labelledby="lp-steps-title">
+      <section id="planlar" className="lp-section lp-compare" aria-labelledby="lp-plans-title">
         <div className="lp-wrap" data-cinematic-reveal>
-          <p className="lp-kicker">Nasıl çalışır</p>
-          <h2 id="lp-steps-title" className="lp-h2">
-            Dört adımda nottan sınava
-          </h2>
-          <ol className="lp-flow">
-            {STEPS.map((step, index) => (
-              <li key={step.title} className="lp-flow-step">
-                <span className="lp-flow-node">
-                  <Icon3D name={step.icon} size={44} />
-                  <span className="lp-flow-no">{index + 1}</span>
-                </span>
-                <h3 className="lp-h3">{step.title}</h3>
-                <p className="lp-muted">{step.body}</p>
-              </li>
-            ))}
-          </ol>
-        </div>
-      </section>
-
-      <section className="lp-section lp-section--glow" aria-labelledby="lp-teacher-title">
-        <div className="lp-wrap lp-split" data-cinematic-reveal>
-          <div className="lp-split-copy">
-            <p className="lp-kicker">Gerçek bir dersten</p>
-            <h2 id="lp-teacher-title" className="lp-h2">
-              Öğretmenin işaretlediği gibi
-            </h2>
-            <ul className="lp-trust">
-              {TRUST.map((item) => (
-                <li key={item.title}>
-                  <Check className="lp-trust-icon" aria-hidden />
-                  <div>
-                    <h3 className="lp-h3">{item.title}</h3>
-                    <p className="lp-muted">{item.body}</p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <LessonCard />
-        </div>
-      </section>
-
-      <section className="lp-section" aria-labelledby="lp-features-title">
-        <div className="lp-wrap" data-cinematic-reveal>
-          <p className="lp-kicker">Her konu için</p>
-          <h2 id="lp-features-title" className="lp-h2">
-            Bir konuyu birçok yoldan çalış
-          </h2>
-          <div className="lp-bento">
-            {FEATURES.map((feature) => (
-              <FeatureTile key={feature.title} feature={feature} />
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <AdvantageComparison />
-
-      <section id="planlar" className="lp-section lp-section--alt" aria-labelledby="lp-plans-title">
-        <div className="lp-wrap" data-cinematic-reveal>
-          <p className="lp-kicker">Planlar</p>
           <h2 id="lp-plans-title" className="lp-h2">
             Ücretsiz başla, sınav döneminde büyüt
           </h2>
-          <div className="lp-plans">
-            <article className="lp-plan">
-              <h3 className="lp-plan-name">Ücretsiz</h3>
-              <p className="lp-plan-price">₺0</p>
-              <ul className="lp-plan-list">
-                <li>Haftada 3 ders (testleri ve kartlarıyla), günde 3 mesaj</li>
-                <li>Bir sınav hazırlığı</li>
-                <li>Toplam {FREE_PAGE_TOTAL} sayfa belge</li>
-                <li>Ders, konu testi, kartlar, doğru/yanlış, AI öğretmen</li>
+          <div className="lp-duo">
+            <article className="lp-duo-card">
+              <div className="lp-duo-head">
+                <h3 className="lp-plan-name">Ücretsiz</h3>
+                <p className="lp-plan-price">₺0</p>
+              </div>
+              <p className="lp-duo-lede">İlk dersin süre sınırı olmadan ücretsiz.</p>
+              <ul className="lp-duo-list">
+                {FREE_PLAN_POINTS.map((point) => (
+                  <li key={point}>
+                    <Check className="lp-duo-icon lp-duo-icon--ok" aria-hidden />
+                    {point}
+                  </li>
+                ))}
               </ul>
-              <Link href="/kayit" className="lp-btn lp-btn--ghost lp-btn--block">
+              <Link href="/kayit" className="lp-btn lp-btn--primary lp-btn--block">
                 Ücretsiz başla
+                <ArrowRight className="h-4 w-4" aria-hidden />
               </Link>
             </article>
-            <article className="lp-plan lp-plan--featured">
-              <p className="lp-plan-badge">
-                <Sparkles className="h-3.5 w-3.5" aria-hidden />
-                Önerilen
+
+            <article className="lp-duo-card lp-duo-card--plus">
+              <div className="lp-duo-head">
+                <h3 className="lp-plan-name">
+                  <Sparkles className="h-4 w-4" aria-hidden /> Plus
+                </h3>
+                <p className="lp-plan-price">
+                  {prices.plusMonthly ? formatTryWhole(prices.plusMonthly) : "—"}
+                  <span> / ay</span>
+                </p>
+              </div>
+              <p className="lp-duo-lede">
+                Ayda yaklaşık {fmtCount(plus.lessons)} ders ya da {fmtCount(plus.messages)} mesaj; bütün konular açık.
               </p>
-              <h3 className="lp-plan-name">Plus</h3>
-              <p className="lp-plan-price">
-                {prices.plusMonthly ? formatTryWhole(prices.plusMonthly) : "—"}
-                <span> / ay</span>
-              </p>
-              <ul className="lp-plan-list">
-                <li>
-                  Ayda yaklaşık {fmtCount(plus.lessons)} ders ya da {fmtCount(plus.messages)} mesaj
-                </li>
-                <li>Podcast, sözlü ve yazılı deneme, video ders</li>
-                <li>Belgenin tamamı, sınırsız hazırlık</li>
-                <li>Hazır içerik yokken daha hızlı yazım</li>
+              <ul className="lp-duo-list">
+                {PLUS_PLAN_POINTS.map((point) => (
+                  <li key={point}>
+                    <Check className="lp-duo-icon lp-duo-icon--plus" aria-hidden />
+                    {point}
+                  </li>
+                ))}
               </ul>
               <Link href="/kayit?next=%2Fpay" className="lp-btn lp-btn--plus lp-btn--block">
                 Plus ile başla
               </Link>
-            </article>
-            <article className="lp-plan">
-              <h3 className="lp-plan-name">{WEEKLY_PLUS_PLAN_NAME}</h3>
-              <p className="lp-plan-price">
-                {prices.plusWeekly ? formatTryWhole(prices.plusWeekly) : "—"}
-                <span> / 7 gün</span>
+              <p className="lp-duo-week">
+                Sınava bir hafta mı kaldı? <strong>{WEEKLY_PLUS_PLAN_NAME}</strong>:{" "}
+                {prices.plusWeekly ? formatTryWhole(prices.plusWeekly) : "—"} / 7 gün, yaklaşık {fmtCount(week.lessons)} ders. Tek
+                ödeme, abonelik açılmaz.
               </p>
-              <ul className="lp-plan-list">
-                <li>
-                  Bir hafta Plus: yaklaşık {fmtCount(week.lessons)} ders ya da {fmtCount(week.messages)} mesaj
-                </li>
-                <li>Tek ödeme, abonelik açılmaz</li>
-                <li>Sınavdan önceki son sprint için</li>
-              </ul>
-              <Link href="/kayit?next=%2Fpay" className="lp-btn lp-btn--ghost lp-btn--block">
-                Haftalık al
-              </Link>
             </article>
           </div>
+
+          <ul className="lp-trustline" aria-label="Güven">
+            {TRUST_FACTS.map((fact) => (
+              <li key={fact.title}>
+                <strong>{fact.title}</strong>
+                <span>{fact.body}</span>
+              </li>
+            ))}
+          </ul>
+
           <Link href="/fiyatlandirma" className="lp-sigma-strip">
             <span>
               🔥 Çok yoğun çalışanlar için: Sigma Paketi (Ayda {fmtCount(sigma.lessons)}{" "}
@@ -193,10 +110,6 @@ export function LandingPage({ prices }: { prices: LandingPrices }) {
             </span>
             <span>Tüm planları karşılaştır →</span>
           </Link>
-          <p className="lp-plans-foot">
-            Abonelik kendiliğinden yenilenmez. Ödeme PayTR ile; kart bilgisi bize gelmez.{" "}
-            <Link href="/fiyatlandirma">Bütün planları karşılaştır</Link>
-          </p>
         </div>
       </section>
 
@@ -223,104 +136,13 @@ export function LandingPage({ prices }: { prices: LandingPrices }) {
           <h2 id="lp-final-title" className="lp-h2">
             İlk dersin birkaç dakika uzağında
           </h2>
-          <p className="lp-muted">Notunu yükle ya da sınavını yaz. Kart istemiyoruz.</p>
+          <p className="lp-muted">Notunu yükle ya da hazır müfredattan başla. Kart istemiyoruz.</p>
           <Link href="/kayit" className="lp-btn lp-btn--primary">
             Ücretsiz başla
             <ArrowRight className="h-4 w-4" aria-hidden />
           </Link>
         </div>
       </section>
-    </div>
-  );
-}
-
-/** Turuncu vurgu ve tablo: aynı dersin bir sonraki ekranı. */
-function LessonCard() {
-  const { screen } = LESSON_SCENE;
-  return (
-    <figure className="lp-lesson-card" aria-label="Ders ekranı örneği: vurgu ve tablo">
-      <p className="lp-lesson-chip">Sınavda sorulur</p>
-      <h3 className="lp-lesson-heading">{screen.heading}</h3>
-      <p className="lp-lesson-text">
-        {screen.before}
-        <mark>{screen.emphasis}</mark>
-        {screen.after}
-      </p>
-      <div className="lp-table-wrap">
-        <table className="lp-table">
-          <thead>
-            <tr>
-              {screen.table.columns.map((column) => (
-                <th key={column}>{column}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {screen.table.rows.map((row) => (
-              <tr key={row[0]}>
-                {row.map((cell) => (
-                  <td key={cell}>{cell}</td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <figcaption className="lp-caption">Turuncu: notunda sınav ipucu olarak geçen yer</figcaption>
-    </figure>
-  );
-}
-
-/** Özellik ızgarası: ders ve podcast kendi küçük ekranlarıyla, öbürleri simge ve tek cümle. */
-function FeatureTile({ feature }: { feature: LandingFeature }) {
-  return (
-    <article className={cn("lp-tile", feature.size && `lp-tile--${feature.size}`)}>
-      <div className="lp-tile-head">
-        <Icon3D name={feature.icon} size={feature.size === "hero" ? 56 : 44} />
-        <div className="min-w-0">
-          <h3 className="lp-h3">
-            {feature.title}
-            {feature.plusOnly ? <span className="lp-plus-chip">Plus</span> : null}
-          </h3>
-          <p className="lp-muted">{feature.body}</p>
-        </div>
-      </div>
-      {feature.icon === "ders" ? <MiniLesson /> : null}
-      {feature.icon === "podcast" ? <Waveform /> : null}
-    </article>
-  );
-}
-
-function MiniLesson() {
-  const { quiz } = LESSON_SCENE;
-  return (
-    <div className="lp-mini-lesson" aria-hidden>
-      <p className="lp-mini-chip">Konu testi</p>
-      <p className="lp-mini-text">{quiz.prompt}</p>
-      <div className="lp-mini-options">
-        {quiz.options.map((option) => (
-          <span key={option} className={option === quiz.answer ? "is-right" : undefined}>
-            {option}
-            {option === quiz.answer ? <Check className="h-3.5 w-3.5" /> : null}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-const WAVE = [6, 14, 22, 12, 28, 18, 9, 24, 32, 16, 8, 20, 30, 14, 22, 10, 26, 18, 12, 6, 16, 24, 10, 20];
-
-function Waveform() {
-  return (
-    <div className="lp-wave" aria-hidden>
-      <span className="lp-wave-who">Ada</span>
-      <span className="lp-wave-bars">
-        {WAVE.map((h, i) => (
-          <span key={i} style={{ height: `${h}px`, animationDelay: `${(i % 8) * 0.12}s` }} />
-        ))}
-      </span>
-      <span className="lp-wave-who">Kerem</span>
     </div>
   );
 }

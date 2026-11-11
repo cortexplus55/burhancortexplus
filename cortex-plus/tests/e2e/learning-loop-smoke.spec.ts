@@ -17,8 +17,10 @@ test.describe("learning loop surfaces", { tag: ["@smoke"] }, () => {
 
   test("ana sayfa özellik listesi canonical", async ({ page }) => {
     await page.goto("/");
-    for (const name of ["Podcast", "Yazılı deneme", "Sözlü deneme", "Konu testi"]) {
-      await expect(page.getByRole("heading", { name }).first()).toBeVisible();
+    // 11 Kasım 2026: özellik ızgarası kalktı; adlar ücretsiz / Plus karşılaştırmasında geçer.
+    const plans = page.locator("#planlar");
+    for (const name of [/podcast/i, /yazılı deneme/i, /sözlü deneme/i, /konu testi/i]) {
+      await expect(plans).toContainText(name);
     }
   });
 

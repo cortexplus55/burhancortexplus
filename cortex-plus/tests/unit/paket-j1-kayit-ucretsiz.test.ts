@@ -340,6 +340,11 @@ describe("#3 ilk doz bedava", () => {
     expect(start.indexOf("freeTopicGate(service")).toBeLessThan(start.indexOf("requestNextPrefetch(service"));
     expect(start).toContain('if (prefetch) return NextResponse.json({ ok: true, skipped: "free_topic" });');
     expect(start).toContain("code: FREE_TOPIC_LIMIT_CODE, firstTopic: firstTopicLock");
+    // 11 Kasım 2026 (ürün sahibinin kararı): 1. konunun adımının ilk açılışı haftalık ders sayacından düşmez; karar
+    // konu kapısından SONRA ve yalnız adım haftalık haktan düşecekken sorulur (davranış: ilk-ders-dongusu.test.ts).
+    expect(start.indexOf("freeTopicGate(service")).toBeLessThan(start.indexOf("firstLessonCycleFree(service"));
+    expect(start).toMatch(/nodeMeter === "lesson" &&\s+!rewriteLesson &&\s+\(await firstLessonCycleFree\(service/);
+    expect(start).toContain('const freeMeter: FreeMeter | null = firstLessonFree ? "included" : nodeMeter;');
     expect(read("src/lib/documents/free-pages.ts")).toContain('.is("part_of", null)');
     expect(read("src/components/paywall/upgrade-sheet.tsx")).toContain('<ul className="ug-wins" aria-label="Kazanımların">');
   });

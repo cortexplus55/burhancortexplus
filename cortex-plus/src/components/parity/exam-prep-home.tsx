@@ -303,7 +303,7 @@ export function ExamPrepHome({
   /** 1. konu özeti; ücretsiz hesapta kilitli adım varsa dolu (`freeTopicLocks`). */
   firstTopicLock?: FirstTopicSummary | null;
   /** Sınav sabahı kâğıdı + sınıf paylaşımı (Paket J3 #14); bağlantı sunucuda imzalı ve mutlak. Yoksa kâğıt düğmesi yine görünür. */
-  shareTools?: { inviteUrl: string | null; whatsappHref: string | null } | null;
+  shareTools?: { inviteUrl: string | null; whatsappHref: string | null; cramSheetLocked?: boolean } | null;
   /** Sınav günü geçince not sorusu ya da başarı kartı (Paket J3 #14). */
   examResult?: ExamResultCardProps | null;
   /** Hazırlığın kurulduğu belge; konu haritası oradan yenilenir. */
@@ -873,6 +873,7 @@ export function ExamPrepHome({
             prepId={prepId}
             inviteUrl={shareTools?.inviteUrl ?? null}
             whatsappHref={shareTools?.whatsappHref ?? null}
+            cramSheetLocked={shareTools?.cramSheetLocked ?? false}
           />
         </>
       ) : null}

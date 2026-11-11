@@ -1,7 +1,7 @@
 import { escapeHtml, personName } from "@/lib/email/escape";
 import { ctaButton, emailShell, footerHtml, footerText, paragraphsHtml, type RenderedMail } from "@/lib/email/templates";
 import { FREE_CHAT_PER_DAY, FREE_LESSONS_PER_WEEK, FREE_PHOTO_PER_DAY } from "@/lib/billing/free-meters";
-import { FREE_PAGE_TOTAL } from "@/lib/billing/free-tier-copy";
+import { FREE_FIRST_LESSON_SENTENCE, FREE_PAGE_TOTAL, PLUS_ONLY_SENTENCE } from "@/lib/billing/free-tier-copy";
 import { PLAN_WORK_BY_ID, workCount, type PlanWorkId } from "@/lib/billing/plan-value";
 import { allowanceWorkLine, sigmaBenefitLines } from "@/lib/billing/tier-presentation";
 import { PLAN_ALLOWANCES, allowanceInWork } from "@/lib/credits/price-table";
@@ -156,14 +156,15 @@ export function renderWelcomeMail(input: WelcomeMailInput): RenderedMail {
       href: input.solveUrl,
     },
   ];
+  // 11 Kasım 2026 (ürün sahibinin kararı): ilk dersin döngüsü süreye ve haftalık hakka takılmaz; haftalık ders
+  // hakkı Çalışma Stüdyosu ve "Farklı anlat" için. Cümleler tek kaynaktan (`free-tier-copy.ts`).
   const freeLines = [
-    `Haftada ${FREE_LESSONS_PER_WEEK} ders (testleri ve kartlarıyla birlikte)`,
+    FREE_FIRST_LESSON_SENTENCE.replace(/\.$/, ""),
+    `Haftada ${FREE_LESSONS_PER_WEEK} ders hakkı (Çalışma Stüdyosu ve "Farklı anlat" için)`,
     `Günde ${FREE_CHAT_PER_DAY} öğretmen mesajı ve günde ${FREE_PHOTO_PER_DAY} fotoğraftan çözüm`,
-    "İlk hazırlığının 1. konusu tamamen açık",
     `Belgelerin ${fmt(FREE_PAGE_TOTAL)} sayfasına kadar işlenir`,
   ];
-  const moreLine =
-    "Podcast, sözlü deneme, yazılı deneme ve video ders gibi daha fazlası Plus'ta; hazır olduğunda Abonelik sayfasından bakabilirsin. Acelesi yok, önce ücretsiz hesabınla dene.";
+  const moreLine = `${PLUS_ONLY_SENTENCE} İlk dersten sonraki konular da Plus'ta açılır; hazır olduğunda Abonelik sayfasından bakabilirsin. Acelesi yok, önce ücretsiz hesabınla dene.`;
   const verifyLine =
     input.via === "email" && input.needsVerification
       ? noteBox(

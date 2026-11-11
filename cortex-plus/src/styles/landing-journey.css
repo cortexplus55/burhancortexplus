@@ -1,0 +1,1513 @@
+/*
+  Ana sayfanın 7 adımlı tanıtım turu (11 Kasım 2026).
+
+  Dil: derin obsidyen zemin, buzlu koyu cam, logonun şeridindeki renkler (kehribar → macenta → indigo → camgöbeği).
+  Şerit sayfanın ana fikri: üst menüde logodan çıkan ışık hattı, burada ilerleme rayı. İndigo eylem, camgöbeği
+  yönlendirme ve tarama, kehribar yalnız Plus ve seri (ürün kuralı). Düğme zemini #4f46e5: beyaz yazıyla 6:1
+  (#6366f1 4,5:1'in altında kalıyordu). Metin 14 px, etiket 12 px altına inmez; dokunma alanı en az 44 px.
+  Bütün hareket CSS'te; `prefers-reduced-motion`da durur.
+*/
+
+.lj {
+  --lj-bg: #090a0f;
+  --lj-glass: rgba(15, 23, 42, 0.7);
+  --lj-glass-2: rgba(30, 41, 59, 0.55);
+  --lj-line: rgba(255, 255, 255, 0.1);
+  --lj-line-strong: rgba(255, 255, 255, 0.18);
+  --lj-indigo: #6366f1;
+  --lj-indigo-deep: #4f46e5;
+  --lj-indigo-text: #a5b4fc;
+  --lj-cyan: #06b6d4;
+  --lj-cyan-text: #67e8f9;
+  --lj-amber: #f59e0b;
+  --lj-amber-text: #fbbf24;
+  --lj-ok: #34d399;
+  --lj-bad: #fb7185;
+  --lj-text: #f8fafc;
+  --lj-muted: #cbd5e1;
+  --lj-ribbon: linear-gradient(90deg, #f59e0b 0%, #ec4899 34%, #6366f1 66%, #06b6d4 100%);
+  --lj-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  padding: clamp(2.5rem, 6vw, 4.5rem) 0 clamp(3rem, 7vw, 5rem);
+  background:
+    radial-gradient(60rem 28rem at 50% 0%, rgba(99, 102, 241, 0.16), transparent 70%),
+    radial-gradient(40rem 22rem at 85% 30%, rgba(6, 182, 212, 0.1), transparent 70%),
+    var(--lj-bg);
+  color: var(--lj-text);
+  overflow: clip;
+  scroll-margin-top: 5.5rem;
+}
+
+.lj-wrap {
+  width: 100%;
+  max-width: 64rem;
+  margin: 0 auto;
+  padding-inline: 1rem;
+}
+
+.lj-head {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.lj-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--lj-cyan-text);
+}
+
+.lj-kicker::before {
+  content: "";
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--lj-cyan);
+  box-shadow: 0 0 0.75rem var(--lj-cyan);
+}
+
+.lj-title {
+  margin: 0;
+  font-size: clamp(1.5rem, 3.6vw, 2.35rem);
+  font-weight: 650;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+
+.lj-note {
+  margin: 0.6rem 0 0;
+  font-size: 0.875rem;
+  color: var(--lj-muted);
+}
+
+/* ---------- Konsol ---------- */
+
+.lj-console {
+  position: relative;
+  border-radius: 1.5rem;
+  border: 1px solid var(--lj-line);
+  background: var(--lj-glass);
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+  box-shadow:
+    0 0 0 1px rgba(99, 102, 241, 0.12),
+    0 2.5rem 6rem rgba(2, 6, 23, 0.7),
+    0 0 5rem rgba(99, 102, 241, 0.12);
+}
+
+/* Üst kenarda logonun şeridi: konsol logodan beslenir. */
+.lj-console::before {
+  content: "";
+  position: absolute;
+  inset: -1px 1.5rem auto;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--lj-ribbon);
+  opacity: 0.9;
+}
+
+/* ---------- İlerleme rayı ---------- */
+
+.lj-rail {
+  --lj-rail-pad: clamp(0.6rem, 3vw, 2rem);
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  margin: 0;
+  padding: 1.1rem var(--lj-rail-pad) 0.35rem;
+  list-style: none;
+}
+
+/* Ray çizgisi duraklarının ortasından geçer: iz (soluk) ve dolan şerit (`--lj-progress` 0-1). */
+.lj-rail::before,
+.lj-rail::after {
+  content: "";
+  position: absolute;
+  top: calc(1.1rem + 1.375rem - 1px);
+  left: calc(var(--lj-rail-pad) + 1.375rem);
+  height: 2px;
+  border-radius: 2px;
+}
+
+.lj-rail::before {
+  right: calc(var(--lj-rail-pad) + 1.375rem);
+  background: var(--lj-line-strong);
+}
+
+.lj-rail::after {
+  width: calc((100% - 2 * (var(--lj-rail-pad) + 1.375rem)) * var(--lj-progress, 0));
+  background: var(--lj-ribbon);
+  box-shadow: 0 0 0.9rem rgba(99, 102, 241, 0.7);
+  transition: width 0.5s var(--lj-ease);
+}
+
+.lj-rail-item {
+  position: relative;
+  z-index: 1;
+  flex: none;
+}
+
+.lj-stop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--lj-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.lj-stop-dot {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 50%;
+  border: 1px solid var(--lj-line-strong);
+  background: #0f172a;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition:
+    border-color 0.25s ease,
+    background 0.25s ease,
+    box-shadow 0.25s ease,
+    transform 0.25s var(--lj-ease);
+}
+
+.lj-stop-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.lj-stop:hover .lj-stop-dot {
+  border-color: var(--lj-indigo-text);
+}
+
+.lj-stop:focus-visible {
+  outline: none;
+}
+
+.lj-stop:focus-visible .lj-stop-dot {
+  outline: 2px solid var(--lj-cyan-text);
+  outline-offset: 3px;
+}
+
+.lj-stop.is-done .lj-stop-dot {
+  border-color: transparent;
+  background: var(--lj-indigo-deep);
+  color: #fff;
+}
+
+.lj-stop.is-on {
+  color: var(--lj-text);
+}
+
+.lj-stop.is-on .lj-stop-dot {
+  border-color: var(--lj-cyan);
+  background: #0b1220;
+  color: var(--lj-cyan-text);
+  box-shadow:
+    0 0 0 4px rgba(6, 182, 212, 0.16),
+    0 0 1.5rem rgba(6, 182, 212, 0.55);
+  transform: scale(1.06);
+}
+
+/* ---------- Sahne ---------- */
+
+.lj-stage {
+  position: relative;
+  padding: 1rem clamp(1rem, 3.2vw, 2rem) clamp(1.25rem, 3.2vw, 2rem);
+  outline: none;
+  /* Sabit menü (4rem) ve ilerleme çizgisi (~5.6rem) adım değişince görünür kalsın. */
+  scroll-margin-top: 10.5rem;
+}
+
+.lj-stage-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem 1rem;
+  margin-bottom: 1.1rem;
+}
+
+.lj-step-title {
+  margin: 0;
+  font-size: clamp(1.15rem, 2.4vw, 1.45rem);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.lj-guide {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0.45rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid rgba(6, 182, 212, 0.45);
+  background: rgba(6, 182, 212, 0.1);
+  color: var(--lj-cyan-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+  animation: lj-breathe 2.4s ease-in-out infinite;
+}
+
+@keyframes lj-breathe {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(6, 182, 212, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 0.55rem rgba(6, 182, 212, 0);
+  }
+}
+
+/* Sahne içeriği her adımda yumuşakça belirir. */
+.lj-stage > :not(.lj-stage-head) {
+  animation: lj-rise 0.45s var(--lj-ease) both;
+}
+
+@keyframes lj-rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.75rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---------- Düğmeler ---------- */
+
+.lj-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 3rem;
+  padding: 0 1.4rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--lj-indigo-deep);
+  color: #fff;
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 650;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow:
+    0 0 0 1px rgba(165, 180, 252, 0.4) inset,
+    0 0.6rem 1.8rem rgba(79, 70, 229, 0.45);
+  transition:
+    transform 0.2s var(--lj-ease),
+    background 0.2s ease;
+}
+
+.lj-cta:hover {
+  background: #5b54ee;
+  transform: translateY(-1px);
+}
+
+.lj-cta:focus-visible,
+.lj-ghost:focus-visible,
+.lj-chip:focus-visible,
+.lj-option:focus-visible,
+.lj-truth-btn:focus-visible,
+.lj-file:focus-visible,
+.lj-zone:focus-visible,
+.lj-flip:focus-visible,
+.lj-link:focus-visible,
+.lj-skip:focus-visible {
+  outline: 2px solid var(--lj-cyan-text);
+  outline-offset: 3px;
+}
+
+.lj-cta--pulse {
+  animation: lj-pulse 2s ease-in-out infinite;
+}
+
+@keyframes lj-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(165, 180, 252, 0.4) inset,
+      0 0.6rem 1.8rem rgba(79, 70, 229, 0.45),
+      0 0 0 0 rgba(99, 102, 241, 0.55);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(165, 180, 252, 0.4) inset,
+      0 0.6rem 1.8rem rgba(79, 70, 229, 0.45),
+      0 0 0 0.7rem rgba(99, 102, 241, 0);
+  }
+}
+
+.lj-cta--wide {
+  width: 100%;
+  margin-top: 1.1rem;
+}
+
+.lj-cta--hero {
+  width: 100%;
+  min-height: 3.5rem;
+  font-size: 1.0625rem;
+}
+
+.lj-ghost,
+.lj-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 2.75rem;
+  padding: 0 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--lj-line-strong);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--lj-text);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.lj-ghost:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.lj-chip {
+  margin-top: 0.9rem;
+  border-color: rgba(6, 182, 212, 0.5);
+  color: var(--lj-cyan-text);
+}
+
+.lj-link,
+.lj-skip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
+  border: 0;
+  background: none;
+  color: var(--lj-muted);
+  font: inherit;
+  font-size: 0.875rem;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+.lj-skip {
+  margin-top: 0.4rem;
+}
+
+.lj-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: center;
+  margin-top: 1.1rem;
+}
+
+.lj-tag {
+  margin: 0 0 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 650;
+}
+
+.lj-tag--formula {
+  color: var(--lj-indigo-text);
+}
+
+.lj-tag--trap {
+  color: #fdba74;
+}
+
+.lj-tag--hook {
+  color: #c4b5fd;
+}
+
+.lj-math,
+.lj-formula-expr,
+.lj-prompt,
+.lj-statement {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- 1. Not ---------- */
+
+.lj-upload {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 4.5rem minmax(0, 1.15fr);
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 17rem;
+}
+
+.lj-file {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  min-height: 5.5rem;
+  padding: 1rem 1.1rem;
+  border-radius: 1.1rem;
+  border: 1px solid rgba(165, 180, 252, 0.45);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.22), rgba(15, 23, 42, 0.6));
+  color: var(--lj-text);
+  font: inherit;
+  text-align: left;
+  cursor: grab;
+  box-shadow: 0 1rem 2.5rem rgba(2, 6, 23, 0.55);
+  animation: lj-float 3.6s ease-in-out infinite;
+  transition:
+    opacity 0.35s ease,
+    transform 0.5s var(--lj-ease);
+}
+
+.lj-file:active {
+  cursor: grabbing;
+}
+
+@keyframes lj-float {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -0.35rem;
+  }
+}
+
+.lj-file-sheet {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 3rem;
+  height: 3.6rem;
+  border-radius: 0.5rem;
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.lj-file-badge {
+  position: absolute;
+  bottom: -0.35rem;
+  left: 50%;
+  translate: -50% 0;
+  padding: 0.05rem 0.35rem;
+  border-radius: 0.3rem;
+  background: #e11d48;
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.lj-file-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.lj-file-text strong {
+  font-size: 0.9375rem;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.lj-file-text span {
+  font-size: 0.8125rem;
+  color: var(--lj-muted);
+}
+
+/* Dosyadan alana uçuş çizgisi: kesikli hat üzerinde akan ışık. */
+.lj-flight {
+  height: 2px;
+  border-radius: 2px;
+  background: repeating-linear-gradient(90deg, rgba(103, 232, 249, 0.8) 0 0.45rem, transparent 0.45rem 0.9rem);
+  background-size: 1.8rem 100%;
+  animation: lj-dash 1.1s linear infinite;
+}
+
+@keyframes lj-dash {
+  to {
+    background-position: 1.8rem 0;
+  }
+}
+
+.lj-zone {
+  position: relative;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 0.75rem;
+  min-height: 16rem;
+  padding: 1.25rem;
+  border-radius: 1.25rem;
+  border: 1.5px dashed rgba(6, 182, 212, 0.55);
+  background: radial-gradient(closest-side, rgba(6, 182, 212, 0.14), rgba(15, 23, 42, 0.35));
+  color: var(--lj-text);
+  font: inherit;
+  cursor: pointer;
+  overflow: hidden;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease;
+}
+
+.lj-zone.is-over,
+.lj-zone:hover {
+  border-color: var(--lj-cyan-text);
+  background: radial-gradient(closest-side, rgba(6, 182, 212, 0.24), rgba(15, 23, 42, 0.35));
+}
+
+.lj-zone:disabled,
+.lj-file:disabled {
+  cursor: progress;
+}
+
+.lj-zone-rings {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.lj-zone-rings span {
+  position: absolute;
+  width: 6rem;
+  height: 6rem;
+  border-radius: 50%;
+  border: 1px solid rgba(103, 232, 249, 0.5);
+  animation: lj-ring 3s ease-out infinite;
+}
+
+.lj-zone-rings span:nth-child(2) {
+  animation-delay: 1s;
+}
+
+.lj-zone-rings span:nth-child(3) {
+  animation-delay: 2s;
+}
+
+@keyframes lj-ring {
+  from {
+    transform: scale(0.7);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(2.9);
+    opacity: 0;
+  }
+}
+
+.lj-zone-core {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 5.25rem;
+  height: 5.25rem;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(15, 23, 42, 0.95), rgba(15, 23, 42, 0.6));
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.12),
+    0 0 2.5rem rgba(99, 102, 241, 0.55);
+}
+
+.lj-zone-copy,
+.lj-scan {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  text-align: center;
+}
+
+.lj-zone-copy strong {
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.lj-zone-copy span,
+.lj-scan-line {
+  font-size: 0.875rem;
+  color: var(--lj-muted);
+}
+
+.lj-upload.is-scanning .lj-file {
+  opacity: 0;
+  transform: translateX(40%) scale(0.6);
+  animation: none;
+}
+
+.lj-upload.is-scanning .lj-zone-rings span {
+  animation-duration: 1s;
+}
+
+.lj-scan-sheet {
+  position: relative;
+  width: 3.4rem;
+  height: 4.2rem;
+  margin-bottom: 0.35rem;
+  border-radius: 0.4rem;
+  background:
+    repeating-linear-gradient(180deg, rgba(51, 65, 85, 0.55) 0 2px, transparent 2px 9px) 0.5rem 0.6rem / calc(100% - 1rem) calc(100% - 1.2rem) no-repeat,
+    #e2e8f0;
+  overflow: hidden;
+}
+
+.lj-scan-laser {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 0.5rem;
+  background: linear-gradient(180deg, transparent, rgba(6, 182, 212, 0.95));
+  box-shadow: 0 0 1rem rgba(6, 182, 212, 0.9);
+  animation: lj-laser 0.6s ease-in-out infinite alternate;
+}
+
+@keyframes lj-laser {
+  from {
+    translate: 0 -0.5rem;
+  }
+  to {
+    translate: 0 4.2rem;
+  }
+}
+
+.lj-scan-line {
+  color: var(--lj-cyan-text);
+  font-weight: 600;
+}
+
+/* ---------- 2. Yol haritası ---------- */
+
+.lj-goals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.lj-goals li {
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--lj-line-strong);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.lj-days {
+  position: relative;
+  display: grid;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Düğümleri bağlayan hat: şerit üstten aşağı solar. */
+.lj-days::before {
+  content: "";
+  position: absolute;
+  top: 1.2rem;
+  bottom: 1.2rem;
+  left: 0.6875rem;
+  width: 2px;
+  background: linear-gradient(180deg, var(--lj-cyan), rgba(99, 102, 241, 0.6) 35%, var(--lj-line) 70%);
+}
+
+.lj-day {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.5rem minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: start;
+  animation: lj-rise 0.5s var(--lj-ease) both;
+  animation-delay: calc(var(--lj-i, 0) * 90ms);
+}
+
+.lj-day-node {
+  position: relative;
+  z-index: 1;
+  width: 0.875rem;
+  height: 0.875rem;
+  margin: 0.85rem 0 0 0.3125rem;
+  border-radius: 50%;
+  border: 2px solid var(--lj-line-strong);
+  background: #0f172a;
+}
+
+.lj-day.is-ready .lj-day-node {
+  border-color: var(--lj-ok);
+  background: var(--lj-ok);
+  box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.18), 0 0 1rem rgba(52, 211, 153, 0.7);
+}
+
+.lj-day-body {
+  padding: 0.7rem 0.9rem;
+  border-radius: 0.9rem;
+  border: 1px solid var(--lj-line);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.lj-day.is-ready .lj-day-body {
+  border-color: rgba(99, 102, 241, 0.55);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(15, 23, 42, 0.4));
+}
+
+.lj-day-when {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--lj-muted);
+}
+
+.lj-day-meta {
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(52, 211, 153, 0.16);
+  color: var(--lj-ok);
+}
+
+.lj-day-title {
+  margin: 0.2rem 0 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.lj-day .lj-cta {
+  margin-top: 0.75rem;
+}
+
+/* ---------- 3. Ders ---------- */
+
+.lj-lesson {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: 0.9rem;
+}
+
+.lj-lesson > .lj-cta {
+  grid-column: 1 / -1;
+  margin-top: 0.2rem;
+}
+
+.lj-lesson-main,
+.lj-lesson-side {
+  display: grid;
+  gap: 0.9rem;
+  align-content: start;
+  min-width: 0;
+}
+
+.lj-lesson-topic {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--lj-muted);
+}
+
+.lj-lesson-concept {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+.lj-formula,
+.lj-trap,
+.lj-hook {
+  padding: 0.9rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid var(--lj-line);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.lj-formula {
+  border-color: rgba(99, 102, 241, 0.5);
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.lj-formula-row {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--lj-line);
+}
+
+.lj-formula-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--lj-muted);
+}
+
+.lj-formula-expr {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #e0e7ff;
+  overflow-wrap: anywhere;
+}
+
+.lj-formula-note {
+  font-size: 0.875rem;
+  color: var(--lj-muted);
+}
+
+.lj-trap {
+  border-color: rgba(251, 146, 60, 0.45);
+  background: rgba(251, 146, 60, 0.08);
+}
+
+.lj-trap-line {
+  display: grid;
+  grid-template-columns: 1.25rem minmax(0, 1fr);
+  gap: 0.6rem;
+  margin: 0.55rem 0 0;
+}
+
+.lj-trap-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-top: 0.15rem;
+}
+
+.lj-trap-icon--bad {
+  color: var(--lj-bad);
+}
+
+.lj-trap-icon--ok {
+  color: var(--lj-ok);
+}
+
+.lj-trap-line .lj-math {
+  display: block;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.lj-trap-line small {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.875rem;
+  color: var(--lj-muted);
+}
+
+.lj-hook {
+  border-color: rgba(167, 139, 250, 0.45);
+  background: rgba(167, 139, 250, 0.08);
+}
+
+.lj-hook p:last-child {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+/* ---------- 4. Soru ---------- */
+
+.lj-prompt {
+  margin: 0 0 1rem;
+  padding: 1rem 1.1rem;
+  border-radius: 1rem;
+  border: 1px solid var(--lj-line);
+  background: rgba(255, 255, 255, 0.035);
+  font-size: 1.1rem;
+  font-weight: 600;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.lj-options {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.lj-option {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 3.25rem;
+  padding: 0 0.9rem;
+  border-radius: 0.9rem;
+  border: 1px solid var(--lj-line-strong);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--lj-text);
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    transform 0.2s var(--lj-ease);
+}
+
+.lj-option:hover:not(:disabled) {
+  border-color: var(--lj-indigo-text);
+  transform: translateY(-1px);
+}
+
+.lj-option-letter {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+}
+
+.lj-option-text {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  font-family: var(--font-mono);
+}
+
+.lj-option.is-pair {
+  border-color: var(--lj-cyan);
+  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.18);
+}
+
+.lj-option.is-right {
+  border-color: var(--lj-ok);
+  background: rgba(52, 211, 153, 0.16);
+  color: #d1fae5;
+}
+
+.lj-option.is-wrong {
+  border-color: rgba(251, 113, 133, 0.7);
+  background: rgba(251, 113, 133, 0.1);
+  color: #fecdd3;
+}
+
+.lj-option:disabled {
+  cursor: default;
+}
+
+.lj-hint,
+.lj-feedback {
+  margin: 0.9rem 0 0;
+  padding: 0.85rem 1rem;
+  border-radius: 0.9rem;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.lj-hint {
+  border: 1px solid rgba(6, 182, 212, 0.45);
+  background: rgba(6, 182, 212, 0.09);
+}
+
+.lj-hint strong {
+  color: var(--lj-cyan-text);
+}
+
+.lj-feedback {
+  border: 1px solid var(--lj-line);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.lj-feedback p {
+  margin: 0;
+}
+
+.lj-feedback p + p {
+  margin-top: 0.3rem;
+  color: var(--lj-muted);
+}
+
+.lj-feedback.is-right {
+  border-color: rgba(52, 211, 153, 0.5);
+  background: rgba(52, 211, 153, 0.1);
+}
+
+.lj-feedback.is-off {
+  border-color: rgba(251, 191, 36, 0.4);
+  background: rgba(251, 191, 36, 0.07);
+}
+
+.lj-coach {
+  font-weight: 650;
+}
+
+/* ---------- 5. Kart ---------- */
+
+.lj-cards {
+  display: grid;
+  justify-items: center;
+}
+
+.lj-flip {
+  width: min(100%, 30rem);
+  height: 15rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--lj-text);
+  font: inherit;
+  cursor: pointer;
+  perspective: 70rem;
+}
+
+.lj-flip-inner {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.6s var(--lj-ease);
+}
+
+.lj-flip.is-flipped .lj-flip-inner {
+  transform: rotateY(180deg);
+}
+
+.lj-flip-face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1.25rem;
+  border-radius: 1.25rem;
+  border: 1px solid rgba(165, 180, 252, 0.45);
+  background: linear-gradient(145deg, rgba(99, 102, 241, 0.28), rgba(15, 23, 42, 0.85));
+  box-shadow: 0 1.5rem 3.5rem rgba(2, 6, 23, 0.6);
+  text-align: center;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+.lj-flip-face--back {
+  border-color: rgba(52, 211, 153, 0.5);
+  background: linear-gradient(145deg, rgba(52, 211, 153, 0.2), rgba(15, 23, 42, 0.9));
+  transform: rotateY(180deg);
+}
+
+.lj-flip-side {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--lj-muted);
+}
+
+.lj-flip-text {
+  font-size: 1.1rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.lj-flip-hint {
+  font-size: 0.875rem;
+  color: var(--lj-cyan-text);
+}
+
+/* ---------- 6. Doğru / Yanlış ---------- */
+
+.lj-statement {
+  margin: 0 0 1rem;
+  padding: 1rem 1.1rem;
+  border-radius: 1rem;
+  border: 1px solid var(--lj-line);
+  background: rgba(255, 255, 255, 0.035);
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.lj-truth {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.lj-truth-btn {
+  min-height: 3.5rem;
+  border-radius: 1rem;
+  border: 1px solid var(--lj-line-strong);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--lj-text);
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.lj-truth-btn.is-right {
+  border-color: var(--lj-ok);
+  background: rgba(52, 211, 153, 0.16);
+}
+
+.lj-truth-btn.is-wrong {
+  border-color: rgba(251, 113, 133, 0.7);
+  background: rgba(251, 113, 133, 0.1);
+}
+
+.lj-truth-btn:disabled {
+  cursor: default;
+}
+
+.lj-result {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: 0.9rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(99, 102, 241, 0.5);
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.lj-ring {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 5rem;
+  height: 5rem;
+}
+
+.lj-ring svg {
+  position: absolute;
+  inset: 0;
+  transform: rotate(-90deg);
+}
+
+.lj-ring-track,
+.lj-ring-fill {
+  fill: none;
+  stroke-width: 6;
+}
+
+.lj-ring-track {
+  stroke: rgba(255, 255, 255, 0.12);
+}
+
+.lj-ring-fill {
+  stroke: var(--lj-ok);
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 0.4rem rgba(52, 211, 153, 0.8));
+  transition: stroke-dashoffset 0.8s var(--lj-ease);
+}
+
+.lj-ring b {
+  position: relative;
+  font-family: var(--font-mono);
+  font-size: 0.9375rem;
+}
+
+.lj-result-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.lj-result-text strong {
+  font-size: 1.05rem;
+}
+
+.lj-result-text span {
+  font-size: 0.875rem;
+  color: var(--lj-muted);
+}
+
+.lj-result-text .lj-streak {
+  align-self: flex-start;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.16);
+  color: var(--lj-amber-text);
+  font-weight: 650;
+}
+
+/* ---------- 7. Plus ---------- */
+
+.lj-plus-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lj-plus-card {
+  padding: 0.9rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  background: linear-gradient(145deg, rgba(245, 158, 11, 0.08), rgba(15, 23, 42, 0.5));
+  min-width: 0;
+}
+
+.lj-plus-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 0.9375rem;
+}
+
+.lj-plus-head strong {
+  flex: 1;
+  min-width: 0;
+  font-weight: 650;
+}
+
+.lj-plus-icon {
+  font-size: 1.15rem;
+}
+
+.lj-plus-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex: none;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.18);
+  color: var(--lj-amber-text);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.lj-plus-body {
+  margin: 0.4rem 0 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--lj-muted);
+}
+
+.lj-wave {
+  margin-top: 0.6rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--lj-line);
+}
+
+.lj-wave-bars {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 1.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.lj-wave-bars span {
+  width: 3px;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--lj-amber);
+  transform-origin: center;
+  animation: lj-bar 1.1s ease-in-out infinite;
+  animation-delay: calc(var(--lj-i, 0) * -90ms);
+}
+
+@keyframes lj-bar {
+  0%,
+  100% {
+    transform: scaleY(0.25);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+.lj-wave-line {
+  margin: 0.15rem 0 0;
+  font-size: 0.875rem;
+  color: var(--lj-muted);
+}
+
+.lj-wave-line b {
+  color: var(--lj-text);
+  font-weight: 650;
+}
+
+.lj-final {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 0.6rem;
+  margin-top: 1rem;
+  padding: 1.4rem clamp(1rem, 3vw, 1.75rem) 0.75rem;
+  border-radius: 1.25rem;
+  background: rgba(15, 23, 42, 0.75);
+  text-align: center;
+}
+
+/* Şerit çerçeve: logonun renkleri son çağrıyı sarar. */
+.lj-final::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 1.5px;
+  border-radius: inherit;
+  background: var(--lj-ribbon);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.lj-final-title {
+  margin: 0;
+  font-size: clamp(1.1rem, 2.6vw, 1.4rem);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+  text-wrap: balance;
+}
+
+.lj-final-body {
+  margin: 0 0 0.4rem;
+  max-width: 40rem;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--lj-muted);
+}
+
+.lj-final-fine {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--lj-muted);
+}
+
+/* ---------- Telefon ---------- */
+
+@media (max-width: 760px) {
+  .lj-upload {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.75rem;
+    min-height: 0;
+  }
+
+  .lj-flight {
+    justify-self: center;
+    width: 2px;
+    height: 2rem;
+    background: repeating-linear-gradient(180deg, rgba(103, 232, 249, 0.8) 0 0.45rem, transparent 0.45rem 0.9rem);
+    background-size: 100% 1.8rem;
+    animation-name: lj-dash-y;
+  }
+
+  .lj-upload.is-scanning .lj-file {
+    transform: translateY(40%) scale(0.6);
+  }
+
+  .lj-zone {
+    min-height: 13rem;
+  }
+
+  .lj-lesson {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .lj-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .lj-plus-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .lj-stage-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .lj-row > * {
+    flex: 1 1 100%;
+  }
+}
+
+@keyframes lj-dash-y {
+  to {
+    background-position: 0 1.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  /* 360 px'te yedi durak (7 × 44 px) raya sığsın: dış boşluk ve ray payı daralır. */
+  .lj-wrap {
+    padding-inline: 0.75rem;
+  }
+
+  .lj-rail {
+    --lj-rail-pad: 0.5rem;
+  }
+
+  /* Dar ekranda yalnız etkin durağın adı yazılır: yedi ad yan yana sığmaz. */
+  .lj-stop-label {
+    visibility: hidden;
+  }
+
+  .lj-stop.is-on .lj-stop-label {
+    visibility: visible;
+  }
+
+  .lj-flip {
+    height: 16.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lj-guide,
+  .lj-cta--pulse,
+  .lj-file,
+  .lj-flight,
+  .lj-zone-rings span,
+  .lj-scan-laser,
+  .lj-wave-bars span,
+  .lj-stage > :not(.lj-stage-head),
+  .lj-day {
+    animation: none;
+  }
+
+  .lj-flip-inner,
+  .lj-ring-fill,
+  .lj-rail::after,
+  .lj-cta,
+  .lj-option,
+  .lj-file {
+    transition: none;
+  }
+}

@@ -56,6 +56,11 @@ vi.mock("@/lib/billing/free-topic-gate", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/billing/free-topic-gate")>()),
   freeTopicGate: async () => null,
 }));
+// İlk dersin temel döngüsü (11 Kasım 2026) de kendi testinde (ilk-ders-dongusu.test.ts; rota akışı gerçek kuralla
+// orada koşar). Burada kural kapalı: bu sözleşme haftalık ders sayacıyla ayrılan olağan yolun mekaniğini sabitler.
+vi.mock("@/lib/billing/first-lesson-cycle", () => ({
+  firstLessonCycleFree: async () => false,
+}));
 vi.mock("@/lib/admin/feature-flags", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/admin/feature-flags")>()),
   isFeatureEnabled: async () => h.flag,

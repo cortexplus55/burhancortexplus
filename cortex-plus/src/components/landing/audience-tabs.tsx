@@ -3,6 +3,7 @@
 import { useId, type KeyboardEvent } from "react";
 import { cn } from "@/lib/utils";
 import { AUDIENCE_SEGMENTS, type AudienceSegmentId } from "@/lib/marketing/landing-showcase";
+import "@/styles/landing-showcase.css";
 
 /**
  * Dört hedef kitle sekmesi (7 Kasım 2026). Kahramanda ve vitrinde aynı durumu değiştirir; ok tuşlarıyla gezilir.

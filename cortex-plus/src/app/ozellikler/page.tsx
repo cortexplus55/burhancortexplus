@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { AdvantageCompact } from "@/components/marketing/advantage-sections";
+import { AdvantageComparison, AdvantageShowcase } from "@/components/marketing/advantage-sections";
 import { ParityMarketingPage } from "@/components/parity/marketing";
 import { Icon3D, type Icon3DName } from "@/components/ui/icon-3d";
-import { FREE_LESSONS_PER_WEEK, FREE_PHOTO_PER_DAY, FREE_TIER_SENTENCE } from "@/lib/billing/free-meters";
+import { FREE_PHOTO_PER_DAY, FREE_TIER_SENTENCE } from "@/lib/billing/free-meters";
+import { FREE_FIRST_LESSON_SENTENCE } from "@/lib/billing/free-tier-copy";
 import "@/styles/landing.css";
 
 export const metadata = {
@@ -19,11 +20,14 @@ export const metadata = {
   24 Ekim 2026 (kredi v3): ücretsiz hesap sayaçla — haftada 3 ders, günde 3 mesaj, günde 1 fotoğraf
   (`free-meters.ts`). "Plus" etiketliler ücretsiz hesapta hiç açılmayan işler (`PLUS_ONLY_ACTIONS`:
   podcast, sözlü, yazılı deneme, video, ses); sayılar koddan okunur, sayfaya elle yazılmaz.
+
+  11 Kasım 2026: ücretsizde ilk hazırlığın ilk dersi süreye ve haftalık hakka takılmaz (`first-lesson-cycle.ts`);
+  cümleler `free-tier-copy.ts` ve `free-meters.ts`ten.
 */
 
 type Feature = { icon: Icon3DName; title: string; body: string; plus?: boolean };
 
-/** "haftada 3 ders (testleri ve kartlarıyla), günde 3 sohbet mesajı ve günde 1 fotoğraftan soru çözümü" */
+/** Ücretsiz hesabın tek cümlesi, cümle içinde (küçük harfle başlar). */
 const FREE_TIER_LOWER = `${FREE_TIER_SENTENCE.charAt(0).toLocaleLowerCase("tr")}${FREE_TIER_SENTENCE.slice(1)}`;
 
 const GROUPS: { title: string; lead: string; items: Feature[] }[] = [
@@ -124,16 +128,16 @@ export default function OzelliklerPage() {
           </section>
         ))}
 
-        <div className="lp-wrap">
-          <AdvantageCompact />
-        </div>
+        {/* 11 Kasım 2026: ana sayfa üç bölüme inince kanıt kartı ve tam karşılaştırma buraya taşındı (#farklar). */}
+        <AdvantageShowcase />
+        <AdvantageComparison />
 
         <section className="lp-final" aria-labelledby="oz-final">
           <div className="lp-wrap lp-final-inner">
             <h2 id="oz-final" className="lp-h2">
               Notunla dene
             </h2>
-            <p className="lp-muted">Kart istemiyoruz. İlk hazırlığının 1. konusu ücretsiz (haftada {FREE_LESSONS_PER_WEEK} derse kadar).</p>
+            <p className="lp-muted">Kart istemiyoruz. {FREE_FIRST_LESSON_SENTENCE}</p>
             <Link href="/kayit" className="lp-btn lp-btn--primary">
               Ücretsiz başla
               <ArrowRight className="h-4 w-4" aria-hidden />

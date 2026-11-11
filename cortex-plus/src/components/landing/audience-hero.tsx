@@ -4,9 +4,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { AudienceTabs } from "@/components/landing/audience-tabs";
-import { HeroStage } from "@/components/landing/hero-stage";
-import { InteractiveShowcase } from "@/components/landing/interactive-showcase";
-import { HERO } from "@/lib/marketing/landing-content";
+import { FuturisticGuidedJourney } from "@/components/landing/futuristic-guided-journey";
+import { HERO, HERO_FACTS, HERO_INPUTS } from "@/lib/marketing/landing-content";
 import {
   audienceSegment,
   DEFAULT_SEGMENT,
@@ -15,10 +14,13 @@ import {
 } from "@/lib/marketing/landing-showcase";
 
 /**
- * Kahraman + hedef kitle sekmeleri + canlı vitrin tek durumda (7 Kasım 2026). Sayfa önbellekten gelir (5 dk);
+ * Kahraman + hedef kitle sekmeleri + 7 adımlı tanıtım turu tek durumda. Sayfa önbellekten gelir (5 dk);
  * `?hedef=` ve `utm_campaign` tarayıcıda okunur, sekme ona göre açılır. Sekme değişince adres de değişir
- * (`replaceState`, gezinme yok) — paylaşılan bağlantı aynı sekmeyi açar. Sahne (`HeroStage`) seçili sekmenin notunu,
- * ders ekranını ve yolunu çizer (10 Kasım 2026); ilk çizim varsayılan sekmeyle sunucudan gelir.
+ * (`replaceState`, gezinme yok) — paylaşılan bağlantı aynı sekmeyi açar.
+ *
+ * 11 Kasım 2026 (ürün sahibi: "kısa ve net"): kahraman tek cümleye indi; altında üç gerçek (kart yok, ilk ders
+ * süresiz ücretsiz, otomatik yenileme yok) ve kabul edilen dosya türleri. Eski maket (not → telefon → yol) ve
+ * ayrı vitrin kalktı: aynı hikâyeyi artık ziyaretçi turda kendi tıklamasıyla yaşıyor.
  */
 export function AudienceHero() {
   const [segmentId, setSegmentId] = useState<AudienceSegmentId>(DEFAULT_SEGMENT);
@@ -43,21 +45,19 @@ export function AudienceHero() {
 
   return (
     <>
-      <section className="lp-hero" aria-labelledby="lp-hero-title">
+      <section className="lp-hero lp-hero--lean" aria-labelledby="lp-hero-title">
         <div className="lp-hero-bg" aria-hidden>
           <div className="lp-aurora" />
           <div className="lp-floor" />
         </div>
         <div className="lp-wrap lp-hero-inner">
-          <p className="lp-eyebrow" aria-live="polite">
-            <span className="lp-live" aria-hidden />
-            {segment.badge}
-          </p>
           <h1 id="lp-hero-title" className="lp-hero-title">
             {HERO.titleLead} <span className="lp-glow-text">{HERO.titleAccent}</span>
           </h1>
-          <p className="lp-hero-lead">{segment.lead}</p>
-          <AudienceTabs value={segmentId} onChange={pick} controls="lp-showcase" />
+          <p className="lp-hero-lead" aria-live="polite">
+            {segment.lead}
+          </p>
+          <AudienceTabs value={segmentId} onChange={pick} controls="nasil" />
           <div className="lp-cta-row">
             <Link href={segment.signupHref} className="lp-btn lp-btn--primary">
               {segment.ctaLabel}
@@ -67,12 +67,19 @@ export function AudienceHero() {
               {HERO.secondary.label}
             </Link>
           </div>
-          <p className="lp-fineprint">{HERO.fineprint}</p>
+          <ul className="lp-facts" aria-label="Kısaca">
+            {HERO_FACTS.map((fact) => (
+              <li key={fact}>{fact}</li>
+            ))}
+          </ul>
+          <p className="lp-inputs">
+            {HERO_INPUTS.accepts}{" "}
+            <Link href={HERO_INPUTS.noNotes.href}>{HERO_INPUTS.noNotes.label}</Link>
+          </p>
         </div>
-        <HeroStage segmentId={segmentId} />
       </section>
 
-      <InteractiveShowcase segmentId={segmentId} onPickSegment={pick} />
+      <FuturisticGuidedJourney segmentId={segmentId} />
     </>
   );
 }

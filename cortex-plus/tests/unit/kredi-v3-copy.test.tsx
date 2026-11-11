@@ -88,8 +88,9 @@ describe("yükseltme kapısı (#3)", () => {
       `Ya da arkadaşını davet et — o hesabını doğrulayıp ilk çalışmasını yapınca ikinize de ${REFERRAL_GIFT_LESSONS} ders hediye (en çok ${REFERRAL_MAX_INVITES} davet)`,
     );
     expect(UPGRADE_FREE_LINE).toBe(
-      // 31 Ekim 2026 (Paket J1 #3): ilk hazırlığın 1. konusu tam açık; ders sayacı o konunun içinde.
-      `Ücretsiz hesapta ilk hazırlığında 1. konu tam açık (dersleri, testleri ve kartlarıyla; haftada ${FREE_LIMITS.lesson} derse kadar), günde ${FREE_LIMITS.chat} sohbet mesajı ve günde ${FREE_LIMITS.photo} fotoğraftan soru çözümü var; ` +
+      // 11 Kasım 2026 (ürün sahibinin kararı): ilk dersin döngüsü süreye ve haftalık hakka takılmaz; haftalık ders hakkı
+      // Çalışma Stüdyosu ve "Farklı anlat" için (31 Ekim'de sayaç 1. konunun içinde de geçerliydi).
+      `Ücretsiz hesapta ilk hazırlığında ilk dersin (konu anlatımı, kartlar, doğru/yanlış ve konu testi) süre sınırı olmadan açık; Çalışma Stüdyosu ve "Farklı anlat" için haftada ${FREE_LIMITS.lesson} ders hakkı, günde ${FREE_LIMITS.chat} sohbet mesajı ve günde ${FREE_LIMITS.photo} fotoğraftan soru çözümü var; ` +
         `davet ettiğin arkadaş hesabını doğrulayıp ilk çalışmasını yapınca ikinize de ${REFERRAL_GIFT_LESSONS} ders hediye; en çok ${REFERRAL_MAX_INVITES} davet için.`,
     );
   });

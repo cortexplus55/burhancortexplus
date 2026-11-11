@@ -16,7 +16,10 @@ import "@/styles/advantage.css";
   bu bölümlerden hiçbir ücretli işi tetikleyemez. Metnin tamamı `advantage-content.ts`te.
 */
 
-/** Ana sayfa: 3 sütunlu karşılaştırma. Dar ekranda her satır bir karta döner (yatay taşma yok). */
+/**
+ * /ozellikler (11 Kasım 2026'ya kadar ana sayfadaydı): 3 sütunlu karşılaştırma. Dar ekranda her satır bir karta
+ * döner (yatay taşma yok).
+ */
 export function AdvantageComparison() {
   const cols = ADVANTAGE_SECTION.columns;
   return (
@@ -139,7 +142,7 @@ export function PricingAdvantageStrip() {
   );
 }
 
-/** /ozellikler ve /ornek: aynı kaynaktan kısa sürüm (yalnız Cortex sütunu) + tam tabloya bağlantı. */
+/** /ornek: aynı kaynaktan kısa sürüm (yalnız Cortex sütunu) + /ozellikler'deki tam tabloya bağlantı. */
 export function AdvantageCompact({ withLink = true }: { withLink?: boolean }) {
   return (
     <section className="cx-adv cx-adv-compact" aria-labelledby="cx-adv-compact-title" data-testid="advantage-compact">
@@ -156,7 +159,7 @@ export function AdvantageCompact({ withLink = true }: { withLink?: boolean }) {
         ))}
       </ul>
       {withLink ? (
-        <Link href="/#farklar" className="cx-adv-link">
+        <Link href="/ozellikler#farklar" className="cx-adv-link">
           Tam karşılaştırmayı gör →
         </Link>
       ) : null}

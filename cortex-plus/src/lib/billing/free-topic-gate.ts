@@ -14,7 +14,9 @@ import { firstTopicOwnNodes, gatePrepWide, nodeLockedForFree, type FirstTopicRef
   Plus ekranını açar: "🚀 1. Konuyu Başarıyla Tamamladın!". Öğrenci tadını aldıktan sonra duvara çarpar; önceden
   yazım da o konulara harcanmaz.
 
-  Haftalık ders sayacı (3) 1. konunun içinde geçerli kalır; Araçlar, sohbet ve fotoğraf sayaçları değişmedi.
+  11 Kasım 2026 (ürün sahibinin kararı): ilk hazırlıkta 1. konunun adımlarının ilk açılışı haftalık ders sayacından
+  (3) düşmez (`first-lesson-cycle.ts`); sayaç Çalışma Stüdyosu, "Farklı anlat" ve ilk hazırlık dışındaki dersler için
+  geçerli. Sohbet ve fotoğraf sayaçları değişmedi.
   "1. konu" = hazırlığın konu listesinde ilk konu (`exam_prep_topics.sort_order`; yol bu sırayla kurulur).
   Daha önce açılmış (kaydı olan) adım açılmaya devam eder: kararın yayınından önce başlanan konu yarıda kalmasın.
   Abone ve kurucu (önizleme kapalı) muaf; okuma düşerse kapı kapanmaz (öğrenci aleyhine hata yapma).
@@ -45,7 +47,7 @@ type GateInput = {
   requestedTopicLabel: string | null;
 };
 
-type FirstTopicRow = { first: FirstTopicRef; firstIds: ReadonlySet<string> };
+export type FirstTopicRow = { first: FirstTopicRef; firstIds: ReadonlySet<string> };
 
 /** Kapı bu hesapta çalışır mı ve 1. konu hangisi; abone, kurucu ya da konusuz hazırlıkta null. */
 async function loadFirstTopic(service: SupabaseClient, userId: string, prepId: string): Promise<FirstTopicRow | null> {
@@ -54,7 +56,11 @@ async function loadFirstTopic(service: SupabaseClient, userId: string, prepId: s
     billingExempt(service, userId).catch(() => false),
   ]);
   if (entitlements.isPremium || exempt) return null;
+  return readFirstTopic(service, prepId);
+}
 
+/** Hazırlığın 1. konusu (`exam_prep_topics.sort_order`); hesabın planına bakmaz. Konusuz hazırlıkta null. */
+export async function readFirstTopic(service: SupabaseClient, prepId: string): Promise<FirstTopicRow | null> {
   const { data: first } = await service
     .from("exam_prep_topics")
     .select("id, label, document_topic_node_id")

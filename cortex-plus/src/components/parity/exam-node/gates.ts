@@ -1,6 +1,7 @@
 /** Kredi kapısının cümlesi: 402'nin kodu (dolan ücretsiz sayaç ya da Plus'taki iş) ve iki sabit kapı. */
 import { beyondFreeMessage } from "@/lib/billing/free-reach";
 import { freeLimitReachedLine, type FreeMeter } from "@/lib/billing/free-meters";
+import { SPEND_CAP_CODE, SPEND_CAP_MESSAGE } from "@/lib/billing/spend-breaker-copy";
 import type { ActionCode } from "@/lib/env";
 
 /** Kredi kapısının ne söyleyeceği: cümle, dolan ücretsiz sayaç ya da Plus'taki iş. */
@@ -81,5 +82,8 @@ export function nodeGateForCode(code: unknown, base: NodeGate, isPremium: boolea
       meter: "included",
     };
   }
+  // Günlük harcama sigortası (5 Kasım 2026): haftalık ders hakkıyla ilgisi yok, beklemek de çözmez. Kod okunmayınca
+  // kapı etkinliğin varsayılan cümlesine düşüyor, "Bu haftaki 3 ücretsiz ders hakkın bitti" diyordu (11 Kasım 2026).
+  if (code === SPEND_CAP_CODE) return { message: SPEND_CAP_MESSAGE, beyondFreeDaily: true };
   return base;
 }
