@@ -21,11 +21,16 @@ const base = {
 describe("hoş geldin e-postası", () => {
   it("adı baş harfi büyük, ücretsiz katman sayıları sabitlerden, ilk 10 dakika adımları", async () => {
     const { renderWelcomeMail } = await import("@/lib/email/lifecycle-templates");
-    const { FREE_LESSONS_PER_WEEK, FREE_CHAT_PER_DAY, FREE_PHOTO_PER_DAY } = await import("@/lib/billing/free-meters");
+    const { FREE_CHAT_PER_DAY, FREE_PHOTO_PER_DAY } = await import("@/lib/billing/free-meters");
+    const { FREE_FIRST_LESSON_SENTENCE, FREE_PAGE_TOTAL } = await import("@/lib/billing/free-tier-copy");
     const mail = renderWelcomeMail({ firstName: "burhan önder", via: "google", ...base });
     expect(mail.subject).toBe("Burhan, hoş geldin! Cortex Plus'ta ilk 10 dakikan");
     expect(mail.text).toContain("Merhaba Burhan,");
-    expect(mail.text).toContain(`Haftada ${FREE_LESSONS_PER_WEEK} ders`);
+    // 11 Kasım 2026 akşamı (ürün sahibinin kararı): ücretsiz hesap = tek ders; haftalık ders hakkı satırı yok.
+    expect(mail.text).toContain(FREE_FIRST_LESSON_SENTENCE.slice(0, -1));
+    expect(mail.text).not.toMatch(/Haftada|haftalık/);
+    expect(mail.text).toContain(`Tek sınav hazırlığı; belgelerin ${FREE_PAGE_TOTAL} sayfasına kadar işlenir`);
+    expect(mail.text).toContain("Çalışma Stüdyosu'ndaki test, kart ve doğru/yanlış üretimi de Plus'ta açılır");
     expect(mail.text).toContain(`Günde ${FREE_CHAT_PER_DAY} öğretmen mesajı ve günde ${FREE_PHOTO_PER_DAY} fotoğraftan çözüm`);
     expect(mail.text).toContain("1. Notunu yükle ya da hazır müfredattan seç");
     expect(mail.html).toContain(base.createUrl);

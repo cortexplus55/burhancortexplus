@@ -3,6 +3,7 @@ import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { isPremiumUser } from "@/lib/ai/generate";
 import { generateExamQuiz } from "@/lib/learning/exam-quiz-generate";
+import { FREE_LESSON_CODE, freeLessonRefused } from "@/lib/billing/free-lesson-gate";
 import { DUEL_QUESTIONS, duelCode, toDuelQuestions } from "@/lib/learning/duel";
 import { commitCredits, refundCredits } from "@/lib/credits/service";
 import { studentOptionCount } from "@/lib/learning/student-pedagogy";
@@ -57,6 +58,11 @@ export async function POST(request: Request) {
   // Tablo yoksa (migration uygulanmadıysa) soru üretip kredi düşmeden dur.
   const { error: tableError } = await service.from("prep_duels").select("id").limit(1);
   if (tableError) return errorResponse(503, "duel_unavailable");
+
+  // Ücretsiz hesap = tek ders (11 Kasım 2026 akşamı): bu üretim ders sayacına düşer, ücretsiz hesapta Plus'a yönlenir.
+  // Kaynak okuma, kredi ayırma ve model çağrısından ÖNCE; cüzdan bakiyesi (davet hediyesi) yetiyorsa iş onunla yapılır.
+  // Paylaşılan düelloyu oynamak ücretsiz kalır; yeni düello kurmak soru üretimidir.
+  if (await freeLessonRefused(service, userId, "QUIZ_GENERATE")) return errorResponse(402, FREE_LESSON_CODE);
 
   let topicLabel: string | null = null;
   if (prep.active_topic_id) {

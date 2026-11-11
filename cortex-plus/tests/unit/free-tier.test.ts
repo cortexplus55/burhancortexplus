@@ -3,6 +3,7 @@ import { readSource } from "./helpers/node-sources";
 import { describe, expect, it } from "vitest";
 import { quotaView } from "@/lib/credits/period";
 import {
+  FREE_DOCUMENT_SENTENCE,
   FREE_PAGE_TOTAL,
   FREE_PREP_LIMIT,
   FREE_PREP_LIMIT_CODE,
@@ -39,8 +40,10 @@ describe("ücretsiz katman sınırları", () => {
     expect(FREE_PREP_LIMIT).toBe(1);
     expect(FREE_PAGE_TOTAL).toBe(25);
     const rows = tierComparisonRows();
-    expect(rows.find((row) => row.label === "Sınav hazırlığı")?.free).toBe("1");
-    expect(rows.find((row) => row.label === "Belge işleme")?.free).toBe("Toplam 25 sayfa");
+    // 11 Kasım 2026 akşamı (ürün sahibinin kararı): sınır aynı; fiyat tablosunda ve kapıda görünür, Plus'a yönlendirir.
+    expect(rows.find((row) => row.label === "Sınav hazırlığı")?.free).toBe("1 (yenisi Plus'ta)");
+    expect(rows.find((row) => row.label === "Belge işleme")?.free).toBe("Toplam 25 sayfa (fazlası Plus'ta)");
+    expect(FREE_DOCUMENT_SENTENCE).toBe("Ücretsiz hesapta tek sınav hazırlığı ve toplam 25 sayfa belge var; daha fazlası Plus'ta.");
     expect(freePageCapLine(211, 25)).toContain("211 sayfalık belgenin ilk 25 sayfası");
   });
 

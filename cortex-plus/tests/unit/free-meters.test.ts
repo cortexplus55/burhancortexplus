@@ -5,8 +5,12 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 const {
+  FREE_LESSON_GATE_LINE,
+  FREE_LESSON_REFUSAL_MESSAGE,
   FREE_LIMITS,
   FREE_TIER_SENTENCE,
+  VISIBLE_FREE_METERS,
+  needsPlusOutsideFirstLesson,
   PLUS_ONLY_NODE_KINDS,
   defaultFreeMeter,
   freeLimitReachedLine,
@@ -25,7 +29,7 @@ const { refusalCode } = await import("@/lib/credits/service");
 const read = (path: string) => readSource(path).replace(/\r\n/g, "\n");
 
 describe("yoldaki adımın sayacı", () => {
-  it("ders her zaman ders hakkından; Plus adımları Plus'ta", () => {
+  it("ders her zaman ders sayacında; Plus adımları Plus'ta", () => {
     expect(nodeMeterFor("lesson", true)).toBe("lesson");
     expect(nodeMeterFor("lesson", false)).toBe("lesson");
     for (const kind of ["podcast", "oral", "written_exam"]) {
@@ -82,31 +86,47 @@ describe("yoldaki adımın sayacı", () => {
 });
 
 describe("sayaçların saati ve cümleleri", () => {
-  it("ders sayacı Pazartesi 00:00 İstanbul'da, gün sayaçları gece yarısı yenilenir", () => {
+  it("gün sayaçları İstanbul gece yarısı yenilenir; ders sayacının dönemi yok", () => {
     // Cuma 13:00 İstanbul.
     const friday = new Date("2026-10-23T10:00:00Z");
-    expect(freeMeterResetsAt("lesson", friday).toISOString()).toBe("2026-10-25T21:00:00.000Z");
     expect(freeMeterResetsAt("chat", friday).toISOString()).toBe("2026-10-23T21:00:00.000Z");
-    // Pazartesi 00:30 İstanbul: hafta yeni başladı, bir sonraki yenilenme gelecek Pazartesi.
+    expect(freeMeterResetsAt("photo", friday).toISOString()).toBe("2026-10-23T21:00:00.000Z");
+    expect(freeMeterResetsAt("included", friday).toISOString()).toBe("2026-10-23T21:00:00.000Z");
+    // Ders sayacının haftalık anahtarı yalnız eski kayıtları okumak için durur (SQL `free_period_key`).
     const monday = new Date("2026-10-25T21:30:00Z");
-    expect(freeMeterResetsAt("lesson", monday).toISOString()).toBe("2026-11-01T21:00:00.000Z");
     expect(freePeriodKey("lesson", monday)).not.toBe(freePeriodKey("lesson", friday));
+    // 11 Kasım 2026 akşamı: öğrenciye görünen sayaçlarda ders yok.
+    expect(VISIBLE_FREE_METERS).toEqual(["chat", "photo"]);
   });
 
-  it("öğrenciye kredi değil iş söylenir", () => {
-    expect(FREE_LIMITS).toMatchObject({ lesson: 3, chat: 3, photo: 1 });
-    expect(freeLimitReachedLine("lesson")).toBe("Bu haftaki 3 ücretsiz ders hakkın bitti.");
+  it("öğrenciye kredi değil iş söylenir; ders sayacında hak yok (ücretsiz hesap = tek ders)", () => {
+    expect(FREE_LIMITS).toMatchObject({ lesson: 0, chat: 3, photo: 1, included: 40 });
+    // "Bu haftaki 3 ücretsiz ders hakkın bitti" ve Pazartesi geri sayımı kalktı: ilk ders açık, devamı Plus'ta.
+    expect(freeLimitReachedLine("lesson")).toBe("Ücretsiz hesapta ilk dersin açık; devamı Plus'ta.");
+    expect(freeLimitReachedLine("lesson")).toBe(FREE_LESSON_GATE_LINE);
     expect(freeLimitReachedLine("chat")).toBe("Bugünkü 3 ücretsiz sohbet mesajı hakkın bitti.");
     expect(freeLimitReachedLine("photo")).toBe("Bugünkü 1 ücretsiz fotoğraftan çözüm hakkın bitti.");
-    expect(freeMeterResetLine("lesson")).toContain("Pazartesi");
-    // 11 Kasım 2026 (ürün sahibinin kararı): ilk dersin döngüsü süreye ve haftalık hakka takılmaz; haftalık ders
-    // hakkı Çalışma Stüdyosu ve "Farklı anlat" için. "Sınırsız" denmez (günlük kötüye kullanım sınırı duruyor).
+    expect(freeMeterResetLine("chat")).toBe("Hakkın gece yarısı yenilenir.");
+    // 11 Kasım 2026 (ürün sahibinin kararı): ilk dersin döngüsü süreye takılmaz; aynı akşam haftalık ders hakkı
+    // kalktı. "Sınırsız" denmez (günlük kötüye kullanım sınırı duruyor).
     expect(FREE_TIER_SENTENCE).toBe(
-      'İlk hazırlığında ilk dersin (konu anlatımı, kartlar, doğru/yanlış ve konu testi) süre sınırı olmadan açık; Çalışma Stüdyosu ve "Farklı anlat" için haftada 3 ders hakkı, günde 3 sohbet mesajı ve günde 1 fotoğraftan soru çözümü',
+      "İlk hazırlığında ilk dersin (konu anlatımı, kartlar, doğru/yanlış ve konu testi) süre sınırı olmadan açık; ayrıca günde 3 sohbet mesajı ve günde 1 fotoğraftan soru çözümü",
     );
     expect(FREE_TIER_SENTENCE.toLocaleLowerCase("tr")).not.toContain("sınırsız");
-    for (const line of [freeLimitReachedLine("lesson"), freeLimitReachedLine("chat"), FREE_TIER_SENTENCE]) {
-      expect(line.toLocaleLowerCase("tr")).not.toContain("kredi");
+    for (const line of [freeLimitReachedLine("lesson"), freeLimitReachedLine("chat"), FREE_TIER_SENTENCE, FREE_LESSON_REFUSAL_MESSAGE]) {
+      const lower = line.toLocaleLowerCase("tr");
+      expect(lower).not.toContain("kredi");
+      expect(lower).not.toContain("haftada");
+      expect(lower).not.toContain("pazartesi");
+    }
+  });
+
+  it("ücretsiz hesapta ilk dersin dışında Plus'a yönlenen işler tek kuraldan", () => {
+    for (const code of ["STUDY_PLAN_GENERATE", "QUIZ_GENERATE", "FLASHCARD_GENERATE", "PODCAST_GENERATE", "VIDEO_GENERATE"] as const) {
+      expect(needsPlusOutsideFirstLesson(code), code).toBe(true);
+    }
+    for (const code of ["AI_CHAT_STANDARD", "IMAGE_SOLUTION", "DOCUMENT_PAGE_PROCESS"] as const) {
+      expect(needsPlusOutsideFirstLesson(code), code).toBe(false);
     }
   });
 

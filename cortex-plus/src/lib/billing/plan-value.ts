@@ -2,7 +2,7 @@ import type { Icon3DName } from "@/components/ui/icon-3d";
 import { PHOTO_PAGE_LIMITS } from "@/lib/billing/entitlements";
 import { AUDIO_CHARS_PER_CREDIT_PRICE, CREDIT_PRICE_TABLE, PLAN_ALLOWANCES } from "@/lib/credits/price-table";
 import { DUO_WORDS_PER_MINUTE } from "@/lib/learning/podcast-formats";
-import { FREE_CHAT_PER_DAY, FREE_LESSONS_PER_WEEK, FREE_PHOTO_PER_DAY } from "@/lib/billing/free-meters";
+import { FREE_CHAT_PER_DAY, FREE_PHOTO_PER_DAY } from "@/lib/billing/free-meters";
 
 /**
  * Plus ile bir ayda neler yapılır (20 Ekim 2026, ürün sahibi: "plus alan biri bütün bir plus hesabıyla
@@ -27,14 +27,18 @@ export type PlanWork = {
   /** Ücretsiz hesapta açılmaz (`PLUS_ONLY_ACTIONS`, 24 Ekim 2026). */
   plusOnly: boolean;
   /**
-   * Ücretsiz hesapta ayda ne kadar (sayıya dayalı katman): ders haftada 3, mesaj günde 3, fotoğraf günde 1;
-   * test ve kartlar yolda derse dahil ("included").
+   * Ücretsiz hesapta ne kadar (11 Kasım 2026 akşamı, ürün sahibinin kararı: ücretsiz hesap = tek ders): ders yalnız
+   * ilk hazırlığın ilk dersi ("first"), test ve kartlar o derse dahil ("included"); mesaj günde 3, fotoğraf günde 1
+   * (ayda sayı). Plus'a özelse null.
    */
-  free: number | "included" | null;
+  free: number | "first" | "included" | null;
 };
 
 const MONTH_DAYS = 30;
-const MONTH_WEEKS = 30 / 7;
+
+/** Karşılaştırma satırlarında ücretsiz hesabın ders hücresi ve derse dahil işlerin hücresi. */
+export const FREE_FIRST_LESSON_CELL = "İlk ders";
+export const FREE_INCLUDED_CELL = "İlk derse dahil";
 
 /** Podcast sesiyle dinlenir: senaryo + seslendirme (900 karakter başına). */
 export const PODCAST_MINUTES = 5;
@@ -54,7 +58,7 @@ export const PLAN_WORK: readonly PlanWork[] = [
     icon: "ders",
     credits: CREDIT_PRICE_TABLE.STUDY_PLAN_GENERATE.credits,
     plusOnly: false,
-    free: Math.floor(FREE_LESSONS_PER_WEEK * MONTH_WEEKS),
+    free: "first",
   },
   {
     id: "quiz",
@@ -145,10 +149,13 @@ export function workCount(allowance: number, work: PlanWork): number {
   return Math.floor(allowance / work.credits);
 }
 
-/** Ücretsiz hesapta ayda kaç tane; derse dahil işler (test, kart) dersin sayısı kadar. Plus'a özelse 0. */
+/**
+ * Ücretsiz hesapta ayda kaç tane. Ders tek (ilk ders, ayda değil bir kez); derse dahil işler (test, kart) o dersin
+ * içinde. Plus'a özelse 0.
+ */
 export function freeMonthlyCount(work: PlanWork): number {
   if (work.plusOnly || work.free === null) return 0;
-  if (work.free === "included") return PLAN_WORK_BY_ID.lesson.free as number;
+  if (work.free === "first" || work.free === "included") return 1;
   return work.free;
 }
 
@@ -172,12 +179,15 @@ export function mixShare(mix: WorkMix, allowance: number = PLAN_ALLOWANCES.plusM
 }
 
 /**
- * Aynı karışım ücretsiz hesapla kaç günde biter: haftada 3 ders, günde 3 mesaj, günde 1 fotoğraf (test ve
- * kartlar derse dahil). Plus'a özel iş varsa ücretsizde hiç olmaz.
+ * Aynı karışım ücretsiz hesapla kaç günde biter: günde 3 mesaj, günde 1 fotoğraf. Ücretsiz hesapta ders yalnız ilk
+ * derstir (test ve kartlar ona dahil): karışımda Plus'a özel iş, birden çok ders ya da ilk dersin dışında test/kart
+ * varsa ücretsizle hiç yürümez (null).
  */
 export function freeDaysFor(mix: WorkMix): number | null {
   if (PLAN_WORK.some((work) => work.plusOnly && (mix[work.id] ?? 0) > 0)) return null;
-  const lessons = Math.ceil(((mix.lesson ?? 0) * 7) / FREE_LESSONS_PER_WEEK);
+  const lessons = mix.lesson ?? 0;
+  if (lessons > 1) return null;
+  if (PLAN_WORK.some((work) => work.free === "included" && (mix[work.id] ?? 0) > lessons)) return null;
   const chat = Math.ceil((mix.chat ?? 0) / FREE_CHAT_PER_DAY);
   const photo = Math.ceil((mix.photo ?? 0) / FREE_PHOTO_PER_DAY);
   return Math.max(lessons, chat, photo);
@@ -242,7 +252,14 @@ export function freeVsPlusRows(fmt: (n: number) => string): CompareRow[] {
     const free = freeMonthlyCount(work);
     return {
       label: `${work.title} (ayda)`,
-      free: work.free === "included" ? "Derse dahil" : free > 0 ? fmt(free) : "Kapalı",
+      free:
+        work.free === "first"
+          ? FREE_FIRST_LESSON_CELL
+          : work.free === "included"
+            ? FREE_INCLUDED_CELL
+            : free > 0
+              ? fmt(free)
+              : "Kapalı",
       plus: fmt(workCount(plus, work)),
     };
   };

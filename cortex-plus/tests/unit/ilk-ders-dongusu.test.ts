@@ -395,8 +395,10 @@ describe("sunucu kararı: ilk açılış ve ilk hazırlık", () => {
   });
 });
 
-describe("rota: haftalık ders hakkı doluyken ilk dersin adımları açılır", () => {
-  it("konu anlatımı, konu testi ve doğru/yanlış 'derse dahil' sayacıyla ayrılır; haftalık sayaç artmaz", async () => {
+// 11 Kasım 2026 akşamı (ürün sahibinin kararı): haftalık ders hakkı kalktı (`FREE_LIMITS.lesson` 0), ücretsiz hesap =
+// tek ders. İlk dersin döngüsü aynen açılır; ders sayacına düşen her iş kod kapısında (`free-lesson-gate.ts`) durur.
+describe("rota: ders sayacında hak yokken ilk dersin adımları açılır", () => {
+  it("konu anlatımı, konu testi ve doğru/yanlış 'derse dahil' sayacıyla ayrılır; ders sayacına dokunulmaz", async () => {
     for (const [kind, action] of [
       ["lesson", "STUDY_PLAN_GENERATE"],
       ["quiz", "QUIZ_GENERATE"],
@@ -413,7 +415,7 @@ describe("rota: haftalık ders hakkı doluyken ilk dersin adımları açılır",
     }
   });
 
-  it("'Farklı anlat' yeni derstir: haftalık haktan düşer, hak doluysa free_lesson_limit", async () => {
+  it("'Farklı anlat' yeni derstir: ücretsiz hesapta free_lesson_limit (ayırma ve model çağrısı yok); cüzdan bakiyesi yetiyorsa onunla", async () => {
     const tables = () =>
       seed("lesson", {
         extra: {
@@ -426,16 +428,25 @@ describe("rota: haftalık ders hakkı doluyken ilk dersin adımları açılır",
     const refused = await start(tables(), full, { rewrite: true });
     expect(refused.status).toBe(402);
     expect(refused.json?.code).toBe("free_lesson_limit");
-    expect(full.calls).toEqual([expect.objectContaining({ action: "STUDY_PLAN_GENERATE", meter: "lesson" })]);
+    // Kod kapısı ayırmadan ve üretimden ÖNCE reddeder: SQL çağrılmaz, motor çalışmaz.
+    expect(full.calls).toEqual([]);
+    expect(h.engineInputs).toEqual([]);
     expect(full.used.included).toBe(0);
-    // Hak varken yazılır ve haftalık sayaçtan düşer.
-    const open = makeMeters({ lesson: 1, included: 0 });
-    const written = await start(tables(), open, { rewrite: true });
+    // Kayıtlı dersi yeniden açmak ("Dersi tekrarla") ücretsiz kalır: kapıdan önce döner.
+    const replayed = await start(tables(), makeMeters({ lesson: FREE_LIMITS.lesson, included: 0 }), { replay: true });
+    expect(replayed.status).toBe(200);
+    expect(h.engineInputs).toEqual([]);
+    // Cüzdan bakiyesi (davet hediyesi: 3 ders) yetiyorsa yazılır; ayırma sayaçsızdır (bakiyeden), ders sayacı artmaz.
+    const gifted = tables();
+    gifted.credit_wallets = [{ user_id: USER, balance: 90 }];
+    const open = makeMeters({ lesson: 0, included: 0 });
+    const written = await start(gifted, open, { rewrite: true });
     expect(written.status).toBe(200);
-    expect(open.used).toEqual({ lesson: 2, included: 0 });
+    expect(open.calls).toEqual([expect.objectContaining({ action: "STUDY_PLAN_GENERATE", meter: null })]);
+    expect(open.used).toEqual({ lesson: 0, included: 0 });
   });
 
-  it("verilmiş dersi düz istekle yeniden yazdırmak da haftalık haktan (yalnız adımın ilk içeriği kapsamda)", async () => {
+  it("verilmiş dersi düz istekle yeniden yazdırmak da ders sayacında: free_lesson_limit (yalnız adımın ilk içeriği kapsamda)", async () => {
     const tables = seed("lesson", {
       extra: {
         exam_prep_node_attempts: [
@@ -447,10 +458,12 @@ describe("rota: haftalık ders hakkı doluyken ilk dersin adımları açılır",
     const result = await start(tables, meters);
     expect(result.status).toBe(402);
     expect(result.json?.code).toBe("free_lesson_limit");
+    expect(meters.calls).toEqual([]);
+    expect(h.engineInputs).toEqual([]);
     expect(meters.used.included).toBe(0);
   });
 
-  it("silinip yeniden kurulan hazırlıkta ders haftalık haktan düşer (ilk hazırlık değil)", async () => {
+  it("silinip yeniden kurulan hazırlıkta ders açılmaz (ilk hazırlık değil): free_lesson_limit", async () => {
     const tables = seed("lesson", {
       extra: {
         credit_reservations: [
@@ -462,10 +475,11 @@ describe("rota: haftalık ders hakkı doluyken ilk dersin adımları açılır",
     const result = await start(tables, meters);
     expect(result.status).toBe(402);
     expect(result.json?.code).toBe("free_lesson_limit");
-    expect(meters.calls).toEqual([expect.objectContaining({ meter: "lesson" })]);
+    expect(meters.calls).toEqual([]);
+    expect(h.engineInputs).toEqual([]);
   });
 
-  it("derse dahil adımların günlük sınırı dolunca kapı haftalık hakkı değil günlük sınırı söyler", async () => {
+  it("derse dahil adımların günlük sınırı dolunca kapı günlük sınırı söyler", async () => {
     const meters = makeMeters({ lesson: FREE_LIMITS.lesson, included: FREE_LIMITS.included });
     const result = await start(seed("lesson"), meters);
     expect(result.status).toBe(402);
@@ -475,7 +489,7 @@ describe("rota: haftalık ders hakkı doluyken ilk dersin adımları açılır",
     expect(gate.message).not.toMatch(/hafta|ders hakkı/i);
   });
 
-  it("önceden yazım: haftalık hak dolu olsa da ilk dersin adımı yazılır; günlük sınır doluysa yazılmaz", async () => {
+  it("önceden yazım: ilk dersin adımı yazılır; günlük sınır doluysa ve ilk dersin dışındaki adımda yazılmaz", async () => {
     const open = makeMeters({ lesson: FREE_LIMITS.lesson, included: 0 });
     const tablesOpen = seed("quiz", { extra: { free_usage: [{ user_id: USER, meter: "lesson", period_key: "2026-W46", used: FREE_LIMITS.lesson }] } });
     const written = await start(tablesOpen, open, { prefetch: true, clientRequestId: undefined }, { "x-cp-lesson-prefetch": "signed" });
@@ -488,6 +502,18 @@ describe("rota: haftalık ders hakkı doluyken ilk dersin adımları açılır",
     const full = makeMeters({ lesson: 0, included: FREE_LIMITS.included });
     const tablesFull = seed("quiz", { extra: { free_usage: [{ user_id: USER, meter: "included", period_key: "2026-11-10", used: FREE_LIMITS.included }] } });
     await start(tablesFull, full, { prefetch: true, clientRequestId: undefined }, { "x-cp-lesson-prefetch": "signed" });
+    expect(h.engineInputs).toEqual([]);
+
+    // İlk hazırlık olmayan (silinip yeniden kurulan) hazırlıkta adım ders sayacındadır: ücretsiz hesap açamayacağı
+    // için önceden de yazılmaz.
+    const later = seed("quiz", {
+      extra: {
+        credit_reservations: [
+          { id: "old", user_id: USER, action_code: "STUDY_PLAN_GENERATE", free_meter: "included", status: "committed", idempotency_key: "exam_node_slot_old", created_at: "2026-10-20T09:00:00.000Z" },
+        ],
+      },
+    });
+    await start(later, makeMeters({ lesson: 0, included: 0 }), { prefetch: true, clientRequestId: undefined }, { "x-cp-lesson-prefetch": "signed" });
     expect(h.engineInputs).toEqual([]);
   });
 });
@@ -515,19 +541,17 @@ describe("rota: Plus'a özel olanlar ve ileri konular kilitli kalır", () => {
   });
 });
 
-describe("Çalışma Stüdyosu haftalık haktan düşmeye devam eder", () => {
-  it("sayaç verilmeden ayrılan test, kart ve ders işi haftalık ders sayacına gider; doluysa free_lesson_limit", async () => {
+describe("Çalışma Stüdyosu üretimi ücretsiz hesapta Plus'a yönlenir", () => {
+  it("sayaç verilmeden ayrılan test, kart ve ders işi ders sayacındadır: ücretsiz hesapta free_lesson_limit, SQL çağrılmadan", async () => {
     const tables = seed("lesson");
-    const meters = makeMeters({ lesson: FREE_LIMITS.lesson - 1, included: 0 });
+    const meters = makeMeters({ lesson: 0, included: 0 });
     const service = makeRecordingDb(tables, { timeline: [], rpc: meters.rpc(tables) }).client;
-    const first = await reserveCredits(service, USER, "QUIZ_GENERATE", "studio-quiz-1");
-    expect(first.ok).toBe(true);
-    expect(meters.used).toEqual({ lesson: FREE_LIMITS.lesson, included: 0 });
     for (const action of ["QUIZ_GENERATE", "FLASHCARD_GENERATE", "STUDY_PLAN_GENERATE"] as const) {
       const refused = await reserveCredits(service, USER, action, `studio-${action}`);
       expect(refused.ok, action).toBe(false);
       expect(refusalCode(refused as { reason: string }), action).toBe("free_lesson_limit");
     }
-    expect(meters.calls.every((call) => call.meter === "lesson")).toBe(true);
+    expect(meters.calls).toEqual([]);
+    expect(meters.used).toEqual({ lesson: 0, included: 0 });
   });
 });

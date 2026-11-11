@@ -4,7 +4,7 @@ import { PLAN_ALLOWANCES } from "@/lib/credits/price-table";
 import Link from "next/link";
 import { LifeBuoy, Mail } from "lucide-react";
 import { MarketingPage } from "@/components/layout/marketing-page";
-import { FREE_PAGE_TOTAL, PLUS_ONLY_SENTENCE } from "@/lib/billing/free-tier-copy";
+import { FREE_DOCUMENT_SENTENCE, PLUS_ONLY_SENTENCE } from "@/lib/billing/free-tier-copy";
 import { supportSlaLine } from "@/lib/support/sla";
 
 export const metadata = {
@@ -21,8 +21,9 @@ const faqs = [
   },
   {
     question: "Ücretsiz olarak ne yapabilirim?",
-    // 11 Kasım 2026: ilk dersin döngüsü süreye ve haftalık hakka takılmaz; Plus'a özel olanlar tek kaynaktan.
-    answer: `Ücretsiz hesapta ${FREE_TIER_SENTENCE.charAt(0).toLocaleLowerCase("tr")}${FREE_TIER_SENTENCE.slice(1)} var; haftalık ders hakkı Pazartesi, mesaj ve fotoğraf hakkı gece yarısı yenilenir. Bir sınav hazırlığı kurabilir, toplam ${FREE_PAGE_TOTAL} sayfa belge işletebilirsin; ilk konudan sonraki konular Plus'ta açılır. ${PLUS_ONLY_SENTENCE} Sesli dinleme de Plus'ta.`,
+    // 11 Kasım 2026: ilk dersin döngüsü süreye takılmaz; aynı akşam haftalık ders hakkı kalktı (ücretsiz hesap =
+    // tek ders). Cümleler tek kaynaktan (`free-meters.ts`, `free-tier-copy.ts`).
+    answer: `Ücretsiz hesapta ${FREE_TIER_SENTENCE.charAt(0).toLocaleLowerCase("tr")}${FREE_TIER_SENTENCE.slice(1)} var; mesaj ve fotoğraf hakkı gece yarısı yenilenir. İlk dersten sonraki konular, yeni anlatımlar ("Farklı anlat") ve Çalışma Stüdyosu'ndaki test, kart ve doğru/yanlış üretimi Plus'ta açılır. ${FREE_DOCUMENT_SENTENCE} ${PLUS_ONLY_SENTENCE} Sesli dinleme de Plus'ta.`,
   },
   {
     question: "Dosyalarım güvende mi?",

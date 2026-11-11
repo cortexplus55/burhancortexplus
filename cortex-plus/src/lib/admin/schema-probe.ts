@@ -2,7 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceClient } from "@/lib/supabase/server";
 import { ACTION_CODES, CODE_SEEDED_RULE_NOTE, CREDIT_PRICE_TABLE } from "@/lib/credits/price-table";
-import { PLUS_ONLY_ACTIONS } from "@/lib/billing/free-meters";
+import { FREE_LIMITS, PLUS_ONLY_ACTIONS } from "@/lib/billing/free-meters";
 
 /**
  * Canlı şema koddaki beklentiyle uyuşuyor mu.
@@ -87,7 +87,7 @@ async function probeMeteredReserve(service: SupabaseClient): Promise<SchemaCheck
     ok: !missing,
     critical: true,
     detail: missing
-      ? "credit_reserve_metered yok — 20261024121000 uygulanmamış ya da yarım kalmış. Ücretsiz hesabın ayırmaları sayaçsız credit_reserve'e düşüyor: haftada 3 ders, günde 3 mesaj, 1 fotoğraf çalışmıyor."
+      ? "credit_reserve_metered yok — 20261024121000 uygulanmamış ya da yarım kalmış. Ücretsiz hesabın ayırmaları sayaçsız credit_reserve'e düşüyor: günde 3 mesaj, 1 fotoğraf ve derse dahil adımlar çalışmıyor."
       : "credit_reserve_metered yerinde: ücretsiz hesap sayaçla ayırıyor.",
   };
 }
@@ -107,6 +107,25 @@ async function probeFreeDailyZero(service: SupabaseClient): Promise<number | nul
   // Boş cevap 0 sayılmasın (Number(null) === 0).
   const value = typeof data === "number" ? data : typeof data === "string" && data.trim() ? Number(data) : NaN;
   return Number.isFinite(value) ? value : null;
+}
+
+/**
+ * Ücretsiz hesap = tek ders (11 Kasım 2026 akşamı, göç 20261111180000): SQL'deki ders sayacı sınırı 0 mı.
+ * `free_meter_limit` salt okunur bir SQL fonksiyonu. Asıl kapı kodda (`free-lesson-gate.ts`), bu yüzden kritik
+ * değil: göç uygulanmadan da ücretsiz hesap ders sayacından iş açamaz; göç ikinci hattır. Okunamazsa `null`.
+ */
+async function probeFreeLessonLimit(service: SupabaseClient): Promise<SchemaCheck> {
+  const { data, error } = await service.rpc("free_meter_limit", { p_meter: "lesson" });
+  const value = error ? null : typeof data === "number" ? data : typeof data === "string" && data.trim() ? Number(data) : null;
+  const ok = value === FREE_LIMITS.lesson;
+  return {
+    name: "Ücretsiz hesap: tek ders (SQL sınırı)",
+    ok,
+    critical: false,
+    detail: ok
+      ? "Ders sayacının SQL sınırı 0: ilk dersin döngüsü dışındaki üretim ücretsiz hesapta Plus'a yönleniyor."
+      : `SQL'de ders sayacı sınırı ${value ?? "okunamadı"} (0 olmalı: 20261111180000_free_lesson_trial). Kod kapısı çalışıyor; göç ikinci hat.`,
+  };
 }
 
 /**
@@ -310,10 +329,11 @@ export async function probeSchema(
   // işi açamaz (günlük kredi 0, sayaç tablosu yok) — kritik. Yeşil yalnız üçü birden tutunca: ders fiyatı
   // (20261024120000), free_usage (20261024121000) ve günlük kredi 0 (20261024123000). Sayaç fonksiyonu
   // ayrıca soruluyor (`probeMeteredReserve`).
-  const [lessonRule, freeUsage, dailyAllowance] = await Promise.all([
+  const [lessonRule, freeUsage, dailyAllowance, lessonLimit] = await Promise.all([
     service.from("credit_rules").select("credit_cost").eq("action_code", "STUDY_PLAN_GENERATE").maybeSingle(),
     hasTable(service, "free_usage"),
     probeFreeDailyZero(service),
+    probeFreeLessonLimit(service),
   ]);
   const lessonPrice = CREDIT_PRICE_TABLE.STUDY_PLAN_GENERATE.credits;
   const dailyZero = dailyAllowance === 0;
@@ -373,12 +393,13 @@ export async function probeSchema(
       ok: v3,
       critical: true,
       detail: v3
-        ? `Ders ${lessonPrice}, test ${CREDIT_PRICE_TABLE.QUIZ_GENERATE.credits}, mesaj ${chatPrice} kredi; ücretsiz haftada 3 ders, günde 3 mesaj, 1 fotoğraf; günlük kredi 0`
+        ? `Ders ${lessonPrice}, test ${CREDIT_PRICE_TABLE.QUIZ_GENERATE.credits}, mesaj ${chatPrice} kredi; ücretsiz ilk ders, günde ${FREE_LIMITS.chat} mesaj, ${FREE_LIMITS.photo} fotoğraf; günlük kredi 0`
         : `Ders ${lessonRule.data?.credit_cost ?? "?"} kredi${freeUsage ? "" : ", free_usage yok"}${
             dailyZero ? "" : `, günlük ücretsiz kredi ${dailyAllowance ?? "okunamadı"} (0 olmalı: 20261024123000)`
           }. Sıra: 20261024121000 koddan önce; 20261024120000 ve 20261024123000 koddan sonra, tek çalıştırmada.`,
     },
     metered,
+    lessonLimit,
     // 29 Ekim 2026: bütün eylem kodları (eksik/kapalı kritik; bedel farkı, koddan eklenen satır ve
     // plus_only_action ayrışması uyarı).
     ...creditRules,

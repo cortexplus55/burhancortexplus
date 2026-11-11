@@ -1,12 +1,14 @@
 import type { Icon3DName } from "@/components/ui/icon-3d";
 import type { ActionCode } from "@/lib/env";
-import { isPlusOnlyAction } from "@/lib/billing/free-meters";
+import { needsPlusOutsideFirstLesson } from "@/lib/billing/free-meters";
 
 /**
  * Çalışma Stüdyosu (8 Kasım 2026, ürün sahibi: "Araçlar sekmesinin adı Çalışma Stüdyosu olsun, doğrudan bizim
  * özelliklerimizi kullanacak şekilde tasarla"). Sekmenin ana bölümü bu sekiz stüdyo; her kart kendi stüdyosunu açar.
- * Kartlardaki iki kısa bilgi bugün çalışan özelliği anlatır (söz verme yok). Ücretsiz hesapta yalnız
- * `PLUS_ONLY_ACTIONS` işleri "Plus" rozeti taşır; açık liste, fiyattan türetilmez.
+ * Kartlardaki iki kısa bilgi bugün çalışan özelliği anlatır (söz verme yok). Ücretsiz hesapta "Plus" rozeti tek
+ * kuraldan okunur (`needsPlusOutsideFirstLesson`): Plus'a özel işler (`PLUS_ONLY_ACTIONS`) ve, 11 Kasım 2026
+ * akşamından beri (ücretsiz hesap = tek ders), ders sayacına düşen üretimler: Konu Testi, Kartlar, Doğru / Yanlış.
+ * Fotoğraftan Çözüm (günde 1) ve Anlatarak Öğren (günlük mesaj hakkı) ücretsizde açık. Açık liste, fiyattan türetilmez.
  */
 export type Studio = {
   id: string;
@@ -42,6 +44,7 @@ export const STUDIOS: readonly Studio[] = [
     icon: "konu-testi",
     accent: "#9b6bff",
     featured: true,
+    action: "QUIZ_GENERATE",
   },
   {
     id: "flashcard",
@@ -51,6 +54,7 @@ export const STUDIOS: readonly Studio[] = [
     href: "/studio/flashcard",
     icon: "kartlar",
     accent: "#2fc7b6",
+    action: "FLASHCARD_GENERATE",
   },
   {
     id: "dogru-yanlis",
@@ -60,6 +64,8 @@ export const STUDIOS: readonly Studio[] = [
     href: "/studio/dogru-yanlis",
     icon: "dogru-yanlis",
     accent: "#3fc56b",
+    // Doğru/yanlış test fiyatıyla yazılır (`true-false/generate`).
+    action: "QUIZ_GENERATE",
   },
   {
     id: "podcast",
@@ -104,5 +110,5 @@ export const STUDIOS: readonly Studio[] = [
 
 /** Ücretsiz hesapta bu stüdyo Plus rozeti taşır mı. */
 export function studioNeedsPlus(studio: Studio, freeAccount: boolean): boolean {
-  return freeAccount && Boolean(studio.action && isPlusOnlyAction(studio.action));
+  return freeAccount && Boolean(studio.action && needsPlusOutsideFirstLesson(studio.action));
 }

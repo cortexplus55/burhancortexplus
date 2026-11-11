@@ -24,7 +24,12 @@ import { firstLessonCycleNode } from "@/lib/billing/free-topic-rule";
      olmasa her konuya ayrı hazırlık kurup her birinin ilk dersini haftalık hak harcamadan açabilirdi. Kanıt kredi
      ayırmalarında durur (hazırlık silinse de kalır): `free_meter = 'included'`, anahtarı `exam_node_…`.
      Yöneticinin "ücretsiz gibi gör" önizlemesinde yalnız önizleme başladıktan sonraki ayırmalar sayılır.
-  Okuma düşerse kural uygulanmaz: adım bugünkü gibi haftalık ders hakkından düşer (maliyet aleyhine hata yapma).
+  Okuma düşerse kural uygulanmaz: adım ders sayacında kalır (maliyet aleyhine hata yapma).
+
+  11 Kasım 2026 akşamı (ürün sahibinin kararı): haftalık ders hakkı kalktı, ücretsiz hesap = tek ders. Bu kural artık
+  ücretsiz hesapta dersin AÇILDIĞI tek yoldur: buradan `false` dönen ve ders sayacına düşen her iş (yeniden yazım,
+  "Farklı anlat", ilk olmayan hazırlık) `free-lesson-gate.ts` kapısında Plus'a yönlenir. Yukarıdaki "haftalık ders
+  hakkından düşer" ifadeleri bugün "ders sayacına düşer, yani Plus'a yönlenir" diye okunur.
 */
 
 /** Öğrenciye verilmiş kayıt (`node-free-meter.ts` ile aynı tanım): yazımı süren ya da düşen kayıt sayılmaz. */

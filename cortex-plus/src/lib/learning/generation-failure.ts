@@ -15,6 +15,7 @@
  * Üretim HÂLÂ SÜRÜYORSA kimlik yenilenmez: yenilemek ikinci bir üretim
  * başlatır ve öğrenci iki kez ödeyebilir.
  */
+import { FREE_LESSON_REFUSAL_MESSAGE } from "@/lib/billing/free-meters";
 
 export type GenerationFailure = {
   message: string;
@@ -194,15 +195,21 @@ export function describeGenerationFailure(
      * Yenilenme zamanı biliniyorsa yazılıyor: beklemek de bir çözüm ve
      * bunu saklamak öğrenciyi yalnızca ödemeye itmek olur.
      */
+    // 11 Kasım 2026 akşamı (ürün sahibinin kararı): ücretsiz hesap = tek ders. Bu kod artık "haftalık hak doldu"
+    // değil, "iş ücretsiz hesapta açılmıyor" demek: beklemek çözmez, yenilenme saati yazılmaz.
     case "free_lesson_limit":
+      return {
+        message: FREE_LESSON_REFUSAL_MESSAGE,
+        retryMintsNewId: false,
+        canRetryNow: false,
+        action: { href: "/pay", label: "Plus'a bak" },
+      };
+
     case "free_chat_limit":
     case "free_photo_limit":
     case "free_included_limit":
       return {
-        message:
-          code === "free_lesson_limit"
-            ? "Bu haftaki 3 ücretsiz dersin bitti. Ders hakkın Pazartesi 00:00'da yenilenir; dilersen Plus'a geçip beklemeden devam edebilirsin."
-            : "Bugünkü ücretsiz hakkın bitti. Gece yarısı yenilenir; dilersen Plus'a geçip beklemeden devam edebilirsin.",
+        message: "Bugünkü ücretsiz hakkın bitti. Gece yarısı yenilenir; dilersen Plus'a geçip beklemeden devam edebilirsin.",
         retryMintsNewId: false,
         canRetryNow: false,
         action: { href: "/pay", label: "Plus'a bak" },

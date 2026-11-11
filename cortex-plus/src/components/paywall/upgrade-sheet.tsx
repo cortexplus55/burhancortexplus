@@ -6,13 +6,15 @@ import { Sparkles, Users, X } from "lucide-react";
 import { useIsFounder } from "@/lib/student/student-shell-context";
 import { PlusCountsInline } from "@/components/marketing/plus-month";
 import { FREE_TIER_SENTENCE, REFERRAL_GIFT_LESSONS, REFERRAL_MAX_INVITES } from "@/lib/billing/free-meters";
+import { FREE_DOCUMENT_SENTENCE } from "@/lib/billing/free-tier-copy";
 import "@/styles/parity-app.css";
 import "@/styles/cortex-premium.css";
 import "@/styles/upgrade-gate.css";
 
 /*
   Kapının davet ve ücretsiz hak cümleleri sayılarını koddan alır (24 Ekim 2026): elle yazılmış
-  "haftada 3 ders" ya da "3 ders hediye" sayaç değişince sessizce yalan olurdu. Hediyenin koşulu
+  "günde 3 mesaj" ya da "3 ders hediye" sayaç değişince sessizce yalan olurdu (11 Kasım 2026 akşamı haftalık ders
+  hakkı kalkınca cümle kendiliğinden değişti; belge ve hazırlık sınırı da burada yazılı). Hediyenin koşulu
   `referralPitch` ile aynı: arkadaş hesabını doğrulayıp ilk çalışmasını yapınca; davet eden en çok
   `REFERRAL_MAX_INVITES` davet için alır (sınırı dolan davet edene "ikinize de" yalan olmasın).
 */
@@ -23,8 +25,9 @@ export const UPGRADE_INVITE_LINE = `Ya da arkadaşını davet et — o ${GIFT_CO
 
 /** "Cortex Plus neden tamamen ücretsiz değil?" altındaki ücretsiz hak satırı. */
 export const UPGRADE_FREE_LINE =
-  `Ücretsiz hesapta ${FREE_TIER_SENTENCE.charAt(0).toLocaleLowerCase("tr")}${FREE_TIER_SENTENCE.slice(1)} var; ` +
-  `davet ettiğin arkadaş ${GIFT_CONDITION} ikinize de ${REFERRAL_GIFT_LESSONS} ders hediye; en çok ${REFERRAL_MAX_INVITES} davet için.`;
+  `Ücretsiz hesapta ${FREE_TIER_SENTENCE.charAt(0).toLocaleLowerCase("tr")}${FREE_TIER_SENTENCE.slice(1)} var. ` +
+  `${FREE_DOCUMENT_SENTENCE} ` +
+  `Davet ettiğin arkadaş ${GIFT_CONDITION} ikinize de ${REFERRAL_GIFT_LESSONS} ders hediye; en çok ${REFERRAL_MAX_INVITES} davet için.`;
 
 /**
  * Hak dolduğunda çıkan yükseltme ekranı.
@@ -183,8 +186,8 @@ export function UpgradeSheet({
 }
 
 /**
- * Geri sayımın parçaları. 24 saatten uzunsa gün ve saat ("5 gün 22 saat"): haftalık ders hakkı Salı
- * biten öğrenciye "142 saat 10 dk 05 sn" yazıyordu. Bir günün altında kıyas ürününün duvarındaki gibi saat,
+ * Geri sayımın parçaları. 24 saatten uzunsa gün ve saat ("5 gün 22 saat"): eski haftalık ders sayacı Salı
+ * biten öğrenciye "142 saat 10 dk 05 sn" yazıyordu (o sayaç 11 Kasım 2026 akşamı kalktı; ücretsiz sayaçlar günlük). Bir günün altında kıyas ürününün duvarındaki gibi saat,
  * dakika, saniye.
  */
 export function countdownParts(leftSeconds: number): { value: string; unit: string }[] {
@@ -205,7 +208,7 @@ export function countdownParts(leftSeconds: number): { value: string; unit: stri
 
 /**
  * "Hakkın yenilenene kadar: 04 saat 21 dk 00 sn" — kıyas ürününün sohbet duvarındaki gibi. Yenilenme satırı
- * ("Ders hakkın Pazartesi 00:00'da yenilenir.") hemen üstünde: eskiden geri sayım varken hiç çizilmiyordu.
+ * ("Hakkın gece yarısı yenilenir.") hemen üstünde: eskiden geri sayım varken hiç çizilmiyordu.
  * Saniyede bir güncellenir; süre dolunca "Hakkın yenilendi" der.
  */
 function ResetCountdown({ resetsAt, hint }: { resetsAt: string; hint?: string }) {

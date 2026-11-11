@@ -26,6 +26,13 @@ vi.mock("@/lib/learning/lesson-generation-failures", () => ({
   recordLessonGenerationFailure: vi.fn(async () => undefined),
 }));
 vi.mock("@/lib/learning/exam-quiz-generate", () => ({ generateExamQuiz: vi.fn() }));
+// Ücretsiz ders kapısı (11 Kasım 2026 akşamı) kendi testinde (ucretsiz-tek-ders.test.ts); burada sınanan, kaynak
+// okunamayınca üretimin ve kaydın başlamaması.
+vi.mock("@/lib/billing/free-lesson-gate", () => ({
+  FREE_LESSON_CODE: "free_lesson_limit",
+  freeLessonGate: async () => "open",
+  freeLessonRefused: async () => false,
+}));
 import { POST } from "@/app/api/learning/exam-prep/node/route";
 
 describe("selected source is required before generation", () => {

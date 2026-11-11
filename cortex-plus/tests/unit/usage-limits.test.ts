@@ -35,9 +35,10 @@ function service(rows: Record<string, unknown>) {
 }
 
 describe("ücretsiz hesap", () => {
-  /* 24 Ekim 2026: ücretsiz hesap sayaçla çalışıyor (haftada 3 ders, günde 3 mesaj, günde 1 fotoğraf).
-     Üç sayaç da /krediler'de görünür; geçen haftanın ya da dünün satırı sayılmaz. */
-  it("fotoğraf sayfası, haftalık ders, günlük mesaj ve fotoğraf sayaçlarını görüyor", async () => {
+  /* 24 Ekim 2026: ücretsiz hesap sayaçla çalışıyor (günde 3 mesaj, günde 1 fotoğraf). 11 Kasım 2026 akşamı
+     (ürün sahibinin kararı) haftalık ders sayacı kalktı: ücretsiz hesap = tek ders; eski haftalık satır
+     (`free_usage` 'lesson') okunsa da gösterilmez. Dünün satırı sayılmaz. */
+  it("fotoğraf sayfası, günlük mesaj ve fotoğraf sayaçlarını görüyor; haftalık ders sayacı yok", async () => {
     const limits = await loadUsageLimits(
       service({
         document_page_grants: { period_start: THIS_PERIOD, used: 1 },
@@ -52,14 +53,14 @@ describe("ücretsiz hesap", () => {
       NOW,
     );
 
-    expect(limits.map((l) => l.key)).toEqual(["photo-pages", "weekly-lessons", "daily-chat", "daily-photos"]);
+    expect(limits.map((l) => l.key)).toEqual(["photo-pages", "daily-chat", "daily-photos"]);
+    expect(limits.some((l) => /hafta|ders/i.test(l.label))).toBe(false);
     // 31 Ekim 2026 (Paket J1 #3): ücretsiz fotoğraf/taranmış sayfa hakkı 25.
     expect(limits[0]).toMatchObject({ used: 1, limit: 25, label: "Fotoğraf ve PDF sayfa" });
     expect(limits[0]?.hint).toContain("PDF sayfa: 25");
-    expect(limits[1]).toMatchObject({ used: 2, limit: 3, label: "Bu haftaki ders" });
-    expect(limits[2]).toMatchObject({ used: 3, limit: 3 });
+    expect(limits[1]).toMatchObject({ used: 3, limit: 3 });
     // Dünün fotoğrafı bugünün hakkını yemez.
-    expect(limits[3]).toMatchObject({ used: 0, limit: 1 });
+    expect(limits[2]).toMatchObject({ used: 0, limit: 1 });
   });
 
   /* Zor soru yükseltmesi zaten yalnızca premium'da çalışıyor; ücretsiz

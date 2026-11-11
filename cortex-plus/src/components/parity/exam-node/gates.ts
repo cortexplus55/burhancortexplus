@@ -1,6 +1,6 @@
 /** Kredi kapısının cümlesi: 402'nin kodu (dolan ücretsiz sayaç ya da Plus'taki iş) ve iki sabit kapı. */
-import { beyondFreeMessage } from "@/lib/billing/free-reach";
-import { freeLimitReachedLine, type FreeMeter } from "@/lib/billing/free-meters";
+import { FREE_LESSON_WORK_NAME, beyondFreeMessage } from "@/lib/billing/free-reach";
+import type { FreeMeter } from "@/lib/billing/free-meters";
 import { SPEND_CAP_CODE, SPEND_CAP_MESSAGE } from "@/lib/billing/spend-breaker-copy";
 import type { ActionCode } from "@/lib/env";
 
@@ -61,9 +61,9 @@ export const VOICE_MODE_GATE: NodeGate = {
 };
 
 /**
- * 402'nin koduna göre kapı (24 Ekim 2026). Ücretsiz hesapta hangi sayacın dolduğunu sunucu söylüyor:
- * haftalık ders hakkı, derse dahil adımların günlük sınırı ya da Plus'taki iş. Eskiden kod okunmuyor,
- * her 402 etkinliğin varsayılan cümlesini ve ders sayacının Pazartesi geri sayımını açıyordu.
+ * 402'nin koduna göre kapı (24 Ekim 2026). Ücretsiz hesapta sebebi sunucu söylüyor: derse dahil adımların
+ * günlük sınırı, Plus'taki iş ya da ilk dersin döngüsü dışında kalan üretim (`free_lesson_limit`; 11 Kasım 2026
+ * akşamı: ücretsiz hesap = tek ders, haftalık hak ve Pazartesi geri sayımı yok).
  */
 export function nodeGateForCode(code: unknown, base: NodeGate, isPremium: boolean, data?: { firstTopic?: FirstTopicSummary }): NodeGate {
   if (isPremium) return base;
@@ -72,7 +72,8 @@ export function nodeGateForCode(code: unknown, base: NodeGate, isPremium: boolea
     return base.beyondFreeDaily ? base : { message: beyondFreeMessage("Bu etkinlik"), beyondFreeDaily: true };
   }
   if (code === "free_lesson_limit") {
-    return { message: freeLimitReachedLine("lesson"), beyondFreeDaily: false, meter: "lesson" };
+    // "Farklı anlat", verilmiş adımın yeniden yazımı, ilk olmayan hazırlık: beklemek çözmez, geri sayım yok.
+    return { message: beyondFreeMessage(FREE_LESSON_WORK_NAME), beyondFreeDaily: true };
   }
   if (code === "free_included_limit") {
     // Sınırın sayısı yazılmaz: kötüye kullanım sınırı, öğrenciye gösterilen bir hak değil.
@@ -82,8 +83,8 @@ export function nodeGateForCode(code: unknown, base: NodeGate, isPremium: boolea
       meter: "included",
     };
   }
-  // Günlük harcama sigortası (5 Kasım 2026): haftalık ders hakkıyla ilgisi yok, beklemek de çözmez. Kod okunmayınca
-  // kapı etkinliğin varsayılan cümlesine düşüyor, "Bu haftaki 3 ücretsiz ders hakkın bitti" diyordu (11 Kasım 2026).
+  // Günlük harcama sigortası (5 Kasım 2026): beklemek çözmez. Kod okunmayınca kapı etkinliğin varsayılan cümlesine
+  // düşüyordu (11 Kasım 2026).
   if (code === SPEND_CAP_CODE) return { message: SPEND_CAP_MESSAGE, beyondFreeDaily: true };
   return base;
 }

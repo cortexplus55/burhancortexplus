@@ -213,7 +213,9 @@ describe("metinler gerçek davranışı söyler", () => {
 
   it("ücretsiz hesabın cümlesi öbür gerçekleri sabitlerden söyler", () => {
     expect(FREE_TIER_SENTENCE).toContain("süre sınırı olmadan açık");
-    expect(FREE_TIER_SENTENCE).toContain(`haftada ${FREE_LIMITS.lesson} ders hakkı`);
+    // 11 Kasım 2026 akşamı (ürün sahibinin kararı): haftalık ders hakkı yok (ücretsiz hesap = tek ders).
+    expect(FREE_LIMITS.lesson).toBe(0);
+    expect(FREE_TIER_SENTENCE).not.toMatch(/hafta|Stüdyo|Farklı anlat/);
     expect(FREE_TIER_SENTENCE).toContain(`günde ${FREE_LIMITS.chat} sohbet mesajı`);
     expect(FREE_TIER_SENTENCE).toContain(`günde ${FREE_LIMITS.photo} fotoğraftan soru çözümü`);
     expect(beyondFreeMessage(CRAM_SHEET_NAME)).toBe(
@@ -230,10 +232,15 @@ describe("metinler gerçek davranışı söyler", () => {
     expect(rows.find((row) => row.label === "Sınav sabahı kâğıdı")).toMatchObject({ free: "Plus'ta", plus: "Açık", sigma: "Açık" });
     expect(rows.find((row) => row.label === "Podcast, sözlü ve yazılı deneme")?.free).toBe("Plus'ta");
     expect(rows.find((row) => row.label === "AI kullanımı")?.free).toBe(
-      `Haftada ${FREE_LIMITS.lesson} ders, günde ${FREE_LIMITS.chat} mesaj, günde ${FREE_LIMITS.photo} fotoğraf`,
+      `İlk ders, günde ${FREE_LIMITS.chat} mesaj, günde ${FREE_LIMITS.photo} fotoğraftan çözüm`,
     );
-    expect(rows.find((row) => row.label === "Sınav hazırlığı")?.free).toBe(String(FREE_PREP_LIMIT));
-    expect(rows.find((row) => row.label === "Belge işleme")?.free).toBe(`Toplam ${FREE_PAGE_TOTAL} sayfa`);
+    // Ücretsiz hesap = tek ders: dersin devamı ve Stüdyo üretimleri tabloda "Plus'ta".
+    expect(rows.find((row) => row.label.startsWith("Öbür konular ve yeni anlatım"))).toMatchObject({ free: "Plus'ta", plus: "Açık" });
+    expect(rows.find((row) => row.label === "Stüdyoda test, kart ve doğru/yanlış üretimi")).toMatchObject({ free: "Plus'ta", plus: "Açık" });
+    expect(rows.some((row) => row.label === "Ders, test, kartlar, AI öğretmen")).toBe(false);
+    expect(rows.find((row) => row.label === "Sınav hazırlığı")?.free).toBe(`${FREE_PREP_LIMIT} (yenisi Plus'ta)`);
+    expect(rows.find((row) => row.label === "Belge işleme")?.free).toBe(`Toplam ${FREE_PAGE_TOTAL} sayfa (fazlası Plus'ta)`);
+    for (const row of rows) expect(row.free, row.label).not.toMatch(/Haftada|haftalık/);
     // Elle yazılmış sayı kalmadı.
     expect(read("src/lib/billing/tier-presentation.ts")).not.toContain('"Haftada 3 ders, günde 3 mesaj, günde 1 fotoğraf"');
   });
@@ -276,7 +283,8 @@ describe("metinler gerçek davranışı söyler", () => {
     });
     expect(mail.text).toContain(FREE_FIRST_LESSON_SENTENCE.replace(/\.$/, ""));
     expect(mail.text).toContain(PLUS_ONLY_SENTENCE);
-    expect(mail.text).toContain(`Haftada ${FREE_LIMITS.lesson} ders hakkı`);
+    expect(mail.text).not.toMatch(/Haftada|haftalık ders/);
+    expect(mail.text).toContain(`Günde ${FREE_LIMITS.chat} öğretmen mesajı ve günde ${FREE_LIMITS.photo} fotoğraftan çözüm`);
     expect(mail.text).not.toContain("1. konusu tamamen açık");
   });
 

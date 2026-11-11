@@ -3,7 +3,7 @@ import { periodLabel, type PeriodKind } from "@/lib/credits/period";
 import { formatDate } from "@/lib/format";
 
 import { FIRST_LESSON_STEPS, FREE_PAGE_TOTAL, FREE_PREP_LIMIT } from "@/lib/billing/free-tier-copy";
-import { FREE_CHAT_PER_DAY, FREE_LESSONS_PER_WEEK, FREE_PHOTO_PER_DAY, freeMeterResetLine } from "@/lib/billing/free-meters";
+import { FREE_CHAT_PER_DAY, FREE_PHOTO_PER_DAY } from "@/lib/billing/free-meters";
 import { PLAN_ALLOWANCES, allowanceInWork } from "@/lib/credits/price-table";
 
 /**
@@ -86,7 +86,8 @@ export type TierComparisonRow = {
 export function tierComparisonRows(): TierComparisonRow[] {
   return [
     {
-      // 11 Kasım 2026 (ürün sahibinin kararı): ilk dersin temel adımları süreye ve haftalık hakka takılmaz.
+      // 11 Kasım 2026 (ürün sahibinin kararı): ilk dersin temel adımları süreye takılmaz. Aynı akşam: ücretsiz
+      // hesapta ders yalnız bu ilk derstir (haftalık ders hakkı kalktı).
       label: `İlk hazırlıkta ilk ders (${FIRST_LESSON_STEPS.join(" + ")})`,
       guest: "—",
       free: "Süre sınırı olmadan ücretsiz",
@@ -94,19 +95,28 @@ export function tierComparisonRows(): TierComparisonRow[] {
       sigma: "Bütün konular açık",
     },
     {
-      label: "AI kullanımı",
-      guest: "Yok",
-      // Sayıya dayalı ücretsiz katman (24 Ekim 2026); haftalık ders hakkı Çalışma Stüdyosu ve "Farklı anlat" için.
-      free: `Haftada ${FREE_LESSONS_PER_WEEK} ders, günde ${FREE_CHAT_PER_DAY} mesaj, günde ${FREE_PHOTO_PER_DAY} fotoğraf`,
-      plus: allowanceWorkLine(PLAN_ALLOWANCES.plusMonthly),
-      sigma: allowanceWorkLine(PLAN_ALLOWANCES.sigmaMonthly),
-    },
-    {
-      label: "Ders, test, kartlar, AI öğretmen",
-      guest: "Yok",
-      free: "Açık",
+      label: "Öbür konular ve yeni anlatım (\"Farklı anlat\")",
+      guest: "—",
+      free: "Plus'ta",
       plus: "Açık",
       sigma: "Açık",
+    },
+    {
+      // Stüdyoda ders sayacına düşen üretimler (`needsPlusOutsideFirstLesson`); fotoğraftan çözüm ve "Anlatarak
+      // öğren" günlük haklarla açık (alttaki satır).
+      label: "Stüdyoda test, kart ve doğru/yanlış üretimi",
+      guest: "—",
+      free: "Plus'ta",
+      plus: "Açık",
+      sigma: "Açık",
+    },
+    {
+      label: "AI kullanımı",
+      guest: "Yok",
+      // Sayıya dayalı ücretsiz katman (24 Ekim 2026); ders sayacı yok (11 Kasım 2026 akşamı).
+      free: `İlk ders, günde ${FREE_CHAT_PER_DAY} mesaj, günde ${FREE_PHOTO_PER_DAY} fotoğraftan çözüm`,
+      plus: allowanceWorkLine(PLAN_ALLOWANCES.plusMonthly),
+      sigma: allowanceWorkLine(PLAN_ALLOWANCES.sigmaMonthly),
     },
     {
       label: "Podcast, sözlü ve yazılı deneme",
@@ -133,14 +143,14 @@ export function tierComparisonRows(): TierComparisonRow[] {
     {
       label: "Sınav hazırlığı",
       guest: "—",
-      free: String(FREE_PREP_LIMIT),
+      free: `${FREE_PREP_LIMIT} (yenisi Plus'ta)`,
       plus: "Sınırsız",
       sigma: "Sınırsız",
     },
     {
       label: "Belge işleme",
       guest: "—",
-      free: `Toplam ${FREE_PAGE_TOTAL} sayfa`,
+      free: `Toplam ${FREE_PAGE_TOTAL} sayfa (fazlası Plus'ta)`,
       plus: "Belgenin tamamı",
       sigma: "Belgenin tamamı",
     },
@@ -254,11 +264,11 @@ export function profilePlanView(account: {
       isPremium: true,
     };
   }
-  // Ücretsiz hesap sayaçla (24 Ekim 2026): dönem türü ve cüzdanın yenilenme tarihi anlamsız. Eskiden
-  // "günlük hak, 26 Ekim 00:00 yenilenir" yazıyordu: günlük hak yok, tarih ders sayacının Pazartesi'si.
+  // Ücretsiz hesap sayaçla (24 Ekim 2026): dönem türü ve cüzdanın yenilenme tarihi anlamsız. 11 Kasım 2026
+  // akşamından beri haftalık ders hakkı da yok: ilk ders açık, devamı Plus'ta.
   return {
     label: "Temel",
-    hint: `Ücretsiz plan · haftada ${FREE_LESSONS_PER_WEEK} ders, günde ${FREE_CHAT_PER_DAY} mesaj · ${freeMeterResetLine("lesson")}`,
+    hint: `Ücretsiz plan · ilk dersin açık, günde ${FREE_CHAT_PER_DAY} mesaj ve ${FREE_PHOTO_PER_DAY} fotoğraftan çözüm · devamı Plus'ta`,
     isPremium: false,
   };
 }

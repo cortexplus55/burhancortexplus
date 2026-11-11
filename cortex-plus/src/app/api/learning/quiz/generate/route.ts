@@ -5,6 +5,7 @@ import { getTeacherEntitlements, incrementTeacherUsage } from "@/lib/teacher/ent
 import { isPremiumUser } from "@/lib/ai/generate";
 import { loadDocumentGenerationContext } from "@/lib/documents/generation-context";
 import { generateExamQuiz } from "@/lib/learning/exam-quiz-generate";
+import { FREE_LESSON_CODE, freeLessonRefused } from "@/lib/billing/free-lesson-gate";
 
 const schema = z.object({
   topic: z.string().min(3).max(500),
@@ -34,6 +35,10 @@ export async function POST(request: Request) {
   }
   const { topic, count, difficulty, documentId } = parsedBody.data;
   const questionCount = count ?? 5;
+
+  // Ücretsiz hesap = tek ders (11 Kasım 2026 akşamı): bu üretim ders sayacına düşer, ücretsiz hesapta Plus'a yönlenir.
+  // Kaynak okuma, kredi ayırma ve model çağrısından ÖNCE; cüzdan bakiyesi (davet hediyesi) yetiyorsa iş onunla yapılır.
+  if (await freeLessonRefused(service, userId, "QUIZ_GENERATE")) return errorResponse(402, FREE_LESSON_CODE);
 
   // Belge modu: kredi ayırmadan önce belgenin hazır ve dolu olduğunu doğrula;
   // yoksa öğrenci hem kredi kaybetmez hem de net bir sebep görür.

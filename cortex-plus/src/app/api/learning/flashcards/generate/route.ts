@@ -5,6 +5,7 @@ import { getCreditCost } from "@/lib/credits/rules";
 import { mergeDistinctCards, teacherCardsLoop } from "@/lib/learning/teacher-cards";
 import { runWithTeacherModel } from "@/lib/learning/teacher-engine-run";
 import { studioTeacherSource } from "@/lib/learning/studio-teacher-source";
+import { FREE_LESSON_CODE, freeLessonRefused } from "@/lib/billing/free-lesson-gate";
 
 const bodySchema = z.object({
   topic: z.string().min(3).max(300),
@@ -30,6 +31,10 @@ export async function POST(request: Request) {
   const parsedBody = bodySchema.safeParse(await request.json());
   if (!parsedBody.success) return errorResponse(400, "invalid_input");
   const { topic, count, documentId, outcomeId } = parsedBody.data;
+
+  // Ücretsiz hesap = tek ders (11 Kasım 2026 akşamı): bu üretim ders sayacına düşer, ücretsiz hesapta Plus'a yönlenir.
+  // Kaynak okuma, kredi ayırma ve model çağrısından ÖNCE; cüzdan bakiyesi (davet hediyesi) yetiyorsa iş onunla yapılır.
+  if (await freeLessonRefused(service, userId, "FLASHCARD_GENERATE")) return errorResponse(402, FREE_LESSON_CODE);
 
   // Kredi ayrılmadan önce: belge hazır değilse net sebep, kayıp yok.
   const source = await studioTeacherSource(service, { userId, topic, documentId });

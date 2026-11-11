@@ -10,6 +10,7 @@ import {
 import { missingColumn } from "@/lib/learning/missing-column";
 import { prepSourceDocumentIds } from "@/lib/learning/prep-source";
 import { publicQuizQuestion, type QuizQuestion } from "@/lib/learning/exam-quiz";
+import { FREE_LESSON_CODE, freeLessonRefused } from "@/lib/billing/free-lesson-gate";
 
 const bodySchema = z.object({
   prepId: z.string().uuid(),
@@ -86,6 +87,11 @@ export async function POST(request: Request) {
       });
     }
   }
+
+  // Ücretsiz hesap = tek ders (11 Kasım 2026 akşamı): bu üretim ders sayacına düşer, ücretsiz hesapta Plus'a yönlenir.
+  // Kaynak okuma, kredi ayırma ve model çağrısından ÖNCE; cüzdan bakiyesi (davet hediyesi) yetiyorsa iş onunla yapılır.
+  // Kayıtlı zor soru seti yukarıda ücretsiz döndü; yeni set üretimi bu kapıdan geçer.
+  if (await freeLessonRefused(service, userId, "QUIZ_GENERATE")) return errorResponse(402, FREE_LESSON_CODE);
 
   const { data: topicRows } = await service
     .from("exam_prep_topics")

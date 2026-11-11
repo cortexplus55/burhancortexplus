@@ -1,28 +1,28 @@
 import type { ActionCode } from "@/lib/env";
-import { addDays, istanbulDay, isoWeekday, isoWeekKey } from "@/lib/istanbul-day";
+import { addDays, istanbulDay, isoWeekKey } from "@/lib/istanbul-day";
 import { FREE_FIRST_LESSON_CLAUSE } from "@/lib/billing/free-tier-copy";
 
 /**
  * Sayıya dayalı ücretsiz katman (24 Ekim 2026, ürün sahibinin kararı). İstemci de okuduğu için
- * `server-only` yok. Sayılar SQL'de de var (20261024121000_free_tier_counts, `free_meter_limit`; günlük
- * kredi 0: 20261024123000_free_daily_zero);
- * bekçi test ikisini karşılaştırır.
+ * `server-only` yok. Sayılar SQL'de de var (`free_meter_limit`: 20261024121000_free_tier_counts, ders sınırı
+ * 20261111180000_free_lesson_trial; günlük kredi 0: 20261024123000_free_daily_zero); bekçi test ikisini karşılaştırır.
  *
- * - Haftada 3 ders. Dersin içindeki yardımcılar (koç, eğitmen notu) ve yolda o dersin ardındaki test /
- *   kartlar derse dahil ("included"). Araçlar'dan açılan test, kart, doğru/yanlış dersten düşer;
- *   Araçlar'daki "Anlatarak öğren" mesaj sayacından.
- * - 11 Kasım 2026: ilk hazırlığın 1. konusunda adımın ilk açılışı (konu anlatımı dahil) haftalık ders hakkından
- *   düşmez, "included" ile ayrılır (`first-lesson-cycle.ts`). Haftalık hak Araçlar, "Farklı anlat" ve ilk hazırlık
- *   dışındaki dersler için.
- * - Günde 3 sohbet mesajı (yazılı soru çözümü de mesajdır).
+ * 11 Kasım 2026 akşamı (ürün sahibinin kararı): ücretsiz hesap = deneme için TEK ders. Haftalık 3 ders hakkı kalktı
+ * (`FREE_LIMITS.lesson` 0). Açık olanlar:
+ * - İlk hazırlığın 1. konusunda adımın ilk açılışı (konu anlatımı, kartlar, doğru/yanlış, konu testi, soru-cevap):
+ *   "included" ile ayrılır (`first-lesson-cycle.ts`). Dersin içindeki yardımcılar (koç, eğitmen, adımı farklı anlat,
+ *   geri bildirim) de "included".
+ * - Günde 3 sohbet mesajı (yazılı soru çözümü ve Stüdyo'daki "Anlatarak öğren" de mesajdır).
  * - Günde 1 fotoğraftan soru çözümü.
- * - Podcast, sözlü, yazılı deneme, video ve ses Plus'ta.
- * Gün ve hafta İstanbul saatiyle; hafta Pazartesi 00:00'da başlar.
+ * Ders sayacına düşen her iş ("lesson": Çalışma Stüdyosu'ndaki test, kart, doğru/yanlış; "Farklı anlat"; verilmiş
+ * adımın yeniden yazımı; ilk olmayan hazırlık; düello kurma) ücretsiz hesapta Plus'a yönlenir. Tek istisna cüzdan
+ * bakiyesi (davet hediyesi, eski ek paket): yetiyorsa iş onunla yapılır (`free-lesson-gate.ts`).
+ * Podcast, sözlü, yazılı deneme, video ve ses zaten Plus'ta. Gün İstanbul saatiyle.
  */
 export type FreeMeter = "lesson" | "chat" | "photo" | "included";
 
-export const FREE_LIMITS: Record<FreeMeter, number> = { lesson: 3, chat: 3, photo: 1, included: 40 };
-export const FREE_LESSONS_PER_WEEK = FREE_LIMITS.lesson;
+/** `lesson` 0: sayaç yok, iş Plus'ta (SQL `free_meter_limit('lesson')` ile aynı). */
+export const FREE_LIMITS: Record<FreeMeter, number> = { lesson: 0, chat: 3, photo: 1, included: 40 };
 export const FREE_CHAT_PER_DAY = FREE_LIMITS.chat;
 export const FREE_PHOTO_PER_DAY = FREE_LIMITS.photo;
 
@@ -46,7 +46,8 @@ export const PLUS_ONLY_NODE_KINDS: ReadonlySet<string> = new Set(["podcast", "or
 
 /**
  * Çağıran sayaç belirtmezse işin sayacı. Yolda derse dahil işler (test, kart, ders içi yardım) ve
- * kurulum işleri çağıranda "included" der; Araçlar'daki test/kart varsayılanla dersten düşer.
+ * kurulum işleri çağıranda "included" der; Stüdyo'daki test/kart varsayılanla ders sayacına düşer — ücretsiz
+ * hesapta bu, işin Plus'ta olduğu demektir (`needsPlusOutsideFirstLesson`).
  */
 export function defaultFreeMeter(code: ActionCode): FreeMeter | null {
   switch (code) {
@@ -64,55 +65,75 @@ export function defaultFreeMeter(code: ActionCode): FreeMeter | null {
   }
 }
 
-/** SQL `free_period_key` ile aynı anahtar. */
+/**
+ * Ücretsiz hesapta ilk dersin döngüsü DIŞINDA açılmayan iş mi (11 Kasım 2026): Plus'a özel işler ve ders sayacına
+ * düşen üretimler (ders, test, kart). Çalışma Stüdyosu rozetleri, kredi kapısı ve fiyat yüzeyleri bu tek kuralı okur.
+ * İlk dersin kendi adımları bu kuraldan sunucuda ayrılır (`first-lesson-cycle.ts`).
+ */
+export function needsPlusOutsideFirstLesson(code: ActionCode): boolean {
+  return isPlusOnlyAction(code) || defaultFreeMeter(code) === "lesson";
+}
+
+/** Dönemi olan sayaçlar: ders sayacının dönemi yok (sınır 0). */
+export type DailyFreeMeter = Exclude<FreeMeter, "lesson">;
+
+/** SQL `free_period_key` ile aynı anahtar (ders sayacının haftalık anahtarı yalnız eski kayıtlar için). */
 export function freePeriodKey(meter: FreeMeter, now: Date = new Date()): string {
   return meter === "lesson" ? isoWeekKey(now) : istanbulDay(now);
 }
 
-/** Sayacın yenilendiği an: gün sayaçları İstanbul gece yarısı, ders sayacı Pazartesi 00:00. */
-export function freeMeterResetsAt(meter: FreeMeter, now: Date = new Date()): Date {
-  const today = istanbulDay(now);
-  const day = meter === "lesson" ? addDays(today, 8 - isoWeekday(today)) : addDays(today, 1);
+/** Günlük sayacın yenilendiği an: İstanbul gece yarısı. */
+export function freeMeterResetsAt(meter: DailyFreeMeter, now: Date = new Date()): Date {
+  void meter;
+  const day = addDays(istanbulDay(now), 1);
   // İstanbul 00:00 = UTC 21:00 bir önceki gün (UTC+3, yaz saati yok).
   return new Date(Date.parse(`${day}T00:00:00Z`) - 3 * 60 * 60 * 1000);
 }
 
 export type FreeMeterView = {
-  meter: FreeMeter;
+  meter: DailyFreeMeter;
   used: number;
   limit: number;
   resetsAtIso: string;
 };
 
-/** Öğrenciye görünen sayaçlar; "included" görünmez (kötüye kullanım sınırı). */
-export const VISIBLE_FREE_METERS: readonly FreeMeter[] = ["lesson", "chat", "photo"];
+/** Öğrenciye görünen sayaçlar; "included" görünmez (kötüye kullanım sınırı), ders sayacı yok. */
+export const VISIBLE_FREE_METERS: readonly DailyFreeMeter[] = ["chat", "photo"];
 
-const METER_NAME: Record<FreeMeter, { noun: string; period: string }> = {
-  lesson: { noun: "ders", period: "Bu haftaki" },
-  chat: { noun: "sohbet mesajı", period: "Bugünkü" },
-  photo: { noun: "fotoğraftan çözüm", period: "Bugünkü" },
-  included: { noun: "çalışma adımı", period: "Bugünkü" },
+const METER_NAME: Record<DailyFreeMeter, string> = {
+  chat: "sohbet mesajı",
+  photo: "fotoğraftan çözüm",
+  included: "çalışma adımı",
 };
 
-/** "Bu haftaki 3 ücretsiz dersin bitti." */
+/**
+ * Ders sayacına düşen işin kapı cümlesi (11 Kasım 2026): "doldu" denmez, beklemek çözmez. Kapılar bunu
+ * `beyondFreeMessage` ile işin adına bağlar; ham hâli sunucu yanıtının kısa metni.
+ */
+export const FREE_LESSON_GATE_LINE = "Ücretsiz hesapta ilk dersin açık; devamı Plus'ta.";
+
+/** 402 `free_lesson_limit` yanıtının metni (`errorResponse`) ve üretim hatası ekranının cümlesi. */
+export const FREE_LESSON_REFUSAL_MESSAGE = `${FREE_LESSON_GATE_LINE} Plus'a geçince bütün konular, yeni anlatımlar ve Çalışma Stüdyosu üretimleri açılır.`;
+
+/** "Bugünkü 3 ücretsiz sohbet mesajı hakkın bitti." Ders sayacında: ilk ders açık, devamı Plus'ta. */
 export function freeLimitReachedLine(meter: FreeMeter): string {
-  const name = METER_NAME[meter];
-  return `${name.period} ${FREE_LIMITS[meter]} ücretsiz ${name.noun} hakkın bitti.`;
+  if (meter === "lesson") return FREE_LESSON_GATE_LINE;
+  return `Bugünkü ${FREE_LIMITS[meter]} ücretsiz ${METER_NAME[meter]} hakkın bitti.`;
 }
 
-/** "Pazartesi 00:00'da yenilenir" / "Gece yarısı yenilenir". */
-export function freeMeterResetLine(meter: FreeMeter): string {
-  return meter === "lesson" ? "Ders hakkın Pazartesi 00:00'da yenilenir." : "Hakkın gece yarısı yenilenir.";
+/** "Hakkın gece yarısı yenilenir." */
+export function freeMeterResetLine(meter: DailyFreeMeter): string {
+  void meter;
+  return "Hakkın gece yarısı yenilenir.";
 }
 
 /**
  * Pazarlama ve kapılarda tek cümle; ardına "var", "açık" ya da "ücretsiz" gelir. 31 Ekim 2026 (Paket J1 #3, "ilk doz
- * bedava"): ücretsiz hesapta ilk hazırlığın 1. konusu açık (free-topic-gate.ts). 11 Kasım 2026 (ürün sahibinin
- * kararı): o ilk dersin adımları süreye ve haftalık ders hakkına takılmaz (first-lesson-cycle.ts); haftalık hak
- * Çalışma Stüdyosu'ndaki üretimler ve "Farklı anlat" için.
+ * bedava"): ücretsiz hesapta ilk hazırlığın 1. konusu açık (free-topic-gate.ts). 11 Kasım 2026 akşamı (ürün sahibinin
+ * kararı): haftalık ders hakkı yok; ücretsiz hesap ilk dersi, günlük mesajı ve günlük fotoğrafı kapsar.
  */
 export const FREE_TIER_SENTENCE =
-  `${FREE_FIRST_LESSON_CLAUSE}; Çalışma Stüdyosu ve "Farklı anlat" için haftada ${FREE_LESSONS_PER_WEEK} ders hakkı, günde ${FREE_CHAT_PER_DAY} sohbet mesajı ve günde ${FREE_PHOTO_PER_DAY} fotoğraftan soru çözümü`;
+  `${FREE_FIRST_LESSON_CLAUSE}; ayrıca günde ${FREE_CHAT_PER_DAY} sohbet mesajı ve günde ${FREE_PHOTO_PER_DAY} fotoğraftan soru çözümü`;
 
 /** Davet: iki tarafa bir kez hediye (SQL `grant_referral_gift`, 90 kredi = 3 ders). */
 export const REFERRAL_GIFT_LESSONS = 3;
