@@ -1,0 +1,134 @@
+/*
+  Tanıtım turundaki "uygulama çerçevesi" (11 Kasım 2026).
+
+  Çerçevenin içinde ürünün kendi ekranları çizilir (ders, konu testi, kartlar, doğru/yanlış); renkleri ve ölçüleri
+  ürünün stil dosyalarından gelir. Bu dosya yalnız iki şey yapar: (1) çerçevenin kendisi (pencere çubuğu, kenar,
+  ışık) ve (2) sayfa boyu olmaya çalışan uygulama kabuğunu çerçevenin içine sığdıran yerleşim kuralları. Ürün
+  ekranlarının görünüşüne dokunmaz: orada bir şey değişecekse ürünün kendi dosyasında değişir, tur kendiliğinden uyar.
+*/
+
+.tp-frame {
+  position: relative;
+  border: 1px solid transparent;
+  border-radius: 1.25rem;
+  background:
+    linear-gradient(#0d0d0d, #0d0d0d) padding-box,
+    linear-gradient(135deg, rgba(255, 178, 36, 0.8), rgba(255, 77, 141, 0.45) 30%, rgba(247, 241, 232, 0.14) 58%, rgba(34, 211, 238, 0.6)) border-box;
+  box-shadow:
+    0 2.5rem 6rem -1.5rem rgba(0, 0, 0, 0.85),
+    0 0 5rem -1.5rem rgba(255, 77, 141, 0.35);
+  overflow: hidden;
+}
+
+/* Pencere çubuğu: bunun bir tanıtım çizimi değil, uygulamanın kendisi olduğunu söyler. */
+.tp-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 2.5rem;
+  padding: 0 0.9rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: #141414;
+  color: #a3a3a3;
+  font-size: 0.8125rem;
+  line-height: 1.2;
+}
+
+.tp-dots {
+  display: inline-flex;
+  gap: 0.35rem;
+}
+
+.tp-dots i {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  background: #303030;
+}
+
+.tp-url {
+  padding: 0.2rem 0.7rem;
+  border-radius: 999px;
+  background: #1f1f1f;
+  color: #d4d4d4;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+.tp-crumb {
+  margin-left: auto;
+  font-weight: 600;
+  color: #f5f5f5;
+}
+
+/* Uygulama kabuğu çerçevenin içinde: sayfa boyu değil, içeriği kadar. */
+.tp-app.cp-sor-root {
+  display: block;
+  min-height: 0;
+  text-align: left;
+}
+
+.tp-app .cp-exam-page {
+  max-width: 46rem;
+  padding: 1rem clamp(0.75rem, 3vw, 1.5rem) 1.5rem;
+}
+
+/* Ders ekranı üründe sayfayı doldurur ve üst çubuğu ekrana yapışır; çerçevede içeriği kadar ve yerinde. */
+.tp-app .als {
+  min-height: 0;
+  padding-bottom: 1rem;
+}
+
+.tp-app .als-top {
+  position: static;
+}
+
+/* Yüklenirken: çerçevenin yeri belli, içerik gelince zıplamaz. */
+.tp-loading {
+  display: grid;
+  place-items: center;
+  gap: 0.75rem;
+  min-height: 20rem;
+  padding: 2rem 1rem;
+  text-align: center;
+  color: #a3a3a3;
+  font-size: 0.9375rem;
+}
+
+.tp-loading-dot {
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 2px solid rgba(255, 255, 255, 0.14);
+  border-top-color: #f6ecd9;
+  border-radius: 50%;
+  animation: tp-spin 0.9s linear infinite;
+}
+
+@keyframes tp-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tp-loading-dot {
+    animation: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .tp-url {
+    display: none;
+  }
+}
+
+/* Ders ekranının üst çubuğundaki geri ve kapat düğmeleri telefonda 36 px; çerçevede dokunma alanı 44 px. */
+.tp-app .als-top button {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+}
+
+/* Ana sayfada her dokunma alanı en az 44 px: ürünün telefon tabanı 36 px, çerçevede bir basamak büyür. */
+.tp-app button {
+  min-height: 2.75rem;
+}

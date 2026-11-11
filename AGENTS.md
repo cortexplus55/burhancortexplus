@@ -2574,3 +2574,27 @@ kuralını değiştirir. Yeniden açmayın:
 Bekçi: `sinematik-ana-sayfa.test.tsx` (palet, sahne durakları ↔ ilk ders adımları, düello satırları, film şeridi Plus etiketleri,
 sahne sırası, yazı tabanı), `misafir-turu.test.tsx`, `marketing-claims.test.ts`, e2e `vitrin.spec.ts` (ana sayfada sahne, kör deney,
 düello, film şeridi ve planlar 375 ve 1280 px'te görünür ve taşmaz), `donusum.spec.ts`, `responsive-a11y.spec.ts`.
+
+## Turda ürünün kendi ekranları (11 Kasım 2026, üçüncü tur) — çizim değil, gerçek bileşen
+
+Ürün sahibi: "Şu an örnek olarak köklü sayıları veriyoruz. Sistemde nasıl bir ekranla karşılaşacaklar, onu
+göstermemiz lazım. Bunun kodlama kurgusunu iyi yap; görsel olarak da sisteme uysun." O güne kadar turun ders, soru,
+kart ve doğru/yanlış adımları tura özel çizimlerdi (`lj-formula`, `lj-option`…): ürüne benziyordu ama ürün değildi.
+Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| **Tur ekran çizmez; ürünün bileşenlerini çalıştırır.** Ders → `ExamLessonSteps`, konu testi → `ExamQuizPlay` + `TwoOptionHint`, kartlar → `FlashCard` + `CardGradeButtons`, doğru/yanlış → `TrueFalseFocusCard`. Ziyaretçinin gördüğü ekran kayıt olunca göreceği ekrandır; üründe bir ekran değişince tur kendiliğinden değişir. Tura özel bir ders/soru/kart çizimi yeniden yazmayın | `components/landing/tour/product-screens.tsx` |
+| **Örnek veri ürünün veri biçimindedir:** `TOUR_LESSON` bir `LessonV3` (bekçi `lessonV3Schema`dan geçirir), soru `PublicQuizQuestion`, önermeler ürünün önerme biçimi (`correctedStatement`). Konu değişecekse yalnız bu dosya değişir. İçerik evrensel matematik; uydurma istatistik yok | `lib/demo/guest-tour.ts` |
+| **Notlandırma ürünle aynı işlevden:** ders paketi turda da mühürlü gider (`sealLessonV3ForPlay`), cevap `gradeLessonSectionCheck` ile notlanır; sunucu eylemi (`grade-check`) de aynı işlevi çağırır. "İki şık arasında kaldım" aynı bileşendir; ipucu `resolve` ile örnek veriden gelir (üründe `resolve` verilmez, sunucuya gider). İpucu hangi iki şık seçilirse seçilsin cevabı ve hesabı söylemez | `lesson-play.ts`, `node/actions/grade-check.ts`, `two-option-hint.tsx` |
+| **Uygulama çerçevesi:** ekranlar pencere çubuklu bir çerçevede, uygulamanın kendi kabuk sınıflarıyla çizilir (`dark cp-sor-root cp-sor-root--session` → `cp-exam-page cp-exam-node`): renk ve ölçü ürünün stil dosyalarından gelir (çerçevenin içi bilerek ürünün rengindedir: mavi eylem). `tour-product.css` çerçevenin içinde **renk, yazı tipi, kenar yazmaz**; yalnız yerleşimi sığdırır (kabuk sayfa boyu olmaz, dersin üst çubuğu yapışmaz, düğmeler en az 44 px). Bekçi bunu tarar | `styles/tour-product.css` |
+| **İlk yükte yok:** ürün ekranları ayrı parçadır (uygulamanın stil dosyası ~370 KB). Tur ekrana 600 px yaklaşınca ya da ilk dokunuşta **düz `import()`** ile yüklenir; `next/dynamic`, `React.lazy`, Suspense yok (bu projede sayfayı boşaltıyor). Yüklenirken çerçevenin yeri belli; yükleme düşerse "Tekrar dene" | `futuristic-guided-journey.tsx` `loadScreens` |
+| **Tur yalnız sırayı tutar:** ilerleme rayı, adım geçişi, "Bu adımı geç" ve sonuç halkası. Sonuç gerçek cevaplardan (konu testi sorusunun ilk kilitlenen cevabı + iki önerme). Hiç ağ isteği yok (e2e sayar) | `landing-journey.ts` (`JOURNEY_PRODUCT_STEPS`, `journeyScore`) |
+| Henüz çizim olan iki adım: "Not" (tarama benzetmesi) ve "Yol" (yol haritası listesi). Gerçek hazırlık sayfasını (`ExamPrepHome`) gömmek ayrı iş: bileşen büyük ve kendi isteklerini atıyor | — |
+
+Tuzaklar: formül kartının ifadesi `RichBody`den geçer, TeX `$…$` içinde yazılmazsa ham görünür. Ürünün bazı kaynak
+bekçileri yorumdaki cümleyi arar (`lesson-prompt2-gates`: `Tekrarın "doğrusu" (22 Ekim 2026 inceleme)`); yorumu
+taşırken cümleyi koruyun.
+
+Bekçi: `misafir-turu.test.tsx` (şema, hesap, notlandırma, ipucu, gerçek bileşenlerle ekranlar, parça yükleme, çerçeve
+kuralları), e2e `donusum.spec.ts` (375 ve 360 px: tur gerçek ekranlarla baştan sona, taşma 0, dokunma ≥ 44 px, ağ isteği yok).

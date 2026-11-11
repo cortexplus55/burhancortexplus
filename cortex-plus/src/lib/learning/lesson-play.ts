@@ -542,3 +542,24 @@ export function optionWhyUniqueIssues(check: SectionCheck): string[] {
   }
   return issues;
 }
+
+/**
+ * Kayıtlı dersin bir ekran sorusunu notlar; ilk cevapta mühürlü tekrar sorusunu da ekler (11 Kasım 2026).
+ * Sunucu eylemi (`grade-check`) ve ana sayfada tarayıcıda çalışan tanıtım turu aynı kodu kullanır: turda görülen
+ * geri bildirim, üründe görülenle aynı işlevden çıkar. Ekranın sorusu yoksa `null`.
+ */
+export function gradeLessonSectionCheck(
+  lesson: Pick<LessonV2, "sections"> | null | undefined,
+  sectionIndex: number,
+  answer: LessonCheckAnswer,
+  variant: CheckGradeVariant,
+  language: MaterialLanguage,
+): GradeCheckResult | null {
+  const section = lesson?.sections?.[sectionIndex];
+  const primary = section?.check;
+  if (!primary) return null;
+  const body = section?.body ?? "";
+  const result = gradeSectionCheck(resolveCheckForGrade(primary, variant, language, body), answer);
+  if (variant !== "primary") return result;
+  return { ...result, retryCheck: sealSectionCheck(buildLessonRetryCheck(primary, language, body)) };
+}

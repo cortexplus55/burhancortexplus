@@ -7,6 +7,29 @@ import { cn } from "@/lib/utils";
 import { NodeSources } from "@/components/parity/node-sources";
 import type { NodeLifecycle } from "./use-node-lifecycle";
 
+/** Kartın çevrilmeden önceki yönergesi: önce hatırla, sonra bak. */
+export const CARD_RECALL_HINT = "Önce kendin hatırlamaya çalış, sonra karta dokun ya da boşluk tuşuna bas.";
+
+/**
+ * Tek kart: soru yüzü ve cevap yüzü. Yol oturumu (`CardsPlay`) ve ana sayfadaki tanıtım turu aynı kartı çizer
+ * (11 Kasım 2026); durum çağıranda durur.
+ */
+export function FlashCard({ front, back, flipped, onFlip }: { front: string; back: string; flipped: boolean; onFlip: () => void }) {
+  return (
+    <button
+      type="button"
+      className={cn("cp-exam-flash", flipped && "cp-exam-flash--back")}
+      aria-label={flipped ? "Kartı soru yüzüne çevir" : "Kartı çevir, cevabı göster"}
+      onClick={onFlip}
+    >
+      <span className="cp-exam-flash-side">{flipped ? "Cevap" : "Soru"}</span>
+      <span aria-live="polite">
+        <RichBody text={flipped ? back : front} />
+      </span>
+    </button>
+  );
+}
+
 export function CardsPlay({ life }: { life: NodeLifecycle }) {
   const { sources, stage, loading, payload, index, flipped, setFlipped, revealedCard, setRevealedCard, cardOffer, setCardOffer, cardRepeat, setCardRepeat, answersRef, finishCards, rateCard, cards, cardIndex, cardsPlaying } = life;
   return (
@@ -61,25 +84,16 @@ export function CardsPlay({ life }: { life: NodeLifecycle }) {
             total={cardRepeat ? cardRepeat.list.length : cards.length}
           />
           <NodeSources sources={sources} />
-          <button
-            type="button"
-            className={cn("cp-exam-flash", flipped && "cp-exam-flash--back")}
-            aria-label={flipped ? "Kartı soru yüzüne çevir" : "Kartı çevir, cevabı göster"}
-            onClick={() => {
+          <FlashCard
+            front={cards[cardIndex].front}
+            back={cards[cardIndex].back}
+            flipped={flipped}
+            onFlip={() => {
               setFlipped((value) => !value);
               setRevealedCard(cardIndex);
             }}
-          >
-            <span className="cp-exam-flash-side">{flipped ? "Cevap" : "Soru"}</span>
-            <span aria-live="polite">
-              <RichBody text={flipped ? cards[cardIndex].back : cards[cardIndex].front} />
-            </span>
-          </button>
-          {revealedCard !== cardIndex ? (
-            <p className="cp-exam-card-hint">
-              Önce kendin hatırlamaya çalış, sonra karta dokun ya da boşluk tuşuna bas.
-            </p>
-          ) : null}
+          />
+          {revealedCard !== cardIndex ? <p className="cp-exam-card-hint">{CARD_RECALL_HINT}</p> : null}
           {revealedCard === cardIndex ? (
           <>
           <p>Ne kadar hatırladın?</p>

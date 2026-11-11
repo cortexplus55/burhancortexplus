@@ -59,7 +59,9 @@ test.describe("dönüşüm paketi", { tag: ["@public"] }, () => {
       }).toPass({ timeout: 25_000 });
       await check("yol");
       await tour.getByRole("button", { name: "1. dersi başlat" }).click();
-      await expect(tour.locator(".lj-formula")).toBeVisible();
+      // 3. Ders: çerçevenin içinde ürünün kendi ders ekranı (ayrı parça olarak yüklenir).
+      const app = tour.locator(".tp-app");
+      await expect(app.locator(".als")).toBeVisible({ timeout: 30_000 });
       await check("ders");
       // Adım değişince ilerleme çizgisi sabit menünün altında kalmaz.
       await expect
@@ -71,20 +73,44 @@ test.describe("dönüşüm paketi", { tag: ["@public"] }, () => {
           ),
         )
         .toBeGreaterThanOrEqual(0);
-      await tour.getByRole("button", { name: "Kuralı soruda dene", exact: true }).click();
-      await tour.getByRole("button", { name: /İki şık arasında kaldım/ }).click();
-      await expect(tour.locator(".lj-hint")).toBeVisible();
+      // Önce dene sorusu yerelde, ürünle aynı işlevle notlanır; ardından formül kartı ve sınav tuzağı açılır.
+      await app.getByRole("button", { name: /^Devam et/ }).click();
+      await app.getByRole("button", { name: /Yanlış/ }).click();
+      await expect(app.locator(".katex").first()).toBeVisible();
+      await check("ders: kural");
+      await app.getByRole("button", { name: /^Devam et/ }).click();
+      await app.getByRole("button", { name: /−x/ }).first().click();
+      await check("ders: soru");
+      await app.getByRole("button", { name: /^Devam et/ }).click();
+      await app.getByRole("button", { name: /Dersi bitir/ }).click();
+
+      // 4. Konu testi: ürünün soru ekranı; "İki şık arasında kaldım" ipucu sunucuya gitmeden gelir.
+      await expect(tour.locator('.tp-frame[data-screen="question"]')).toBeVisible();
+      await app.getByRole("button", { name: /İki şık arasında kaldım/ }).click();
+      await app.locator(".cp-two-option").nth(0).click();
+      await app.locator(".cp-two-option").nth(2).click();
+      await expect(app.locator(".cp-two-hint")).toBeVisible();
       await check("soru");
-      await tour.getByRole("button", { name: "2", exact: true }).click();
-      await expect(tour.locator(".lj-feedback.is-right")).toBeVisible();
-      await tour.getByRole("button", { name: "Akıllı kartlara geç" }).click();
-      await tour.locator("button.lj-flip").click();
-      await expect(tour.locator("button.lj-flip")).toHaveAttribute("aria-pressed", "true");
+      await app.getByRole("button", { name: /^C\s*2$/ }).click();
+      await app.getByRole("button", { name: /Kontrol et/ }).click();
+      await check("soru: açıklama");
+      await app.getByRole("button", { name: /Testi bitir/ }).click();
+
+      // 5. Kartlar: önce çevir, sonra değerlendir.
+      await app.locator("button.cp-exam-flash").click();
       await check("kart");
-      await tour.locator(".lj-cards .lj-cta").click();
-      await tour.getByRole("button", { name: /Doğru$/ }).click();
-      await expect(tour.locator(".lj-truth-btn.is-right")).toBeVisible();
+      await app.getByRole("button", { name: /Bildim/ }).click();
+      await app.locator("button.cp-exam-flash").click();
+      await app.getByRole("button", { name: /Bildim/ }).click();
+
+      // 6. Doğru / Yanlış: ürünün odak kartı; sonuç gerçek cevaplardan.
+      await expect(tour.locator('.tp-frame[data-screen="check"]')).toBeVisible();
+      await app.getByRole("button", { name: /^Doğru/ }).click();
       await check("doğru/yanlış");
+      await app.getByRole("button", { name: "Sonraki önerme" }).click();
+      await app.getByRole("button", { name: /^Yanlış/ }).click();
+      await app.getByRole("button", { name: "Sonucu gör" }).click();
+      await expect(tour.getByText("3 sorudan 3 doğru")).toBeVisible();
       await tour.getByRole("button", { name: /Plus'ta başka neler var/ }).click();
       await expect(tour.locator(".lj-plus-badge")).toHaveCount(4);
       await expect(tour.getByRole("link", { name: /İlk dersimi ücretsiz başlat/ })).toHaveAttribute("href", "/kayit?hedef=universite");
