@@ -228,6 +228,16 @@ test.describe("dönüşüm paketi", { tag: ["@public"] }, () => {
       page.on("request", (request) => {
         if (request.method() !== "GET" && !/\/api\/(health|consent)/.test(request.url())) uploads.push(`${request.method()} ${request.url()}`);
       });
+      // Kurulum fikstürü Plus kabuğunda açılır; tek seferlik "Seri" karşılaması (`GamificationGate`) seri isteği
+      // dönünce bütün ekranı kaplar ve düğmelere tıklamayı keser. CI'da pencere tıklamadan önce açıldı (12 Kasım 2026);
+      // karşılaması görülmüş bir tarayıcıyla başlanır.
+      await page.addInitScript(() => {
+        try {
+          window.localStorage.setItem("cortex-gamification-v1", "1");
+        } catch {
+          /* depolama kapalıysa pencere zaten test edilen şey değil */
+        }
+      });
       await page.setViewportSize(phone);
       await page.goto("/?hedef=lise");
       const tour = page.locator("section.lj");
