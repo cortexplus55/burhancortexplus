@@ -9659,6 +9659,74 @@
   color: var(--cp-muted);
 }
 
+/*
+  Kart çevirme (11 Kasım 2026): her dokunuşta tam bir 3B dönüş. İçerik hemen değişir; dönüşün ilk yarısında kartın
+  yüzü boş görünür (yazı gizli), ikinci yarıda yeni yüz açılır. İki animasyon adı sırayla kullanılır ki her dokunuşta
+  yeniden başlasın (`data-turn` "a" / "b"); yön de sırayla değişir. Hareket azaltmada dönüş yok.
+*/
+.cp-exam-flash[data-turn] {
+  animation: cp-flash-turn-a 0.55s cubic-bezier(0.3, 0.7, 0.2, 1) both;
+}
+
+.cp-exam-flash[data-turn="b"] {
+  animation-name: cp-flash-turn-b;
+}
+
+.cp-exam-flash[data-turn] > * {
+  animation: cp-flash-face-a 0.55s linear both;
+}
+
+.cp-exam-flash[data-turn="b"] > * {
+  animation-name: cp-flash-face-b;
+}
+
+@keyframes cp-flash-turn-a {
+  from {
+    transform: perspective(60rem) rotateY(180deg);
+  }
+  to {
+    transform: perspective(60rem) rotateY(0deg);
+  }
+}
+
+@keyframes cp-flash-turn-b {
+  from {
+    transform: perspective(60rem) rotateY(-180deg);
+  }
+  to {
+    transform: perspective(60rem) rotateY(0deg);
+  }
+}
+
+@keyframes cp-flash-face-a {
+  0%,
+  49% {
+    opacity: 0;
+  }
+  50%,
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes cp-flash-face-b {
+  0%,
+  49% {
+    opacity: 0;
+  }
+  50%,
+  100% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-exam-flash[data-turn],
+  .cp-exam-flash[data-turn] > * {
+    animation: none;
+  }
+}
+
 .cp-exam-flash--back .cp-exam-flash-side {
   color: var(--cp-gold);
 }

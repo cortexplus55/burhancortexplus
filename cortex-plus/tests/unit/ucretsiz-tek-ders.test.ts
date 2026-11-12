@@ -582,7 +582,10 @@ describe("göç 20261111180000_free_lesson_trial: ders sınırı 0, gerisi aynen
     await db.exec(`UPDATE credit_wallets SET balance = 90 WHERE user_id IN ('${gifted}', '${earlyGift}');
       UPDATE credit_wallets SET balance = 100000 WHERE user_id = '${previewer}';
       INSERT INTO subscriptions(user_id, plan_id, status) VALUES ('${plus}', '${PLUS_PLAN}', 'active');
-      UPDATE credit_wallets SET period_ends_at = now() - interval '1 second' WHERE user_id = '${plus}';
+      -- Sabit geçmiş tarih (12 Kasım 2026): bu kurulum gerçek saatle, testler ise sabit sahte saatle (NOW) koşar;
+      -- "now() - 1 saniye" gerçek saat NOW'ı geçtiği andan beri sahte saate göre GELECEKTE kalıyor, Plus dönemi
+      -- yenilenmiyor ve test "insufficient_credits" ile düşüyordu.
+      UPDATE credit_wallets SET period_ends_at = '2000-01-01T00:00:00Z' WHERE user_id = '${plus}';
       INSERT INTO auth.users(id) VALUES ('${previewer}');
       INSERT INTO admin_free_preview(user_id) VALUES ('${previewer}');`);
   }, 60_000);

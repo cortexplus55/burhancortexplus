@@ -30,6 +30,32 @@ test.describe("Uyum paketi", { tag: ["@public"] }, () => {
       expect(JSON.parse(decodeURIComponent(cookie?.value ?? "{}")).a).toBe(false);
     });
 
+    // 11 Kasım 2026: bant ince bir alt şerit; içeriğin üstünü kapatan yüksek kutu değil.
+    for (const size of [
+      { width: 1280, height: 800, max: 72 },
+      { width: 375, height: 812, max: 132 },
+      { width: 360, height: 800, max: 132 },
+    ]) {
+      test(`bant ince şerit ${size.width}px: tam genişlik, altta, kısa; ana sayfanın ilk düğmesini kapatmaz`, async ({ page }) => {
+        await page.setViewportSize({ width: size.width, height: size.height });
+        await page.goto("/");
+        const banner = page.getByRole("region", { name: "Çerez tercihi" });
+        await expect(banner).toBeVisible();
+        const box = (await banner.boundingBox())!;
+        expect(box.height).toBeLessThanOrEqual(size.max);
+        expect(box.x).toBeLessThanOrEqual(1);
+        expect(box.width).toBeGreaterThanOrEqual(size.width - 20);
+        expect(Math.round(box.y + box.height)).toBeGreaterThanOrEqual(size.height - 1);
+        // Kahramanın kayıt düğmesi şeridin arkasında kalmaz.
+        const cta = (await page.locator(".hm-cta").first().boundingBox())!;
+        expect(cta.y + cta.height).toBeLessThanOrEqual(box.y);
+        for (const name of ["Reddet", "Tercihler", "Kabul et"]) {
+          expect((await banner.getByRole("button", { name }).boundingBox())!.height).toBeGreaterThanOrEqual(44);
+        }
+        expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+      });
+    }
+
     test("Tercihler: analitik kapalı başlar; açılıp kaydedilince izin yazılır", async ({ page, context }) => {
       await page.goto("/cerez-politikasi");
       await page.getByRole("region", { name: "Çerez tercihi" }).getByRole("button", { name: "Tercihler" }).click();

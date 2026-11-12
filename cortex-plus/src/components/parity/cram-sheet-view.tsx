@@ -21,27 +21,34 @@ export function CramSheetView({
   prepTitle,
   examDay,
   homeHref,
+  preview = false,
 }: {
   sheet: CramSheet;
   prepTitle: string;
   examDay: string | null;
   homeHref: string;
+  /**
+   * Ana sayfadaki önizleme (11 Kasım 2026): aynı kâğıt, ama sayfanın tek başlığı o değil (h3), yazdırma düğmesi yok
+   * ve baskı kurallarını tetikleyen `cp-cram-sheet` sınıfı taşınmaz (ana sayfa yazdırılırken kâğıt sayfayı gizlemesin).
+   */
+  preview?: boolean;
 }) {
+  const Title = preview ? "h3" : "h1";
   return (
-    <article className="cp-cram cp-cram-sheet" aria-labelledby="cram-title">
+    <article className={preview ? "cp-cram cp-cram-preview" : "cp-cram cp-cram-sheet"} aria-labelledby="cram-title">
       <header className="cp-cram-head">
         <p className="cp-cram-kicker">
           {prepTitle}
           {examDay ? ` · Sınav ${examDay}` : ""}
         </p>
-        <h1 id="cram-title" className="cp-cram-title">
+        <Title id="cram-title" className="cp-cram-title">
           {CRAM_SHEET_TITLE}
-        </h1>
+        </Title>
         <p className="cp-cram-lead">
           Derslerinden derlendi: formüller, sınav ipuçları, tuzaklar ve en çok
           yanıldığın noktalar.
         </p>
-        {sheet.empty ? null : (
+        {sheet.empty || preview ? null : (
           <div className="cp-cram-actions">
             <CramPrintButton />
           </div>

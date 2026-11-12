@@ -1,6 +1,10 @@
 /*
-  Ana sayfa: hedef kitle sekmeleri ve kayıtsız canlı vitrin (7 Kasım 2026). Ana sayfanın paletini (`.lp` değişkenleri)
-  kullanır; her etkileşimli öğe en az 44 px yüksek; hiçbir kutu ekrandan geniş değil (telefon 360 / 375 px).
+  Ana sayfa: hedef kitle sekmeleri (7 Kasım 2026). Ana sayfanın paletini (`.lp` değişkenleri) kullanır; her sekme en
+  az 44 px yüksek; hiçbir kutu ekrandan geniş değil (telefon 360 / 375 px).
+
+  11 Kasım 2026, kokpit (canlı denetim: "seçili olmayan sekmeler soluk, okunmuyor"): seçili olmayan sekme artık
+  dolu koyu yüzey, belirgin çerçeve ve tam açık yazı (zemine karşı 15:1). Seçili sekme sayfanın birincil eylemiyle
+  aynı dilde: kâğıt beyazı zemin, mürekkep yazı ve çevresinde logonun şeridinden bir hale. Mavi vurgu yok.
 */
 
 .lp-aud-tabs {
@@ -19,22 +23,24 @@
   align-items: center;
   min-height: 2.75rem;
   padding: 0 0.95rem;
-  border: 1px solid var(--lp-border-strong);
+  border: 1px solid rgba(247, 241, 232, 0.42);
   border-radius: 999px;
-  background: var(--lp-glass);
-  color: var(--lp-text);
+  background: #1e1813;
+  color: #f7f1e8;
   font-size: 0.9rem;
-  font-weight: 600;
+  font-weight: 650;
   line-height: 1.2;
   cursor: pointer;
   transition:
     border-color 0.2s ease,
     background 0.2s ease,
-    box-shadow 0.2s ease;
+    box-shadow 0.2s ease,
+    color 0.2s ease;
 }
 
 .lp-aud-tab:hover {
-  border-color: #4a4a52;
+  border-color: #f6ecd9;
+  background: #2a2119;
 }
 
 .lp-aud-tab:focus-visible {
@@ -43,7 +49,16 @@
 }
 
 .lp-aud-tab.is-on {
-  border-color: rgba(246, 236, 217, 0.56);
-  background: rgba(246, 236, 217, 0.11);
-  box-shadow: 0 0 0 1px rgba(246, 236, 217, 0.2) inset;
+  border-color: transparent;
+  background: #f6ecd9;
+  color: #1b140d;
+  box-shadow:
+    0 0 0 2px rgba(255, 217, 160, 0.45),
+    -0.7rem 0 1.5rem -0.8rem rgba(255, 178, 36, 0.85),
+    0 0.4rem 1.4rem -0.7rem rgba(255, 77, 141, 0.75),
+    0.7rem 0 1.5rem -0.8rem rgba(34, 211, 238, 0.7);
+}
+
+.lp-aud-tab.is-on:hover {
+  background: #fffaf0;
 }

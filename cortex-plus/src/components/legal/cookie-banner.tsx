@@ -21,6 +21,8 @@ import "@/styles/legal-consent.css";
   - "Reddet", "Tercihler" ve "Kabul et" aynı boyutta ve aynı ağırlıkta; ret, kabul kadar kolay.
   - Analitik kutusu varsayılan kapalı. Tercih istendiği an "Çerez tercihleri"nden değişir.
   - Giriş yapmış öğrencinin bu sürümdeki tercihi hesaptan geri yüklenir; başka cihazda yeniden sorulmaz.
+  - 11 Kasım 2026: bant ince bir alt şerit (masaüstünde tek satır). Önceki yüksek kutu sol altta içeriğin üstünü
+    kapatıyordu. Metin tek cümleye indi; üç düğme ve politika bağlantısı aynen duruyor.
 */
 
 /** Bandın görünmediği yollar: test fikstürleri (e2e tercih çerezini kendisi koyar). */
@@ -86,11 +88,9 @@ export function CookieBanner() {
     <>
       {visible && !prefsOpen && !bannerHidden(pathname) ? (
         <section className="cp-cookie-bar" role="region" aria-label="Çerez tercihi" data-cookie-banner>
-          <p className="cp-cookie-title">Çerez tercihin</p>
           <p className="cp-cookie-text">
-            Siteyi çalıştırmak için zorunlu çerezler kullanıyoruz. İzin verirsen, siteyi geliştirmek için hangi
-            sayfaların açıldığını ölçen analitik çerezler de çalışır. Ayrıntı:{" "}
-            <Link href="/cerez-politikasi">Çerez Politikası</Link>.
+            Zorunlu çerezler siteyi çalıştırır; izin verirsen hangi sayfaların açıldığını ölçen analitik çerezler de
+            çalışır. <Link href="/cerez-politikasi">Çerez Politikası</Link>
           </p>
           <div className="cp-cookie-actions">
             <button type="button" className="cp-cookie-btn" onClick={() => choose(false, "reject_all")}>

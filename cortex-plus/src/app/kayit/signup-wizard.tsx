@@ -45,6 +45,7 @@ import { GoogleBlockedNote } from "@/components/auth/google-blocked-note";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 import { foldTr } from "@/lib/documents/page-analysis";
 import { supabaseConfigIssue } from "@/lib/supabase/config-check";
+import { readGuestMarker } from "@/lib/documents/guest-handoff";
 import { SignupPremiumShell } from "@/components/layout/signup-premium-shell";
 import "@/styles/cortex-premium.css";
 import "@/styles/signup-wizard.css";
@@ -71,6 +72,9 @@ export function SignupWizard() {
   // Duyuru ve kampanya e-postası izni: isteğe bağlı, işaretli gelmez, hizmet buna bağlı değil (7 Kasım 2026).
   const [marketing, setMarketing] = useState(false);
   const [loading, setLoading] = useState(false);
+  // Ana sayfanın kokpitinde kendi dosyasını bırakan misafir (`?kaynak=belge`, 11 Kasım 2026): dosya tarayıcıda
+  // bekliyor; kayıt bitince kurulumda sunulur. Burada yalnız adı hatırlatılır, hiçbir şey yüklenmez.
+  const [guestDocument, setGuestDocument] = useState<string | null>(null);
   const blockedApp = useGoogleBlockedWebViewApp();
 
   const steps = useMemo(() => stepIdsForRole("student"), []);
@@ -165,6 +169,11 @@ export function SignupWizard() {
 
     const prompt = searchParams.get("prompt")?.trim();
     if (prompt) setEntryPrompt(prompt);
+
+    if (searchParams.get("kaynak") === "belge") {
+      const marker = readGuestMarker();
+      if (marker) setGuestDocument(marker.names.length === 1 ? `“${marker.names[0]}”` : `${marker.names.length} dosya`);
+    }
 
     const preset = signupPresetFor(searchParams.get("hedef"));
     if (preset) {
@@ -331,6 +340,12 @@ export function SignupWizard() {
       }
     >
       <div className="signup-wizard flex flex-1 flex-col">
+        {guestDocument ? (
+          <p className="signup-guest-doc" role="status">
+            <span aria-hidden>📎</span> Ana sayfada seçtiğin {guestDocument} bu cihazda bekliyor; hesabın açılınca kurulumda
+            tek dokunuşla eklenir.
+          </p>
+        ) : null}
         {step === "level" ? (
           <StepShell
             title="Hangi sınıftasın, hedefin ne?"

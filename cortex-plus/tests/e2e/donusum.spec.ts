@@ -4,6 +4,9 @@ import { expect, test, type Page } from "@playwright/test";
   Dönüşüm paketi (7 Kasım 2026): hedef kitle sekmeleri, 7 adımlı tanıtım turu (11 Kasım 2026), kayıt ön seçimi ve ilk adım
   başlatıcısı telefonda (375×812 ve 360×800) yana taşmaz, dokunma alanları 36 px'ten (turda 44 px'ten) küçük değil; tur
   hiçbir ağ isteği atmadan uçtan uca oynanır.
+
+  Kokpit (11 Kasım 2026, gece): tur kahramanın içinde ve ilk ekranda; birinci adım iki kapılı (örnek not ya da misafirin
+  kendi dosyası); Plus adımında üç canlı önizleme; ana sayfada kör deney kartı ve film şeridi yok.
 */
 
 async function overflow(page: Page): Promise<number> {
@@ -44,6 +47,8 @@ test.describe("dönüşüm paketi", { tag: ["@public"] }, () => {
       await expect(page.locator("header.mkh").getByRole("link", { name: "Ücretsiz dene" })).toBeVisible();
 
       const tour = page.locator("section.lj");
+      // Kokpit ilk ekranda: ilerleme rayı sayfa kaydırılmadan görünür.
+      await expect(tour.locator(".lj-rail")).toBeInViewport();
       const check = async (step: string) => {
         expect(await overflow(page), `${step}: yana taşma`).toBeLessThanOrEqual(1);
         expect(await smallestTouchTarget(page, "section.lj"), `${step}: dokunma alanı`).toBeGreaterThanOrEqual(44);
@@ -55,13 +60,17 @@ test.describe("dönüşüm paketi", { tag: ["@public"] }, () => {
       await expect(async () => {
         const zone = tour.locator("button.lj-zone");
         if (await zone.isEnabled().catch(() => false)) await zone.click();
-        await expect(tour.getByRole("button", { name: "1. dersi başlat" })).toBeVisible({ timeout: 2500 });
+        await expect(tour.getByRole("button", { name: "Şimdi 1. dersi aç" })).toBeVisible({ timeout: 2500 });
       }).toPass({ timeout: 25_000 });
+      // Seçili sekmenin sınav sözü yol haritasında.
+      await expect(tour.getByText("Vizene 7 gün var")).toBeVisible();
       await check("yol");
-      await tour.getByRole("button", { name: "1. dersi başlat" }).click();
+      await tour.getByRole("button", { name: "Şimdi 1. dersi aç" }).click();
       // 3. Ders: çerçevenin içinde ürünün kendi ders ekranı (ayrı parça olarak yüklenir).
       const app = tour.locator(".tp-app");
       await expect(app.locator(".als")).toBeVisible({ timeout: 30_000 });
+      // Ürün ekranının altında "sıradaki adım" düğmesi: adım oynanmadan da ilerlenir.
+      await expect(tour.getByRole("button", { name: "Öğrendiğin kuralı soruda dene" })).toBeVisible();
       await check("ders");
       // Adım değişince ilerleme çizgisi sabit menünün altında kalmaz.
       await expect
@@ -111,10 +120,28 @@ test.describe("dönüşüm paketi", { tag: ["@public"] }, () => {
       await app.getByRole("button", { name: /^Yanlış/ }).click();
       await app.getByRole("button", { name: "Sonucu gör" }).click();
       await expect(tour.getByText("3 sorudan 3 doğru")).toBeVisible();
-      await tour.getByRole("button", { name: /Plus'ta başka neler var/ }).click();
-      await expect(tour.locator(".lj-plus-badge")).toHaveCount(4);
-      await expect(tour.getByRole("link", { name: /İlk dersimi ücretsiz başlat/ })).toHaveAttribute("href", "/kayit?hedef=universite");
-      await check("plus");
+      await tour.getByRole("button", { name: /Plus önizlemelerini gör/ }).click();
+
+      // 7. Plus: üç canlı önizleme, telefonda seçiciyle tek tek. Podcast gerçek sesle, video ürünün tahtasıyla.
+      const previews = tour.getByRole("tab");
+      await expect(previews).toHaveCount(3);
+      await expect(tour.locator(".lj-plus-badge")).toHaveCount(1);
+      const podcast = tour.locator('[data-preview="podcast"]');
+      await expect(podcast).toBeVisible({ timeout: 30_000 });
+      await check("plus: podcast");
+      await podcast.getByRole("button", { name: "15 saniyelik kesiti oynat" }).click();
+      await expect(podcast).toHaveClass(/is-playing/);
+      await expect(podcast.locator(".cp-pod-word.is-current-word")).toHaveCount(1);
+      await podcast.getByRole("button", { name: "Duraklat" }).click();
+      await previews.nth(1).click();
+      const video = tour.locator('[data-preview="video"]');
+      await expect(video.locator('.cp-video-frame.is-sketch [data-sketch="reel"]')).toBeVisible();
+      await expect(video.locator(".cp-video-caption")).toBeVisible();
+      await check("plus: video");
+      await previews.nth(2).click();
+      await expect(tour.locator('[data-preview="sheet"] .cp-cram-preview .cp-cram-item').first()).toBeVisible();
+      await check("plus: kâğıt");
+      await expect(tour.getByRole("link", { name: /Şimdi kendi notunla başla/ })).toHaveAttribute("href", "/kayit?hedef=universite");
       expect(apiCalls).toEqual([]);
     });
   }
@@ -126,9 +153,80 @@ test.describe("dönüşüm paketi", { tag: ["@public"] }, () => {
       await expect(page.getByRole("link", { name: /Sınav kampını ücretsiz başlat/ })).toHaveAttribute("href", "/kayit?hedef=akademik", { timeout: 1500 });
     }).toPass({ timeout: 20_000 });
     expect(page.url()).toContain("hedef=akademik");
+    // Turun bağlam satırı seçilen sınava göre değişir; örnek not aynı kalır.
+    await expect(page.locator(".lj-context")).toContainText("KPSS, TUS, DUS ve ALES");
     await page.getByRole("button", { name: /^Adım 7: / }).click();
-    await expect(page.getByRole("link", { name: /İlk dersimi ücretsiz başlat/ })).toHaveAttribute("href", "/kayit?hedef=akademik");
+    await expect(page.getByRole("link", { name: /Şimdi kendi notunla başla/ })).toHaveAttribute("href", "/kayit?hedef=akademik");
   });
+
+  test("ana sayfa dört bölüm: kokpit ilk ekranda, kör deney kartı ve film şeridi yok, sayfa kısaldı", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await page.goto("/");
+    // Dizüstünde tarayıcının görünen alanı ~650 px: kokpitin ilerleme rayı ve örnek not kartı orada.
+    const rail = await page.locator(".lj-rail").boundingBox();
+    const sample = await page.locator(".lj-file").boundingBox();
+    expect(rail!.y + rail!.height).toBeLessThan(650);
+    expect(sample!.y).toBeLessThan(650);
+    await expect(page.getByTestId("same-note-case")).toHaveCount(1);
+    await expect(page.getByTestId("blind-proof")).toHaveCount(0);
+    await expect(page.locator(".hm-film, .hs")).toHaveCount(0);
+    await expect(page.getByText(/canlandırılan bir öğrenci|hiçbir dosya yüklenmez|Bir nottan çıkan her şey/)).toHaveCount(0);
+    // Üç plan kartı ve fiyatları (veritabanı yoksa "—"); otomatik yenileme sözü.
+    await expect(page.locator("#planlar .lp-duo-card")).toHaveCount(3);
+    await expect(page.locator("#planlar").getByText("Otomatik yenileme yok")).toBeVisible();
+    // Eski sayfa bu genişlikte ~5.000 px idi.
+    const height = await page.evaluate(() => document.documentElement.scrollHeight);
+    expect(height).toBeLessThan(4300);
+    expect(await overflow(page)).toBeLessThanOrEqual(1);
+  });
+
+  for (const phone of PHONES) {
+    test(`misafirin kendi dosyası ${phone.width}px: sunucuya gitmez, kayıt bağlantısı kuruluma taşır, kurulumda bekler`, async ({ page }) => {
+      const uploads: string[] = [];
+      page.on("request", (request) => {
+        if (request.method() !== "GET" && !/\/api\/(health|consent)/.test(request.url())) uploads.push(`${request.method()} ${request.url()}`);
+      });
+      await page.setViewportSize(phone);
+      await page.goto("/?hedef=lise");
+      const tour = page.locator("section.lj");
+      await expect(tour.getByRole("button", { name: "Kendi notunu seç" })).toBeVisible();
+      await expect(async () => {
+        await page.locator("input[data-guest-input]").setInputFiles({
+          name: "Biyoloji_yazili_notu.pdf",
+          mimeType: "application/pdf",
+          buffer: Buffer.from("%PDF-1.4 örnek"),
+        });
+        await expect(tour.getByText("“Biyoloji_yazili_notu.pdf” taramaya hazır!")).toBeVisible({ timeout: 2500 });
+      }).toPass({ timeout: 25_000 });
+      const card = tour.locator("[data-guest-document]");
+      await expect(card.getByText(/hiçbir yere gönderilmedi/)).toBeVisible();
+      await expect(card.getByRole("link", { name: /Ücretsiz hesabımı aç, bu belgeyle başla/ })).toHaveAttribute(
+        "href",
+        "/kayit?hedef=lise&kaynak=belge&next=%2Fdeneme-sinavlari%2Folustur",
+      );
+      expect(await overflow(page)).toBeLessThanOrEqual(1);
+      expect(await smallestTouchTarget(page, "section.lj")).toBeGreaterThanOrEqual(44);
+      expect(uploads).toEqual([]);
+
+      // Kayıt ekranı dosyanın beklediğini söyler.
+      await card.getByRole("link", { name: /Ücretsiz hesabımı aç/ }).click();
+      await expect(page).toHaveURL(/\/kayit\?hedef=lise&kaynak=belge/);
+      await expect(page.getByText(/Ana sayfada seçtiğin “Biyoloji_yazili_notu.pdf” bu cihazda bekliyor/)).toBeVisible();
+
+      // Kurulumun materyal adımında dosya öğrencinin dokunuşunu bekler; vazgeçince silinir.
+      await page.goto("/e2e/sihirbaz?adim=material");
+      const offer = page.getByRole("group", { name: "Ana sayfada seçtiğin dosya" });
+      await expect(offer).toBeVisible();
+      await expect(offer.getByRole("button", { name: "Bu dosyayı ekle" })).toBeVisible();
+      expect(await overflow(page)).toBeLessThanOrEqual(1);
+      await offer.getByRole("button", { name: "Vazgeç" }).click();
+      await expect(offer).toHaveCount(0);
+      await page.reload();
+      await expect(page.getByRole("group", { name: "Ana sayfada seçtiğin dosya" })).toHaveCount(0);
+      // Sihirbaz kendi taslağını kaydeder; dosya ise öğrenci "ekle" demedikçe hiçbir yere yüklenmez.
+      expect(uploads.filter((item) => /documents|uploads?\b|storage/i.test(item))).toEqual([]);
+    });
+  }
 
   test("üst menü kaydırınca sabit kalır", async ({ page }) => {
     await page.goto("/");

@@ -1,0 +1,285 @@
+/*
+  Kokpitin Plus adımındaki canlı önizlemeler (11 Kasım 2026).
+
+  Parçalar ürünün: karaoke kelimeleri (`cp-pod-word`), çizim tahtası (`cp-video-board`), sınav sabahı kâğıdı
+  (`cp-cram`). Bu dosya yalnız önizlemenin kabını çizer: ses dalgası, oynat düğmesi, küçültülmüş video yuvası ve
+  kâğıdın açık zemini (kâğıt baskıda da beyaz zemine siyah yazıdır). Metin en az 12 px, dokunma alanı en az 44 px;
+  hareket `prefers-reduced-motion`da durur.
+*/
+
+.tpp-shell {
+  border-radius: 1rem;
+  padding: clamp(0.75rem, 2.6vw, 1rem);
+  min-width: 0;
+}
+
+.tpp-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem 0.9rem;
+}
+
+.tpp-play {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0 1.15rem;
+  border: 0;
+  border-radius: 999px;
+  background: #f6ecd9;
+  color: #1b140d;
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.tpp-play:hover {
+  background: #fffaf0;
+}
+
+.tpp-play:focus-visible {
+  outline: 2px solid #ffdcae;
+  outline-offset: 3px;
+}
+
+.tpp-time {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  color: #a3a3a3;
+}
+
+/* ---------- Podcast ---------- */
+
+.tpp-pod {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.tpp-pod-wave {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 2.75rem;
+}
+
+.tpp-pod-wave span {
+  flex: 1 1 0;
+  max-width: 6px;
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(180deg, #ffb224, #ff4d8d);
+  opacity: 0.5;
+  transform: scaleY(0.16);
+  transform-origin: center;
+}
+
+.tpp-pod[data-speaking="kerem"] .tpp-pod-wave span {
+  background: linear-gradient(180deg, #22d3ee, #8b5cf6);
+}
+
+.tpp-pod.is-playing .tpp-pod-wave span {
+  opacity: 1;
+  animation: tpp-bar 0.9s ease-in-out infinite;
+  animation-delay: calc(var(--tpp-i, 0) * -70ms);
+}
+
+.tpp-pod.is-playing .tpp-pod-wave span:nth-child(3n) {
+  animation-duration: 0.68s;
+}
+
+.tpp-pod.is-playing .tpp-pod-wave span:nth-child(4n + 1) {
+  animation-duration: 1.15s;
+}
+
+@keyframes tpp-bar {
+  0%,
+  100% {
+    transform: scaleY(0.18);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+.tpp-pod-lines {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tpp-pod-line {
+  display: grid;
+  grid-template-columns: 3.6rem minmax(0, 1fr);
+  gap: 0.6rem;
+  align-items: start;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: #8f8f8f;
+}
+
+.tpp-pod-line.is-now {
+  color: #b4b4b4;
+}
+
+.tpp-pod-line.is-done {
+  color: #ededed;
+}
+
+.tpp-pod-who {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.7rem;
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  background: #1f1f1f;
+  color: #d4d4d4;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.tpp-pod-line[data-speaker="ada"].is-now .tpp-pod-who {
+  background: rgba(255, 178, 36, 0.2);
+  color: #fbbf24;
+}
+
+.tpp-pod-line[data-speaker="kerem"].is-now .tpp-pod-who {
+  background: rgba(34, 211, 238, 0.18);
+  color: #67e8f9;
+}
+
+.tpp-progress {
+  height: 4px;
+  border-radius: 4px;
+  background: #242424;
+  overflow: hidden;
+}
+
+.tpp-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #ffb224 0%, #ff4d8d 36%, #8b5cf6 68%, #22d3ee 100%);
+}
+
+.tpp-silent {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #fbbf24;
+}
+
+.tpp-silent a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+/* ---------- Çizimli video ---------- */
+
+.tpp-video {
+  display: grid;
+  justify-items: center;
+  gap: 0.8rem;
+}
+
+.tpp-video .tpp-controls {
+  width: 100%;
+}
+
+/*
+  Ürünün dikey çerçevesi doğal ölçüsünde (20 rem × 9:16) çizilir ve yuvaya küçültülür: tahtadaki oranlar gerçek
+  oynatıcıdakiyle aynı kalır. 20 rem × 0,675 = 13,5 rem; yükseklik 35,56 rem × 0,675 = 24 rem.
+*/
+.tpp-video-slot {
+  position: relative;
+  width: 13.5rem;
+  height: 24rem;
+  border-radius: 0.8rem;
+  overflow: hidden;
+}
+
+.tpp-video-slot .tpp-video-frame {
+  width: 20rem;
+  max-width: none;
+  transform: scale(0.675);
+  transform-origin: top left;
+}
+
+/* ---------- Sınav sabahı kâğıdı ---------- */
+
+.tpp-sheet {
+  display: grid;
+  min-width: 0;
+}
+
+/* Kâğıt: baskıdaki gibi açık zemin. Kâğıdın renk belirteçleri bu zemine göre yeniden verilir. */
+.tpp-paper {
+  --c-bg: #fbf7ee;
+  --c-text: #1b140d;
+  --c-text-muted: #5f5448;
+  --c-surface-1: #f3ecdf;
+  --c-surface-2: #ebe2d2;
+  --c-border: rgba(27, 20, 13, 0.16);
+  --c-action: #1b140d;
+  --c-on-action: #fbf7ee;
+  --c-action-soft: rgba(27, 20, 13, 0.1);
+  --c-ai: #6941c6;
+  --c-brand: #8a5a00;
+  --c-success: #067647;
+  --c-success-soft: rgba(6, 118, 71, 0.1);
+  --c-danger: #b42318;
+  --c-danger-soft: rgba(180, 35, 24, 0.1);
+  --c-warning: #b54708;
+  --c-warning-soft: rgba(181, 71, 8, 0.12);
+  --c-ai-soft: rgba(105, 65, 198, 0.1);
+  position: relative;
+  max-height: 24rem;
+  overflow: auto;
+  border-radius: 0.5rem;
+  background: var(--c-bg);
+  color: var(--c-text);
+  box-shadow:
+    0 1.2rem 2.8rem rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(27, 20, 13, 0.1) inset;
+}
+
+.tpp-paper .cp-cram {
+  max-width: none;
+  padding: 0.9rem 1rem 1.1rem;
+}
+
+.tpp-paper .cp-cram-body {
+  column-count: 1;
+}
+
+/* Kâğıt dar bir sütunda: başlıklar sütuna göre küçülür (içerik ve sıra ürünün derleyicisinden, aynen). */
+.tpp-paper .cp-cram-title {
+  font-size: 1.05rem;
+  line-height: 1.3;
+}
+
+.tpp-paper .cp-cram-head {
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.tpp-paper .cp-cram-lead,
+.tpp-paper .cp-cram-kicker {
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tpp-pod.is-playing .tpp-pod-wave span {
+    animation: none;
+    transform: scaleY(0.5);
+  }
+}
