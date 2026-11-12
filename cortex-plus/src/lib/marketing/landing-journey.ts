@@ -105,6 +105,8 @@ export const JOURNEY_OWN = {
   playSample: "Önce örnek turu oyna",
   remove: "Dosyayı kaldır",
   fine: "Kart istemiyoruz",
+  /** Dosya bekliyorken adım satırı: ekranda artık örnek not ve çekirdek yok, onları anlatan cümle yanıltır. */
+  guide: "Dosyan hazır; hesabını aç ya da önce örnek turu oyna",
 } as const;
 
 /** Onay kartının başlığı: tek dosyada adıyla, birden çok dosyada sayısıyla. */
@@ -219,10 +221,11 @@ export function nextJourneyStep(id: JourneyStepId): JourneyStepId | null {
   return JOURNEY_STEP_IDS[journeyStepIndex(id) + 1] ?? null;
 }
 
-/** "Adım 3/7: …" */
-export function journeyGuideLine(id: JourneyStepId): string {
+/** "Adım 3/7: …". Birinci adımda misafirin kendi dosyası bekliyorsa satır onu anlatır. */
+export function journeyGuideLine(id: JourneyStepId, options: { ownDocument?: boolean } = {}): string {
   const step = JOURNEY_STEPS[journeyStepIndex(id)]!;
-  return `Adım ${journeyStepIndex(id) + 1}/${JOURNEY_STEPS.length}: ${step.guide}`;
+  const guide = id === "upload" && options.ownDocument ? JOURNEY_OWN.guide : step.guide;
+  return `Adım ${journeyStepIndex(id) + 1}/${JOURNEY_STEPS.length}: ${guide}`;
 }
 
 /**

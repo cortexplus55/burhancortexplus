@@ -107,6 +107,11 @@ describe("turun örnek verisi ürünün veri biçiminde ve doğru", () => {
     expect(JOURNEY_STEPS.map((step) => step.id)).toEqual([...JOURNEY_STEP_IDS]);
     expect(journeyGuideLine("upload")).toMatch(/^Adım 1\/7: /);
     expect(journeyGuideLine("plus")).toMatch(/^Adım 7\/7: /);
+    // Misafirin kendi dosyası bekliyorken ekranda örnek not ve çekirdek yok: satır onu anlatmaz, dosyayı anlatır.
+    expect(journeyGuideLine("upload")).toContain("çekirdeğe");
+    expect(journeyGuideLine("upload", { ownDocument: true })).toBe(`Adım 1/7: ${JOURNEY_OWN.guide}`);
+    expect(JOURNEY_OWN.guide).not.toMatch(/çekirde|sürükle/);
+    expect(journeyGuideLine("roadmap", { ownDocument: true })).toBe(journeyGuideLine("roadmap"));
     expect(nextJourneyStep("upload")).toBe("roadmap");
     expect(nextJourneyStep("plus")).toBeNull();
     expect([...JOURNEY_PRODUCT_STEPS]).toEqual(["lesson", "question", "cards", "check"]);

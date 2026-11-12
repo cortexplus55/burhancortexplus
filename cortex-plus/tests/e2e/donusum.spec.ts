@@ -252,6 +252,9 @@ test.describe("dönüşüm paketi", { tag: ["@public"] }, () => {
       }).toPass({ timeout: 25_000 });
       const card = tour.locator("[data-guest-document]");
       await expect(card.getByText(/hiçbir yere gönderilmedi/)).toBeVisible();
+      // Adım satırı artık ekranda olmayan örnek notu ve çekirdeği anlatmaz.
+      await expect(tour.locator(".lj-guide")).toContainText("Dosyan hazır");
+      await expect(tour.locator(".lj-guide")).not.toContainText("çekirdeğe");
       await expect(card.getByRole("link", { name: /Ücretsiz hesabımı aç, bu belgeyle başla/ })).toHaveAttribute(
         "href",
         "/kayit?hedef=lise&kaynak=belge&next=%2Fdeneme-sinavlari%2Folustur",

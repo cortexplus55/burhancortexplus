@@ -111,6 +111,8 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
   const index = journeyStepIndex(step);
   const score = journeyScore({ questionCorrect, truth });
   const product = isProductStep(step);
+  /** Birinci adımda misafirin kendi dosyası bekliyor: örnek not ve çekirdek yerine onay kartı durur. */
+  const ownReady = step === "upload" && guest !== null && !scanning;
   /** Doğru/yanlış bitti: çerçevenin yerinde sonuç durur. */
   const showResult = step === "check" && truth !== null;
 
@@ -320,12 +322,13 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
             <div className="lj-stage-head">
               <h3 className="lj-step-title">{JOURNEY_STEPS[index]!.title}</h3>
               <p className="lj-guide" role="status" aria-live="polite">
-                <span aria-hidden>{step === "upload" || step === "cards" ? "👆" : "👉"}</span> {journeyGuideLine(step)}
+                <span aria-hidden>{ownReady ? "👇" : step === "upload" || step === "cards" ? "👆" : "👉"}</span>{" "}
+                {journeyGuideLine(step, { ownDocument: ownReady })}
               </p>
             </div>
 
             {/* 1. Not, B kapısı sonrası: misafirin kendi dosyası tarayıcıda bekliyor. */}
-            {step === "upload" && guest && !scanning ? (
+            {ownReady && guest ? (
               <div className="lj-ready" data-guest-document>
                 <p className="lj-ready-title">
                   <span aria-hidden>✅</span> {ownReadyTitle(guest.names)}
@@ -366,7 +369,7 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
             ) : null}
 
             {/* 1. Not: iki kapı. A: hazır örnek not çekirdeğe gider. B: misafirin kendi dosyası. */}
-            {step === "upload" && !(guest && !scanning) ? (
+            {step === "upload" && !ownReady ? (
               <div className={cn("lj-upload", scanning && "is-scanning")}>
                 <button
                   type="button"
