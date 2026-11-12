@@ -1,5 +1,6 @@
 import type { LessonV3 } from "@/lib/learning/lesson-v3";
 import type { PublicQuizQuestion } from "@/lib/learning/exam-quiz";
+import type { SketchScene } from "@/lib/learning/video-lesson";
 
 /**
  * Ana sayfadaki tanıtım turunun örnek verisi (11 Kasım 2026).
@@ -197,3 +198,77 @@ export const TOUR_TRUE_FALSE: { text: string; correct: boolean; explanation: str
     correctedStatement: "³√(−8) = −2",
   },
 ];
+
+/* ---------- 7. adım: Plus önizlemeleri (11 Kasım 2026, kokpit) ---------- */
+
+/**
+ * Podcast önizlemesi: uydurma bir diyalog ya da tarayıcının robot sesi DEĞİL. Örnek ders sayfasındaki (`/ornek`)
+ * hazır bölümün ilk iki satırı, ürünün kendi sesleriyle; ses dosyası depoda sabit duruyor (`public/ornek`), süreler
+ * dosyanın ölçülen süreleri. Bu yüzden konu turdaki örnek not değil, o bölümün notu (fotosentez); kart bunu söyler.
+ * Kelime vurgusunu ürünün karaoke bileşeni çizer. Bekçi test satırları ve süreleri `lesson.json` ile karşılaştırır.
+ */
+export const TOUR_PODCAST_SAMPLE = {
+  src: "/ornek/podcast-ornek.mp3",
+  source: "Fotosentez ders notu",
+  durationMs: 14280,
+  lines: [
+    {
+      speaker: "ada",
+      name: "Ada",
+      text: "Merhaba Kerem, bugün fotosentez konusunu konuşalım. Öncelikle, fotosentez nedir?",
+      startMs: 0,
+      endMs: 6312,
+    },
+    {
+      speaker: "kerem",
+      name: "Kerem",
+      text: "Merhaba Ada! Fotosentez, bitkilerin güneş ışığını kullanarak karbondioksit ve sudan besin üretmesidir.",
+      startMs: 6312,
+      endMs: 14280,
+    },
+  ],
+} as const;
+
+/**
+ * Çizimli video önizlemesi: ürünün çizimli video sahnesi biçiminde (`SketchScene`) iki sahne; turdaki dersin iki
+ * kuralı. Tahtayı ürünün kendi çizim tahtası çizer; önizleme sessizdir (anlatım alt yazı olarak akar), sahne süresi
+ * bu yüzden sabittir. Formül adımları ok işaretinden bölünür ve sırayla belirir.
+ */
+export const TOUR_SKETCH: { title: string; sceneMs: number; scenes: SketchScene[] } = {
+  title: "Kök dışına çıkarma",
+  sceneMs: 7000,
+  scenes: [
+    {
+      sceneTitle: "Kare ile kök birbirini götürür mü?",
+      narration: "Eksi dördün karesinin kökü eksi dört değildir. Çift dereceli kökten sayı **mutlak değerle** çıkar: sonuç **dört**.",
+      formula: "\\sqrt{(-4)^2} → |−4| → 4",
+      keyFact: "Çift derece: mutlak değer",
+      voice: "ada",
+      diagram: {
+        diagramKind: "number_line",
+        title: "|−4| = 4: sıfıra uzaklık",
+        items: [
+          { label: "−4", value: -4 },
+          { label: "0", value: 0 },
+          { label: "4", value: 4, highlight: true },
+        ],
+      },
+    },
+    {
+      sceneTitle: "Tek derecede işaret korunur",
+      narration: "Tek dereceli kökte eksi dışarı çıkar: eksi sekizin küp kökü **eksi iki** eder.",
+      formula: "\\sqrt[3]{-8} → −2",
+      keyFact: "Tek derece: işaret korunur",
+      voice: "kerem",
+      diagram: {
+        diagramKind: "number_line",
+        title: "³√(−8) = −2: işaret korunur",
+        items: [
+          { label: "−8", value: -8 },
+          { label: "−2", value: -2, highlight: true },
+          { label: "0", value: 0 },
+        ],
+      },
+    },
+  ],
+};

@@ -1,5 +1,6 @@
 /*
-  Ana sayfanın 7 adımlı tanıtım turu (11 Kasım 2026).
+  Ana sayfanın 7 adımlı canlı kokpiti (11 Kasım 2026). Tur kahramanın içinde, ilk ekranda durur: kendi başlık
+  bölümü yok, konsolun başında küçük bir canlı etiketi, turun adı ve seçili sekmenin bağlam satırı var.
 
   Dil (ikinci tur, aynı gün; ürün sahibi: "mavi zemin, mavi düğme klasik yapay zekâ sitesi gibi"): sıcak siyah zemin,
   koyu sıcak cam, kâğıt beyazı ışık ve logonun şeridi (kehribar → gül → mor → camgöbeği). Çivit ve camgöbeği vurgu
@@ -46,44 +47,88 @@
   padding-inline: 1rem;
 }
 
-.lj-head {
-  text-align: center;
-  margin-bottom: 1.5rem;
+/* ---------- Konsol başı: canlı etiketi, turun adı, sekmenin bağlamı ---------- */
+
+.lj-console-head {
+  display: grid;
+  gap: 0.15rem 1.25rem;
+  padding: 0.9rem clamp(1rem, 3.2vw, 2rem) 0;
 }
 
-.lj-kicker {
+.lj-live {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  margin: 0 0 0.6rem;
+  gap: 0.45rem;
+  margin: 0;
   font-family: var(--font-mono);
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--lj-beam-text);
 }
 
-.lj-kicker::before {
-  content: "";
+.lj-live-dot {
   width: 0.5rem;
   height: 0.5rem;
   border-radius: 50%;
-  background: var(--lj-beam);
-  box-shadow: 0 0 0.75rem var(--lj-beam);
+  background: var(--lj-ok);
+  animation: lj-live 1.8s ease-out infinite;
+}
+
+@keyframes lj-live {
+  from {
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.6);
+  }
+  to {
+    box-shadow: 0 0 0 0.6rem rgba(52, 211, 153, 0);
+  }
+}
+
+.lj-live-sep {
+  opacity: 0.5;
 }
 
 .lj-title {
   margin: 0;
-  font-size: clamp(1.5rem, 3.6vw, 2.35rem);
-  font-weight: 650;
-  letter-spacing: -0.025em;
-  line-height: 1.15;
+  font-size: clamp(1.05rem, 2vw, 1.3rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
   text-wrap: balance;
 }
 
-.lj-note {
-  margin: 0.6rem 0 0;
+/* Sekme değişince cümle yeniden belirir: örnek not aynı, bağlam seçilen sınava göre. */
+.lj-context {
+  margin: 0;
   font-size: 0.875rem;
+  line-height: 1.5;
   color: var(--lj-muted);
+  animation: lj-context 0.5s var(--lj-ease) both;
+}
+
+@keyframes lj-context {
+  from {
+    opacity: 0;
+    transform: translateY(0.3rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (min-width: 900px) {
+  .lj-console-head {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: baseline;
+  }
+
+  .lj-live {
+    grid-column: 1 / -1;
+  }
+
+  .lj-context {
+    text-align: right;
+  }
 }
 
 /* ---------- Konsol ---------- */
@@ -333,7 +378,8 @@
 .lj-zone:focus-visible,
 .lj-flip:focus-visible,
 .lj-link:focus-visible,
-.lj-skip:focus-visible {
+.lj-next:focus-visible,
+.lj-plus-tab:focus-visible {
   outline: 2px solid var(--lj-beam-text);
   outline-offset: 3px;
 }
@@ -398,8 +444,7 @@
   color: var(--lj-beam-text);
 }
 
-.lj-link,
-.lj-skip {
+.lj-link {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -415,8 +460,50 @@
   cursor: pointer;
 }
 
-.lj-skip {
-  margin-top: 0.4rem;
+/*
+  Ürün ekranının altındaki "sıradaki adım" düğmesi: şeritten çerçeveli, yavaşça parlayan bir davet. Çerçevedeki
+  ürün düğmeleriyle yarışmasın diye dolu değil; adım oynanmadan da ilerlenir.
+*/
+.lj-next {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 3rem;
+  margin-top: 0.9rem;
+  padding: 0 1.2rem;
+  border: 1.5px solid transparent;
+  border-radius: 999px;
+  background:
+    linear-gradient(#17120e, #17120e) padding-box,
+    var(--lj-ribbon) border-box;
+  color: var(--lj-text);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 650;
+  cursor: pointer;
+  animation: lj-next-glow 2.2s ease-in-out infinite;
+}
+
+.lj-next:hover {
+  background:
+    linear-gradient(#241c15, #241c15) padding-box,
+    var(--lj-ribbon) border-box;
+}
+
+@keyframes lj-next-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 0 rgba(255, 217, 160, 0),
+      0 0.4rem 1.4rem -0.6rem rgba(255, 77, 141, 0.55);
+  }
+  50% {
+    box-shadow:
+      0 0 0 0.35rem rgba(255, 217, 160, 0.09),
+      0 0.5rem 1.8rem -0.5rem rgba(255, 178, 36, 0.75);
+  }
 }
 
 .lj-row {
@@ -455,12 +542,150 @@
 
 /* ---------- 1. Not ---------- */
 
+/*
+  İki kapı: solda üstte hazır örnek not (A), altında misafirin kendi dosyası (B); sağda tarama çekirdeği. Örnek not
+  çekirdeğe sürüklenir ya da dokunulur; kendi dosya çekirdeğe bırakılır ya da düğmeyle seçilir.
+*/
 .lj-upload {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 4.5rem minmax(0, 1.15fr);
+  grid-template-columns: minmax(0, 1fr) 3.5rem minmax(0, 1.15fr);
+  grid-template-areas:
+    "file flight zone"
+    "own flight zone";
+  align-items: center;
+  gap: 0.75rem 0.5rem;
+  min-height: 14rem;
+}
+
+.lj-upload .lj-file {
+  grid-area: file;
+  align-self: end;
+}
+
+.lj-upload .lj-flight {
+  grid-area: flight;
+}
+
+.lj-upload .lj-zone {
+  grid-area: zone;
+  align-self: stretch;
+}
+
+.lj-own {
+  grid-area: own;
+  align-self: start;
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.8rem 1rem 0.9rem;
+  border: 1px dashed var(--lj-line-strong);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.lj-own-title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 650;
+}
+
+.lj-own-hint {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--lj-muted);
+}
+
+.lj-own-pick {
+  justify-self: start;
+  margin-top: 0.35rem;
+}
+
+/* Dosya seçici görünmez; "Kendi notunu seç" düğmesi açar. */
+.lj-own-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.lj-own-problems {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0.35rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: #fda4af;
+}
+
+/* B kapısından sonra: dosya tarayıcıda bekliyor. Yeşil, çünkü hazır olanı söyler. */
+.lj-ready {
+  display: grid;
+  justify-items: start;
+  gap: 0.6rem;
+  padding: 1.1rem clamp(1rem, 3vw, 1.5rem) 1.15rem;
+  border: 1px solid rgba(52, 211, 153, 0.45);
+  border-radius: 1.15rem;
+  background: linear-gradient(145deg, rgba(52, 211, 153, 0.12), rgba(22, 17, 12, 0.55));
+}
+
+.lj-ready-title {
+  margin: 0;
+  font-size: clamp(1.05rem, 2.4vw, 1.3rem);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.lj-ready-files {
+  display: grid;
+  gap: 0.3rem;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+  color: var(--lj-light-text);
+}
+
+.lj-ready-files li {
+  display: grid;
+  grid-template-columns: 1rem minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.5rem;
-  min-height: 17rem;
+}
+
+.lj-ready-files li span {
+  overflow-wrap: anywhere;
+}
+
+.lj-ready-size {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  color: var(--lj-muted);
+}
+
+.lj-ready-body {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
+
+.lj-ready-kept {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--lj-muted);
+}
+
+.lj-ready-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
 }
 
 .lj-file {
@@ -541,6 +766,15 @@
   color: var(--lj-muted);
 }
 
+.lj-file-text .lj-file-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.15rem;
+  color: var(--lj-light-text);
+  font-weight: 650;
+}
+
 /* Dosyadan alana uçuş çizgisi: kesikli hat üzerinde akan ışık. */
 .lj-flight {
   height: 2px;
@@ -562,7 +796,7 @@
   place-items: center;
   align-content: center;
   gap: 0.75rem;
-  min-height: 16rem;
+  min-height: 13rem;
   padding: 1.25rem;
   border-radius: 1.25rem;
   border: 1.5px dashed rgba(255, 217, 160, 0.341);
@@ -884,23 +1118,66 @@
   font-weight: 650;
 }
 
-/* ---------- 7. Plus ---------- */
+/* ---------- 7. Plus: canlı önizlemeler ---------- */
+
+/* Dar ekranda üç önizleme seçiciyle tek tek; geniş ekranda yan yana (seçici yok). */
+.lj-plus-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.lj-plus-tab {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  min-height: 3.25rem;
+  padding: 0.35rem 0.4rem;
+  border: 1px solid var(--lj-line-strong);
+  border-radius: 0.9rem;
+  background: #1e1813;
+  color: var(--lj-text);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  line-height: 1.2;
+  text-align: center;
+  cursor: pointer;
+}
+
+.lj-plus-tab.is-on {
+  border-color: transparent;
+  background: var(--lj-paper);
+  color: var(--lj-paper-ink);
+}
 
 .lj-plus-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.75rem;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
+/* Ortadaki sütun dikey videonun yuvası kadar (13,5 rem + kartın iç boşluğu); iki yan sütun kalan yeri paylaşır. */
+.lj-plus-grid.is-wide {
+  grid-template-columns: minmax(0, 1fr) 16.5rem minmax(0, 1fr);
+  align-items: stretch;
+}
+
 .lj-plus-card {
-  padding: 0.9rem 1rem;
-  border-radius: 1rem;
-  border: 1px solid rgba(245, 158, 11, 0.3);
-  background: linear-gradient(145deg, rgba(245, 158, 11, 0.08), rgba(22, 17, 12, 0.5));
+  display: grid;
+  align-content: start;
+  gap: 0.55rem;
   min-width: 0;
+  padding: 0.9rem;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 1rem;
+  background: linear-gradient(145deg, rgba(245, 158, 11, 0.08), rgba(22, 17, 12, 0.5));
 }
 
 .lj-plus-head {
@@ -909,6 +1186,7 @@
   gap: 0.5rem;
   margin: 0;
   font-size: 0.9375rem;
+  line-height: 1.3;
 }
 
 .lj-plus-head strong {
@@ -935,55 +1213,37 @@
 }
 
 .lj-plus-body {
-  margin: 0.4rem 0 0;
+  margin: 0;
   font-size: 0.875rem;
   line-height: 1.5;
   color: var(--lj-muted);
 }
 
-.lj-wave {
-  margin-top: 0.6rem;
-  padding-top: 0.6rem;
-  border-top: 1px solid var(--lj-line);
-}
-
-.lj-wave-bars {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  height: 1.5rem;
-  margin-bottom: 0.4rem;
-}
-
-.lj-wave-bars span {
-  width: 3px;
-  height: 100%;
-  border-radius: 2px;
-  background: var(--lj-amber);
-  transform-origin: center;
-  animation: lj-bar 1.1s ease-in-out infinite;
-  animation-delay: calc(var(--lj-i, 0) * -90ms);
-}
-
-@keyframes lj-bar {
-  0%,
-  100% {
-    transform: scaleY(0.25);
-  }
-  50% {
-    transform: scaleY(1);
-  }
-}
-
-.lj-wave-line {
-  margin: 0.15rem 0 0;
-  font-size: 0.875rem;
+/* Önizlemenin neyin kesiti olduğunu söyleyen dürüstlük notu. */
+.lj-plus-note {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
   color: var(--lj-muted);
 }
 
-.lj-wave-line b {
-  color: var(--lj-text);
-  font-weight: 650;
+.lj-plus-wait {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 0.6rem;
+  min-height: 12rem;
+  color: var(--lj-muted);
+  font-size: 0.9375rem;
+  text-align: center;
+}
+
+.lj-plus-also {
+  margin: 0.8rem 0 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--lj-muted);
+  text-align: center;
 }
 
 .lj-final {
@@ -1045,14 +1305,23 @@
 @media (max-width: 760px) {
   .lj-upload {
     grid-template-columns: minmax(0, 1fr);
-    gap: 0.75rem;
+    grid-template-areas:
+      "file"
+      "flight"
+      "zone"
+      "own";
+    gap: 0.6rem;
     min-height: 0;
+  }
+
+  .lj-upload .lj-file {
+    align-self: auto;
   }
 
   .lj-flight {
     justify-self: center;
     width: 2px;
-    height: 2rem;
+    height: 1.1rem;
     background: repeating-linear-gradient(180deg, rgba(103, 232, 249, 0.8) 0 0.45rem, transparent 0.45rem 0.9rem);
     background-size: 100% 1.8rem;
     animation-name: lj-dash-y;
@@ -1063,7 +1332,20 @@
   }
 
   .lj-zone {
-    min-height: 13rem;
+    min-height: 10.5rem;
+  }
+
+  .lj-console-head {
+    padding-top: 0.75rem;
+  }
+
+  .lj-rail {
+    padding-top: 0.8rem;
+  }
+
+  .lj-rail::before,
+  .lj-rail::after {
+    top: calc(0.8rem + 1.375rem - 1px);
   }
 
   .lj-lesson {
@@ -1074,13 +1356,21 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .lj-plus-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
   .lj-stage-head {
     flex-direction: column;
     align-items: flex-start;
+    gap: 0.3rem;
+    margin-bottom: 0.8rem;
+  }
+
+  /* Telefonda yönlendirme hap değil, tek satırlık yazı: ilk ekranda örnek not kartına yer kalsın. */
+  .lj-guide {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    font-size: 0.8125rem;
+    animation: none;
   }
 
   .lj-row > * {
@@ -1125,7 +1415,9 @@
   .lj-flight,
   .lj-zone-rings span,
   .lj-scan-laser,
-  .lj-wave-bars span,
+  .lj-live-dot,
+  .lj-context,
+  .lj-next,
   .lj-stage > :not(.lj-stage-head),
   .lj-day {
     animation: none;

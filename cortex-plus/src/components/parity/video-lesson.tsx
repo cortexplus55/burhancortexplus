@@ -572,7 +572,11 @@ export function VideoLessonPlayer({
   );
 }
 
-function SketchBoard({
+/**
+ * Çizimli sahnenin tahtası: şema `--draw` ile çizilir, formül adımları sırayla belirir. Oynatıcı sesin süresinden,
+ * ana sayfadaki sessiz önizleme (`landing/tour/plus-previews.tsx`) bir sayaçtan besler; tahta aynı tahtadır.
+ */
+export function SketchBoard({
   title,
   diagram,
   sceneKey,

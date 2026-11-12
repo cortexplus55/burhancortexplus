@@ -1,4 +1,16 @@
 /* Kayıt sihirbazı — sinematik adımlar */
+/* Ana sayfada bırakılan dosyanın hatırlatması (11 Kasım 2026): dosya tarayıcıda bekliyor, kayıt bitince eklenir. */
+.signup-guest-doc {
+  margin: 0 0 1rem;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid rgba(52, 211, 153, 0.4);
+  border-radius: 0.9rem;
+  background: rgba(52, 211, 153, 0.09);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
 .signup-wizard {
   background: var(--c-bg);
   position: relative;

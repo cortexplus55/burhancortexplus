@@ -106,6 +106,7 @@ import { officialExamsForTrack } from "@/lib/curriculum/calendar";
 import { OfficialCurriculumPanel, type OfficialCurriculumPick } from "@/components/parity/official-curriculum-panel";
 import type { CurriculumRef } from "@/lib/curriculum/types";
 import { PhotoQualityPrompt } from "@/components/parity/photo-quality-prompt";
+import { GuestDocumentOffer } from "@/components/parity/guest-document-offer";
 import { EXAM_PLACE_MAX, parseExamPlace, parseExamTime } from "@/lib/learning/exam-time";
 import {
   MaterialNotesCard,
@@ -1680,6 +1681,9 @@ export function ExamCreateWizard({
         />
       ) : null}
 
+      {/* Ana sayfada (kayıttan önce) bırakılan dosya kaybolmadı: materyal adımına kadar tek satırla hatırlatılır. */}
+      {step === "subject" || step === "date" || step === "target" ? <GuestDocumentOffer variant="hint" /> : null}
+
       {step === "subject" ? (
         <section className="apw-step">
           {/* 8 Kasım 2026: başlık "Hangi ders?" diyordu ama ilk sorulan sınav türüydü; 11 tür tek sütunda ders kutusunu
@@ -1850,6 +1854,9 @@ export function ExamCreateWizard({
               </button>
             </div>
           ) : null}
+
+          {/* Misafirken ana sayfaya bırakılan dosya: tarayıcıda bekliyor, öğrencinin dokunuşuyla bildiğimiz yoldan yüklenir. */}
+          <GuestDocumentOffer variant="offer" disabled={uploading} onTake={(files) => takeFiles(files)} />
 
           <div
             className={dragOver ? "apw-drop apw-drop--over" : "apw-drop"}

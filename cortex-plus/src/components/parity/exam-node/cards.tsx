@@ -13,6 +13,11 @@ export const CARD_RECALL_HINT = "Önce kendin hatırlamaya çalış, sonra karta
 /**
  * Tek kart: soru yüzü ve cevap yüzü. Yol oturumu (`CardsPlay`) ve ana sayfadaki tanıtım turu aynı kartı çizer
  * (11 Kasım 2026); durum çağıranda durur.
+ *
+ * Her dokunuşta kart 3B döner (aynı gün, kokpit). İçerik hemen değişir (ekran okuyucu ve çağıran beklemez); dönüş
+ * yalnız CSS'tedir: `data-turn` her dokunuşta "a" ile "b" arasında değişir ki animasyon yeniden başlasın. İlk
+ * çizimde öznitelik yoktur, kart dönerek gelmez. Öznitelik düğmenin kendisinde, dokunuş anında değişir: çizim
+ * bileşenleri durum tutmaz (yaşam döngüsü tek kancada; bekçi `node-modules-layout.test.ts`).
  */
 export function FlashCard({ front, back, flipped, onFlip }: { front: string; back: string; flipped: boolean; onFlip: () => void }) {
   return (
@@ -20,7 +25,11 @@ export function FlashCard({ front, back, flipped, onFlip }: { front: string; bac
       type="button"
       className={cn("cp-exam-flash", flipped && "cp-exam-flash--back")}
       aria-label={flipped ? "Kartı soru yüzüne çevir" : "Kartı çevir, cevabı göster"}
-      onClick={onFlip}
+      onClick={(event) => {
+        const card = event.currentTarget;
+        card.dataset.turn = card.dataset.turn === "a" ? "b" : "a";
+        onFlip();
+      }}
     >
       <span className="cp-exam-flash-side">{flipped ? "Cevap" : "Soru"}</span>
       <span aria-live="polite">

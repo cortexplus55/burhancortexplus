@@ -1,16 +1,22 @@
 /**
- * Ana sayfanın 7 adımlı tanıtım turu (11 Kasım 2026, ürün sahibi: "ziyaretçi sistemi kendi tıklamasıyla baştan
- * sona yaşasın").
+ * Ana sayfanın 7 adımlı canlı kokpiti (11 Kasım 2026).
  *
- * Misafir örnek bir notu tarama alanına bırakır; yol haritası, ilk ders, soru, kart, doğru/yanlış ve Plus vitrini
- * sırayla açılır. Tur model çağırmaz, ağ isteği atmaz, hiçbir şey yüklemez.
+ * İlk kurgu (sabah, ürün sahibi: "ziyaretçi sistemi kendi tıklamasıyla baştan sona yaşasın"): misafir örnek bir notu
+ * tarama alanına bırakır; yol haritası, ilk ders, soru, kart, doğru/yanlış ve Plus vitrini sırayla açılır.
  *
- * Bu dosya turun kendi sözlerini tutar: adımlar, yönlendirme, not ve yol haritası adımı, Plus vitrini, sonuç.
+ * Kokpit (gece, canlı denetimden altı kusur): tur artık kahramanın altında ayrı bir bölüm değil, ilk ekranın
+ * kendisi. Birinci adım iki kapılıdır: hazır örnek notla turu başlat ya da KENDİ dosyanı bırak. Kendi dosya
+ * sunucuya gitmez; tarayıcıda bekler ve kayıttan sonra kurulumda tek dokunuşla eklenir (`guest-handoff.ts`).
+ * Plus adımı kuru liste değil: podcast, çizimli video ve sınav sabahı kâğıdının canlı önizlemeleri.
+ *
+ * Bu dosya kokpitin kendi sözlerini tutar: adımlar, yönlendirme, iki kapı, yol haritası, Plus önizlemeleri, sonuç.
  * Ders, konu testi, kartlar ve doğru/yanlış adımlarının içeriği burada DEĞİL: o adımlarda ürünün kendi ekranı
- * çalışır ve örnek veri ürünün veri biçiminde `lib/demo/guest-tour.ts`te durur (aynı gün, üçüncü tur). Üründe
- * olmayan bir şey gösterilmez. Plus'ta olan her şey "Plus" diye etiketlenir (bekçi `marketing-claims.test.ts`).
+ * çalışır ve örnek veri ürünün veri biçiminde `lib/demo/guest-tour.ts`te durur. Üründe olmayan bir şey gösterilmez.
+ * Plus'ta olan her şey "Plus" diye etiketlenir (bekçi `marketing-claims.test.ts`). Tur model çağırmaz ve hiçbir
+ * dosyayı sunucuya göndermez.
  */
 
+import { FREE_PAGE_TOTAL } from "@/lib/billing/free-tier-copy";
 import type { AudienceSegmentId } from "@/lib/marketing/landing-showcase";
 
 export const JOURNEY_STEP_IDS = ["upload", "roadmap", "lesson", "question", "cards", "check", "plus"] as const;
@@ -27,13 +33,13 @@ export type JourneyStep = {
 };
 
 export const JOURNEY_STEPS: JourneyStep[] = [
-  { id: "upload", short: "Not", title: "Notunu bırak", guide: "PDF'i tarama alanına sürükle ya da üstüne dokun" },
+  { id: "upload", short: "Not", title: "Notunu tarama çekirdeğine bırak", guide: "Örnek notu çekirdeğe sürükle ya da dokun" },
   { id: "roadmap", short: "Yol", title: "Yol haritan çıktı", guide: "1. dersi aç" },
   { id: "lesson", short: "Ders", title: "Ders ekranın", guide: "Önce dene, sonra kuralı oku; dersi sonuna kadar ilerlet" },
   { id: "question", short: "Soru", title: "Konu testi", guide: "Bir şık seç ve kontrol et; takılırsan iki şık ipucunu aç" },
   { id: "cards", short: "Kart", title: "Akıllı kartlar", guide: "Önce hatırla, karta dokun, sonra kendini değerlendir" },
   { id: "check", short: "D/Y", title: "Doğru / Yanlış", guide: "Önerme doğru mu, yanlış mı?" },
-  { id: "plus", short: "Plus", title: "Aynı not, beş yol daha", guide: "İlk dersini ücretsiz başlat" },
+  { id: "plus", short: "Plus", title: "Aynı nottan Plus'ta çıkanlar", guide: "Önizlemeleri oynat, sonra ilk dersini ücretsiz başlat" },
 ];
 
 /** Ürünün kendi ekranıyla oynanan adımlar (`components/landing/tour/product-screens.tsx`). */
@@ -45,35 +51,73 @@ export function isProductStep(id: JourneyStepId): id is JourneyProductStep {
 }
 
 export const JOURNEY_COPY = {
+  /** Konsolun köşesindeki canlı etiketi. */
+  live: "Canlı tur",
   kicker: "Kayıt olmadan dene",
   title: "Bir not, yedi adımda derse dönüşsün",
-  /** Dürüstlük notu: bu bir tanıtım turudur; örnek not hazırdır, hiçbir şey yüklenmez. */
-  note: "Tanıtım turu: örnek not hazır, hiçbir dosya yüklenmez.",
   restart: "Turu baştan oyna",
   /** Çerçevenin üstündeki söz: içindeki ekran çizim değil, ürünün kendisi. */
   real: "Bu çerçevenin içi çizim değil, ürünün kendi ekranı. Kayıt olunca aynısıyla çalışırsın.",
   loading: "Ekran açılıyor…",
   failed: "Ekran açılamadı.",
   retry: "Tekrar dene",
-  skip: "Bu adımı geç",
 } as const;
 
-/* ---------- 1. Not ---------- */
+/**
+ * Ürün ekranının altındaki parlayan "sıradaki adım" düğmesi. Adım oynanmadan da ilerlenir: ziyaretçi takılmaz,
+ * kokpit her adımda bir sonrakine davet eder.
+ */
+export const JOURNEY_NEXT_LABEL: Record<JourneyProductStep, string> = {
+  lesson: "Öğrendiğin kuralı soruda dene",
+  question: "Akıllı kartlara geç",
+  cards: "Doğru / Yanlış'a geç",
+  check: "Plus önizlemelerini gör",
+};
 
+/* ---------- 1. Not: iki kapı ---------- */
+
+/** A kapısı: hazır örnek not. Kart çekirdeğe sürüklenir ya da dokunulur; kısa bir tarama oynar ve yol açılır. */
 export const JOURNEY_FILE = {
   name: "Köklü_Sayılar_Ders_Notu.pdf",
-  meta: "Matematik · 6 sayfa · Hoca notu",
-  zoneTitle: "Cortex tarama alanı",
-  zoneHint: "Notunu buraya bırak",
-  scanning: ["Sayfalar okunuyor…", "Formüller ve sınav tuzakları çıkarılıyor…"],
+  /** "Örnek not" yazılı: ziyaretçi bunun hazır bir örnek olduğunu bilir. */
+  meta: "Örnek not · Matematik · 6 sayfa",
+  sampleCta: "Örnek notla başlat",
+  zoneTitle: "Cortex tarama çekirdeği",
+  zoneHint: "Örnek notu ya da kendi dosyanı buraya bırak",
+  scanning: ["Sayfalar taranıyor…", "Formüller ve sınav tuzakları çıkarılıyor…"],
   /** Tarama animasyonunun süresi (ms); hareket azaltmada beklenmez. */
   scanMs: 1200,
 } as const;
 
+/**
+ * B kapısı: misafirin kendi dosyası. Dosya sunucuya GÖNDERİLMEZ: tarayıcıda (sekme oturumu + IndexedDB) bekler,
+ * kayıttan sonra kurulumun materyal adımında "Bu dosyayı ekle" diye sunulur. Tarayıcı saklamaya izin vermezse
+ * kart bunu söyler (verilmeyen söz yok).
+ */
+export const JOURNEY_OWN = {
+  title: "Kendi notun mu var?",
+  hint: "PDF, Word, slayt ya da fotoğrafını bırak; dosyan cihazından çıkmaz.",
+  pick: "Kendi notunu seç",
+  kept: "Dosyan bu cihazda bekliyor; hiçbir yere gönderilmedi. Hesabını açınca kurulumda tek dokunuşla eklenir.",
+  notKept: "Dosyan seçildi ama tarayıcın saklamaya izin vermedi; hesabını açınca aynı dosyayı bir kez daha seçeceksin.",
+  body: `Bu belgeden ilk dersin, akıllı kartların ve konu testin yazılsın. İlk dersin süre sınırı olmadan ücretsiz; ücretsiz hesapta toplam ${FREE_PAGE_TOTAL} sayfa belge işlenir.`,
+  cta: "Ücretsiz hesabımı aç, bu belgeyle başla",
+  playSample: "Önce örnek turu oyna",
+  remove: "Dosyayı kaldır",
+  fine: "Kart istemiyoruz",
+  /** Dosya bekliyorken adım satırı: ekranda artık örnek not ve çekirdek yok, onları anlatan cümle yanıltır. */
+  guide: "Dosyan hazır; hesabını aç ya da önce örnek turu oyna",
+} as const;
+
+/** Onay kartının başlığı: tek dosyada adıyla, birden çok dosyada sayısıyla. */
+export function ownReadyTitle(names: readonly string[]): string {
+  if (names.length === 1) return `“${names[0]}” taramaya hazır!`;
+  return `${names.length} dosya taramaya hazır!`;
+}
+
 /* ---------- 2. Yol haritası ---------- */
 
 export const JOURNEY_ROADMAP = {
-  goals: ["Sınavına 7 gün var", "Günde 30 dk", "Hedef: 95+"],
   days: [
     { day: "1. gün", title: "Köklü ifadelerin tanımı ve çift derece kuralı", ready: true, meta: "Hazır · 5 dk" },
     { day: "2. gün", title: "Sayıyı kök dışına çıkarma ve kök içine alma", ready: false, meta: "" },
@@ -81,56 +125,88 @@ export const JOURNEY_ROADMAP = {
     { day: "4. gün", title: "Eşlenik ve paydayı rasyonel yapma", ready: false, meta: "" },
     { day: "5–7. gün", title: "İç içe kökler, konu testi ve genel tekrar", ready: false, meta: "" },
   ],
-  cta: "1. dersi başlat",
+  cta: "Şimdi 1. dersi aç",
 } as const;
 
-/* ---------- 3. Ders ---------- */
+/** Yol haritasının hedef çipleri: ilk çip seçili sekmenin sınav sözüyle başlar ("Vizene 7 gün var"). */
+export function journeyGoals(examWord: string): string[] {
+  return [`${examWord} 7 gün var`, "Günde 30 dk", "Hedef: 95+"];
+}
+
+/* ---------- 3-6. Ürün ekranları ---------- */
 
 /** Tur bitince (doğru/yanlıştan sonra) görünen sonuç satırı. Ders, soru, kart ve önermelerin kendisi `guest-tour.ts`te. */
 export const JOURNEY_RESULT = {
   doneTitle: "1. ders tamamlandı",
-  cta: "Plus'ta başka neler var?",
+  cta: "Plus önizlemelerini gör",
 } as const;
 
-export type JourneyPlusCard = { id: string; icon: string; title: string; body: string; preview?: { who: string; line: string }[] };
+/* ---------- 7. Plus: canlı önizlemeler ---------- */
 
-/** Hepsi ücretsiz hesapta kapalı, Plus'ta açık olan özellikler (`PLUS_ONLY_ACTIONS` ve sınav sabahı kâğıdı). */
-export const JOURNEY_PLUS_CARDS: JourneyPlusCard[] = [
+export const JOURNEY_PLUS_PREVIEW_IDS = ["podcast", "video", "sheet"] as const;
+export type JourneyPlusPreviewId = (typeof JOURNEY_PLUS_PREVIEW_IDS)[number];
+
+export type JourneyPlusPreview = {
+  id: JourneyPlusPreviewId;
+  icon: string;
+  /** Önizleme seçicideki kısa ad. */
+  tab: string;
+  title: string;
+  body: string;
+  /** Dürüstlük notu: önizlemenin neyin kesiti olduğu. */
+  note: string;
+};
+
+/**
+ * Üçü de ücretsiz hesapta kapalı, Plus'ta açık (`PLUS_ONLY_ACTIONS` ve sınav sabahı kâğıdı). Önizlemeler ürünün
+ * kendi parçalarıyla çizilir (`tour/plus-previews.tsx`): podcast gerçek bir bölümün sesinden kısa bir kesit, video
+ * ürünün çizim tahtası, kâğıt ürünün derleyicisinin turdaki örnek dersten çıkardığı sayfa.
+ */
+export const JOURNEY_PLUS_PREVIEWS: JourneyPlusPreview[] = [
   {
     id: "podcast",
     icon: "🎧",
-    title: "Podcast",
-    body: "Mutlak değer tuzağını iki sesli bir sohbet olarak dinle; konuşulan kelime ekranda işaretlenir.",
-    preview: [
-      { who: "Ada", line: "Kareyle kök birbirini götürür sanıyorsun, değil mi?" },
-      { who: "Kerem", line: "Evet… eksi beşin karesinin kökü eksi beş değil mi?" },
-      { who: "Ada", line: "Çift dereceli kökten negatif sonuç çıkmaz. Cevap beş." },
-    ],
+    tab: "Podcast",
+    title: "İki sesli podcast: Ada ve Kerem",
+    body: "Notun iki kişilik bir sohbete dönüşür; okunan kelime ekranda işaretlenir.",
+    note: "Gerçek bir bölümden kesit (fotosentez ders notu). Senin notundan da böyle bir bölüm yazılır ve seslendirilir.",
   },
   {
     id: "video",
     icon: "🎬",
-    title: "1 dakikalık çizimli video",
-    body: "Kök dışına çıkarmayı dikey ekranda, çizim ve formülle izle.",
+    tab: "Çizimli video",
+    title: "1 dakikalık çizimli video (dikey 9:16)",
+    body: "Kural tahtada adım adım çizilir, alt yazı anlatımla birlikte akar.",
+    note: "Sessiz önizleme: tahta ürünün kendi oynatıcısından. Gerçek videoda anlatım sesi de var.",
   },
   {
-    id: "oral",
-    icon: "🎤",
-    title: "Sözlü deneme",
-    body: "Kuralı kendi cümlelerinle anlat; cevabın soru soru notlansın.",
-  },
-  {
-    id: "exam",
-    icon: "🎯",
-    title: "Yazılı deneme ve sınav sabahı kâğıdı",
-    body: "Çıkmış soruların tarzında ikiz sınav çöz; formüller ve tuzaklar tek sayfada, yazdır ya da PDF kaydet.",
+    id: "sheet",
+    icon: "⚡",
+    tab: "Sınav sabahı kâğıdı",
+    title: "Sınav sabahı kâğıdı ve İkiz Sınav",
+    body: "Formüller ve sınav tuzakları tek sayfada; yazdır ya da PDF kaydet. Çıkmış sorularını yüklersen onların tarzında İkiz Sınav çözersin.",
+    note: "Bu kâğıt turdaki örnek dersten, ürünün kendi derleyicisiyle çıkarıldı.",
   },
 ];
 
+/** Önizlemesi olmayan öbür Plus özellikleri: tek satır. */
+export const JOURNEY_PLUS_ALSO = "Plus'ta ayrıca: sözlü deneme, yazılı deneme, bütün konular ve belgenin tamamı.";
+
+export const JOURNEY_PLUS_PLAY = {
+  podcast: "15 saniyelik kesiti oynat",
+  video: "Sahneyi oynat",
+  pause: "Duraklat",
+  replay: "Baştan oynat",
+  /** Ses yüklenemezse: görsel akış sürer, gerçek bölümün yeri söylenir. */
+  silent: "Ses yüklenemedi; kelimeler sessiz akıyor. Tam bölüm örnek ders sayfasında.",
+} as const;
+
 export const JOURNEY_FINAL = {
-  title: "Köklü sayıların en çok düşülen tuzağını az önce kendi elinle çözdün.",
-  body: "Şimdi ücretsiz hesabını aç; kendi notunu yükle ya da hazır müfredattan başla. İlk dersinin konu anlatımı, kartları, doğru/yanlışı ve konu testi süre sınırı olmadan ücretsiz.",
-  cta: "İlk dersimi ücretsiz başlat",
+  title: "İlk dersinin konu anlatımı, kartları, doğru/yanlışı ve konu testi süre sınırı olmadan ücretsiz.",
+  body: "Ücretsiz hesabını aç; kendi notunu yükle ya da hazır müfredattan başla.",
+  cta: "Şimdi kendi notunla başla",
+  /** Misafir birinci adımda kendi dosyasını bıraktıysa. */
+  ctaWithDocument: "Hesabımı aç, belgemle başla",
   fine: "Kart istemiyoruz",
 } as const;
 
@@ -145,19 +221,16 @@ export function nextJourneyStep(id: JourneyStepId): JourneyStepId | null {
   return JOURNEY_STEP_IDS[journeyStepIndex(id) + 1] ?? null;
 }
 
-/** "Adım 3/7: …" */
-export function journeyGuideLine(id: JourneyStepId): string {
+/** "Adım 3/7: …". Birinci adımda misafirin kendi dosyası bekliyorsa satır onu anlatır. */
+export function journeyGuideLine(id: JourneyStepId, options: { ownDocument?: boolean } = {}): string {
   const step = JOURNEY_STEPS[journeyStepIndex(id)]!;
-  return `Adım ${journeyStepIndex(id) + 1}/${JOURNEY_STEPS.length}: ${step.guide}`;
+  const guide = id === "upload" && options.ownDocument ? JOURNEY_OWN.guide : step.guide;
+  return `Adım ${journeyStepIndex(id) + 1}/${JOURNEY_STEPS.length}: ${guide}`;
 }
 
 /**
- * Turun sonucu: ziyaretçinin gerçekten verdiği cevaplardan. Cevaplanmayan soru sayılmaz; hiç cevap yoksa yüzde
- * yazılmaz (uydurma "%100" gösterilmez).
- */
-/**
  * Sonuç halkası ziyaretçinin gerçek cevaplarından: konu testi sorusu (ilk kilitlenen cevap) ve doğru/yanlış
- * önermeleri. Atlanan adım sayılmaz; hiç cevap yoksa yüzde yazılmaz.
+ * önermeleri. Atlanan adım sayılmaz; hiç cevap yoksa yüzde yazılmaz (uydurma "%100" gösterilmez).
  */
 export function journeyScore(input: { questionCorrect: boolean | null; truth: { right: number; total: number } | null }): {
   correct: number;
@@ -171,6 +244,14 @@ export function journeyScore(input: { questionCorrect: boolean | null; truth: { 
   return { correct, answered, pct: Math.round((correct / answered) * 100), line: `${answered} sorudan ${correct} doğru` };
 }
 
-export function journeySignupHref(segment: AudienceSegmentId): `/kayit?hedef=${AudienceSegmentId}` {
-  return `/kayit?hedef=${segment}`;
+/** Misafirin dosyasıyla kayıt olan öğrenci kayıt bitince buraya gelir; dosya kurulumun materyal adımında bekler. */
+export const GUEST_DOCUMENT_NEXT = "/deneme-sinavlari/olustur";
+
+/**
+ * Kayıt bağlantısı. Misafir kendi dosyasını bıraktıysa (`withDocument`) bağlantı `kaynak=belge` taşır ve kayıt
+ * bitince kuruluma götürür.
+ */
+export function journeySignupHref(segment: AudienceSegmentId, options: { withDocument?: boolean } = {}): string {
+  if (!options.withDocument) return `/kayit?hedef=${segment}`;
+  return `/kayit?hedef=${segment}&kaynak=belge&next=${encodeURIComponent(GUEST_DOCUMENT_NEXT)}`;
 }

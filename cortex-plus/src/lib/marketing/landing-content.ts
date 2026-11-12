@@ -2,7 +2,6 @@ import { FREE_LIMITS, FREE_TIER_SENTENCE } from "@/lib/billing/free-meters";
 import { FREE_PAGE_TOTAL } from "@/lib/billing/free-tier-copy";
 import { allowanceWorkLine } from "@/lib/billing/tier-presentation";
 import { PLAN_ALLOWANCES } from "@/lib/credits/price-table";
-import type { Icon3DName } from "@/components/ui/icon-3d";
 
 /**
  * Ana sayfanın bütün cümleleri (19 Ekim 2026, ürün sahibi: "misafire sistemimizde olmayan bir şey
@@ -15,6 +14,10 @@ import type { Icon3DName } from "@/components/ui/icon-3d";
  *
  * 11 Kasım 2026: ana sayfa üç bölüme inince kanıt şeridi, dört adım, özellik ızgarası, ders sahnesi ve eski güven
  * kartlarının verisi (PROOF, STEPS, FEATURES, LESSON_SCENE, TRUST) silindi; hiçbir ekranda gösterilmiyordu.
+ *
+ * Aynı gece, kokpit: kahramandaki durağan sahne ve film şeridi de kalktı (HERO_SCENE, REEL_FRAMES). Sahnenin
+ * anlattığı yolu tur zaten oynatıyor; şeridin saydığı etkinlikleri kokpit canlı gösteriyor. Aynı özellik sayfada üç
+ * kez anlatılmaz.
  */
 
 export const HERO = {
@@ -24,67 +27,22 @@ export const HERO = {
   secondary: { label: "Önce örnek bir dersi incele", href: "/ornek" },
 } as const;
 
-/**
- * Kahramandaki sahne (11 Kasım 2026, ikinci tur): bir ders notu, logonun şeridiyle çalışma yoluna dönüşür. Duraklar
- * ücretsiz hesapta süre sınırı olmadan açık olan ilk dersin adımlarıdır (`FIRST_LESSON_STEPS` ile aynı sıra); not,
- * turda oynanan örnekle aynı konu. Görsel süs değil: ürünün yaptığı işin resmi. Ekran okuyucu tek cümle duyar.
- */
-export const HERO_SCENE = {
-  label:
-    "Bir ders notu çalışma yoluna dönüşüyor: konu anlatımı, kartlar, doğru/yanlış ve konu testi; yolun sonunda sınava hazırsın.",
-  note: {
-    title: "Köklü Sayılar",
-    lines: ["³√(−8) = −2", "√(a²) = |a|", "√((−5)²) = 5"],
-    /** İkinci satır fosforla işaretli; kenar notu öğrencinin kendi el yazısı. */
-    marked: 1,
-    margin: "← tuzak!",
-  },
-  stops: [
-    { icon: "ders", label: "Konu anlatımı" },
-    { icon: "kartlar", label: "Kartlar" },
-    { icon: "dogru-yanlis", label: "Doğru / Yanlış" },
-    { icon: "konu-testi", label: "Konu testi" },
-  ] satisfies { icon: Icon3DName; label: string }[],
-  goal: "Sınava hazır",
-} as const;
-
 /** Bölüm başlıkları: her bölümde tek başlık, en çok tek cümle. */
 export const HOME_COPY = {
-  proof: { title: "Ölçtük" },
   duel: {
     title: "Aynı not, iki ayrı sonuç",
     lead: "Genel bir yapay zekâ botuna da sorabilirsin. Fark, sınav haftasında ortaya çıkar.",
     us: "Cortex Plus",
     them: "Genel yapay zekâ botları",
+    more: "Tüm farkları gör",
   },
-  reel: {
-    title: "Bir nottan çıkan her şey",
-    lead: "Hepsi aynı nottan yazılır. Etiketsizleri ücretsiz hesapla denersin; devamı Plus'ta.",
-    prev: "Önceki kareler",
-    next: "Sonraki kareler",
+  plans: {
+    title: "Ücretsiz başla, sınav döneminde büyüt",
+    freeBadge: "İlk ders süresiz açık",
+    freeLede: "İlk dersin süre sınırı olmadan ücretsiz.",
+    weekLede: "Sınava bir hafta mı kaldı? Tek ödeme, abonelik açılmaz.",
   },
 } as const;
-
-export type ReelFrame = { id: string; icon: Icon3DName; title: string; body: string; plusOnly?: boolean };
-
-/**
- * Film şeridi: hazırlık yolundaki ve Çalışma Stüdyosu'ndaki gerçek etkinlikler. `plusOnly` olanlar ücretsiz hesapta
- * hiç açılmaz (`PLUS_ONLY_ACTIONS` ve sınav sabahı kâğıdı); bekçi test listeyi kapılarla karşılaştırır.
- */
-export const REEL_FRAMES: ReelFrame[] = [
-  { id: "ders", icon: "ders", title: "Konu anlatımı", body: "Kısa ekranlar, önce dene soruları, formül kartları. Yanlış cevapta doğrusu hemen." },
-  { id: "kartlar", icon: "kartlar", title: "Akıllı kartlar", body: "Zorlandığın kart önce gelir; aralıklı tekrarla unutmazsın." },
-  { id: "dogru-yanlis", icon: "dogru-yanlis", title: "Doğru / Yanlış", body: "Hızlı kontrol; yanlış cümlenin doğrusu yanında." },
-  { id: "konu-testi", icon: "konu-testi", title: "Konu testi", body: "Her şıkkın neden doğru ya da yanlış olduğu ayrı ayrı açıklanır." },
-  { id: "ogretmen", icon: "ogretmen", title: "AI öğretmen", body: "Takıldığın yeri sor; cevap kendi notuna dayanır." },
-  { id: "soru-coz", icon: "denklem", title: "Fotoğraftan soru çözümü", body: "Sorunun fotoğrafını çek ya da yaz; adım adım çözüm gelir." },
-  { id: "duello", icon: "yildiz", title: "Düello ve yıldızlar", body: "Arkadaşının düellosuna katıl, seriyi koru. Kendi düellonu kurmak Plus'ta." },
-  { id: "podcast", icon: "podcast", title: "Podcast", body: "Ada ve Kerem konuyu konuşarak anlatır. Yolda, serviste dinle.", plusOnly: true },
-  { id: "video", icon: "video", title: "Çizimli video", body: "Bir dakikada, çizim ve formülle anlatım.", plusOnly: true },
-  { id: "sozlu", icon: "sozlu", title: "Sözlü deneme", body: "Sesli ya da yazılı cevapla; eksik bıraktığın yeri öğretmen bir kez sorar, sonunda not verir.", plusOnly: true },
-  { id: "yazili", icon: "yazili", title: "Yazılı deneme ve İkiz Sınav", body: "Çoktan seçmeli ve açık uçlu; çıkmış sorularını yüklersen onların tarzında.", plusOnly: true },
-  { id: "sinav-sabahi", icon: "tekrar", title: "Sınav sabahı kâğıdı", body: "Formüller, tuzaklar ve en çok yanıldığın noktalar tek sayfada.", plusOnly: true },
-];
 
 /**
  * Kahramanın altındaki üç gerçek (11 Kasım 2026, "kısa ve net"). Üçü de bugün doğru: kayıt kart istemez, ilk dersin
@@ -107,6 +65,13 @@ export const PLUS_PLAN_POINTS = [
   "Sözlü deneme, yazılı deneme ve ikiz sınav",
   "Sınav sabahı kâğıdı",
   "Belgenin tamamı, sınırsız hazırlık, daha hızlı yazım",
+] as const;
+
+/** Sınav Haftası kartı: haftalık Plus. Plus'taki her şey yedi gün açık; ödeme tek seferlik, yenileme yok. */
+export const WEEK_PLAN_POINTS = [
+  "Plus'taki her şey 7 gün açık",
+  "Tek ödeme; kendiliğinden yenilenmez",
+  "Sınav sabahı kâğıdı ve ikiz sınav dahil",
 ] as const;
 
 /** Karşılaştırmanın altındaki üç güven cümlesi; üçü de bugün doğru. */
@@ -147,7 +112,7 @@ export const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "İçerik yanlış olursa ne oluyor?",
-    a: "Her ders kavram kavram, her test soru soru ikinci bir yapay zekâ tarafından notuna karşı denetleniyor. Düzelmeyen kısım sana gösterilmiyor. Yine de hata görürsen ekrandaki \"Eğitmene yaz\" ya da Destek ile bize ilet; 24 saat içinde dönüyoruz.",
+    a: "Dersi ve testi bir model notundan yazar; ikinci bir kontrol çağrısı soruları kendisi çözer, kod da anahtarı hesapla karşılaştırır ve tutmayan soruyu düzeltir ya da eler. Yine de hata görürsen soruda \"Soruda hata bildir\"e bas ya da Destek ile bize ilet; 24 saat içinde dönüyoruz.",
   },
   {
     q: "Kartım yok, nasıl ödeme yaparım?",

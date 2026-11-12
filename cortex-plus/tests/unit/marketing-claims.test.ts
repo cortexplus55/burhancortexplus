@@ -33,10 +33,11 @@ const SURFACES = [
   "src/components/landing/futuristic-guided-journey.tsx",
   // Turun ürün ekranlarında gösterilen örnek veri de misafire gösterilen sözdür.
   "src/lib/demo/guest-tour.ts",
-  // 11 Kasım 2026, ikinci tur: sahne, karşılaştırma düellosu ve film şeridi.
-  "src/components/landing/hero-scene.tsx",
+  // 11 Kasım 2026, kokpit: karşılaştırma düellosu, Plus önizlemeleri ve misafirin dosya kartları.
   "src/components/landing/landing-duel.tsx",
-  "src/components/landing/feature-reel.tsx",
+  "src/components/landing/tour/plus-previews.tsx",
+  "src/components/parity/guest-document-offer.tsx",
+  "src/lib/documents/guest-handoff.ts",
   "src/components/parity/first-step-launcher.tsx",
   "src/lib/student/first-step.ts",
   "src/lib/marketing/advantage-content.ts",

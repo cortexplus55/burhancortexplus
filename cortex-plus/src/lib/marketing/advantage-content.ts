@@ -159,6 +159,53 @@ export const BLIND_EXPERIMENT_PROOF = {
     "İç deney, 30 Ekim 2026: öğrenci yapay zekâ ile canlandırıldı, yalnız Cortex Plus derslerinden tuttuğu defterle bağımsız yazılmış 20 soruluk sınava girdi. Tek konu, tek deney.",
 } as const;
 
+/**
+ * "Aynı not, iki ayrı sonuç" kartı (11 Kasım 2026, kokpit). Ana sayfadaki kör deney kartının yerini aldı: gerçek
+ * öğrenci "yapay zekâyla canlandırılan öğrenci" sözünü güven kırıcı buluyordu (kör deney kartı Özellikler
+ * sayfasında duruyor). Kart aynı ders notunun iki ayrı yerde nasıl işlendiğini somut gösterir.
+ *
+ * Cortex sütunundaki her satırın kodda kanıtı var (`evidence`). "Çift kontrol" bugün gerçekten çalışan iki şeydir:
+ * yazar modelden sonraki hafif doğrulayıcı çağrısı (ders ve test) ve kodun anahtar denetimi. Kaynakta olmayan
+ * "denetçi model her şeyi baştan okur" ya da "sembolik çözücü" gibi sözler yazılmaz. Öbür sütun fark tablosundaki
+ * satırların (ürün sahibinin karşılaştırma notları) yumuşatılmış hâlidir; kesinlik bildirmez, rakip adı taşımaz.
+ */
+export const SAME_NOTE_CASE = {
+  input: {
+    label: "Aynı ders notu",
+    file: "Köklü_Sayılar_Ders_Notu.pdf",
+    lines: ["Hoca uyarısı: “√(x²) sorusunda x'in işaretine dikkat edin.”", "3. sayfada şekil ve tablo"],
+  },
+  others: {
+    points: [
+      "Notu sıradan metin gibi okur; hocanın uyarısını ayrı bir kural olarak tutmaz.",
+      "Sayfadaki şekil ve tablo değerlerini göremeyebilir.",
+      "Sorduğunda yalnız cevabı gösterip geçer.",
+      "Soruları sabit 4 şıkla (A–D) üretir.",
+    ],
+  },
+  cortex: {
+    badge: "Çift kontrollü yazım",
+    points: [
+      {
+        text: "Bir model dersi ve soruyu notundan yazar; ikinci bir kontrol çağrısı soruyu kendisi çözer, kod da anahtarı hesapla karşılaştırır.",
+        evidence: ["src/lib/learning/lesson-sanity.ts", "src/lib/learning/quiz-sanity.ts", "src/lib/learning/question-integrity.ts"],
+      },
+      {
+        text: "Hocanın nota yazdığı özel kural ve değer derste de testte de esas alınır.",
+        evidence: ["src/lib/learning/source-rules.ts", "src/lib/learning/teaching-rubric.ts (SOURCE_NUMBER_PRIORITY)"],
+      },
+      {
+        text: "Şekilli sayfa “Belgedeki Şema” kartıyla dersin içine gelir.",
+        evidence: ["src/lib/learning/figure-pages.ts"],
+      },
+      {
+        text: "Lise, YKS, KPSS ve vizede 5 şık (A–E), LGS'de 4 şık (A–D).",
+        evidence: ["src/lib/learning/student-pedagogy.ts (resolveOptionCount)"],
+      },
+    ],
+  },
+} as const;
+
 export const PRICING_ADVANTAGE = {
   title: "💡 Neden Plus Paketi Özel Ders ve Yabancı Uygulamalardan Çok Daha Avantajlı?",
   items: [
@@ -180,6 +227,11 @@ export function allAdvantageCopy(): string {
     ADVANTAGE_BADGES_TITLE,
     ...ADVANTAGE_BADGES.map((b) => b.label),
     ...Object.values(BLIND_EXPERIMENT_PROOF).flatMap((v) => (typeof v === "string" ? [v] : Object.values(v))),
+    SAME_NOTE_CASE.input.label,
+    ...SAME_NOTE_CASE.input.lines,
+    ...SAME_NOTE_CASE.others.points,
+    SAME_NOTE_CASE.cortex.badge,
+    ...SAME_NOTE_CASE.cortex.points.map((point) => point.text),
     PRICING_ADVANTAGE.title,
     ...PRICING_ADVANTAGE.items.flatMap((i) => [i.title, i.body]),
   ].join("\n");

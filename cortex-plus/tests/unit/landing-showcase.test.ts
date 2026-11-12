@@ -66,4 +66,17 @@ describe("kahraman ve tur aynı sekme durumunu paylaşır", () => {
     // Sayfa önbellekten gelmeye devam eder (O12): sunucu searchParams okumaz.
     expect(read("src/app/page.tsx")).not.toContain("searchParams");
   });
+
+  // 11 Kasım 2026, kokpit: örnek not tek, bağlam sekmeye göre. Dört profil de turun kendi sınavı için geçerli
+  // olduğunu okur; cümleler üründe bugün çalışan şeyleri söyler.
+  it("her sekmenin turda bir bağlam cümlesi ve sınav sözü var", () => {
+    for (const segment of AUDIENCE_SEGMENTS) {
+      expect(segment.tourContext, segment.id).toMatch(/^Örnek not matematik; /);
+      expect(segment.examWord, segment.id).toMatch(/^(Yazılına|Sınavına|Vizene)$/);
+      expect(segment.tourContext).not.toMatch(/podcast|video|sözlü|yazılı deneme|ikiz sınav|sınav sabahı/i);
+    }
+    expect(audienceSegment("akademik").tab).toBe("⚖️ KPSS · TUS · DUS · ALES");
+    expect(audienceSegment("akademik").tourContext).toContain("hazır müfredattan");
+    expect(audienceSegment("universite").tourContext).toContain("vize");
+  });
 });

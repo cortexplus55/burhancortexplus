@@ -15,6 +15,13 @@
       "port": 3005,
       "cwd": "cortex-plus",
       "env": { "E2E_FIXTURE": "1" }
+    },
+    {
+      "name": "cortex-plus-uretim",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["next", "start", "-p", "3010"],
+      "port": 3010,
+      "cwd": "cortex-plus"
     }
   ]
 }

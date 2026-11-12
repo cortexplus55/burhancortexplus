@@ -369,37 +369,64 @@
   cursor: pointer;
 }
 
-/* Çerez bandı: sayfayı kilitlemez, altta durur; üç düğme eşit */
+/*
+  Çerez bandı: sayfayı kilitlemez, altta durur; üç düğme eşit.
+
+  11 Kasım 2026 (canlı denetim: sol alttaki yüksek kutu içeriğin üstünü kapatıyordu): bant ince bir alt şerit.
+  Masaüstünde tek satır (metin solda, üç düğme sağda); telefonda kısa metin ve altında üç eşit düğme. Düğmeler
+  yine 44 px ve aynı boyutta (Kurul rehberi); metin tek cümle, politika bağlantısıyla.
+*/
 .cp-cookie-bar {
   position: fixed;
   z-index: 70;
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 0.875rem 1rem calc(0.875rem + env(safe-area-inset-bottom, 0px));
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.45rem;
+  padding: 0.55rem 0.75rem calc(0.55rem + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--c-border-strong);
   background: var(--c-surface-1);
   color: var(--c-text);
   font-family: var(--font-ui, system-ui, sans-serif);
-  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.3);
 }
 
 @media (min-width: 768px) {
   .cp-cookie-bar {
-    left: 1rem;
-    right: auto;
-    bottom: 1rem;
-    width: min(26rem, calc(100vw - 2rem));
-    padding: 1rem;
-    border: 1px solid var(--c-border-strong);
-    border-radius: 1rem;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.45rem 1.25rem calc(0.45rem + env(safe-area-inset-bottom, 0px));
   }
 }
 
-.cp-cookie-title {
-  margin: 0 0 0.25rem;
-  font-size: 0.9375rem;
-  font-weight: 600;
+.cp-cookie-bar .cp-cookie-text {
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.cp-cookie-bar .cp-cookie-actions {
+  margin-top: 0;
+  gap: 0.4rem;
+}
+
+@media (min-width: 768px) {
+  .cp-cookie-bar .cp-cookie-actions {
+    grid-template-columns: repeat(3, minmax(6.75rem, 1fr));
+  }
+}
+
+/* Bant açıkken pazarlama sayfasının sonu (altbilgi) şeridin arkasında kalmasın. */
+body:has([data-cookie-banner]) .cinematic-marketing {
+  padding-bottom: 7rem;
+}
+
+@media (min-width: 768px) {
+  body:has([data-cookie-banner]) .cinematic-marketing {
+    padding-bottom: 4rem;
+  }
 }
 
 .cp-cookie-text {

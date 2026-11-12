@@ -7,10 +7,10 @@ import path from "node:path";
   VITRIN_SHOTS_DIR verilirse / ve /fiyatlandirma tam sayfa görüntüsü oraya kaydedilir.
 */
 
-// 11 Kasım 2026: ana sayfada tur, karşılaştırma düellosu (kör deney kartıyla), film şeridi ve plan ikilisi;
-// kanıt kartı ve tablo hâli /ozellikler'de de duruyor.
+// 11 Kasım 2026, kokpit: ana sayfada kahramanın içinde tur, "aynı not" kartıyla karşılaştırma ve üç plan kartı;
+// kör deney kartı ve tablo hâli /ozellikler'de duruyor.
 const PAGES: { path: string; testIds?: string[]; selectors?: string[] }[] = [
-  { path: "/", testIds: ["blind-proof", "advantage-comparison"], selectors: ["section.lj", ".hs", ".hm-film", "#planlar"] },
+  { path: "/", testIds: ["same-note-case", "advantage-comparison"], selectors: ["section.lj", ".lj-console", "#planlar"] },
   { path: "/fiyatlandirma", testIds: ["pricing-advantage"] },
   { path: "/ozellikler", testIds: ["advantage-showcase", "blind-proof", "advantage-badges", "advantage-comparison"] },
   { path: "/ornek", testIds: ["advantage-compact"] },
