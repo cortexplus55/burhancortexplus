@@ -321,6 +321,21 @@ describe("kurgu: tur ürünün kendi ekranlarını çalıştırır", () => {
     expect(read("src/components/landing/tour/product-screens.tsx")).toContain('import "@/styles/parity-shell.css";');
     expect(read("src/components/landing/tour/plus-previews.tsx")).toContain('import "@/styles/parity-shell.css";');
   });
+
+  it("parçalar geçişin içinde istenir: stil dosyaları inerken tıklamalar donmaz, ekran stilsiz açılmaz", () => {
+    // 12 Kasım 2026, önizleme yayınında ölçüldü: import() olağan bir olayın içinde çağrılınca Next'in kökteki stil
+    // bileşeni acil güncellemelerle aynı kümeye giriyor, stil dosyaları inene kadar hiçbir tıklama ekrana
+    // yansımıyordu (sekme 1,8 sn). Davranışın kendisini e2e sınar (donusum.spec.ts); burada kalıp tutulur.
+    const journey = withoutComments(read("src/components/landing/futuristic-guided-journey.tsx")).replace(/\s+/g, " ");
+    for (const chunk of ["product-screens", "plus-previews"]) {
+      expect(journey).toContain(`startTransition(() => { void import("@/components/landing/tour/${chunk}")`);
+    }
+    // Hazır ekran da geçişle yazılır: stil dosyalarıyla aynı kümede işlenir.
+    expect(journey).toContain('startTransition(() => setScreens({ status: "ready", View: module.TourProductScreen }))');
+    expect(journey).toContain('startTransition(() => setPreviews({ status: "ready", View: module.TourPlusPreview }))');
+    // Parça dışında, geçişsiz bir import() kalmadı.
+    expect(journey.match(/import\("/g)).toHaveLength(2);
+  });
 });
 
 describe("ürün ekranları örnek veriyle, istek atmadan çalışır", () => {

@@ -159,6 +159,48 @@ test.describe("dönüşüm paketi", { tag: ["@public"] }, () => {
     await expect(page.getByRole("link", { name: /Şimdi kendi notunla başla/ })).toHaveAttribute("href", "/kayit?hedef=akademik");
   });
 
+  // 12 Kasım 2026, önizleme yayınında ölçüldü: ürün ekranlarının parçası istenince, stil dosyaları inene kadar
+  // sayfadaki hiçbir tıklama ekrana yansımıyordu (sekme 1,8 sn sonra değişiyor, tarama animasyonu hiç görünmeden yol
+  // haritası açılıyordu). Burada stil dosyaları test bırakana kadar bekletilir: tıklamalar yine hemen işlenmeli,
+  // ürün ekranı ise stili gelmeden (stilsiz) açılmamalı.
+  test("ürün ekranlarının stil dosyaları inerken tıklamalar bekletilmez, ekran stilsiz açılmaz", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await page.goto("/?hedef=lise");
+    // Hidrasyon bitene kadar dene: sekme tıklaması yansıyınca sayfa hazırdır. Fare kokpite girmez.
+    await expect(async () => {
+      await page.getByRole("tab", { name: /YKS/ }).click();
+      await expect(page.getByRole("tab", { name: /YKS/ })).toHaveAttribute("aria-selected", "true", { timeout: 1500 });
+    }).toPass({ timeout: 20_000 });
+
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let held = 0;
+    await page.route(/\/_next\/static\/.*\.css(\?|$)/, async (route) => {
+      held += 1;
+      await gate;
+      await route.continue().catch(() => undefined);
+    });
+
+    // Fare kokpite girer: ürün ekranlarının parçası (ve stil dosyaları) istenir.
+    await page.locator(".lj-console-head").hover();
+    await expect.poll(() => held, { timeout: 30_000 }).toBeGreaterThan(0);
+
+    // Stil dosyaları hâlâ yolda. Sekme değişir, tarama biter ve yol haritası açılır.
+    await page.getByRole("tab", { name: /Üniversite/ }).click();
+    await expect(page.getByRole("tab", { name: /Üniversite/ })).toHaveAttribute("aria-selected", "true");
+    await page.locator("button.lj-zone").click();
+    await expect(page.getByRole("button", { name: "Şimdi 1. dersi aç" })).toBeVisible();
+
+    // Derse geçilir: stil gelene kadar yükleniyor satırı durur, ürün ekranı çizilmez.
+    await page.getByRole("button", { name: "Şimdi 1. dersi aç" }).click();
+    await expect(page.locator(".lj-product .tp-loading")).toBeVisible();
+    await expect(page.locator(".tp-app .als")).toHaveCount(0);
+    release();
+    await expect(page.locator(".tp-app .als")).toBeVisible({ timeout: 30_000 });
+  });
+
   test("ana sayfa dört bölüm: kokpit ilk ekranda, kör deney kartı ve film şeridi yok, sayfa kısaldı", async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 768 });
     await page.goto("/");

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState, type ComponentType, type DragEvent } from "react";
+import { startTransition, useCallback, useEffect, useRef, useState, type ComponentType, type DragEvent } from "react";
 import { ArrowRight, Check, FileText, Lock, Upload } from "lucide-react";
 import { CortexMark } from "@/components/brand/cortex-mark";
 import type { TourPlusPreviewProps } from "@/components/landing/tour/plus-previews";
@@ -78,7 +78,8 @@ type Lazy<Props> = { status: "idle" | "loading" | "failed" } | { status: "ready"
  *
  * Ürün ekranları ve önizlemeler ayrı parçalardır ve ilk yükte yoktur: ziyaretçi kokpite dokununca (ya da adıma
  * gelince) yüklenir; uygulamanın stil dosyası büyük. Yükleme düz `import()` ile yapılır; Suspense sınırı yok (bu
- * projede sayfayı boşaltıyor). Tur model çağırmaz, sunucuya istek atmaz. Hareket yalnız CSS'te ve
+ * projede sayfayı boşaltıyor). `import()` bir geçişin içinde çağrılır: stil dosyaları inerken tıklamalar donmasın
+ * (aşağıdaki `loadScreens` notu). Tur model çağırmaz, sunucuya istek atmaz. Hareket yalnız CSS'te ve
  * `prefers-reduced-motion`da durur; tarama beklemesi de o zaman atlanır.
  */
 export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegmentId }) {
@@ -113,28 +114,41 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
   /** Doğru/yanlış bitti: çerçevenin yerinde sonuç durur. */
   const showResult = step === "check" && truth !== null;
 
+  /*
+    Parçalar bir geçişin (transition) içinde istenir; bu bir süs değil, tıklamaların donmaması için şart.
+    Next, sonradan yüklenen parçanın stil dosyalarını kökteki bir bileşenle çizer ve React bu dosyalar inene kadar
+    o güncellemeyi ekrana işlemez. `import()` olağan bir olayın içinde çağrılırsa o bekleyiş acil güncellemelerle
+    aynı kümeye girer: stil dosyaları inene kadar (soğuk bağlantıda 1-2 sn) sayfadaki HİÇBİR tıklama ekrana
+    yansımaz; sekme değişmez, tarama başlamaz (12 Kasım 2026, önizleme yayınında ölçüldü: tıklama → ekran 1,8 sn).
+    Geçişin içinde çağrılınca bekleyiş geçiş şeridinde kalır, tıklamalar anında işlenir. Hazır ekran da geçişle
+    yazılır: stil dosyalarıyla aynı kümede işlenir, ekran stilsiz görünmez.
+  */
   const loadScreens = useCallback(() => {
     if (loadingScreens.current) return;
     loadingScreens.current = true;
     setScreens((current) => (current.status === "ready" ? current : { status: "loading" }));
-    import("@/components/landing/tour/product-screens")
-      .then((module) => setScreens({ status: "ready", View: module.TourProductScreen }))
-      .catch(() => {
-        loadingScreens.current = false;
-        setScreens({ status: "failed" });
-      });
+    startTransition(() => {
+      void import("@/components/landing/tour/product-screens")
+        .then((module) => startTransition(() => setScreens({ status: "ready", View: module.TourProductScreen })))
+        .catch(() => {
+          loadingScreens.current = false;
+          setScreens({ status: "failed" });
+        });
+    });
   }, []);
 
   const loadPreviews = useCallback(() => {
     if (loadingPreviews.current) return;
     loadingPreviews.current = true;
     setPreviews((current) => (current.status === "ready" ? current : { status: "loading" }));
-    import("@/components/landing/tour/plus-previews")
-      .then((module) => setPreviews({ status: "ready", View: module.TourPlusPreview }))
-      .catch(() => {
-        loadingPreviews.current = false;
-        setPreviews({ status: "failed" });
-      });
+    startTransition(() => {
+      void import("@/components/landing/tour/plus-previews")
+        .then((module) => startTransition(() => setPreviews({ status: "ready", View: module.TourPlusPreview })))
+        .catch(() => {
+          loadingPreviews.current = false;
+          setPreviews({ status: "failed" });
+        });
+    });
   }, []);
 
   const go = useCallback((next: JourneyStepId) => {
