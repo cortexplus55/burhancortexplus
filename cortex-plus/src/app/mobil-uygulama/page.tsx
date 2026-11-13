@@ -1,6 +1,9 @@
 import { Flame, Camera, Wallet, Smartphone } from "lucide-react";
 import { MarketingCta, MarketingPage } from "@/components/layout/marketing-page";
 import { InstallApp } from "@/components/pwa/install-app";
+import { PageShell } from "@/components/parity/page-shell";
+import { ParitySorShell } from "@/components/parity/sor-shell";
+import { loadOptionalStudentShell } from "@/lib/student/optional-shell";
 
 export const metadata = {
   title: "Telefondan Cortex",
@@ -31,12 +34,35 @@ const perks = [
  * simgesi). Android/Chrome'da "Uygulamayı kur" tarayıcının kurulum penceresini açar; iOS'ta Safari'nin
  * "Ana Ekrana Ekle" adımları gösterilir. Bildirim ve çevrimdışı çalışma sözü verilmez.
  */
-export default function MobilUygulamaPage() {
+const TITLE = "📲 Tek Tıkla Telefonuna Uygulama Olarak Kur (iOS & Android)";
+const DESCRIPTION = "Ders, podcast, test ve AI öğretmen telefonunun ana ekranında — mağazadan indirmeye gerek yok.";
+
+/**
+ * 13 Kasım 2026 (Faz 2): oturum açık öğrenci aynı içeriği uygulama kabuğunda görür; misafir bugünkü pazarlama
+ * sayfasını. Misafirin kayıt çağrısı (MarketingCta) uygulama kabuğunda yok: öğrenci zaten içeride.
+ */
+export default async function MobilUygulamaPage() {
+  const shell = await loadOptionalStudentShell();
+  if (shell) {
+    return (
+      <ParitySorShell {...shell}>
+        <PageShell width="read" title={TITLE} lead={DESCRIPTION} className="cx-mk-body">
+          <MobilContent />
+        </PageShell>
+      </ParitySorShell>
+    );
+  }
   return (
-    <MarketingPage
-      title="📲 Tek Tıkla Telefonuna Uygulama Olarak Kur (iOS & Android)"
-      description="Ders, podcast, test ve AI öğretmen telefonunun ana ekranında — mağazadan indirmeye gerek yok."
-    >
+    <MarketingPage title={TITLE} description={DESCRIPTION}>
+      <MobilContent />
+      <MarketingCta />
+    </MarketingPage>
+  );
+}
+
+function MobilContent() {
+  return (
+    <>
       <div className="mk-card flex flex-col gap-5 p-6 sm:p-8">
         <div className="flex items-start gap-4">
           <span className="mk-icon shrink-0" aria-hidden>
@@ -65,8 +91,6 @@ export default function MobilUygulamaPage() {
           </article>
         ))}
       </div>
-
-      <MarketingCta />
-    </MarketingPage>
+    </>
   );
 }

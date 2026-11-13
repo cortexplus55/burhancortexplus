@@ -23,26 +23,119 @@
   flex-shrink: 0;
 }
 
-/* 2. Logo: 24 px işaret, yanında yazı; zemin, kutu, rozet yok. */
+/* 2. Logo (13 Kasım 2026, tasarım tahtası): depodaki logo dosyası düz <img>, 76×49 (telefonda 56×36). Üstüne iki
+   maskeli katman biner (maske logonun kendi şeffaflığı; dosya değişmez): parıltı 5,6 sn'de bir geçer, renk akışı 8 sn
+   kesintisiz ve yarı saydam. Arkasında closest-side yumuşak ışık; parlama yok. Hareket azaltmada ikisi de durur. */
 .cx-home-logo {
   justify-self: start;
   display: inline-flex;
   align-items: center;
-  gap: var(--cx-space-8);
+  gap: var(--cx-space-14);
   min-height: var(--cx-tap-min);
   color: var(--cx-text-reading);
   text-decoration: none;
 }
-.cx-home-logo-mark {
-  height: var(--cx-logo-h);
-  width: auto;
+.cx-home-logo .lg {
+  position: relative;
   display: block;
+  flex: none;
+  isolation: isolate;
+  width: 76px;
+  height: 49px;
+}
+.cx-home-logo .lg .gl {
+  position: absolute;
+  inset: -12px -14px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, #e879f933, transparent);
+  z-index: -1;
+}
+.cx-home-logo .lg img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.cx-home-logo .lg .sh,
+.cx-home-logo .lg .fl {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  -webkit-mask: url(/logo-mark-trim.png) center / contain no-repeat;
+  mask: url(/logo-mark-trim.png) center / contain no-repeat;
+}
+.cx-home-logo .lg .sh {
+  background: linear-gradient(105deg, #fff0 38%, #ffffffd9 50%, #fff0 62%) 130% 0 / 200% 100% no-repeat;
+  animation: lgsweep 5.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+.cx-home-logo .lg .fl {
+  background: linear-gradient(
+      100deg,
+      #ff9a3c 0%,
+      #e64fd0 16.6%,
+      #2ec5ff 33.3%,
+      #ff9a3c 50%,
+      #e64fd0 66.6%,
+      #2ec5ff 83.3%,
+      #ff9a3c 100%
+    )
+    0 0 / 200% 100% repeat-x;
+  mix-blend-mode: color;
+  opacity: 0.5;
+  animation: lgflow 8s linear infinite;
+}
+@keyframes lgsweep {
+  0%,
+  20% {
+    background-position: 130% 0;
+  }
+  66%,
+  100% {
+    background-position: -30% 0;
+  }
+}
+@keyframes lgflow {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 100% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cx-home-logo .lg .sh,
+  .cx-home-logo .lg .fl {
+    animation: none;
+  }
 }
 .cx-home-logo-word {
-  font: 600 1.25rem / 1 var(--cx-font-sans);
+  font: 600 1.3125rem / 1 var(--cx-font-sans);
   letter-spacing: var(--cx-ls-heading);
-  color: var(--cx-text-reading);
+  color: var(--cx-text-primary);
   white-space: nowrap;
+}
+.dark .cx-home-logo-word {
+  color: #fff;
+}
+.cx-home-logo-word .gp {
+  background: linear-gradient(90deg, #e879f9, #fb923c);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+@media (max-width: 767px) {
+  .cx-home-logo {
+    gap: var(--cx-space-12);
+  }
+  .cx-home-logo .lg {
+    width: 56px;
+    height: 36px;
+  }
+  .cx-home-logo .lg .gl {
+    inset: -10px -14px;
+  }
+  .cx-home-logo-word {
+    font-size: 1.0625rem;
+  }
 }
 
 .cx-home-nav {
@@ -102,13 +195,11 @@
 .cx-home-more:hover {
   color: var(--cx-text-primary);
 }
-/* "Daha fazla" panelinin sayfalarında etkin: sekmelerdeki gibi beyaz yazı + cam hap (13 Kasım 2026). */
-.cx-home-more.is-active,
-.cx-home-more--phone.is-active {
+/* Kütüphane'nin sayfalarında etkin: sekmelerdeki gibi beyaz yazı + cam hap (13 Kasım 2026). */
+.cx-home-more.is-active {
   color: var(--cx-text-primary);
   background: var(--cx-glass-background);
 }
-.cx-home-more--phone,
 .cx-home-buy-short {
   display: none;
 }
@@ -169,26 +260,12 @@
   width: var(--cx-space-16);
   height: var(--cx-space-16);
 }
-.cx-home-avatar {
-  display: inline-grid;
-  place-items: center;
-  width: var(--cx-icon-btn-l);
-  height: var(--cx-icon-btn-l);
-  border-radius: var(--cx-radius-max);
-  background: var(--cx-bg-2);
-  color: var(--cx-text-primary);
-  font: var(--cx-t-title-s);
-  text-decoration: none;
-  transition: scale var(--cx-dur-scale) var(--cx-ease-out);
-}
 .cx-home-start:hover,
 .cx-home-streak:hover,
 .cx-home-buy:hover,
-.cx-home-avatar:hover,
 .cx-home-start:focus-visible,
 .cx-home-streak:focus-visible,
-.cx-home-buy:focus-visible,
-.cx-home-avatar:focus-visible {
+.cx-home-buy:focus-visible {
   scale: var(--cx-scale-hover);
 }
 
@@ -200,13 +277,33 @@
     justify-content: center;
   }
   .cx-home-tab span,
-  .cx-home-more-label {
-    /* Tablette sekme yazısı gizli, simge kalır; ad ekran okuyucuda. */
+  .cx-home-more-label,
+  .cx-home-actions .cx-capsule-text {
+    /* Tablette sekme yazısı ve kapsülün adı gizli; simge ve halka kalır. Ad ekran okuyucuda (kapsülde aria-label). */
     position: absolute;
     width: 1px;
     height: 1px;
     overflow: hidden;
     clip: rect(0 0 0 0);
+  }
+  .cx-home-actions .cx-capsule {
+    padding: 6px;
+  }
+  /* Faz 2 (13 Kasım 2026): sağ taraf (Başla, seri, Plus, kapsül) eşit yan sütuna sığmıyordu; yan sütunlar içerik
+     kadar, sekmeler kalan boşluğun ortasında. Plus hapı kısa adıyla, seri koruma rozeti telefondaki gibi gizli. */
+  .cx-home-top {
+    grid-template-columns: auto 1fr auto;
+    column-gap: var(--cx-space-12);
+  }
+  .cx-home-actions {
+    gap: var(--cx-space-6);
+  }
+  .cx-home-buy-full,
+  .cx-home-streak .cp-streak-freeze {
+    display: none;
+  }
+  .cx-home-buy-short {
+    display: inline;
   }
 }
 
@@ -217,18 +314,11 @@
     height: auto;
     padding: var(--cx-space-16);
   }
+  /* Telefonda sekmeler, Kütüphane ve profil alt çubukta (Faz 2); üstte logo, seri ve kısa Plus hapı. */
   .cx-home-nav,
   .cx-home-start,
-  .cx-home-avatar {
+  .cx-home-actions .cx-capsule {
     display: none;
-  }
-  .cx-home-more--phone {
-    display: inline-grid;
-    place-items: center;
-    width: var(--cx-tap-min);
-    height: var(--cx-tap-min);
-    padding: 0;
-    background: var(--cx-bg-1);
   }
   .cx-home-streak,
   .cx-home-buy {
@@ -282,13 +372,16 @@
   }
 }
 
-/* ---------- Telefon alt çubuğu (<768 px) [varsayım]: bg-1 hap tepsi, 4 sekme, öğe en az 48 px ---------- */
+/* ---------- Telefon alt çubuğu (<768 px, tasarım tahtası "Telefon", 13 Kasım 2026): bg-1 hap tepsi, 64 px,
+   beş öğe (Ana Sayfa, Sınavlar, Stüdyo, Kütüphane, Profil), öğe 56 px, etkin öğe cam ---------- */
 @media (max-width: 767px) {
   .cp-sor-root .cp-sor-bottomnav {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: var(--cx-space-2);
     margin: 0 var(--cx-space-16) calc(var(--cx-space-8) + env(safe-area-inset-bottom, 0px));
     bottom: calc(var(--cx-space-8) + env(safe-area-inset-bottom, 0px));
+    min-height: 64px;
+    box-sizing: border-box;
     padding: var(--cx-space-4);
     border: 0;
     border-radius: var(--cx-radius-max);
@@ -299,12 +392,21 @@
   }
   .cp-sor-root .cp-sor-bottomnav-link {
     gap: var(--cx-space-2);
-    min-height: var(--cx-space-48);
+    min-width: 0;
+    min-height: 56px;
+    border: 0;
     border-radius: var(--cx-radius-max);
     color: var(--cx-text-secondary);
     background: transparent;
-    font: 600 0.75rem / 1.25 var(--cx-font-sans);
+    font: 600 0.6875rem / 1.2 var(--cx-font-sans);
+    cursor: pointer;
     transition: color var(--cx-dur-color) ease;
+  }
+  .cp-sor-root .cp-sor-bottomnav-link > span:last-child {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .cp-sor-root .cp-sor-bottomnav-link--active {
     color: var(--cx-text-primary);
@@ -532,4 +634,141 @@
   height: 0.7em;
   color: var(--cx-text-tertiary);
   flex-shrink: 0;
+}
+
+/* ---------- Kütüphane (13 Kasım 2026, Faz 2; eski "Daha fazla"): ortalanmış 480 px diyalog, satır 60 px ---------- */
+.cx-lib-backdrop {
+  background: var(--cx-dim);
+}
+.cx-lib-panel {
+  width: 100%;
+  max-width: 480px;
+  max-height: calc(100dvh - 32px);
+  box-sizing: border-box;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cx-space-14);
+  padding: var(--cx-space-24);
+  border-radius: var(--cx-radius-xl);
+  background: var(--cx-bg-1);
+  color: var(--cx-text-primary);
+}
+.cx-lib-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cx-space-12);
+}
+.cx-lib-title {
+  margin: 0;
+  font: var(--cx-t-title-l);
+  letter-spacing: var(--cx-ls-heading);
+}
+.cx-lib-close {
+  width: var(--cx-icon-btn-l);
+  height: var(--cx-icon-btn-l);
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  color: var(--cx-text-primary);
+  cursor: pointer;
+}
+.cx-lib-close svg {
+  width: var(--cx-space-18);
+  height: var(--cx-space-18);
+}
+.cx-lib-list {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--cx-radius-l);
+  background: var(--cx-bg-2);
+  overflow: hidden;
+}
+.cx-lib-row {
+  display: flex;
+  align-items: center;
+  gap: var(--cx-space-14);
+  min-height: 60px;
+  box-sizing: border-box;
+  padding: var(--cx-space-16) var(--cx-space-20);
+  font: 500 0.9375rem / 1.25 var(--cx-font-sans);
+  color: var(--cx-text-primary);
+  text-decoration: none;
+  transition: background var(--cx-dur-color) ease;
+}
+.cx-lib-row + .cx-lib-row {
+  box-shadow: inset 0 1px 0 #ffffff0a;
+}
+.cx-lib-row:hover,
+.cx-lib-row.is-current {
+  background: var(--cx-bg-3);
+}
+.cx-lib-row-icon {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  color: var(--cx-text-secondary);
+}
+.cx-lib-row-label {
+  flex: 1;
+  min-width: 0;
+}
+.cx-lib-row-go {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  color: var(--cx-text-tertiary);
+}
+.cx-lib-recent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cx-space-4);
+}
+.cx-lib-recent-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cx-space-12);
+  min-height: var(--cx-tap-min);
+  padding: 0 var(--cx-space-20);
+  border-radius: var(--cx-radius-m);
+  font: 400 0.875rem / 1.3 var(--cx-font-sans);
+  color: var(--cx-text-secondary);
+  text-decoration: none;
+  transition: background var(--cx-dur-color) ease, color var(--cx-dur-color) ease;
+}
+.cx-lib-recent-item span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cx-lib-recent-item em {
+  flex: none;
+  font: 500 0.6875rem / 1 var(--cx-font-mono);
+  font-style: normal;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cx-text-tertiary);
+}
+.cx-lib-recent-item:hover {
+  background: var(--cx-bg-2);
+  color: var(--cx-text-primary);
+}
+.cx-lib-empty {
+  margin: 0;
+  padding: 0 var(--cx-space-20);
+  font: 400 0.875rem / 1.4 var(--cx-font-sans);
+  color: var(--cx-text-tertiary);
+}
+.cx-lib-panel :focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}
+:root:not(.dark) .cx-lib-row + .cx-lib-row {
+  box-shadow: inset 0 1px 0 #0000000d;
 }

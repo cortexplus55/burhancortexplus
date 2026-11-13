@@ -1,0 +1,566 @@
+/*
+  Profil kimliği (13 Kasım 2026, ürün sahibinin tasarım tahtası: "Profil kapsülü", "Profil yan paneli", "Telefon").
+  Ölçü, renk ve hareket tahtadan; zemin tonları depodaki --cx-bg-*'tan. Plan renk dışında da okunur: halka + köşe
+  işareti + etiket. Sigma tonları yalnız plan kimliğinde kullanılır; hata kırmızısı (--cx-danger) ayrıdır.
+*/
+:root {
+  /* Plan tonları (tahta) */
+  --cx-plan-free-ring: #3a332d;
+  --cx-plan-plus-ring: conic-gradient(from 200deg, #fde68a, #f59e0b, #b45309, #f59e0b, #fde68a);
+  --cx-plan-sigma-ring: conic-gradient(from 20deg, #fca5a5, #f43f5e, #dc2626, #7f1d1d, #f43f5e, #fca5a5);
+  --cx-plan-plus-mark: #f59e0b;
+  --cx-plan-sigma-mark: linear-gradient(135deg, #fca5a5, #ef4444);
+  --cx-plan-mark-text: #150404;
+  --cx-plan-plus-tint: linear-gradient(135deg, #f59e0b24, #f59e0b0a);
+  --cx-plan-plus-line: #f59e0b47;
+  --cx-plan-sigma-tint: linear-gradient(135deg, #f43f5e2e, #f43f5e0d);
+  --cx-plan-sigma-tint-open: linear-gradient(135deg, #f43f5e47, #f43f5e1f);
+  --cx-plan-sigma-line: #fb718559;
+  --cx-plan-sigma-text: linear-gradient(90deg, #fda4af, #f87171);
+  --cx-plan-sigma-chip-bg: #3a1519;
+  --cx-plan-sigma-chip-text: #fda4af;
+  --cx-plan-sigma-glow: radial-gradient(90% 38% at 20% 0%, #f43f5e26, transparent 72%);
+}
+:root:not(.dark) {
+  /* Açık tema: etiket metinleri açık zeminde okunur tonda. */
+  --cx-plan-sigma-text: linear-gradient(90deg, #be123c, #e11d48);
+  --cx-plan-sigma-chip-bg: #ffe4e6;
+  --cx-plan-sigma-chip-text: #9f1239;
+  --cx-plan-mark-text: #150404;
+}
+
+/* ---------- Halka ---------- */
+.cx-pring {
+  position: relative;
+  flex: none;
+  box-sizing: border-box;
+  border-radius: 50%;
+  padding: 2px;
+  background: var(--cx-plan-free-ring);
+}
+.cx-pring i {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--cx-bg-0);
+  font-style: normal;
+  font-weight: 600;
+  color: var(--cx-text-primary);
+}
+.cx-pring--s {
+  width: 28px;
+  height: 28px;
+}
+.cx-pring--s i {
+  font-size: 0.75rem;
+}
+.cx-pring--m {
+  width: 40px;
+  height: 40px;
+}
+.cx-pring--m i {
+  font-size: 0.9375rem;
+}
+.cx-pring--l {
+  width: 72px;
+  height: 72px;
+  padding: 3px;
+}
+.cx-pring--l i {
+  font-size: 1.75rem;
+}
+.cx-pring--plus {
+  background: var(--cx-plan-plus-ring);
+}
+.cx-pring--sigma {
+  background: var(--cx-plan-sigma-ring);
+}
+.cx-pring-mark {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 500 0.6875rem / 1 var(--cx-font-mono);
+  color: var(--cx-plan-mark-text);
+  box-shadow: 0 0 0 2px var(--cx-bg-1);
+}
+.cx-pring--plus .cx-pring-mark {
+  background: var(--cx-plan-plus-mark);
+}
+.cx-pring--sigma .cx-pring-mark {
+  background: var(--cx-plan-sigma-mark);
+}
+.cx-pring--s .cx-pring-mark {
+  right: -5px;
+  bottom: -4px;
+  width: 14px;
+  height: 14px;
+}
+.cx-pring--l .cx-pring-mark {
+  right: -3px;
+  bottom: -3px;
+  width: 24px;
+  height: 24px;
+  font-size: 0.8125rem;
+  box-shadow: 0 0 0 3px var(--cx-bg-1);
+}
+
+/* ---------- Plan etiketi (mono 11, büyük harf) ---------- */
+.cx-plan-label {
+  font: 500 0.6875rem / 1 var(--cx-font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.cx-plan-label--free {
+  color: var(--cx-text-tertiary);
+}
+.cx-plan-label--plus {
+  color: var(--cx-text-highlight);
+}
+.cx-plan-label--sigma {
+  background: var(--cx-plan-sigma-text);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ---------- Kapsül (üst çubuk, ≥768 px) ---------- */
+.cx-capsule {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 52px;
+  padding: 6px 18px 6px 6px;
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-bg-1);
+  color: var(--cx-text-primary);
+  cursor: pointer;
+  transition:
+    background var(--cx-dur-color) ease,
+    scale var(--cx-dur-scale) var(--cx-ease-out);
+}
+.cx-capsule--plus {
+  background: var(--cx-plan-plus-tint), var(--cx-bg-1);
+  box-shadow: inset 0 0 0 1px var(--cx-plan-plus-line);
+}
+.cx-capsule--sigma {
+  background: var(--cx-plan-sigma-tint), var(--cx-bg-1);
+  box-shadow: inset 0 0 0 1px var(--cx-plan-sigma-line);
+}
+.cx-capsule:hover {
+  scale: var(--cx-scale-hover, 1.03);
+  background-color: var(--cx-bg-2);
+}
+.cx-capsule--free:hover {
+  background: var(--cx-bg-2);
+}
+.cx-capsule--plus:hover {
+  background: var(--cx-plan-plus-tint), var(--cx-bg-2);
+}
+.cx-capsule--sigma:hover {
+  background: var(--cx-plan-sigma-tint), var(--cx-bg-2);
+}
+.cx-capsule:focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}
+.cx-capsule.is-open {
+  background: var(--cx-bg-3);
+}
+.cx-capsule--plus.is-open {
+  background: var(--cx-plan-plus-tint), var(--cx-bg-3);
+}
+.cx-capsule--sigma.is-open {
+  background: var(--cx-plan-sigma-tint-open), var(--cx-bg-3);
+}
+.cx-capsule-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  text-align: left;
+}
+.cx-capsule-name {
+  max-width: 10rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 600 0.8125rem / 1 var(--cx-font-sans);
+}
+@media (prefers-reduced-motion: reduce) {
+  .cx-capsule:hover {
+    scale: none;
+  }
+}
+
+/* ---------- Yan panel (skill §6: 480 px, sağ-alta 8 px, shadow-sheet) ---------- */
+.cx-pp-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: transparent;
+}
+.cx-pp-panel {
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  bottom: 8px;
+  width: min(480px, calc(100vw - 16px));
+  box-sizing: border-box;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--cx-space-24);
+  border-radius: var(--cx-radius-xl);
+  background: var(--cx-bg-1);
+  box-shadow: var(--cx-shadow-sheet);
+  color: var(--cx-text-primary);
+  animation: cx-pp-in var(--cx-dur-panel) var(--cx-ease-glide);
+}
+.cx-pp-panel--sigma {
+  background: var(--cx-plan-sigma-glow), var(--cx-bg-1);
+}
+@keyframes cx-pp-in {
+  from {
+    opacity: 0;
+    translate: 24px 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cx-pp-panel {
+    animation: none;
+  }
+}
+.cx-pp-close {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  color: var(--cx-text-primary);
+  cursor: pointer;
+}
+.cx-pp-close svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* ---------- Profil içeriği (panel ve /profil sayfası) ---------- */
+.cx-pp {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cx-space-14);
+}
+.cx-pp-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cx-space-16);
+}
+.cx-pp-id {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cx-space-8);
+  padding-top: 2px;
+}
+.cx-pp-name {
+  margin: 0;
+  font: var(--cx-t-heading-s);
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
+.cx-pp-meta {
+  font: 500 0.6875rem / 1.4 var(--cx-font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cx-text-secondary);
+}
+.cx-pp-chip {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: var(--cx-radius-max);
+  font: 500 0.6875rem / 1 var(--cx-font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: var(--cx-bg-2);
+  color: var(--cx-text-secondary);
+}
+.cx-pp-chip--plus {
+  background: var(--cx-highlight-weak);
+  color: var(--cx-text-highlight);
+}
+.cx-pp-chip--sigma {
+  background: var(--cx-plan-sigma-chip-bg);
+  color: var(--cx-plan-sigma-chip-text);
+}
+.cx-pp-stats,
+.cx-pp-tiles {
+  display: flex;
+  gap: var(--cx-space-16);
+}
+.cx-pp-stat,
+.cx-pp-tile {
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: var(--cx-radius-l);
+  background: var(--cx-bg-2);
+  color: var(--cx-text-primary);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--cx-dur-color) ease;
+}
+.cx-pp-stat:hover,
+.cx-pp-tile:hover {
+  background: var(--cx-bg-3);
+}
+.cx-pp-stat {
+  min-height: 95px;
+  padding: 16px 20px;
+}
+.cx-pp-stat-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.cx-pp-stat-label,
+.cx-pp-stat-sub {
+  font: 500 0.6875rem / 1 var(--cx-font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.cx-pp-stat-label {
+  color: var(--cx-text-secondary);
+}
+.cx-pp-stat-sub {
+  color: var(--cx-text-tertiary);
+}
+.cx-pp-stat-top svg {
+  width: 18px;
+  height: 18px;
+  color: var(--cx-text-secondary);
+}
+.cx-pp-stat-top .cx-pp-stat-flame {
+  color: var(--cx-text-highlight);
+}
+.cx-pp-stat-value {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.cx-pp-stat-value strong {
+  font: 600 1.75rem / 1 var(--cx-font-sans);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.cx-pp-tile {
+  min-height: 104px;
+  gap: var(--cx-space-8);
+  padding: 16px 18px;
+}
+.cx-pp-tile-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.cx-pp-ico {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--cx-bg-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cx-pp-ico svg {
+  width: 18px;
+  height: 18px;
+}
+.cx-pp-count {
+  height: 22px;
+  min-width: 22px;
+  box-sizing: border-box;
+  padding: 0 8px;
+  border-radius: var(--cx-radius-max);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font: 500 0.6875rem / 1 var(--cx-font-mono);
+  font-style: normal;
+  background: var(--cx-brand-weak);
+  color: var(--cx-text-brand);
+}
+.cx-pp-tile-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cx-pp-tile-text strong {
+  font: 600 0.9375rem / 1.25 var(--cx-font-sans);
+}
+.cx-pp-tile-text span {
+  font: 400 0.75rem / 1.3 var(--cx-font-sans);
+  color: var(--cx-text-secondary);
+}
+.cx-pp-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cx-space-12);
+  min-height: 72px;
+  box-sizing: border-box;
+  padding: 14px 16px 14px 20px;
+  border-radius: var(--cx-radius-l);
+  background: var(--cx-bg-2);
+}
+.cx-pp-strip--plus {
+  background: var(--cx-plan-plus-tint), var(--cx-bg-2);
+  box-shadow: inset 0 0 0 1px var(--cx-plan-plus-line);
+}
+.cx-pp-strip--sigma {
+  background: var(--cx-plan-sigma-tint), var(--cx-bg-2);
+  box-shadow: inset 0 0 0 1px #fb718540;
+}
+.cx-pp-strip-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.cx-pp-strip-text strong {
+  font: 600 0.9375rem / 1.25 var(--cx-font-sans);
+}
+.cx-pp-strip-text span {
+  font: 400 0.8125rem / 1.3 var(--cx-font-sans);
+  color: var(--cx-text-secondary);
+}
+.cx-pp-gold,
+.cx-pp-extra {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cx-space-8);
+  min-height: var(--cx-control-s);
+  padding: 0 18px;
+  border-radius: var(--cx-radius-max);
+  font: var(--cx-t-button-s);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.cx-pp-gold {
+  background: var(--cx-highlight);
+  color: var(--cx-text-on-highlight);
+}
+.cx-pp-extra {
+  background: var(--cx-highlight-weak);
+  color: var(--cx-text-highlight);
+}
+.cx-pp-gold svg,
+.cx-pp-extra svg {
+  width: 16px;
+  height: 16px;
+}
+/* Kurucu çipi panelde kırmızı tonlu (Sigma ailesi; hata kırmızısı değil). */
+.cx-pp .cx-pp-founder.cp-founder-chip {
+  min-height: var(--cx-control-s);
+  border: 0;
+  box-shadow: none;
+  background: var(--cx-plan-sigma-chip-bg);
+  color: var(--cx-plan-sigma-chip-text);
+  font: 500 0.6875rem / 1 var(--cx-font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.cx-pp .cx-pp-founder .cp-founder-chip__icon {
+  color: inherit;
+}
+.cx-pp-list {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--cx-radius-l);
+  background: var(--cx-bg-2);
+  overflow: hidden;
+}
+.cx-pp-row {
+  display: flex;
+  align-items: center;
+  gap: var(--cx-space-14);
+  width: 100%;
+  min-height: 52px;
+  box-sizing: border-box;
+  padding: 0 20px;
+  border: 0;
+  background: transparent;
+  font: 500 0.9375rem / 1.25 var(--cx-font-sans);
+  color: var(--cx-text-primary);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--cx-dur-color) ease;
+}
+.cx-pp-row + .cx-pp-row {
+  box-shadow: inset 0 1px 0 #ffffff0a;
+}
+.cx-pp-row:hover {
+  background: var(--cx-bg-3);
+}
+.cx-pp-row-icon {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+.cx-pp-row-go {
+  width: 18px;
+  height: 18px;
+  margin-left: auto;
+  color: var(--cx-text-tertiary);
+}
+.cx-pp-signout .cx-pp-row {
+  border-radius: var(--cx-radius-l);
+  background: var(--cx-bg-2);
+  color: var(--cx-text-secondary);
+}
+.cx-pp-signout .cx-pp-row:hover {
+  background: var(--cx-bg-3);
+  color: var(--cx-text-primary);
+}
+@media (max-width: 767px) {
+  .cx-pp-row {
+    min-height: var(--cx-tap-min);
+  }
+}
+@media (max-width: 420px) {
+  .cx-pp-stats,
+  .cx-pp-tiles {
+    gap: var(--cx-space-12);
+  }
+  .cx-pp-stat {
+    padding: 14px 16px;
+  }
+}
+
+/* ---------- Telefon alt çubuğu: Kütüphane ve Profil (planlı 28 px halka) ---------- */
+.cp-sor-bottomnav-link .cx-pring--s {
+  margin-bottom: 1px;
+}

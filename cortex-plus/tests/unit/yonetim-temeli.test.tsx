@@ -50,8 +50,8 @@ function account(over: Partial<StudentAccountContext> = {}): StudentAccountConte
 }
 
 function openMenu(container: HTMLElement) {
-  const button = container.querySelector<HTMLButtonElement>("button.cx-home-more") // 13 Kasım 2026: yeni üst çubuğun "Daha fazla"sı;
-  if (!button) throw new Error("Daha fazla düğmesi yok");
+  const button = container.querySelector<HTMLButtonElement>("button.cx-home-more"); // 13 Kasım 2026 (Faz 2): Kütüphane
+  if (!button) throw new Error("Kütüphane düğmesi yok");
   fireEvent.click(button);
 }
 
@@ -77,7 +77,10 @@ describe("öğrenci kabuğundaki Yönetim Paneli düğmesi", () => {
       openMenu(container);
       const link = getByTestId("admin-panel-link");
       expect(link.getAttribute("href")).toBe("/admin");
-      expect(link.textContent).toContain("🛡️ Yönetim Paneli");
+      // Faz 2 (13 Kasım 2026): emoji yok, satırda simge.
+      expect(link.textContent).toContain("Yönetim Paneli");
+      expect(link.textContent).not.toContain("🛡️");
+      expect(link.querySelector("svg")).not.toBeNull();
       unmount();
     }
   });

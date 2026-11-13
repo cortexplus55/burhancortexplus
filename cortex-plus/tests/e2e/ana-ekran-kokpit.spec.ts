@@ -62,7 +62,7 @@ for (const size of SIZES) {
         const rect = box(selector);
         return rect ? Math.round(rect.top + rect.height / 2) : null;
       });
-      const mark = box(".cx-home-logo-mark");
+      const mark = box(".cx-home-logo .lg");
       const slim = box(".cx-slim-bar");
       return {
         overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -75,7 +75,8 @@ for (const size of SIZES) {
     });
     expect(m.overflow).toBeLessThanOrEqual(1);
     expect(m.small).toEqual([]);
-    expect(m.markHeight).toBe(24);
+    // Faz 2 (13 Kasım 2026, tasarım tahtası): logo 76×49, telefonda 56×36.
+    expect(m.markHeight).toBe(size.width >= 768 ? 49 : 36);
     if (size.width >= 768) {
       expect(m.centers).toEqual([48, 48, 48]);
       expect(m.markLeft).toBe(24);
@@ -133,17 +134,18 @@ test("ücretsiz hesap: Plus'a geç altın hap seri sayacının solunda; tepside 
   // Masaüstünde tam etiket; telefonda mevcut kısa etiket ("Plus") görünür.
   await expect(buy).toBeVisible();
   expect(await buy.innerText()).toBe("Plus'a geç");
+  // Faz 2 (13 Kasım 2026, tasarım tahtası): sıra Başla, seri, Plus'a geç, profil kapsülü.
   const [buyBox, streakBox] = await Promise.all([buy.boundingBox(), page.locator(".cx-home-streak").boundingBox()]);
-  expect(buyBox!.x + buyBox!.width).toBeLessThanOrEqual(streakBox!.x);
+  expect(streakBox!.x + streakBox!.width).toBeLessThanOrEqual(buyBox!.x);
   await page.getByRole("button", { name: "Çalışma Stüdyosu" }).click();
   expect(await page.locator("#cx-home-tray .cx-tray-plus").count()).toBeGreaterThanOrEqual(5);
 
-  // Telefonda logo, kısa "Plus" hapı, seri ve "Daha fazla" tek satıra sığar; üst üste binmez.
+  // Telefonda logo, seri ve kısa "Plus" hapı tek satıra sığar; üst üste binmez (Faz 2: Kütüphane ve profil alt çubukta).
   for (const width of [375, 360]) {
     await page.setViewportSize({ width, height: 800 });
     await page.goto("/e2e/ana-ekran?hazirlik=1");
     const boxes = await page.evaluate(() =>
-      [".cx-home-logo-word", ".cx-home-buy", ".cx-home-streak", ".cx-home-more--phone"].map((selector) => {
+      [".cx-home-logo-word", ".cx-home-streak", ".cx-home-buy"].map((selector) => {
         const rect = document.querySelector(selector)!.getBoundingClientRect();
         return { left: rect.left, right: rect.right };
       }),

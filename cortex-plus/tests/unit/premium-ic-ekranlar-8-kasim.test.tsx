@@ -192,10 +192,12 @@ describe("ikinci tur: kalan sayfalar", () => {
   });
 
   it("profil listesinde Ayarlar ikinci kez yok; menü adları sayfa adlarıyla aynı", () => {
-    const panel = read("src/components/parity/profile-panel.tsx");
-    expect(panel).not.toMatch(/label: "Ayarlar"/);
+    // 13 Kasım 2026 (Faz 2): profilin listesi profile-identity.tsx'te; Ayarlar orada bir kez (kartın ayrı Ayarlar
+    // düğmesi yok), Kullanım limitleri kabuğun menüsünden profile taşındı.
+    const panel = read("src/components/parity/profile-identity.tsx");
+    expect(panel.match(/label: "Ayarlar"/g)?.length).toBe(1);
     expect(panel).toContain('label: "Kullanım limitleri"');
-    expect(read("src/components/parity/sor-shell.tsx")).toContain('label: "Kullanım limitleri"');
+    expect(read("src/components/parity/sor-shell.tsx")).not.toContain('label: "Kullanım limitleri"');
     expect(read("src/components/parity/student-shell-nav.ts")).not.toContain('label: "Limitler"');
   });
 

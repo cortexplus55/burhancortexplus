@@ -19,6 +19,11 @@ export type StudentAccountContext = {
   subscriptionBadge: SubscriptionBadge;
   subscriptionAllowance: number | null;
   subscriptionPeriodEnd: string | null;
+  /**
+   * Aboneliğin plan kodu ("plus-aylik", "plus-haftalik" …); profil kapsülü Sınav Haftası'nı buradan tanır
+   * (13 Kasım 2026). Ücretsizde ve önizlemede null.
+   */
+  planSlug?: string | null;
   canSpend: boolean;
   /**
    * `user_roles` içinde iptal edilmemiş `admin` satırı.
@@ -128,6 +133,7 @@ export async function getStudentAccountContext(
     subscriptionBadge,
     subscriptionAllowance: entitlements.monthlyAllowance,
     subscriptionPeriodEnd: entitlements.subscriptionPeriodEnd,
+    planSlug: entitlements.planSlug ?? null,
     canSpend: isAdmin || balance > 0 || freeAllowanceRemaining > 0,
     isAdmin,
     adminPanel: isAdmin,

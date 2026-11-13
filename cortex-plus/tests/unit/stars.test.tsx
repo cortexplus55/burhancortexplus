@@ -78,11 +78,11 @@ describe("yıldız veren yerler", () => {
     );
   });
 
-  it("Daha fazla'da Yıldızlar, sonuç ekranında '+N yıldız', okul sayfasında kürsü", () => {
-    // 13 Kasım 2026 (kabuk): yeni üst çubukta yıldız düğmesi yok; pencere "Daha fazla"daki satırdan açılır.
-    const shell = read("src/components/parity/sor-shell.tsx");
-    expect(shell).toContain('<span className="cp-more-action-label">Yıldızlar</span>');
-    expect(shell).toContain('params.set("dialog", "stars");');
+  it("profil panelinde Yıldızlar, sonuç ekranında '+N yıldız', okul sayfasında kürsü", () => {
+    // 13 Kasım 2026 (Faz 2): Yıldızlar profil panelinin istatistik düğmesi; pencere aynı adresle açılır.
+    const profile = read("src/components/parity/profile-identity.tsx");
+    expect(profile).toContain('<span className="cx-pp-stat-label">Yıldızlar</span>');
+    expect(profile).toContain('params.set("dialog", "stars");');
     expect(read("src/components/parity/parity-dialog-host.tsx")).toContain('<StarsDialog open={dialog === "stars"} onClose={closeDialog} />');
     expect(read("src/components/parity/exam-node-session.tsx")).toContain("+{starsEarned} yıldız");
     expect(read("src/app/deneme-sinavlari/okulum/page.tsx")).toContain('p_period: "last_week", p_limit: 3');
