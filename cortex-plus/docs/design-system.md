@@ -43,6 +43,19 @@ Bileşende ham hex ya da ham px yazılmaz; token yoksa önce `tokens.css`'e ekle
 | B1 halka | Ana ekran (`/ogretmen`) | Tamamlama yüzdesi değiştiyse halka eskiden yeniye dolar, ortadaki sayı sayar |
 | B2 yol | Hazırlık sayfası | Az önce biten adımın içine ✓ çizilir, çizgi sıradakine dolar, sıradakinin halkası belirir |
 
+Uygulamada çıkan kurallar:
+
+- **"Önce" değeri yalnız sekme oturumunda** (`sessionStorage`, `src/lib/ui/moment-memory.ts`): halka `cx:ring:<hazırlık>`,
+  yol `cx:path:<hazırlık>`. Sunucuya gitmez, yeni API yok. Depolama kapalıysa an oynamaz (ilk ziyaret sayılır).
+- **Yeniden yüklemede B1 ve B2 oynamaz**: sayfa sunucudan son hâliyle çizilmiş olur; geri sarıp yeniden saymak titreme
+  olur. An, uygulamanın içinden dönüşte (`router.push`, geri tuşu) oynar.
+- **A3'te ürün düğmesi çekilir**: konu testinde cevap kontrol edilince ürünün "Testi bitir" çubuğu turda gizlenir
+  (`tour-product.css`, yalnız yerleşim), ilerleme turun alt düğmesindedir. Ders ve kartlar iş bitince kendiliğinden
+  ilerler; alt düğme orada hep soluk kalır.
+- **A4'ün adımları örnek veriden türetilir** (`tourWarningSteps`, `guest-tour.ts`); örnek veri ilk yükte olmasın diye
+  sabit liste `landing-journey.ts`te durur, bekçi test ikisini eşit tutar.
+- Sayı sayan anlar CSS ile aynı eğriyi kullanır: `easeSettle` (`moment.ts`).
+
 ## Hazırlık sayfası (3C, 13 Kasım 2026)
 
 Yalnız görünüm (veri, metin, akış aynı); stiller `src/styles/prep-home-cx.css`, seçiciler `.cp-prep-layout` ile başlar.
