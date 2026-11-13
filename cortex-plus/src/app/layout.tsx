@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Caveat, Figtree, Geist, Geist_Mono, JetBrains_Mono } from "next/font/google";
+import { Figtree, Geist, Geist_Mono, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 // KaTeX biçimi kök düzende değil (6 Kasım 2026): formül çizen bileşenler kendisi alır (`math-text.ts`,
 // `MathText`, `RichBody`, `Markdown`, `ExamLessonBody*`, video tahtası); pazarlama sayfaları yüklemez.
@@ -18,19 +18,14 @@ const figtree = Figtree({
 });
 
 /*
- * Yazı tipleri: Figtree metin, JetBrains Mono küçük etiketler, Caveat el yazısı ("hedef puan", "Ezber
- * kodu"). Jersey 10 (piksel karşılama başlığı) 13 Kasım 2026'da kalktı: tasarım sistemi v1 piksel
- * yazıyı yasaklıyor (ürün sahibinin kararı 4). Üçü de Google Fonts, serbest lisans. Eşaralıklı etiketler daha önce sistemin kendi
+ * Yazı tipleri: Figtree metin, JetBrains Mono küçük etiketler. Jersey 10 (piksel karşılama başlığı) 13 Kasım
+ * 2026'da kalktı: tasarım sistemi v1 piksel yazıyı yasaklıyor (ürün sahibinin kararı 4). Caveat (el yazısı:
+ * "hedef puan", "Ezber kodu") aynı gün ürün sahibinin kararıyla kalktı: "hedef puan" mono, ezber kodu metin
+ * yazı tipinde. İkisi de Google Fonts, serbest lisans. Eşaralıklı etiketler daha önce sistemin kendi
  * yazı tipine (Windows'ta Consolas) düşüyordu; "hedef puan" Segoe Print idi (yalnız Windows).
  */
 const jetbrainsMono = JetBrains_Mono({
   variable: "--font-jetbrains-mono",
-  subsets: ["latin", "latin-ext"],
-  display: "swap",
-});
-
-const caveat = Caveat({
-  variable: "--font-hand-face",
   subsets: ["latin", "latin-ext"],
   display: "swap",
 });
@@ -118,7 +113,7 @@ export default function RootLayout({
   return (
     <html lang="tr" suppressHydrationWarning>
       <body
-        className={`${figtree.variable} ${geistSans.variable} ${geistMono.variable} ${jetbrainsMono.variable} ${caveat.variable} min-h-screen antialiased bg-background text-foreground`}
+        className={`${figtree.variable} ${geistSans.variable} ${geistMono.variable} ${jetbrainsMono.variable} min-h-screen antialiased bg-background text-foreground`}
       >
         <Providers>
           {/* Instagram / Facebook / TikTok / WhatsApp tarayıcısında "tarayıcıda aç" şeridi (31 Ekim 2026). */}

@@ -97,7 +97,7 @@
   background: color-mix(in srgb, #ff8a3d 26%, transparent);
   color: #ffd2b0;
   font-size: 1.25rem;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 @keyframes rd-in {
@@ -122,7 +122,7 @@
   padding: 0 1.25rem;
   border-radius: 999px;
   font-size: 0.9375rem;
-  font-weight: 650;
+  font-weight: 600;
   text-decoration: none;
   cursor: pointer;
 }
@@ -175,7 +175,7 @@
 .rd-empty h1 {
   margin: 0;
   font-size: 1.5rem;
-  font-weight: 650;
+  font-weight: 600;
   letter-spacing: -0.02em;
 }
 

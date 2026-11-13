@@ -66,7 +66,7 @@ export function JoinClassForm({ initialCode = "" }: { initialCode?: string }) {
           placeholder="Örn. A1B2C3"
           required
           minLength={4}
-          className="uppercase placeholder:normal-case"
+          className="h-10 uppercase placeholder:normal-case"
         />
       </div>
       <Button type="submit" disabled={loading || code.trim().length < 4}>

@@ -1,4 +1,5 @@
 import { Crown } from "lucide-react";
+import { PageShell } from "@/components/parity/page-shell";
 import { formatNumber } from "@/lib/format";
 import {
   formatFounderTime,
@@ -31,8 +32,7 @@ export function FounderCreditsView({
   failed: boolean;
 }) {
   return (
-    <div className="cp-exam-page space-y-6">
-      <h1 className="cp-founder-title">Kullanım limitleri</h1>
+    <PageShell width="read" title="Kullanım limitleri">
 
       <section className="pm-card cp-founder-card" aria-labelledby="founder-card-title">
         <span className="cp-founder-card__badge" aria-hidden>
@@ -110,7 +110,7 @@ export function FounderCreditsView({
           </section>
         </>
       )}
-    </div>
+    </PageShell>
   );
 }
 

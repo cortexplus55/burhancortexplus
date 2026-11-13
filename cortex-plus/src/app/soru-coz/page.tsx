@@ -48,7 +48,7 @@ export default async function SoruCozPage({ searchParams }: { searchParams: Prom
   }
 
   return (
-    <AppShell>
+    <AppShell width="read">
       <div className="cp-solver-page" style={{ ["--solver-accent" as string]: SOLVER_ACCENT }}>
         {prep ? (
           <Link href={examPrepHomeHref(prep.id)} className="cp-solver-back">

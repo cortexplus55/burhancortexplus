@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ParitySorShell } from "@/components/parity/sor-shell";
+import { PageShell } from "@/components/parity/page-shell";
 import { DailyDrillView } from "@/components/parity/daily-drill-view";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
@@ -23,10 +24,7 @@ export default async function GunlukPage() {
           completed={drill.completed}
         />
       ) : (
-        <div className="cp-exam-page">
-          <div className="cp-page-head">
-            <h1 className="cp-page-title">Günün turu</h1>
-          </div>
+        <PageShell title="Günün turu">
           <div className="cs-pay-card p-6 text-center">
             <p className="text-lg font-semibold text-[var(--cs-text)]">
               Bugün için soru yok.
@@ -46,7 +44,7 @@ export default async function GunlukPage() {
               Deneme çöz
             </Link>
           </div>
-        </div>
+        </PageShell>
       )}
     </ParitySorShell>
   );

@@ -369,7 +369,7 @@ export function ExamQuizResults({
   return (
     <section className="space-y-6">
       <p className="text-sm text-[var(--cp-muted)]">Doğru cevaplar</p>
-      <p className={cn("text-5xl font-extrabold", tone)}>
+      <p className={cn("text-5xl font-bold", tone)}>
         {score}/{total}
       </p>
       <p className="text-lg">{message}</p>

@@ -70,7 +70,7 @@ export function WorkStepList({ steps, firstError, note }: { steps: WorkStepVerdi
             <span className="w-6 shrink-0 text-xs font-bold tabular-nums text-[var(--cp-muted)]">{step.n}.</span>
             <span
               className={cn(
-                "w-4 shrink-0 text-center text-sm font-black",
+                "w-4 shrink-0 text-center text-sm font-bold",
                 step.status === "ok" ? "text-emerald-400" : step.status === "error" ? "text-rose-400" : "text-[var(--cp-muted)]",
               )}
               aria-label={STEP_STATUS_LABEL[step.status]}
@@ -204,7 +204,7 @@ export function ExamQuestionReviewClient({
               <Sparkles className="w-3.5 h-3.5" />
               <span>Soru Soru Çözüm Analizi</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--cp-text)] tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-bold text-[var(--cp-text)] tracking-tight">
               {examTitle}
             </h1>
             <p className="text-sm text-[var(--cp-muted)] mt-1">
@@ -218,7 +218,7 @@ export function ExamQuestionReviewClient({
               <span className="text-xs uppercase tracking-wider text-[var(--cp-muted)] font-semibold">
                 Sınav Puanı
               </span>
-              <span className="text-3xl sm:text-4xl font-black text-violet-400">
+              <span className="text-3xl sm:text-4xl font-bold text-violet-400">
                 {score}
               </span>
             </div>
@@ -394,9 +394,9 @@ export function ExamQuestionReviewClient({
                         className={cn(
                           "flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs",
                           isOptionCorrect
-                            ? "bg-emerald-500 text-black font-extrabold"
+                            ? "bg-emerald-500 text-black font-bold"
                             : isOptionUserAnswer && !isOptionCorrect
-                              ? "bg-rose-500 text-white font-extrabold"
+                              ? "bg-rose-500 text-white font-bold"
                               : "bg-[var(--cp-surface-2)] text-[var(--cp-muted)]",
                         )}
                       >

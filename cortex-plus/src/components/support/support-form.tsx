@@ -94,6 +94,7 @@ export function SupportForm({
           />
         ) : (
           <Input
+            className="h-10"
             id="support-subject"
             value={subject}
             onChange={(event) => setSubject(event.target.value)}

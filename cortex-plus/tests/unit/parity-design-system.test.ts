@@ -10,7 +10,8 @@ import { describe, expect, it } from "vitest";
 
   13 Kasım 2026 (tasarım sistemi v1, ürün sahibinin kararları 1, 4, 7): uygulamanın renkleri --cx-*
   katmanından gelir, --c-* adları ona köprülüdür; eski palet yalnız misafir sayfalarında (pazarlama,
-  hukuk, giriş/kayıt) kalır. Jersey 10 kalktı; Figtree, JetBrains Mono ve Caveat kalır.
+  hukuk, giriş/kayıt) kalır. Jersey 10 kalktı; Figtree ve JetBrains Mono kalır. Caveat da aynı gün kalktı
+  (ürün sahibi: "Caveat fontunu kaldır, hedef puan yazısı mono olsun").
 */
 const read = (path: string) => readFileSync(path, "utf8");
 const block = (css: string, selector: string) => {
@@ -19,15 +20,17 @@ const block = (css: string, selector: string) => {
 };
 
 describe("kıyas ürünü tasarım sistemi", () => {
-  it("üç yazı tipi kökte Türkçe alt kümeyle yüklenir; piksel yazı yok", () => {
+  it("iki yazı tipi kökte Türkçe alt kümeyle yüklenir; piksel ve el yazısı yok", () => {
     const layout = read("src/app/layout.tsx");
-    for (const font of ["Figtree", "JetBrains_Mono", "Caveat"]) expect(layout).toContain(font);
+    for (const font of ["Figtree", "JetBrains_Mono"]) expect(layout).toContain(font);
     expect(layout).not.toContain("Jersey_10");
+    expect(layout).not.toMatch(/import \{[^}]*\bCaveat\b/);
     expect(layout).toContain('variable: "--font-jetbrains-mono"');
-    expect(layout).toContain('variable: "--font-hand-face"');
-    expect(layout.match(/subsets: \["latin", "latin-ext"\]/g)?.length).toBeGreaterThanOrEqual(3);
+    expect(layout).not.toContain('variable: "--font-hand-face"');
+    expect(layout.match(/subsets: \["latin", "latin-ext"\]/g)?.length).toBeGreaterThanOrEqual(2);
     for (const file of readdirSync("src/styles").filter((name) => name.endsWith(".css"))) {
       expect(read(`src/styles/${file}`), file).not.toContain("--font-pixel");
+      expect(read(`src/styles/${file}`), file).not.toContain("var(--font-hand)");
     }
   });
 
@@ -54,7 +57,7 @@ describe("kıyas ürünü tasarım sistemi", () => {
     expect(guest).toContain("--c-brand: #fdb300;");
   });
 
-  it("eşaralıklı etiketler sistem yazı tipine düşmez; el yazısı Caveat", () => {
+  it("eşaralıklı etiketler sistem yazı tipine düşmez; el yazısı yok", () => {
     for (const file of readdirSync("src/styles").filter((name) => name.endsWith(".css") && name !== "tokens.css")) {
       const css = read(`src/styles/${file}`);
       expect(css, file).not.toMatch(/font-family:\s*ui-monospace/);

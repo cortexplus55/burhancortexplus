@@ -63,12 +63,8 @@ export const studentBottomTabs: StudentNavItem[] = [
     href: "/ogretmen",
     label: "Ana Sayfa",
     icon: Home,
-    match: (p) =>
-      p === "/dashboard" ||
-      p === "/" ||
-      p === "/ogretmen" ||
-      p.startsWith("/ogretmen/") ||
-      p.startsWith("/sohbetler"),
+    // 13 Kasım 2026: /sohbetler artık Ana Sayfa değil; "Daha fazla"daki Geçmiş konuşmalar (MORE_PATHS).
+    match: (p) => p === "/dashboard" || p === "/" || p === "/ogretmen" || p.startsWith("/ogretmen/"),
   },
   {
     id: "exams",
@@ -90,7 +86,6 @@ export const studentBottomTabs: StudentNavItem[] = [
       p.startsWith("/quizler") ||
       p.startsWith("/flashcardlar") ||
       p.startsWith("/soru-coz") ||
-      p.startsWith("/yanlislarim") ||
       p.startsWith("/gunluk"),
   },
   {
@@ -106,6 +101,26 @@ export const studentBottomTabs: StudentNavItem[] = [
 ];
 
 export const studentTopTabs: StudentNavItem[] = studentBottomTabs;
+
+/**
+ * "Daha fazla" panelinden açılan sayfalar (13 Kasım 2026, ürün sahibi): bu sayfalarda üst çubukta "Daha fazla"
+ * etkin görünür, sekmelerden hiçbiri değil. Geçmiş konuşmalar (/sohbetler) da panelden açılır. Telefonda Profil
+ * sekmesi kendi sayfalarında (Profil, Ayarlar, Kullanım limitleri) etkin kalır.
+ */
+export const MORE_PATHS = [
+  "/dokumanlar",
+  "/yanlislarim",
+  "/siniflar",
+  "/ilerleme",
+  "/takvimim",
+  "/krediler",
+  "/davet",
+  "/sohbetler",
+] as const;
+
+export function isMorePath(path: string): boolean {
+  return MORE_PATHS.some((base) => path === base || path.startsWith(`${base}/`));
+}
 
 export const studentMenuGroups: {
   title: string;

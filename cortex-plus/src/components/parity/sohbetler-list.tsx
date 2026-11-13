@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { MessageCircle, Pencil, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/ui-kit/empty-state";
+import { PageShell } from "@/components/parity/page-shell";
 import { addDays, istanbulDay } from "@/lib/istanbul-day";
 
 export type ConversationRow = {
@@ -129,16 +130,14 @@ export function SohbetlerList({ items, now }: { items: ConversationRow[]; now: s
   }
 
   return (
-    <div className="cp-exam-page">
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold">Geçmiş konuşmalar</h1>
-        <Link
-          href="/ogretmen"
-          className="rounded-xl bg-action px-4 py-2 text-sm font-bold text-action-foreground"
-        >
+    <PageShell
+      title="Geçmiş konuşmalar"
+      actions={
+        <Link href="/ogretmen" className="cx-page-btn cx-brand">
           Yeni sohbet
         </Link>
-      </div>
+      }
+    >
       {rows.length ? (
         <>
           <label className="cp-search">
@@ -187,7 +186,7 @@ export function SohbetlerList({ items, now }: { items: ConversationRow[]; now: s
                         ) : (
                           <Link
                             href={`/ogretmen?sohbet=${conversation.id}`}
-                            className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--cs-text)]"
+                            className="min-w-0 flex-1 truncate py-2.5 text-sm font-medium text-[var(--cs-text)]"
                           >
                             {conversation.title ?? "Başlıksız sohbet"}
                           </Link>
@@ -197,7 +196,7 @@ export function SohbetlerList({ items, now }: { items: ConversationRow[]; now: s
                             <button
                               type="button"
                               disabled={busy || !draft.trim()}
-                              className="rounded-lg px-2 py-1.5 text-xs font-semibold text-[var(--cs-text)] hover:bg-white/5 disabled:opacity-50"
+                              className="inline-flex min-h-10 items-center rounded-full px-3 text-xs font-semibold text-[var(--cs-text)] hover:bg-white/5 disabled:opacity-50"
                               onClick={() => void saveRename(conversation.id)}
                             >
                               {busy ? "Kaydediliyor…" : "Kaydet"}
@@ -205,7 +204,7 @@ export function SohbetlerList({ items, now }: { items: ConversationRow[]; now: s
                             <button
                               type="button"
                               disabled={busy}
-                              className="rounded-lg px-2 py-1.5 text-xs text-[var(--cs-muted)] hover:bg-white/5"
+                              className="inline-flex min-h-10 items-center rounded-full px-3 text-xs text-[var(--cs-muted)] hover:bg-white/5"
                               onClick={cancelRename}
                             >
                               Vazgeç
@@ -217,7 +216,7 @@ export function SohbetlerList({ items, now }: { items: ConversationRow[]; now: s
                             <button
                               type="button"
                               disabled={busy}
-                              className="rounded-lg px-2 py-1.5 text-xs font-semibold text-red-300 hover:bg-white/5 disabled:opacity-50"
+                              className="inline-flex min-h-10 items-center rounded-full px-3 text-xs font-semibold text-red-300 hover:bg-white/5 disabled:opacity-50"
                               onClick={() => void remove(conversation.id)}
                             >
                               {busy ? "Siliniyor…" : "Evet"}
@@ -225,7 +224,7 @@ export function SohbetlerList({ items, now }: { items: ConversationRow[]; now: s
                             <button
                               type="button"
                               disabled={busy}
-                              className="rounded-lg px-2 py-1.5 text-xs text-[var(--cs-muted)] hover:bg-white/5"
+                              className="inline-flex min-h-10 items-center rounded-full px-3 text-xs text-[var(--cs-muted)] hover:bg-white/5"
                               onClick={() => setConfirmingId(null)}
                             >
                               Vazgeç
@@ -235,7 +234,7 @@ export function SohbetlerList({ items, now }: { items: ConversationRow[]; now: s
                           <>
                             <button
                               type="button"
-                              className="rounded-lg p-2 text-[var(--cs-muted)] hover:bg-white/5"
+                              className="inline-grid size-10 place-items-center rounded-full text-[var(--cs-muted)] hover:bg-white/5"
                               aria-label="Yeniden adlandır"
                               onClick={() => startRename(conversation.id, conversation.title)}
                             >
@@ -243,7 +242,7 @@ export function SohbetlerList({ items, now }: { items: ConversationRow[]; now: s
                             </button>
                             <button
                               type="button"
-                              className="rounded-lg p-2 text-[var(--cs-muted)] hover:bg-white/5"
+                              className="inline-grid size-10 place-items-center rounded-full text-[var(--cs-muted)] hover:bg-white/5"
                               aria-label="Sohbeti sil"
                               onClick={() => {
                                 cancelRename();
@@ -283,6 +282,6 @@ export function SohbetlerList({ items, now }: { items: ConversationRow[]; now: s
           actionLabel="Yeni sohbet"
         />
       )}
-    </div>
+    </PageShell>
   );
 }

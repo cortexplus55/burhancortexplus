@@ -389,7 +389,7 @@
 .apw-target-value {
   display: block;
   font-size: 2.75rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.02em;
   background: linear-gradient(135deg, var(--c-action), var(--c-ai));
   -webkit-background-clip: text;
@@ -518,7 +518,7 @@
   gap: 0.5rem;
   margin: 0;
   font-size: 0.9375rem;
-  font-weight: 650;
+  font-weight: 600;
   overflow-wrap: anywhere;
 }
 
@@ -993,7 +993,7 @@
   background: transparent;
   color: inherit;
   font-size: 0.9rem;
-  font-weight: 650;
+  font-weight: 600;
   cursor: pointer;
   padding: 0.35rem 0.1rem;
 }
@@ -1072,7 +1072,7 @@
 .apw-readiness-num {
   display: block;
   font-size: 1.125rem;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .apw-readiness-label {
@@ -1486,7 +1486,7 @@
   width: fit-content;
   font-size: 0.72rem;
   font-style: normal;
-  font-weight: 650;
+  font-weight: 600;
   border: 1px solid color-mix(in srgb, var(--cp-text) 35%, transparent);
   border-radius: 999px;
   padding: 0.05rem 0.45rem;
@@ -1709,7 +1709,7 @@
 .apw-card-title {
   margin: 0;
   font-size: 0.9375rem;
-  font-weight: 650;
+  font-weight: 600;
   letter-spacing: -0.005em;
   color: var(--c-text);
 }
@@ -1763,7 +1763,7 @@
 
 .apw-date-tile strong {
   font-size: 1.45rem;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1;
 }
 
@@ -1776,7 +1776,7 @@
 
 .apw-date-text strong {
   font-size: 1rem;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .apw-date-text span {
@@ -2303,7 +2303,7 @@
 .apw-ticket-title strong {
   overflow: hidden;
   font-size: 1.0625rem;
-  font-weight: 650;
+  font-weight: 600;
   letter-spacing: -0.015em;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2489,7 +2489,7 @@
 
 .apw .apw-step h1 {
   font-size: clamp(1.5rem, 1.15rem + 1.3vw, 1.9rem);
-  font-weight: 650;
+  font-weight: 600;
   line-height: 1.15;
   letter-spacing: -0.028em;
   text-wrap: balance;
@@ -2787,7 +2787,7 @@
   background: var(--apw-sel);
   color: #fff;
   font-size: 1rem;
-  font-weight: 650;
+  font-weight: 600;
   letter-spacing: -0.005em;
   box-shadow:
     0 0 0 6px var(--apw-page),
@@ -2986,7 +2986,7 @@
 
 .apw .apw-drop-title {
   font-size: 1.0625rem;
-  font-weight: 650;
+  font-weight: 600;
   letter-spacing: -0.01em;
 }
 
@@ -3005,7 +3005,7 @@
   background: var(--apw-sel);
   color: #fff;
   font-size: 0.9375rem;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .apw .apw-drop-pick--main:hover:not(:disabled) {
@@ -3261,7 +3261,7 @@
   background: var(--apw-s2);
   color: var(--apw-muted);
   font-size: 0.8125rem;
-  font-weight: 650;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
@@ -3367,7 +3367,7 @@
   box-shadow: 0 0 0 4px var(--apw-s1);
   color: var(--apw-text);
   font-size: 0.8125rem;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .apw-next li:first-child::before {

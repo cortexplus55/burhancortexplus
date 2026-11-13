@@ -102,6 +102,12 @@
 .cx-home-more:hover {
   color: var(--cx-text-primary);
 }
+/* "Daha fazla" panelinin sayfalarında etkin: sekmelerdeki gibi beyaz yazı + cam hap (13 Kasım 2026). */
+.cx-home-more.is-active,
+.cx-home-more--phone.is-active {
+  color: var(--cx-text-primary);
+  background: var(--cx-glass-background);
+}
 .cx-home-more--phone,
 .cx-home-buy-short {
   display: none;
@@ -388,4 +394,142 @@
   .cx-streak-dialog {
     animation: none;
   }
+}
+
+/* ---------- Sayfa iskeleti (PageShell, 13 Kasım 2026; skill §3 heading-xl, §7 genişlikler) ----------
+   Liste 816 px (768 içerik + 24 + 24), okuma ve form 768 px; yan boşluk 24 px, telefonda 16 px.
+   Başlık heading-xl (40 / 600, satır aralığı 1,15); telefonda 32 px. */
+/* .cp-sor-main önekli: sayfanın eski sarmalayıcı sınıfı (ör. .tools) aynı öğede kalsa da iskelet kazanır. */
+.cx-page,
+.cp-sor-main .cx-page {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cx-space-24);
+  width: 100%;
+  max-width: var(--cx-w-list);
+  margin-inline: auto;
+  padding: var(--cx-space-24) var(--cx-space-24) var(--cx-space-48);
+}
+.cx-page > * {
+  min-width: 0;
+}
+.cx-page--read,
+.cp-sor-main .cx-page--read {
+  max-width: var(--cx-w-reading);
+}
+/* İskeletin içine giren eski sarmalayıcılar kendi genişlik ve kenar boşluklarını bırakır. */
+.cx-page .cp-set-page,
+.cx-page .cp-solver-page,
+.cx-page .cp-pp {
+  max-width: none;
+  margin: 0;
+  padding-block: 0;
+}
+.cx-page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--cx-space-16);
+}
+.cx-page-head--actions {
+  justify-content: flex-end;
+}
+.cx-page-head-text {
+  min-width: 0;
+  flex: 1 1 18rem;
+}
+.cx-page-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: var(--cx-space-8);
+  margin-bottom: var(--cx-space-8);
+  font: var(--cx-t-meta-s);
+  letter-spacing: var(--cx-ls-label, 0.01em);
+  text-transform: uppercase;
+  color: var(--cx-text-tertiary);
+}
+.cx-page-title {
+  margin: 0;
+  font: var(--cx-t-heading-xl);
+  letter-spacing: -0.02em;
+  color: var(--cx-text-primary);
+  text-wrap: balance;
+}
+.cx-page-lead {
+  margin-top: var(--cx-space-8);
+  font: var(--cx-t-body-16);
+  color: var(--cx-text-secondary);
+}
+.cx-page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cx-space-8);
+}
+@media (max-width: 767px) {
+  .cx-page,
+  .cp-sor-main .cx-page {
+    padding: var(--cx-space-16) var(--cx-space-16) var(--cx-space-40);
+  }
+  .cx-page-title {
+    font-size: 2rem;
+  }
+}
+/* Başlık eylemleri (skill §6 S buton: 40 px, yatay 18, button-s; telefonda dokunma tabanı 44). Renk cx-brand /
+   cx-glass / cx-weak sınıflarından; ekranda tek brand. */
+.cx-page-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cx-space-8);
+  min-height: var(--cx-control-s);
+  padding-inline: var(--cx-space-18);
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  font: var(--cx-t-button-s);
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    scale var(--cx-dur-scale) var(--cx-ease-out),
+    color var(--cx-dur-color) ease;
+}
+.cx-page-btn.cx-glass {
+  color: var(--cx-text-primary);
+}
+.cx-page-btn svg {
+  width: var(--cx-space-16);
+  height: var(--cx-space-16);
+  flex-shrink: 0;
+}
+.cx-page-btn:hover,
+.cx-page-btn:focus-visible {
+  scale: var(--cx-scale-hover, 1.03);
+}
+@media (max-width: 767px) {
+  .cx-page-btn {
+    min-height: var(--cx-tap-min);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cx-page-btn:hover,
+  .cx-page-btn:focus-visible {
+    scale: none;
+  }
+}
+/* Başlık bağlantı olduğunda (Sınavlar: "Sınav hazırlıklarım ›") başlık rengini korur. */
+.cx-page-title a {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cx-space-8);
+  color: inherit;
+  text-decoration: none;
+}
+.cx-page-title a svg {
+  width: 0.7em;
+  height: 0.7em;
+  color: var(--cx-text-tertiary);
+  flex-shrink: 0;
 }

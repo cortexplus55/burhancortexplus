@@ -154,7 +154,7 @@
   background: var(--c-action);
   color: #fff;
   font-size: 1rem;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .cp-oral-cta:disabled {
@@ -197,7 +197,7 @@
 
 .cp-oral-voice-name {
   margin: 0;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .cp-oral-slider {
@@ -410,7 +410,7 @@
   border: 1px solid #3a3a3a;
   background: transparent;
   color: #fff;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .cp-oral-live-stage {
@@ -471,7 +471,7 @@
   background: transparent;
   color: #fff;
   font-size: 1rem;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .cp-oral-results {

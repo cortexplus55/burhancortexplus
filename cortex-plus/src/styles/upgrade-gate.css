@@ -74,7 +74,7 @@
 .ug-title {
   margin: 0;
   font-size: clamp(1.6rem, 4.5vw, 2.15rem);
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1.15;
   letter-spacing: -0.03em;
   text-wrap: balance;
@@ -130,7 +130,7 @@
   background: var(--c-action);
   color: var(--c-on-action);
   font-size: 1rem;
-  font-weight: 800;
+  font-weight: 700;
   text-decoration: none;
   box-shadow: var(--glow-action);
 }
@@ -186,7 +186,7 @@ button.ug-why {
 
 .ug-countdown-clock b {
   font-size: 1.05rem;
-  font-weight: 800;
+  font-weight: 700;
   color: #f2f0ec;
   font-variant-numeric: tabular-nums;
 }
@@ -249,7 +249,7 @@ button.ug-why {
 .ug-promo-title {
   margin: 0;
   font-size: 0.75rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: #f4ae0b;
@@ -266,7 +266,7 @@ button.ug-why {
   align-items: baseline;
   gap: 0.35rem;
   font-variant-numeric: tabular-nums;
-  font-weight: 800;
+  font-weight: 700;
   font-size: 1.05rem;
   color: #f2f0ec;
 }

@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { Icon3D, type Icon3DName } from "@/components/ui/icon-3d";
 import { TOOLS, type Tool } from "@/lib/parity/tools";
 import { StudioGallery } from "@/components/parity/studio-gallery";
+import { PageShell } from "@/components/parity/page-shell";
 import { useStudentShellAccount } from "@/lib/student/student-shell-context";
 
 /**
@@ -61,15 +62,17 @@ export function ToolsHub({ deck }: { deck?: { dueCount: number; total: number } 
   const shortcuts = TOOLS.filter((t) => t.category === "odak" && t.kind === "kisayol");
 
   return (
-    <div className="tools">
-      <header className="tools-hero">
-        <p className="tools-kicker">
+    <PageShell
+      className="tools"
+      eyebrow={
+        <>
           <span aria-hidden className="tools-kicker-dot" />
           Çalışma Stüdyosu
-        </p>
-        <h1>Bugün nasıl çalışmak istersin?</h1>
-        <p>Bir stüdyo seç; konunu yaz ya da belgeni seç, saniyeler içinde hazır.</p>
-      </header>
+        </>
+      }
+      title="Bugün nasıl çalışmak istersin?"
+      lead="Bir stüdyo seç; konunu yaz ya da belgeni seç, saniyeler içinde hazır."
+    >
 
       {deck && deck.total > 0 ? (
         // Genel tekrar destesi (8 Kasım 2026): sohbetten eklenen bilgiler günü gelince burada.
@@ -129,7 +132,7 @@ export function ToolsHub({ deck }: { deck?: { dueCount: number; total: number } 
           })}
         </div>
       </section>
-    </div>
+    </PageShell>
   );
 }
 

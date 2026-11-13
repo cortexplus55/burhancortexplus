@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { TrendingUp } from "lucide-react";
+import { PageShell } from "@/components/parity/page-shell";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { EmptyState, SectionCard } from "@/components/ui-kit/empty-state";
 import { TopicBars } from "@/components/student/topic-bars";
@@ -182,12 +183,9 @@ export default async function IlerlemePage() {
 
   return (
     <ParitySorShell {...shell}>
-      <div className="cp-exam-page">
       {/* Sayfanın h1'i yoktu: ekran okuyucu "burası neresi" sorusunu
-          yanıtlayamıyordu, sekme başlığı dışında hiçbir işaret yoktu. */}
-      <div className="cp-page-head">
-        <h1 className="cp-page-title">İlerleme</h1>
-      </div>
+          yanıtlayamıyordu, sekme başlığı dışında hiçbir işaret yoktu. 13 Kasım 2026: ortak sayfa iskeleti. */}
+      <PageShell title="İlerleme">
       <div className="space-y-6">
         {prepInsights ? (
           <SectionCard
@@ -281,7 +279,7 @@ export default async function IlerlemePage() {
               önermiyordu. Defter tam olarak o soruları tutuyor. */}
           <Link
             href="/yanlislarim"
-            className="mt-4 flex items-center justify-between gap-4 rounded-xl border border-white/10 p-4 transition-colors hover:border-white/25"
+            className="cx-card-flat mt-4 flex items-center justify-between gap-4 rounded-2xl border border-white/10 p-4 transition-colors hover:bg-[var(--cx-bg-2)]"
           >
             <span>
               <span className="block text-sm font-semibold text-[var(--cs-text)]">
@@ -301,7 +299,7 @@ export default async function IlerlemePage() {
           </Link>
         </SectionCard>
       </div>
-      </div>
+      </PageShell>
     </ParitySorShell>
   );
 }

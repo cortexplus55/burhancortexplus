@@ -1,0 +1,283 @@
+/*
+  Girişli öğrenci sayfaları, Faz 1 (13 Kasım 2026, ürün sahibinin kararı; skill §1, §6, §8, §10).
+  Yalnız görünüm: metin, iş mantığı ve ödeme akışı aynı. Kapsam `main.cx-app-main` (kabuğun "app" görünümü);
+  ders, test ve fiyat gibi odak görünümleri bu sınıfı almaz.
+
+  1. Kartlarda 1 px kenarlık yok; katman basamak rengiyle ayrılır (bg-1 kart, bg-2 kart içi grup).
+  2. Altın yalnız Plus rozeti, seri ve başarıda (ve depo kararı 8'deki "Plus'a geç" hapında).
+  3. Dokunma hedefi en az 40 px, telefonda 44 px (depo kararı 5).
+  4. En küçük yazı 11 px (depo kararı 5).
+  5. Ekranda tek brand düğme; öbür eylemler glass ya da weak.
+*/
+
+/* ---------- 1. Kenarsız kartlar ---------- */
+.cp-sor-main.cx-app-main :is(
+    .cp-docs-card,
+    .cp-catalog-tile,
+    .cp-prep-card,
+    .tool-card,
+    .cs-pay-card,
+    .cp-section,
+    .lc-box,
+    .cp-pp-head,
+    .cp-pp-plan,
+    .cp-pp-streak,
+    .cp-pp-card,
+    .cp-pp-menu,
+    .cp-ref-card,
+    .pm-card,
+    .cp-founder-card,
+    .cp-founder-stat,
+    .cp-set-hero,
+    .cp-set-group-body,
+    .cp-solver-input,
+    .cp-limit-card,
+    .cp-invite-card,
+    .cp-quota-card,
+    .cp-cal-card,
+    .cp-cal-filters
+  ) {
+  border-color: transparent;
+  box-shadow: none;
+}
+.cp-sor-main.cx-app-main :is(.cp-docs-card, .cp-prep-card, .tool-card, .cp-pp-card, .cp-catalog-tile):hover {
+  border-color: transparent;
+  box-shadow: none;
+  background: var(--cx-bg-2);
+}
+/* Kartın içindeki "Sıradaki" satırı: çerçeve yerine bir üst basamak. */
+.cp-sor-main.cx-app-main .cp-prep-card-next {
+  border-color: transparent;
+  background: var(--cx-bg-2);
+}
+/* Çalışma Stüdyosu kartı: degrade çerçeve yerine düz kart zemini. */
+.cp-sor-main.cx-app-main .sg-card {
+  border-color: transparent;
+  background: var(--cx-bg-1);
+}
+.cp-sor-main.cx-app-main .sg-card:hover {
+  box-shadow: none;
+  background: var(--cx-bg-2);
+}
+/* Belgelerim ve Ayarlar'daki çok satırlı listeler: çizgi yerine satır başına kart, aralarında 4 px. */
+.cp-sor-main.cx-app-main .cp-pp-menu {
+  background: transparent;
+}
+.cp-sor-main.cx-app-main .cortex-premium-inset-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cx-space-4);
+  border: 0;
+  background: transparent;
+}
+.cp-sor-main.cx-app-main .cortex-premium-inset-list > li {
+  border-width: 0;
+  border-radius: var(--cx-radius-m);
+  background: var(--cx-bg-1);
+}
+.cp-sor-main.cx-app-main .cp-empty {
+  border-color: transparent;
+}
+/* İlerleme'deki "Yanlışlar Defteri" bağlantı kartı (Tailwind kenarlığı). */
+.cp-sor-main.cx-app-main .cx-card-flat {
+  border-color: transparent;
+  background: var(--cx-bg-1);
+}
+
+/* ---------- 2. Altın yalnız Plus, seri ve başarıda ---------- */
+/* Profil başlık kartının sıcak ışığı ve avatarın kahverengi zemini. */
+.cp-sor-main.cx-app-main .cp-pp-head {
+  background: var(--cx-bg-1);
+}
+.cp-sor-main.cx-app-main .cp-pp-avatar {
+  background: var(--cx-bg-2);
+  color: var(--cx-text-primary);
+}
+/* Profil'deki Takvimim sayacı. */
+.cp-sor-main.cx-app-main .cp-pp-card-badge {
+  background: var(--cx-bg-3);
+  color: var(--cx-text-primary);
+}
+/* Davet kartı: sıcak ışık ve altın durum yazısı. */
+.cp-sor-main.cx-app-main .cp-ref-card {
+  background: var(--cx-bg-1);
+}
+.cp-sor-main.cx-app-main .cp-ref-status {
+  color: var(--cx-text-secondary);
+}
+.cp-sor-main.cx-app-main .cp-ref-primary {
+  color: var(--cx-text-on-brand);
+}
+.cp-sor-main.cx-app-main .cp-ref-primary:hover {
+  background: var(--cx-brand);
+}
+/* İlerleme: etkinlik çubukları ve ısı haritası marka tonunda; "Hedef" çizgileri nötr. */
+.cp-sor-main.cx-app-main .cp-activity-bar {
+  background: var(--cx-brand);
+}
+.cp-sor-main.cx-app-main .cp-activity-cell[data-level="1"] {
+  background: color-mix(in srgb, var(--cx-brand) 35%, transparent);
+}
+.cp-sor-main.cx-app-main .cp-activity-cell[data-level="2"] {
+  background: color-mix(in srgb, var(--cx-brand) 65%, transparent);
+}
+.cp-sor-main.cx-app-main .cp-activity-cell[data-level="3"] {
+  background: var(--cx-brand);
+}
+.cp-sor-main.cx-app-main .cp-radar-target,
+.cp-sor-main.cx-app-main .cp-forecast-target {
+  stroke: var(--cx-text-tertiary);
+}
+.cp-sor-main.cx-app-main .cp-radar-goal {
+  fill: var(--cx-text-secondary);
+}
+/* Sınavlar: "hedef puan" etiketi ve işareti nötr, mono (Caveat kalktı); boş durumun adım numaraları marka. */
+.cp-sor-main.cx-app-main .cp-exam-target-label {
+  font: var(--cx-t-meta-s);
+  letter-spacing: var(--cx-ls-label, 0.01em);
+  text-transform: uppercase;
+  color: var(--cx-text-tertiary);
+}
+.cp-sor-main.cx-app-main .cp-exam-target-marker {
+  background: var(--cx-text-primary);
+}
+.cp-sor-main.cx-app-main .cp-exam-discover-steps strong {
+  background: var(--cx-brand-weak);
+  color: var(--cx-text-brand);
+}
+
+/* ---------- 3. Dokunma hedefleri: 40 px, telefonda 44 px ---------- */
+.cp-sor-main.cx-app-main :is(.cp-docs-link, .cp-docs-delete, .cp-ref-primary, .cp-ref-ghost, .cp-cal-filter) {
+  min-height: var(--cx-control-s);
+}
+.cp-sor-main.cx-app-main .cx-page .cp-upload-pick {
+  min-height: var(--cx-control-s);
+}
+.cp-sor-main.cx-app-main .cp-cal-month button {
+  width: var(--cx-control-s);
+  height: var(--cx-control-s);
+}
+@media (max-width: 767px) {
+  .cp-sor-main.cx-app-main :is(.cp-docs-link, .cp-docs-delete, .cp-ref-primary, .cp-ref-ghost, .cp-cal-filter),
+  .cp-sor-main.cx-app-main .cx-page .cp-upload-pick {
+    min-height: var(--cx-tap-min);
+  }
+  .cp-sor-main.cx-app-main .cp-cal-month button {
+    width: var(--cx-tap-min);
+    height: var(--cx-tap-min);
+  }
+}
+
+/* ---------- 4. En küçük yazı 11 px ---------- */
+/* Tahmin grafiği SVG'si (360 birim, en çok 22rem) ~0,95 ölçekle çizilir: 12 birim ≈ 11,4 px. */
+.cp-sor-main.cx-app-main :is(.cp-forecast-tick, .cp-forecast-axis, .cp-forecast-target-label) {
+  font-size: 12px;
+}
+.cp-sor-main.cx-app-main .cp-activity-weekdays {
+  font-size: 0.6875rem;
+}
+
+/* ---------- 5. Ekranda tek brand ---------- */
+/* Belgelerim: yalnız hazır olan ilk belgenin birincil düğmesi brand; öbür satır eylemleri weak (kenarsız). */
+.cp-sor-main.cx-app-main .cp-docs-primary.is-weak,
+.cp-sor-main.cx-app-main .cp-docs-link,
+.cp-sor-main.cx-app-main .cp-docs-delete {
+  border: 0;
+  background: var(--cx-bg-2);
+  color: var(--cx-text-secondary);
+}
+.cp-sor-main.cx-app-main .cp-docs-primary.is-weak:hover,
+.cp-sor-main.cx-app-main .cp-docs-link:hover {
+  background: var(--cx-bg-3);
+  color: var(--cx-text-primary);
+}
+.cp-sor-main.cx-app-main .cp-docs-delete {
+  color: var(--cx-danger);
+}
+.cp-sor-main.cx-app-main .cp-docs-delete:hover {
+  background: var(--cx-danger-weak);
+}
+/* Sınavlar: yalnız ilk kartın "Devam et"i brand, öbürleri glass. */
+.cp-sor-main.cx-app-main .cp-prep-card-go.is-glass {
+  background: var(--cx-glass-background);
+  box-shadow: var(--cx-glass-bevel);
+  color: var(--cx-text-primary);
+}
+/* Çalışma Stüdyosu: kart "Başla"ları glass; brand yok. */
+.cp-sor-main.cx-app-main .sg-cta {
+  background: var(--cx-glass-background);
+  box-shadow: var(--cx-glass-bevel);
+  color: var(--cx-text-primary);
+}
+.cp-sor-main.cx-app-main .sg-card:hover .sg-cta {
+  background: var(--cx-glass-background);
+}
+/* Çalışma grupları: "Gruba katıl" brand, "Grubu kur" glass. */
+.cp-sor-main.cx-app-main .cx-btn-glass {
+  background: var(--cx-glass-background);
+  box-shadow: var(--cx-glass-bevel);
+  color: var(--cx-text-primary);
+}
+/* Davet: ikincil eylemler (WhatsApp, Nasıl çalışır?) kenarsız weak. */
+.cp-sor-main.cx-app-main .cp-ref-ghost {
+  border-color: transparent;
+  background: var(--cx-bg-2);
+  color: var(--cx-text-secondary);
+}
+.cp-sor-main.cx-app-main .cp-ref-ghost:hover {
+  color: var(--cx-text-primary);
+}
+/* Sınavlar: Yaklaşan/Geçmiş ve kart "Devam et"i 40 px; başlık bağlantısı 40 px. */
+.cp-sor-main.cx-app-main :is(.cp-prep-when button, .cp-prep-card-go) {
+  min-height: var(--cx-control-s);
+}
+.cp-sor-main.cx-app-main .cp-prep-card-go {
+  display: inline-flex;
+  align-items: center;
+}
+.cp-sor-main.cx-app-main .cx-page-title a {
+  min-height: var(--cx-control-s);
+}
+@media (max-width: 767px) {
+  .cp-sor-main.cx-app-main :is(.cp-prep-when button, .cp-prep-card-go) {
+    min-height: var(--cx-tap-min);
+  }
+}
+
+/* ---------- Önizlemede gerçek veriyle ölçüldükten sonra (14 Kasım 2026) ---------- */
+/* Kenarsız: Takvimim etkinlik kartı, Çalışma grupları kartı; Ayarlar satırlarının arasındaki çizgi. */
+.cp-sor-main.cx-app-main :is(.cp-cal-item, .cp-classroom-card) {
+  border-color: transparent;
+  box-shadow: none;
+}
+.cp-sor-main.cx-app-main .cp-set-rows > li {
+  border-color: transparent;
+}
+/* 40 px hedefler (telefonda 44): Takvimim etkinlik başlığı, İlerleme bağlantıları, Profil'in küçük eylemleri. */
+.cp-sor-main.cx-app-main .cp-cal-item-title a,
+.cp-sor-main.cx-app-main .cp-section-body > a.inline-flex,
+.cp-sor-main.cx-app-main :is(.cp-avatar-pick-toggle, .cp-pp-settings, .cp-pp-plan .cp-founder-chip) {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--cx-control-s);
+}
+.cp-sor-main.cx-app-main .cp-avatar-pick-toggle {
+  padding-inline: var(--cx-space-12);
+}
+@media (max-width: 767px) {
+  .cp-sor-main.cx-app-main .cp-cal-item-title a,
+  .cp-sor-main.cx-app-main .cp-section-body > a.inline-flex,
+  .cp-sor-main.cx-app-main :is(.cp-avatar-pick-toggle, .cp-pp-settings, .cp-pp-plan .cp-founder-chip) {
+    min-height: var(--cx-tap-min);
+  }
+}
+/* Soru Çöz: stüdyo başlığı da heading-xl (telefonda 32). */
+.cp-sor-main.cx-app-main .cp-solver-hero-title {
+  font: var(--cx-t-heading-xl);
+  letter-spacing: -0.02em;
+}
+@media (max-width: 767px) {
+  .cp-sor-main.cx-app-main .cp-solver-hero-title {
+    font-size: 2rem;
+  }
+}

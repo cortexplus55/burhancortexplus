@@ -1,4 +1,6 @@
+import type { ReactNode } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { PageShell, type PageShellWidth } from "@/components/parity/page-shell";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 
@@ -14,6 +16,9 @@ export async function AppShell({
   children,
   title,
   creditHint,
+  lead,
+  actions,
+  width,
   focus = false,
 }: {
   children: React.ReactNode;
@@ -22,6 +27,12 @@ export async function AppShell({
   title?: string;
   /** Başlığın altında görünen kısa bilgi (ör. işlem bedeli). */
   creditHint?: string;
+  /** Başlığın altındaki açıklama (sayfanın kendi metni). */
+  lead?: ReactNode;
+  /** Başlığın sağındaki eylemler (sayfanın kendi düğmeleri). */
+  actions?: ReactNode;
+  /** Sayfa iskeleti genişliği (13 Kasım 2026): liste 816, okuma/form 768. Başlık varsa varsayılan liste. */
+  width?: PageShellWidth;
 }) {
   const supabase = await createClient();
   const {
@@ -36,23 +47,28 @@ export async function AppShell({
 
   return (
     <ParitySorShell {...shell} {...(focus ? { chrome: "session" as const, closeHref: "/ogretmen" } : {})}>
-      {/*
-        `.cp-page` olmadan bu sayfaların içeriği hiçbir kapsayıcıya
-        girmiyordu: başlık ekranın sol kenarına yapışıyor, form ve listeler
-        geniş ekranda tek satıra dağılıyordu.
-      */}
-      <div className="cp-page">
-        {title ? (
-          <div className="cp-page-head">
-            <h1 className="cp-page-title">{title}</h1>
-            {/* Kurucuda işlem bedeli yazmıyor: hiçbir işlem kredi düşürmüyor. */}
-            {creditHint && !shell.account.isAdmin ? (
-              <p className="cp-page-hint">{creditHint}</p>
-            ) : null}
-          </div>
-        ) : null}
-        {children}
-      </div>
+      {title || width ? (
+        /* Girişli sayfaların tek iskeleti (13 Kasım 2026): heading-xl başlık, liste 816 / okuma 768 px. */
+        <PageShell
+          title={title}
+          width={width ?? "list"}
+          actions={actions}
+          lead={
+            lead ??
+            /* Kurucuda işlem bedeli yazmıyor: hiçbir işlem kredi düşürmüyor. */
+            (creditHint && !shell.account.isAdmin ? creditHint : undefined)
+          }
+        >
+          {children}
+        </PageShell>
+      ) : (
+        /*
+          `.cp-page` olmadan bu sayfaların içeriği hiçbir kapsayıcıya
+          girmiyordu: başlık ekranın sol kenarına yapışıyor, form ve listeler
+          geniş ekranda tek satıra dağılıyordu. (Fiyat ekranı ve stüdyolar kendi düzeninde.)
+        */
+        <div className="cp-page">{children}</div>
+      )}
     </ParitySorShell>
   );
 }

@@ -105,9 +105,8 @@ export default async function AyarlarPage() {
   const planLabel = account.isAdmin ? null : account.isPremium ? (account.subscriptionBadge ?? "Plus") : "Ücretsiz";
 
   return (
-    <AppShell>
+    <AppShell title="Ayarlar" width="read">
       <div className="cp-set-page">
-        <h1 className="cp-set-title">Ayarlar</h1>
 
         <section className="cp-set-hero" aria-label="Hesabın">
           <span className="cp-set-avatar" aria-hidden>

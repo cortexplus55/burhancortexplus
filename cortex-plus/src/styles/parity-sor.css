@@ -73,7 +73,7 @@
 .cs-sor-screen--chat .cs-sor-greeting {
   font-family: var(--font-ui, "Figtree", system-ui, sans-serif);
   font-size: clamp(1.25rem, 4.5vw, 1.5rem);
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1.25;
   animation: none;
@@ -106,7 +106,7 @@
 
 .cs-sor-buy {
   padding: 0.4rem 0.85rem;
-  font-weight: 800;
+  font-weight: 700;
   box-shadow: 0 4px 16px rgba(244, 174, 11, 0.25);
 }
 
@@ -364,7 +364,7 @@
   background: var(--cs-primary);
   color: #0a0a0a;
   font-size: 1rem;
-  font-weight: 800;
+  font-weight: 700;
   cursor: pointer;
   box-shadow: none;
   transition: transform 0.15s ease, filter 0.15s ease;

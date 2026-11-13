@@ -2702,3 +2702,18 @@ Bekçi: `anlar-tur.test.tsx` ("tam ekran stüdyo", "C3 … tur yazar"), `misafir
 sayfada iç kaydırıcı 0; 2-7. adımlarda stüdyo ve sahne kaymaz, içerik sahnede, alt düğme ekranda, ölçek ≥ 0,6; 4. adımda
 beş şık cevaptan önce ve sonra ekranda; ✕ kilidi açar), `donusum.spec.ts` (tur stüdyoda baştan sona; stüdyoda çubuk
 düğmeleri ekranda 44 px, sığdırılan ürün düğmeleri kendi ölçüsünde 44 px).
+
+## Ortak sayfa iskeleti (13 Kasım 2026, Faz 1) — tek PageShell, kenarsız kart, tek brand
+
+Ürün sahibi canlı siteyi ölçtü: başlıklar 16–36 px, genişlikler 544–1056 px, kartlarda 1 px kenarlık, bir ekranda 7–11
+mavi düğme. Yalnız görünüm; metin, iş mantığı ve ödeme akışı aynı. Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| Girişli öğrenci sayfaları tek iskeletten: başlık `heading-xl` (40/600, telefonda 32), liste 816 px, okuma/form 768 px, yan boşluk 24 (telefonda 16). Başlığın açıklaması ve eylemleri sayfanın kendi metni (`lead`, `actions`). `AppShell`'e `title` ya da `width` verilince iskelet gelir; fiyat ve stüdyolar kendi düzeninde | `components/parity/page-shell.tsx`, `cx-shell.css` (`.cx-page*`, `.cx-page-btn`) |
+| Sayfa kuralları `main.cx-app-main` altında (kabuğun "app" görünümü; ders, test, fiyat gibi odak görünümleri almaz): kartlarda kenarlık ve çerçeve gölgesi yok (basamak rengi), altın yalnız Plus rozeti, seri, başarı ve "Plus'a geç"te, dokunma hedefi 40 px (telefonda 44), en küçük yazı 11 px | `styles/cx-pages.css` |
+| Ekranda tek brand: Belgelerim'de hazır olan ilk belgenin birincil düğmesi, Sınavlar'da ilk kartın "Devam et"i, Çalışma grupları'nda "Gruba katıl"; öbürleri glass ya da weak. Stüdyo kartlarının "Başla"sı glass | `dokumanlar/page.tsx` (`brandDocumentId`), `exam-prep.tsx` (`is-glass`), `create-class-form.tsx` |
+| Üst çubuk: "Daha fazla" panelinin sayfalarında (`MORE_PATHS`: Belgelerim, Yanlışlarım, Çalışma grupları, İlerleme, Takvimim, Kullanım limitleri, Davet, Geçmiş konuşmalar) "Daha fazla" etkin; `/sohbetler` Ana Sayfa değil; Yanlışlarım artık Stüdyo sayılmaz (8 Kasım'ın "Yanlışlarım'da Stüdyo seçili" kararı değişti). Telefonda Profil sekmesi kendi sayfalarında etkin | `student-shell-nav.ts` (`isMorePath`), `sor-shell.tsx` |
+| Caveat kalktı (17 Ekim ve 8 Kasım kararları değişti): "hedef puan" mono `meta-s`, sohbetin "Ezber kodu" metin yazı tipinde 20 px / 600. Ağırlıklar 600 ve 700'e indi (650, 800, 900 yok; yönetim, pazarlama ve e-posta kapsam dışı) | `layout.tsx`, `tokens.css`, `chat-teaching.css` |
+
+Bekçi: `parity-design-system.test.ts` (Caveat ve `--font-hand` yok), `activity-labels.test.tsx`, `paket2-akis-kaynak.test.ts`.

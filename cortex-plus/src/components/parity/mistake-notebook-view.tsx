@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowRight, RotateCcw } from "lucide-react";
 import type { MistakeQuestionGroup } from "@/lib/learning/mistake-notebook";
 import { MistakeRunner } from "@/components/parity/mistake-runner";
+import { PageShell } from "@/components/parity/page-shell";
 
 /**
  * Yanlış defteri.
@@ -51,17 +52,14 @@ export function MistakeNotebookView({
     const done = index >= queue.length;
 
     return (
-      <div className="cp-exam-page">
-        <div className="cp-page-head">
-          <h1 className="cp-page-title">{activeTopic}</h1>
-          <button
-            type="button"
-            onClick={leave}
-            className="self-start rounded-xl border border-white/15 px-4 py-2 text-sm font-semibold text-[var(--cs-muted)] transition-colors hover:border-white/30 hover:text-[var(--cs-text)]"
-          >
+      <PageShell
+        title={activeTopic}
+        actions={
+          <button type="button" onClick={leave} className="cx-page-btn cx-weak">
             Deftere dön
           </button>
-        </div>
+        }
+      >
 
         {done || !current ? (
           <div className="cs-pay-card p-6 text-center">
@@ -104,26 +102,25 @@ export function MistakeNotebookView({
             nextLabel={index + 1 >= queue.length ? "Turu bitir" : "Sonraki soru"}
           />
         )}
-      </div>
+      </PageShell>
     );
   }
 
   // ---------- liste ekranı ----------
 
   return (
-    <div className="cp-exam-page">
-      <div className="cp-page-head">
-        <h1 className="cp-page-title">Yanlışlar Defteri</h1>
-      </div>
-
-      <p className="text-sm text-[var(--cs-muted)]">
-        Denemede ve testte yanlış yaptığın sorular burada birikiyor. Bir soru
-        defterden ancak <strong>üst üste iki kez</strong> doğru yaptığında
-        çıkıyor — tek doğru şans olabilir.
-      </p>
-
+    <PageShell
+      title="Yanlışlar Defteri"
+      lead={
+        <>
+          Denemede ve testte yanlış yaptığın sorular burada birikiyor. Bir soru
+          defterden ancak <strong>üst üste iki kez</strong> doğru yaptığında
+          çıkıyor — tek doğru şans olabilir.
+        </>
+      }
+    >
       {openCount === 0 ? (
-        <div className="cs-pay-card mt-5 p-6 text-center">
+        <div className="cs-pay-card p-6 text-center">
           <p className="text-lg font-semibold text-[var(--cs-text)]">
             {masteredCount > 0
               ? "Harika! Tekrar etmen gereken bir yanlış yok."
@@ -142,8 +139,8 @@ export function MistakeNotebookView({
           </Link>
         </div>
       ) : (
-        <>
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <div>
+          <div className="grid gap-3 sm:grid-cols-2">
             <div className="cs-pay-card p-4">
               <p className="text-xs text-[var(--cs-muted)]">Bekleyen soru</p>
               <p className="mt-1 text-2xl font-semibold text-[var(--cs-text)]">
@@ -217,7 +214,7 @@ export function MistakeNotebookView({
                   {stuck ? (
                     <Link
                       href={`/studio/anlat?topic=${encodeURIComponent(group.label)}`}
-                      className="cp-tap mt-3 inline-flex items-center gap-2 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-[var(--cs-muted)] transition-colors hover:border-[var(--c-action)] hover:text-[var(--cs-text)]"
+                      className="cp-tap mt-3 inline-flex min-h-10 items-center gap-2 rounded-full bg-[var(--cx-bg-2)] px-4 text-xs font-semibold text-[var(--cs-muted)] transition-colors hover:border-[var(--c-action)] hover:text-[var(--cs-text)]"
                     >
                       Bu konu sana zor geliyor — bir de sen anlat
                     </Link>
@@ -226,8 +223,8 @@ export function MistakeNotebookView({
               );
             })}
           </div>
-        </>
+        </div>
       )}
-    </div>
+    </PageShell>
   );
 }

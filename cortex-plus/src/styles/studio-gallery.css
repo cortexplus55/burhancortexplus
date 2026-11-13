@@ -162,7 +162,7 @@
   align-items: center;
   gap: 0.5rem;
   font-size: 1.125rem;
-  font-weight: 650;
+  font-weight: 600;
   line-height: 1.2;
   letter-spacing: -0.02em;
 }
@@ -224,7 +224,7 @@
   background: color-mix(in srgb, var(--sg-accent) 85%, #000);
   color: #fff;
   font-size: 0.9375rem;
-  font-weight: 650;
+  font-weight: 600;
   box-shadow: 0 10px 24px -14px var(--sg-accent);
   transition: background 0.2s ease;
 }
