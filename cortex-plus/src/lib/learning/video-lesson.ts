@@ -334,7 +334,7 @@ export function captionChunks(
  * 4–5 sahne, toplam yaklaşık 60 saniye.
  */
 export const SKETCH_REEL_ID = "sketch_reel" as const;
-export const SKETCH_REEL_LABEL = "1 Dk Çizimli Video";
+export { SKETCH_REEL_LABEL } from "@/lib/learning/video-lesson-labels";
 export const SKETCH_MIN_SCENES = 4;
 export const SKETCH_MAX_SCENES = 5;
 export const SKETCH_SCENE_MAX_WORDS = 26;

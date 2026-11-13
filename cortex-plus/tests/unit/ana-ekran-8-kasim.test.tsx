@@ -55,7 +55,8 @@ describe("yerleşim: üste binme yok (#604)", () => {
   const shell = read("src/styles/parity-shell.css");
 
   it("besteci arkasını örter, mod düğmeleri ortada, kart varsa selam üstten başlar", () => {
-    expect(chat).toContain('className="cp-sor-composer-zone"');
+    // 13 Kasım 2026: ana ekran göstergesinde aynı kap ince çubuğu da taşır (cx-home-composer); sınıf cn() ile.
+    expect(chat).toContain('className={cn("cp-sor-composer-zone"');
     expect(shell).toContain(".cp-sor-root:not(.cp-sor-root--exam) .cp-sor-composer-zone::before");
     expect(shell).toMatch(/\.cp-sor-root:not\(\.cp-sor-root--exam\) \.cp-tutor-mode \{[^}]*justify-content: safe center/);
     // 10 Kasım 2026: kart selamla Başla'nın arasında da olabilir (heroLead); ikisi de kartlı kabuğu açar.

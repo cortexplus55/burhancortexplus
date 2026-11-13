@@ -13,12 +13,32 @@ Bileşende ham hex ya da ham px yazılmaz; token yoksa önce `tokens.css`'e ekle
 | # | Karar | Uygulama |
 |---|---|---|
 | 1 | Misafir ve pazarlama sayfaları 11 Kasım paletinde kalır; o sayfalarda skill'den yalnız ölçü, köşe, boşluk ve hareket alınır | `tokens.css` sonundaki "Misafir sayfaları" blokları, `.cinematic-marketing`, `.lp` ve `.cortex-premium-auth` köklü sayfalarda eski `--c-*` değerlerini geri koyar. Pazarlama paletinin kendisi (`landing.css`, `home-cinema.css` …) zaten `--c-*` okumuyor. `audience-tabs.tsx` metinli bölümlü seçici olacak (Faz 3), rengi pazarlama paletinden |
-| 2 | Faz 4.1 = `/` ve `/ogretmen`; skill §7 "Ana ekran" kalıbı uygulanmaz | `/ogretmen` bugünkü içeriğiyle skill ölçülerinde çizilir |
+| 2 | ~~Faz 4.1 = `/` ve `/ogretmen`; §7 "Ana ekran" kalıbı uygulanmaz~~ | Madde 8 ile değişti |
 | 3 | Açık tema kalır | `--cx-*` açık değerleri koyu merdivenin tersi **[varsayım]**, kontrastlar aşağıda |
 | 4 | Figtree ve JetBrains Mono kalır, Jersey 10 kalkar, Caveat kalır; Newsreader ders ekranı fazında | `--cx-font-sans` = Figtree, `--cx-font-mono` = JetBrains Mono; `--cx-font-reading` şimdilik sans |
 | 5 | Okunurluk tabanı (6 Kasım): en küçük yazı 11 px, başlık satır aralığı en az 1,15, telefonda dokunma en az 44 px | `meta-xs` 9 → 11 px; `heading-*`, `display-l`, `reading-title` satır aralığı 1,15 |
 | 6 | Yeni metin eklenmez | Skill'in metin isteyen yerleri her fazın raporunda listelenir; büyük harf yalnız CSS ile |
 | 7 | Köprü Faz 1'de çevrildi, palet kapısıyla | `--c-*` → `--cx-*`; kapı açıkken B merdiveni `<html data-cx-zemin="sicak">` ile görülür |
+| 8 | Ana ekran (`/ogretmen`) beş parça; altı fazlık plan bekler, önce bu ekran | Aşağıdaki "Ana ekran" bölümü; ayrıntı SKILL.md madde 8 |
+
+## Ana ekran (`/ogretmen`, 13 Kasım 2026)
+
+Hazırlığı olan öğrencinin boş ana ekranı beş parçadır; sohbet başlayınca bugünkü sohbet görünümü sürer, hiç hazırlığı olmayan hesapta boş durum (ilk adım kartları) bugünkü hâlindedir.
+
+| Parça | Ölçü | Dosya |
+|---|---|---|
+| Üst çubuk (≥768 px) | 96 yükseklik, 24 dolgu, `1fr auto 1fr`, merkezler y = 48; üç sekme + "Daha fazla"; cam "Başla", seri, avatar; ücretsizde "Plus'a geç" XS altın hap | `sor-shell.tsx` (`home`), `home-cockpit.css` |
+| Logo | `logo-mark-trim.png` 24 px + "Cortex Plus" Figtree 600 20 px `--cx-text-reading`, arası 8 | aynı |
+| Sınav şeridi | 73 geniş, kutu 65×80, en çok 4 görünür, 28 px oklar (tıklama 44), seçili cam hap kayar, geride nokta 4 px | `home-cockpit.tsx` (`ExamStrip`) |
+| Konu halkası | en çok `min(510px, 100vh − 150px)`; ≤12 konu yay yay, fazlası kesintisiz + işaret; kaydırıcı "i / N"; 52 px "Devam et" | `TopicRing`, `TopicSlider` |
+| Metin bloğu | en çok 458; meta-l → 6 → heading-l → 40 → mono bağlantı → 40 → 44 px cam "Ayrıntılar" | `CockpitText` |
+| İnce yazma çubuğu | 344×60, alttan 28; öğretmen (brand), ok (tepsi 4×2, öğe 105×84, köşe 32), alan (geniş kutuyu açar), mikrofon (sesli öğretmen) | `chat-panel.tsx` (`homeCockpit`, `homeTools`), `HomeToolsTray` |
+
+Veri: `loadHomeCockpit` (`src/lib/learning/home-cockpit.ts`) devam kartıyla aynı kaynaktan okur (hazırlık, yol adımları, konular; üç sorgu). "Geride" = yolda günü geçmiş ama bitmemiş adım (`pathIsBehind`, yolun kendi tarih kuralıyla). Sıra ve açılış seçimi `home-cockpit-model.ts`'te.
+
+Telefon (<768 px) **[varsayım]**: logo sol üstte, seri ve "Daha fazla" sağda; şerit yatay; halka üstte, metin altında; ince çubuk alt sekme çubuğunun üstünde. Tablette (768–1099 px) sekme ve "Daha fazla" yazısı gizli (simge kalır), metin halkanın altında.
+
+Ekrana özel ölçüler `tokens.css`'te (`--cx-topbar-h`, `--cx-strip-*`, `--cx-ring-*`, `--cx-slim-*`, `--cx-tray-item-*`, `--cx-cockpit-text-w`, `--cx-logo-h`, `--cx-dot`, `--cx-space-6`, `--cx-radius-inner`).
 
 ## Token özeti
 

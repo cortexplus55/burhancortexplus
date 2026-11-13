@@ -165,6 +165,25 @@
   --cx-fade-edge: 64px;
   --cx-toast-top: 64px;
 
+  /* Ana ekran (13 Kasım 2026, ürün sahibinin kararı: "/ogretmen beş parça") */
+  --cx-space-6: 6px;
+  --cx-radius-inner: 20px;
+  --cx-topbar-h: 96px;
+  --cx-logo-h: 24px;
+  --cx-strip-w: 73px;
+  --cx-strip-item-w: 65px;
+  --cx-strip-item-h: 80px;
+  --cx-strip-arrow-h: 28px;
+  --cx-dot: 4px;
+  --cx-ring-max: 510px;
+  --cx-ring-go: 52px;
+  --cx-cockpit-text-w: 458px;
+  --cx-slim-w: 344px;
+  --cx-slim-h: 60px;
+  --cx-slim-gap: 28px;
+  --cx-tray-item-w: 105px;
+  --cx-tray-item-h: 84px;
+
   /* İçerik genişlikleri [ölçüm] */
   --cx-w-reading: 768px;
   --cx-w-chat: 800px;

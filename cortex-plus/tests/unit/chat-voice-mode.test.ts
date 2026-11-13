@@ -19,7 +19,8 @@ describe("sohbette Konuş = sesli sohbet (kıyas ürünü, 29 Eylül 2026)", () 
   it("Konuş ilk cevabı beklemeden görünüyor ve sesli sohbeti açıyor", () => {
     expect(panel).toContain("const showExamTalk = examChrome && (!hasComposerPayload || voiceMode);");
     expect(panel).not.toContain("talkLastAnswer");
-    expect(panel.match(/onClick=\{toggleVoiceMode\}/g)?.length).toBe(2);
+    // 13 Kasım 2026: ana ekranın ince yazma çubuğundaki mikrofon da sesli öğretmeni açar (ürün sahibinin kararı 6).
+    expect(panel.match(/onClick=\{toggleVoiceMode\}/g)?.length).toBe(3);
   });
 
   it("sesli sohbette söylenen gönderiliyor, cevap okununca yeniden dinleniyor", () => {

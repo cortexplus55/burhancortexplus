@@ -24,6 +24,7 @@ import { CortexMark } from "@/components/brand/cortex-mark";
 
 import {
   ArrowLeft,
+  ArrowUp,
   AudioLines,
   Camera,
   ChevronRight,
@@ -67,6 +68,7 @@ import { SubjectModal } from "@/components/parity/subject-modal";
 import { UploadModal } from "@/components/parity/upload-modal";
 import { MathKeyboard } from "@/components/parity/math-keyboard";
 import { useStudentShellAccount } from "@/lib/student/student-shell-context";
+import { HOME_START_EVENT } from "@/lib/ui/home-events";
 import { MessageActions, type Rating } from "@/components/chat/message-actions";
 import { TutorReplyView } from "@/components/chat/tutor-reply-view";
 import { SourceModePill } from "@/components/chat/source-mode-pill";
@@ -286,7 +288,17 @@ function ChatPanelSession({
   feedbackEnabled = false,
   prepId,
   examChrome = false,
+  homeCockpit,
+  homeTools,
 }: {
+  /**
+   * Ana ekran göstergesi (13 Kasım 2026, ürün sahibinin kararı: "/ogretmen beş parça"). Verilirse boş ekranda
+   * selam, Başla ve kartlar yerine bu çizilir; yazma alanı ince çubuk olur, alana dokununca geniş kutu açılır.
+   * Sohbet başlayınca bugünkü görünüm sürer.
+   */
+  homeCockpit?: React.ReactNode;
+  /** İnce çubuktaki ok düğmesinin açtığı çalışma araçları tepsisi (bir bağlantıya basınca kapanır). */
+  homeTools?: React.ReactNode;
   initialConversationId?: string;
   initialDocumentId?: string;
   initialMessages?: Message[];
@@ -345,6 +357,9 @@ function ChatPanelSession({
   const gatePremium = isPremium ?? shellAccount?.isPremium ?? false;
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState("");
+  /** Ana ekranda ince çubuk mu geniş yazma kutusu mu (yalnız `homeCockpit` verildiğinde). */
+  const [wideComposer, setWideComposer] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
   const [tutorStyle, setTutorStyle] = useState<TutorStyle>(
     parseTutorStyle(initialTutorStyle) || DEFAULT_TUTOR_STYLE,
   );
@@ -1248,6 +1263,64 @@ function ChatPanelSession({
   const showMinimalMessages = isMinimalSor && (messages.length > 0 || loading);
   const showParityEmpty = isParitySor && messages.length === 0 && !loading;
   const showParityThread = isParitySor && (messages.length > 0 || loading);
+  /** Ana ekran göstergesi (13 Kasım 2026): boş ekranda beş parça, yazma alanı ince çubuk. */
+  const cockpitMode = Boolean(homeCockpit) && showParityEmpty && !examChrome;
+  const slimComposer = cockpitMode && !wideComposer;
+
+  // Geniş kutu açılınca yazma alanına odaklan; ince çubuk dışarı tıklanınca ve boşken geri döner.
+  useEffect(() => {
+    if (!cockpitMode || !wideComposer) return;
+    composerRef.current?.focus();
+    const collapse = (event: PointerEvent) => {
+      if (composerZoneRef.current?.contains(event.target as Node)) return;
+      // Yazma kutusunun açtığı pencereler (ders seçimi, yükleme, tablo) kutuyu kapatmaz.
+      if ((event.target as Element | null)?.closest?.('[role="dialog"], [aria-modal="true"]')) return;
+      if (input.trim() || pendingFile || pendingRemote) return;
+      setWideComposer(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || input.trim() || pendingFile || pendingRemote) return;
+      setWideComposer(false);
+    };
+    document.addEventListener("pointerdown", collapse);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", collapse);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [cockpitMode, wideComposer, input, pendingFile, pendingRemote]);
+
+  // Araç tepsisi: Escape ve dışarı tıklama kapatır.
+  useEffect(() => {
+    if (!toolsOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setToolsOpen(false);
+    };
+    const onPointer = (event: PointerEvent) => {
+      if (composerZoneRef.current?.contains(event.target as Node)) return;
+      setToolsOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    document.addEventListener("pointerdown", onPointer);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.removeEventListener("pointerdown", onPointer);
+    };
+  }, [toolsOpen]);
+
+  // Üst çubuktaki "Başla" (ana ekran): öğretmen ilk sözü söyler, yazma alanı açılır (model çağrısı yok).
+  useEffect(() => {
+    if (examChrome || !isParitySor) return;
+    const onStart = () => {
+      if (startGreeting && messages.length === 0) {
+        setMessages([{ role: "assistant", content: startGreeting, local: true }]);
+      }
+      window.setTimeout(() => composerRef.current?.focus(), 0);
+    };
+    window.addEventListener(HOME_START_EVENT, onStart);
+    return () => window.removeEventListener(HOME_START_EVENT, onStart);
+  }, [examChrome, isParitySor, startGreeting, messages.length]);
+
   // Öneri çipleri yalnızca dolu, hatasız bir yanıtın ardından çıkıyor:
   // yazarken, hata ekranında ya da kullanıcı sırasındayken görünmüyor.
   function setRating(index: number, rating: Rating) {
@@ -1518,7 +1591,8 @@ function ChatPanelSession({
               </div>
             </div>
           ) : null}
-          {showParityEmpty && !examChrome ? (
+          {cockpitMode ? <div className="cx-home-stage">{homeCockpit}</div> : null}
+          {showParityEmpty && !examChrome && !cockpitMode ? (
             <div className={cn("cp-sor-hero", heroFooter || heroLead ? "cp-sor-hero--rich" : null, heroLead ? "cp-sor-hero--lead" : null)}>
               <h1 className="cp-sor-hero-title">
                 {greetingLine ?? "Merhaba!"}
@@ -1746,10 +1820,73 @@ function ChatPanelSession({
               çubuktaki Plus düğmesi. Kota dolunca kredi kapısı açılır. */}
           <div
             ref={composerZoneRef}
-            className="cp-sor-composer-zone"
+            className={cn("cp-sor-composer-zone", cockpitMode && "cx-home-composer", slimComposer && "is-slim")}
             style={keyboardInset ? { paddingBottom: keyboardInset } : undefined}
           >
             <div className="cp-sor-composer-main">
+            {slimComposer ? (
+              /* İnce yazma çubuğu (13 Kasım 2026, ürün sahibinin kararı): öğretmen düğmesi (boşken geniş kutuyu açar,
+                 doluyken gönderir), araç tepsisi, alan (dokununca geniş kutu), mikrofon (sesli öğretmen). */
+              <div className="cx-slim">
+                {toolsOpen && homeTools ? (
+                  <div
+                    id="cx-home-tray"
+                    className="cx-tray cx-popover"
+                    role="group"
+                    aria-label="Çalışma Stüdyosu"
+                    onClick={(event) => {
+                      if ((event.target as Element).closest("a")) setToolsOpen(false);
+                    }}
+                  >
+                    {homeTools}
+                  </div>
+                ) : null}
+                <div className="cx-slim-bar cx-glass">
+                  <button
+                    type="button"
+                    className="cx-slim-teacher cx-brand"
+                    aria-label={hasComposerPayload ? "Gönder" : "Cortex Plus ile konuş"}
+                    disabled={loading}
+                    onClick={() => {
+                      if (hasComposerPayload) void sendComposer();
+                      else setWideComposer(true);
+                    }}
+                  >
+                    {hasComposerPayload ? <ArrowUp aria-hidden /> : <Sparkles aria-hidden />}
+                  </button>
+                  <button
+                    type="button"
+                    className="cx-slim-icon"
+                    aria-label="Çalışma Stüdyosu"
+                    aria-expanded={toolsOpen}
+                    aria-controls="cx-home-tray"
+                    onClick={() => setToolsOpen((open) => !open)}
+                  >
+                    <ChevronUp aria-hidden className={cn(toolsOpen && "is-open")} />
+                  </button>
+                  <input
+                    className="cx-slim-field"
+                    aria-label={placeholder ?? "Mesaj"}
+                    placeholder={placeholder}
+                    value={input}
+                    readOnly
+                    onFocus={() => setWideComposer(true)}
+                    onClick={() => setWideComposer(true)}
+                  />
+                  <button
+                    type="button"
+                    className={cn("cx-slim-icon", voiceMode && "is-live")}
+                    aria-label={voiceModeLabel(voiceMode, { talking, listening, loading, idle: "Cortex Plus ile konuş" })}
+                    aria-pressed={voiceMode}
+                    disabled={!voiceMode && (loading || transcribing)}
+                    onClick={toggleVoiceMode}
+                  >
+                    <Mic aria-hidden />
+                  </button>
+                </div>
+              </div>
+            ) : (
+            <>
             {/* Ana sayfa ilk mesaja kadar sade; varsayılan genel sohbet.
                 Bir belgeden gelindiyse seçim baştan görünür. */}
             {examChrome ? null : (
@@ -2174,6 +2311,8 @@ function ChatPanelSession({
                 </div>
               </div>
             </form>
+            </>
+            )}
             </div>
 
           </div>

@@ -5,7 +5,8 @@ import { syncLearningPrefsOnce } from "@/lib/client/learning-prefs-store";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { ArrowLeft, CalendarDays, ChevronRight, Crown, FileText, Flame, Gift, Gauge, LayoutGrid, LineChart, NotebookPen, ShieldCheck, Users, X } from "lucide-react";
+import { ArrowLeft, CalendarDays, ChevronRight, Crown, FileText, Flame, Gift, Gauge, LayoutGrid, LineChart, NotebookPen, ShieldCheck, Sparkles, Users, X } from "lucide-react";
+import { HOME_START_EVENT } from "@/lib/ui/home-events";
 import { cn } from "@/lib/utils";
 import { readStreakFromStorage } from "@/components/parity/gamification";
 import { StreakFreezeBadge, type StreakFreezeBadgeState } from "@/components/parity/streak-freeze-badge";
@@ -30,6 +31,7 @@ import { ExamCountdownBadge } from "@/components/parity/exam-countdown-badge";
 import type { ExamCountdown } from "@/lib/learning/exam-countdown";
 import type { RecentConversation } from "@/lib/student/conversation-time";
 import "@/styles/parity-shell.css";
+import "@/styles/home-cockpit.css";
 
 export type { RecentConversation };
 
@@ -72,7 +74,13 @@ export function ParitySorShell({
   conversationBaseHref,
   minimalTop = false,
   countdown = null,
+  home = false,
 }: {
+  /**
+   * Ana ekran üst çubuğu (13 Kasım 2026, ürün sahibinin kararı): logo, üç sekme + "Daha fazla", sağda cam
+   * "Başla", seri ve avatar. Yalnız /ogretmen'de; öbür sayfalar kabuk fazına kadar eski çubukta.
+   */
+  home?: boolean;
   children: React.ReactNode;
   userInitial?: string;
   avatarEmoji?: string | null;
@@ -212,7 +220,7 @@ export function ParitySorShell({
 
   return (
     <StudentShellProvider account={account}>
-      <div className={cn("cp-sor-root", isPremium && "cp-sor-root--plus", isStudio && "cp-sor-root--studio", chrome === "exam" && "cp-sor-root--exam", chrome === "focus" && "cp-sor-root--focus", chrome === "session" && "cp-sor-root--session", minimalTop && "cp-sor-root--minimal-top")}>
+      <div className={cn("cp-sor-root", home && chrome === "app" && "cp-sor-root--home", isPremium && "cp-sor-root--plus", isStudio && "cp-sor-root--studio", chrome === "exam" && "cp-sor-root--exam", chrome === "focus" && "cp-sor-root--focus", chrome === "session" && "cp-sor-root--session", minimalTop && "cp-sor-root--minimal-top")}>
       {account?.freePreview && chrome !== "session" ? (
         <div className="cp-free-preview-bar" role="status">
           <span>Ücretsiz önizleme açık: ücretsiz bir öğrencinin gördüğünü görüyorsun.</span>
@@ -221,9 +229,101 @@ export function ParitySorShell({
       ) : null}
       {/* Tek şerit, her öğrenci kabuğunda (Paket J takip #3): oturum ekranları dahil; kurucuda hiç. */}
       {account?.isAdmin ? null : <EmailVerifyBanner initialUnverified={emailUnverified} />}
+      {home && chrome === "app" ? (
+        <header className="cx-home-top">
+          {/* Logo [karar]: depodaki işaret 24 px, yazı Figtree 600 20 px --cx-text-reading; zemin, kutu, rozet yok. */}
+          <Link href="/ogretmen" className="cx-home-logo" aria-label="Cortex Plus Ana Sayfa">
+            <Image
+              src="/logo-mark-trim.png"
+              width={432}
+              height={280}
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+              priority
+              className="cx-home-logo-mark"
+            />
+            <span className="cx-home-logo-word">Cortex Plus</span>
+          </Link>
+          <div className="cx-home-nav">
+            <nav className="cx-home-tray" aria-label="Ana bölümler">
+              {studentTopTabs
+                .filter((tab) => tab.id !== "profile")
+                .map((tab) => {
+                  const active = tab.match(pathname);
+                  const Icon = tab.icon;
+                  return (
+                    <Link
+                      key={tab.id}
+                      href={tab.href}
+                      className={cn("cx-home-tab", active && "is-active cx-glass")}
+                      aria-current={active ? "page" : undefined}
+                    >
+                      <Icon className="cx-home-tab-icon" aria-hidden />
+                      <span>{tab.label}</span>
+                    </Link>
+                  );
+                })}
+            </nav>
+            <button
+              type="button"
+              className="cx-home-more"
+              aria-label="Daha fazla"
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen(true)}
+            >
+              <LayoutGrid aria-hidden />
+              <span className="cx-home-more-label">Daha fazla</span>
+            </button>
+          </div>
+          <div className="cx-home-actions">
+            <button
+              type="button"
+              className="cx-home-start cx-glass"
+              onClick={() => window.dispatchEvent(new Event(HOME_START_EVENT))}
+            >
+              <Sparkles aria-hidden />
+              Başla
+            </button>
+            {showBuy ? (
+              <Link href="/pay" className="cx-home-buy" aria-label="Plus planına bak">
+                {/* Telefonda mevcut kısa etiket ("Plus"); yazılar eski çubuktakiyle aynı. */}
+                <span className="cx-home-buy-full">Plus&apos;a geç</span>
+                <span className="cx-home-buy-short">Plus</span>
+              </Link>
+            ) : null}
+            <button
+              type="button"
+              className="cx-home-streak cx-glass"
+              aria-label={`Seri: ${streakCount} gün. Seri ve rozetleri aç`}
+              aria-haspopup="dialog"
+              onClick={() => {
+                setJourneyTab("streak");
+                setJourneyOpen(true);
+              }}
+            >
+              <Flame aria-hidden />
+              <span>{streakCount}</span>
+              {freezeState ? <StreakFreezeBadge state={freezeState} compact /> : null}
+            </button>
+            <Link href="/profil" className="cx-home-avatar" aria-label="Profil">
+              {avatarEmoji ? <span aria-hidden>{avatarEmoji}</span> : (userInitial?.slice(0, 1) ?? "?")}
+            </Link>
+            <button
+              type="button"
+              className="cx-home-more cx-home-more--phone"
+              aria-label="Daha fazla"
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen(true)}
+            >
+              <LayoutGrid aria-hidden />
+            </button>
+          </div>
+        </header>
+      ) : null}
       {/* Üst çubuk ve sınav şeridi tek kapta (9 Kasım 2026, C tasarımı): telefonda seri ve yıldız şerit kartına,
           Plus etiketi avatara yerleşir; yalnız CSS ile, öğeler ve tıklamalar aynı. */}
-      <div className={cn("cp-sor-head", chrome === "app" && !minimalTop && "cp-sor-head--c")}>
+      {home && chrome === "app" ? null : <div className={cn("cp-sor-head", chrome === "app" && !minimalTop && "cp-sor-head--c")}>
       {chrome === "session" ? null : <header className="cp-sor-top">
         {examChrome ? (
           <Link href={backHref} className="cp-exam-back">
@@ -370,7 +470,7 @@ export function ParitySorShell({
       </header>}
 
       {chrome === "app" ? <ExamCountdownBadge countdown={countdown} /> : null}
-      </div>
+      </div>}
 
       {showPlusLimit ? (
         <PlusLimitBanner onDismiss={() => setLimitDismissed(true)} />

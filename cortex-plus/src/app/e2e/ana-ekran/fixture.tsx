@@ -3,7 +3,8 @@
 import { ChatPanel } from "@/components/chat/chat-panel";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { FirstStepLauncher } from "@/components/parity/first-step-launcher";
-import { ContinueLine } from "@/components/parity/continue-line";
+import { HomeCockpit, HomeSelectionProvider, HomeToolsTray } from "@/components/parity/home-cockpit";
+import type { CockpitPrep, CockpitStep, CockpitTopic } from "@/lib/learning/home-cockpit-model";
 import type { StudentAccountContext } from "@/lib/student/account-context";
 
 /** Yalnız test fikstürü (E2E_FIXTURE=1): ana ekranın yerleşimini veritabanısız çizer. */
@@ -65,6 +66,87 @@ export function fixtureAccount(plus: boolean): StudentAccountContext {
   return account(plus);
 }
 
+/** Ana ekran göstergesi örneği (13 Kasım 2026): geçmiş, yakın, uzak, tarihsiz; biri geride. Sıra yükleyicinin sırası. */
+function step(heading: string, kindLabel = "Konu testi"): CockpitStep {
+  return { heading, kindLabel, href: "/e2e/ana-ekran?hazirlik=1&tiklandi=1" };
+}
+
+function topics(labels: string[], done: number): CockpitTopic[] {
+  return labels.map((label, index) => ({
+    id: `t${index}`,
+    label,
+    done: index < done,
+    next: index >= done ? step(`${label}: konu anlatımı`, "Konu anlatımı") : null,
+  }));
+}
+
+export function fixtureCockpit({ fresh = false, manyTopics = false }: { fresh?: boolean; manyTopics?: boolean } = {}): CockpitPrep[] {
+  const biology = topics(
+    ["Hücre zarı ve madde geçişi", "Mitoz bölünme", "Mayoz bölünme", "Mendel genetiği", "Eşeysiz üreme", "Kalıtım ve çevre"],
+    fresh ? 0 : 2,
+  );
+  const many = topics(Array.from({ length: 18 }, (_, index) => `Ünite ${index + 1} konusu`), 5);
+  const preps: CockpitPrep[] = [
+    {
+      id: "gecmis",
+      title: "Kimya Ara Sınavı",
+      subject: "Kimya",
+      examDate: "2026-11-03",
+      daysLeft: -10,
+      behind: false,
+      progress: { done: 30, total: 30, pct: 100 },
+      next: null,
+      topics: topics(["Mol kavramı", "Kimyasal tepkimeler"], 2),
+      currentTopic: 0,
+      href: "/e2e/ana-ekran?hazirlik=1&tiklandi=1",
+      createdAt: "2026-10-01T00:00:00Z",
+    },
+    {
+      id: "biyoloji",
+      title: "Hücre Bölünmeleri ve Kalıtım",
+      subject: "Biyoloji",
+      examDate: "2026-12-18",
+      daysLeft: 35,
+      behind: true,
+      progress: fresh ? { done: 0, total: 48, pct: 0 } : { done: 13, total: 48, pct: 27 },
+      next: step("Mitoz ve mayoz arasındaki farklar"),
+      topics: manyTopics ? many : biology,
+      currentTopic: manyTopics ? 5 : fresh ? 0 : 2,
+      href: "/e2e/ana-ekran?hazirlik=1&tiklandi=1",
+      createdAt: "2026-11-01T00:00:00Z",
+    },
+    {
+      id: "fizik",
+      title: "TYT Fizik",
+      subject: "Fizik",
+      examDate: "2027-03-20",
+      daysLeft: 127,
+      behind: false,
+      progress: { done: 4, total: 60, pct: 7 },
+      next: step("Kuvvet ve hareket", "Konu anlatımı"),
+      topics: topics(["Fizik bilimine giriş", "Madde ve özellikleri", "Kuvvet ve hareket", "Enerji"], 1),
+      currentTopic: 1,
+      href: "/e2e/ana-ekran?hazirlik=1&tiklandi=1",
+      createdAt: "2026-11-05T00:00:00Z",
+    },
+    {
+      id: "tarihsiz",
+      title: "İngilizce Okuma",
+      subject: "İngilizce",
+      examDate: null,
+      daysLeft: null,
+      behind: false,
+      progress: { done: 2, total: 20, pct: 10 },
+      next: step("Ana fikir bulma", "Konu anlatımı"),
+      topics: topics(["Ana fikir bulma", "Çıkarım soruları", "Kelime bilgisi"], 0),
+      currentTopic: 0,
+      href: "/e2e/ana-ekran?hazirlik=1&tiklandi=1",
+      createdAt: "2026-11-10T00:00:00Z",
+    },
+  ];
+  return preps;
+}
+
 export function AnaEkranFixture({
   conversation,
   plus,
@@ -72,7 +154,10 @@ export function AnaEkranFixture({
   unanswered = false,
   teaching = false,
   freshPrep = false,
+  manyTopics = false,
 }: {
+  /** 12'den fazla konu (`?konu=cok`): halka kesintisiz, seçim yalnız kaydırıcıyla. */
+  manyTopics?: boolean;
   conversation: boolean;
   plus: boolean;
   hasPrep: boolean;
@@ -81,40 +166,15 @@ export function AnaEkranFixture({
   unanswered?: boolean;
   teaching?: boolean;
 }) {
-  // Canlıdaki gibi (10 Kasım 2026): hazırlığı olanda kart selamla Başla'nın arasında, üstünde dost satırı.
-  const heroLead = conversation || !hasPrep ? undefined : (
-    <ContinueLine
-      step={{
-        prepId: "fixture",
-        prepTitle: "Hücre Bölünmeleri ve Kalıtım",
-        subject: "Biyoloji",
-        progress: freshPrep ? { done: 0, total: 48, pct: 0 } : { done: 13, total: 48, pct: 27 },
-        daysLeft: 35,
-        next: {
-          kind: "quiz",
-          kindLabel: "Konu testi",
-          heading: "Mitoz ve mayoz arasındaki farklar",
-          minutes: 8,
-          href: "/e2e/ana-ekran?hazirlik=1&tiklandi=1",
-        },
-      }}
-    />
-  );
+  // 13 Kasım 2026: hazırlığı olanda boş ana ekran beş parça (canlıdaki `/ogretmen` gibi).
+  const cockpit = hasPrep ? fixtureCockpit({ fresh: freshPrep, manyTopics }) : [];
   const heroFooter = conversation || hasPrep ? undefined : (
     <FirstStepLauncher firstName="Öğrenci" gradeLevel="12. sınıf" goalText="YKS hazırlık" />
   );
-  return (
-    <ParitySorShell
-      userInitial="Ö"
-      streak={2}
-      account={account(plus)}
-      countdown={
-        hasPrep
-          ? { state: "countdown", daysLeft: 35, examDate: "2026-12-15", label: "Sınavına 35 Gün Kaldı", examTitle: "Hücre Bölünmeleri ve Kalıtım", officialExam: null, href: "/e2e/ana-ekran?hazirlik=1" }
-          : null
-      }
-    >
+  const panel = (
       <ChatPanel
+        homeCockpit={cockpit.length ? <HomeCockpit /> : undefined}
+        homeTools={cockpit.length ? <HomeToolsTray freeAccount={!plus} /> : undefined}
         variant="parity"
         composerMode="parity"
         greetingLine="Öğrenci, iyi akşamlar! 🌙"
@@ -122,8 +182,6 @@ export function AnaEkranFixture({
         showEmptyStarter
         startLabel="Başla"
         heroFooter={heroFooter}
-        heroLead={heroLead}
-        greetingSubline={hasPrep ? "Dün ara verdin, olur. Bugün tek bir adımla ritmi geri alırız. Sıradaki: konu testi, ~8 dk." : undefined}
         showSubjectPicker
         placeholder="Sor, konuş veya dosya gönder"
         initialConversationId={conversation ? "fixture" : undefined}
@@ -141,6 +199,10 @@ export function AnaEkranFixture({
         tutorStyleLabel="Adım adım"
         initialTutorStyle="step_by_step"
       />
+  );
+  return (
+    <ParitySorShell home userInitial="Ö" streak={2} account={account(plus)}>
+      {cockpit.length ? <HomeSelectionProvider preps={cockpit}>{panel}</HomeSelectionProvider> : panel}
     </ParitySorShell>
   );
 }
