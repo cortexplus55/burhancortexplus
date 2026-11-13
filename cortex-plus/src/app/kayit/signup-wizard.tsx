@@ -314,7 +314,7 @@ export function SignupWizard() {
       <button
         type="button"
         onClick={back}
-        className="rounded-full p-2 text-[var(--cx-muted)] hover:bg-[var(--cx-surface-solid)]"
+        className="rounded-full p-2 text-[var(--cpx-muted)] hover:bg-[var(--cpx-surface-solid)]"
         aria-label="Geri"
       >
         <ArrowLeft className="h-5 w-5" />
@@ -322,7 +322,7 @@ export function SignupWizard() {
     ) : (
       <Link
         href="/"
-        className="text-sm font-semibold text-[var(--cx-gold-hover)]"
+        className="text-sm font-semibold text-[var(--cpx-gold-hover)]"
       >
         Cortex Plus
       </Link>
@@ -560,7 +560,7 @@ function PreviewLessonLink() {
     <p className="mt-4 text-center text-sm">
       <Link
         href="/ornek"
-        className="text-[var(--cx-muted)] underline-offset-4 hover:text-[var(--cx-gold-hover)] hover:underline"
+        className="text-[var(--cpx-muted)] underline-offset-4 hover:text-[var(--cpx-gold-hover)] hover:underline"
       >
         Önce örnek bir dersi incele →
       </Link>
@@ -581,7 +581,7 @@ function StepShell({
     <div className="flex flex-1 flex-col pt-6">
       <h1 className="signup-step-title">{title}</h1>
       {subtitle ? (
-        <p className="mt-2 text-sm text-[var(--cx-muted)]">{subtitle}</p>
+        <p className="mt-2 text-sm text-[var(--cpx-muted)]">{subtitle}</p>
       ) : null}
       <div className="mt-8 flex-1">{children}</div>
     </div>

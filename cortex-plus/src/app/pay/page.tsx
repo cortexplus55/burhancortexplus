@@ -52,7 +52,7 @@ export default async function PayPage({ searchParams }: { searchParams: Promise<
   }
 
   return (
-    <AppShell>
+    <AppShell focus>
       {founder ? (
         <section className="cp-pay-founder" aria-label="Hesabının durumu">
           <FounderBadge />

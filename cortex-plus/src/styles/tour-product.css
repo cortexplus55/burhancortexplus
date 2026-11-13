@@ -83,6 +83,14 @@
   position: static;
 }
 
+/*
+  Tek ana düğme (A3, 13 Kasım 2026): konu testinde cevap kontrol edilince sonraki iş turun alt düğmesinde ("Akıllı
+  kartlara geç"). Ürünün kendi "Testi bitir" çubuğu çekilir; aynı anda iki ana düğme durmaz. Yalnız yerleşim.
+*/
+.lj-product[data-acted] .tp-frame[data-screen="question"] .cp-quiz-action-bar {
+  display: none;
+}
+
 /* Yüklenirken: çerçevenin yeri belli, içerik gelince zıplamaz. */
 .tp-loading {
   display: grid;
@@ -131,4 +139,176 @@
 /* Ana sayfada her dokunma alanı en az 44 px: ürünün telefon tabanı 36 px, çerçevede bir basamak büyür. */
 .tp-app button {
   min-height: 2.75rem;
+}
+
+/* ---------- Tam ekran stüdyoda kaydırmasız yerleşim (13 Kasım 2026) ---------- */
+
+/*
+  Ürün sahibi: "hiçbir adımda aşağı-yukarı kaydırma yok; 4. adımda beş şık birden görünsün". Yalnız yerleşim:
+  boşluklar sıkılaşır, geniş ekranda bloklar yan yana durur, telefonda görsel kartlar yana kaydırılan bir şerit olur.
+  Renk ve yazı ürünün kendi dosyalarından gelir. Sığmayan kalırsa sahne orantılı küçülür (`.lj-fit`).
+*/
+.lj-studio .tp-app .cp-exam-page {
+  padding: 0.5rem clamp(0.6rem, 2vw, 1.25rem) 0.6rem;
+}
+
+/* Ders: üst çubuk, kutular ve geri bildirim şeridi sıkı. */
+.lj-studio .tp-app .als {
+  padding-top: 0;
+  padding-bottom: 0.25rem;
+}
+
+.lj-studio .tp-app .als-top {
+  margin-bottom: 0.45rem;
+  padding-block: 0.3rem;
+}
+
+.lj-studio .tp-app .als-slide {
+  padding: 0.9rem 1rem 1rem;
+}
+
+.lj-studio .tp-app .als-check {
+  margin-top: 0.5rem;
+  padding: 0.85rem 1rem;
+}
+
+.lj-studio .tp-app .als-step-content > .als-slide:not(:first-child) {
+  margin-top: 0.75rem;
+}
+
+.lj-studio .tp-app .als-feedback {
+  position: static;
+  margin-top: 0.6rem;
+}
+
+.lj-studio .tp-app .als-options {
+  margin-top: 0.5rem;
+  gap: 0.3rem;
+}
+
+.lj-studio .tp-app .als-option {
+  padding: 0.45rem 0.75rem;
+}
+
+/* Görsel kartlar (formül, sınav tuzağı, hafıza çivisi, örnek): telefonda yana kaydırılan şerit. */
+.lj-studio .tp-app .als-cardrow {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 88%;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.lj-studio .tp-app .als-cardrow::-webkit-scrollbar {
+  display: none;
+}
+
+.lj-studio .tp-app .als-cardrow > * {
+  margin: 0;
+  scroll-snap-align: start;
+}
+
+/* Telefonda "önce dene"nin cevabı açılınca açıklaması yerine anlatım görünür (doğrusu tuzak kartında da yazılı). */
+@media (max-width: 899px) {
+  .lj-studio .tp-app .als-step-content > .als-check:has(+ .als-slide) .als-explain {
+    display: none;
+  }
+}
+
+/* Geniş ekran: önce dene sorusu ile anlatım yan yana; kartlar yan yana (bento). */
+@media (min-width: 900px) {
+  .lj-studio .tp-app .cp-exam-page {
+    max-width: none;
+  }
+
+  .lj-studio .tp-app .als {
+    width: 100%;
+  }
+
+  /* Önce dene: soru solda, anlatım sağda. Ekranın sonundaki soru: anlatım solda, soru sağda. */
+  .lj-studio .tp-app .als-step-content:has(> .als-check + .als-slide) {
+    display: grid;
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.4fr);
+    column-gap: 1rem;
+    align-items: start;
+  }
+
+  .lj-studio .tp-app .als-step-content:has(> .als-slide + .als-check) {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    column-gap: 1rem;
+    align-items: start;
+  }
+
+  .lj-studio .tp-app .als-step-content:has(> .als-check + .als-slide) > *,
+  .lj-studio .tp-app .als-step-content:has(> .als-slide + .als-check) > * {
+    margin-top: 0;
+  }
+
+  .lj-studio .tp-app .als-cardrow {
+    grid-auto-flow: row;
+    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+    overflow: visible;
+  }
+}
+
+/* Konu testi: soru, beş şık ve iki şık ipucu tek ekranda; açıklama telefonda sınırlı bir kartta, geniş ekranda sağ sütunda. */
+.lj-studio .tp-frame[data-screen="question"] .cp-written-review > .space-y-6 > * + * {
+  margin-top: 0.6rem;
+}
+
+.lj-studio .tp-frame[data-screen="question"] [role="radiogroup"] > * + * {
+  margin-top: 0.4rem;
+}
+
+.lj-studio .tp-frame[data-screen="question"] [role="radiogroup"] > button {
+  padding: 0.45rem 0.75rem;
+  gap: 0.75rem;
+}
+
+.lj-studio .tp-frame[data-screen="question"] .space-y-6 > [aria-live="polite"] {
+  max-height: max(9rem, calc(var(--lj-avail, 34rem) * 0.36));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.75rem 1rem;
+}
+
+@media (min-width: 900px) {
+  .lj-studio .tp-frame[data-screen="question"] .cp-written-review > .space-y-6 {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    column-gap: 1.25rem;
+    row-gap: 0.6rem;
+    align-items: start;
+  }
+
+  .lj-studio .tp-frame[data-screen="question"] .cp-written-review > .space-y-6 > * {
+    grid-column: 1;
+    margin-top: 0;
+  }
+
+  .lj-studio .tp-frame[data-screen="question"] .cp-written-review > .space-y-6 > :is([aria-live="polite"], div:has(> .cp-two)) {
+    grid-column: 2;
+    grid-row: 1 / span 8;
+    max-height: calc(var(--lj-avail, 34rem) - 4.5rem);
+  }
+
+  .lj-studio .tp-frame[data-screen="question"] [role="radiogroup"] {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.45rem;
+  }
+
+  .lj-studio .tp-frame[data-screen="question"] [role="radiogroup"] > * + * {
+    margin-top: 0;
+  }
+}
+
+/* Doğru / yanlış ve kartlar: geri bildirim sıkı. */
+.lj-studio .tp-app .tf-focus {
+  gap: 0.6rem;
 }

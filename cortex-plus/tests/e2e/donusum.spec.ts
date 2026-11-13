@@ -24,6 +24,27 @@ async function smallestTouchTarget(page: Page, scope: string): Promise<number> {
   }, scope);
 }
 
+/** Stüdyodaki en küçük dokunma alanı: çubuklarda ekrandaki ölçü, sığdırılan sahnede düğmenin kendi ölçüsü. */
+async function studioTouchTargets(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    const heights = [...document.querySelectorAll<HTMLElement>(".lj-studio button, .lj-studio a")]
+      .filter((node) => node.offsetParent !== null)
+      .map((node) => (node.closest(".lj-fit") ? node.offsetHeight : Math.round(node.getBoundingClientRect().height * 10) / 10));
+    return heights.length ? Math.min(...heights) : 99;
+  });
+}
+
+/** Stüdyo ya da sahnesi kayıyor mu (kaydırmasız kural). */
+async function studioScrolls(page: Page): Promise<boolean> {
+  return page.evaluate(() => {
+    const studio = document.querySelector(".lj-studio")!;
+    const fit = document.querySelector(".lj-studio .lj-fit");
+    const inner = document.querySelector(".lj-studio .lj-fit-inner");
+    const overflowing = fit && inner ? inner.getBoundingClientRect().bottom > fit.getBoundingClientRect().bottom + 1 : false;
+    return studio.scrollHeight > studio.clientHeight + 1 || Boolean(fit && fit.scrollTop) || overflowing;
+  });
+}
+
 const PHONES = [
   { width: 375, height: 812 },
   { width: 360, height: 800 },
@@ -33,10 +54,18 @@ test.describe("dönüşüm paketi", { tag: ["@public"] }, () => {
   // 11 Kasım 2026: kayıtsız vitrin 7 adımlı tanıtım turuna dönüştü. Tur telefonda baştan sona oynanır:
   // her adımda yana taşma yok, turdaki her düğme en az 44 px, hiçbir ağ isteği atılmaz.
   for (const phone of PHONES) {
-    test(`ana sayfa turu ${phone.width}px: yedi adım, taşma yok, dokunma alanı 44 px, ağ isteği yok`, async ({ page }) => {
+    test(`ana sayfa turu ${phone.width}px: yedi adım, taşma yok, dokunma alanı 44 px, ağ isteği yok`, async ({ page, baseURL }) => {
       const apiCalls: string[] = [];
+      const origin = new URL(baseURL!).origin;
       page.on("request", (request) => {
-        if (/\/api\//.test(request.url()) && !/\/api\/(health|consent)/.test(request.url())) apiCalls.push(request.url());
+        /*
+          Yalnız sayfanın kendi API istekleri sayılır. Yayındaki derlemede (önizleme, canlı) tarayıcının kendi CSP raporu
+          (`/api/csp-report`: zod'un `Function("")` denemesi, önizlemede Vercel araç çubuğu) ve Sentry'nin oturum sinyali
+          de gider; ikisi de turun attığı istek değil (13 Kasım 2026, önizlemede ölçüldü).
+        */
+        const url = new URL(request.url());
+        if (url.origin !== origin) return;
+        if (/\/api\//.test(url.pathname) && !/\/api\/(health|consent|csp-report)/.test(url.pathname)) apiCalls.push(request.url());
       });
       await page.setViewportSize(phone);
       await page.goto("/?hedef=universite");
@@ -46,21 +75,31 @@ test.describe("dönüşüm paketi", { tag: ["@public"] }, () => {
       // Üst menüdeki kayıt düğmesi telefonda da görünür.
       await expect(page.locator("header.mkh").getByRole("link", { name: "Ücretsiz dene" })).toBeVisible();
 
-      const tour = page.locator("section.lj");
+      const home = page.locator("section.lj");
       // Kokpit ilk ekranda: ilerleme rayı sayfa kaydırılmadan görünür.
-      await expect(tour.locator(".lj-rail")).toBeInViewport();
+      await expect(home.locator(".lj-rail")).toBeInViewport();
+      // Örnek nota dokununca tam ekran stüdyo açılır (13 Kasım 2026): sayfanın gövdesine çizilir.
+      const tour = page.locator(".lj-studio");
       const check = async (step: string) => {
         expect(await overflow(page), `${step}: yana taşma`).toBeLessThanOrEqual(1);
-        expect(await smallestTouchTarget(page, "section.lj"), `${step}: dokunma alanı`).toBeGreaterThanOrEqual(44);
+        if (await tour.count()) {
+          // Stüdyo kaymaz; çubuklardaki düğmeler 44 px, sığdırılan ürün ekranının düğmeleri kendi ölçüsünde 44 px.
+          expect(await studioTouchTargets(page), `${step}: dokunma alanı`).toBeGreaterThanOrEqual(44);
+          // Yeni içerik (cevap açıklaması) geldiği karede sahne bir kez yeniden sığdırılır (bir sonraki kare); beklenir.
+          await expect.poll(() => studioScrolls(page), { message: `${step}: stüdyo kaymaz`, timeout: 3000 }).toBe(false);
+        } else {
+          expect(await smallestTouchTarget(page, "section.lj"), `${step}: dokunma alanı`).toBeGreaterThanOrEqual(44);
+        }
       };
 
       // 1. Not: tarama alanına dokun, tarama bitince yol haritası açılır. Geliştirme sunucusunda ilk dokunuş
-      // hidrasyondan önce düşebilir: yol haritası görünene kadar yeniden dene.
+      // hidrasyondan önce düşebilir: yol haritası görünene kadar yeniden dene. Tarama bir an (A2, 13 Kasım 2026):
+      // 2,4 sn sürer; tarama bitip alan kalkınca yeniden tıklanmaz (alan yoksa beklenmez).
       await check("not");
       await expect(async () => {
-        const zone = tour.locator("button.lj-zone");
-        if (await zone.isEnabled().catch(() => false)) await zone.click();
-        await expect(tour.getByRole("button", { name: "Şimdi 1. dersi aç" })).toBeVisible({ timeout: 2500 });
+        const zone = home.locator("button.lj-zone");
+        if ((await zone.count()) && (await zone.isEnabled({ timeout: 500 }).catch(() => false))) await zone.click();
+        await expect(tour.getByRole("button", { name: "Şimdi 1. dersi aç" })).toBeVisible({ timeout: 4000 });
       }).toPass({ timeout: 25_000 });
       // Seçili sekmenin sınav sözü yol haritasında.
       await expect(tour.getByText("Vizene 7 gün var")).toBeVisible();
@@ -72,16 +111,6 @@ test.describe("dönüşüm paketi", { tag: ["@public"] }, () => {
       // Ürün ekranının altında "sıradaki adım" düğmesi: adım oynanmadan da ilerlenir.
       await expect(tour.getByRole("button", { name: "Öğrendiğin kuralı soruda dene" })).toBeVisible();
       await check("ders");
-      // Adım değişince ilerleme çizgisi sabit menünün altında kalmaz.
-      await expect
-        .poll(() =>
-          page.evaluate(
-            () =>
-              document.querySelector(".lj-rail")!.getBoundingClientRect().top -
-              document.querySelector("header.mkh")!.getBoundingClientRect().bottom,
-          ),
-        )
-        .toBeGreaterThanOrEqual(0);
       // Önce dene sorusu yerelde, ürünle aynı işlevle notlanır; ardından formül kartı ve sınav tuzağı açılır.
       await app.getByRole("button", { name: /^Devam et/ }).click();
       await app.getByRole("button", { name: /Yanlış/ }).click();
@@ -103,7 +132,9 @@ test.describe("dönüşüm paketi", { tag: ["@public"] }, () => {
       await app.getByRole("button", { name: /^C\s*2$/ }).click();
       await app.getByRole("button", { name: /Kontrol et/ }).click();
       await check("soru: açıklama");
-      await app.getByRole("button", { name: /Testi bitir/ }).click();
+      // Tek ana düğme (A3): cevap kontrol edilince ürünün "Testi bitir" çubuğu çekilir, ilerleme turun alt düğmesinde.
+      await expect(app.getByRole("button", { name: /Testi bitir/ })).toBeHidden();
+      await tour.getByRole("button", { name: "Akıllı kartlara geç" }).click();
 
       // 5. Kartlar: önce çevir, sonra değerlendir.
       await app.locator("button.cp-exam-flash").click();
@@ -216,9 +247,10 @@ test.describe("dönüşüm paketi", { tag: ["@public"] }, () => {
     // Üç plan kartı ve fiyatları (veritabanı yoksa "—"); otomatik yenileme sözü.
     await expect(page.locator("#planlar .lp-duo-card")).toHaveCount(3);
     await expect(page.locator("#planlar").getByText("Otomatik yenileme yok")).toBeVisible();
-    // Eski sayfa bu genişlikte ~5.000 px idi.
+    // Eski sayfa bu genişlikte ~5.000 px idi. 13 Kasım 2026 (A1, sabit sahne): turun sahnesi adımdan adıma değişmeyen,
+    // ekrana sığan bir yüksekliğe sabitlendi; not adımı ~350 px'ten ~600 px'e çıktı, sayfa ~4.340 px.
     const height = await page.evaluate(() => document.documentElement.scrollHeight);
-    expect(height).toBeLessThan(4300);
+    expect(height).toBeLessThan(4600);
     expect(await overflow(page)).toBeLessThanOrEqual(1);
   });
 

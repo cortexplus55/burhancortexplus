@@ -257,7 +257,8 @@ describe("ayarlar tek merkez", () => {
 
   it("bütün 'Ayarlar' girişleri /ayarlar'a gider", () => {
     expect(read("src/components/parity/profile-panel.tsx")).toContain('<Link href="/ayarlar" className="cp-pp-settings">');
-    expect(read("src/components/parity/sor-shell.tsx")).toMatch(/href="\/ayarlar"\s*className="cp-sor-settings-link/);
+    // 13 Kasım 2026 (kabuk): yeni üst çubukta ayarlar bağlantısı yok; Ayarlar profilden açılır.
+    expect(read("src/components/parity/sor-shell.tsx")).not.toContain('href="/ayarlar"');
     expect(read("src/components/chat/chat-panel.tsx")).toContain('<Link href="/ayarlar" role="menuitem" className="cp-mood-menu-more">');
   });
 

@@ -552,14 +552,13 @@
 .cs-marketing header.mkh {
   --mkh-ribbon: linear-gradient(90deg, #ffb224 0%, #ff4d8d 36%, #8b5cf6 68%, #22d3ee 100%);
   border: 0;
-  background: rgba(11, 9, 7, 0.72);
-  -webkit-backdrop-filter: blur(16px) saturate(140%);
-  backdrop-filter: blur(16px) saturate(140%);
+  /* Kaydırma hızı (13 Kasım 2026): bulanıklaştırma kalktı (içerik altından kayarken her karede yeniden hesaplanıyordu). */
+  background: rgba(11, 9, 7, 0.94);
   transition: background 0.3s ease;
 }
 
 .cs-marketing header.mkh[data-scrolled="true"] {
-  background: rgba(11, 9, 7, 0.9);
+  background: rgba(11, 9, 7, 0.97);
 }
 
 .mkh-core {

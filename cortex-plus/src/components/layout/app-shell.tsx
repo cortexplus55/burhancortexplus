@@ -14,8 +14,11 @@ export async function AppShell({
   children,
   title,
   creditHint,
+  focus = false,
 }: {
   children: React.ReactNode;
+  /** Tam ekran odak görünümü (fiyat, 13 Kasım 2026): üst çubuk, logo ve alt çubuk yok; sağ üstte cam kapat. */
+  focus?: boolean;
   title?: string;
   /** Başlığın altında görünen kısa bilgi (ör. işlem bedeli). */
   creditHint?: string;
@@ -32,7 +35,7 @@ export async function AppShell({
   const shell = await loadParityShellProps(supabase, user.id, user.email);
 
   return (
-    <ParitySorShell {...shell}>
+    <ParitySorShell {...shell} {...(focus ? { chrome: "session" as const, closeHref: "/ogretmen" } : {})}>
       {/*
         `.cp-page` olmadan bu sayfaların içeriği hiçbir kapsayıcıya
         girmiyordu: başlık ekranın sol kenarına yapışıyor, form ve listeler

@@ -22,7 +22,9 @@ describe("son kıyas ürünü turu", () => {
       expect(readSource(page)).toContain('chrome="session"');
     }
     const shell = readSource("src/components/parity/sor-shell.tsx");
-    expect(shell).toContain('{chrome === "session" ? null : <header className="cp-sor-top">');
+    // 13 Kasım 2026 (kabuk): oturumda üst çubuk ve logo yok.
+    expect(shell).toContain('const showTopBar = chrome !== "session";');
+    expect(shell).toMatch(/\{showTopBar \? \(\s*<header className="cx-home-top">/);
     expect(readSource("src/components/parity/exam-node-session.tsx")).not.toContain("← Geri");
   });
 
@@ -31,7 +33,10 @@ describe("son kıyas ürünü turu", () => {
     expect(home).toContain("createPortal(toolbar, topSlot)");
     expect(home).not.toContain("<strong>Seviyeni henüz ölçmedik.</strong>");
     expect(home).toContain("lead={introPending ? introNode : null}");
-    expect(readSource("src/components/parity/sor-shell.tsx")).toContain('id="cp-sor-top-slot"');
+    // 13 Kasım 2026 (kabuk): üst çubuk bütün sayfalarda aynı; hazırlığın simgeleri sayfanın başında durur
+    // (yuva yoksa araç çubuğu yerinde çizilir).
+    expect(readSource("src/components/parity/sor-shell.tsx")).not.toContain('id="cp-sor-top-slot"');
+    expect(home).toContain("{topSlot ? createPortal(toolbar, topSlot) : toolbar}");
   });
 
   it("Belgeler menüde değil, Daha fazla'da; sayfada ayrı yükleme formu yok", () => {

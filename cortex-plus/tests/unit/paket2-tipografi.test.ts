@@ -228,15 +228,23 @@ describe("tokenlar", () => {
   });
 
   it("soluk metin tokenı koyu yüzeylerde AA (4,5:1)", () => {
+    // 13 Kasım 2026: --c-* adları --cx-* katmanına köprülü; değer köprüden çözülür ve yeni zemin
+    // basamaklarına (bg-0, bg-1, bg-2) karşı ölçülür.
     const dark = tokenBlock(".dark");
+    const resolve = (block: string, name: string): string => {
+      const raw = tokenValue(block, name) || tokenValue(root, name);
+      const ref = raw.match(/^var\((--[a-z0-9-]+)\)$/)?.[1];
+      return ref ? resolve(block, ref) : raw;
+    };
+    const surfaces = ["--cx-bg-0", "--cx-bg-1", "--cx-bg-2"].map((name) => resolve(dark, name));
     for (const token of ["--c-text-muted", "--c-text-subtle"]) {
-      const fg = tokenValue(dark, token);
+      const fg = resolve(dark, token);
       expect(fg, token).toMatch(/^#[0-9a-f]{3,6}$/i);
-      for (const bg of ["#0d0d0d", "#141414", "#1f1f1f"]) {
+      for (const bg of surfaces) {
         expect(contrast(fg, bg), `${token} ${fg} / ${bg}`).toBeGreaterThanOrEqual(4.5);
       }
     }
-    expect(contrast(tokenValue(root, "--c-text-muted"), "#ffffff")).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(resolve(root, "--c-text-muted"), "#ffffff")).toBeGreaterThanOrEqual(4.5);
     // Eski sabit renk koyu yüzeyde kalıyordu — kural neden token kullanıyor.
     expect(contrast("#6a6a6a", "#141414")).toBeLessThan(4.5);
   });

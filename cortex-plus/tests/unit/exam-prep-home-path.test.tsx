@@ -65,9 +65,9 @@ function openOptions() {
 }
 
 describe("exam prep home path (kıyas ürünü düzeni, 29 Eylül 2026)", () => {
-  it("draws the zig-zag path and the next-activity card before any progress", () => {
+  it("draws the path and the next-activity card before any progress", () => {
     const { container } = renderHome();
-    // Aşama başlıkları yok; yol tek zikzak.
+    // Aşama başlıkları yok.
     expect(screen.queryByRole("heading", { name: "Bugün başla" })).toBeNull();
     const card = container.querySelector(".cp-path-next") as HTMLElement;
     // 17 Ekim 2026, kıyas ürünüyle yan yana: kartta "SIRADAKİ" ve tür rozeti.
@@ -76,9 +76,10 @@ describe("exam prep home path (kıyas ürünü düzeni, 29 Eylül 2026)", () => 
     expect(start.getAttribute("href")).toBe("/deneme-sinavlari/prep-1/dugum/lesson-1");
     expect(screen.getByRole("button", { name: /Öğren ve Pratik Yap/ }).getAttribute("aria-expanded")).toBe("false");
     expect(container.querySelectorAll(".cp-exam-trail-item")).toHaveLength(1);
-    expect(container.querySelectorAll(".cp-puck").length).toBe(container.querySelectorAll(".cp-exam-trail-node").length);
-    expect(container.querySelectorAll(".cp-puck--current")).toHaveLength(1);
-    expect(container.querySelectorAll(".cp-path-beam")).toHaveLength(1);
+    // 13 Kasım 2026 (3C): 3B kaide yok; her düğüm düz 40 px nokta, sıradaki marka dolgulu.
+    expect(container.querySelectorAll(".cx-node").length).toBe(container.querySelectorAll(".cp-exam-trail-node").length);
+    expect(container.querySelectorAll('.cx-node[data-state="current"]')).toHaveLength(1);
+    expect(container.querySelector(".cp-puck, .cp-path-beam")).toBeNull();
   });
 
   it("kıyas ürünü sol kartı: başlık altında hazırlık ve tamamlanan ders özeti, Ders düğmesi, simgeli sekmeler", () => {
@@ -202,16 +203,18 @@ describe("exam prep home path (kıyas ürünü düzeni, 29 Eylül 2026)", () => 
     expect(done.querySelector("svg")).toBeTruthy();
   });
 
-  it("zig-zags the nodes and marks the next one as current", () => {
+  it("lays the nodes out as a straight vertical path and marks the next one as current", () => {
     const quiz: HomeNode = { ...podcast, id: "quiz-1", kind: "quiz", title: "Test", status: "locked", sortOrder: 2 };
     const { container } = renderHome({
       nodes: [{ ...lesson, status: "done" }, { ...podcast, status: "ready" }, quiz],
     });
     const items = Array.from(container.querySelectorAll<HTMLElement>(".cp-exam-trail-item"));
     expect(items).toHaveLength(2);
-    expect(items[0].style.left).not.toBe(items[1].style.left);
-    expect(container.querySelector(".cp-exam-trail-item--left")).toBeNull();
-    expect(container.querySelectorAll(".cp-path-lines path").length).toBeGreaterThan(0);
+    // 13 Kasım 2026 (3C): zikzak ve eğri çizgi yok; düğümler alt alta, bağlantı 2 px dikey çizgi (CSS).
+    expect(items.map((item) => item.style.left)).toEqual(["", ""]);
+    expect(container.querySelector(".cp-path-lines")).toBeNull();
+    expect(container.querySelector('.cp-exam-trail-node.is-current .cx-node[data-state="current"]')).toBeTruthy();
+    expect(container.querySelectorAll('.cx-node[data-state="current"]')).toHaveLength(1);
     const current = container.querySelector(".cp-exam-trail-node.is-current");
     expect(current?.getAttribute("aria-label")).toMatch(/Podcast Dinle/);
   });

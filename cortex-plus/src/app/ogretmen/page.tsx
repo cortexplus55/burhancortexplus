@@ -24,6 +24,8 @@ import { loadContinueStep } from "@/lib/learning/prep-cards";
 import { pathSkipKinds } from "@/lib/billing/node-free-meter";
 import { createServiceClient } from "@/lib/supabase/server";
 import { ContinueLine } from "@/components/parity/continue-line";
+import { HomeCockpit, HomeSelectionProvider, HomeToolsTray } from "@/components/parity/home-cockpit";
+import { loadHomeCockpit } from "@/lib/learning/home-cockpit";
 
 export const metadata = { title: "Sor" };
 
@@ -168,12 +170,18 @@ export default async function OgretmenPage({
   // Ana ekran öğretmenle sohbet alanıdır (8 Kasım 2026, ürün sahibi): selam, Başla ve hiç hazırlığı olmayan öğrenciye
   // ilk adım kartları. Plus kartı ve stüdyo kartları burada yok; stüdyolar üstteki "Çalışma Stüdyosu" sekmesinde.
   // Hazırlığı olan öğrenciye tek satır "Kaldığın yerden devam" (8 Kasım 2026); okuma düşerse satır yok.
-  const continueStep =
+  // 13 Kasım 2026 (ürün sahibinin kararı, 8 Kasım'ın "ana ekran yalnız sohbet" kararının yerine): hazırlığı olan
+  // öğrencinin boş ana ekranı beş parça (sınav şeridi, konu halkası, metin bloğu, ince yazma çubuğu, üst çubuk).
+  // Veri devam kartının kaynağından; okuma düşerse eski devam kartına dönülür.
+  const skipKinds =
     !params.sohbet && (prepCount ?? 0) > 0
-      ? await pathSkipKinds(createServiceClient(), user.id)
-          .catch(() => new Set<string>())
-          .then((skip) => loadContinueStep(supabase, user.id, skip))
-          .catch(() => null)
+      ? await pathSkipKinds(createServiceClient(), user.id).catch(() => new Set<string>())
+      : new Set<string>();
+  const cockpit =
+    !params.sohbet && (prepCount ?? 0) > 0 ? await loadHomeCockpit(supabase, user.id, skipKinds).catch(() => []) : [];
+  const continueStep =
+    !params.sohbet && (prepCount ?? 0) > 0 && cockpit.length === 0
+      ? await loadContinueStep(supabase, user.id, skipKinds).catch(() => null)
       : null;
   const greetingSubline = params.sohbet
     ? undefined
@@ -191,22 +199,12 @@ export default async function OgretmenPage({
   // hiç görünmüyordu. Dost satırı aynı adımı anıyorsa kartın hemen üstünde kalır, ikisi birlikte okunur.
   const heroLead = continueStep ? <ContinueLine step={continueStep} /> : undefined;
   const avatar = profile?.avatar_url as string | null | undefined;
+  const freeAccount = account?.showsUpgradeChrome === true && !account?.isAdmin;
 
-  return (
-    <ParitySorShell
-      userInitial={parityUserInitial(profile?.full_name, user.email)}
-      avatarEmoji={avatar && !avatar.startsWith("http") ? avatar : null}
-      streak={streak}
-      account={account}
-      emailUnverified={!account?.isAdmin && emailUnverifiedFromMetadata(user.app_metadata)}
-      countdown={countdown}
-      recentConversations={(conversations ?? []).map((row) => ({
-        id: row.id,
-        title: row.title ?? "Yeni sohbet",
-        updatedAt: row.updated_at,
-      }))}
-    >
+  const panel = (
       <ChatPanel
+        homeCockpit={cockpit.length ? <HomeCockpit /> : undefined}
+        homeTools={cockpit.length ? <HomeToolsTray freeAccount={freeAccount} /> : undefined}
         variant="parity"
         composerMode="parity"
         feedbackEnabled={feedbackOn}
@@ -228,6 +226,23 @@ export default async function OgretmenPage({
         tutorStyleLabel={tutorStyleLabel(style)}
         initialTutorStyle={style}
       />
+  );
+
+  return (
+    <ParitySorShell
+      home
+      userInitial={parityUserInitial(profile?.full_name, user.email)}
+      avatarEmoji={avatar && !avatar.startsWith("http") ? avatar : null}
+      streak={streak}
+      account={account}
+      emailUnverified={!account?.isAdmin && emailUnverifiedFromMetadata(user.app_metadata)}
+      recentConversations={(conversations ?? []).map((row) => ({
+        id: row.id,
+        title: row.title ?? "Yeni sohbet",
+        updatedAt: row.updated_at,
+      }))}
+    >
+      {cockpit.length ? <HomeSelectionProvider preps={cockpit}>{panel}</HomeSelectionProvider> : panel}
     </ParitySorShell>
   );
 }

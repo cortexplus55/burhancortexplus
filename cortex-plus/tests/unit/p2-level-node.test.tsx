@@ -14,18 +14,18 @@ describe("seviye tespiti düğümü", () => {
     expect(levelNodeAria("sırada")).not.toContain("Konu testi");
   });
 
-  it("yüzen simge düğmenin içindedir ve tıklamayı kesmez", () => {
+  it("düğümün simgesi düğmenin içindedir ve tıklamayı kesmez", () => {
+    // 13 Kasım 2026 (3C): yüzen huzme kalktı; simge düz noktanın içinde, nokta düğmenin içinde.
     const home = readFileSync("src/components/parity/exam-prep-home.tsx", "utf8");
-    const beam = home.indexOf('className="cp-path-beam"');
-    const open = home.lastIndexOf("<button", beam);
-    const close = home.indexOf("</button>", beam);
-    expect(beam).toBeGreaterThan(open);
-    expect(close).toBeGreaterThan(beam);
+    const dot = home.indexOf("<PathNodeDot node={node} current={node.id === currentId} />");
+    const open = home.lastIndexOf("<button", dot);
+    const close = home.indexOf("</button>", dot);
+    expect(dot).toBeGreaterThan(open);
+    expect(close).toBeGreaterThan(dot);
+    expect(home).not.toContain("cp-path-beam");
     expect(home).toContain("levelNodeAria");
     expect(home).toContain("isLevelNode(node.id)");
-    const css = readFileSync("src/styles/parity-shell.css", "utf8");
-    const beamCss = css.slice(css.indexOf(".cp-path-beam {"), css.indexOf(".cp-path-beam-icon"));
-    expect(beamCss).toContain("pointer-events: auto");
-    expect(beamCss).not.toContain("pointer-events: none");
+    const css = readFileSync("src/styles/prep-home-cx.css", "utf8");
+    expect(css).not.toMatch(/\.cx-node \{[^}]*pointer-events: none/);
   });
 });

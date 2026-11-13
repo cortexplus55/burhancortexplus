@@ -1,0 +1,834 @@
+/**
+ * Hazırlık sayfası (/deneme-sinavlari/[prepId]), 3C, 13 Kasım 2026, ürün sahibinin kararı. Yalnız görünüm: veri,
+ * metin ve akış aynı. Sol bilgi kartı, sağda aşama/hafta akordeonu ve düz düğümlü yol, altta sabit "sıradaki" kartı.
+ * Kabuk (üst çubuk, sağ üstteki sayfa simgeleri) aynı. Değerler tokens.css'teki --cx-*'tan; ham renk yok.
+ * Bütün seçiciler `.cp-prep-layout` ile başlar: parity-shell.css'teki eski kuralların önüne geçer, başka sayfaya
+ * taşmaz.
+ */
+
+/* ---------- Yerleşim ---------- */
+.cp-prep-layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cx-space-16);
+  padding: 0 var(--cx-gutter) var(--cx-space-24);
+}
+@media (min-width: 1024px) {
+  .cp-prep-layout {
+    display: grid;
+    grid-template-columns: 400px minmax(0, 524px);
+    column-gap: var(--cx-space-48);
+    align-items: start;
+    justify-content: center;
+    max-width: none;
+    padding: 0 var(--cx-space-32) var(--cx-space-48);
+  }
+}
+
+/* ---------- Sol bilgi kartı: 400 px, bg-1, köşe 24, dolgu 28, kenarlık yok ---------- */
+.cp-prep-layout .cp-prep-aside {
+  display: flex;
+  flex-direction: column;
+  padding: 28px;
+  border: 0;
+  border-radius: var(--cx-radius-l);
+  background: var(--cx-bg-1);
+  box-shadow: none;
+}
+@media (min-width: 1024px) {
+  .cp-prep-layout .cp-prep-aside {
+    position: sticky;
+    top: var(--cx-space-24);
+  }
+}
+@media (max-width: 767px) {
+  .cp-prep-layout .cp-prep-aside {
+    padding: var(--cx-space-20);
+  }
+}
+.cp-prep-layout .cp-prep-aside .cp-prep-hero {
+  display: contents;
+  text-align: left;
+}
+.cp-prep-layout .cp-prep-aside .cp-prep-hero-kicker {
+  order: 1;
+  margin: 0 0 var(--cx-space-8);
+  font: var(--cx-t-meta-m);
+  letter-spacing: var(--cx-ls-meta);
+  text-transform: uppercase;
+  color: var(--cx-text-secondary);
+}
+.cp-prep-layout .cp-prep-aside .cp-prep-hero h1 {
+  order: 2;
+  margin: 0 0 var(--cx-space-16);
+  font: var(--cx-t-heading-xl);
+  letter-spacing: var(--cx-ls-heading);
+  text-align: left;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+  color: var(--cx-text-primary);
+}
+@media (max-width: 767px) {
+  .cp-prep-layout .cp-prep-aside .cp-prep-hero h1 {
+    font: var(--cx-t-heading-s);
+  }
+}
+.cp-prep-layout .cp-prep-aside .cp-prep-hero-meta {
+  order: 3;
+  justify-content: flex-start;
+  color: var(--cx-text-reading);
+}
+.cp-prep-layout .cp-prep-aside .cp-exam-source-note {
+  order: 4;
+  margin: var(--cx-space-12) 0 0;
+  text-align: left;
+  color: var(--cx-text-secondary);
+}
+
+/* İkonlu iki sekme: tepsi bg-0, köşe 24, dolgu 4; etkin öğe cam, köşe 20. Kartın içinde, yapışkan değil. */
+.cp-prep-layout .cp-prep-aside .cp-prep-tabbar {
+  order: 5;
+  position: static;
+  margin: var(--cx-space-24) 0 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.cp-prep-layout .cp-prep-aside .cp-prep-tabbar-title {
+  display: none;
+}
+.cp-prep-layout .cp-prep-aside .cp-prep-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--cx-space-2);
+  width: 100%;
+  padding: var(--cx-space-4);
+  border: 0;
+  border-radius: var(--cx-radius-l);
+  background: var(--cx-bg-0);
+}
+.cp-prep-layout .cp-prep-aside .cp-prep-tabs button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cx-space-4);
+  min-height: 56px;
+  border: 0;
+  border-radius: var(--cx-radius-inner);
+  background: transparent;
+  box-shadow: none;
+  color: var(--cx-text-secondary);
+  font: var(--cx-t-label-11);
+  font-weight: 600;
+  letter-spacing: var(--cx-ls-label);
+  text-transform: none;
+  transition: color var(--cx-dur-color) ease;
+}
+.cp-prep-layout .cp-prep-aside .cp-prep-tabs button.is-active {
+  background: var(--cx-glass-background);
+  box-shadow: var(--cx-glass-bevel);
+  color: var(--cx-text-primary);
+}
+.cp-prep-layout .cp-prep-aside .cp-prep-tabs button:focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}
+.cp-prep-layout .cp-prep-aside .cp-prep-tabs-pct {
+  display: none;
+}
+.cp-prep-layout .cp-prep-aside .cp-prep-tab-icon {
+  display: block;
+  width: var(--cx-space-18);
+  height: var(--cx-space-18);
+}
+
+/* Yuvarlak cam eylemler (Ders, Düello, Paylaş, Daha fazla). */
+.cp-prep-layout .cp-prep-aside .cp-prep-hero-actions {
+  order: 6;
+  display: flex;
+  justify-content: center;
+  gap: var(--cx-space-24);
+  margin: var(--cx-space-24) 0 0;
+}
+/* "Ders" eylemi bugünkü gibi yalnız geniş ekranda (telefonda sağ üstteki "+" simgesi aynı işi yapar). */
+.cp-prep-layout .cp-prep-aside .cp-prep-hero-action.cp-prep-hero-action--lesson {
+  display: none;
+}
+@media (min-width: 1024px) {
+  .cp-prep-layout .cp-prep-aside .cp-prep-hero-action.cp-prep-hero-action--lesson {
+    display: flex;
+  }
+}
+.cp-prep-layout .cp-prep-aside .cp-prep-hero-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--cx-space-6);
+  min-width: var(--cx-tap-min);
+  border: 0;
+  background: none;
+  color: var(--cx-text-secondary);
+  font: var(--cx-t-label-11);
+  letter-spacing: var(--cx-ls-label);
+  text-decoration: none;
+  cursor: pointer;
+}
+.cp-prep-layout .cp-prep-aside .cp-prep-hero-icon {
+  display: grid;
+  place-items: center;
+  width: var(--cx-icon-btn-l);
+  height: var(--cx-icon-btn-l);
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  color: var(--cx-text-primary);
+  transition: scale var(--cx-dur-scale) var(--cx-ease-out);
+}
+.cp-prep-layout .cp-prep-aside .cp-prep-hero-action:hover .cp-prep-hero-icon,
+.cp-prep-layout .cp-prep-aside .cp-prep-hero-action:focus-visible .cp-prep-hero-icon {
+  scale: var(--cx-scale-hover);
+}
+.cp-prep-layout .cp-prep-aside .cp-prep-hero-action:focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+  border-radius: var(--cx-radius-s);
+}
+.cp-prep-layout .cp-prep-aside .cp-prep-hero-action.is-on .cp-prep-hero-icon {
+  color: var(--cx-text-brand);
+}
+
+/* ---------- Sağ: aşama / hafta akordeonu ---------- */
+.cp-prep-layout .cp-prep-main {
+  min-width: 0;
+}
+.cp-prep-layout .cp-path-sections {
+  gap: var(--cx-space-8);
+  width: 100%;
+  margin: 0;
+}
+/* Satırlar kenarlıksız: kapalı satır bg-1, açık grup bir basamak açık (bg-2); ayrım basamakla. */
+.cp-prep-layout .cp-path-section,
+.cp-prep-layout .cp-path-section.is-active {
+  border: 0;
+  border-radius: var(--cx-radius-l);
+  background: var(--cx-bg-1);
+  box-shadow: none;
+}
+.cp-prep-layout .cp-path-section.is-open {
+  background: var(--cx-bg-2);
+}
+.cp-prep-layout .cp-path-section.is-locked {
+  opacity: 1;
+}
+.cp-prep-layout .cp-path-section-toggle {
+  min-height: 60px;
+  padding: var(--cx-space-12) var(--cx-space-20);
+  border-radius: var(--cx-radius-l);
+  transition: background-color var(--cx-dur-color) ease;
+}
+.cp-prep-layout .cp-path-section-toggle:focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: -1px;
+}
+.cp-prep-layout .cp-path-section-copy strong {
+  font: var(--cx-t-title-s);
+  letter-spacing: var(--cx-ls-heading);
+  color: var(--cx-text-primary);
+}
+.cp-prep-layout .cp-path-section-meta {
+  font: var(--cx-t-label-13);
+  color: var(--cx-text-secondary);
+}
+.cp-prep-layout .cp-path-section.is-locked .cp-path-section-copy strong {
+  color: var(--cx-text-secondary);
+}
+.cp-prep-layout .cp-path-section-chevron {
+  color: var(--cx-text-secondary);
+}
+.cp-prep-layout .cp-path-sketch {
+  margin: 0 var(--cx-space-20) var(--cx-space-8);
+  background: var(--cx-bg-3);
+  color: var(--cx-text-reading);
+}
+.cp-prep-layout .cp-path-section-more {
+  border: 0;
+  border-radius: var(--cx-radius-l);
+  background: var(--cx-bg-1);
+  color: var(--cx-text-secondary);
+}
+
+/* ---------- Yol: düz düğümler, 40 px daire, aralarında 2 px dikey çizgi (bg-3) ---------- */
+.cp-prep-layout .cp-zpath {
+  position: relative;
+  width: auto;
+  max-width: none;
+  height: auto;
+  margin: 0;
+  padding: var(--cx-space-4) var(--cx-space-20) var(--cx-space-20);
+}
+.cp-prep-layout .cp-path-list {
+  position: static;
+  inset: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cx-space-16);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.cp-prep-layout .cp-path-list .cp-exam-trail-item {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cx-space-14);
+  left: auto;
+  top: auto;
+  transform: none;
+  min-height: var(--cx-icon-btn-l);
+}
+.cp-prep-layout .cp-path-list .cp-exam-trail-item::before {
+  content: none;
+}
+.cp-prep-layout .cp-path-list .cp-exam-trail-item:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: calc(var(--cx-icon-btn-l) / 2 - 1px);
+  top: var(--cx-icon-btn-l);
+  bottom: calc(-1 * var(--cx-space-16));
+  width: 2px;
+  background: var(--cx-bg-3);
+  pointer-events: none;
+}
+.cp-prep-layout .cp-path-list .cp-exam-trail-node,
+.cp-prep-layout .cp-path-list .cp-exam-trail-node.is-current,
+.cp-prep-layout .cp-path-list .cp-exam-trail-node--done,
+.cp-prep-layout .cp-path-list .cp-exam-trail-node--ready,
+.cp-prep-layout .cp-path-list .cp-exam-trail-node--locked,
+.cp-prep-layout .cp-path-list .cp-path-node--hex,
+.cp-prep-layout .cp-path-list .cp-path-node--square {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--cx-icon-btn-l);
+  height: var(--cx-icon-btn-l);
+  padding: 0;
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  background: none;
+  box-shadow: none;
+  clip-path: none;
+  filter: none;
+  opacity: 1;
+  color: inherit;
+  transform: none;
+  cursor: pointer;
+}
+.cp-prep-layout .cp-path-list .cp-exam-trail-node::before,
+.cp-prep-layout .cp-path-list .cp-exam-trail-node::after {
+  content: none;
+}
+.cp-prep-layout .cp-path-list .cp-exam-trail-node:focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 6px;
+}
+/* Ölçek yalnız noktada (düğmenin kendisi oynamaz, çizgi hizada kalır). */
+.cp-prep-layout .cp-path-list .cp-exam-trail-node:hover .cx-node,
+.cp-prep-layout .cp-path-list .cp-exam-trail-node:focus-visible .cx-node {
+  scale: var(--cx-scale-hover);
+}
+.cp-prep-layout .cp-path-list .cp-exam-trail-node.is-picked {
+  outline: 1.5px solid var(--cx-text-primary);
+  outline-offset: 4px;
+  border-radius: var(--cx-radius-max);
+}
+
+.cx-node {
+  display: grid;
+  place-items: center;
+  width: var(--cx-icon-btn-l);
+  height: var(--cx-icon-btn-l);
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-bg-2);
+  color: var(--cx-text-secondary);
+  transition: scale var(--cx-dur-scale) var(--cx-ease-out);
+}
+.cx-node svg {
+  width: var(--cx-space-18);
+  height: var(--cx-space-18);
+}
+.cx-node .cp-path-letters {
+  font-size: 0.6875rem;
+  line-height: 1;
+}
+.cx-node .cp-puck-lock {
+  display: none;
+}
+/* Tamamlanan: imza gradyanı ve onay. */
+.cx-node[data-state="done"] {
+  background: var(--cx-gradient-signature);
+  color: var(--cx-text-on-brand);
+}
+/* Sıradaki: marka dolgusu ve çevresinde 4 px marka halkası. */
+.cx-node[data-state="current"] {
+  background: var(--cx-brand-strong);
+  color: var(--cx-text-on-brand);
+  box-shadow: 0 0 0 4px var(--cx-brand-weak);
+}
+/* Kilitli: bg-2 ve kilit. */
+.cx-node[data-state="locked"] {
+  background: var(--cx-bg-2);
+  color: var(--cx-text-disabled);
+}
+/* Açık ama sıradaki değil: bir basamak açık zemin, tür simgesi. */
+.cx-node[data-state="ready"] {
+  background: var(--cx-bg-3);
+  color: var(--cx-text-reading);
+}
+/* Açık grubun içinde kilitli/açık düğüm zeminden ayrılsın (grup bg-2). */
+.cp-prep-layout .cp-path-section.is-open .cx-node[data-state="locked"] {
+  background: var(--cx-bg-3);
+}
+.cp-prep-layout .cp-path-section.is-open .cx-node[data-state="ready"] {
+  background: var(--cx-bg-4);
+}
+
+/* Düğümün yanındaki yazılar (aynı metinler): düğümün sağında, alt alta. */
+.cx-path-copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--cx-space-2);
+  min-height: var(--cx-icon-btn-l);
+  min-width: 0;
+}
+.cp-prep-layout .cx-path-copy > span,
+.cp-prep-layout .cp-path-list .cp-exam-trail-item .cx-path-copy .cp-path-current-label {
+  position: static;
+  inset: auto;
+  left: auto;
+  top: auto;
+  right: auto;
+  max-width: none;
+  width: auto;
+  transform: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  text-align: left;
+  white-space: normal;
+}
+.cp-prep-layout .cx-path-copy .cp-path-when,
+.cp-prep-layout .cx-path-copy .cp-path-far-note {
+  display: block;
+  font: var(--cx-t-label-13);
+  color: var(--cx-text-secondary);
+}
+.cp-prep-layout .cx-path-copy .cp-path-done-label {
+  display: block;
+  font: var(--cx-t-label-13);
+  color: var(--cx-text-secondary);
+}
+.cp-prep-layout .cx-path-copy .cp-path-done-pct {
+  margin-right: var(--cx-space-6);
+  color: var(--cx-text-primary);
+}
+.cp-prep-layout .cp-path-list .cp-exam-trail-item .cx-path-copy .cp-path-current-label {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--cx-space-4);
+}
+.cp-prep-layout .cx-path-copy .cp-path-current-title {
+  font: var(--cx-t-title-s);
+  letter-spacing: var(--cx-ls-heading);
+  color: var(--cx-text-primary);
+  overflow-wrap: anywhere;
+}
+.cp-prep-layout .cx-path-copy .cp-path-current-meta {
+  font: var(--cx-t-label-13);
+  color: var(--cx-text-secondary);
+}
+.cp-prep-layout .cp-path-list .cp-exam-trail-item.is-far .cp-exam-trail-node,
+.cp-prep-layout .cp-path-list .cp-exam-trail-item.is-far .cx-path-copy {
+  opacity: 0.5;
+  filter: none;
+}
+.cp-prep-layout .cp-path-plan-lock {
+  position: absolute;
+  right: -4px;
+  top: -4px;
+  font-size: 0.75rem;
+}
+.cp-prep-layout .cp-path-exam-day {
+  color: var(--cx-text-secondary);
+}
+
+/* ---------- Rozetler ---------- */
+.cp-prep-layout .cp-prep-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: var(--cx-space-6);
+}
+.cp-prep-layout .cp-prep-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cx-space-4);
+  height: 24px;
+  padding: 0 var(--cx-space-10);
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-bg-2);
+  color: var(--cx-text-secondary);
+  font: var(--cx-t-meta-s);
+  letter-spacing: var(--cx-ls-meta);
+  text-transform: uppercase;
+}
+.cp-prep-layout .cp-prep-badge--next {
+  background: var(--cx-brand-weak);
+  color: var(--cx-text-brand);
+}
+
+/* ---------- Altta sabit kart: rozetler, title-l adım adı, tam genişlik brand "Devam et" ---------- */
+.cp-prep-layout .cp-prep-main .cp-path-next,
+.cp-prep-layout .cp-prep-main .cp-path-next--focus,
+.cp-prep-layout .cp-prep-main .cp-path-next--locked {
+  position: sticky;
+  bottom: var(--cx-space-24);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--cx-space-12);
+  width: 100%;
+  margin-top: var(--cx-space-24);
+  padding: var(--cx-space-20);
+  border: 0;
+  border-radius: var(--cx-radius-l);
+  background: var(--cx-bg-1);
+  background-image: none;
+  box-shadow: var(--cx-shadow-banner);
+  /* Eski kartın parlayan çerçeve animasyonu yok (kart kenarlıksız). */
+  animation: none;
+  text-align: left;
+}
+.cp-prep-layout .cp-prep-main .cp-path-next::before,
+.cp-prep-layout .cp-prep-main .cp-path-next::after {
+  content: none;
+}
+@media (max-width: 767px) {
+  /* Telefonda alt sekme çubuğunun hemen üstünde (çubuk: 8 + 56 + 8 px, güvenli alan). Yapışkan konum kartı kendi
+     sütununun içinde tutuyor, sayfa en üstteyken kart alt çubuğun arkasına düşüyordu: telefonda sabit konum; sayfanın
+     sonu kartın altında kalmasın diye alt pay. */
+  .cp-prep-layout .cp-prep-main .cp-path-next,
+  .cp-prep-layout .cp-prep-main .cp-path-next--focus,
+  .cp-prep-layout .cp-prep-main .cp-path-next--locked {
+    position: fixed;
+    left: var(--cx-gutter);
+    right: var(--cx-gutter);
+    bottom: calc(var(--cx-space-8) * 2 + var(--cx-space-48) + var(--cx-space-8) + env(safe-area-inset-bottom, 0px));
+    width: auto;
+    margin: 0;
+  }
+  .cp-prep-layout:has(.cp-path-next) {
+    /* Kart en çok 104 px + alt sekme çubuğuyla arası; sayfanın sonu kartın üstünde biter. */
+    padding-bottom: calc(104px + var(--cx-space-32));
+  }
+}
+.cp-prep-layout .cp-path-next .cp-path-next-title {
+  margin: 0;
+  font: var(--cx-t-title-l);
+  letter-spacing: var(--cx-ls-heading);
+  text-align: left;
+  color: var(--cx-text-primary);
+  overflow-wrap: anywhere;
+}
+.cp-prep-layout .cp-path-next .cp-path-next-meta,
+.cp-prep-layout .cp-path-next .cp-path-next-note {
+  justify-content: flex-start;
+  margin: 0;
+  text-align: left;
+  font: var(--cx-t-label-13);
+  color: var(--cx-text-secondary);
+}
+.cp-prep-layout .cp-path-next .cp-path-next-actions,
+.cp-prep-layout .cp-path-next .cp-path-next-actions--stack {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cx-space-8);
+  margin: 0;
+}
+.cp-prep-layout .cp-path-next .cp-path-next-actions--stack {
+  grid-template-columns: minmax(0, 1fr);
+}
+.cp-prep-layout .cp-path-next .cp-path-next-actions > *,
+.cp-prep-layout .cp-path-next .cx-next-secondary > * {
+  min-width: 0;
+  width: 100%;
+  margin: 0;
+}
+/* Sayfadaki tek marka düğmesi: tam genişlik, ilk satırda. */
+.cp-prep-layout .cp-path-next .cp-path-next-actions > .cp-exam-continue--primary {
+  grid-column: 1 / -1;
+  order: -1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  padding: 0 var(--cx-space-24);
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-gradient-brand);
+  box-shadow: none;
+  color: var(--cx-text-on-brand);
+  font: var(--cx-t-button-l);
+  text-decoration: none;
+  transition: scale var(--cx-dur-scale) var(--cx-ease-out);
+}
+.cp-prep-layout .cp-path-next .cp-path-next-actions > .cp-exam-continue--primary:hover,
+.cp-prep-layout .cp-path-next .cp-path-next-actions > .cp-exam-continue--primary:focus-visible {
+  scale: var(--cx-scale-hover);
+}
+/* Öbür eylemler zayıf (weak) hap. */
+.cp-prep-layout .cp-path-next .cp-path-next-actions .cp-path-next-custom,
+.cp-prep-layout .cp-path-next .cp-path-next-actions .cp-exam-continue:not(.cp-exam-continue--primary) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--cx-tap-min);
+  padding: var(--cx-space-8) var(--cx-space-14);
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-bg-2);
+  box-shadow: none;
+  color: var(--cx-text-secondary);
+  font: var(--cx-t-button-s);
+  text-align: center;
+  text-decoration: none;
+  white-space: normal;
+  transition: color var(--cx-dur-color) ease;
+}
+.cp-prep-layout .cp-path-next .cp-path-next-actions .cp-path-next-custom:hover,
+.cp-prep-layout .cp-path-next .cp-path-next-actions .cp-exam-continue:not(.cp-exam-continue--primary):hover {
+  color: var(--cx-text-primary);
+}
+.cp-prep-layout .cp-path-next :focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}
+
+/* ---------- Öbür "devam" eylemleri marka değil: cam ---------- */
+.cp-prep-layout .cp-prep-goal {
+  border: 0;
+  background: none;
+}
+.cp-prep-layout .cp-prep-goal-go,
+.cp-prep-layout .cp-prep-last-go,
+.cp-prep-layout .cp-exam-empty-actions .cp-exam-continue--primary {
+  position: relative;
+  border: 0;
+  background: var(--cx-glass-background);
+  box-shadow: var(--cx-glass-bevel);
+  color: var(--cx-text-primary);
+}
+.cp-prep-layout .cp-prep-last {
+  border: 0;
+  border-radius: var(--cx-radius-l);
+  background: var(--cx-bg-1);
+}
+
+/*
+  Yolda adımın kapanması (B2, 13 Kasım 2026): az önce biten adımın içine ✓ çizilir (220 ms), çizgi sıradakine dolar
+  (380 ms, ✓'den sonra) ve sıradakinin halkası belirir (son 180 ms). Toplam 600 ms; sonunda yol durağan hâliyle aynı
+  (çizgi dolup söner, sıradaki düğüm marka dolgusu ve halkasıyla kalır).
+*/
+.cp-prep-layout .cp-path-list .cx-path-fill {
+  position: absolute;
+  left: calc(var(--cx-icon-btn-l) / 2 - 1px);
+  top: var(--cx-icon-btn-l);
+  bottom: calc(-1 * var(--cx-space-16));
+  z-index: 1;
+  width: 2px;
+  background: var(--cx-gradient-signature);
+  transform-origin: top;
+  transform: scaleY(0);
+  pointer-events: none;
+  animation: cx-path-fill var(--cx-dur-panel) var(--cx-ease-settle) var(--cx-dur-scale) both;
+}
+@keyframes cx-path-fill {
+  0% {
+    transform: scaleY(0);
+    opacity: 1;
+  }
+  75% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scaleY(1);
+    opacity: 0;
+  }
+}
+.cp-prep-layout .cp-path-list .cp-exam-trail-item[data-closing] .cx-node[data-state="done"] svg path {
+  stroke-dasharray: 24;
+  animation: cx-check-draw var(--cx-dur-scale) var(--cx-ease-settle) both;
+}
+@keyframes cx-check-draw {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.cp-prep-layout .cp-path-list .cp-exam-trail-item[data-opening] .cx-node[data-state="current"] {
+  animation: cx-node-open var(--cx-dur-settle) var(--cx-ease-settle) both;
+}
+@keyframes cx-node-open {
+  0%,
+  70% {
+    background: var(--cx-bg-3);
+    color: var(--cx-text-reading);
+    box-shadow: 0 0 0 0 transparent;
+  }
+  100% {
+    background: var(--cx-brand-strong);
+    color: var(--cx-text-on-brand);
+    box-shadow: 0 0 0 4px var(--cx-brand-weak);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cx-node,
+  .cp-prep-layout .cp-prep-aside .cp-prep-hero-icon {
+    transition: none;
+  }
+  .cp-prep-layout .cp-path-list .cx-path-fill {
+    display: none;
+  }
+  .cp-prep-layout .cp-path-list .cp-exam-trail-item[data-closing] .cx-node svg path,
+  .cp-prep-layout .cp-path-list .cp-exam-trail-item[data-opening] .cx-node {
+    animation: none;
+  }
+}
+
+/* ---------- "⋯" ve ikincil eylemler: masaüstünde bugünkü gibi (düğme yok, eylemler ızgarada) ---------- */
+.cp-prep-layout .cp-path-next .cx-next-more {
+  display: none;
+}
+.cp-prep-layout .cp-path-next .cx-next-secondary {
+  display: contents;
+}
+
+/* ---------- Telefon (<768 px): küçük kart, en çok 104 px ---------- */
+@media (max-width: 767px) {
+  .cp-prep-layout .cp-prep-main .cp-path-next,
+  .cp-prep-layout .cp-prep-main .cp-path-next--focus,
+  .cp-prep-layout .cp-prep-main .cp-path-next--locked {
+    gap: var(--cx-space-8);
+    max-height: 104px;
+    padding: var(--cx-space-12);
+    overflow: visible;
+  }
+  /* Rozetler, süre ve not bu genişlikte gizli; yalnız adım adı ve eylemler. */
+  .cp-prep-layout .cp-path-next .cp-prep-badges,
+  .cp-prep-layout .cp-path-next .cp-path-next-meta,
+  .cp-prep-layout .cp-path-next .cp-path-next-note {
+    display: none;
+  }
+  .cp-prep-layout .cp-path-next .cp-path-next-title {
+    min-width: 0;
+    padding-inline: var(--cx-space-4);
+    font: var(--cx-t-title-s);
+    letter-spacing: var(--cx-ls-heading);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    overflow-wrap: normal;
+  }
+  .cp-prep-layout .cp-path-next .cp-path-next-actions,
+  .cp-prep-layout .cp-path-next .cp-path-next-actions--stack {
+    position: relative;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: var(--cx-space-8);
+  }
+  .cp-prep-layout .cp-path-next .cx-next-more {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: var(--cx-tap-min);
+    height: var(--cx-tap-min);
+    padding: 0;
+    border: 0;
+    border-radius: var(--cx-radius-max);
+    color: var(--cx-text-primary);
+    cursor: pointer;
+  }
+  .cp-prep-layout .cp-path-next .cx-next-more svg {
+    width: var(--cx-space-18);
+    height: var(--cx-space-18);
+  }
+  .cp-prep-layout .cp-path-next .cp-path-next-actions > .cp-exam-continue--primary {
+    flex: 1;
+    order: 0;
+    min-width: 0;
+    min-height: var(--cx-tap-min);
+    height: var(--cx-tap-min);
+    padding: 0 var(--cx-space-18);
+    font: var(--cx-t-button-s);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  /* İkincil eylemler "⋯" ile açılan menüde (aynı düğmeler, aynı etiketler). */
+  .cp-prep-layout .cp-path-next .cx-next-secondary {
+    display: none;
+  }
+  .cp-prep-layout .cp-path-next .is-more-open .cx-next-secondary {
+    position: absolute;
+    left: 0;
+    /* Kartın üstünde: adım adı (20) + aralık (8) + iç dolgu (12) + 8 px boşluk. */
+    bottom: calc(100% + var(--cx-space-48));
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    gap: var(--cx-space-2);
+    width: min(280px, 100%);
+    padding: var(--cx-space-8);
+    border: 1px solid var(--cx-border);
+    border-radius: var(--cx-radius-l);
+    background: var(--cx-bg-2);
+    box-shadow: var(--cx-shadow-popover);
+    animation: cx-next-menu-in var(--cx-dur-color) var(--cx-ease-glide);
+  }
+  .cp-prep-layout .cp-path-next .is-more-open .cx-next-secondary > * {
+    justify-content: flex-start;
+    width: 100%;
+    min-height: var(--cx-tap-min);
+    padding: var(--cx-space-8) var(--cx-space-14);
+    border-radius: var(--cx-radius-inner);
+    background: transparent;
+    color: var(--cx-text-primary);
+    text-align: left;
+  }
+  .cp-prep-layout .cp-path-next .is-more-open .cx-next-secondary > *:hover {
+    background: var(--cx-bg-3);
+  }
+}
+@keyframes cx-next-menu-in {
+  from {
+    opacity: 0;
+    scale: 0.96;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cp-prep-layout .cp-path-next .is-more-open .cx-next-secondary {
+    animation: none;
+  }
+}

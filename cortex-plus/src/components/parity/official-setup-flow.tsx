@@ -11,6 +11,7 @@ import {
   outcomeKey,
   plannedTopics,
   selectionCounts,
+  selectionForTopic,
   subjectTotals,
   toggleOutcome,
   toggleUnit,
@@ -130,12 +131,18 @@ async function defaultSubmit(body: OfficialSetupBody): Promise<{ prepId?: string
 export function OfficialSetupFlow({
   initialExam,
   initialAlan,
+  initialTopic = null,
   submit = defaultSubmit,
   onCreated,
   levelApi = httpLevelApi,
 }: {
   initialExam: SetupExam | null;
   initialAlan?: YksAlan | null;
+  /**
+   * Kurulumu bir konu seçili açar (C3, 13 Kasım 2026: turdan kayda süreklilik, `?konu=`). Ağaç gelince yalnız eşleşen
+   * üniteler seçili, adım "Konular"; eşleşme yoksa yok sayılır ve kurulum bugünkü hâliyle sürer.
+   */
+  initialTopic?: string | null;
   submit?: (body: OfficialSetupBody) => Promise<{ prepId?: string; error?: string }>;
   onCreated?: (prepId: string) => void;
   /** Hızlı Tarama istemcisi (e2e fikstürü sahte havuz verir). */
@@ -165,6 +172,10 @@ export function OfficialSetupFlow({
   const [busy, setBusy] = useState(false);
   const [withDocument, setWithDocument] = useState(false);
   const today = useMemo(istanbulToday, []);
+  /** `initialTopic` yalnız ilk ağaçta uygulanır; öğrenci sınavı değiştirirse bugünkü akış. */
+  const topicPending = useRef(Boolean(initialTopic && initialExam));
+  /** Konu seçili açıldıysa seçili dersin grubu da açık gelir (öğrenci seçili üniteyi hemen görsün). */
+  const [topicFocus, setTopicFocus] = useState(false);
 
   useEffect(() => {
     if (!exam) return;
@@ -176,6 +187,19 @@ export function OfficialSetupFlow({
       .then((t) => {
         if (!live) return;
         setTree(t);
+        const focus = topicPending.current && initialTopic && exam === initialExam ? selectionForTopic(t, initialTopic) : null;
+        topicPending.current = false;
+        if (focus) {
+          // Elle daraltmayla aynı sonuç: alan ve test grubu çipleri bırakılır, tek ders ise tek ders modu.
+          setAlan(null);
+          setGroup(null);
+          setSingle(focus.selection.subjectKeys.length === 1);
+          setSelection(focus.selection);
+          setOpen(Object.fromEntries(focus.unitIds.map((id) => [id, true])));
+          setTopicFocus(true);
+          setStep("topics");
+          return;
+        }
         const keys = exam !== "yks" ? t.subjects.map((s) => s.key) : alan ? subjectKeysForAlan(alan) : [];
         setGroup(null);
         setSelection({ subjectKeys: keys, removedOutcomes: [], removedUnits: [] });
@@ -486,7 +510,7 @@ export function OfficialSetupFlow({
             .map((s) => {
               const subjectTopics = topics.filter((t) => t.subjectKey === s.key);
               return (
-                <details key={s.key} className="osf-group" open={tree.subjects.length <= 1 || undefined}>
+                <details key={s.key} className="osf-group" open={tree.subjects.length <= 1 || topicFocus || undefined}>
                   <summary>
                     <strong>{s.label}</strong>
                     <span>

@@ -1,11 +1,22 @@
 import { notFound } from "next/navigation";
 import { ResmiKurulumFixture } from "./fixture";
-import { isSetupExam } from "@/lib/curriculum/yks-alan";
+import { isSetupExam, isYksAlan } from "@/lib/curriculum/yks-alan";
 
 export const dynamic = "force-dynamic";
 
-export default async function E2eResmiKurulumPage({ searchParams }: { searchParams: Promise<{ sinav?: string }> }) {
+export default async function E2eResmiKurulumPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ sinav?: string; alan?: string; konu?: string }>;
+}) {
   if (process.env.E2E_FIXTURE !== "1") notFound();
-  const { sinav } = await searchParams;
-  return <ResmiKurulumFixture exam={isSetupExam(sinav) ? sinav : null} />;
+  const { sinav, alan, konu } = await searchParams;
+  const exam = isSetupExam(sinav) ? sinav : null;
+  return (
+    <ResmiKurulumFixture
+      exam={exam}
+      alan={exam === "yks" && isYksAlan(alan) ? alan : null}
+      topic={typeof konu === "string" && konu.trim() ? konu.trim() : null}
+    />
+  );
 }

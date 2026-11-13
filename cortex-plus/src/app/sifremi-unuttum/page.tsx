@@ -41,14 +41,14 @@ export default function SifremiUnuttumPage() {
       subtitle="E-posta adresini gir; hesabın varsa sıfırlama bağlantısı gönderilir."
     >
       {sent ? (
-        <p className="text-sm leading-relaxed text-[var(--cx-muted)]">
+        <p className="text-sm leading-relaxed text-[var(--cpx-muted)]">
           Girdiğin adrese ait bir hesap varsa şifre sıfırlama bağlantısını
           gönderdik. Gelen kutunu ve spam klasörünü kontrol et.
         </p>
       ) : (
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-2">
-            <label htmlFor="email" className="text-sm font-medium text-[var(--cx-muted)]">
+            <label htmlFor="email" className="text-sm font-medium text-[var(--cpx-muted)]">
               E-posta
             </label>
             <input
@@ -66,8 +66,8 @@ export default function SifremiUnuttumPage() {
           </button>
         </form>
       )}
-      <p className="mt-4 text-center text-sm text-[var(--cx-muted)]">
-        <Link href="/giris" className="text-[var(--cx-gold-hover)] underline">
+      <p className="mt-4 text-center text-sm text-[var(--cpx-muted)]">
+        <Link href="/giris" className="text-[var(--cpx-gold-hover)] underline">
           Girişe dön
         </Link>
       </p>

@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export default async function E2eAnaEkranPage({
   searchParams,
 }: {
-  searchParams: Promise<{ durum?: string; plan?: string; hazirlik?: string }>;
+  searchParams: Promise<{ durum?: string; plan?: string; hazirlik?: string; konu?: string }>;
 }) {
   if (process.env.E2E_FIXTURE !== "1") notFound();
   const params = await searchParams;
@@ -23,6 +23,7 @@ export default async function E2eAnaEkranPage({
       plus={params.plan === "plus"}
       hasPrep={params.hazirlik === "1" || params.hazirlik === "yeni"}
       freshPrep={params.hazirlik === "yeni"}
+      manyTopics={params.konu === "cok"}
     />
   );
 }

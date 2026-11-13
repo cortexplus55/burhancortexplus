@@ -29,27 +29,34 @@ test.describe("authenticated student hub", { tag: ["@auth"] }, () => {
     await expect(page).toHaveURL(/\/ogretmen/);
     await expect(page).not.toHaveURL(/\/giris/);
 
-    const header = page.locator("header.cp-sor-top");
+    // 13 Kasım 2026 (kabuk): bütün öğrenci sayfalarında ana ekranın üst çubuğu.
+    const header = page.locator("header.cx-home-top");
     await expect(header).toBeVisible();
     await expect(
       page.getByRole("link", { name: "Cortex Plus Ana Sayfa" }),
     ).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Ana bölümler" })).toBeVisible();
 
-    // Üst nav'da metin linki + avatar; ikisi de /profil — avatar erişilebilir adı sabit.
-    await expect(page.locator("a.cp-sor-avatar")).toBeVisible();
-    await expect(
-      page.getByRole("navigation", { name: "Ana bölümler" }).getByRole("link", {
-        name: "Profil",
-      }),
-    ).toBeVisible();
+    // Profil üst çubukta yalnız avatarda (sekme tepsisinde üç sekme: Ana Sayfa, Sınavlar, Çalışma Stüdyosu).
+    await expect(page.locator("a.cx-home-avatar")).toBeVisible();
+    await expect(page.locator("a.cx-home-avatar")).toHaveAttribute("aria-label", "Profil");
+
+    // 13 Kasım 2026: bulunulan sayfanın sekmesi cam hapla ve aria-current ile (gerçek rotalarda).
+    const currentTab = page.locator('header.cx-home-top .cx-home-tab[aria-current="page"]');
+    await expect(currentTab).toHaveCount(1);
+    await expect(currentTab).toHaveText("Ana Sayfa");
+    await expect(currentTab).toHaveClass(/cx-glass/);
+    await page.goto("/deneme-sinavlari");
+    await expect(currentTab).toHaveText("Sınavlar");
+    await expect(currentTab).toHaveClass(/cx-glass/);
+    await page.goto("/ogretmen");
 
     // Ücretsiz: Satın al; kurucu: Kurucu etiketi; abone: çip yok (kıyas ürünü gibi),
     // üst çubukta seri duruyor. Kredi sayısı hiçbir kademede yazılmıyor.
     const chromeCredit = page
       .getByRole("link", { name: /Satın al/ })
       .or(page.getByRole("link", { name: /Kurucu/ }))
-      .or(page.locator("button.cp-sor-streak"));
+      .or(page.locator("button.cx-home-streak"));
     await expect(chromeCredit.first()).toBeVisible();
     await expect(page.locator("a.cp-sor-credit-chip")).toHaveCount(0);
   });
@@ -98,16 +105,18 @@ test.describe("authenticated student hub", { tag: ["@auth"] }, () => {
         içerik iskeletin ardından akar. İskelet ekrandayken bakan test "üst çubuk yok" diyordu. Çubuk 15 sn'de
         gelmezse sayfa gerçekten boş kalmıştır (Suspense hatası) ve test sayfanın adıyla düşer.
       */
-      await expect(page.locator("header.cp-sor-top").first(), `${path} üst çubuk yok`).toBeAttached({ timeout: 15_000 });
-      const fit = await page.evaluate(() => {
+      // 13 Kasım 2026 (kabuk): fiyat sayfası tam ekran odak görünümü; üst çubuk yerine tek cam kapat.
+      const chromeSelector = path === "/pay" ? "a.cx-shell-close" : "header.cx-home-top";
+      await expect(page.locator(chromeSelector).first(), `${path} üst çubuk yok`).toBeAttached({ timeout: 15_000 });
+      const fit = await page.evaluate((selector) => {
         const root = document.documentElement;
-        const header = document.querySelector("header.cp-sor-top");
+        const header = document.querySelector(selector);
         return {
           page: root.scrollWidth - root.clientWidth,
           hasHeader: Boolean(header),
           header: header ? header.scrollWidth - header.clientWidth : 0,
         };
-      });
+      }, chromeSelector);
       expect(fit.hasHeader, `${path} üst çubuk yok`).toBe(true);
       expect(fit.page, `${path} sayfa genişliği`).toBeLessThanOrEqual(1);
       expect(fit.header, `${path} üst çubuk`).toBeLessThanOrEqual(1);

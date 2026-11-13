@@ -72,12 +72,13 @@ export function GamificationGate() {
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4"
+      className="cx-streak-backdrop"
       role="dialog"
       aria-modal="true"
       aria-label="Seri"
     >
-      <div className="cs-app cs-pay-card w-full max-w-sm p-6 text-center">
+      {/* Diyalog ölçüsü (13 Kasım 2026): ortalı, 480 px, yükseklik içeriği kadar, köşe 32. Metinler aynı. */}
+      <div className="cx-streak-dialog">
         <p className="text-4xl" aria-hidden>
           🔥
         </p>

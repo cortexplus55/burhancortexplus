@@ -21,7 +21,6 @@ import {
   Link2,
   Plus,
   Smartphone,
-  Upload,
   X,
 } from "lucide-react";
 import { CortexLogoMotion } from "@/components/brand/cortex-logo-motion";
@@ -107,6 +106,7 @@ import { OfficialCurriculumPanel, type OfficialCurriculumPick } from "@/componen
 import type { CurriculumRef } from "@/lib/curriculum/types";
 import { PhotoQualityPrompt } from "@/components/parity/photo-quality-prompt";
 import { GuestDocumentOffer } from "@/components/parity/guest-document-offer";
+import { fileFindings, ScanCore, ScanFindings, useScanMoment, type ScanFinding } from "@/components/learning/scan-core";
 import { EXAM_PLACE_MAX, parseExamPlace, parseExamTime } from "@/lib/learning/exam-time";
 import {
   MaterialNotesCard,
@@ -410,6 +410,14 @@ export function ExamCreateWizard({
   const mappedIdsRef = useRef<string[] | null>(null);
   const [startNote, setStartNote] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  /**
+   * Tarama anı (C1, 13 Kasım 2026): dosya bırakılınca ya da seçilince çekirdek en çok 2,2 sn oynar, seçilen dosyalar
+   * sırayla belirir. Yalnız görsel: yükleme anla aynı anda başlar. An bitince bugünkü ilerleme satırları döner; bu
+   * seçimden okunan dosya ve sayfa sayısı veri geldikçe çekirdeğin altında yazılır (`before`: seçimden önceki
+   * materyaller).
+   */
+  const scan = useScanMoment();
+  const [scanBatch, setScanBatch] = useState<{ files: ScanFinding[]; before: string[] } | null>(null);
   const [phoneOpen, setPhoneOpen] = useState(false);
   /** Genişlik panelleri (29 Ekim 2026): metin yapıştır, bağlantı ekle, hazır müfredat. */
   const [importPanel, setImportPanel] = useState<"none" | "paste" | "url" | "curriculum">("none");
@@ -1368,6 +1376,13 @@ export function ExamCreateWizard({
     { photoQuality: true },
   );
 
+  // Tarama anı cevap bekleyen bir soruyu örtmez ve materyal adımı dışında oynamaz: fotoğraf sorusu gelince ya da adım
+  // değişince an hemen biter.
+  const endScan = scan.end;
+  useEffect(() => {
+    if (upload.photoQuality || step !== "material") endScan();
+  }, [upload.photoQuality, step, endScan]);
+
   async function takeFiles(list: FileList | File[] | undefined) {
     // Belge sayısında ürün sınırı yok (31 Ekim 2026): seçilen her dosya alınır; hak dolunca durulur.
     const batch = list ? [...list] : [];
@@ -1375,6 +1390,9 @@ export function ExamCreateWizard({
     const existing = new Set(materialsRef.current.map((material) => material.id));
     quietUploadRef.current = batch.length > 1;
     autoArmedRef.current = true;
+    // Tarama anı yalnız görsel: yükleme hemen aşağıda, anı beklemeden başlar.
+    setScanBatch({ files: fileFindings(batch), before: [...existing] });
+    scan.play();
     setUploading(true);
     try {
       const result = await upload.run(batch);
@@ -1383,6 +1401,8 @@ export function ExamCreateWizard({
       // Tek bildirim: yüklenemeyen dosyalar (okunamayanlar "Tekrar dene" listesinde ayrıca durur).
       if (batch.length === 1 && result.failed.length) toast.error(result.firstError ?? "Bağlantı hatası.");
       else if (result.failed.length) toast.error(batchUploadFailedLine(result.failed));
+      // Yüklenemeyen dosya varsa an hemen biter: bildirim ve bugünkü satırlar seçilen dosyaları "taranıyor" gösteremez.
+      if (result.failed.length) scan.end();
     } finally {
       setUploading(false);
     }
@@ -1575,6 +1595,19 @@ export function ExamCreateWizard({
       .catch(() => toast.error("Bağlantı hatası."));
   }, []);
 
+  /**
+   * Tarama anından sonra çekirdeğin altındaki bulgu: bu seçimden okunup hazır olan dosya ve bilinen sayfa sayısı
+   * ("3 dosya · 48 sayfa"). Yalnız elimizdeki değerler; hazır dosya yoksa hiçbir şey yazılmaz.
+   */
+  const scanReadout: ScanFinding | null = (() => {
+    if (!scanBatch) return null;
+    const ready = materials.filter((material) => !scanBatch.before.includes(material.id));
+    if (!ready.length) return null;
+    const pages = ready.reduce((sum, material) => sum + (material.ofPages ?? material.pageCount ?? 0), 0);
+    const files = `${ready.length} dosya`;
+    return { id: "readout", kind: "done", text: pages > 0 ? `${files} · ${pages === 1 ? "1 sayfa" : `${pages} sayfa`}` : files };
+  })();
+
   const showProcessingPanel =
     uploading ||
     Boolean(processDetail) ||
@@ -1663,9 +1696,10 @@ export function ExamCreateWizard({
 
       {showProcessingPanel ? (
         <WizardProcessingPanel
-          processDetail={processDetail}
+          // Tarama anı sürerken ilerleme satırı ve çubuğu bekler (an en çok 2,2 sn); uyarılar ve hatalar beklemez.
+          processDetail={scan.playing ? null : processDetail}
           processAlert={processAlert}
-          processPercent={processPercent}
+          processPercent={scan.playing ? null : processPercent}
           failedMaterials={failedMaterials}
           uploading={uploading}
           onDismissAlert={() => setProcessAlert(null)}
@@ -1871,37 +1905,48 @@ export function ExamCreateWizard({
               void takeFiles(e.dataTransfer.files);
             }}
           >
-            <span className="apw-drop-icon" aria-hidden>
-              <Upload className="h-6 w-6" />
-            </span>
-            {/* Dokunmatik ekranda sürükle-bırak yok (2 Kasım 2026); başlık cihaza göre. */}
-            <p className="apw-drop-title">
-              <span className="apw-only-desktop">Dosyanı buraya bırak</span>
-              <span className="apw-only-touch">Dosya seç</span>
-            </p>
-            <p className="apw-drop-hint">{DOCUMENT_UPLOAD_HINT}</p>
+            {/* Tarama çekirdeği (C1, 13 Kasım 2026): dosya gelince bir an oynar; durağan hâlde hareket yok. */}
+            <ScanCore playing={scan.playing} />
+            {scan.playing && scanBatch ? (
+              <ScanFindings items={scanBatch.files} />
+            ) : (
+              <>
+                {/* Dokunmatik ekranda sürükle-bırak yok (2 Kasım 2026); başlık cihaza göre. */}
+                <p className="apw-drop-title">
+                  <span className="apw-only-desktop">Dosyanı buraya bırak</span>
+                  <span className="apw-only-touch">Dosya seç</span>
+                </p>
+                <p className="apw-drop-hint">{DOCUMENT_UPLOAD_HINT}</p>
+              </>
+            )}
             <PhotoQualityPrompt request={upload.photoQuality} onAnswer={upload.answerPhotoQuality} />
-            {upload.photoProgress ? (
-              <p className="apw-drop-hint" role="status" aria-live="polite">
-                {photoSetProgressLine(upload.photoProgress)}
-              </p>
-            ) : null}
-            {upload.fileProgress && upload.fileProgress.total > 1 ? (
-              <p className="apw-drop-hint" role="status" aria-live="polite">
-                {fileProgressLine(upload.fileProgress.done, upload.fileProgress.total, readingNow(upload.fileProgress.reading))}
-              </p>
-            ) : null}
-            {fileProgress && fileProgress.total > 0 ? (
-              <p className="apw-drop-hint" role="status" aria-live="polite">
-                {fileProgressLine(fileProgress.done, fileProgress.total, fileProgress.current)}
-              </p>
-            ) : null}
-            {materialLimitLine ? (
-              <p className="apw-drop-hint">{materialLimitLine}</p>
-            ) : null}
-            <p className="apw-drop-hint">
-              Sekmeyi kapatırsan geri geldiğinde kaldığı yerden devam eder.
-            </p>
+            {/* An bitince (ya da atlanınca) bugünkü ilerleme satırları ve bu seçimin okunan dosya / sayfa sayısı. */}
+            {scan.playing ? null : (
+              <>
+                {upload.photoProgress ? (
+                  <p className="apw-drop-hint" role="status" aria-live="polite">
+                    {photoSetProgressLine(upload.photoProgress)}
+                  </p>
+                ) : null}
+                {upload.fileProgress && upload.fileProgress.total > 1 ? (
+                  <p className="apw-drop-hint" role="status" aria-live="polite">
+                    {fileProgressLine(upload.fileProgress.done, upload.fileProgress.total, readingNow(upload.fileProgress.reading))}
+                  </p>
+                ) : null}
+                {fileProgress && fileProgress.total > 0 ? (
+                  <p className="apw-drop-hint" role="status" aria-live="polite">
+                    {fileProgressLine(fileProgress.done, fileProgress.total, fileProgress.current)}
+                  </p>
+                ) : null}
+                {scanReadout ? <ScanFindings items={[scanReadout]} /> : null}
+                {materialLimitLine ? (
+                  <p className="apw-drop-hint">{materialLimitLine}</p>
+                ) : null}
+                <p className="apw-drop-hint">
+                  Sekmeyi kapatırsan geri geldiğinde kaldığı yerden devam eder.
+                </p>
+              </>
+            )}
             <button
               type="button"
               className="apw-drop-pick apw-drop-pick--main"

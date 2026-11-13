@@ -2157,7 +2157,7 @@ kartları ana ekrandan da kalktı (ürün sahibinin seçimi). Yeniden açmayın:
 
 | Kural | Nerede |
 |---|---|
-| **Ana ekran yalnız öğretmenle sohbet:** selam, Başla ve hiç hazırlığı olmayan öğrenciye ilk adım kartları. Plus kartı, stüdyo kartları, yazma alanının yanındaki kart (`UpgradeAside`, silindi), sohbet sonundaki bant ya da satır **yok**. Plus yalnız üst çubuktaki düğmede; kota dolunca kredi kapısı | `ogretmen/page.tsx`, `chat-panel.tsx` |
+| **Ana ekran yalnız öğretmenle sohbet** (**13 Kasım 2026'da değişti:** hazırlığı olan öğrencinin boş ana ekranı beş parça — sınav şeridi, konu halkası, metin bloğu, ince yazma çubuğu, yeni üst çubuk; ayrıntı `cortex-plus/docs/design-system.md` "Ana ekran" ve skill'in "Depo kararları" madde 8. Aşağıdaki satır hazırlığı olmayan hesabın boş durumu için geçerli kalır): selam, Başla ve hiç hazırlığı olmayan öğrenciye ilk adım kartları. Plus kartı, stüdyo kartları, yazma alanının yanındaki kart (`UpgradeAside`, silindi), sohbet sonundaki bant ya da satır **yok**. Plus yalnız üst çubuktaki düğmede; kota dolunca kredi kapısı | `ogretmen/page.tsx`, `chat-panel.tsx` |
 | **"Araçlar" sekmesinin adı "Çalışma Stüdyosu"** (adres `/araclar` aynı); telefonun alt menüsünde `shortLabel` "Stüdyo". Sayfa sekmesiz ve aramasız: başta 8 stüdyo (`StudioGallery`), sonra interaktif laboratuvarlar, hesap araçları, kısayollar | `student-shell-nav.ts`, `tools-hub.tsx` |
 | **Stüdyolar tek kaynak** `STUDIOS`: her biri kendi vurgu rengiyle (sarı yok), büyük 3B simge, iki kısa bilgi (bugün çalışan özellik, söz yok), "Başla"; ücretsizde yalnız `PLUS_ONLY_ACTIONS` işleri "Plus" rozeti ve "İncele". Masaüstünde 3 sütun ve ilk kart geniş; 900 px altında 2 sütun, öne çıkan iki kart tam satır; 560 px altında tek sütun, simge solda | `lib/parity/studios.ts`, `studio-gallery.tsx`, `studio-gallery.css` |
 | **Sabit besteci arkasını örter** (`::before` geçişi + zemin); mod düğmeleri `safe center`; sohbet sütunu 48rem ortada; kartlı ana ekran sabit yükseklikte kabuk (`.cp-sor-root:has(.cp-sor-hero--rich)`, önce vh sonra dvh), kayan yalnız kart kutusu; ölçülen boşluğa geçiş payı (+2.5rem) ve `scroll-padding-bottom` | `parity-shell.css` sonu |
@@ -2678,3 +2678,27 @@ Bekçi: `misafir-turu.test.tsx`, `misafir-dosya-koprusu.test.tsx`, `sinematik-an
 360 px: yedi adım + üç önizleme, taşma 0, dokunma ≥ 44 px, ağ isteği yok; misafirin dosyası sunucuya gitmeden
 kuruluma taşınır; 1366 px'te kokpit ilk ekranda; stil dosyaları bekletilirken sekme ve tarama hemen işlenir, ürün
 ekranı stilsiz açılmaz), `vitrin.spec.ts`, `uyum.spec.ts` (şerit yüksekliği).
+
+## Tam ekran kaydırmasız tur stüdyosu (13 Kasım 2026) — ana sayfada iç kaydırma yok, sayfa 60 FPS
+
+Ürün sahibi önizlemeyi telefonda denedi: 4. adımda yalnız A ve B şıkkı görünüyordu (C-E için iç kutuda kaydırmak
+gerekiyordu), ana sayfa kayarken takılıyordu. Bu bölüm "Misafir kokpiti" bölümünün "kokpit kahramanın içinde" ve
+"geniş ekranda üç önizleme yan yana" satırlarını **bilerek** değiştirir. Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| **Ana sayfada yalnız birinci adım** (`.lj-door`): örnek not, tarama çekirdeği, "Kendi notunu seç"; konsol başı ve ilerleme rayı (orientasyon). İç kaydırmalı kutu yok, yükseklik içeriği kadar. Kendi dosya kapısı (B) ana sayfada kalır | `futuristic-guided-journey.tsx` |
+| **Örnek nota dokununca tam ekran stüdyo** (`.lj-studio`, `document.body`'ye portal, `role="dialog"`): üstte 1-7 ray, kalıcı "Hoca uyarısı" (A4), ✕; ortada adım; altta tek ilerleme düğmesi (A3). Sayfa arkada kilitli (`overflow: hidden`), ana sayfa `inert` + `aria-hidden`. Escape ve ✕ kapatır, odak açan öğeye döner; tarama anı sürerken Escape yalnız anı atlatır. Raydaki 1. durak stüdyoyu kapatır | aynı |
+| **Hiçbir adımda kaydırma yok** (`FitStage`): sahne `overflow: clip` (ürünün `scrollIntoView`'u da kaydıramaz); içerik sığmazsa orantılı küçülür ve aynı oranda genişletilerek yeniden dizilir (`width: 100% / ölçek`, en büyük sığan ölçek birkaç ölçümde aranır, taban 0,5). Kullanılabilir yükseklik `--lj-avail` | aynı, `landing-journey.css` |
+| Ölçüm (yerel, 13 Kasım): 1280×800'de her adım ≥ 0,81 (soru, kart, D/Y, Plus 0,97-1,0); 375×812'de ders 0,71-0,81, Plus 0,81, öbürleri 0,9-1,0. Telefonda bundan büyük ölçek için ders ekranının içeriği bölünmeli (ürün kuralı: her ekran bir soruyla biter; soru eklemeden bölme yapılmaz) | e2e `anlar.spec.ts` A1 (ölçek ≥ 0,6) |
+| **Ürün dersinde görsel kartlar sarmalayıcıda** (`.als-cardrow`: art arda ≥ 2 formül, sınav tuzağı, hafıza çivisi, çözümlü örnek). Üründe `display: contents` (görünüm aynı). Stüdyoda geniş ekranda yan yana (bento), telefonda yana kaydırılan şerit (yatay; dikey kaydırma değil) | `exam-lesson-steps.tsx` `CARD_BLOCKS`, `exam-lesson-steps.css`, `tour-product.css` |
+| Stüdyoda yalnız yerleşim (renk/yazı ürünün dosyalarından): geniş ekranda ders 100 % genişlik, önce dene sorusu ile anlatım yan yana, ekranın sonundaki soru anlatımın sağında; konu testinde şıklar iki sütun, açıklama sağ sütunda; telefonda açıklama `--lj-avail`'ın %36'sıyla sınırlı kart (kendi içinde kayar), "önce dene" cevaplanınca açıklaması yerine anlatım (doğrusu tuzak kartında da yazılı) | `tour-product.css` |
+| **Plus önizlemeleri stüdyoda her genişlikte seçiciyle tek tek**; geniş ekranda son blok önizlemenin sağında (üçü yan yana 0,64 ölçekle sığıyordu) | `futuristic-guided-journey.tsx`, `landing-journey.css` |
+| **Sayfa hızı:** A1'deki pencere hizalaması (`scrollBy`, 0,7 sn düzeltme) ve iç kaydırma kalktı. Bulanıklaştırma (`backdrop-filter`) üç yerden kalktı: tur konsolu (24 px; arkasında sürekli salınan ışık olduğu için her karede yeniden hesaplanıyordu), üst menü (16 px), plan kartları (18 px); zeminler sabit ve koyu. Ölçüm (yerel, 1280 px, tekerlek): kare p90 33,4 → 16,7 ms, p99 50 → 16,8 ms, 33 ms'yi aşan kare 3 → 0 | `landing-journey.css`, `parity-marketing.css`, `landing.css` |
+| **Podcast kesiti ürünün motorundan**: `teacherPodcastLoop` turdaki dersten (`lessonText`, ders sonu "Şimdi dinle" yolu) iki sesli "diyalog" bölümü yazdı (gpt-6-luna, 5 bölüm, 37 satır); hoca uyarısını karşılayan ardışık iki satır ("√(x²) … −x") ürünün sesleriyle seslendirildi, 15,7 sn. Bölümün tamamı ve ölçülen süreler `tour-podcast.json`ta; `TOUR_PODCAST_SAMPLE` onun kopyası, bekçi eşitliği tutar. Fotosentez kesiti (`podcast-ornek.mp3`) artık kullanılmıyor | `guest-tour.ts`, `public/ornek/podcast-koklu-sayilar.mp3` |
+| **Turdan kayda süreklilik (C3)**: stüdyoda ulaşılan adım (2. adımdan itibaren) ve sekme `cp:guest-tour` (sessionStorage, 24 saat) — sunucuya gitmez, cevaplar ölçüm sayılmaz | `guest-tour-progress.ts` |
+
+Bekçi: `anlar-tur.test.tsx` ("tam ekran stüdyo", "C3 … tur yazar"), `misafir-turu.test.tsx`, e2e `anlar.spec.ts` (A1: ana
+sayfada iç kaydırıcı 0; 2-7. adımlarda stüdyo ve sahne kaymaz, içerik sahnede, alt düğme ekranda, ölçek ≥ 0,6; 4. adımda
+beş şık cevaptan önce ve sonra ekranda; ✕ kilidi açar), `donusum.spec.ts` (tur stüdyoda baştan sona; stüdyoda çubuk
+düğmeleri ekranda 44 px, sığdırılan ürün düğmeleri kendi ölçüsünde 44 px).

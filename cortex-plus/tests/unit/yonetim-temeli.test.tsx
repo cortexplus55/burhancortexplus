@@ -50,7 +50,7 @@ function account(over: Partial<StudentAccountContext> = {}): StudentAccountConte
 }
 
 function openMenu(container: HTMLElement) {
-  const button = container.querySelector<HTMLButtonElement>("button.cp-sor-more--side, button.cp-sor-more");
+  const button = container.querySelector<HTMLButtonElement>("button.cx-home-more") // 13 Kasım 2026: yeni üst çubuğun "Daha fazla"sı;
   if (!button) throw new Error("Daha fazla düğmesi yok");
   fireEvent.click(button);
 }

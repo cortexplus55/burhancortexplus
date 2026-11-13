@@ -1,0 +1,642 @@
+/**
+ * Ana ekran (/ogretmen), 13 Kasım 2026, ürün sahibinin kararı: sınav şeridi, konu halkası, metin bloğu, ince yazma
+ * çubuğu. Üst çubuk ve logo bütün öğrenci sayfalarının kabuğunda: cx-shell.css. Değerler --cx-*; ham renk yok.
+ * Telefon düzeni (<768 px) [varsayım]: referansın mobil görünümü ölçülemedi.
+ */
+
+/* ---------- Kök: boş ana ekran tek ekran, kaydırmasız (masaüstü) ---------- */
+.cp-sor-root--home {
+  background: var(--cx-bg-0);
+}
+/* Plus kabuğunun altın/mor ışıması ana ekranda yok [skill §10: neon parlama yok]. */
+.cp-sor-root--home.cp-sor-root--plus::before {
+  content: none;
+}
+@media (min-width: 768px) {
+  .cp-sor-root--home:has(.cx-home-stage) {
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+  }
+  .cp-sor-root--home .cp-sor-bottomnav {
+    display: none;
+  }
+}
+
+.cx-home-stage :focus-visible,
+.cx-slim :focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}
+
+/* ---------- 3. Ana alan ---------- */
+.cx-home-stage {
+  --cx-ring: min(var(--cx-ring-max), calc(100vh - 150px));
+  --cx-stage-pb: calc(var(--cx-slim-h) + var(--cx-slim-gap) + var(--cx-space-16));
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--cx-gutter) var(--cx-stage-pb);
+}
+@supports (height: 100dvh) {
+  .cx-home-stage {
+    --cx-ring: min(var(--cx-ring-max), calc(100dvh - 150px));
+  }
+}
+.cx-cockpit {
+  display: flex;
+  align-items: center;
+  gap: var(--cx-space-48);
+  max-width: 100%;
+}
+.cx-cockpit-body {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--cx-ring) minmax(0, var(--cx-cockpit-text-w));
+  align-items: center;
+  gap: var(--cx-space-48);
+  animation: cx-cockpit-in var(--cx-dur-color) ease;
+}
+@keyframes cx-cockpit-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* 3A. Sınav şeridi */
+.cx-strip {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cx-space-2);
+  width: var(--cx-strip-w);
+  padding: var(--cx-space-4);
+  border-radius: var(--cx-radius-l);
+  background: var(--cx-bg-1);
+}
+.cx-strip-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cx-space-2);
+  max-height: calc(4 * var(--cx-strip-item-h) + 3 * var(--cx-space-2));
+  overflow-y: auto;
+  scroll-snap-type: y mandatory;
+  scrollbar-width: none;
+}
+.cx-strip-list::-webkit-scrollbar {
+  display: none;
+}
+.cx-strip-tab {
+  position: relative;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: var(--cx-strip-item-w);
+  height: var(--cx-strip-item-h);
+  border: 0;
+  border-radius: var(--cx-radius-inner);
+  background: transparent;
+  color: var(--cx-text-disabled);
+  cursor: pointer;
+  scroll-snap-align: start;
+  text-decoration: none;
+  transition: color var(--cx-dur-color) ease;
+}
+.cx-strip-tab:hover,
+.cx-strip-tab.is-selected {
+  color: var(--cx-text-primary);
+}
+.cx-strip-tab:focus-visible {
+  outline-offset: -2px;
+}
+.cx-strip-pill {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--cx-radius-inner);
+  z-index: 0;
+}
+.cx-strip-day {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--cx-space-2);
+}
+.cx-strip-num {
+  font: var(--cx-t-title-l);
+  letter-spacing: var(--cx-ls-heading);
+  font-variant-numeric: tabular-nums;
+}
+.cx-strip-unit {
+  font: var(--cx-t-meta-xs);
+  letter-spacing: var(--cx-ls-meta);
+  text-transform: uppercase;
+  text-align: center;
+}
+.cx-strip-cal,
+.cx-strip-new svg {
+  position: relative;
+  z-index: 1;
+  width: var(--cx-space-20);
+  height: var(--cx-space-20);
+}
+.cx-strip-new {
+  color: var(--cx-text-secondary);
+}
+.cx-strip-dot {
+  position: absolute;
+  top: var(--cx-space-8);
+  right: var(--cx-space-8);
+  z-index: 1;
+  width: var(--cx-dot);
+  height: var(--cx-dot);
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-danger);
+}
+.cx-strip-arrow {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: var(--cx-strip-arrow-h);
+  border: 0;
+  border-radius: var(--cx-radius-inner);
+  background: transparent;
+  color: var(--cx-text-secondary);
+  cursor: pointer;
+}
+.cx-strip-arrow:hover {
+  color: var(--cx-text-primary);
+}
+/* Ok 28 px görünür [karar]; tıklama alanı 44 px [karar 5]. */
+.cx-strip-arrow::before {
+  content: "";
+  position: absolute;
+  inset: calc((var(--cx-strip-arrow-h) - var(--cx-tap-min)) / 2) 0;
+}
+.cx-strip-arrow svg {
+  width: var(--cx-space-16);
+  height: var(--cx-space-16);
+}
+.cx-strip-tip {
+  position: absolute;
+  left: calc(100% + var(--cx-space-12));
+  z-index: 5;
+  translate: 0 -50%;
+  padding: var(--cx-space-6) var(--cx-space-12);
+  border-radius: var(--cx-radius-s);
+  background: var(--cx-bg-2);
+  box-shadow: var(--cx-shadow-popover);
+  color: var(--cx-text-primary);
+  font: var(--cx-t-label-13);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* 3B. Konu halkası */
+.cx-ring {
+  position: relative;
+  width: var(--cx-ring);
+  aspect-ratio: 1;
+  max-width: 100%;
+}
+.cx-ring-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.cx-ring-arc {
+  fill: none;
+  stroke-width: 14;
+  cursor: pointer;
+  transition: opacity var(--cx-dur-color) ease;
+}
+.cx-ring-arc:not([data-done]) {
+  stroke: var(--cx-bg-2);
+}
+.cx-ring-arc:hover {
+  opacity: 0.85;
+}
+/* Halkanın dolması (B1, 13 Kasım 2026): az önce biten konunun renkli yayı boş yayın üstünde çizilir. */
+.cx-ring-draw {
+  pointer-events: none;
+}
+/* Seçili konu (13 Kasım 2026): yayın kendisi bir kademe açık (bg-4) ve kenarlarına yapışık 1.5 px beyaz çerçeve.
+   Bitmiş konunun yayı renkli kalır, çerçeve onu da gösterir. */
+.cx-ring-arc[data-selected]:not([data-done]) {
+  stroke: var(--cx-bg-4);
+}
+.cx-ring-selected {
+  fill: none;
+  stroke: var(--cx-text-primary);
+  stroke-width: 1.5px;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+.cx-ring-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cx-space-8);
+  pointer-events: none;
+}
+.cx-ring-label {
+  color: var(--cx-text-secondary);
+}
+.cx-ring-go {
+  pointer-events: auto;
+  display: grid;
+  place-items: center;
+  width: var(--cx-ring-go);
+  height: var(--cx-ring-go);
+  margin-top: var(--cx-space-8);
+  border-radius: var(--cx-radius-max);
+  transition: scale var(--cx-dur-scale) var(--cx-ease-out);
+}
+.cx-ring-go:hover,
+.cx-ring-go:focus-visible {
+  scale: var(--cx-scale-hover);
+}
+.cx-ring-go svg {
+  width: var(--cx-space-20);
+  height: var(--cx-space-20);
+  fill: currentColor;
+}
+
+/* Konu kaydırıcısı: halka + metin grubunun en sağ ucunda ince dikey çizgi (grubun ortalanmasını etkilemez). */
+.cx-slider {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + var(--cx-space-24));
+  translate: 0 -50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--cx-space-8);
+}
+.cx-slider-track {
+  position: relative;
+  width: var(--cx-space-4);
+  height: calc(var(--cx-ring) * 0.4);
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-bg-2);
+  cursor: pointer;
+  touch-action: none;
+}
+.cx-slider-track::before {
+  /* Dokunma alanı 44 px [karar 5]; çizgi ince kalır. */
+  content: "";
+  position: absolute;
+  inset: 0 calc((var(--cx-space-4) - var(--cx-tap-min)) / 2);
+}
+.cx-slider-thumb {
+  position: absolute;
+  left: 50%;
+  width: var(--cx-space-16);
+  height: var(--cx-space-16);
+  translate: -50% -50%;
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-text-primary);
+  transition: top var(--cx-dur-color) ease;
+}
+.cx-slider-count {
+  font: var(--cx-t-meta-xs);
+  letter-spacing: var(--cx-ls-meta);
+  color: var(--cx-text-tertiary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* 3. Metin bloğu */
+.cx-cockpit-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: var(--cx-cockpit-text-w);
+  min-width: 0;
+}
+.cx-cockpit-subject {
+  margin: 0;
+  color: var(--cx-text-secondary);
+}
+.cx-cockpit-heading {
+  margin: var(--cx-space-6) 0 0;
+  color: var(--cx-text-primary);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+.cx-cockpit-next {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cx-space-8);
+  min-height: var(--cx-tap-min);
+  margin-top: var(--cx-space-40);
+  color: var(--cx-text-secondary);
+  text-decoration: none;
+  text-transform: uppercase;
+  letter-spacing: var(--cx-ls-meta);
+  transition: color var(--cx-dur-color) ease;
+}
+.cx-cockpit-next svg {
+  width: var(--cx-space-16);
+  height: var(--cx-space-16);
+  flex-shrink: 0;
+  transition: translate var(--cx-dur-scale) var(--cx-ease-out);
+}
+.cx-cockpit-next:hover {
+  color: var(--cx-text-primary);
+}
+.cx-cockpit-next:hover svg {
+  translate: var(--cx-nudge) 0;
+}
+.cx-cockpit-details {
+  display: inline-flex;
+  align-items: center;
+  height: var(--cx-control-m);
+  margin-top: var(--cx-space-40);
+  padding-inline: var(--cx-space-18);
+  border-radius: var(--cx-radius-max);
+  font: var(--cx-t-button-s);
+  text-decoration: none;
+  transition: scale var(--cx-dur-scale) var(--cx-ease-out);
+}
+.cx-cockpit-details:hover,
+.cx-cockpit-details:focus-visible {
+  scale: var(--cx-scale-hover);
+}
+
+/* ---------- 4. İnce yazma çubuğu ---------- */
+.cx-home-composer.is-slim {
+  width: auto;
+}
+@media (min-width: 768px) {
+  .cx-home-composer {
+    bottom: var(--cx-slim-gap);
+  }
+}
+.cx-slim {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.cx-slim-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--cx-space-4);
+  width: min(var(--cx-slim-w), calc(100vw - 2 * var(--cx-space-16)));
+  height: var(--cx-slim-h);
+  padding-inline: var(--cx-space-8);
+  border-radius: var(--cx-radius-max);
+}
+.cx-slim-teacher,
+.cx-slim-icon {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: var(--cx-icon-btn-l);
+  height: var(--cx-icon-btn-l);
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  cursor: pointer;
+  transition: scale var(--cx-dur-scale) var(--cx-ease-out), color var(--cx-dur-color) ease;
+}
+.cx-slim-teacher svg,
+.cx-slim-icon svg {
+  width: var(--cx-space-18);
+  height: var(--cx-space-18);
+}
+.cx-slim-teacher:hover,
+.cx-slim-teacher:focus-visible {
+  scale: var(--cx-scale-hover);
+}
+.cx-slim-icon {
+  background: transparent;
+  color: var(--cx-text-secondary);
+}
+.cx-slim-icon:hover,
+.cx-slim-icon.is-live {
+  color: var(--cx-text-primary);
+}
+.cx-slim-icon .is-open {
+  rotate: 180deg;
+}
+.cx-slim-icon svg {
+  transition: rotate var(--cx-dur-scale) var(--cx-ease-out);
+}
+.cx-slim-field {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-width: 0;
+  height: var(--cx-control-s);
+  padding: 0 var(--cx-space-4);
+  border: 0;
+  background: transparent;
+  color: var(--cx-text-primary);
+  font: var(--cx-t-label-15);
+  text-overflow: ellipsis;
+  cursor: text;
+}
+.cx-slim-field::placeholder {
+  color: var(--cx-text-tertiary);
+}
+
+/* Araç tepsisi: köşe 32, 4×2 ızgara, öğe 105×84. */
+.cx-tray {
+  position: absolute;
+  bottom: calc(100% + var(--cx-space-12));
+  left: 50%;
+  translate: -50% 0;
+  padding: var(--cx-space-12);
+  border-radius: var(--cx-radius-xl);
+  animation: cx-tray-in var(--cx-dur-color) var(--cx-ease-glide);
+}
+@keyframes cx-tray-in {
+  from {
+    opacity: 0;
+    scale: 0.96;
+  }
+}
+.cx-tray-grid {
+  display: grid;
+  grid-template-columns: repeat(4, var(--cx-tray-item-w));
+  gap: var(--cx-space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cx-tray-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cx-space-6);
+  height: var(--cx-tray-item-h);
+  padding: var(--cx-space-8);
+  border-radius: var(--cx-radius-inner);
+  color: var(--cx-text-secondary);
+  text-align: center;
+  text-decoration: none;
+  transition: background-color var(--cx-dur-color) ease, color var(--cx-dur-color) ease;
+}
+.cx-tray-item:hover,
+.cx-tray-item:focus-visible {
+  background: var(--cx-bg-3);
+  color: var(--cx-text-primary);
+}
+.cx-tray-icon {
+  width: var(--cx-space-32);
+  height: var(--cx-space-32);
+}
+.cx-tray-label {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+/* Kilitli öğe (ücretsiz hesap): altın küçük "Plus" rozeti, öğe %60 opaklık [skill §7]. */
+.cx-tray-item.is-locked > :not(.cx-tray-plus) {
+  opacity: 0.6;
+}
+.cx-tray-plus {
+  position: absolute;
+  top: var(--cx-space-4);
+  right: var(--cx-space-4);
+  padding: 0 var(--cx-space-6);
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-highlight-weak);
+  color: var(--cx-text-highlight);
+  font: var(--cx-t-meta-xs);
+  letter-spacing: var(--cx-ls-meta);
+  text-transform: uppercase;
+}
+
+/* ---------- Geniş ekran (≥1100 px): şerit sol kenarda 24 px, halka + metin grubu sayfanın yatay merkezinde ---------- */
+@media (min-width: 1100px) {
+  .cx-home-stage {
+    --cx-stage-side: calc(var(--cx-space-24) + var(--cx-strip-w) + var(--cx-space-24));
+    --cx-ring: min(
+      var(--cx-ring-max),
+      calc(100vh - 150px),
+      calc(100vw - 2 * var(--cx-stage-side) - var(--cx-space-48) - var(--cx-cockpit-text-w))
+    );
+    padding-inline: var(--cx-stage-side);
+  }
+  @supports (height: 100dvh) {
+    .cx-home-stage {
+      --cx-ring: min(
+        var(--cx-ring-max),
+        calc(100dvh - 150px),
+        calc(100vw - 2 * var(--cx-stage-side) - var(--cx-space-48) - var(--cx-cockpit-text-w))
+      );
+    }
+  }
+  .cx-home-stage .cx-strip {
+    position: absolute;
+    left: var(--cx-space-24);
+    top: calc((100% - var(--cx-stage-pb)) / 2);
+    translate: 0 -50%;
+  }
+}
+
+/* ---------- Orta genişlik (768–1099 px): halka üstte, metin altında ---------- */
+@media (max-width: 1099px) {
+  /* Tek sütunda (halka üstte, metin altında) kaydırıcı halkanın sağında, ortası halkanın ortasıyla aynı yükseklikte. */
+  .cx-slider {
+    top: calc(var(--cx-ring) / 2);
+    left: calc(50% + var(--cx-ring) / 2 + var(--cx-space-16));
+  }
+  .cx-home-stage {
+    --cx-ring: min(360px, calc(100vh - 460px), 52vw);
+  }
+  .cx-cockpit-body {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    gap: var(--cx-space-32);
+  }
+  .cx-cockpit-text {
+    align-items: center;
+    text-align: center;
+  }
+}
+/* ---------- Telefon (<768 px) [varsayım] ---------- */
+@media (max-width: 767px) {
+  .cx-home-stage {
+    --cx-ring: min(240px, 64vw);
+    align-items: flex-start;
+    padding-top: var(--cx-space-8);
+    padding-bottom: calc(var(--cx-slim-h) + var(--cx-space-48) * 2 + var(--cx-space-32));
+    overflow-y: auto;
+  }
+  .cx-cockpit {
+    flex-direction: column;
+    gap: var(--cx-space-24);
+    width: 100%;
+  }
+  /* Şerit telefonda yatay [varsayım]: kutular aynı ölçüde, yana kayar. Açılışta seçili (en yakın gelecek) sınav
+     solda başlar; geçmiş sınavlar sola kaydırınca görünür. Sondaki boşluk her kutunun sola yaslanabilmesi için. */
+  .cx-strip {
+    flex-direction: row;
+    width: 100%;
+    max-width: 100%;
+    align-self: stretch;
+  }
+  .cx-strip-list {
+    flex: 1;
+    flex-direction: row;
+    max-height: none;
+    max-width: calc(100vw - 2 * var(--cx-gutter) - 2 * var(--cx-space-4));
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+  }
+  .cx-strip-list::after {
+    content: "";
+    flex: 0 0 calc(100% - var(--cx-strip-item-w));
+  }
+  .cx-strip-arrow {
+    display: none;
+  }
+  .cx-strip-tip {
+    display: none;
+  }
+  .cx-cockpit-heading {
+    font-size: 1.75rem;
+  }
+  .cx-cockpit-next,
+  .cx-cockpit-details {
+    margin-top: var(--cx-space-24);
+  }
+  .cx-tray {
+    width: calc(100vw - 2 * var(--cx-space-16));
+  }
+  .cx-tray-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cx-cockpit-body,
+  .cx-tray {
+    animation-duration: 1ms;
+  }
+  .cx-tray {
+    animation-name: none;
+  }
+}

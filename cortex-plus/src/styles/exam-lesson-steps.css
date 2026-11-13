@@ -131,6 +131,12 @@
   padding: 1.5rem 1.35rem 1.4rem;
 }
 
+/* Art arda görsel kartlar (formül, tuzak, çivi, örnek) bir sarmalayıcıda (13 Kasım 2026). Üründe görünmez: kartlar
+   eskisi gibi alt alta. Tanıtım turunun tam ekran stüdyosu onu yan yana ya da yana kaydırılan şerit yapar. */
+.als-cardrow {
+  display: contents;
+}
+
 /* checkFirst: soru anlatımdan önce sorulur ("önce dene" / geri getirme) —
    gerçek DOM sırası değişir (bkz. exam-lesson-steps.tsx), ekran okuyucu da
    soruyu önce duysun diye. .als-check normalde .als-slide'dan SONRA gelip

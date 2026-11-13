@@ -1,51 +1,249 @@
 /**
- * Cortex Plus — tek token kaynağı (Prompt 7).
- * Eski --cp-*, --pm-*, --cs-*, --mk-*, --als-*, --cx-* köprüleri burada.
- * Bileşenler ve ekranlar doğrudan --c-* kullanmalı.
+ * Cortex Plus — tek token kaynağı.
+ *
+ * 13 Kasım 2026: tasarım sistemi v1 (`--cx-*`, skill: .claude/skills/cortex-plus-design-system,
+ * özet: docs/design-system.md). Renkler `--cx-*`'ta tanımlanır; eski `--c-*` adları artık
+ * `--cx-*`'tan okunur (köprü). Misafir/pazarlama, giriş ve hukuk sayfaları 11 Kasım paletinde
+ * kalır: dosyanın sonundaki "Misafir sayfaları" bloğu orada eski `--c-*` değerlerini geri koyar.
+ * Eski --cp-*, --pm-*, --cs-*, --mk-*, --als-*, --cpx-* köprüleri burada.
+ * Yeni bileşenler doğrudan --cx-* kullanır; bileşende ham hex ya da ham px yazılmaz.
  */
 
 :root {
-  /* --- Renkler (açık tema varsayılan; .dark override eder) --- */
-  --c-bg: #fafafa;
-  --c-surface-1: #ffffff;
-  --c-surface-2: #f4f4f5;
-  --c-surface-3: #e4e4e7;
-  --c-border: rgba(0, 0, 0, 0.08);
-  --c-border-strong: rgba(0, 0, 0, 0.16);
-  --c-text: #0a0a0a;
-  --c-text-muted: #525252;
-  --c-text-subtle: #737373;
+  /* ===== Tasarım sistemi v1: --cx-* (açık tema değerleri; koyu değerler .dark'ta) =====
+     Açık tema [varsayım]: koyu merdivenin tersi (beyaz + dört koyulaşan arduvaz basamak), modal
+     arkası %40. Kontrastlar docs/design-system.md'de. */
+  --cx-bg-0: #ffffff;
+  --cx-bg-1: #f1f4f9;
+  --cx-bg-2: #e6ebf2;
+  --cx-bg-3: #d9e0ea;
+  --cx-bg-4: #b7c2d1;
+  --cx-border: #d9e0ea;
+  --cx-border-2: #b7c2d1;
+  --cx-dim: rgba(0, 0, 0, 0.4);
 
-  --c-brand: #f4ae0b;
-  --c-brand-hover: #ffc233;
-  --c-brand-soft: rgba(244, 174, 11, 0.12);
-  --c-on-brand: #050505;
+  --cx-text-primary: #0b1220;
+  --cx-text-reading: #1e293b;
+  --cx-text-secondary: #475569;
+  --cx-text-tertiary: #4f5b6d;
+  --cx-text-disabled: #737e90;
+  --cx-text-brand: #4338ca;
+  --cx-text-on-brand: #ffffff;
+  --cx-text-inverted: #ffffff;
 
-  --c-action: #3d5afe;
-  --c-action-hover: #5470ff;
-  --c-action-pressed: #2f47d9;
-  --c-action-soft: rgba(61, 90, 254, 0.16);
-  --c-on-action: #ffffff;
+  --cx-brand: #6366f1;
+  --cx-brand-strong: #4f46e5;
+  --cx-violet: #8b5cf6;
+  --cx-cyan: #06b6d4;
+  --cx-brand-weak: #e0e7ff;
+  --cx-brand-weak-plus: #c7d2fe;
+  --cx-focus: #0e7490;
 
-  --c-ai: #8b8ef7;
-  --c-ai-soft: rgba(139, 142, 247, 0.14);
+  --cx-highlight: #f59e0b;
+  --cx-text-highlight: #92400e;
+  --cx-highlight-weak: #fef3c7;
+  --cx-text-on-highlight: #090a0f;
 
-  --c-success: #22c55e;
-  --c-success-soft: rgba(34, 197, 94, 0.14);
-  --c-danger: #ef4444;
-  --c-danger-soft: rgba(239, 68, 68, 0.14);
-  --c-warning: #f59e0b;
-  --c-warning-soft: rgba(245, 158, 11, 0.14);
-  --c-info: #60a5fa;
-  --c-info-soft: rgba(96, 165, 250, 0.14);
-  --c-focus: #f4ae0b;
+  --cx-success: #047857;
+  --cx-success-weak: #d1fae5;
+  --cx-warning: #b4410a;
+  --cx-warning-weak: #ffedd5;
+  --cx-danger: #b91c1c;
+  --cx-danger-weak: #fee2e2;
+
+  --cx-gradient-brand: radial-gradient(55% 90% at 100% 50%, #ffffff1f, #fff0 70%), linear-gradient(90deg, #4f46e5, #6366f1);
+  --cx-gradient-signature: linear-gradient(120deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
+  --cx-gradient-brand-text: linear-gradient(90deg, #4338ca, #4f46e5 40%, #6366f1 70%, #312e81);
+  --cx-gradient-glow: radial-gradient(70% 55% at 50% 0%, color-mix(in srgb, #6366f1 10%, transparent), transparent 70%);
+
+  --cx-glass-background: radial-gradient(90% 55% at 50% 0%, #ffffffb3, #fff0 70%), linear-gradient(180deg, #ffffff, #f8fafc), #f8fafc;
+  --cx-glass-rim: linear-gradient(180deg, #0f172a29 0%, #0f172a14 30%, #0f172a0d 60%, #0f172a1f 100%);
+  --cx-glass-bevel: inset 0 1px 1px #ffffffe6;
+  --cx-skeleton: linear-gradient(100deg, #fff0 35%, #ffffffb3 50%, #fff0 65%), var(--cx-bg-2);
+
+  --cx-shadow-popover: 0 8px 32px rgba(15, 23, 42, 0.14);
+  --cx-shadow-sheet: inset 0 0 0 1px var(--cx-border), 0 -12px 40px rgba(15, 23, 42, 0.18);
+  --cx-shadow-banner: inset 0 0 0 1px var(--cx-border), 0 8px 24px rgba(15, 23, 42, 0.16);
+  --cx-shadow-stack: 18px 0 40px -14px rgba(15, 23, 42, 0.35);
+
+  /* Köşe [ölçüm]; iç içe kural: dış = iç + dolgu (sohbet kutusu 36 = 32 + 4). */
+  --cx-radius-s: 10px;
+  --cx-radius-m: 16px;
+  --cx-radius-l: 24px;
+  --cx-radius-xl: 32px;
+  --cx-radius-composer: 36px;
+  --cx-radius-max: 6000px;
+
+  /* Hareket [ölçüm] */
+  --cx-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --cx-ease-glide: cubic-bezier(0.22, 0.9, 0.28, 1);
+  --cx-ease-settle: cubic-bezier(0.22, 1, 0.36, 1);
+  --cx-ease-spring: cubic-bezier(0.3, 1.34, 0.6, 1);
+  --cx-ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --cx-ease-panel: cubic-bezier(0.2, 0.9, 0.3, 1.1);
+  --cx-dur-color: 160ms;
+  --cx-dur-scale: 220ms;
+  --cx-dur-title: 320ms;
+  --cx-dur-panel: 380ms;
+  --cx-dur-result: 520ms;
+  /* Anlar (depo kararı 11): yerleşme süresi ve bir anın üst sınırı. */
+  --cx-dur-settle: 600ms;
+  --cx-moment-max: 2500ms;
+  --cx-dur-press-in: 75ms;
+  --cx-dur-press-out: 430ms;
+  --cx-scale-hover: 1.03;
+  --cx-scale-press-s: 1.22;
+  --cx-scale-press-m: 1.125;
+  --cx-scale-press-l: 1.08;
+  --cx-scale-media: 1.12;
+  --cx-enter-shift: 8px;
+  --cx-nudge: 2px;
+
+  /* Yazı tipleri [depo kararı 4]: Figtree ve JetBrains Mono kalır; okuma yazısı (Newsreader)
+     ders ekranı fazında eklenecek, o zamana kadar sans. */
+  --cx-font-sans: var(--font-ui);
+  --cx-font-mono: var(--font-mono);
+  --cx-font-reading: var(--font-ui);
+
+  /* Yazı ölçeği [ölçüm + depo kararı 5]: en küçük 11 px (meta-xs 9 → 11), başlık satır
+     aralığı en az 1,15 (1,02 → 1,15). Biçim: ağırlık boyut / satır aralığı aile. */
+  --cx-t-display-l: 700 3.5rem / 1.15 var(--cx-font-sans);
+  --cx-t-heading-xl: 600 2.5rem / 1.15 var(--cx-font-sans);
+  --cx-t-heading-l: 600 2.25rem / 1.15 var(--cx-font-sans);
+  --cx-t-heading-s: 600 1.75rem / 1.15 var(--cx-font-sans);
+  --cx-t-title-xl: 600 1.375rem / 1.25 var(--cx-font-sans);
+  --cx-t-title-l: 600 1.25rem / 1.25 var(--cx-font-sans);
+  --cx-t-title-m: 600 1.125rem / 1.25 var(--cx-font-sans);
+  --cx-t-title-s: 600 1rem / 1.25 var(--cx-font-sans);
+  --cx-t-body-16: 400 1rem / 1.4 var(--cx-font-sans);
+  --cx-t-body-14: 400 0.875rem / 1.4 var(--cx-font-sans);
+  --cx-t-body-12: 400 0.75rem / 1.4 var(--cx-font-sans);
+  --cx-t-label-15: 500 0.9375rem / 1.25 var(--cx-font-sans);
+  --cx-t-label-13: 500 0.8125rem / 1.25 var(--cx-font-sans);
+  --cx-t-label-11: 500 0.6875rem / 1.25 var(--cx-font-sans);
+  --cx-t-button-l: 600 1rem / 1 var(--cx-font-sans);
+  --cx-t-button-s: 600 0.8125rem / 1 var(--cx-font-sans);
+  --cx-t-meta-xl: 500 1.25rem / 1.25 var(--cx-font-mono);
+  --cx-t-meta-l: 500 0.9375rem / 1.25 var(--cx-font-mono);
+  --cx-t-meta-m: 500 0.8125rem / 1.25 var(--cx-font-mono);
+  --cx-t-meta-s: 500 0.6875rem / 1.25 var(--cx-font-mono);
+  --cx-t-meta-xs: 500 0.6875rem / 1.25 var(--cx-font-mono);
+  --cx-t-num-xl: 700 4.6875rem / 1 var(--cx-font-sans);
+  --cx-t-num-l: 700 2.75rem / 1 var(--cx-font-sans);
+  --cx-t-num-m: 700 1.625rem / 1 var(--cx-font-sans);
+  --cx-t-reading-title: 500 2.25rem / 1.15 var(--cx-font-reading);
+  --cx-t-reading-lead: 400 1.25rem / 1.4 var(--cx-font-sans);
+  --cx-ls-display: -0.03em;
+  --cx-ls-heading: -0.02em;
+  --cx-ls-label: 0.01em;
+  --cx-ls-meta: 0.01em;
+
+  /* Boşluk [ölçüm]: 4 px taban; adlar px değeriyle. */
+  --cx-space-2: 2px;
+  --cx-space-4: 4px;
+  --cx-space-8: 8px;
+  --cx-space-10: 10px;
+  --cx-space-12: 12px;
+  --cx-space-14: 14px;
+  --cx-space-16: 16px;
+  --cx-space-18: 18px;
+  --cx-space-20: 20px;
+  --cx-space-24: 24px;
+  --cx-space-32: 32px;
+  --cx-space-40: 40px;
+  --cx-space-48: 48px;
+  --cx-gutter: 16px;
+
+  /* Bileşen ölçüleri [ölçüm]; telefonda dokunma tabanı 44 px [depo kararı 5]. */
+  --cx-control-l: 52px;
+  --cx-control-m: 44px;
+  --cx-control-s: 40px;
+  --cx-control-xs: 36px;
+  --cx-control-mini: 32px;
+  --cx-icon-btn-l: 40px;
+  --cx-icon-btn-m: 36px;
+  --cx-icon-btn-s: 28px;
+  --cx-tap-min: 44px;
+  --cx-tap-mobile: 48px;
+  --cx-progress-h: 6px;
+  --cx-fade-edge: 64px;
+  --cx-toast-top: 64px;
+
+  /* Ana ekran (13 Kasım 2026, ürün sahibinin kararı: "/ogretmen beş parça") */
+  --cx-space-6: 6px;
+  --cx-radius-inner: 20px;
+  --cx-topbar-h: 96px;
+  --cx-logo-h: 24px;
+  --cx-strip-w: 73px;
+  --cx-strip-item-w: 65px;
+  --cx-strip-item-h: 80px;
+  --cx-strip-arrow-h: 28px;
+  --cx-dot: 4px;
+  --cx-ring-max: 510px;
+  --cx-ring-go: 52px;
+  --cx-cockpit-text-w: 458px;
+  --cx-slim-w: 344px;
+  --cx-slim-h: 60px;
+  --cx-slim-gap: 28px;
+  --cx-tray-item-w: 105px;
+  --cx-tray-item-h: 84px;
+
+  /* Tarama çekirdeği (C1 kurulum, C2 ana ekran; 13 Kasım 2026) */
+  --cx-scan-core: 88px;
+  --cx-scan-core-s: 72px;
+
+  /* İçerik genişlikleri [ölçüm] */
+  --cx-w-reading: 768px;
+  --cx-w-chat: 800px;
+  --cx-w-list: 816px;
+  --cx-w-pricing: 904px;
+  --cx-w-shell: 1280px;
+  --cx-w-dialog: 480px;
+
+  /* ===== Köprü: eski --c-* adları --cx-*'tan okunur (13 Kasım 2026) ===== */
+  --c-bg: var(--cx-bg-0);
+  --c-surface-1: var(--cx-bg-1);
+  --c-surface-2: var(--cx-bg-2);
+  --c-surface-3: var(--cx-bg-3);
+  --c-border: var(--cx-border);
+  --c-border-strong: var(--cx-border-2);
+  --c-text: var(--cx-text-primary);
+  --c-text-muted: var(--cx-text-secondary);
+  --c-text-subtle: var(--cx-text-tertiary);
+
+  /* Eski "marka" altındır: Plus, seri, yıldız → --cx-highlight. */
+  --c-brand: var(--cx-highlight);
+  --c-brand-hover: color-mix(in srgb, var(--cx-highlight) 80%, white);
+  --c-brand-soft: var(--cx-highlight-weak);
+  --c-on-brand: var(--cx-text-on-highlight);
+
+  /* Eski "eylem mavisi" → marka çividi (beyaz yazı brand-strong'da 6,29:1). */
+  --c-action: var(--cx-brand-strong);
+  --c-action-hover: color-mix(in srgb, var(--cx-brand-strong) 85%, var(--cx-brand));
+  --c-action-pressed: color-mix(in srgb, var(--cx-brand-strong) 85%, black);
+  --c-action-soft: var(--cx-brand-weak);
+  --c-on-action: var(--cx-text-on-brand);
+
+  --c-ai: var(--cx-text-brand);
+  --c-ai-soft: var(--cx-brand-weak);
+
+  --c-success: var(--cx-success);
+  --c-success-soft: var(--cx-success-weak);
+  --c-danger: var(--cx-danger);
+  --c-danger-soft: var(--cx-danger-weak);
+  --c-warning: var(--cx-warning);
+  --c-warning-soft: var(--cx-warning-weak);
+  --c-info: var(--cx-text-brand);
+  --c-info-soft: var(--cx-brand-weak);
+  --c-focus: var(--cx-focus);
+  --glass-bg: var(--cx-glass-background);
+  --glass-inset: var(--cx-glass-bevel);
 
   /* --- Yazı --- */
   --font-display: var(--font-ui);
   --font-ui: "Figtree", system-ui, sans-serif;
-  /* kıyas ürünü yazı sistemi (17 Ekim 2026, birebir): etiket eşaralıklı, karşılama pikseli, el yazısı. */
+  /* Etiket eşaralıklı, el yazısı. Piksel yazı (Jersey 10) 13 Kasım 2026'da kalktı (karar 4). */
   --font-mono: var(--font-jetbrains-mono, "JetBrains Mono"), ui-monospace, Menlo, Consolas, monospace;
-  --font-pixel: var(--font-pixel-face, "Jersey 10"), var(--font-ui);
   --font-hand: var(--font-hand-face, "Caveat"), cursive;
   /* Yazı ölçeği (kıyas ürünü): başlık 600 ve -0.02em; etiketler 500 ve +0.01em.
      6 Kasım 2026 (ürün sahibi, okunurluk): başlık satır aralığı 1.02 → 1.15 (Türkçe büyük
@@ -111,7 +309,7 @@
   --sh-2: 0 8px 24px rgba(0, 0, 0, 0.45);
   --sh-3: 0 20px 48px rgba(0, 0, 0, 0.55);
   --glow-brand: 0 0 0 1px rgba(244, 174, 11, 0.35), 0 8px 32px rgba(244, 174, 11, 0.18);
-  --glow-action: 0 8px 24px rgba(61, 90, 254, 0.28);
+  --glow-action: 0 8px 24px color-mix(in srgb, var(--cx-brand-strong) 22%, transparent);
 
   /* --- Hareket --- */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
@@ -126,34 +324,34 @@
   --z-modal: 60;
   --z-toast: 70;
 
-  /* --- shadcn HSL (açık) — primary = eylem mavisi --- */
-  --background: 0 0% 98%;
-  --foreground: 0 0% 4%;
-  --card: 0 0% 100%;
-  --card-foreground: 0 0% 4%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 0 0% 4%;
-  --primary: 230 99% 62%;
+  /* --- shadcn HSL (açık) — --cx-* açık değerlerinin HSL karşılığı; primary = brand-strong --- */
+  --background: 0 0% 100%;
+  --foreground: 220 49% 8%;
+  --card: 217 40% 96%;
+  --card-foreground: 220 49% 8%;
+  --popover: 217 40% 96%;
+  --popover-foreground: 220 49% 8%;
+  --primary: 243 75% 59%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 0 0% 96%;
-  --secondary-foreground: 0 0% 9%;
-  --muted: 0 0% 96%;
-  --muted-foreground: 0 0% 32%;
-  --accent: 0 0% 96%;
-  --accent-foreground: 0 0% 9%;
-  --destructive: 0 84% 60%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 0 0% 90%;
-  --input: 0 0% 90%;
-  --ring: 42 91% 51%;
+  --secondary: 215 32% 93%;
+  --secondary-foreground: 220 49% 8%;
+  --muted: 215 32% 93%;
+  --muted-foreground: 215 19% 35%;
+  --accent: 215 32% 93%;
+  --accent-foreground: 220 49% 8%;
+  --destructive: 0 74% 42%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 215 29% 88%;
+  --input: 215 29% 88%;
+  --ring: 193 82% 31%;
   --radius: 0.625rem;
   --brand: 42 91% 51%;
   --brand-foreground: 0 0% 2%;
 
   /* --- Köprüler: eski prefix → --c-* --- */
-  --cx-gold: var(--c-brand);
-  --cx-gold-hover: var(--c-brand-hover);
-  --cx-gold-glow: rgba(244, 174, 11, 0.35);
+  --cpx-gold: var(--c-brand);
+  --cpx-gold-hover: var(--c-brand-hover);
+  --cpx-gold-glow: rgba(244, 174, 11, 0.35);
 
   --mk-bg: var(--c-bg);
   --mk-text: var(--c-text);
@@ -238,10 +436,156 @@
 
 .dark {
   /*
-   * kıyas ürünü paleti birebir (17 Ekim 2026, ürün sahibinin kararı). Gri skalası: 950 zemin,
-   * 920 yüzey, 880 yükselmiş yüzey, 860/810 çerçeve; mavi tek eylem rengi; sarı yalnız
-   * marka ve "hedef puan" gibi özel anlarda (seçim ve seçili menü nötr/mavi).
+   * ===== Tasarım sistemi v1, koyu: B (sıcak siyah) =====
+   * Palet kararı (13 Kasım 2026, ürün sahibi, depo kararı 9): zemin merdiveni ve nötr metin tonları 11 Kasım'ın
+   * sıcak siyahı; marka, vurgu, odak ve anlam renkleri skill'den. Skill §2'nin arduvaz merdiveni (A) kullanılmaz.
    */
+  --cx-bg-0: #0b0907;
+  --cx-bg-1: #15110d;
+  --cx-bg-2: #1e1813;
+  --cx-bg-3: #29211a;
+  --cx-bg-4: #3d3229;
+  --cx-border: #29211a;
+  --cx-border-2: #3d3229;
+  --cx-dim: rgba(0, 0, 0, 0.8);
+
+  --cx-text-primary: #f7f1e8;
+  --cx-text-reading: #ede4d6;
+  --cx-text-secondary: #b9ada0;
+  --cx-text-tertiary: #a09384;
+  --cx-text-disabled: #7a6e62;
+  --cx-text-brand: #a5b4fc;
+  --cx-text-on-brand: #ffffff;
+  --cx-text-inverted: #0b0907;
+
+  --cx-brand-weak: #1e1b4b;
+  --cx-brand-weak-plus: #312e81;
+  --cx-focus: #22d3ee;
+
+  --cx-highlight: #f59e0b;
+  --cx-text-highlight: #fbbf24;
+  --cx-highlight-weak: #3a2a0a;
+  --cx-text-on-highlight: #0b0907;
+
+  --cx-success: #34d399;
+  --cx-success-weak: #0b2a22;
+  --cx-warning: #fb923c;
+  --cx-warning-weak: #3a2210;
+  --cx-danger: #f87171;
+  --cx-danger-weak: #3a1518;
+
+  --cx-gradient-brand-text: linear-gradient(90deg, #818cf8, #a5b4fc 40%, #c7d2fe 70%, #ffffff);
+  --cx-gradient-glow: radial-gradient(70% 55% at 50% 0%, color-mix(in srgb, #6366f1 16%, transparent), transparent 70%);
+  --cx-glass-background: radial-gradient(90% 55% at 50% 0%, #ffffff0f, #fff0 70%), linear-gradient(180deg, #ffffff0d, #ffffff04), #1a1511;
+  --cx-glass-rim: linear-gradient(180deg, #ffffff4d 0%, #ffffff29 10%, #ffffff0d 30%, #ffffff05 55%, #ffffff08 78%, #ffffff1a 100%);
+  --cx-glass-bevel: inset 0 1px 1px #ffffff0d;
+  --cx-skeleton: linear-gradient(100deg, #fff0 35%, #ffffff12 50%, #fff0 65%), var(--cx-bg-2);
+
+  --cx-shadow-popover: 0 8px 32px rgba(0, 0, 0, 0.32);
+  --cx-shadow-sheet: inset 0 0 0 1px var(--cx-border), 0 -12px 40px rgba(0, 0, 0, 0.5);
+  --cx-shadow-banner: inset 0 0 0 1px var(--cx-border), 0 8px 24px rgba(0, 0, 0, 0.45);
+  --cx-shadow-stack: 18px 0 40px -14px rgba(0, 0, 0, 0.85);
+
+  /* Eski gri skala (parity-shell ve 404 birkaç yerde okuyor) → --cx-* basamakları. */
+  --c-gray-50: var(--cx-text-primary);
+  --c-gray-150: var(--cx-text-reading);
+  --c-gray-400: var(--cx-text-secondary);
+  --c-gray-450: var(--cx-text-tertiary);
+  --c-gray-650: var(--cx-text-disabled);
+  --c-gray-750: var(--cx-bg-4);
+  --c-gray-810: var(--cx-border-2);
+  --c-gray-860: var(--cx-bg-3);
+  --c-gray-880: var(--cx-bg-2);
+  --c-gray-920: var(--cx-bg-1);
+  --c-gray-950: var(--cx-bg-0);
+  --c-gray-970: var(--cx-bg-0);
+
+  --glow-action: 0 8px 24px color-mix(in srgb, var(--cx-brand-strong) 28%, transparent);
+
+  --background: 30 22% 4%;
+  --foreground: 36 48% 94%;
+  --card: 30 24% 7%;
+  --card-foreground: 36 48% 94%;
+  --popover: 30 24% 7%;
+  --popover-foreground: 36 48% 94%;
+  --primary: 243 75% 59%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 27 22% 10%;
+  --secondary-foreground: 36 48% 94%;
+  --muted: 27 22% 10%;
+  --muted-foreground: 31 15% 68%;
+  --accent: 27 22% 10%;
+  --accent-foreground: 36 48% 94%;
+  --destructive: 0 91% 71%;
+  --destructive-foreground: 30 22% 4%;
+  --border: 28 22% 13%;
+  --input: 28 22% 13%;
+  --ring: 188 86% 53%;
+  --brand: 38 92% 50%;
+  --brand-foreground: 30 22% 4%;
+}
+
+/*
+ * Misafir sayfaları [depo kararı 1]: pazarlama (`.cinematic-marketing`, ana sayfa `.lp`), hukuk
+ * (aynı kabuk) ve giriş/kayıt (`.cortex-premium-auth`) köprüden önceki `--c-*` değerlerinde kalır.
+ * Bu sayfaların kendi paleti (landing.css, home-cinema.css …) zaten `--c-*` okumuyor; burada
+ * kalanlar çerez şeridi, kabuk parçaları ve turdaki ürün çerçeveleri için.
+ */
+:root:has(:is(.cinematic-marketing, .lp, .cortex-premium-auth)) {
+  --c-bg: #fafafa;
+  --c-surface-1: #ffffff;
+  --c-surface-2: #f4f4f5;
+  --c-surface-3: #e4e4e7;
+  --c-border: rgba(0, 0, 0, 0.08);
+  --c-border-strong: rgba(0, 0, 0, 0.16);
+  --c-text: #0a0a0a;
+  --c-text-muted: #525252;
+  --c-text-subtle: #737373;
+  --c-brand: #f4ae0b;
+  --c-brand-hover: #ffc233;
+  --c-brand-soft: rgba(244, 174, 11, 0.12);
+  --c-on-brand: #050505;
+  --c-action: #3d5afe;
+  --c-action-hover: #5470ff;
+  --c-action-pressed: #2f47d9;
+  --c-action-soft: rgba(61, 90, 254, 0.16);
+  --c-on-action: #ffffff;
+  --c-ai: #8b8ef7;
+  --c-ai-soft: rgba(139, 142, 247, 0.14);
+  --c-success: #22c55e;
+  --c-success-soft: rgba(34, 197, 94, 0.14);
+  --c-danger: #ef4444;
+  --c-danger-soft: rgba(239, 68, 68, 0.14);
+  --c-warning: #f59e0b;
+  --c-warning-soft: rgba(245, 158, 11, 0.14);
+  --c-info: #60a5fa;
+  --c-info-soft: rgba(96, 165, 250, 0.14);
+  --c-focus: #f4ae0b;
+  --glow-action: 0 8px 24px rgba(61, 90, 254, 0.28);
+  --glass-bg: initial;
+  --glass-inset: initial;
+  --background: 0 0% 98%;
+  --foreground: 0 0% 4%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 4%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 4%;
+  --primary: 230 99% 62%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 0 0% 96%;
+  --secondary-foreground: 0 0% 9%;
+  --muted: 0 0% 96%;
+  --muted-foreground: 0 0% 32%;
+  --accent: 0 0% 96%;
+  --accent-foreground: 0 0% 9%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 0 0% 90%;
+  --input: 0 0% 90%;
+  --ring: 42 91% 51%;
+}
+
+:root.dark:has(:is(.cinematic-marketing, .lp, .cortex-premium-auth)) {
   --c-gray-50: #f2f2f2;
   --c-gray-150: #d9d9d9;
   --c-gray-400: #999999;
@@ -254,7 +598,6 @@
   --c-gray-920: #141414;
   --c-gray-950: #0d0d0d;
   --c-gray-970: #080808;
-
   --c-bg: #0d0d0d;
   --c-surface-1: #141414;
   --c-surface-2: #1f1f1f;
@@ -264,21 +607,17 @@
   --c-text: #ffffff;
   --c-text-muted: #999999;
   --c-text-subtle: #8c8c8c;
-
   --c-brand: #fdb300;
   --c-brand-hover: #ffc233;
   --c-brand-soft: #372c11;
   --c-on-brand: #0d0d0d;
-
   --c-action: #4353f3;
   --c-action-hover: #4b5af4;
   --c-action-pressed: #3e4de8;
   --c-action-soft: #1b1d35;
   --c-on-action: #ffffff;
-
   --c-ai: #707dff;
   --c-ai-soft: #1b1d35;
-
   --c-success: #1dd3a2;
   --c-success-soft: #153129;
   --c-danger: #ff4d4d;
@@ -289,10 +628,8 @@
   --c-info-soft: #1b1d35;
   --c-focus: #4353f3;
   --glow-action: 0 8px 24px rgba(67, 83, 243, 0.28);
-  /* kıyas ürününün "cam" yüzeyi: seçili sekme, seri kutusu, küçük düğmeler (üstten ışık + iç parlama). */
   --glass-bg: radial-gradient(90% 55% at 50% 0%, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0) 70%), linear-gradient(rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.016)), #181818;
   --glass-inset: inset 0 1px 1px rgba(255, 255, 255, 0.05);
-
   --background: 0 0% 5%;
   --foreground: 0 0% 100%;
   --card: 0 0% 8%;
@@ -316,12 +653,30 @@
   --brand-foreground: 0 0% 5%;
 }
 
+/* Masaüstü sayfa yan boşluğu 24 px [ölçüm]; telefonda 16. */
+@media (min-width: 768px) {
+  :root {
+    --cx-gutter: 24px;
+    --cx-toast-top: 88px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   :root {
     --dur-fast: 0ms;
     --dur-base: 150ms;
     --dur-slow: 150ms;
     --dur-count: 0ms;
+    /* Skill §5: ölçek ve kayma kapanır; renk ve opaklık geçişi kalır. */
+    --cx-scale-hover: 1;
+    --cx-scale-press-s: 1;
+    --cx-scale-press-m: 1;
+    --cx-scale-press-l: 1;
+    --cx-scale-media: 1;
+    --cx-enter-shift: 0px;
+    --cx-nudge: 0px;
+    --cx-dur-scale: 0ms;
+    --cx-dur-panel: 0ms;
   }
 }
 

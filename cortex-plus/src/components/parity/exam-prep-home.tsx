@@ -8,7 +8,7 @@ import type { FirstTopicSummary } from "@/components/parity/exam-node/gates";
 import Link from "next/link";
 import { HOLIDAY_BADGE, turkishHolidayOn } from "@/lib/learning/tr-calendar";
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   AudioLines,
@@ -28,6 +28,7 @@ import {
   Camera,
   MessagesSquare,
   Mic,
+  MoreHorizontal,
   MoreVertical,
   Swords,
   PenLine,
@@ -85,6 +86,8 @@ import { METRIC_HINT, METRIC_LABEL } from "@/lib/learning/prep-metrics";
 import { nodeHeading } from "@/lib/learning/node-heading";
 import { groupNodesByPhase } from "@/lib/learning/exam-plan-phases";
 import { cn } from "@/lib/utils";
+import { MOMENT_MS, startMoment } from "@/lib/ui/moment";
+import { isPathMemory, pathMemoryKey, readMoment, writeMoment, type PathMemory } from "@/lib/ui/moment-memory";
 import { formatDayLong } from "@/lib/format";
 import { PrepBasicsPanel } from "@/components/parity/prep-basics-panel";
 import {
@@ -99,6 +102,7 @@ import { PrepMaterialAdder } from "@/components/parity/prep-add-material";
 import { PendingMaterialsBanner } from "@/components/parity/pending-materials-banner";
 import { PrepShareTools } from "@/components/parity/prep-share-tools";
 import { ExamResultCard, type ExamResultCardProps } from "@/components/parity/exam-result-card";
+import "@/styles/prep-home-cx.css";
 import {
   ExamPrepSettingsPanel,
   type PrepSettingsInitial,
@@ -692,7 +696,7 @@ export function ExamPrepHome({
             type="button"
             role="tab"
             aria-selected={view === "yol"}
-            className={cn(view === "yol" && "is-active")}
+            className={cn(view === "yol" && "is-active cx-glass")}
             onClick={() => setView("yol")}
           >
             <Route className="cp-prep-tab-icon" aria-hidden />
@@ -702,7 +706,7 @@ export function ExamPrepHome({
             type="button"
             role="tab"
             aria-selected={view === "ilerleme"}
-            className={cn(view === "ilerleme" && "is-active")}
+            className={cn(view === "ilerleme" && "is-active cx-glass")}
             onClick={() => setView("ilerleme")}
           >
             <LineChart className="cp-prep-tab-icon" aria-hidden />
@@ -745,13 +749,13 @@ export function ExamPrepHome({
             className="cp-prep-hero-action cp-prep-hero-action--lesson"
             onClick={() => setHubTopic(nextNode?.sessionMeta?.topicTitle ?? null)}
           >
-            <span className="cp-prep-hero-icon" aria-hidden>
+            <span className="cp-prep-hero-icon cx-glass" aria-hidden>
               <Plus className="h-4 w-4" />
             </span>
             Ders
           </button>
           <Link href={`/deneme-sinavlari/${prepId}/duello`} className="cp-prep-hero-action">
-            <span className="cp-prep-hero-icon" aria-hidden>
+            <span className="cp-prep-hero-icon cx-glass" aria-hidden>
               <Swords className="h-4 w-4" />
             </span>
             Düello
@@ -765,7 +769,7 @@ export function ExamPrepHome({
               disabled={sharing}
               onClick={() => void toggleShare()}
             >
-              <span className="cp-prep-hero-icon" aria-hidden>
+              <span className="cp-prep-hero-icon cx-glass" aria-hidden>
                 <Share2 className="h-4 w-4" />
               </span>
               {shared ? "Paylaşıldı" : "Paylaş"}
@@ -778,7 +782,7 @@ export function ExamPrepHome({
             aria-label="Hazırlık seçenekleri"
             onClick={() => openOptions("menu")}
           >
-            <span className="cp-prep-hero-icon" aria-hidden>
+            <span className="cp-prep-hero-icon cx-glass" aria-hidden>
               <MoreVertical className="h-4 w-4" />
             </span>
             Daha fazla
@@ -893,14 +897,18 @@ export function ExamPrepHome({
           </div>
           <h2 className="cp-path-next-title">{nodeHeading(donePick)}</h2>
           <p className="cp-path-next-note">Kayıtlı içerik yeniden açılır; kredi düşmez.</p>
-          <div className="cp-path-next-actions cp-path-next-actions--stack">
-            <Link href={savedHref(donePick)} className="cp-exam-continue cp-exam-continue--primary">
-              📖 Dersi / İçeriği Tekrar İncele (Kredisiz)
-            </Link>
+          <NextCardActions
+            stack
+            primary={
+              <Link href={savedHref(donePick)} className="cp-exam-continue cp-exam-continue--primary">
+                📖 Dersi / İçeriği Tekrar İncele (Kredisiz)
+              </Link>
+            }
+          >
             <Link href={primaryHref} className="cp-path-next-custom">
               ⏭️ Sıradaki Etkinliğe Git
             </Link>
-          </div>
+          </NextCardActions>
         </div>
       ) : view === "yol" && nodes.length && lockedPick ? (
         <div className="cp-exam-start-card cp-path-next cp-path-next--locked" role="status">
@@ -916,17 +924,20 @@ export function ExamPrepHome({
           ) : (
             <p className="cp-path-next-note">Bu adım, öncekileri bitirince açılır.</p>
           )}
-          <div className="cp-path-next-actions">
-            {nodeNeedsStudentUnlock(lockedPick.status) ? (
-              <button
-                type="button"
-                className="cp-exam-continue cp-exam-continue--primary"
-                disabled={starting}
-                onClick={() => void startNode(lockedPick.id, examPrepNodeHref(prepId, lockedPick.id))}
-              >
-                Bu Etkinliği Şimdi Başlat
-              </button>
-            ) : null}
+          <NextCardActions
+            primary={
+              nodeNeedsStudentUnlock(lockedPick.status) ? (
+                <button
+                  type="button"
+                  className="cp-exam-continue cp-exam-continue--primary"
+                  disabled={starting}
+                  onClick={() => void startNode(lockedPick.id, examPrepNodeHref(prepId, lockedPick.id))}
+                >
+                  Bu Etkinliği Şimdi Başlat
+                </button>
+              ) : null
+            }
+          >
             <button type="button" className="cp-path-next-custom" onClick={() => setPickerOpen(true)}>
               Başka Bir Konu veya Etkinlik Seç
             </button>
@@ -937,7 +948,7 @@ export function ExamPrepHome({
             >
               Sıradakine dön
             </button>
-          </div>
+          </NextCardActions>
         </div>
       ) : view === "yol" && nodes.length ? (
         <div className="cp-exam-start-card cp-path-next cp-path-next--focus">
@@ -957,7 +968,13 @@ export function ExamPrepHome({
               <span>+{nextStars} ⭐</span>
             </p>
           ) : null}
-          <div className="cp-path-next-actions">
+          <NextCardActions
+            primary={
+              <Link href={primaryHref} className="cp-exam-continue cp-exam-continue--primary">
+                {PREP_HOME_COPY.continue}
+              </Link>
+            }
+          >
             <button
               type="button"
               className="cp-path-next-custom"
@@ -968,10 +985,7 @@ export function ExamPrepHome({
             <button type="button" className="cp-path-next-custom" onClick={() => setPickerOpen(true)}>
               Başka Bir Konu veya Etkinlik Seç
             </button>
-            <Link href={primaryHref} className="cp-exam-continue cp-exam-continue--primary">
-              {PREP_HOME_COPY.continue}
-            </Link>
-          </div>
+          </NextCardActions>
         </div>
       ) : null}
       </div>
@@ -1178,52 +1192,130 @@ export function ExamPrepHome({
 }
 
 /**
- * Zikzak yol. kıyas ürünündeki gibi düğümlerin yanında yazı yok; bu yüzden satır
- * yüksekliği sabit ve çizgi SVG ile düğüm merkezlerinden geçiyor. Eski
- * denemede (d2954d2) yazı satırı değişken yükseklikteydi ve çizgi CSS ile
- * güvenilir bükülemiyordu — sebep ortadan kalktı.
+ * Yol düğümü (13 Kasım 2026, 3C): düz 40 px daire, düğümler arasında 2 px dikey çizgi. Tamamlanan imza gradyanıyla ve
+ * onayla, sıradaki marka dolgusu ve çevresinde 4 px marka halkası, kilitli bg-2 ve kilit. Eski 3B kaideli düğme ve
+ * zikzak çizgi kalktı; düğümün yanındaki yazılar aynı.
  */
-/**
- * Yol düğümü: üç boyutlu disk (kıyas ürünündeki gibi basılabilir düğme; 17 Ekim 2026). Üstte
- * elips yüzey, yanda gövde, altta gölge; renk duruma göre: bitmiş beyaz, sıradaki mavi
- * ışıklı, açık koyu mavi gri, kilitli koyu gri ve iç halkalı. Çizim bize ait.
- */
-const PUCK_FILL: Record<"done" | "current" | "ready" | "locked", { top: [string, string]; side: [string, string]; ring?: boolean; gloss: number }> = {
-  done: { top: ["#ffffff", "#d3d6dd"], side: ["#a9adb6", "#7c818b"], gloss: 0.55 },
-  current: { top: ["#a3abff", "#4353f3"], side: ["#3341d8", "#232fa6"], gloss: 0.45 },
-  ready: { top: ["#353846", "#262833"], side: ["#1d1f28", "#14151b"], ring: true, gloss: 0.08 },
-  locked: { top: ["#2c2c2c", "#202020"], side: ["#171717", "#101010"], ring: true, gloss: 0.06 },
-};
-
-function PathPuck({ state }: { state: keyof typeof PUCK_FILL }) {
-  const id = useId().replace(/[^a-zA-Z0-9]/g, "");
-  const fill = PUCK_FILL[state];
+function PathNodeDot({ node, current }: { node: HomeNode; current: boolean }) {
+  const state = node.status === "done" ? "done" : current ? "current" : node.status === "locked" ? "locked" : "ready";
   return (
-    <svg className={`cp-puck cp-puck--${state}`} viewBox="0 0 92 62" aria-hidden>
-      <defs>
-        <linearGradient id={`t${id}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor={fill.top[0]} />
-          <stop offset="1" stopColor={fill.top[1]} />
-        </linearGradient>
-        <linearGradient id={`s${id}`} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stopColor={fill.side[1]} />
-          <stop offset="0.5" stopColor={fill.side[0]} />
-          <stop offset="1" stopColor={fill.side[1]} />
-        </linearGradient>
-      </defs>
-      <ellipse cx="46" cy="50" rx="44" ry="11" fill="rgba(0,0,0,0.45)" />
-      <path d="M2 26 V36 A44 16 0 0 0 90 36 V26 Z" fill={`url(#s${id})`} />
-      <ellipse cx="46" cy="26" rx="44" ry="17" fill={`url(#t${id})`} />
-      {fill.ring ? <ellipse cx="46" cy="25" rx="31" ry="11" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="1.5" /> : null}
-      <ellipse cx="40" cy="19" rx="24" ry="6" fill="#fff" opacity={fill.gloss * 0.35} />
-    </svg>
+    <span className="cx-node" data-state={state} aria-hidden>
+      {state === "done" ? (
+        <Check strokeWidth={2.5} />
+      ) : state === "locked" ? (
+        <Lock />
+      ) : (
+        <NodeGlyph node={node} />
+      )}
+    </span>
   );
 }
 
-const PATH_ROW = 96;
-const PATH_STEP = 56;
-const PATH_WIDTH = 280;
-const PATH_PATTERN = [0, 1, 0, -1] as const;
+/**
+ * Alttaki sabit kartın eylemleri (13 Kasım 2026). Masaüstünde bugünkü gibi: marka düğmesi üstte tam genişlik,
+ * ikincil eylemler altında. Telefonda (<768 px) kart küçülür: ikincil eylemler aynı düğmelerle (etiketler aynı)
+ * "⋯" ile açılan menüde; marka düğmesi kalan genişliği doldurur. Düğmeler çoğaltılmaz, yalnız yerleşim değişir.
+ */
+function NextCardActions({
+  primary,
+  children,
+  stack = false,
+}: {
+  primary: React.ReactNode;
+  children: React.ReactNode;
+  stack?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const menuId = useId();
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    const onPointer = (event: PointerEvent) => {
+      if (!ref.current?.contains(event.target as Node)) setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    document.addEventListener("pointerdown", onPointer);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.removeEventListener("pointerdown", onPointer);
+    };
+  }, [open]);
+  return (
+    <div
+      ref={ref}
+      className={cn("cp-path-next-actions", stack && "cp-path-next-actions--stack", open && "is-more-open")}
+    >
+      <button
+        type="button"
+        className="cx-next-more cx-glass"
+        aria-label="Daha fazla"
+        aria-expanded={open}
+        aria-controls={menuId}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <MoreHorizontal aria-hidden />
+      </button>
+      <div id={menuId} className="cx-next-secondary" onClick={() => setOpen(false)}>
+        {children}
+      </div>
+      {primary}
+    </div>
+  );
+}
+
+/** Yolda adımın kapanması (B2): az önce biten adım ve sıradaki adım. */
+type PathPlay = { closing: string; opening: string | null };
+
+/**
+ * Yolda adımın kapanması (B2, 13 Kasım 2026): öğrenci bir adımı bitirip yola döndüğünde az önce biten adımın içine ✓
+ * çizilir (220 ms), çizgi sıradakine dolar (380 ms) ve sıradakinin halkası belirir (toplam 600 ms). Bir kez ve yalnız
+ * yeni biten adım için. "Önce" değeri yalnız bu sekmenin oturumunda (`cx:path:<hazırlık>`); yeni API yok. Sayfa
+ * sunucudan çizilip ilk kez canlanıyorsa (yeniden yükleme) an oynamaz: yol zaten son hâliyle ekranda.
+ */
+function usePathMoment(prepId: string, nodes: readonly HomeNode[], currentId: string | null): PathPlay | null {
+  const [play, setPlay] = useState<PathPlay | null>(null);
+  // Hazırlığın "önce" değeri bileşenin ömründe bir kez okunur: geliştirme modundaki çift etki çalıştırması anı silmesin.
+  const [baseline] = useState(() => new Map<string, PathMemory | null>());
+  const [hydrating] = useState(() => typeof document !== "undefined" && document.querySelector(".cp-path-list") !== null);
+  const doneKey = useMemo(
+    () =>
+      nodes
+        .filter((node) => node.status === "done")
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((node) => node.id)
+        .join("|"),
+    [nodes],
+  );
+  useLayoutEffect(() => {
+    const done = doneKey ? doneKey.split("|") : [];
+    const now: PathMemory = { done };
+    if (!baseline.has(prepId)) baseline.set(prepId, hydrating ? null : readMoment(pathMemoryKey(prepId), isPathMemory));
+    const before = baseline.get(prepId) ?? null;
+    writeMoment(pathMemoryKey(prepId), now);
+    if (!before) {
+      baseline.set(prepId, now);
+      return;
+    }
+    const fresh = done.filter((id) => !before.done.includes(id));
+    if (!fresh.length) return;
+    // Birden çok adım bittiyse yolun en ilerisindeki: sıradakine bağlanan o.
+    const closing = fresh[fresh.length - 1]!;
+    let disposed = false;
+    setPlay({ closing, opening: currentId && currentId !== closing ? currentId : null });
+    const handle = startMoment(MOMENT_MS.settle, () => {
+      if (!disposed) baseline.set(prepId, now);
+      setPlay(null);
+    });
+    return () => {
+      disposed = true;
+      handle.end();
+    };
+  }, [prepId, doneKey, currentId, baseline, hydrating]);
+  return play;
+}
 
 function PathSections({
   nodes,
@@ -1259,6 +1351,7 @@ function PathSections({
   topics?: { id: string; label: string }[];
 }) {
   const today = pathOriginDay(null);
+  const moment = usePathMoment(prepId, nodes, currentId);
   // 7 günden kısa plan (30 Ekim 2026): hafta yok, gün var ("Bugün", "Yarın", "Cum 31 Eki").
   const shortPlan = isShortPlan(pathOrigin, examDate);
   const dated = useMemo(
@@ -1379,6 +1472,7 @@ function PathSections({
                 today={today}
                 doneOn={doneOn}
                 weekday={shortPlan}
+                moment={moment}
               />
             ) : null}
           </section>
@@ -1427,6 +1521,7 @@ function StudyPath({
   today,
   doneOn = {},
   weekday = false,
+  moment = null,
 }: {
   nodes: HomeNode[];
   /** Bölüm başlığı: düğüm etiketi aynı konu adını tekrar etmesin (UX tur 2, bulgu 9). */
@@ -1449,6 +1544,8 @@ function StudyPath({
   doneOn?: Record<string, string>;
   /** Kısa planda gün adı da yazılır ("Cum 31 Eki"). */
   weekday?: boolean;
+  /** Yolda adımın kapanması (B2): oynarken az önce biten ve sıradaki adım. */
+  moment?: PathPlay | null;
 }) {
   // Önerilen sıra aşamalardan geliyor (tanı → öğren → pekiştir); yol aynı
   // sırayı tek bir zikzak olarak çiziyor, aşama başlıkları kıyas ürünündeki gibi yok.
@@ -1459,12 +1556,7 @@ function StudyPath({
     ],
     [nodes, lead, keepOrder],
   );
-  const points = ordered.map((node, index) => ({
-    node,
-    x: PATH_WIDTH / 2 + PATH_PATTERN[index % PATH_PATTERN.length] * PATH_STEP,
-    y: PATH_ROW / 2 + index * PATH_ROW,
-  }));
-  const height = ordered.length * PATH_ROW;
+  const points = ordered.map((node) => ({ node }));
   // 2 adım ileri (20 Ekim 2026): sonrası sonuçlara göre değişebilir, soluk çizilir; not ilkinde.
   // Pencere kilidin açıldığı sırayla (sort_order, konu konu) sayılır; yol aşamaya göre çiziliyor.
   const far = useMemo(
@@ -1483,35 +1575,12 @@ function StudyPath({
     return () => observer.disconnect();
   }, [currentId]);
 
-  const currentIndex = ordered.findIndex((node) => node.id === currentId);
 
   return (
-    <div className="cp-zpath" style={{ height }}>
+    <div className="cp-zpath">
       <p className="sr-only">{STUDY_PATH_HINT}</p>
-      {points.length > 1 ? (
-        <svg className="cp-path-lines" viewBox={`0 0 ${PATH_WIDTH} ${height}`} aria-hidden>
-          {points.slice(1).map((point, index) => {
-            const prev = points[index]!;
-            const midY = (prev.y + point.y) / 2;
-            const pastCurrent = currentIndex >= 0 && index >= currentIndex;
-            const toCurrent = point.node.id === currentId;
-            const fromDone = prev.node.status === "done";
-            return (
-              <path
-                key={`${prev.node.id}-${point.node.id}`}
-                className={cn(
-                  fromDone && !pastCurrent && "is-done",
-                  toCurrent && "is-next",
-                  pastCurrent && !toCurrent && "is-upcoming",
-                )}
-                d={`M ${prev.x} ${prev.y} C ${prev.x} ${midY}, ${point.x} ${midY}, ${point.x} ${point.y}`}
-              />
-            );
-          })}
-        </svg>
-      ) : null}
       <ol className="cp-path-list" aria-label={PREP_HOME_COPY.path}>
-        {points.map(({ node, x, y }, pointIndex) => {
+        {points.map(({ node }, pointIndex) => {
           const meta = PLAN_NODE_META[node.kind];
           const level = isLevelNode(node.id);
           // Bitmiş adım "Yarın" değil "Tamamlandı · 29 Eki" (30 Ekim 2026).
@@ -1542,9 +1611,14 @@ function StudyPath({
             <li
               key={node.id}
               ref={node.id === currentId ? currentRef : undefined}
-              className={cn("cp-exam-trail-item", x > PATH_WIDTH / 2 && "is-right", far.has(node.id) && "is-far")}
-              style={{ left: x, top: y }}
+              className={cn("cp-exam-trail-item", far.has(node.id) && "is-far", node.id === currentId && "is-current")}
+              data-closing={moment?.closing === node.id || undefined}
+              data-opening={moment?.opening === node.id || undefined}
             >
+              {/* Az önce biten adımdan sıradakine dolan çizgi (B2); son adımın çizgisi yok. */}
+              {moment?.closing === node.id && pointIndex < points.length - 1 ? (
+                <span className="cx-path-fill" aria-hidden />
+              ) : null}
               <button
                 type="button"
                 className={cn(
@@ -1569,29 +1643,14 @@ function StudyPath({
                 title={level ? "Seviye tespiti" : pathNodeLabel(nodeHeading(node), meta.title, sectionTitle)}
                 onClick={() => onOpen(node)}
               >
-                <PathPuck state={node.status === "done" ? "done" : node.id === currentId ? "current" : node.status === "locked" ? "locked" : "ready"} />
-                {/* kıyas ürünü: bitmişte onay, kilitlide kilit, sıradakinde simge huzmede, açıkta tür. */}
-                {node.id === currentId ? null : (
-                  <span
-                    className={cn("cp-puck-glyph", node.status === "done" && "cp-puck-glyph--gold")}
-                    aria-hidden
-                  >
-                    {node.status === "done" ? <Check className="h-6 w-6" strokeWidth={2.5} /> : <NodeGlyph node={node} />}
-                  </span>
-                )}
+                <PathNodeDot node={node} current={node.id === currentId} />
                 {node.planLocked ? (
                   <span className="cp-path-plan-lock" data-testid="path-plan-lock" aria-hidden>
                     🔒
                   </span>
                 ) : null}
-                {node.id === currentId ? (
-                  <span className="cp-path-beam">
-                    <span className="cp-path-beam-icon">
-                      <NodeGlyph node={node} />
-                    </span>
-                  </span>
-                ) : null}
               </button>
+              <div className="cx-path-copy">
               {dayLabel && node.id !== currentId && dayLabel !== prevDayLabel ? (
                 <span className="cp-path-when" aria-hidden title={holiday ?? undefined}>
                   {dayLabel}
@@ -1626,6 +1685,7 @@ function StudyPath({
                   </span>
                 </span>
               ) : null}
+              </div>
             </li>
           );
         })}

@@ -55,7 +55,8 @@ describe("yerleşim: üste binme yok (#604)", () => {
   const shell = read("src/styles/parity-shell.css");
 
   it("besteci arkasını örter, mod düğmeleri ortada, kart varsa selam üstten başlar", () => {
-    expect(chat).toContain('className="cp-sor-composer-zone"');
+    // 13 Kasım 2026: ana ekran göstergesinde aynı kap ince çubuğu da taşır (cx-home-composer); sınıf cn() ile.
+    expect(chat).toContain('className={cn("cp-sor-composer-zone"');
     expect(shell).toContain(".cp-sor-root:not(.cp-sor-root--exam) .cp-sor-composer-zone::before");
     expect(shell).toMatch(/\.cp-sor-root:not\(\.cp-sor-root--exam\) \.cp-tutor-mode \{[^}]*justify-content: safe center/);
     // 10 Kasım 2026: kart selamla Başla'nın arasında da olabilir (heroLead); ikisi de kartlı kabuğu açar.
@@ -70,8 +71,9 @@ describe("yerleşim: üste binme yok (#604)", () => {
 
   it("öğrenci balonu okunur; tablette üst menü yalnız simge", () => {
     expect(shell).toMatch(/\.cp-sor-root \.cp-sor-msg-user \{[^}]*color: var\(--cp-text\)/);
-    expect(read("src/components/parity/sor-shell.tsx")).toContain('<span className="cp-sor-topnav-label">{tab.label}</span>');
-    expect(shell).toMatch(/\.cp-sor-topnav-label,\n\s*\.cp-sor-more--center \.cp-sor-more-label \{[^}]*clip: rect\(0 0 0 0\)/);
+    // 13 Kasım 2026: kabuğun üst çubuğu (cx-shell.css); tablette sekme yazısı görsel olarak gizli, ad ekran okuyucuda.
+    expect(read("src/components/parity/sor-shell.tsx")).toContain("<span>{tab.label}</span>");
+    expect(read("src/styles/cx-shell.css")).toMatch(/\.cx-home-tab span,\n\s*\.cx-home-more-label \{[^}]*clip: rect\(0 0 0 0\)/);
   });
 });
 

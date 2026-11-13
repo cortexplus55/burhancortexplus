@@ -1,0 +1,186 @@
+/**
+ * Tasarım sistemi v1 — yüzey ve yazı sınıfları (skill §3, §4). Değerler tokens.css'teki --cx-*'tan;
+ * bu dosyada ham renk ya da ölçü yazılmaz (cam kenarının 1 px'lik saç çizgisi dışında).
+ */
+
+/* Cam: ikincil düğmeler, simge düğmeleri, etkin gezinme hapı, sohbet formu */
+.cx-glass {
+  position: relative;
+  background: var(--cx-glass-background);
+  box-shadow: var(--cx-glass-bevel);
+  color: var(--cx-text-primary);
+}
+.cx-glass::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: var(--cx-glass-rim);
+  pointer-events: none;
+  -webkit-mask: linear-gradient(black 0 0) content-box, linear-gradient(black 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(black 0 0) content-box exclude, linear-gradient(black 0 0);
+}
+
+/* Marka: ekranın tek ana eylemi */
+.cx-brand {
+  background: var(--cx-gradient-brand);
+  color: var(--cx-text-on-brand);
+}
+
+/* Zayıf: üçüncül eylem; dolgu bulunduğu yüzeyin bir üst basamağı */
+.cx-weak {
+  background: var(--cx-weak-fill, var(--cx-bg-2));
+  color: var(--cx-text-secondary);
+  transition: color var(--cx-dur-color) ease, background-color var(--cx-dur-color) ease;
+}
+.cx-weak:hover,
+.cx-weak:active,
+.cx-weak:focus-visible {
+  color: var(--cx-text-primary);
+}
+
+/* Yüzey basamağı: çocukların zayıf dolgusunu bir üst basamağa taşır */
+.cx-surface-0 {
+  --cx-weak-fill: var(--cx-bg-1);
+}
+.cx-surface-1 {
+  --cx-weak-fill: var(--cx-bg-2);
+}
+.cx-surface-2 {
+  --cx-weak-fill: var(--cx-bg-3);
+}
+
+/* Açılır menü */
+.cx-popover {
+  background: var(--cx-bg-2);
+  border: 1px solid var(--cx-border);
+  border-radius: var(--cx-radius-l);
+  box-shadow: var(--cx-shadow-popover);
+  transition: opacity var(--cx-dur-color) ease, scale var(--cx-dur-color) var(--cx-ease-glide);
+}
+.cx-popover[data-starting-style],
+.cx-popover[data-ending-style] {
+  opacity: 0;
+  scale: 0.96;
+}
+
+/* İskelet yükleme */
+.cx-skeleton {
+  background: var(--cx-skeleton);
+  background-size: 200% 100%, auto;
+  color: transparent;
+  animation: cx-shine 1.4s linear infinite;
+}
+@keyframes cx-shine {
+  from {
+    background-position: 150% 0, 0 0;
+  }
+  to {
+    background-position: -50% 0, 0 0;
+  }
+}
+
+/* Kaydırılan içerik sabit çubuğun altına girerken keskin çizgi yerine geçiş [ölçüm: 64 px] */
+.cx-fade-top {
+  background: linear-gradient(to bottom, var(--cx-bg-0), transparent);
+  height: var(--cx-fade-edge);
+  pointer-events: none;
+}
+.cx-fade-bottom {
+  background: linear-gradient(to top, var(--cx-bg-0), transparent);
+  height: var(--cx-fade-edge);
+  pointer-events: none;
+}
+
+/* Odak [skill §5]: 1 px camgöbeği halka, 3 px boşluk */
+.cx-focusable:focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}
+
+/* --- Yazı rolleri (skill §3, okunurluk tabanı tokens.css'te) --- */
+.cx-t-display-l {
+  font: var(--cx-t-display-l);
+  letter-spacing: var(--cx-ls-display);
+  text-wrap: balance;
+}
+.cx-t-heading-xl,
+.cx-t-heading-l,
+.cx-t-heading-s,
+.cx-t-title-xl,
+.cx-t-title-l,
+.cx-t-title-m,
+.cx-t-title-s {
+  letter-spacing: var(--cx-ls-heading);
+  text-wrap: balance;
+}
+.cx-t-heading-xl { font: var(--cx-t-heading-xl); }
+.cx-t-heading-l { font: var(--cx-t-heading-l); }
+.cx-t-heading-s { font: var(--cx-t-heading-s); }
+.cx-t-title-xl { font: var(--cx-t-title-xl); }
+.cx-t-title-l { font: var(--cx-t-title-l); }
+.cx-t-title-m { font: var(--cx-t-title-m); }
+.cx-t-title-s { font: var(--cx-t-title-s); }
+.cx-t-body-16 { font: var(--cx-t-body-16); }
+.cx-t-body-14 { font: var(--cx-t-body-14); }
+.cx-t-body-12 { font: var(--cx-t-body-12); }
+.cx-t-label-15,
+.cx-t-label-13,
+.cx-t-label-11 {
+  letter-spacing: var(--cx-ls-label);
+}
+.cx-t-label-15 { font: var(--cx-t-label-15); }
+.cx-t-label-13 { font: var(--cx-t-label-13); }
+.cx-t-label-11 { font: var(--cx-t-label-11); }
+.cx-t-button-l { font: var(--cx-t-button-l); }
+.cx-t-button-s { font: var(--cx-t-button-s); }
+
+/* Üst veri: büyük harfli eşaralıklı (Türkçe büyük harf için kökte lang="tr") */
+.cx-t-meta-xl,
+.cx-t-meta-l,
+.cx-t-meta-m,
+.cx-t-meta-s,
+.cx-t-meta-xs {
+  letter-spacing: var(--cx-ls-meta);
+  text-transform: uppercase;
+}
+.cx-t-meta-xl { font: var(--cx-t-meta-xl); }
+.cx-t-meta-l { font: var(--cx-t-meta-l); }
+.cx-t-meta-m { font: var(--cx-t-meta-m); }
+.cx-t-meta-s { font: var(--cx-t-meta-s); }
+.cx-t-meta-xs { font: var(--cx-t-meta-xs); }
+
+/* Gösterim rakamı: sabit genişlikli, imza gradyanıyla [skill §3 uyarlama] */
+.cx-t-num-xl,
+.cx-t-num-l,
+.cx-t-num-m {
+  font-variant-numeric: tabular-nums;
+  background: var(--cx-gradient-signature);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.cx-t-num-xl {
+  font: var(--cx-t-num-xl);
+  letter-spacing: var(--cx-ls-heading);
+}
+.cx-t-num-l {
+  font: var(--cx-t-num-l);
+  letter-spacing: var(--cx-ls-heading);
+}
+.cx-t-num-m { font: var(--cx-t-num-m); }
+
+.cx-t-reading-title { font: var(--cx-t-reading-title); text-wrap: balance; }
+.cx-t-reading-lead { font: var(--cx-t-reading-lead); }
+
+@media (prefers-reduced-motion: reduce) {
+  .cx-skeleton {
+    animation: none;
+  }
+  .cx-popover[data-starting-style],
+  .cx-popover[data-ending-style] {
+    scale: 1;
+  }
+}
