@@ -144,6 +144,15 @@ describe("konu halkası", () => {
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Konu 3");
     fireEvent.click(container.querySelectorAll(".cx-ring-arc")[0]!);
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Konu 1");
+    // Seçili yay kendisi işaretli; çerçeve yayla aynı açıda, yarıçapı yayın kalınlığı içinde (dışarıda çizgi yok).
+    const arcs = [...container.querySelectorAll(".cx-ring-arc")];
+    expect(arcs.map((arc) => arc.hasAttribute("data-selected"))).toEqual([true, false, false]);
+    const frame = container.querySelectorAll(".cx-ring-selected");
+    expect(frame).toHaveLength(1);
+    expect(frame[0]!.getAttribute("d")).toMatch(/^M [\d.]+ [\d.]+ A 107 107 .* A 93 93 .* Z$/);
+    // Kaydırıcı halkanın içinde değil, grubun en sağ ucunda (halka ve metinden sonra).
+    const body = container.querySelector(".cx-cockpit-body")!;
+    expect([...body.children].map((child) => child.className)).toEqual(["cx-ring", "cx-cockpit-text", "cx-slider"]);
     // Devam et hazırlık sayfasını açar (çalışma yolu sayfası ayrı commit'te).
     expect(screen.getByRole("link", { name: "Devam et" })!.getAttribute("href")).toBe("/deneme-sinavlari/A");
   });
@@ -156,7 +165,9 @@ describe("konu halkası", () => {
       </HomeSelectionProvider>,
     );
     expect(container.querySelectorAll(".cx-ring-arc").length).toBeLessThanOrEqual(2);
-    expect(container.querySelectorAll(".cx-ring-marker")).toHaveLength(1);
+    // Seçili konunun payı halkanın üstünde ince çerçeve (halkanın dışında ayrı çizgi yok).
+    expect(container.querySelectorAll(".cx-ring-selected")).toHaveLength(1);
+    expect(container.querySelector(".cx-ring-marker")).toBeNull();
     expect(screen.getByRole("slider")!.getAttribute("aria-valuetext")).toBe(`5 / ${RING_ARC_LIMIT + 3}`);
   });
 });

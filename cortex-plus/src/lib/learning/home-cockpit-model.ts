@@ -81,3 +81,17 @@ export function arcPath(cx: number, cy: number, r: number, start: number, end: n
   const large = end - start > 180 ? 1 : 0;
   return `M ${x1.toFixed(3)} ${y1.toFixed(3)} A ${r} ${r} 0 ${large} 1 ${x2.toFixed(3)} ${y2.toFixed(3)}`;
 }
+
+/**
+ * Halka dilimi (iç ve dış yarıçap arasında kapalı yol). Seçili konunun çerçevesi bununla çizilir: yayın kendi
+ * kenarlarına yapışık ince beyaz çizgi (13 Kasım 2026); halkanın dışında ayrı çizgi yok.
+ */
+export function sectorPath(cx: number, cy: number, inner: number, outer: number, start: number, end: number): string {
+  const [ox1, oy1] = polar(cx, cy, outer, start);
+  const [ox2, oy2] = polar(cx, cy, outer, end);
+  const [ix2, iy2] = polar(cx, cy, inner, end);
+  const [ix1, iy1] = polar(cx, cy, inner, start);
+  const large = end - start > 180 ? 1 : 0;
+  const n = (value: number) => value.toFixed(3);
+  return `M ${n(ox1)} ${n(oy1)} A ${outer} ${outer} 0 ${large} 1 ${n(ox2)} ${n(oy2)} L ${n(ix2)} ${n(iy2)} A ${inner} ${inner} 0 ${large} 0 ${n(ix1)} ${n(iy1)} Z`;
+}

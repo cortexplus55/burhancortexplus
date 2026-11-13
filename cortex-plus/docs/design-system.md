@@ -50,13 +50,13 @@ Hazırlığı olan öğrencinin boş ana ekranı beş parçadır; sohbet başlay
 | Üst çubuk (≥768 px) | 96 yükseklik, 24 dolgu, `1fr auto 1fr`, merkezler y = 48; üç sekme + "Daha fazla"; cam "Başla", seri, avatar; ücretsizde "Plus'a geç" XS altın hap | `sor-shell.tsx` (`home`), `home-cockpit.css` |
 | Logo | `logo-mark-trim.png` 24 px + "Cortex Plus" Figtree 600 20 px `--cx-text-reading`, arası 8 | aynı |
 | Sınav şeridi | 73 geniş, kutu 65×80, en çok 4 görünür, 28 px oklar (tıklama 44), seçili cam hap kayar, geride nokta 4 px | `home-cockpit.tsx` (`ExamStrip`) |
-| Konu halkası | en çok `min(510px, 100vh − 150px)`; ≤12 konu yay yay, fazlası kesintisiz + işaret; kaydırıcı "i / N"; 52 px "Devam et" | `TopicRing`, `TopicSlider` |
+| Konu halkası | en çok `min(510px, 100vh − 150px)`; ≤12 konu yay yay, fazlası kesintisiz; seçili yay `bg-4` + yapışık 1.5 px beyaz çerçeve; kaydırıcı "i / N" metnin sağında, grubun en sağ ucunda; 52 px "Devam et". ≥1100 px'te şerit solda 24 px, halka + metin grubu sayfanın yatay merkezinde | `TopicRing`, `TopicSlider` |
 | Metin bloğu | en çok 458; meta-l → 6 → heading-l → 40 → mono bağlantı → 40 → 44 px cam "Ayrıntılar" | `CockpitText` |
 | İnce yazma çubuğu | 344×60, alttan 28; öğretmen (brand), ok (tepsi 4×2, öğe 105×84, köşe 32), alan (geniş kutuyu açar), mikrofon (dikte: geniş kutuyu açıp sesi yazıya çevirir; mikrofon simgesi her yerde dikte, sesli öğretmen ses dalgası simgesiyle yalnız geniş kutuda) | `chat-panel.tsx` (`homeCockpit`, `homeTools`), `HomeToolsTray` |
 
 Veri: `loadHomeCockpit` (`src/lib/learning/home-cockpit.ts`) devam kartıyla aynı kaynaktan okur (hazırlık, yol adımları, konular; üç sorgu). "Geride" = yolda günü geçmiş ama bitmemiş adım (`pathIsBehind`, yolun kendi tarih kuralıyla). Sıra ve açılış seçimi `home-cockpit-model.ts`'te.
 
-Telefon (<768 px) **[varsayım]**: logo sol üstte, seri ve "Daha fazla" sağda; şerit yatay; halka üstte, metin altında; ince çubuk alt sekme çubuğunun üstünde. Tablette (768–1099 px) sekme ve "Daha fazla" yazısı gizli (simge kalır), metin halkanın altında.
+Telefon (<768 px) **[varsayım]**: logo sol üstte, seri ve "Daha fazla" sağda; şerit yatay, açılışta seçili sınavdan başlar (geçmiş sola kaydırınca); halka üstte, metin altında; ince çubuk alt sekme çubuğunun üstünde. Tablette (768–1099 px) sekme ve "Daha fazla" yazısı gizli (simge kalır), metin halkanın altında.
 
 Ekrana özel ölçüler `tokens.css`'te (`--cx-topbar-h`, `--cx-strip-*`, `--cx-ring-*`, `--cx-slim-*`, `--cx-tray-item-*`, `--cx-cockpit-text-w`, `--cx-logo-h`, `--cx-dot`, `--cx-space-6`, `--cx-radius-inner`).
 

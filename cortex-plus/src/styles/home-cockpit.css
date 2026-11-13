@@ -32,12 +32,14 @@
 /* ---------- 3. Ana alan ---------- */
 .cx-home-stage {
   --cx-ring: min(var(--cx-ring-max), calc(100vh - 150px));
+  --cx-stage-pb: calc(var(--cx-slim-h) + var(--cx-slim-gap) + var(--cx-space-16));
+  position: relative;
   flex: 1;
   min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 var(--cx-gutter) calc(var(--cx-slim-h) + var(--cx-slim-gap) + var(--cx-space-16));
+  padding: 0 var(--cx-gutter) var(--cx-stage-pb);
 }
 @supports (height: 100dvh) {
   .cx-home-stage {
@@ -51,6 +53,7 @@
   max-width: 100%;
 }
 .cx-cockpit-body {
+  position: relative;
   display: grid;
   grid-template-columns: var(--cx-ring) minmax(0, var(--cx-cockpit-text-w));
   align-items: center;
@@ -218,12 +221,17 @@
 .cx-ring-arc:hover {
   opacity: 0.85;
 }
-.cx-ring-selected,
-.cx-ring-marker {
+/* Seçili konu (13 Kasım 2026): yayın kendisi bir kademe açık (bg-4) ve kenarlarına yapışık 1.5 px beyaz çerçeve.
+   Bitmiş konunun yayı renkli kalır, çerçeve onu da gösterir. */
+.cx-ring-arc[data-selected]:not([data-done]) {
+  stroke: var(--cx-bg-4);
+}
+.cx-ring-selected {
   fill: none;
   stroke: var(--cx-text-primary);
-  stroke-width: 2;
-  stroke-linecap: round;
+  stroke-width: 1.5px;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
   pointer-events: none;
 }
 .cx-ring-center {
@@ -259,11 +267,11 @@
   fill: currentColor;
 }
 
-/* Konu kaydırıcısı: halkanın sağ kenarında ince dikey çizgi. */
+/* Konu kaydırıcısı: halka + metin grubunun en sağ ucunda ince dikey çizgi (grubun ortalanmasını etkilemez). */
 .cx-slider {
   position: absolute;
   top: 50%;
-  right: calc(-1 * var(--cx-space-24));
+  left: calc(100% + var(--cx-space-24));
   translate: 0 -50%;
   display: flex;
   flex-direction: column;
@@ -515,8 +523,39 @@
   text-transform: uppercase;
 }
 
+/* ---------- Geniş ekran (≥1100 px): şerit sol kenarda 24 px, halka + metin grubu sayfanın yatay merkezinde ---------- */
+@media (min-width: 1100px) {
+  .cx-home-stage {
+    --cx-stage-side: calc(var(--cx-space-24) + var(--cx-strip-w) + var(--cx-space-24));
+    --cx-ring: min(
+      var(--cx-ring-max),
+      calc(100vh - 150px),
+      calc(100vw - 2 * var(--cx-stage-side) - var(--cx-space-48) - var(--cx-cockpit-text-w))
+    );
+    padding-inline: var(--cx-stage-side);
+  }
+  @supports (height: 100dvh) {
+    .cx-home-stage {
+      --cx-ring: min(
+        var(--cx-ring-max),
+        calc(100dvh - 150px),
+        calc(100vw - 2 * var(--cx-stage-side) - var(--cx-space-48) - var(--cx-cockpit-text-w))
+      );
+    }
+  }
+  .cx-home-stage .cx-strip {
+    position: absolute;
+    left: var(--cx-space-24);
+    top: calc((100% - var(--cx-stage-pb)) / 2);
+    translate: 0 -50%;
+  }
+}
+
 /* ---------- Orta genişlik (768–1099 px): halka üstte, metin altında ---------- */
 @media (max-width: 1099px) {
+  .cx-slider {
+    top: calc(var(--cx-ring) / 2);
+  }
   .cx-home-stage {
     --cx-ring: min(360px, calc(100vh - 460px), 52vw);
   }
@@ -544,20 +583,30 @@
     gap: var(--cx-space-24);
     width: 100%;
   }
-  /* Şerit telefonda yatay [varsayım]: kutular aynı ölçüde, yana kayar. */
+  /* Şerit telefonda yatay [varsayım]: kutular aynı ölçüde, yana kayar. Açılışta seçili (en yakın gelecek) sınav
+     solda başlar; geçmiş sınavlar sola kaydırınca görünür. Sondaki boşluk her kutunun sola yaslanabilmesi için. */
   .cx-strip {
     flex-direction: row;
-    width: auto;
+    width: 100%;
     max-width: 100%;
-    align-self: center;
+    align-self: stretch;
   }
   .cx-strip-list {
+    flex: 1;
     flex-direction: row;
     max-height: none;
     max-width: calc(100vw - 2 * var(--cx-gutter) - 2 * var(--cx-space-4));
     overflow-x: auto;
     overflow-y: hidden;
     scroll-snap-type: x mandatory;
+  }
+  .cx-strip-list::after {
+    content: "";
+    flex: 0 0 calc(100% - var(--cx-strip-item-w));
+  }
+  .cx-slider {
+    left: auto;
+    right: 0;
   }
   .cx-strip-arrow {
     display: none;

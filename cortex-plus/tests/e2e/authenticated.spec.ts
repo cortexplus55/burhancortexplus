@@ -41,6 +41,16 @@ test.describe("authenticated student hub", { tag: ["@auth"] }, () => {
     await expect(page.locator("a.cx-home-avatar")).toBeVisible();
     await expect(page.locator("a.cx-home-avatar")).toHaveAttribute("aria-label", "Profil");
 
+    // 13 Kasım 2026: bulunulan sayfanın sekmesi cam hapla ve aria-current ile (gerçek rotalarda).
+    const currentTab = page.locator('header.cx-home-top .cx-home-tab[aria-current="page"]');
+    await expect(currentTab).toHaveCount(1);
+    await expect(currentTab).toHaveText("Ana Sayfa");
+    await expect(currentTab).toHaveClass(/cx-glass/);
+    await page.goto("/deneme-sinavlari");
+    await expect(currentTab).toHaveText("Sınavlar");
+    await expect(currentTab).toHaveClass(/cx-glass/);
+    await page.goto("/ogretmen");
+
     // Ücretsiz: Satın al; kurucu: Kurucu etiketi; abone: çip yok (kıyas ürünü gibi),
     // üst çubukta seri duruyor. Kredi sayısı hiçbir kademede yazılmıyor.
     const chromeCredit = page

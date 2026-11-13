@@ -15,8 +15,8 @@ import {
   RING_ARC_LIMIT,
   arcPath,
   initialCockpitIndex,
-  polar,
   ringArcs,
+  sectorPath,
   type CockpitPrep,
 } from "@/lib/learning/home-cockpit-model";
 import "@/styles/home-cockpit.css";
@@ -209,6 +209,8 @@ function ExamStrip() {
 const VIEW = 240;
 const CENTER = VIEW / 2;
 const RADIUS = 100;
+/** Yay kalınlığının yarısı (CSS'teki stroke-width: 14). */
+const ARC_HALF = 7;
 
 function TopicSlider() {
   const { preps, prepIndex, topicIndex, selectTopic } = useSelection();
@@ -274,9 +276,10 @@ function TopicRing() {
   const sliced = topics.length > 0 && topics.length <= RING_ARC_LIMIT;
   const arcs = sliced ? ringArcs(topics.length) : [];
   const pct = prep.progress.pct;
-  const markerAngle = topics.length ? ((topicIndex + 0.5) / topics.length) * 360 : 0;
-  const [mx1, my1] = polar(CENTER, CENTER, RADIUS - 12, markerAngle);
-  const [mx2, my2] = polar(CENTER, CENTER, RADIUS + 12, markerAngle);
+  // 12'den fazla konuda seçili konunun halkadaki payı (en az 4°, görünür kalsın).
+  const share = topics.length ? 360 / topics.length : 0;
+  const markSpan = Math.max(4, share);
+  const markStart = topicIndex * share + share / 2 - markSpan / 2;
 
   return (
     <div className="cx-ring">
@@ -289,20 +292,25 @@ function TopicRing() {
           </linearGradient>
         </defs>
         {sliced ? (
-          arcs.map(([start, end], index) => (
-            <g key={topics[index]!.id}>
-              <path
-                d={arcPath(CENTER, CENTER, RADIUS, start, end)}
-                className="cx-ring-arc"
-                stroke={topics[index]!.done ? `url(#${gradientId})` : undefined}
-                data-done={topics[index]!.done || undefined}
-                onClick={() => selectTopic(index)}
-              />
-              {index === topicIndex ? (
-                <path d={arcPath(CENTER, CENTER, RADIUS + 13, start, end)} className="cx-ring-selected" />
-              ) : null}
-            </g>
-          ))
+          arcs.map(([start, end], index) => {
+            const selected = index === topicIndex;
+            return (
+              <g key={topics[index]!.id}>
+                <path
+                  d={arcPath(CENTER, CENTER, RADIUS, start, end)}
+                  className="cx-ring-arc"
+                  stroke={topics[index]!.done ? `url(#${gradientId})` : undefined}
+                  data-done={topics[index]!.done || undefined}
+                  data-selected={selected || undefined}
+                  onClick={() => selectTopic(index)}
+                />
+                {/* Seçili yay: yayın kendisine yapışık 1.5 px beyaz çerçeve (halkanın dışında ayrı çizgi yok). */}
+                {selected ? (
+                  <path d={sectorPath(CENTER, CENTER, RADIUS - ARC_HALF, RADIUS + ARC_HALF, start, end)} className="cx-ring-selected" />
+                ) : null}
+              </g>
+            );
+          })
         ) : (
           <>
             <circle cx={CENTER} cy={CENTER} r={RADIUS} className="cx-ring-arc" />
@@ -315,7 +323,10 @@ function TopicRing() {
               />
             ) : null}
             {topics.length ? (
-              <line x1={mx1} y1={my1} x2={mx2} y2={my2} className="cx-ring-marker" />
+              <path
+                d={sectorPath(CENTER, CENTER, RADIUS - ARC_HALF, RADIUS + ARC_HALF, markStart, markStart + markSpan)}
+                className="cx-ring-selected"
+              />
             ) : null}
           </>
         )}
@@ -327,7 +338,6 @@ function TopicRing() {
           <Play aria-hidden />
         </Link>
       </div>
-      <TopicSlider />
     </div>
   );
 }
@@ -365,9 +375,11 @@ export function HomeCockpit() {
   return (
     <section className="cx-cockpit" aria-label={prep.title}>
       <ExamStrip />
+      {/* Halka + metin grubu sayfanın yatay merkezinde; kaydırıcı grubun en sağ ucunda (13 Kasım 2026). */}
       <div key={prep.id} className="cx-cockpit-body">
         <TopicRing />
         <CockpitText />
+        <TopicSlider />
       </div>
     </section>
   );

@@ -355,3 +355,37 @@
 .cp-sor-root:has(> .cx-shell-close) > .cp-sor-main {
   padding-top: calc(var(--cx-icon-btn-l) + var(--cx-space-16));
 }
+
+/* ---------- Seri kutlama penceresi ("Serini başlattın!"): diyalog ölçüsü [skill §6 Diyalog] ---------- */
+.cx-streak-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  padding: var(--cx-space-16);
+  background: var(--cx-dim);
+}
+.cx-streak-dialog {
+  width: min(var(--cx-w-dialog), 100%);
+  max-height: calc(100dvh - 2 * var(--cx-space-16));
+  overflow-y: auto;
+  padding: var(--cx-space-40) var(--cx-space-32) var(--cx-space-32);
+  border-radius: var(--cx-radius-xl);
+  background: var(--cx-bg-1);
+  box-shadow: var(--cx-shadow-popover);
+  color: var(--cx-text-primary);
+  text-align: center;
+  animation: cx-streak-in var(--cx-dur-color) var(--cx-ease-glide);
+}
+@keyframes cx-streak-in {
+  from {
+    opacity: 0;
+    scale: 0.96;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cx-streak-dialog {
+    animation: none;
+  }
+}
