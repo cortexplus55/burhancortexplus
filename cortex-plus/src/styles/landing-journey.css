@@ -945,8 +945,61 @@
   animation: none;
 }
 
+/* Tarama anı (A2): halkalar bir kez atar (sonsuz döngü değil). */
 .lj-upload.is-scanning .lj-zone-rings span {
-  animation-duration: 1s;
+  animation: lj-ring 1.1s var(--lj-ease) 1 both;
+}
+
+.lj-upload.is-scanning .lj-zone-rings span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.lj-upload.is-scanning .lj-zone-rings span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+/* Bulgular sırayla belirir: 0,7 sn'den başlar, aralarında 0,3 sn; an 2,4 sn'de biter. */
+.lj-scan-finds {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.4rem;
+  max-width: 17rem;
+}
+
+.lj-scan-find {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  color: var(--lj-text);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: left;
+  animation: lj-find-in 0.3s var(--lj-ease) both;
+  animation-delay: calc(0.7s + var(--lj-i, 0) * 0.3s);
+}
+
+.lj-scan-find svg {
+  flex: none;
+  margin-top: 0.1rem;
+  color: var(--lj-ok);
+}
+
+.lj-scan-find[data-finding="warning"] {
+  color: var(--lj-beam-text);
+}
+
+@keyframes lj-find-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.35rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .lj-scan-sheet {

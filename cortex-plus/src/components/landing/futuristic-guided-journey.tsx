@@ -31,6 +31,7 @@ import {
   isProductStep,
   journeyGoals,
   journeyGuideLine,
+  journeyScanFindings,
   journeyScore,
   journeySignupHref,
   journeyStepIndex,
@@ -40,6 +41,7 @@ import {
   type JourneyStepId,
 } from "@/lib/marketing/landing-journey";
 import { audienceSegment, type AudienceSegmentId } from "@/lib/marketing/landing-showcase";
+import { prefersReducedMotion, startMoment, type MomentHandle } from "@/lib/ui/moment";
 import { cn } from "@/lib/utils";
 import "@/styles/landing-journey.css";
 import "@/styles/tour-product.css";
@@ -49,6 +51,8 @@ const STAGE_GAP = 8;
 const STAGE_MIN = 420;
 /** En uzun adımın (telefonda Plus, ~1150 px) üstü: büyük ekranda sahne gereksiz uzamasın. */
 const STAGE_MAX = 1160;
+/** Yumuşak hizalama bitmiş olmalı: kontrol bu süre sonra yapılır. */
+const ALIGN_SETTLE_MS = 700;
 
 /** Pazarlama sayfasının sabit üst menüsü; yoksa (test, başka sayfa) 64 px. */
 function headerHeight(): number {
@@ -61,12 +65,6 @@ const RING = 2 * Math.PI * 34;
 
 /** Bu genişlikten itibaren üç Plus önizlemesi yan yana durur; altında seçiciyle tek tek gösterilir. */
 const WIDE_QUERY = "(min-width: 1024px)";
-
-function prefersReducedMotion(): boolean {
-  return typeof window !== "undefined" && typeof window.matchMedia === "function"
-    ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    : false;
-}
 
 /** Sürüklenen şey işletim sisteminden bir dosya mı (örnek not kartı değil)? */
 function isFileDrag(event: DragEvent<HTMLElement>): boolean {
@@ -117,8 +115,10 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
   const railRef = useRef<HTMLOListElement>(null);
   const consoleRef = useRef<HTMLDivElement>(null);
   const ownInput = useRef<HTMLInputElement>(null);
-  const scanTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scanMoment = useRef<MomentHandle | null>(null);
   const mounted = useRef(false);
+  /** Bileşen sayfada mı: sayfadan çıkılınca biten an yolu açmaya çalışmasın. */
+  const alive = useRef(true);
   const loadingScreens = useRef(false);
   const loadingPreviews = useRef(false);
 
@@ -169,7 +169,6 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
   }, []);
 
   const go = useCallback((next: JourneyStepId) => {
-    if (scanTimer.current) clearTimeout(scanTimer.current);
     setScanning(false);
     setDragOver(false);
     setStep(next);
@@ -220,7 +219,8 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
   }, []);
 
   // Adım değişince: sahne odağa gelir, gövde başa döner ve ilerleme rayının üstü sabit menünün hemen altına hizalanır
-  // (ilk çizimde değil: sayfa kendi kendine kaymasın).
+  // (ilk çizimde değil: sayfa kendi kendine kaymasın). Yumuşak kayma başka bir kaydırmayla yarıda kalırsa (ör. kayma
+  // sürerken yapılan dokunuş) kısa süre sonra tam yerine oturur; ziyaretçi kendisi kaydırdıysa dokunulmaz.
   useEffect(() => {
     if (!mounted.current) {
       mounted.current = true;
@@ -228,28 +228,59 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
     }
     const stage = stageRef.current;
     const rail = railRef.current;
-    if (!stage || !rail) return;
+    if (!stage || !rail || typeof window.scrollBy !== "function") return;
     stage.focus({ preventScroll: true });
     if (bodyRef.current) bodyRef.current.scrollTop = 0;
-    const delta = rail.getBoundingClientRect().top - (headerHeight() + STAGE_GAP);
-    if (Math.abs(delta) <= 2 || typeof window.scrollBy !== "function") return;
-    window.scrollBy({ top: delta, behavior: prefersReducedMotion() ? "auto" : "smooth" });
+    const offset = () => rail.getBoundingClientRect().top - (headerHeight() + STAGE_GAP);
+    const delta = offset();
+    if (Math.abs(delta) <= 2) return;
+    const reduced = prefersReducedMotion();
+    window.scrollBy({ top: delta, behavior: reduced ? "auto" : "smooth" });
+    if (reduced) return;
+    let userScrolled = false;
+    const mark = () => {
+      userScrolled = true;
+    };
+    const intents = ["wheel", "touchstart", "keydown"] as const;
+    for (const intent of intents) window.addEventListener(intent, mark, { passive: true });
+    const settle = window.setTimeout(() => {
+      const rest = offset();
+      if (!userScrolled && Math.abs(rest) > 2) window.scrollBy({ top: rest, behavior: "auto" });
+    }, ALIGN_SETTLE_MS);
+    return () => {
+      window.clearTimeout(settle);
+      for (const intent of intents) window.removeEventListener(intent, mark);
+    };
   }, [step]);
 
   useEffect(
-    () => () => {
-      if (scanTimer.current) clearTimeout(scanTimer.current);
+    () => {
+      alive.current = true;
+      return () => {
+        // Sayfadan çıkılırsa an sessizce kapanır (yol açılmaz).
+        alive.current = false;
+        scanMoment.current?.end();
+        scanMoment.current = null;
+      };
     },
     [],
   );
 
+  /*
+    Tarama anı (A2): not çekirdeğe kayar, halkalar bir kez atar, örnek notun bulguları sırayla belirir, sonra yol açılır.
+    Bir an (depo kararı 11): en çok 2,5 sn; tıklama ya da Enter / Space / Escape hemen yolu açar; hareket azaltmada
+    beklenmez.
+  */
   function startScan() {
     if (scanning) return;
     loadScreens();
-    setScanning(true);
     setDragOver(false);
-    const wait = prefersReducedMotion() ? 0 : JOURNEY_FILE.scanMs;
-    scanTimer.current = setTimeout(() => go("roadmap"), wait);
+    setScanning(true);
+    const handle = startMoment(JOURNEY_FILE.scanMs, () => {
+      scanMoment.current = null;
+      if (alive.current) go("roadmap");
+    });
+    if (!handle.instant) scanMoment.current = handle;
   }
 
   /** B kapısı: dosya sunucuya gitmez; tarayıcıda bekletilir ve onay kartı açılır. */
@@ -463,11 +494,20 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
                       <span className="lj-scan-sheet" aria-hidden>
                         <span className="lj-scan-laser" />
                       </span>
-                      {JOURNEY_FILE.scanning.map((line) => (
-                        <span key={line} className="lj-scan-line">
-                          {line}
-                        </span>
-                      ))}
+                      <span className="lj-scan-line">{JOURNEY_FILE.scanning[0]}</span>
+                      <span className="lj-scan-finds" data-scan-findings>
+                        {journeyScanFindings().map((finding, at) => (
+                          <span
+                            key={finding.id}
+                            className="lj-scan-find"
+                            data-finding={finding.id}
+                            style={{ ["--lj-i" as string]: at }}
+                          >
+                            <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden />
+                            {finding.text}
+                          </span>
+                        ))}
+                      </span>
                     </span>
                   ) : (
                     <span className="lj-zone-copy">

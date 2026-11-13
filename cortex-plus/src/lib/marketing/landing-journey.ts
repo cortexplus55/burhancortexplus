@@ -17,6 +17,7 @@
  */
 
 import { FREE_PAGE_TOTAL } from "@/lib/billing/free-tier-copy";
+import { SAME_NOTE_CASE } from "@/lib/marketing/advantage-content";
 import type { AudienceSegmentId } from "@/lib/marketing/landing-showcase";
 
 export const JOURNEY_STEP_IDS = ["upload", "roadmap", "lesson", "question", "cards", "check", "plus"] as const;
@@ -76,17 +77,23 @@ export const JOURNEY_NEXT_LABEL: Record<JourneyProductStep, string> = {
 
 /* ---------- 1. Not: iki kapı ---------- */
 
-/** A kapısı: hazır örnek not. Kart çekirdeğe sürüklenir ya da dokunulur; kısa bir tarama oynar ve yol açılır. */
+/** Örnek notun sayfa sayısı: kartın alt satırı ve tarama anının ilk bulgusu aynı sayıdan. */
+const SAMPLE_PAGES = 6;
+
+/** A kapısı: hazır örnek not. Kart çekirdeğe sürüklenir ya da dokunulur; tarama anı oynar ve yol açılır. */
 export const JOURNEY_FILE = {
-  name: "Köklü_Sayılar_Ders_Notu.pdf",
+  name: SAME_NOTE_CASE.input.file,
   /** "Örnek not" yazılı: ziyaretçi bunun hazır bir örnek olduğunu bilir. */
-  meta: "Örnek not · Matematik · 6 sayfa",
+  meta: `Örnek not · Matematik · ${SAMPLE_PAGES} sayfa`,
   sampleCta: "Örnek notla başlat",
   zoneTitle: "Cortex tarama çekirdeği",
   zoneHint: "Örnek notu ya da kendi dosyanı buraya bırak",
   scanning: ["Sayfalar taranıyor…", "Formüller ve sınav tuzakları çıkarılıyor…"],
-  /** Tarama animasyonunun süresi (ms); hareket azaltmada beklenmez. */
-  scanMs: 1200,
+  /**
+   * Tarama anı (A2, 13 Kasım 2026): 2,4 sn. Not çekirdeğe kayar, halkalar bir kez atar, bulgular sırayla belirir, sonra
+   * yol açılır. Tıklama ya da tuş atlar; hareket azaltmada beklenmez (depo kararı 11).
+   */
+  scanMs: 2400,
 } as const;
 
 /**
@@ -113,6 +120,21 @@ export const JOURNEY_OWN = {
 export function ownReadyTitle(names: readonly string[]): string {
   if (names.length === 1) return `“${names[0]}” taramaya hazır!`;
   return `${names.length} dosya taramaya hazır!`;
+}
+
+/**
+ * Tarama anında sırayla belirenler (A2). Yeni cümle yok: sayfa sayısı kartın alt satırından, konu sayısı yol
+ * haritasının satır sayısından, hocanın uyarısı ve şekil satırı "Aynı not" kartındaki aynı notun satırlarından
+ * (`SAME_NOTE_CASE`). Bekçi test sayıların fikstürle aynı olduğunu tutar.
+ */
+export function journeyScanFindings(): { id: "pages" | "topics" | "warning" | "figure"; text: string }[] {
+  const [warning, figure] = SAME_NOTE_CASE.input.lines;
+  return [
+    { id: "pages", text: `${SAMPLE_PAGES} sayfa` },
+    { id: "topics", text: `${JOURNEY_ROADMAP.days.length} konu` },
+    { id: "warning", text: warning },
+    { id: "figure", text: figure },
+  ];
 }
 
 /* ---------- 2. Yol haritası ---------- */

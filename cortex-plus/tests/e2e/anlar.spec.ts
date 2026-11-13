@@ -61,4 +61,36 @@ for (const size of SIZES) {
     });
     expect(scroll).toEqual({ scrollable: true, overflowY: "auto" });
   });
+
+  test(`A2 ${size.width} px: tarama anında dört bulgu sırayla belirir, sonra yol açılır; dokunuş anı atlar`, { tag: ["@public"] }, async ({ page }) => {
+    await page.setViewportSize(size);
+    await page.goto("/");
+    await page.locator("button.lj-zone").evaluate((zone) => zone.scrollIntoView({ block: "center" }));
+    await page.locator("button.lj-zone").click();
+    const finds = page.locator("[data-scan-findings] [data-finding]");
+    await expect(finds).toHaveCount(4);
+    await expect(finds.nth(0)).toHaveText("6 sayfa");
+    await expect(finds.nth(2)).toContainText("Hoca uyarısı");
+    // Son bulgu anın sonunda görünür (opaklık 1), yol kendiliğinden açılır.
+    await expect.poll(() => finds.nth(3).evaluate((node) => Number(getComputedStyle(node).opacity))).toBeGreaterThan(0.95);
+    await expect(page.getByRole("heading", { name: "Yol haritan çıktı" })).toBeVisible({ timeout: 4000 });
+
+    // İkinci tur: dokunuş anı atlar, yol 2,4 sn beklemeden açılır.
+    await goStep(page, 1);
+    await page.locator("button.lj-zone").evaluate((zone) => zone.scrollIntoView({ block: "center" }));
+    await page.locator("button.lj-zone").click();
+    await expect(finds).toHaveCount(4);
+    const t0 = Date.now();
+    await page.locator(".lj-stage-head").click();
+    await expect(page.getByRole("heading", { name: "Yol haritan çıktı" })).toBeVisible();
+    expect(Date.now() - t0).toBeLessThan(1500);
+  });
 }
+
+test("A2: hareket azaltmada tarama anı oynamaz, yol hemen açılır", { tag: ["@public"] }, async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/");
+  await page.locator("button.lj-zone").evaluate((zone) => zone.scrollIntoView({ block: "center" }));
+  await page.locator("button.lj-zone").click();
+  await expect(page.getByRole("heading", { name: "Yol haritan çıktı" })).toBeVisible({ timeout: 800 });
+});

@@ -55,12 +55,13 @@ test.describe("dönüşüm paketi", { tag: ["@public"] }, () => {
       };
 
       // 1. Not: tarama alanına dokun, tarama bitince yol haritası açılır. Geliştirme sunucusunda ilk dokunuş
-      // hidrasyondan önce düşebilir: yol haritası görünene kadar yeniden dene.
+      // hidrasyondan önce düşebilir: yol haritası görünene kadar yeniden dene. Tarama bir an (A2, 13 Kasım 2026):
+      // 2,4 sn sürer; tarama bitip alan kalkınca yeniden tıklanmaz (alan yoksa beklenmez).
       await check("not");
       await expect(async () => {
         const zone = tour.locator("button.lj-zone");
-        if (await zone.isEnabled().catch(() => false)) await zone.click();
-        await expect(tour.getByRole("button", { name: "Şimdi 1. dersi aç" })).toBeVisible({ timeout: 2500 });
+        if ((await zone.count()) && (await zone.isEnabled({ timeout: 500 }).catch(() => false))) await zone.click();
+        await expect(tour.getByRole("button", { name: "Şimdi 1. dersi aç" })).toBeVisible({ timeout: 4000 });
       }).toPass({ timeout: 25_000 });
       // Seçili sekmenin sınav sözü yol haritasında.
       await expect(tour.getByText("Vizene 7 gün var")).toBeVisible();
