@@ -434,13 +434,15 @@
   color: var(--cp-muted);
 }
 
-/* kıyas ürünü: karşılama piksel yazıyla (Jersey 10, 35 px, normal, +0.03em). */
+/* Karşılama başlığı: piksel yazı (Jersey 10) 13 Kasım 2026'da kalktı; Figtree, başlık rolü
+   (600, -0.02em, satır aralığı 1,15). Boyut aynı; ekranın yeni çizimi Faz 4'te. */
 .cp-sor-hero-title {
-  font-family: var(--font-pixel);
+  font-family: var(--cx-font-sans);
   font-size: clamp(1.75rem, 4vw, 2.1875rem);
-  font-weight: 400;
-  letter-spacing: 0.03em;
-  line-height: 1.03;
+  font-weight: 600;
+  letter-spacing: var(--cx-ls-heading);
+  line-height: 1.15;
+  text-wrap: balance;
   color: var(--cp-text);
 }
 

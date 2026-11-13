@@ -1,4 +1,5 @@
 @import "../styles/tokens.css";
+@import "../styles/cx-system.css";
 
 @tailwind base;
 @tailwind components;

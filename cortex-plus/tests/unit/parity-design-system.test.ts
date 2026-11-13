@@ -7,6 +7,10 @@ import { describe, expect, it } from "vitest";
   + Caveat ("hedef puan"); zemin #0d0d0d, yüzeyler #141414 / #1f1f1f, çerçeve #242424 / #303030,
   tek eylem mavisi #4353f3. Bizde eşaralıklı etiketler sistemin yazı tipine (Windows'ta
   Consolas) düşüyordu, "hedef puan" Segoe Print idi (yalnız Windows), zemin #050505'ti.
+
+  13 Kasım 2026 (tasarım sistemi v1, ürün sahibinin kararları 1, 4, 7): uygulamanın renkleri --cx-*
+  katmanından gelir, --c-* adları ona köprülüdür; eski palet yalnız misafir sayfalarında (pazarlama,
+  hukuk, giriş/kayıt) kalır. Jersey 10 kalktı; Figtree, JetBrains Mono ve Caveat kalır.
 */
 const read = (path: string) => readFileSync(path, "utf8");
 const block = (css: string, selector: string) => {
@@ -15,25 +19,37 @@ const block = (css: string, selector: string) => {
 };
 
 describe("kıyas ürünü tasarım sistemi", () => {
-  it("dört yazı tipi kökte Türkçe alt kümeyle yüklenir", () => {
+  it("üç yazı tipi kökte Türkçe alt kümeyle yüklenir; piksel yazı yok", () => {
     const layout = read("src/app/layout.tsx");
-    for (const font of ["Figtree", "JetBrains_Mono", "Jersey_10", "Caveat"]) expect(layout).toContain(font);
+    for (const font of ["Figtree", "JetBrains_Mono", "Caveat"]) expect(layout).toContain(font);
+    expect(layout).not.toContain("Jersey_10");
     expect(layout).toContain('variable: "--font-jetbrains-mono"');
-    expect(layout).toContain('variable: "--font-pixel-face"');
     expect(layout).toContain('variable: "--font-hand-face"');
-    expect(layout.match(/subsets: \["latin", "latin-ext"\]/g)?.length).toBeGreaterThanOrEqual(4);
+    expect(layout.match(/subsets: \["latin", "latin-ext"\]/g)?.length).toBeGreaterThanOrEqual(3);
+    for (const file of readdirSync("src/styles").filter((name) => name.endsWith(".css"))) {
+      expect(read(`src/styles/${file}`), file).not.toContain("--font-pixel");
+    }
   });
 
-  it("koyu tema kıyas ürünü paleti; odak ve eylem mavi", () => {
-    const dark = block(read("src/styles/tokens.css"), ".dark");
-    expect(dark).toContain("--c-bg: #0d0d0d;");
-    expect(dark).toContain("--c-surface-1: #141414;");
-    expect(dark).toContain("--c-surface-2: #1f1f1f;");
-    expect(dark).toContain("--c-border: #242424;");
-    expect(dark).toContain("--c-action: #4353f3;");
-    expect(dark).toContain("--c-focus: #4353f3;");
-    expect(dark).toContain("--c-success: #1dd3a2;");
-    expect(dark).toContain("--c-brand: #fdb300;");
+  it("uygulama renkleri --cx-* katmanından; misafir sayfaları eski palette kalır", () => {
+    const tokens = read("src/styles/tokens.css");
+    const root = block(tokens, ":root");
+    // Köprü: eski adlar yeni katmandan okunur.
+    expect(root).toContain("--c-bg: var(--cx-bg-0);");
+    expect(root).toContain("--c-surface-1: var(--cx-bg-1);");
+    expect(root).toContain("--c-action: var(--cx-brand-strong);");
+    expect(root).toContain("--c-focus: var(--cx-focus);");
+    expect(root).toContain("--c-brand: var(--cx-highlight);");
+    // Koyu katman skill §2 değerleri.
+    const dark = block(tokens, ".dark");
+    expect(dark).toContain("--cx-bg-0: #090a0f;");
+    expect(dark).toContain("--cx-bg-1: #0f172a;");
+    expect(dark).toContain("--cx-focus: #22d3ee;");
+    // Karar 1: pazarlama, hukuk ve giriş kabukları eski değerlerde.
+    const guest = block(tokens, ":root.dark:has(:is(.cinematic-marketing, .lp, .cortex-premium-auth))");
+    expect(guest).toContain("--c-bg: #0d0d0d;");
+    expect(guest).toContain("--c-action: #4353f3;");
+    expect(guest).toContain("--c-brand: #fdb300;");
   });
 
   it("eşaralıklı etiketler sistem yazı tipine düşmez; el yazısı Caveat", () => {
@@ -65,9 +81,9 @@ describe("kıyas ürünü tasarım sistemi", () => {
     }
   });
 
-  it("karşılama piksel yazıyla; uygulama kabuğunda tırnaklı başlık yok", () => {
+  it("karşılama Figtree başlık rolünde; uygulama kabuğunda tırnaklı başlık yok", () => {
     const shell = read("src/styles/parity-shell.css");
-    expect(block(shell, ".cp-sor-hero-title")).toContain("font-family: var(--font-pixel);");
+    expect(block(shell, ".cp-sor-hero-title")).toContain("font-family: var(--cx-font-sans);");
     expect(block(shell, ".cp-sor-root")).toContain("--font-display: var(--font-ui");
     expect(read("src/app/deneme-sinavlari/[prepId]/sonuc/page.tsx")).not.toContain("Georgia, serif");
     expect(read("src/components/parity/mock-exam-setup.tsx")).not.toContain("Georgia, serif");

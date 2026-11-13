@@ -41,7 +41,7 @@
   align-items: center;
   gap: 4px;
   margin: 0;
-  font: 400 8rem / 1 var(--font-pixel);
+  font: 700 8rem / 1 var(--cx-font-sans);
   color: var(--c-brand);
 }
 
