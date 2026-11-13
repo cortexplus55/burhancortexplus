@@ -22,6 +22,17 @@ Bileşende ham hex ya da ham px yazılmaz; token yoksa önce `tokens.css`'e ekle
 | 9 | **Palet: B (sıcak siyah)**, 13 Kasım 2026 | Koyu temada zemin merdiveni ve nötr metin tonları 11 Kasım'ın sıcak siyahı; marka, vurgu, odak ve anlam renkleri skill'den. Skill §2'nin arduvaz merdiveni (A) kaldırıldı |
 | 8 | Ana ekran (`/ogretmen`) beş parça; altı fazlık plan bekler, önce bu ekran | Aşağıdaki "Ana ekran" bölümü; ayrıntı SKILL.md madde 8 |
 
+## Hazırlık sayfası (3C, 13 Kasım 2026)
+
+Yalnız görünüm (veri, metin, akış aynı); stiller `src/styles/prep-home-cx.css`, seçiciler `.cp-prep-layout` ile başlar.
+
+| Parça | Ölçü | Bileşen |
+|---|---|---|
+| Sol bilgi kartı | 400 px (≥1024), `bg-1`, köşe 24, dolgu 28, kenarlıksız; meta ders adı, heading-xl başlık, hazırlık satırı, ikonlu iki sekme (tepsi `bg-0`, etkin cam köşe 20), yuvarlak cam eylemler | `ExamPrepHome` (`.cp-prep-aside`) |
+| Akordeon | satır kenarlıksız, kapalı `bg-1`, açık `bg-2`, köşe 24 | `PathSections` |
+| Düğüm | 40 px daire, 2 px dikey çizgi `bg-3`; tamamlanan imza gradyanı + ✓, sıradaki `brand` + 4 px `brand-weak` halka, kilitli `bg-2` + kilit, açık `bg-3` + tür simgesi | `StudyPath`, `PathNodeDot` |
+| Sabit kart | rozetler, title-l ad, tam genişlik `brand` "Devam et" (sayfanın tek marka düğmesi), öbür eylemler `weak`; masaüstünde yapışkan (alttan 24), telefonda sabit (alt sekme çubuğunun 8 px üstü) | `.cp-path-next` |
+
 ## Kabuk (13 Kasım 2026)
 
 Ana ekranda onaylanan üst çubuk ve logo, giriş yapılmış bütün öğrenci sayfalarında aynı (`ParitySorShell`, kurallar
