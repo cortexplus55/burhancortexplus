@@ -553,8 +553,10 @@
 
 /* ---------- Orta genişlik (768–1099 px): halka üstte, metin altında ---------- */
 @media (max-width: 1099px) {
+  /* Tek sütunda (halka üstte, metin altında) kaydırıcı halkanın sağında, ortası halkanın ortasıyla aynı yükseklikte. */
   .cx-slider {
     top: calc(var(--cx-ring) / 2);
+    left: calc(50% + var(--cx-ring) / 2 + var(--cx-space-16));
   }
   .cx-home-stage {
     --cx-ring: min(360px, calc(100vh - 460px), 52vw);
@@ -603,10 +605,6 @@
   .cx-strip-list::after {
     content: "";
     flex: 0 0 calc(100% - var(--cx-strip-item-w));
-  }
-  .cx-slider {
-    left: auto;
-    right: 0;
   }
   .cx-strip-arrow {
     display: none;
