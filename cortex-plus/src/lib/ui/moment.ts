@@ -88,6 +88,43 @@ export function startMoment(durationMs: number, finish: (skipped: boolean) => vo
   return { end: () => end(true), instant: false };
 }
 
+/**
+ * `--cx-ease-settle` eğrisi (cubic-bezier(0.22, 1, 0.36, 1)) JavaScript'te: sayı sayan anlar CSS'teki yerleşmeyle aynı
+ * eğriyle ilerlesin. Girdi ve çıktı 0-1.
+ */
+export function easeSettle(progress: number): number {
+  const t = Math.min(1, Math.max(0, progress));
+  const cx = 3 * 0.22;
+  const bx = 3 * (0.36 - 0.22) - cx;
+  const ax = 1 - cx - bx;
+  const cy = 3 * 1;
+  const by = 3 * (1 - 1) - cy;
+  const ay = 1 - cy - by;
+  const sampleX = (u: number) => ((ax * u + bx) * u + cx) * u;
+  const sampleY = (u: number) => ((ay * u + by) * u + cy) * u;
+  const slopeX = (u: number) => (3 * ax * u + 2 * bx) * u + cx;
+  // Eğri x'te tekdüze artar: Newton birkaç adımda bulur, kaçarsa ikiye bölme.
+  let u = t;
+  for (let step = 0; step < 8; step += 1) {
+    const error = sampleX(u) - t;
+    const slope = slopeX(u);
+    if (Math.abs(error) < 1e-6) return sampleY(u);
+    if (Math.abs(slope) < 1e-6) break;
+    u -= error / slope;
+  }
+  let low = 0;
+  let high = 1;
+  u = t;
+  for (let step = 0; step < 30; step += 1) {
+    const x = sampleX(u);
+    if (Math.abs(x - t) < 1e-6) break;
+    if (x < t) low = u;
+    else high = u;
+    u = (low + high) / 2;
+  }
+  return sampleY(u);
+}
+
 /** Şu an oynayan bir an var mı (testler ve bekçiler için). */
 export function momentPlaying(): boolean {
   return active !== null;

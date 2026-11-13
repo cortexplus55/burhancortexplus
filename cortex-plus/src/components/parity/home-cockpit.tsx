@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, CalendarDays, ChevronDown, ChevronUp, Play, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -19,6 +19,8 @@ import {
   sectorPath,
   type CockpitPrep,
 } from "@/lib/learning/home-cockpit-model";
+import { MOMENT_MS, easeSettle, startMoment } from "@/lib/ui/moment";
+import { isRingMemory, readMoment, ringMemoryKey, writeMoment, type RingMemory } from "@/lib/ui/moment-memory";
 import "@/styles/home-cockpit.css";
 
 /**
@@ -268,6 +270,60 @@ function TopicSlider() {
   );
 }
 
+type RingPlay = { prepId: string; from: number; fresh: string[]; t: number };
+
+/**
+ * Halkanın dolması (B1, 13 Kasım 2026): öğrenci ana ekrana döndüğünde hazırlığın tamamlama yüzdesi değiştiyse halka
+ * eskiden yeniye 600 ms'de (`--cx-ease-settle`) dolar, ortadaki sayı sayar; az önce biten konunun yayı çizilir. İlk
+ * ziyarette ya da değişiklik yokken hiçbir şey oynamaz. "Önce" değeri yalnız bu sekmenin oturumunda durur; yeni API yok.
+ *
+ * Sayfa sunucudan çizilip ilk kez canlanıyorsa (yeniden yükleme) an oynamaz: ekranda son değer zaten görünüyor, geri
+ * sarıp yeniden saymak titreme olurdu. An, uygulamanın içinden ana ekrana dönüşte oynar.
+ */
+function useRingMoment(prepId: string, pct: number, doneIds: readonly string[]): RingPlay | null {
+  const [play, setPlay] = useState<RingPlay | null>(null);
+  // Her hazırlığın "önce" değeri bileşenin ömründe bir kez okunur: geliştirme modundaki çift etki çalıştırması anı silmesin.
+  const [baseline] = useState(() => new Map<string, RingMemory | null>());
+  const [hydrating] = useState(() => typeof document !== "undefined" && document.querySelector(".cx-ring") !== null);
+  const doneKey = doneIds.join("|");
+  useLayoutEffect(() => {
+    const done = doneKey ? doneKey.split("|") : [];
+    const now: RingMemory = { pct, done };
+    if (!baseline.has(prepId)) baseline.set(prepId, hydrating ? null : readMoment(ringMemoryKey(prepId), isRingMemory));
+    const before = baseline.get(prepId) ?? null;
+    writeMoment(ringMemoryKey(prepId), now);
+    if (!before) {
+      baseline.set(prepId, now);
+      return;
+    }
+    const fresh = done.filter((id) => !before.done.includes(id));
+    if (before.pct === pct && fresh.length === 0) return;
+    let disposed = false;
+    let frame = 0;
+    const started = performance.now();
+    setPlay({ prepId, from: before.pct, fresh, t: 0 });
+    const handle = startMoment(MOMENT_MS.settle, () => {
+      cancelAnimationFrame(frame);
+      if (!disposed) baseline.set(prepId, now);
+      setPlay(null);
+    });
+    if (!handle.instant) {
+      const tick = (time: number) => {
+        const progress = Math.min(1, (time - started) / MOMENT_MS.settle);
+        setPlay((current) => (current && current.prepId === prepId ? { ...current, t: easeSettle(progress) } : current));
+        if (progress < 1) frame = requestAnimationFrame(tick);
+      };
+      frame = requestAnimationFrame(tick);
+    }
+    return () => {
+      disposed = true;
+      cancelAnimationFrame(frame);
+      handle.end();
+    };
+  }, [prepId, pct, doneKey, baseline, hydrating]);
+  return play && play.prepId === prepId ? play : null;
+}
+
 function TopicRing() {
   const { preps, prepIndex, topicIndex, selectTopic } = useSelection();
   const prep = preps[prepIndex]!;
@@ -275,7 +331,10 @@ function TopicRing() {
   const topics = prep.topics;
   const sliced = topics.length > 0 && topics.length <= RING_ARC_LIMIT;
   const arcs = sliced ? ringArcs(topics.length) : [];
-  const pct = prep.progress.pct;
+  const doneIds = useMemo(() => topics.filter((topic) => topic.done).map((topic) => topic.id), [topics]);
+  const play = useRingMoment(prep.id, prep.progress.pct, doneIds);
+  const pct = play ? Math.round(play.from + (prep.progress.pct - play.from) * play.t) : prep.progress.pct;
+  const shownArc = play ? play.from + (prep.progress.pct - play.from) * play.t : prep.progress.pct;
   // 12'den fazla konuda seçili konunun halkadaki payı (en az 4°, görünür kalsın).
   const share = topics.length ? 360 / topics.length : 0;
   const markSpan = Math.max(4, share);
@@ -294,16 +353,30 @@ function TopicRing() {
         {sliced ? (
           arcs.map(([start, end], index) => {
             const selected = index === topicIndex;
+            // Az önce biten konu (B1): yay önce boş çizilir, renkli yay üstünde 600 ms'de dolar.
+            const drawing = play !== null && play.fresh.includes(topics[index]!.id);
+            const done = topics[index]!.done && !drawing;
             return (
               <g key={topics[index]!.id}>
                 <path
                   d={arcPath(CENTER, CENTER, RADIUS, start, end)}
                   className="cx-ring-arc"
-                  stroke={topics[index]!.done ? `url(#${gradientId})` : undefined}
-                  data-done={topics[index]!.done || undefined}
+                  stroke={done ? `url(#${gradientId})` : undefined}
+                  data-done={done || undefined}
                   data-selected={selected || undefined}
                   onClick={() => selectTopic(index)}
                 />
+                {drawing ? (
+                  <path
+                    d={arcPath(CENTER, CENTER, RADIUS, start, end)}
+                    className="cx-ring-arc cx-ring-draw"
+                    stroke={`url(#${gradientId})`}
+                    pathLength={1}
+                    strokeDasharray="1 1"
+                    strokeDashoffset={1 - play.t}
+                    data-done
+                  />
+                ) : null}
                 {/* Seçili yay: yayın kendisine yapışık 1.5 px beyaz çerçeve (halkanın dışında ayrı çizgi yok). */}
                 {selected ? (
                   <path d={sectorPath(CENTER, CENTER, RADIUS - ARC_HALF, RADIUS + ARC_HALF, start, end)} className="cx-ring-selected" />
@@ -314,9 +387,9 @@ function TopicRing() {
         ) : (
           <>
             <circle cx={CENTER} cy={CENTER} r={RADIUS} className="cx-ring-arc" />
-            {pct > 0 ? (
+            {shownArc > 0 ? (
               <path
-                d={arcPath(CENTER, CENTER, RADIUS, 0, Math.min(359.99, (pct / 100) * 360))}
+                d={arcPath(CENTER, CENTER, RADIUS, 0, Math.min(359.99, (shownArc / 100) * 360))}
                 className="cx-ring-arc"
                 stroke={`url(#${gradientId})`}
                 data-done
@@ -332,7 +405,9 @@ function TopicRing() {
         )}
       </svg>
       <div className="cx-ring-center">
-        <span className="cx-t-num-l cx-ring-pct">%{pct}</span>
+        <span className="cx-t-num-l cx-ring-pct" data-counting={play ? "" : undefined}>
+          %{pct}
+        </span>
         <span className="cx-t-meta-s cx-ring-label">Tamamlandı</span>
         <Link href={prep.href} className="cx-ring-go cx-brand" aria-label="Devam et">
           <Play aria-hidden />

@@ -10,8 +10,14 @@ const SIZES = [
   { width: 1280, height: 800 },
 ] as const;
 
+const STEP_IDS = ["upload", "roadmap", "lesson", "question", "cards", "check", "plus"] as const;
+
+/** Raydan adıma geç; geliştirme sunucusunda ilk tıklama sayfa canlanmadan düşebilir: adım açılana kadar yeniden dene. */
 async function goStep(page: Page, at: number) {
-  await page.getByRole("button", { name: new RegExp(`^Adım ${at}: `) }).click();
+  await expect(async () => {
+    await page.getByRole("button", { name: new RegExp(`^Adım ${at}: `) }).click();
+    await expect(page.locator(".lj-stage")).toHaveAttribute("data-step", STEP_IDS[at - 1]!, { timeout: 1500 });
+  }).toPass({ timeout: 20_000 });
 }
 
 for (const size of SIZES) {
@@ -213,4 +219,69 @@ test("A2: hareket azaltmada tarama anı oynamaz, yol hemen açılır", { tag: ["
   await page.locator("button.lj-zone").evaluate((zone) => zone.scrollIntoView({ block: "center" }));
   await page.locator("button.lj-zone").click();
   await expect(page.getByRole("heading", { name: "Yol haritan çıktı" })).toBeVisible({ timeout: 800 });
+});
+
+/* ---------------- B: uygulamanın içi ---------------- */
+
+type NextWindow = { next: { router: { push: (href: string) => void } } };
+
+/** Ana ekrana uygulamanın içinden dönüş: başka bir sayfaya git, tarayıcının geri tuşuyla dön (yeniden yükleme yok). */
+async function returnHome(page: Page) {
+  // Geliştirme sunucusu ara sayfayı ilk kez derlerken bekletebilir.
+  test.setTimeout(120_000);
+  await page.evaluate(() => (window as unknown as NextWindow).next.router.push("/e2e/ic-ekran?ekran=radar"));
+  await page.waitForURL(/ic-ekran/, { timeout: 60_000 });
+  await page.goBack();
+}
+
+for (const size of SIZES) {
+  test(`B1 ${size.width} px: ana ekrana dönüşte tamamlama yüzdesi değiştiyse halka eskiden yeniye 600 ms'de dolar`, { tag: ["@public"] }, async ({ page }) => {
+    await page.setViewportSize(size);
+    await page.addInitScript(() => {
+      try {
+        window.localStorage.setItem("cortex-gamification-v1", "1");
+      } catch {
+        /* karşılama penceresi bu testin konusu değil */
+      }
+    });
+    await page.goto("/e2e/ana-ekran?hazirlik=1");
+    const pct = page.locator(".cx-ring-pct");
+    // İlk ziyaret: an yok, değer sekme oturumuna yazılır.
+    await expect(pct).toHaveText("%27");
+    await expect(pct).not.toHaveAttribute("data-counting", "");
+    await expect.poll(() => page.evaluate(() => sessionStorage.getItem("cx:ring:biyoloji"))).toContain('"pct":27');
+
+    // Önce %10 ve tek konu bitmişti: dönüşte halka %10'dan başlar, sayar, biten konunun yayı çizilir.
+    await page.evaluate(() => sessionStorage.setItem("cx:ring:biyoloji", JSON.stringify({ pct: 10, done: ["t0"] })));
+    await returnHome(page);
+    await expect(pct).toHaveAttribute("data-counting", "");
+    await expect(page.locator(".cx-ring-draw")).toHaveCount(1);
+    await expect(pct).toHaveText("%27", { timeout: 2000 });
+    await expect(pct).not.toHaveAttribute("data-counting", "");
+    await expect(page.locator(".cx-ring-draw")).toHaveCount(0);
+
+    // Değişiklik yok: ikinci dönüşte an yok.
+    await returnHome(page);
+    await expect(pct).toHaveText("%27");
+    await expect(pct).not.toHaveAttribute("data-counting", "");
+  });
+}
+
+test("B1: hareket azaltmada halka hemen son değerde", { tag: ["@public"] }, async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.addInitScript(() => {
+    try {
+      window.localStorage.setItem("cortex-gamification-v1", "1");
+    } catch {
+      /* karşılama penceresi bu testin konusu değil */
+    }
+  });
+  await page.goto("/e2e/ana-ekran?hazirlik=1");
+  await expect(page.locator(".cx-ring-pct")).toHaveText("%27");
+  // Sayfa canlandı (halka değeri oturuma yazdı): uygulama içi gezinme hazır.
+  await expect.poll(() => page.evaluate(() => sessionStorage.getItem("cx:ring:biyoloji"))).toContain('"pct":27');
+  await page.evaluate(() => sessionStorage.setItem("cx:ring:biyoloji", JSON.stringify({ pct: 10, done: ["t0"] })));
+  await returnHome(page);
+  await expect(page.locator(".cx-ring-pct")).toHaveText("%27");
+  await expect(page.locator(".cx-ring-draw")).toHaveCount(0);
 });

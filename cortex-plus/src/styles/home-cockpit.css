@@ -221,6 +221,10 @@
 .cx-ring-arc:hover {
   opacity: 0.85;
 }
+/* Halkanın dolması (B1, 13 Kasım 2026): az önce biten konunun renkli yayı boş yayın üstünde çizilir. */
+.cx-ring-draw {
+  pointer-events: none;
+}
 /* Seçili konu (13 Kasım 2026): yayın kendisi bir kademe açık (bg-4) ve kenarlarına yapışık 1.5 px beyaz çerçeve.
    Bitmiş konunun yayı renkli kalır, çerçeve onu da gösterir. */
 .cx-ring-arc[data-selected]:not([data-done]) {
