@@ -104,7 +104,9 @@ test.describe("dönüşüm paketi", { tag: ["@public"] }, () => {
       await app.getByRole("button", { name: /^C\s*2$/ }).click();
       await app.getByRole("button", { name: /Kontrol et/ }).click();
       await check("soru: açıklama");
-      await app.getByRole("button", { name: /Testi bitir/ }).click();
+      // Tek ana düğme (A3): cevap kontrol edilince ürünün "Testi bitir" çubuğu çekilir, ilerleme turun alt düğmesinde.
+      await expect(app.getByRole("button", { name: /Testi bitir/ })).toBeHidden();
+      await tour.getByRole("button", { name: "Akıllı kartlara geç" }).click();
 
       // 5. Kartlar: önce çevir, sonra değerlendir.
       await app.locator("button.cp-exam-flash").click();

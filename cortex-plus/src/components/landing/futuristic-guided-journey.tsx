@@ -110,6 +110,11 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
   const [guest, setGuest] = useState<GuestMarker | null>(null);
   const [holding, setHolding] = useState(false);
   const [ownProblems, setOwnProblems] = useState<string[]>([]);
+  /**
+   * Tek ana düğme (A3): ürün ekranındaki iş bu ziyarette bittiyse adımın kimliği. Bitene kadar çerçevedeki ürün
+   * düğmesi tek ana düğmedir, alttaki tur düğmesi soluk durur; iş bitince tur düğmesi ana düğmeye döner.
+   */
+  const [actedStep, setActedStep] = useState<JourneyStepId | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const railRef = useRef<HTMLOListElement>(null);
@@ -130,6 +135,7 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
   const ownReady = step === "upload" && guest !== null && !scanning;
   /** Doğru/yanlış bitti: çerçevenin yerinde sonuç durur. */
   const showResult = step === "check" && truth !== null;
+  const acted = actedStep === step;
 
   /*
     Parçalar bir geçişin (transition) içinde istenir; bu bir süs değil, tıklamaların donmaması için şart.
@@ -171,6 +177,7 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
   const go = useCallback((next: JourneyStepId) => {
     setScanning(false);
     setDragOver(false);
+    setActedStep(null);
     setStep(next);
   }, []);
 
@@ -585,7 +592,7 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
 
             {/* Ürünün kendi ekranı: ders, konu testi, kartlar, doğru/yanlış. */}
             {product && !showResult ? (
-              <div className="lj-product">
+              <div className="lj-product" data-acted={acted ? "" : undefined}>
                 <p className="lj-real">{JOURNEY_COPY.real}</p>
                 {screens.status === "ready" ? (
                   <screens.View
@@ -595,7 +602,11 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
                       if (step !== "check" && following) go(following);
                     }}
                     onExit={() => go("roadmap")}
-                    onQuestion={(correct) => setQuestionCorrect((current) => (current === null ? correct : current))}
+                    onQuestion={(correct) => {
+                      setQuestionCorrect((current) => (current === null ? correct : current));
+                      // Cevap kontrol edildi: ürünün kendi "Testi bitir" düğmesi çekilir, tur düğmesi ana düğme olur.
+                      setActedStep("question");
+                    }}
                     onTruth={(right, total) => setTruth({ right, total })}
                   />
                 ) : (
@@ -723,6 +734,7 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
             {/*
               Sahnenin alt şeridi (A1): adımın ilerleme düğmesi gövdenin dışında durur, gövde kaysa da yerinde kalır.
               Not adımında yok (ilerleme taramayla). Ürün ekranında "sıradaki adım" düğmesi; adım oynanmadan da ilerlenir.
+              Tek ana düğme (A3): ürün ekranındaki iş bitene kadar soluk, bitince 600 ms'de ana düğmeye döner.
             */}
             {step === "roadmap" ? (
               <div className="lj-stage-foot">
@@ -735,7 +747,7 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
             ) : null}
             {following && product && !showResult ? (
               <div className="lj-stage-foot">
-                <button type="button" className="lj-next" onClick={() => go(following)}>
+                <button type="button" className={cn("lj-next", acted && "is-primary")} onClick={() => go(following)}>
                   <span aria-hidden>👉</span>
                   {JOURNEY_NEXT_LABEL[step]}
                   <ArrowRight className="h-4 w-4" aria-hidden />

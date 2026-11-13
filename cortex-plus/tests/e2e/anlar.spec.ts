@@ -87,6 +87,84 @@ for (const size of SIZES) {
   });
 }
 
+/** Sahnede görünen ana düğmeler: turun kâğıt beyazı düğmeleri ve ürün ekranının kendi ana düğmeleri. */
+async function primaries(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const selector = [
+      ".lj-cta",
+      ".lj-next.is-primary",
+      ".tp-app .cp-exam-continue--primary",
+      ".tp-app .als-cta",
+      ".tp-app .tf-focus-next",
+    ].join(", ");
+    return [...document.querySelectorAll<HTMLElement>(`.lj-stage ${selector.replaceAll(", ", ", .lj-stage ")}`)]
+      .filter((node) => {
+        const box = node.getBoundingClientRect();
+        return node.offsetParent !== null && box.width > 0 && box.height > 0 && getComputedStyle(node).visibility !== "hidden";
+      })
+      .map((node) => (node.textContent ?? "").trim());
+  });
+}
+
+for (const size of SIZES) {
+  test(`A3 ${size.width} px: 3-6. adımlarda aynı anda tek ana düğme; iş bitince tur düğmesi 600 ms'de ana düğme olur`, { tag: ["@public"] }, async ({ page }) => {
+    await page.setViewportSize(size);
+    await page.goto("/");
+    const tour = page.locator("section.lj");
+    const next = tour.locator(".lj-stage-foot .lj-next");
+
+    // Ders: ürünün "Devam et"i tek ana düğme; tur düğmesi soluk ama tıklanabilir.
+    await goStep(page, 3);
+    await expect(tour.locator(".tp-app .als")).toBeVisible({ timeout: 30_000 });
+    await expect(next).not.toHaveClass(/is-primary/);
+    await expect(next).toBeEnabled();
+    expect(await primaries(page)).toHaveLength(1);
+
+    // Konu testi: önce ürünün "Kontrol et"i; kontrol edilince ürün çubuğu çekilir, tur düğmesi ana düğme olur.
+    await goStep(page, 4);
+    const app = tour.locator(".tp-app");
+    await expect(app.getByRole("button", { name: /Kontrol et/ })).toBeVisible({ timeout: 30_000 });
+    expect(await primaries(page)).toEqual([expect.stringMatching(/Kontrol et/)]);
+    await app.getByRole("button", { name: /^C\s*2$/ }).click();
+    await app.getByRole("button", { name: /Kontrol et/ }).click();
+    await expect(next).toHaveClass(/is-primary/);
+    // Dolgu 600 ms'de belirir: hemen sonra yarı yolda, sonunda tam.
+    const fill = () => next.evaluate((node) => Number(getComputedStyle(node, "::before").opacity));
+    expect(await fill()).toBeLessThan(1);
+    await expect.poll(fill, { timeout: 2000 }).toBe(1);
+    await expect(app.getByRole("button", { name: /Testi bitir/ })).toBeHidden();
+    expect(await primaries(page)).toEqual([expect.stringMatching(/Akıllı kartlara geç/)]);
+
+    // Kartlar: adım yeni: tur düğmesi yeniden soluk.
+    await next.click();
+    await expect(tour.locator('.tp-frame[data-screen="cards"]')).toBeVisible();
+    await expect(next).not.toHaveClass(/is-primary/);
+    expect((await primaries(page)).length).toBeLessThanOrEqual(1);
+
+    // Doğru / Yanlış: cevaptan sonra ürünün "Sonraki önerme"si tek ana düğme; sonuçta turun kâğıt düğmesi.
+    await goStep(page, 6);
+    await app.getByRole("button", { name: /^Doğru/ }).click();
+    expect(await primaries(page)).toEqual([expect.stringMatching(/Sonraki önerme/)]);
+    await app.getByRole("button", { name: "Sonraki önerme" }).click();
+    await app.getByRole("button", { name: /^Yanlış/ }).click();
+    await app.getByRole("button", { name: "Sonucu gör" }).click();
+    expect(await primaries(page)).toEqual([expect.stringMatching(/Plus önizlemelerini gör/)]);
+  });
+}
+
+test("A3: hareket azaltmada tur düğmesi geçişsiz ana düğme olur", { tag: ["@public"] }, async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/");
+  await goStep(page, 4);
+  const app = page.locator(".tp-app");
+  await expect(app.getByRole("button", { name: /Kontrol et/ })).toBeVisible({ timeout: 30_000 });
+  await app.getByRole("button", { name: /^C\s*2$/ }).click();
+  await app.getByRole("button", { name: /Kontrol et/ }).click();
+  const next = page.locator(".lj-stage-foot .lj-next");
+  await expect(next).toHaveClass(/is-primary/);
+  expect(await next.evaluate((node) => Number(getComputedStyle(node, "::before").opacity))).toBe(1);
+});
+
 test("A2: hareket azaltmada tarama anı oynamaz, yol hemen açılır", { tag: ["@public"] }, async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");

@@ -83,6 +83,14 @@
   position: static;
 }
 
+/*
+  Tek ana düğme (A3, 13 Kasım 2026): konu testinde cevap kontrol edilince sonraki iş turun alt düğmesinde ("Akıllı
+  kartlara geç"). Ürünün kendi "Testi bitir" çubuğu çekilir; aynı anda iki ana düğme durmaz. Yalnız yerleşim.
+*/
+.lj-product[data-acted] .tp-frame[data-screen="question"] .cp-quiz-action-bar {
+  display: none;
+}
+
 /* Yüklenirken: çerçevenin yeri belli, içerik gelince zıplamaz. */
 .tp-loading {
   display: grid;
