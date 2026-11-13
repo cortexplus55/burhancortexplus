@@ -31,7 +31,7 @@ Yalnız görünüm (veri, metin, akış aynı); stiller `src/styles/prep-home-cx
 | Sol bilgi kartı | 400 px (≥1024), `bg-1`, köşe 24, dolgu 28, kenarlıksız; meta ders adı, heading-xl başlık, hazırlık satırı, ikonlu iki sekme (tepsi `bg-0`, etkin cam köşe 20), yuvarlak cam eylemler | `ExamPrepHome` (`.cp-prep-aside`) |
 | Akordeon | satır kenarlıksız, kapalı `bg-1`, açık `bg-2`, köşe 24 | `PathSections` |
 | Düğüm | 40 px daire, 2 px dikey çizgi `bg-3`; tamamlanan imza gradyanı + ✓, sıradaki `brand` + 4 px `brand-weak` halka, kilitli `bg-2` + kilit, açık `bg-3` + tür simgesi | `StudyPath`, `PathNodeDot` |
-| Sabit kart | rozetler, title-l ad, tam genişlik `brand` "Devam et" (sayfanın tek marka düğmesi), öbür eylemler `weak`; masaüstünde yapışkan (alttan 24), telefonda sabit (alt sekme çubuğunun 8 px üstü) | `.cp-path-next` |
+| Sabit kart | rozetler, title-l ad, tam genişlik `brand` "Devam et" (sayfanın tek marka düğmesi), öbür eylemler `weak`; masaüstünde yapışkan (alttan 24); telefonda sabit (alt sekme çubuğunun 8 px üstü), en çok 104 px: rozet ve süre gizli, adım adı title-s tek satır (üç nokta), altta 44 px cam "⋯" (ikincil eylemler menüde, etiketler aynı, ad "Daha fazla") ve kalan genişliği dolduran 44 px marka "Devam et" | `.cp-path-next`, `NextCardActions` |
 
 ## Kabuk (13 Kasım 2026)
 

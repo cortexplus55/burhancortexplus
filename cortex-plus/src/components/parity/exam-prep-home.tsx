@@ -8,7 +8,7 @@ import type { FirstTopicSummary } from "@/components/parity/exam-node/gates";
 import Link from "next/link";
 import { HOLIDAY_BADGE, turkishHolidayOn } from "@/lib/learning/tr-calendar";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   AudioLines,
@@ -28,6 +28,7 @@ import {
   Camera,
   MessagesSquare,
   Mic,
+  MoreHorizontal,
   MoreVertical,
   Swords,
   PenLine,
@@ -894,14 +895,18 @@ export function ExamPrepHome({
           </div>
           <h2 className="cp-path-next-title">{nodeHeading(donePick)}</h2>
           <p className="cp-path-next-note">Kayıtlı içerik yeniden açılır; kredi düşmez.</p>
-          <div className="cp-path-next-actions cp-path-next-actions--stack">
-            <Link href={savedHref(donePick)} className="cp-exam-continue cp-exam-continue--primary">
-              📖 Dersi / İçeriği Tekrar İncele (Kredisiz)
-            </Link>
+          <NextCardActions
+            stack
+            primary={
+              <Link href={savedHref(donePick)} className="cp-exam-continue cp-exam-continue--primary">
+                📖 Dersi / İçeriği Tekrar İncele (Kredisiz)
+              </Link>
+            }
+          >
             <Link href={primaryHref} className="cp-path-next-custom">
               ⏭️ Sıradaki Etkinliğe Git
             </Link>
-          </div>
+          </NextCardActions>
         </div>
       ) : view === "yol" && nodes.length && lockedPick ? (
         <div className="cp-exam-start-card cp-path-next cp-path-next--locked" role="status">
@@ -917,17 +922,20 @@ export function ExamPrepHome({
           ) : (
             <p className="cp-path-next-note">Bu adım, öncekileri bitirince açılır.</p>
           )}
-          <div className="cp-path-next-actions">
-            {nodeNeedsStudentUnlock(lockedPick.status) ? (
-              <button
-                type="button"
-                className="cp-exam-continue cp-exam-continue--primary"
-                disabled={starting}
-                onClick={() => void startNode(lockedPick.id, examPrepNodeHref(prepId, lockedPick.id))}
-              >
-                Bu Etkinliği Şimdi Başlat
-              </button>
-            ) : null}
+          <NextCardActions
+            primary={
+              nodeNeedsStudentUnlock(lockedPick.status) ? (
+                <button
+                  type="button"
+                  className="cp-exam-continue cp-exam-continue--primary"
+                  disabled={starting}
+                  onClick={() => void startNode(lockedPick.id, examPrepNodeHref(prepId, lockedPick.id))}
+                >
+                  Bu Etkinliği Şimdi Başlat
+                </button>
+              ) : null
+            }
+          >
             <button type="button" className="cp-path-next-custom" onClick={() => setPickerOpen(true)}>
               Başka Bir Konu veya Etkinlik Seç
             </button>
@@ -938,7 +946,7 @@ export function ExamPrepHome({
             >
               Sıradakine dön
             </button>
-          </div>
+          </NextCardActions>
         </div>
       ) : view === "yol" && nodes.length ? (
         <div className="cp-exam-start-card cp-path-next cp-path-next--focus">
@@ -958,7 +966,13 @@ export function ExamPrepHome({
               <span>+{nextStars} ⭐</span>
             </p>
           ) : null}
-          <div className="cp-path-next-actions">
+          <NextCardActions
+            primary={
+              <Link href={primaryHref} className="cp-exam-continue cp-exam-continue--primary">
+                {PREP_HOME_COPY.continue}
+              </Link>
+            }
+          >
             <button
               type="button"
               className="cp-path-next-custom"
@@ -969,10 +983,7 @@ export function ExamPrepHome({
             <button type="button" className="cp-path-next-custom" onClick={() => setPickerOpen(true)}>
               Başka Bir Konu veya Etkinlik Seç
             </button>
-            <Link href={primaryHref} className="cp-exam-continue cp-exam-continue--primary">
-              {PREP_HOME_COPY.continue}
-            </Link>
-          </div>
+          </NextCardActions>
         </div>
       ) : null}
       </div>
@@ -1195,6 +1206,61 @@ function PathNodeDot({ node, current }: { node: HomeNode; current: boolean }) {
         <NodeGlyph node={node} />
       )}
     </span>
+  );
+}
+
+/**
+ * Alttaki sabit kartın eylemleri (13 Kasım 2026). Masaüstünde bugünkü gibi: marka düğmesi üstte tam genişlik,
+ * ikincil eylemler altında. Telefonda (<768 px) kart küçülür: ikincil eylemler aynı düğmelerle (etiketler aynı)
+ * "⋯" ile açılan menüde; marka düğmesi kalan genişliği doldurur. Düğmeler çoğaltılmaz, yalnız yerleşim değişir.
+ */
+function NextCardActions({
+  primary,
+  children,
+  stack = false,
+}: {
+  primary: React.ReactNode;
+  children: React.ReactNode;
+  stack?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const menuId = useId();
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    const onPointer = (event: PointerEvent) => {
+      if (!ref.current?.contains(event.target as Node)) setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    document.addEventListener("pointerdown", onPointer);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.removeEventListener("pointerdown", onPointer);
+    };
+  }, [open]);
+  return (
+    <div
+      ref={ref}
+      className={cn("cp-path-next-actions", stack && "cp-path-next-actions--stack", open && "is-more-open")}
+    >
+      <button
+        type="button"
+        className="cx-next-more cx-glass"
+        aria-label="Daha fazla"
+        aria-expanded={open}
+        aria-controls={menuId}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <MoreHorizontal aria-hidden />
+      </button>
+      <div id={menuId} className="cx-next-secondary" onClick={() => setOpen(false)}>
+        {children}
+      </div>
+      {primary}
+    </div>
   );
 }
 

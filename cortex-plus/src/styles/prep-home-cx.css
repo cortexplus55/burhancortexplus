@@ -511,6 +511,8 @@
   background: var(--cx-bg-1);
   background-image: none;
   box-shadow: var(--cx-shadow-banner);
+  /* Eski kartın parlayan çerçeve animasyonu yok (kart kenarlıksız). */
+  animation: none;
   text-align: left;
 }
 .cp-prep-layout .cp-prep-main .cp-path-next::before,
@@ -532,7 +534,8 @@
     margin: 0;
   }
   .cp-prep-layout:has(.cp-path-next) {
-    padding-bottom: 288px;
+    /* Kart en çok 104 px + alt sekme çubuğuyla arası; sayfanın sonu kartın üstünde biter. */
+    padding-bottom: calc(104px + var(--cx-space-32));
   }
 }
 .cp-prep-layout .cp-path-next .cp-path-next-title {
@@ -561,7 +564,8 @@
 .cp-prep-layout .cp-path-next .cp-path-next-actions--stack {
   grid-template-columns: minmax(0, 1fr);
 }
-.cp-prep-layout .cp-path-next .cp-path-next-actions > * {
+.cp-prep-layout .cp-path-next .cp-path-next-actions > *,
+.cp-prep-layout .cp-path-next .cx-next-secondary > * {
   min-width: 0;
   width: 100%;
   margin: 0;
@@ -589,8 +593,8 @@
   scale: var(--cx-scale-hover);
 }
 /* Öbür eylemler zayıf (weak) hap. */
-.cp-prep-layout .cp-path-next .cp-path-next-actions > .cp-path-next-custom,
-.cp-prep-layout .cp-path-next .cp-path-next-actions > .cp-exam-continue:not(.cp-exam-continue--primary) {
+.cp-prep-layout .cp-path-next .cp-path-next-actions .cp-path-next-custom,
+.cp-prep-layout .cp-path-next .cp-path-next-actions .cp-exam-continue:not(.cp-exam-continue--primary) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -607,8 +611,8 @@
   white-space: normal;
   transition: color var(--cx-dur-color) ease;
 }
-.cp-prep-layout .cp-path-next .cp-path-next-actions > .cp-path-next-custom:hover,
-.cp-prep-layout .cp-path-next .cp-path-next-actions > .cp-exam-continue:not(.cp-exam-continue--primary):hover {
+.cp-prep-layout .cp-path-next .cp-path-next-actions .cp-path-next-custom:hover,
+.cp-prep-layout .cp-path-next .cp-path-next-actions .cp-exam-continue:not(.cp-exam-continue--primary):hover {
   color: var(--cx-text-primary);
 }
 .cp-prep-layout .cp-path-next :focus-visible {
@@ -640,5 +644,123 @@
   .cx-node,
   .cp-prep-layout .cp-prep-aside .cp-prep-hero-icon {
     transition: none;
+  }
+}
+
+/* ---------- "⋯" ve ikincil eylemler: masaüstünde bugünkü gibi (düğme yok, eylemler ızgarada) ---------- */
+.cp-prep-layout .cp-path-next .cx-next-more {
+  display: none;
+}
+.cp-prep-layout .cp-path-next .cx-next-secondary {
+  display: contents;
+}
+
+/* ---------- Telefon (<768 px): küçük kart, en çok 104 px ---------- */
+@media (max-width: 767px) {
+  .cp-prep-layout .cp-prep-main .cp-path-next,
+  .cp-prep-layout .cp-prep-main .cp-path-next--focus,
+  .cp-prep-layout .cp-prep-main .cp-path-next--locked {
+    gap: var(--cx-space-8);
+    max-height: 104px;
+    padding: var(--cx-space-12);
+    overflow: visible;
+  }
+  /* Rozetler, süre ve not bu genişlikte gizli; yalnız adım adı ve eylemler. */
+  .cp-prep-layout .cp-path-next .cp-prep-badges,
+  .cp-prep-layout .cp-path-next .cp-path-next-meta,
+  .cp-prep-layout .cp-path-next .cp-path-next-note {
+    display: none;
+  }
+  .cp-prep-layout .cp-path-next .cp-path-next-title {
+    min-width: 0;
+    padding-inline: var(--cx-space-4);
+    font: var(--cx-t-title-s);
+    letter-spacing: var(--cx-ls-heading);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    overflow-wrap: normal;
+  }
+  .cp-prep-layout .cp-path-next .cp-path-next-actions,
+  .cp-prep-layout .cp-path-next .cp-path-next-actions--stack {
+    position: relative;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: var(--cx-space-8);
+  }
+  .cp-prep-layout .cp-path-next .cx-next-more {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: var(--cx-tap-min);
+    height: var(--cx-tap-min);
+    padding: 0;
+    border: 0;
+    border-radius: var(--cx-radius-max);
+    color: var(--cx-text-primary);
+    cursor: pointer;
+  }
+  .cp-prep-layout .cp-path-next .cx-next-more svg {
+    width: var(--cx-space-18);
+    height: var(--cx-space-18);
+  }
+  .cp-prep-layout .cp-path-next .cp-path-next-actions > .cp-exam-continue--primary {
+    flex: 1;
+    order: 0;
+    min-width: 0;
+    min-height: var(--cx-tap-min);
+    height: var(--cx-tap-min);
+    padding: 0 var(--cx-space-18);
+    font: var(--cx-t-button-s);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  /* İkincil eylemler "⋯" ile açılan menüde (aynı düğmeler, aynı etiketler). */
+  .cp-prep-layout .cp-path-next .cx-next-secondary {
+    display: none;
+  }
+  .cp-prep-layout .cp-path-next .is-more-open .cx-next-secondary {
+    position: absolute;
+    left: 0;
+    /* Kartın üstünde: adım adı (20) + aralık (8) + iç dolgu (12) + 8 px boşluk. */
+    bottom: calc(100% + var(--cx-space-48));
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    gap: var(--cx-space-2);
+    width: min(280px, 100%);
+    padding: var(--cx-space-8);
+    border: 1px solid var(--cx-border);
+    border-radius: var(--cx-radius-l);
+    background: var(--cx-bg-2);
+    box-shadow: var(--cx-shadow-popover);
+    animation: cx-next-menu-in var(--cx-dur-color) var(--cx-ease-glide);
+  }
+  .cp-prep-layout .cp-path-next .is-more-open .cx-next-secondary > * {
+    justify-content: flex-start;
+    width: 100%;
+    min-height: var(--cx-tap-min);
+    padding: var(--cx-space-8) var(--cx-space-14);
+    border-radius: var(--cx-radius-inner);
+    background: transparent;
+    color: var(--cx-text-primary);
+    text-align: left;
+  }
+  .cp-prep-layout .cp-path-next .is-more-open .cx-next-secondary > *:hover {
+    background: var(--cx-bg-3);
+  }
+}
+@keyframes cx-next-menu-in {
+  from {
+    opacity: 0;
+    scale: 0.96;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cp-prep-layout .cp-path-next .is-more-open .cx-next-secondary {
+    animation: none;
   }
 }

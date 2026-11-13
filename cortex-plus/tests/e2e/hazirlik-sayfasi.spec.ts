@@ -102,3 +102,67 @@ test("telefonda sayfanın sonu sabit kartın altında kalmaz", { tag: ["@public"
   });
   expect(m.lastBottom).toBeLessThanOrEqual(m.cardTop);
 });
+
+test("telefonda sabit kart küçük: en çok 104 px, rozet yok, ad tek satır, ⋯ + Devam et; menü ikincil eylemleri gösterir", { tag: ["@public"] }, async ({ page }) => {
+  await prepare(page);
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto("/e2e/ic-ekran?ekran=yol");
+  const card = page.locator(".cp-path-next");
+  await expect(card).toBeVisible();
+  const m = await card.evaluate((element) => {
+    const box = (selector: string) => element.querySelector(selector)!.getBoundingClientRect();
+    const title = element.querySelector(".cp-path-next-title")!;
+    const more = box(".cx-next-more");
+    const primary = box(".cp-exam-continue--primary");
+    const actions = box(".cp-path-next-actions");
+    return {
+      height: Math.round(element.getBoundingClientRect().height),
+      badges: getComputedStyle(element.querySelector(".cp-prep-badges")!).display,
+      titleNowrap: getComputedStyle(title).whiteSpace,
+      titleEllipsis: getComputedStyle(title).textOverflow,
+      titleFont: getComputedStyle(title).fontSize,
+      more: [Math.round(more.width), Math.round(more.height), Math.round(more.left - actions.left)],
+      primary: [Math.round(primary.height), Math.round(primary.right - actions.right), primary.left > more.right],
+      brandText: element.querySelector(".cp-exam-continue--primary")!.textContent?.trim(),
+      moreLabel: element.querySelector(".cx-next-more")!.getAttribute("aria-label"),
+    };
+  });
+  expect(m.height).toBeLessThanOrEqual(104);
+  expect(m.badges).toBe("none");
+  expect(m.titleNowrap).toBe("nowrap");
+  expect(m.titleEllipsis).toBe("ellipsis");
+  expect(m.titleFont).toBe("16px");
+  expect(m.more).toEqual([44, 44, 0]);
+  expect(m.primary[0]).toBe(44);
+  expect(Math.abs(m.primary[1] as number)).toBeLessThanOrEqual(1);
+  expect(m.primary[2]).toBe(true);
+  expect(m.brandText).toBe("Devam et");
+  expect(m.moreLabel).toBe("Daha fazla");
+  // İkincil eylemler kapalıyken görünmez; ⋯ açar, etiketler aynı; Escape kapatır.
+  await expect(card.getByRole("button", { name: "Başka birini seç" })).toBeHidden();
+  await card.locator(".cx-next-more").click();
+  await expect(card.locator(".cx-next-more")).toHaveAttribute("aria-expanded", "true");
+  await expect(card.getByRole("button", { name: "Başka birini seç" })).toBeVisible();
+  await expect(card.getByRole("button", { name: "Başka Bir Konu veya Etkinlik Seç" })).toBeVisible();
+  const menuInView = await card.locator(".cx-next-secondary").evaluate((menu) => {
+    const box = menu.getBoundingClientRect();
+    return box.top >= 0 && box.left >= 0 && box.right <= innerWidth;
+  });
+  expect(menuInView).toBe(true);
+  await page.screenshot({ path: "test-results/hazirlik-375-menu.png" });
+  await page.keyboard.press("Escape");
+  await expect(card.getByRole("button", { name: "Başka birini seç" })).toBeHidden();
+});
+
+test("masaüstünde sabit kart değişmedi: ⋯ yok, ikincil eylemler kartta", { tag: ["@public"] }, async ({ page }) => {
+  await prepare(page);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/e2e/ic-ekran?ekran=yol");
+  const card = page.locator(".cp-path-next");
+  await expect(card.locator(".cp-prep-badge")).toHaveCount(2);
+  await expect(card.locator(".cx-next-more")).toBeHidden();
+  await expect(card.getByRole("button", { name: "Başka birini seç" })).toBeVisible();
+  await expect(card.getByRole("button", { name: "Başka Bir Konu veya Etkinlik Seç" })).toBeVisible();
+  const primaryHeight = await card.locator(".cp-exam-continue--primary").evaluate((element) => Math.round(element.getBoundingClientRect().height));
+  expect(primaryHeight).toBe(52);
+});
