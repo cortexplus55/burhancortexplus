@@ -243,3 +243,41 @@
     min-height: var(--cx-tap-min);
   }
 }
+
+/* ---------- Önizlemede gerçek veriyle ölçüldükten sonra (14 Kasım 2026) ---------- */
+/* Kenarsız: Takvimim etkinlik kartı, Çalışma grupları kartı; Ayarlar satırlarının arasındaki çizgi. */
+.cp-sor-main.cx-app-main :is(.cp-cal-item, .cp-classroom-card) {
+  border-color: transparent;
+  box-shadow: none;
+}
+.cp-sor-main.cx-app-main .cp-set-rows > li {
+  border-color: transparent;
+}
+/* 40 px hedefler (telefonda 44): Takvimim etkinlik başlığı, İlerleme bağlantıları, Profil'in küçük eylemleri. */
+.cp-sor-main.cx-app-main .cp-cal-item-title a,
+.cp-sor-main.cx-app-main .cp-section-body > a.inline-flex,
+.cp-sor-main.cx-app-main :is(.cp-avatar-pick-toggle, .cp-pp-settings, .cp-pp-plan .cp-founder-chip) {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--cx-control-s);
+}
+.cp-sor-main.cx-app-main .cp-avatar-pick-toggle {
+  padding-inline: var(--cx-space-12);
+}
+@media (max-width: 767px) {
+  .cp-sor-main.cx-app-main .cp-cal-item-title a,
+  .cp-sor-main.cx-app-main .cp-section-body > a.inline-flex,
+  .cp-sor-main.cx-app-main :is(.cp-avatar-pick-toggle, .cp-pp-settings, .cp-pp-plan .cp-founder-chip) {
+    min-height: var(--cx-tap-min);
+  }
+}
+/* Soru Çöz: stüdyo başlığı da heading-xl (telefonda 32). */
+.cp-sor-main.cx-app-main .cp-solver-hero-title {
+  font: var(--cx-t-heading-xl);
+  letter-spacing: -0.02em;
+}
+@media (max-width: 767px) {
+  .cp-sor-main.cx-app-main .cp-solver-hero-title {
+    font-size: 2rem;
+  }
+}

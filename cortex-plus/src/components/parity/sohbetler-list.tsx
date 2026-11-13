@@ -186,7 +186,7 @@ export function SohbetlerList({ items, now }: { items: ConversationRow[]; now: s
                         ) : (
                           <Link
                             href={`/ogretmen?sohbet=${conversation.id}`}
-                            className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--cs-text)]"
+                            className="min-w-0 flex-1 truncate py-2.5 text-sm font-medium text-[var(--cs-text)]"
                           >
                             {conversation.title ?? "Başlıksız sohbet"}
                           </Link>
