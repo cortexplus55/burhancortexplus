@@ -199,6 +199,26 @@ export const TOUR_TRUE_FALSE: { text: string; correct: boolean; explanation: str
   },
 ];
 
+/* ---------- Hoca uyarısının izi (A4, 13 Kasım 2026) ---------- */
+
+/**
+ * Örnek notun hoca uyarısı karenin karekökü üzerinedir ("√(x²) sorusunda x'in işaretine dikkat edin"). Kalıp: kökün
+ * içinde tek bir terimin karesi; √(x²), √(a²), √((−5)²). Bekçi test uyarının kendisinin bu kalıba uyduğunu tutar.
+ */
+export const WARNING_FORMULA = /√\(\(?[^()²]+\)?²\)/;
+
+/**
+ * Uyarıdan çıkan tur adımları, örnek veriden: hangi ürün ekranının verisi uyarının kalıbını taşıyorsa o adım uyarının
+ * izini taşır. Tur bileşeni bu dosyayı ilk yükte içe aktarmaz (örnek veri ayrı parçada); listesi
+ * `landing-journey.ts`teki `JOURNEY_WARNING_STEPS`te durur ve bekçi test ikisinin aynı olduğunu tutar.
+ */
+export function tourWarningSteps(): ("lesson" | "question" | "cards" | "check")[] {
+  const fixtures = { lesson: TOUR_LESSON, question: TOUR_QUIZ, cards: TOUR_CARDS, check: TOUR_TRUE_FALSE } as const;
+  return (Object.keys(fixtures) as (keyof typeof fixtures)[]).filter((step) =>
+    WARNING_FORMULA.test(JSON.stringify(fixtures[step])),
+  );
+}
+
 /* ---------- 7. adım: Plus önizlemeleri (11 Kasım 2026, kokpit) ---------- */
 
 /**

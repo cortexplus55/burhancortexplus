@@ -344,6 +344,82 @@
   letter-spacing: -0.02em;
 }
 
+.lj-step-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.65rem;
+  min-width: 0;
+}
+
+/*
+  Hoca uyarısının izi (A4, 13 Kasım 2026): taramadan sonra örnek notun uyarısı başlığın yanında kalır. Uyarıdan çıkan
+  adıma girilince çerçeve logonun şeridiyle bir kez (600 ms) parlar; hareket azaltmada durağan.
+*/
+.lj-warn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.65rem;
+  border: 1px solid rgba(255, 217, 160, 0.3);
+  border-radius: 999px;
+  background: rgba(255, 178, 36, 0.08);
+  color: var(--lj-beam-text);
+  font-size: 0.75rem;
+  font-weight: 650;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.lj-warn::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  padding: 1.5px;
+  border-radius: inherit;
+  background: var(--lj-ribbon);
+  opacity: 0;
+  pointer-events: none;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box exclude,
+    linear-gradient(#000 0 0);
+}
+
+.lj-warn.is-glow {
+  animation: lj-warn-glow var(--cx-dur-settle, 600ms) var(--cx-ease-settle, cubic-bezier(0.22, 1, 0.36, 1)) 1 both;
+}
+
+.lj-warn.is-glow::after {
+  animation: lj-warn-ring var(--cx-dur-settle, 600ms) var(--cx-ease-settle, cubic-bezier(0.22, 1, 0.36, 1)) 1 both;
+}
+
+@keyframes lj-warn-ring {
+  0% {
+    opacity: 0;
+  }
+  35% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes lj-warn-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 77, 141, 0);
+  }
+  35% {
+    box-shadow: 0 0 1.1rem 0.1rem rgba(255, 77, 141, 0.35);
+  }
+}
+
 .lj-guide {
   display: inline-flex;
   align-items: center;
@@ -1541,6 +1617,8 @@
   .lj-live-dot,
   .lj-context,
   .lj-next,
+  .lj-warn,
+  .lj-warn::after,
   .lj-stage-body > *,
   .lj-stage-foot > *,
   .lj-day {

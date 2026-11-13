@@ -152,6 +152,48 @@ for (const size of SIZES) {
   });
 }
 
+for (const size of SIZES) {
+  test(`A4 ${size.width} px: taramadan sonra başlığın yanında "Hoca uyarısı"; uyarı adımına girince bir kez parlar`, { tag: ["@public"] }, async ({ page }) => {
+    await page.setViewportSize(size);
+    await page.goto("/");
+    const badge = page.locator(".lj-stage-head [data-warning]");
+    await expect(badge).toHaveCount(0);
+    await page.locator("button.lj-zone").evaluate((zone) => zone.scrollIntoView({ block: "center" }));
+    await page.locator("button.lj-zone").click();
+    await expect(page.getByRole("heading", { name: "Yol haritan çıktı" })).toBeVisible({ timeout: 4000 });
+    await expect(badge).toBeVisible();
+    await expect(badge).toContainText("Hoca uyarısı");
+    await expect(badge).not.toHaveClass(/is-glow/);
+    // Etiket başlığın satırında ya da hemen altında; sahneden taşmaz.
+    const fits = await page.evaluate(() => {
+      const head = document.querySelector(".lj-stage-head")!.getBoundingClientRect();
+      const tag = document.querySelector(".lj-stage-head [data-warning]")!.getBoundingClientRect();
+      return tag.left >= head.left - 1 && tag.right <= head.right + 1;
+    });
+    expect(fits).toBe(true);
+
+    await goStep(page, 3);
+    await expect(badge).toHaveClass(/is-glow/);
+    // Parlama 600 ms: sonra durağan.
+    await expect(badge).not.toHaveClass(/is-glow/, { timeout: 2000 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+
+    // Plus adımı uyarıdan çıkmaz: parlamaz.
+    await goStep(page, 7);
+    await expect(badge).toBeVisible();
+    await expect(badge).not.toHaveClass(/is-glow/);
+  });
+}
+
+test("A4: hareket azaltmada etiket parlamaz", { tag: ["@public"] }, async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/");
+  await goStep(page, 4);
+  const badge = page.locator(".lj-stage-head [data-warning]");
+  await expect(badge).toBeVisible();
+  await expect(badge).not.toHaveClass(/is-glow/);
+});
+
 test("A3: hareket azaltmada tur düğmesi geçişsiz ana düğme olur", { tag: ["@public"] }, async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");

@@ -75,6 +75,22 @@ export const JOURNEY_NEXT_LABEL: Record<JourneyProductStep, string> = {
   check: "Plus önizlemelerini gör",
 };
 
+/**
+ * Hoca uyarısının izi (A4, 13 Kasım 2026). Taramadan sonra (2-7. adımlar) başlığın yanında kalıcı bir etiket durur;
+ * yeni söz yok: etiket ve açıklaması örnek notun uyarı satırından (`SAME_NOTE_CASE`).
+ */
+export const JOURNEY_WARNING = {
+  label: SAME_NOTE_CASE.input.lines[0].split(":")[0]!.trim(),
+  line: SAME_NOTE_CASE.input.lines[0],
+} as const;
+
+/**
+ * Uyarıdan çıkan adımlar: bu adıma girilince etiketin çerçevesi logonun şeridiyle bir kez (600 ms) parlar. Liste
+ * örnek veriden türetilir (`tourWarningSteps`, `guest-tour.ts`); örnek veri ilk yükte olmasın diye burada sabit
+ * durur, bekçi test ikisinin aynı olduğunu tutar.
+ */
+export const JOURNEY_WARNING_STEPS: readonly JourneyStepId[] = ["lesson", "question", "cards", "check"];
+
 /* ---------- 1. Not: iki kapı ---------- */
 
 /** Örnek notun sayfa sayısı: kartın alt satırı ve tarama anının ilk bulgusu aynı sayıdan. */

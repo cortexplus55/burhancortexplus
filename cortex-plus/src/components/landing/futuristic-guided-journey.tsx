@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { startTransition, useCallback, useEffect, useRef, useState, type ComponentType, type DragEvent } from "react";
-import { ArrowRight, Check, FileText, Lock, Upload } from "lucide-react";
+import { AlertTriangle, ArrowRight, Check, FileText, Lock, Upload } from "lucide-react";
 import { CortexMark } from "@/components/brand/cortex-mark";
 import type { TourPlusPreviewProps } from "@/components/landing/tour/plus-previews";
 import type { TourScreenProps } from "@/components/landing/tour/product-screens";
@@ -28,6 +28,8 @@ import {
   JOURNEY_RESULT,
   JOURNEY_ROADMAP,
   JOURNEY_STEPS,
+  JOURNEY_WARNING,
+  JOURNEY_WARNING_STEPS,
   isProductStep,
   journeyGoals,
   journeyGuideLine,
@@ -41,7 +43,7 @@ import {
   type JourneyStepId,
 } from "@/lib/marketing/landing-journey";
 import { audienceSegment, type AudienceSegmentId } from "@/lib/marketing/landing-showcase";
-import { prefersReducedMotion, startMoment, type MomentHandle } from "@/lib/ui/moment";
+import { MOMENT_MS, prefersReducedMotion, startMoment, type MomentHandle } from "@/lib/ui/moment";
 import { cn } from "@/lib/utils";
 import "@/styles/landing-journey.css";
 import "@/styles/tour-product.css";
@@ -115,6 +117,8 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
    * düğmesi tek ana düğmedir, alttaki tur düğmesi soluk durur; iş bitince tur düğmesi ana düğmeye döner.
    */
   const [actedStep, setActedStep] = useState<JourneyStepId | null>(null);
+  /** Hoca uyarısının izi (A4): uyarıdan çıkan adıma girilince etiketin çerçevesi bir kez parlar. */
+  const [warningGlow, setWarningGlow] = useState(false);
   const stageRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const railRef = useRef<HTMLOListElement>(null);
@@ -260,6 +264,21 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
     };
   }, [step]);
 
+  /*
+    Hoca uyarısının izi (A4): uyarıdan çıkan adıma (ders, soru, kart, doğru/yanlış) girilince başlığın yanındaki
+    "Hoca uyarısı" etiketinin çerçevesi logonun şeridiyle bir kez (600 ms) parlar. Bir an (depo kararı 11): tıklama ya
+    da tuş hemen bitirir; hareket azaltmada parlama yok, etiket durağan.
+  */
+  useEffect(() => {
+    if (!JOURNEY_WARNING_STEPS.includes(step)) {
+      setWarningGlow(false);
+      return;
+    }
+    setWarningGlow(true);
+    const handle = startMoment(MOMENT_MS.settle, () => setWarningGlow(false));
+    return () => handle.end();
+  }, [step]);
+
   useEffect(
     () => {
       alive.current = true;
@@ -394,7 +413,17 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
 
           <div ref={stageRef} className="lj-stage" tabIndex={-1} data-step={step}>
             <div className="lj-stage-head">
-              <h3 className="lj-step-title">{JOURNEY_STEPS[index]!.title}</h3>
+              <div className="lj-step-heading">
+                <h3 className="lj-step-title">{JOURNEY_STEPS[index]!.title}</h3>
+                {/* Taramadan sonra (2-7. adımlar) örnek notun hoca uyarısı başlığın yanında kalır (A4). */}
+                {step !== "upload" ? (
+                  <span className={cn("lj-warn", warningGlow && "is-glow")} title={JOURNEY_WARNING.line} data-warning>
+                    <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
+                    {JOURNEY_WARNING.label}
+                    <span className="sr-only">{JOURNEY_WARNING.line.slice(JOURNEY_WARNING.label.length)}</span>
+                  </span>
+                ) : null}
+              </div>
               <p className="lj-guide" role="status" aria-live="polite">
                 <span aria-hidden>{ownReady ? "👇" : step === "upload" || step === "cards" ? "👆" : "👉"}</span>{" "}
                 {journeyGuideLine(step, { ownDocument: ownReady })}
