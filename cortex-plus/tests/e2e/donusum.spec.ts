@@ -216,9 +216,10 @@ test.describe("dönüşüm paketi", { tag: ["@public"] }, () => {
     // Üç plan kartı ve fiyatları (veritabanı yoksa "—"); otomatik yenileme sözü.
     await expect(page.locator("#planlar .lp-duo-card")).toHaveCount(3);
     await expect(page.locator("#planlar").getByText("Otomatik yenileme yok")).toBeVisible();
-    // Eski sayfa bu genişlikte ~5.000 px idi.
+    // Eski sayfa bu genişlikte ~5.000 px idi. 13 Kasım 2026 (A1, sabit sahne): turun sahnesi adımdan adıma değişmeyen,
+    // ekrana sığan bir yüksekliğe sabitlendi; not adımı ~350 px'ten ~600 px'e çıktı, sayfa ~4.340 px.
     const height = await page.evaluate(() => document.documentElement.scrollHeight);
-    expect(height).toBeLessThan(4300);
+    expect(height).toBeLessThan(4600);
     expect(await overflow(page)).toBeLessThanOrEqual(1);
   });
 

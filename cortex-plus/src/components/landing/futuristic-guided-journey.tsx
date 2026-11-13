@@ -44,6 +44,18 @@ import { cn } from "@/lib/utils";
 import "@/styles/landing-journey.css";
 import "@/styles/tour-product.css";
 
+/** Sahne: sabit menüyle ray arasında ve ekranın altında bırakılan boşluk; en küçük ve en büyük yükseklik (px). */
+const STAGE_GAP = 8;
+const STAGE_MIN = 420;
+/** En uzun adımın (telefonda Plus, ~1150 px) üstü: büyük ekranda sahne gereksiz uzamasın. */
+const STAGE_MAX = 1160;
+
+/** Pazarlama sayfasının sabit üst menüsü; yoksa (test, başka sayfa) 64 px. */
+function headerHeight(): number {
+  const header = typeof document === "undefined" ? null : document.querySelector("header.mkh");
+  return header ? header.getBoundingClientRect().height : 64;
+}
+
 /** Halkanın çevresi (r = 34). */
 const RING = 2 * Math.PI * 34;
 
@@ -101,6 +113,9 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
   const [holding, setHolding] = useState(false);
   const [ownProblems, setOwnProblems] = useState<string[]>([]);
   const stageRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const railRef = useRef<HTMLOListElement>(null);
+  const consoleRef = useRef<HTMLDivElement>(null);
   const ownInput = useRef<HTMLInputElement>(null);
   const scanTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mounted = useRef(false);
@@ -182,23 +197,43 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
     if (step === "cards" || step === "check" || step === "plus") loadPreviews();
   }, [product, step, loadScreens, loadPreviews]);
 
-  // Adım değişince sahne odağa ve görüş alanına gelir (ilk çizimde değil: sayfa kendi kendine kaymasın).
+  /*
+    Sabit sahne (A1, 13 Kasım 2026): sahne yüksekliği adımdan adıma değişmez. Yükseklik ekrandan hesaplanır: sabit
+    menünün altında ilerleme rayı ve sahne birlikte ekrana sığar, alttaki ilerleme düğmesi hiçbir adımda ekran
+    dışında kalmaz. Uzun adımda sayfa değil yalnız sahnenin gövdesi kayar. CSS'te ekran birimiyle bir ilk değer var
+    (`--lj-stage-h`); burada sabit menü ve rayın gerçek yüksekliğiyle düzeltilir.
+  */
+  useEffect(() => {
+    const fit = () => {
+      const consoleBox = consoleRef.current;
+      const rail = railRef.current;
+      const stage = stageRef.current;
+      if (!consoleBox || !rail || !stage) return;
+      const header = headerHeight();
+      const railBottom = stage.getBoundingClientRect().top - rail.getBoundingClientRect().top;
+      const available = window.innerHeight - header - STAGE_GAP * 2 - railBottom;
+      consoleBox.style.setProperty("--lj-stage-h", `${Math.max(STAGE_MIN, Math.min(STAGE_MAX, Math.round(available)))}px`);
+    };
+    fit();
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, []);
+
+  // Adım değişince: sahne odağa gelir, gövde başa döner ve ilerleme rayının üstü sabit menünün hemen altına hizalanır
+  // (ilk çizimde değil: sayfa kendi kendine kaymasın).
   useEffect(() => {
     if (!mounted.current) {
       mounted.current = true;
       return;
     }
     const stage = stageRef.current;
-    if (!stage) return;
+    const rail = railRef.current;
+    if (!stage || !rail) return;
     stage.focus({ preventScroll: true });
-    if (typeof stage.scrollIntoView !== "function") return;
-    // Yeni adımın başı sabit menünün ve ilerleme çizgisinin altında, ekranın üst yarısındaysa sayfa kaymaz. Değilse
-    // (telefonda adım ekrandan uzunken önceki düğme aşağıda kalır) adımın başına hizalanır; boşluk CSS'teki
-    // `scroll-margin-top`tan gelir. "nearest" ekrandan uzun adımda hiç kaydırmıyordu.
-    const top = stage.getBoundingClientRect().top;
-    const margin = Number.parseFloat(getComputedStyle(stage).scrollMarginTop) || 0;
-    if (top >= margin - 1 && top <= window.innerHeight / 2) return;
-    stage.scrollIntoView({ block: "start", behavior: prefersReducedMotion() ? "auto" : "smooth" });
+    if (bodyRef.current) bodyRef.current.scrollTop = 0;
+    const delta = rail.getBoundingClientRect().top - (headerHeight() + STAGE_GAP);
+    if (Math.abs(delta) <= 2 || typeof window.scrollBy !== "function") return;
+    window.scrollBy({ top: delta, behavior: prefersReducedMotion() ? "auto" : "smooth" });
   }, [step]);
 
   useEffect(
@@ -263,6 +298,7 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
     <section id="nasil" className="lj" aria-labelledby="lj-title">
       <div className="lj-wrap">
         <div
+          ref={consoleRef}
           className="lj-console"
           onPointerEnter={loadScreens}
           onPointerDown={loadScreens}
@@ -297,7 +333,7 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
           </div>
 
           {/* İlerleme rayı: logonun şeridi. Her durak tıklanır; dolan kısım geçilen adımlardır. */}
-          <ol className="lj-rail" style={{ ["--lj-progress" as string]: index / (JOURNEY_STEPS.length - 1) }}>
+          <ol ref={railRef} className="lj-rail" style={{ ["--lj-progress" as string]: index / (JOURNEY_STEPS.length - 1) }}>
             {JOURNEY_STEPS.map((item, at) => (
               <li key={item.id} className="lj-rail-item">
                 <button
@@ -326,6 +362,9 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
                 {journeyGuideLine(step, { ownDocument: ownReady })}
               </p>
             </div>
+
+            {/* Sahnenin gövdesi: uzun adımda yalnız burası kayar (A1). */}
+            <div ref={bodyRef} className="lj-stage-body">
 
             {/* 1. Not, B kapısı sonrası: misafirin kendi dosyası tarayıcıda bekliyor. */}
             {ownReady && guest ? (
@@ -497,13 +536,6 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
                           {day.meta ? <span className="lj-day-meta">{day.meta}</span> : null}
                         </p>
                         <p className="lj-day-title">{day.title}</p>
-                        {day.ready ? (
-                          <button type="button" className="lj-cta lj-cta--pulse" onClick={() => go("lesson")}>
-                            <span aria-hidden>👉</span>
-                            {JOURNEY_ROADMAP.cta}
-                            <ArrowRight className="h-4 w-4" aria-hidden />
-                          </button>
-                        ) : null}
                       </div>
                     </li>
                   ))}
@@ -571,11 +603,6 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
                     {streak ? <span className="lj-streak">{streak}</span> : null}
                   </span>
                 </div>
-                <button type="button" className="lj-cta lj-cta--pulse lj-cta--wide" onClick={() => go("plus")}>
-                  <span aria-hidden>👉</span>
-                  {JOURNEY_RESULT.cta}
-                  <ArrowRight className="h-4 w-4" aria-hidden />
-                </button>
               </div>
             ) : null}
 
@@ -643,11 +670,6 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
                 <div className="lj-final">
                   <p className="lj-final-title">{JOURNEY_FINAL.title}</p>
                   <p className="lj-final-body">{JOURNEY_FINAL.body}</p>
-                  <Link href={signupHref} className="lj-cta lj-cta--pulse lj-cta--hero">
-                    <span aria-hidden>🚀</span>
-                    {guest ? JOURNEY_FINAL.ctaWithDocument : JOURNEY_FINAL.cta}
-                    <ArrowRight className="h-5 w-5" aria-hidden />
-                  </Link>
                   <p className="lj-final-fine">{JOURNEY_FINAL.fine}</p>
                   <button type="button" className="lj-link" onClick={restart}>
                     {JOURNEY_COPY.restart}
@@ -656,13 +678,47 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
               </div>
             ) : null}
 
-            {/* Ürün ekranının altında parlayan "sıradaki adım" düğmesi: adım oynanmadan da ilerlenir. */}
+            </div>
+
+            {/*
+              Sahnenin alt şeridi (A1): adımın ilerleme düğmesi gövdenin dışında durur, gövde kaysa da yerinde kalır.
+              Not adımında yok (ilerleme taramayla). Ürün ekranında "sıradaki adım" düğmesi; adım oynanmadan da ilerlenir.
+            */}
+            {step === "roadmap" ? (
+              <div className="lj-stage-foot">
+                <button type="button" className="lj-cta lj-cta--pulse lj-cta--wide" onClick={() => go("lesson")}>
+                  <span aria-hidden>👉</span>
+                  {JOURNEY_ROADMAP.cta}
+                  <ArrowRight className="h-4 w-4" aria-hidden />
+                </button>
+              </div>
+            ) : null}
             {following && product && !showResult ? (
-              <button type="button" className="lj-next" onClick={() => go(following)}>
-                <span aria-hidden>👉</span>
-                {JOURNEY_NEXT_LABEL[step]}
-                <ArrowRight className="h-4 w-4" aria-hidden />
-              </button>
+              <div className="lj-stage-foot">
+                <button type="button" className="lj-next" onClick={() => go(following)}>
+                  <span aria-hidden>👉</span>
+                  {JOURNEY_NEXT_LABEL[step]}
+                  <ArrowRight className="h-4 w-4" aria-hidden />
+                </button>
+              </div>
+            ) : null}
+            {showResult ? (
+              <div className="lj-stage-foot">
+                <button type="button" className="lj-cta lj-cta--pulse lj-cta--wide" onClick={() => go("plus")}>
+                  <span aria-hidden>👉</span>
+                  {JOURNEY_RESULT.cta}
+                  <ArrowRight className="h-4 w-4" aria-hidden />
+                </button>
+              </div>
+            ) : null}
+            {step === "plus" ? (
+              <div className="lj-stage-foot">
+                <Link href={signupHref} className="lj-cta lj-cta--pulse lj-cta--hero">
+                  <span aria-hidden>🚀</span>
+                  {guest ? JOURNEY_FINAL.ctaWithDocument : JOURNEY_FINAL.cta}
+                  <ArrowRight className="h-5 w-5" aria-hidden />
+                </Link>
+              </div>
             ) : null}
           </div>
         </div>
