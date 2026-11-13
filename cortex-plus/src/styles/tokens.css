@@ -427,24 +427,28 @@
 }
 
 .dark {
-  /* ===== Tasarım sistemi v1, koyu (A: skill §2 arduvaz merdiveni) ===== */
-  --cx-bg-0: #090a0f;
-  --cx-bg-1: #0f172a;
-  --cx-bg-2: #172033;
-  --cx-bg-3: #1e293b;
-  --cx-bg-4: #334155;
-  --cx-border: #1e293b;
-  --cx-border-2: #334155;
+  /*
+   * ===== Tasarım sistemi v1, koyu: B (sıcak siyah) =====
+   * Palet kararı (13 Kasım 2026, ürün sahibi, depo kararı 9): zemin merdiveni ve nötr metin tonları 11 Kasım'ın
+   * sıcak siyahı; marka, vurgu, odak ve anlam renkleri skill'den. Skill §2'nin arduvaz merdiveni (A) kullanılmaz.
+   */
+  --cx-bg-0: #0b0907;
+  --cx-bg-1: #15110d;
+  --cx-bg-2: #1e1813;
+  --cx-bg-3: #29211a;
+  --cx-bg-4: #3d3229;
+  --cx-border: #29211a;
+  --cx-border-2: #3d3229;
   --cx-dim: rgba(0, 0, 0, 0.8);
 
-  --cx-text-primary: #ffffff;
-  --cx-text-reading: #e2e8f0;
-  --cx-text-secondary: #94a3b8;
-  --cx-text-tertiary: #7c8aa0;
-  --cx-text-disabled: #64748b;
+  --cx-text-primary: #f7f1e8;
+  --cx-text-reading: #ede4d6;
+  --cx-text-secondary: #b9ada0;
+  --cx-text-tertiary: #a09384;
+  --cx-text-disabled: #7a6e62;
   --cx-text-brand: #a5b4fc;
   --cx-text-on-brand: #ffffff;
-  --cx-text-inverted: #090a0f;
+  --cx-text-inverted: #0b0907;
 
   --cx-brand-weak: #1e1b4b;
   --cx-brand-weak-plus: #312e81;
@@ -453,7 +457,7 @@
   --cx-highlight: #f59e0b;
   --cx-text-highlight: #fbbf24;
   --cx-highlight-weak: #3a2a0a;
-  --cx-text-on-highlight: #090a0f;
+  --cx-text-on-highlight: #0b0907;
 
   --cx-success: #34d399;
   --cx-success-weak: #0b2a22;
@@ -464,7 +468,7 @@
 
   --cx-gradient-brand-text: linear-gradient(90deg, #818cf8, #a5b4fc 40%, #c7d2fe 70%, #ffffff);
   --cx-gradient-glow: radial-gradient(70% 55% at 50% 0%, color-mix(in srgb, #6366f1 16%, transparent), transparent 70%);
-  --cx-glass-background: radial-gradient(90% 55% at 50% 0%, #ffffff0f, #fff0 70%), linear-gradient(180deg, #ffffff0d, #ffffff04), #131c2f;
+  --cx-glass-background: radial-gradient(90% 55% at 50% 0%, #ffffff0f, #fff0 70%), linear-gradient(180deg, #ffffff0d, #ffffff04), #1a1511;
   --cx-glass-rim: linear-gradient(180deg, #ffffff4d 0%, #ffffff29 10%, #ffffff0d 30%, #ffffff05 55%, #ffffff08 78%, #ffffff1a 100%);
   --cx-glass-bevel: inset 0 1px 1px #ffffff0d;
   --cx-skeleton: linear-gradient(100deg, #fff0 35%, #ffffff12 50%, #fff0 65%), var(--cx-bg-2);
@@ -490,62 +494,27 @@
 
   --glow-action: 0 8px 24px color-mix(in srgb, var(--cx-brand-strong) 28%, transparent);
 
-  --background: 230 25% 5%;
-  --foreground: 0 0% 100%;
-  --card: 222 47% 11%;
-  --card-foreground: 0 0% 100%;
-  --popover: 222 47% 11%;
-  --popover-foreground: 0 0% 100%;
-  --primary: 243 75% 59%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 221 38% 15%;
-  --secondary-foreground: 0 0% 100%;
-  --muted: 221 38% 15%;
-  --muted-foreground: 215 20% 65%;
-  --accent: 221 38% 15%;
-  --accent-foreground: 0 0% 100%;
-  --destructive: 0 91% 71%;
-  --destructive-foreground: 230 25% 5%;
-  --border: 217 33% 17%;
-  --input: 217 33% 17%;
-  --ring: 188 86% 53%;
-  --brand: 38 92% 50%;
-  --brand-foreground: 230 25% 5%;
-}
-
-/*
- * PALET KAPISI (13 Kasım 2026, geçici): B = 11 Kasım'ın sıcak siyah zemin merdiveni; marka, vurgu
- * ve anlam renkleri skill'den. Nötr metin tonları da merdivenle aynı sıcaklıkta (11 Kasım'ın
- * metin ve soluk metin renkleri). Yalnız ekran görüntüsü için `<html data-cx-zemin="sicak">` ile
- * açılır; ürün sahibi A ya da B'yi seçince seçilmeyen kaldırılır.
- */
-:root.dark[data-cx-zemin="sicak"] {
-  --cx-bg-0: #0b0907;
-  --cx-bg-1: #15110d;
-  --cx-bg-2: #1e1813;
-  --cx-bg-3: #29211a;
-  --cx-bg-4: #3d3229;
-  --cx-border: #29211a;
-  --cx-border-2: #3d3229;
-  --cx-text-primary: #f7f1e8;
-  --cx-text-reading: #ede4d6;
-  --cx-text-secondary: #b9ada0;
-  --cx-text-tertiary: #a09384;
-  --cx-text-disabled: #7a6e62;
-  --cx-text-inverted: #0b0907;
-  --cx-glass-background: radial-gradient(90% 55% at 50% 0%, #ffffff0f, #fff0 70%), linear-gradient(180deg, #ffffff0d, #ffffff04), #1a1511;
   --background: 30 22% 4%;
   --foreground: 36 48% 94%;
   --card: 30 24% 7%;
   --card-foreground: 36 48% 94%;
   --popover: 30 24% 7%;
   --popover-foreground: 36 48% 94%;
+  --primary: 243 75% 59%;
+  --primary-foreground: 0 0% 100%;
   --secondary: 27 22% 10%;
+  --secondary-foreground: 36 48% 94%;
   --muted: 27 22% 10%;
   --muted-foreground: 31 15% 68%;
   --accent: 27 22% 10%;
+  --accent-foreground: 36 48% 94%;
+  --destructive: 0 91% 71%;
+  --destructive-foreground: 30 22% 4%;
   --border: 28 22% 13%;
   --input: 28 22% 13%;
+  --ring: 188 86% 53%;
+  --brand: 38 92% 50%;
+  --brand-foreground: 30 22% 4%;
 }
 
 /*

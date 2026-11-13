@@ -18,7 +18,8 @@ Bileşende ham hex ya da ham px yazılmaz; token yoksa önce `tokens.css`'e ekle
 | 4 | Figtree ve JetBrains Mono kalır, Jersey 10 kalkar, Caveat kalır; Newsreader ders ekranı fazında | `--cx-font-sans` = Figtree, `--cx-font-mono` = JetBrains Mono; `--cx-font-reading` şimdilik sans |
 | 5 | Okunurluk tabanı (6 Kasım): en küçük yazı 11 px, başlık satır aralığı en az 1,15, telefonda dokunma en az 44 px | `meta-xs` 9 → 11 px; `heading-*`, `display-l`, `reading-title` satır aralığı 1,15 |
 | 6 | Yeni metin eklenmez | Skill'in metin isteyen yerleri her fazın raporunda listelenir; büyük harf yalnız CSS ile |
-| 7 | Köprü Faz 1'de çevrildi, palet kapısıyla | `--c-*` → `--cx-*`; kapı açıkken B merdiveni `<html data-cx-zemin="sicak">` ile görülür |
+| 7 | Köprü Faz 1'de çevrildi, palet kapısıyla | `--c-*` → `--cx-*` |
+| 9 | **Palet: B (sıcak siyah)**, 13 Kasım 2026 | Koyu temada zemin merdiveni ve nötr metin tonları 11 Kasım'ın sıcak siyahı; marka, vurgu, odak ve anlam renkleri skill'den. Skill §2'nin arduvaz merdiveni (A) kaldırıldı |
 | 8 | Ana ekran (`/ogretmen`) beş parça; altı fazlık plan bekler, önce bu ekran | Aşağıdaki "Ana ekran" bölümü; ayrıntı SKILL.md madde 8 |
 
 ## Kabuk (13 Kasım 2026)
@@ -63,16 +64,16 @@ Ekrana özel ölçüler `tokens.css`'te (`--cx-topbar-h`, `--cx-strip-*`, `--cx-
 
 ### Zemin merdiveni
 
-| Token | Koyu (A) | Açık **[varsayım]** | Kullanım |
+| Token | Koyu (B, sıcak siyah) | Açık **[varsayım]** | Kullanım |
 |---|---|---|---|
-| `--cx-bg-0` | `#090A0F` | `#FFFFFF` | sayfa |
-| `--cx-bg-1` | `#0F172A` | `#F1F4F9` | kart, gezinme tepsisi |
-| `--cx-bg-2` | `#172033` | `#E6EBF2` | kart içi grup, giriş alanı, zayıf düğme |
-| `--cx-bg-3` | `#1E293B` | `#D9E0EA` | tepsideki etkin hap, yükseltilmiş rozet |
-| `--cx-bg-4` | `#334155` | `#B7C2D1` | güçlü kenarlık |
+| `--cx-bg-0` | `#0B0907` | `#FFFFFF` | sayfa |
+| `--cx-bg-1` | `#15110D` | `#F1F4F9` | kart, gezinme tepsisi |
+| `--cx-bg-2` | `#1E1813` | `#E6EBF2` | kart içi grup, giriş alanı, zayıf düğme |
+| `--cx-bg-3` | `#29211A` | `#D9E0EA` | tepsideki etkin hap, yükseltilmiş rozet |
+| `--cx-bg-4` | `#3D3229` | `#B7C2D1` | güçlü kenarlık |
 | `--cx-dim` | siyah %80 | siyah %40 | pencere arkası |
 
-Palet kapısındaki B merdiveni (yalnız koyu): `#0B0907`, `#15110D`, `#1E1813`, `#29211A`, `#3D3229`. Nötr metin tonları da aynı sıcaklıktadır (11 Kasım'ın metin ve soluk metin renkleri). Seçim yapılınca bu satır silinir.
+Koyu nötr metin tonları da aynı sıcaklıktadır: primary `#F7F1E8`, reading `#EDE4D6`, secondary `#B9ADA0`, tertiary `#A09384`, disabled `#7A6E62`.
 
 ### Renk rolleri
 
@@ -136,24 +137,7 @@ Eski yerel `--cx-*` adları 13 Kasım'da yeniden adlandırıldı: `advantage.css
 
 Gövde metni en az 4,5:1. `text-disabled` yalnız pasif öğe ve süs içindir. ⚠ = 4,5 altı.
 
-### Koyu (A)
-
-| Metin | bg-0 | bg-1 | bg-2 | bg-3 |
-|---|---|---|---|---|
-| primary `#FFFFFF` | 19,78 | 17,85 | 16,27 | 14,63 |
-| reading `#E2E8F0` | 16,04 | 14,48 | 13,20 | 11,87 |
-| secondary `#94A3B8` | 7,71 | 6,96 | 6,34 | 5,71 |
-| tertiary `#7C8AA0` | 5,65 | 5,10 | 4,65 | 4,18 ⚠ |
-| disabled `#64748B` | 4,16 ⚠ | 3,75 ⚠ | 3,42 ⚠ | 3,07 ⚠ |
-| text-brand `#A5B4FC` | 9,92 | 8,96 | 8,16 | 7,34 |
-| text-highlight `#FBBF24` | 11,85 | 10,69 | 9,75 | 8,76 |
-| success `#34D399` | 10,29 | 9,29 | 8,46 | 7,61 |
-| warning `#FB923C` | 8,74 | 7,89 | 7,19 | 6,46 |
-| danger `#F87171` | 7,15 | 6,45 | 5,88 | 5,29 |
-
-Çiftler: text-brand / brand-weak 8,02 · text-highlight / highlight-weak 8,30 · success / weak 7,98 · warning / weak 6,55 · danger / weak 5,84 · beyaz / brand-strong 6,29 · koyu / highlight 9,21 · odak / bg-0 10,94.
-
-### Koyu (B, palet kapısı)
+### Koyu (B, sıcak siyah)
 
 | Metin | bg-0 | bg-1 | bg-2 | bg-3 |
 |---|---|---|---|---|
@@ -162,8 +146,13 @@ Gövde metni en az 4,5:1. `text-disabled` yalnız pasif öğe ve süs içindir. 
 | secondary `#B9ADA0` | 9,04 | 8,54 | 7,99 | 7,20 |
 | tertiary `#A09384` | 6,63 | 6,26 | 5,86 | 5,28 |
 | disabled `#7A6E62` | 4,01 ⚠ | 3,79 ⚠ | 3,54 ⚠ | 3,19 ⚠ |
+| text-brand `#A5B4FC` | 9,97 | 9,42 | 8,81 | 7,94 |
+| text-highlight `#FBBF24` | 11,91 | 11,25 | 10,52 | 9,48 |
+| success `#34D399` | 10,34 | 9,77 | 9,14 | 8,23 |
+| warning `#FB923C` | 8,78 | 8,30 | 7,76 | 6,99 |
+| danger `#F87171` | 7,19 | 6,79 | 6,35 | 5,72 |
 
-Marka ve anlam renkleri A ile aynı; B zemininde hepsi 5,7 ve üstü.
+Çiftler: text-brand / brand-weak 8,02 · text-highlight / highlight-weak 8,30 · success / weak 7,98 · warning / weak 6,55 · danger / weak 5,84 · beyaz / brand-strong 6,29 · koyu / highlight 9,26 · odak / bg-0 11,00.
 
 ### Açık **[varsayım]**
 

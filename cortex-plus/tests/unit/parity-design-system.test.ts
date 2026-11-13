@@ -40,10 +40,12 @@ describe("kıyas ürünü tasarım sistemi", () => {
     expect(root).toContain("--c-action: var(--cx-brand-strong);");
     expect(root).toContain("--c-focus: var(--cx-focus);");
     expect(root).toContain("--c-brand: var(--cx-highlight);");
-    // Koyu katman skill §2 değerleri.
+    // Koyu katman: palet B, sıcak siyah (depo kararı 9, 13 Kasım 2026); odak ve marka skill §2.
     const dark = block(tokens, ".dark");
-    expect(dark).toContain("--cx-bg-0: #090a0f;");
-    expect(dark).toContain("--cx-bg-1: #0f172a;");
+    expect(dark).toContain("--cx-bg-0: #0b0907;");
+    expect(dark).toContain("--cx-bg-1: #15110d;");
+    expect(dark).not.toContain("#090a0f");
+    expect(tokens).not.toContain("data-cx-zemin");
     expect(dark).toContain("--cx-focus: #22d3ee;");
     // Karar 1: pazarlama, hukuk ve giriş kabukları eski değerlerde.
     const guest = block(tokens, ":root.dark:has(:is(.cinematic-marketing, .lp, .cortex-premium-auth))");
