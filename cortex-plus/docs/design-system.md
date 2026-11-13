@@ -42,6 +42,8 @@ Bileşende ham hex ya da ham px yazılmaz; token yoksa önce `tokens.css`'e ekle
 | A4 hoca uyarısı izi | Ana sayfa turu, 2–7. adım | Uyarıdan çıkan adıma geçince başlıktaki "Hoca uyarısı" etiketinin çerçevesi logonun şeridiyle bir kez parlar |
 | B1 halka | Ana ekran (`/ogretmen`) | Tamamlama yüzdesi değiştiyse halka eskiden yeniye dolar, ortadaki sayı sayar |
 | B2 yol | Hazırlık sayfası | Az önce biten adımın içine ✓ çizilir, çizgi sıradakine dolar, sıradakinin halkası belirir |
+| C1 tarama çekirdeği | Kurulumun materyal adımı (`/deneme-sinavlari/olustur`) | Dosya bırakılınca ya da seçilince (telefondan gelen hariç) halkalar bir kez atar, çekirdeğin üstünden ışın geçer, seçilen dosyalar adı ve boyutuyla sırayla belirir (2,2 sn); sonra bugünkü ilerleme satırları ve bu seçimden okunan dosya / sayfa sayısı |
+| C2 "Not yükle" kapısı | Ana ekran (`/ogretmen`), hazırlığı olmayan öğrenci | Kapının görseli aynı çekirdek; bırakılan / seçilen dosya tarayıcıda bekletilir, an bitince kuruluma gidilir, materyal adımında "Bu dosyayı ekle" ile yüklenir |
 
 Uygulamada çıkan kurallar:
 
@@ -55,6 +57,18 @@ Uygulamada çıkan kurallar:
 - **A4'ün adımları örnek veriden türetilir** (`tourWarningSteps`, `guest-tour.ts`); örnek veri ilk yükte olmasın diye
   sabit liste `landing-journey.ts`te durur, bekçi test ikisini eşit tutar.
 - Sayı sayan anlar CSS ile aynı eğriyi kullanır: `easeSettle` (`moment.ts`).
+- **Tarama çekirdeği tek bileşen** (C1, C2): `src/components/learning/scan-core.tsx` (`ScanCore`, `ScanFindings`,
+  `useScanMoment`, `SCAN_CORE_MS` = 2200), stiller `src/styles/scan-core.css`, ölçü `--cx-scan-core` (88) /
+  `--cx-scan-core-s` (72). Yalnız `--cx-*` renkleri; misafir turunun çekirdeği (`landing-journey.css`) içe aktarılmaz.
+  Durağan hâlde hareket yok (tek soluk halka); ortada `CortexMark`.
+- **C1'de an yüklemeyi beklemez**: `takeFiles` anı başlatır ve aynı anda yüklemeye geçer. An sürerken ilerleme satırı ve
+  çubuğu bekler, uyarı ve hata beklemez; yüklenemeyen dosya varsa ya da fotoğraf kalitesi sorusu gelirse an hemen biter.
+  Bulgular yalnız elimizdeki değerler: seçilen dosyanın adı ve boyutu (dosya simgesi), sonra okunup hazır olan dosya ve
+  sayfa sayısı (onay işareti); bilinmeyen yazılmaz.
+- **C2'de dosya sunucuya gitmez**: misafir dosya köprüsü (`guest-handoff.ts`, sekme oturumu + IndexedDB) oturum açmış
+  öğrencide de aynı. Dosya saklanınca **ve** an bitince (ya da atlanınca) kapının bugünkü bağlantısına tıklanarak
+  kuruluma gidilir. Bekletme sınırını (10 dosya, 100 MB) aşan dosyalar burada bekletilmez, kurulumda eklenir. Metne
+  dokunmak bugünkü gibi doğrudan kuruluma götürür.
 
 ## Hazırlık sayfası (3C, 13 Kasım 2026)
 

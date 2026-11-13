@@ -2968,6 +2968,22 @@
   color: var(--apw-sel);
 }
 
+/*
+  Tarama çekirdeği (C1, 13 Kasım 2026): eski yükleme simgesinin yerinde. Halkalar an sırasında çekirdeğin dışına
+  taşar; alan kırpmaz ama sayfayı yana kaydırmaz (halka transform ile büyür, düzene girmez).
+*/
+.apw .apw-drop .cx-scan-core {
+  margin-bottom: var(--cx-space-6);
+}
+
+.apw .apw-drop .cx-scan-finds {
+  min-height: 3.5rem;
+}
+
+.apw .apw-drop {
+  overflow-x: clip;
+}
+
 .apw .apw-drop-title {
   font-size: 1.0625rem;
   font-weight: 650;

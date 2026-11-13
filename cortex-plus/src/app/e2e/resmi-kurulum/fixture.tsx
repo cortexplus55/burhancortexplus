@@ -3,15 +3,25 @@
 import { useState } from "react";
 import { fakeLevelApi } from "../level-fake";
 import { OfficialSetupFlow, type OfficialSetupBody } from "@/components/parity/official-setup-flow";
-import type { SetupExam } from "@/lib/curriculum/yks-alan";
+import type { SetupExam, YksAlan } from "@/lib/curriculum/yks-alan";
 
 /** Resmî kurulum fikstürü: oluşturma isteği sunucuya gitmez, gövde ekranda gösterilir. */
-export function ResmiKurulumFixture({ exam }: { exam: SetupExam | null }) {
+export function ResmiKurulumFixture({
+  exam,
+  alan = null,
+  topic = null,
+}: {
+  exam: SetupExam | null;
+  alan?: YksAlan | null;
+  topic?: string | null;
+}) {
   const [body, setBody] = useState<OfficialSetupBody | null>(null);
   return (
     <main style={{ padding: 0 }}>
       <OfficialSetupFlow
         initialExam={exam}
+        initialAlan={alan}
+        initialTopic={topic}
         submit={async (b) => {
           setBody(b);
           return { prepId: "e2e-prep" };

@@ -188,6 +188,10 @@
   --cx-tray-item-w: 105px;
   --cx-tray-item-h: 84px;
 
+  /* Tarama çekirdeği (C1 kurulum, C2 ana ekran; 13 Kasım 2026) */
+  --cx-scan-core: 88px;
+  --cx-scan-core-s: 72px;
+
   /* İçerik genişlikleri [ölçüm] */
   --cx-w-reading: 768px;
   --cx-w-chat: 800px;

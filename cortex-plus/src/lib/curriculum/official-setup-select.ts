@@ -88,6 +88,43 @@ export function subjectTotals(subject: SetupSubject): { units: number; outcomes:
   return { units: subject.units.length, outcomes: subject.units.reduce((n, u) => n + u.outcomes.length, 0) };
 }
 
+/**
+ * Kurulumu bir konu seçili açmak (C3, 13 Kasım 2026: turdan kayda süreklilik). Sözcük ünite adında ya da kazanım
+ * metninde aranır (Türkçe küçük harfle, alt dize). Eşleşen ünitesi olan dersler seçilir; o derslerin öbür üniteleri
+ * kaldırılır. Ünite yalnız kazanımlarından eşleştiyse yalnız eşleşen kazanımlar kalır; adı eşleştiyse ve hiçbir
+ * kazanımı eşleşmiyorsa ünitenin tamamı kalır. Eşleşme yoksa null: kurulum bugünkü hâliyle açılır.
+ */
+export function selectionForTopic(
+  tree: SetupTree,
+  term: string,
+): { selection: SetupSelection; unitIds: string[] } | null {
+  const needle = term.trim().toLocaleLowerCase("tr");
+  if (needle.length < 3) return null;
+  const has = (text: string) => text.toLocaleLowerCase("tr").includes(needle);
+  const subjectKeys: string[] = [];
+  const removedUnits: string[] = [];
+  const removedOutcomes: string[] = [];
+  const unitIds: string[] = [];
+  for (const subject of tree.subjects) {
+    const hits = new Set(subject.units.filter((u) => has(u.title) || u.outcomes.some((o) => has(o.text))).map((u) => u.id));
+    if (!hits.size) continue;
+    subjectKeys.push(subject.key);
+    for (const unit of subject.units) {
+      if (!hits.has(unit.id)) {
+        removedUnits.push(unit.id);
+        continue;
+      }
+      unitIds.push(unit.id);
+      const outcomeHits = unit.outcomes.filter((o) => has(o.text));
+      if (!outcomeHits.length) continue;
+      for (const outcome of unit.outcomes) {
+        if (!outcomeHits.includes(outcome)) removedOutcomes.push(outcomeKey(unit.id, outcome.code));
+      }
+    }
+  }
+  return subjectKeys.length ? { selection: { subjectKeys, removedOutcomes, removedUnits }, unitIds } : null;
+}
+
 export function toggleUnit(selection: SetupSelection, unitId: string): SetupSelection {
   const has = selection.removedUnits.includes(unitId);
   return {

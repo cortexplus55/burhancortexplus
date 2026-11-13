@@ -1,0 +1,174 @@
+/*
+  Tarama çekirdeği, uygulamanın içi (C1 kurulum, C2 ana ekran; 13 Kasım 2026). Renkler yalnız --cx-* (mavi marka,
+  camgöbeği tarama ışığı); misafir turunun sıcak siyah / kâğıt beyazı paleti buraya taşınmaz.
+
+  Durağan: çekirdek + tek soluk halka, hareket yok. An (`[data-playing]`, en çok 2,5 sn; süre JS'te `SCAN_CORE_MS`):
+  halkalar bir kez dışa atar (yerleşme × 2), ışın çekirdeğin üstünden üç kez geçer (yerleşme, gidip gelir), bulgular
+  onay süresinde (220 ms) sırayla belirir. Hareket azaltmada an hiç başlamaz; yine de animasyon kapalı.
+*/
+
+.cx-scan-core {
+  --cx-scan-size: var(--cx-scan-core);
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--cx-scan-size);
+  height: var(--cx-scan-size);
+  pointer-events: none;
+}
+
+.cx-scan-core[data-size="s"] {
+  --cx-scan-size: var(--cx-scan-core-s);
+}
+
+.cx-scan-core-rings {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.cx-scan-core-rings span {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--cx-radius-max);
+  border: 1px solid color-mix(in srgb, var(--cx-cyan) 45%, transparent);
+  opacity: 0;
+}
+
+/* Durağan hâlde tek soluk halka: çekirdeğin bir "alan" olduğunu söyler, hareket etmez. */
+.cx-scan-core-rings span:first-child {
+  opacity: 0.55;
+}
+
+.cx-scan-core-heart {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 72%;
+  height: 72%;
+  overflow: hidden;
+  border-radius: var(--cx-radius-max);
+  background: radial-gradient(closest-side, var(--cx-bg-2), var(--cx-bg-1));
+  box-shadow:
+    inset 0 0 0 1px var(--cx-border-2),
+    0 0 var(--cx-space-24) color-mix(in srgb, var(--cx-brand) 28%, transparent);
+  transition: box-shadow var(--cx-dur-panel) var(--cx-ease-settle);
+}
+
+.cx-scan-core-beam {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 22%;
+  opacity: 0;
+  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--cx-cyan) 55%, transparent));
+  box-shadow: 0 0 var(--cx-space-16) color-mix(in srgb, var(--cx-cyan) 45%, transparent);
+}
+
+/* ---------- An ---------- */
+
+.cx-scan-core[data-playing] .cx-scan-core-heart {
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--cx-cyan) 60%, transparent),
+    0 0 var(--cx-space-40) color-mix(in srgb, var(--cx-brand) 50%, transparent);
+}
+
+.cx-scan-core[data-playing] .cx-scan-core-rings span {
+  animation: cx-scan-ring calc(var(--cx-dur-settle) * 2) var(--cx-ease-settle) 1 both;
+}
+
+.cx-scan-core[data-playing] .cx-scan-core-rings span:nth-child(2) {
+  animation-delay: calc(var(--cx-dur-scale) * 0.7);
+}
+
+.cx-scan-core[data-playing] .cx-scan-core-rings span:nth-child(3) {
+  animation-delay: calc(var(--cx-dur-scale) * 1.4);
+}
+
+@keyframes cx-scan-ring {
+  from {
+    transform: scale(0.75);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+
+.cx-scan-core[data-playing] .cx-scan-core-beam {
+  animation: cx-scan-beam var(--cx-dur-settle) ease-in-out 3 alternate both;
+}
+
+@keyframes cx-scan-beam {
+  from {
+    opacity: 1;
+    transform: translateY(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(460%);
+  }
+}
+
+/* ---------- Bulgular ---------- */
+
+.cx-scan-finds {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--cx-space-6);
+  max-width: 100%;
+  margin: var(--cx-space-8) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cx-scan-find {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--cx-space-6);
+  min-width: 0;
+  max-width: 100%;
+  color: var(--cx-text-reading);
+  font: var(--cx-t-label-13);
+  text-align: left;
+  overflow-wrap: anywhere;
+  animation: cx-scan-find-in var(--cx-dur-scale) var(--cx-ease-settle) both;
+  animation-delay: calc(var(--cx-dur-scale) * 2 + var(--cx-scan-i, 0) * var(--cx-dur-scale));
+}
+
+.cx-scan-find-icon {
+  flex: none;
+  width: 0.875rem;
+  height: 0.875rem;
+  margin-top: 0.125rem;
+  color: var(--cx-success);
+}
+
+.cx-scan-find-icon[data-kind="file"] {
+  color: var(--cx-text-brand);
+}
+
+@keyframes cx-scan-find-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--cx-enter-shift));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cx-scan-core-heart {
+    transition: none;
+  }
+  .cx-scan-core[data-playing] .cx-scan-core-rings span,
+  .cx-scan-core[data-playing] .cx-scan-core-beam,
+  .cx-scan-find {
+    animation: none;
+  }
+}

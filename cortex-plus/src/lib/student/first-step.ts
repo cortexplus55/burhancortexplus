@@ -25,6 +25,13 @@ export type FirstStepPlan = {
 export const FIRST_STEP_UPLOAD_HREF = "/deneme-sinavlari/olustur";
 export const FIRST_STEP_SOLVE_HREF = "/soru-coz";
 
+/**
+ * "Not yükle" kapısındaki tarama çekirdeğinin başlığı (C2, 13 Kasım 2026). Yeni söz değil: misafir turunun ilk
+ * adımının başlığıyla aynı (`JOURNEY_STEPS`, upload); misafir sayfasının dosyası uygulamaya yüklenmesin diye burada
+ * durur, bekçi test ikisini eşit tutar.
+ */
+export const FIRST_STEP_CORE_TITLE = "Notunu tarama çekirdeğine bırak";
+
 function levelChips(levelId: string, subjects: string[]): FirstStepChip[] {
   return subjects
     .map((subject) => {

@@ -136,3 +136,206 @@ a.cp-first-step-card:hover,
 .cp-first-step-chip:hover {
   border-color: var(--c-action);
 }
+
+/*
+  "Not yükle" kapısı (C2, 13 Kasım 2026): görseli uygulama içi tarama çekirdeği (`scan-core.css`). Çekirdek bir düğme:
+  dosya bırakılır ya da dokununca seçilir (dosya tarayıcıda bekler, kuruluma taşınır); metin bugünkü bağlantı.
+  Bütün kart bırakma alanı: dosya metnin üstüne bırakılırsa da tarayıcı dosyayı açmaz, çekirdeğe gider.
+*/
+.cp-first-step-card--upload {
+  gap: var(--cx-space-8);
+  padding: 0;
+  overflow: hidden;
+}
+
+.cp-first-step-card--upload:hover,
+.cp-first-step-card--upload[data-over] {
+  border-color: var(--cx-brand);
+  background: var(--c-surface-2);
+}
+
+.cp-first-step-core {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cx-space-6);
+  min-height: var(--cx-tap-min);
+  margin: var(--cx-space-12) var(--cx-space-12) 0;
+  padding: var(--cx-space-14) var(--cx-space-12) var(--cx-space-12);
+  border: 1.5px dashed var(--cx-border-2);
+  border-radius: var(--cx-radius-m);
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--cx-brand) 10%, transparent), transparent);
+  color: var(--cx-text-primary);
+  font: inherit;
+  cursor: pointer;
+  transition:
+    border-color var(--cx-dur-color) ease,
+    background var(--cx-dur-color) ease;
+}
+
+.cp-first-step-core:hover:not(:disabled),
+.cp-first-step-card--upload[data-over] .cp-first-step-core {
+  border-color: var(--cx-brand);
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--cx-brand) 18%, transparent), transparent);
+}
+
+.cp-first-step-core:focus-visible {
+  outline: 2px solid var(--cx-focus);
+  outline-offset: 2px;
+}
+
+.cp-first-step-core:disabled {
+  cursor: progress;
+}
+
+/* Kartın genel "span" kuralı (soluk gövde yazısı) çekirdeğe ve bulgulara inmesin. */
+.cp-first-step-card .cp-first-step-core-title {
+  color: var(--cx-text-primary);
+  font: var(--cx-t-label-13);
+  font-weight: 600;
+  text-align: center;
+}
+
+.cp-first-step-card .cx-scan-core span {
+  font: inherit;
+}
+
+.cp-first-step-card .cx-scan-find span {
+  color: var(--cx-text-reading);
+  font: var(--cx-t-label-13);
+}
+
+.cp-first-step-input {
+  display: none;
+}
+
+.cp-first-step-card--upload .cx-scan-finds {
+  margin: 0 var(--cx-space-12);
+}
+
+.cp-first-step-problems {
+  margin: 0 var(--cx-space-12);
+  padding: 0;
+  list-style: none;
+  color: var(--cx-text-secondary);
+  font: var(--cx-t-body-12);
+}
+
+.cp-first-step-card-link {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-height: var(--cx-tap-min);
+  padding: 0 1rem 1rem;
+  color: var(--c-text);
+  text-decoration: none;
+}
+
+.cp-first-step-card-link:focus-visible {
+  outline: 2px solid var(--cx-focus);
+  outline-offset: -2px;
+  border-radius: var(--r-2xl);
+}
+
+.cp-first-step-card--upload strong {
+  font: var(--t-label-15);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.cp-first-step-card--upload .cp-first-step-card-link > span {
+  font: var(--t-body-14);
+  color: var(--c-text-muted);
+}
+
+/* Telefonda tek sütun: çekirdek yanda, kart kısa kalsın. */
+@media (max-width: 47.99rem) {
+  .cp-first-step-core {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: var(--cx-space-12);
+    padding: var(--cx-space-8) var(--cx-space-12);
+  }
+  .cp-first-step-card .cp-first-step-core-title {
+    text-align: left;
+  }
+  .cp-first-step-card--upload .cx-scan-finds {
+    align-items: flex-start;
+  }
+}
+
+/*
+  Turdan kayda süreklilik (C3, 13 Kasım 2026): tur kaydı varsa başlatıcının üstünde tek kart. Cam yüzey; ekranın tek
+  marka vurgusu değildir (sohbet ve kapılar duruyor), dokunma alanı 44 px.
+*/
+.cp-first-step-tour {
+  display: flex;
+  align-items: center;
+  gap: var(--cx-space-8);
+  margin-bottom: var(--cx-space-12);
+  padding: var(--cx-space-6);
+  border-radius: var(--cx-radius-l);
+  background: var(--cx-glass-background);
+  box-shadow: var(--cx-glass-bevel), inset 0 0 0 1px var(--cx-border-2);
+}
+
+.cp-first-step-tour-go {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--cx-space-12);
+  min-width: 0;
+  min-height: var(--cx-tap-min);
+  padding: var(--cx-space-6) var(--cx-space-12);
+  border-radius: var(--cx-radius-m);
+  color: var(--cx-text-primary);
+  text-decoration: none;
+}
+
+.cp-first-step-tour-go:hover {
+  background: color-mix(in srgb, var(--cx-brand) 10%, transparent);
+}
+
+.cp-first-step-tour-go:focus-visible {
+  outline: 2px solid var(--cx-focus);
+  outline-offset: 2px;
+}
+
+.cp-first-step-tour-mark {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--cx-icon-btn-l);
+  height: var(--cx-icon-btn-l);
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-bg-2);
+  box-shadow: 0 0 var(--cx-space-16) color-mix(in srgb, var(--cx-brand) 30%, transparent);
+}
+
+.cp-first-step-tour-go strong {
+  flex: 1;
+  min-width: 0;
+  font: var(--cx-t-title-s);
+  text-wrap: balance;
+}
+
+.cp-first-step-tour-arrow {
+  flex: none;
+  color: var(--cx-text-brand);
+}
+
+/* Telefonda kartın cümlesi tek satıra sıkışmasın: bağlantı tam satır, "Şimdilik gizle" altında sağda. */
+@media (max-width: 30rem) {
+  .cp-first-step-tour {
+    flex-wrap: wrap;
+    gap: 0;
+  }
+  .cp-first-step-tour-go {
+    flex-basis: 100%;
+  }
+  .cp-first-step-tour .cp-first-step-hide {
+    margin-left: auto;
+  }
+}
