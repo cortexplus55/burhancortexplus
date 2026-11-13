@@ -1,6 +1,6 @@
 /**
  * Cortex Plus — tek token kaynağı (Prompt 7).
- * Eski --cp-*, --pm-*, --cs-*, --mk-*, --als-*, --cx-* köprüleri burada.
+ * Eski --cp-*, --pm-*, --cs-*, --mk-*, --als-*, --cpx-* köprüleri burada.
  * Bileşenler ve ekranlar doğrudan --c-* kullanmalı.
  */
 
@@ -151,9 +151,9 @@
   --brand-foreground: 0 0% 2%;
 
   /* --- Köprüler: eski prefix → --c-* --- */
-  --cx-gold: var(--c-brand);
-  --cx-gold-hover: var(--c-brand-hover);
-  --cx-gold-glow: rgba(244, 174, 11, 0.35);
+  --cpx-gold: var(--c-brand);
+  --cpx-gold-hover: var(--c-brand-hover);
+  --cpx-gold-glow: rgba(244, 174, 11, 0.35);
 
   --mk-bg: var(--c-bg);
   --mk-text: var(--c-text);

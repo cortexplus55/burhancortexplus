@@ -4,16 +4,16 @@
 .cortex-premium,
 .cortex-premium-auth,
 .cs-app.cortex-premium-app {
-  --cx-gold: var(--c-brand);
-  --cx-gold-hover: var(--c-brand-hover);
-  --cx-gold-glow: rgba(244, 174, 11, 0.35);
-  --cx-bg: var(--c-bg);
-  --cx-surface: rgba(18, 18, 20, 0.72);
-  --cx-surface-solid: var(--c-surface-1);
-  --cx-border: rgba(255, 255, 255, 0.08);
-  --cx-border-gold: rgba(232, 168, 56, 0.28);
-  --cx-text: var(--c-text);
-  --cx-muted: var(--c-text-muted);
+  --cpx-gold: var(--c-brand);
+  --cpx-gold-hover: var(--c-brand-hover);
+  --cpx-gold-glow: rgba(244, 174, 11, 0.35);
+  --cpx-bg: var(--c-bg);
+  --cpx-surface: rgba(18, 18, 20, 0.72);
+  --cpx-surface-solid: var(--c-surface-1);
+  --cpx-border: rgba(255, 255, 255, 0.08);
+  --cpx-border-gold: rgba(232, 168, 56, 0.28);
+  --cpx-text: var(--c-text);
+  --cpx-muted: var(--c-text-muted);
   --font-display: var(--font-ui), system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-ui: "Figtree", var(--font-geist-sans), system-ui, sans-serif;
   font-family: var(--font-ui);
@@ -21,13 +21,13 @@
 
 .cortex-premium-auth {
   min-height: 100dvh;
-  background: var(--cx-bg);
-  color: var(--cx-text);
+  background: var(--cpx-bg);
+  color: var(--cpx-text);
 }
 
 .cs-app.cortex-premium-app .cs-pay-card--premium {
-  border-color: var(--cx-border-gold);
-  background: var(--cx-surface);
+  border-color: var(--cpx-border-gold);
+  background: var(--cpx-surface);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
   box-shadow:
@@ -41,7 +41,7 @@
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--cx-gold-hover);
+  color: var(--cpx-gold-hover);
 }
 
 .cs-app.cortex-premium-app .cortex-premium-section-title {
@@ -53,8 +53,8 @@
 }
 
 .cortex-premium-account-strip {
-  border-color: var(--cx-border-gold);
-  background: var(--cx-surface);
+  border-color: var(--cpx-border-gold);
+  background: var(--cpx-surface);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   box-shadow: 0 0 32px rgba(232, 168, 56, 0.06);
@@ -62,8 +62,8 @@
 
 .cortex-premium-stat-tile {
   border-radius: 1.25rem;
-  border: 1px solid var(--cx-border);
-  background: var(--cx-surface);
+  border: 1px solid var(--cpx-border);
+  background: var(--cpx-surface);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   padding: 1rem;
@@ -72,26 +72,26 @@
 
 .cortex-premium-stat-tile__label {
   font-size: 0.75rem;
-  color: var(--cx-muted);
+  color: var(--cpx-muted);
 }
 
 .cortex-premium-stat-tile__value {
   margin-top: 0.25rem;
   font-size: 1.5rem;
   font-weight: 600;
-  color: var(--cx-text);
+  color: var(--cpx-text);
 }
 
 .cortex-premium-inset-list {
   overflow: hidden;
   border-radius: 1rem;
-  border: 1px solid var(--cx-border);
+  border: 1px solid var(--cpx-border);
   background: rgba(12, 12, 14, 0.65);
 }
 
 .cortex-premium-inset-list > li,
 .cortex-premium-inset-list > * {
-  border-color: var(--cx-border);
+  border-color: var(--cpx-border);
 }
 
 .cortex-premium-inset-row {
@@ -100,15 +100,15 @@
   justify-content: space-between;
   gap: 0.75rem;
   border-radius: 0.75rem;
-  border: 1px solid var(--cx-border);
+  border: 1px solid var(--cpx-border);
   background: rgba(0, 0, 0, 0.25);
   padding: 0.5rem 0.75rem;
   font-size: 0.875rem;
 }
 
 .cortex-premium-upgrade-sheet {
-  border-color: var(--cx-border-gold);
-  background: var(--cx-surface);
+  border-color: var(--cpx-border-gold);
+  background: var(--cpx-surface);
   backdrop-filter: blur(22px);
   -webkit-backdrop-filter: blur(22px);
   box-shadow:
@@ -189,7 +189,7 @@
   margin-top: 1rem;
   font-size: 1.05rem;
   line-height: 1.55;
-  color: var(--cx-muted);
+  color: var(--cpx-muted);
 }
 
 .cortex-premium-auth__badges {
@@ -201,12 +201,12 @@
 
 .cortex-premium-auth__badge {
   border-radius: 9999px;
-  border: 1px solid var(--cx-border-gold);
+  border: 1px solid var(--cpx-border-gold);
   background: rgba(232, 168, 56, 0.08);
   padding: 0.4rem 0.85rem;
   font-size: 0.75rem;
   font-weight: 600;
-  color: var(--cx-gold-hover);
+  color: var(--cpx-gold-hover);
 }
 
 .cortex-premium-auth__panel {
@@ -232,7 +232,7 @@
 .cortex-premium-auth__logo {
   font-weight: 700;
   letter-spacing: -0.03em;
-  color: var(--cx-text);
+  color: var(--cpx-text);
 }
 
 .cortex-premium-auth__card {
@@ -240,8 +240,8 @@
   width: 100%;
   max-width: 26rem;
   border-radius: 1.35rem;
-  border: 1px solid var(--cx-border-gold);
-  background: var(--cx-surface);
+  border: 1px solid var(--cpx-border-gold);
+  background: var(--cpx-surface);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   padding: 1.75rem;
@@ -263,7 +263,7 @@
   margin-top: 0.5rem;
   text-align: center;
   font-size: 0.875rem;
-  color: var(--cx-muted);
+  color: var(--cpx-muted);
 }
 
 .cortex-premium-btn-primary {
@@ -281,7 +281,7 @@
   box-shadow:
     0 0 0 1px rgba(255, 220, 150, 0.35),
     0 12px 32px rgba(0, 0, 0, 0.4),
-    0 0 32px var(--cx-gold-glow);
+    0 0 32px var(--cpx-gold-glow);
   transition:
     transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
     box-shadow 0.25s ease;
@@ -306,12 +306,12 @@
   align-items: center;
   justify-content: center;
   border-radius: 9999px;
-  border: 1px solid var(--cx-border);
+  border: 1px solid var(--cpx-border);
   background: rgba(255, 255, 255, 0.04);
   padding: 0.85rem 1.25rem;
   font-weight: 600;
   font-size: 0.9375rem;
-  color: var(--cx-text);
+  color: var(--cpx-text);
   transition: background 0.2s ease, border-color 0.2s ease;
 }
 
@@ -323,16 +323,16 @@
 .cortex-premium-input {
   width: 100%;
   border-radius: 0.85rem;
-  border: 1px solid var(--cx-border);
+  border: 1px solid var(--cpx-border);
   background: rgba(0, 0, 0, 0.35);
   padding: 0.65rem 0.85rem;
   font-size: 0.9375rem;
-  color: var(--cx-text);
+  color: var(--cpx-text);
 }
 
 .cortex-premium-input:focus {
   outline: none;
-  border-color: var(--cx-border-gold);
+  border-color: var(--cpx-border-gold);
   box-shadow: 0 0 0 3px rgba(232, 168, 56, 0.15);
 }
 
@@ -360,13 +360,13 @@
   background: rgba(22, 22, 24, 0.82);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--cx-border);
+  border: 1px solid var(--cpx-border);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
 }
 
 .cortex-premium-tool-card {
   border-radius: 1.1rem;
-  border: 1px solid var(--cx-border);
+  border: 1px solid var(--cpx-border);
   background: linear-gradient(
     145deg,
     rgba(24, 24, 28, 0.95) 0%,
@@ -381,25 +381,25 @@
 }
 
 .cortex-premium-tool-card:hover {
-  border-color: var(--cx-border-gold);
+  border-color: var(--cpx-border-gold);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4), 0 0 24px rgba(232, 168, 56, 0.1);
   transform: translateY(-2px);
 }
 
 .cortex-premium-chip {
   border-radius: 9999px;
-  border: 1px solid var(--cx-border);
+  border: 1px solid var(--cpx-border);
   padding: 0.4rem 0.85rem;
   font-size: 0.75rem;
   font-weight: 600;
-  color: var(--cx-muted);
+  color: var(--cpx-muted);
   transition: all 0.2s ease;
 }
 
 .cortex-premium-chip[data-active="true"] {
-  border-color: var(--cx-border-gold);
+  border-color: var(--cpx-border-gold);
   background: rgba(232, 168, 56, 0.12);
-  color: var(--cx-gold-hover);
+  color: var(--cpx-gold-hover);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -418,27 +418,27 @@
   position: sticky;
   top: 0;
   z-index: 20;
-  background: var(--cx-bg);
+  background: var(--cpx-bg);
 }
 
 .cortex-premium-signup .signup-choice {
-  border-color: var(--cx-border);
-  background: var(--cx-surface-solid);
+  border-color: var(--cpx-border);
+  background: var(--cpx-surface-solid);
 }
 
 .cortex-premium-signup .signup-choice[data-selected="true"] {
-  border-color: var(--cx-border-gold);
-  box-shadow: 0 0 0 1px var(--cx-border-gold);
+  border-color: var(--cpx-border-gold);
+  box-shadow: 0 0 0 1px var(--cpx-border-gold);
 }
 
 .cortex-premium-signup .signup-continue {
-  background: var(--cx-gold);
+  background: var(--cpx-gold);
   color: var(--c-bg);
 }
 
 .cortex-premium-error .cortex-premium-auth__card {
-  border: 1px solid var(--cx-border);
-  background: var(--cx-surface-solid);
+  border: 1px solid var(--cpx-border);
+  background: var(--cpx-surface-solid);
   padding: 2rem;
   border-radius: 1.25rem;
 }
@@ -486,7 +486,7 @@
 }
 
 .cortex-premium-input:focus-visible {
-  border-color: var(--cx-gold, var(--c-brand));
+  border-color: var(--cpx-gold, var(--c-brand));
   box-shadow:
     0 0 0 2px rgba(12, 10, 6, 0.95),
     0 0 0 4px rgba(244, 174, 11, 0.85);
@@ -506,7 +506,7 @@
     0 0 0 2px #0c0a06,
     0 0 0 4px rgba(244, 174, 11, 0.95),
     0 12px 32px rgba(0, 0, 0, 0.4),
-    0 0 32px var(--cx-gold-glow, rgba(244, 174, 11, 0.35));
+    0 0 32px var(--cpx-gold-glow, rgba(244, 174, 11, 0.35));
 }
 
 .cortex-premium-btn-ghost:focus {
@@ -514,14 +514,14 @@
 }
 
 .cortex-premium-btn-ghost:focus-visible {
-  border-color: var(--cx-gold, var(--c-brand));
+  border-color: var(--cpx-gold, var(--c-brand));
   box-shadow:
     0 0 0 2px #0c0a06,
     0 0 0 4px rgba(244, 174, 11, 0.75);
 }
 
 .cortex-premium-auth a:focus-visible {
-  outline: 2px solid var(--cx-gold, var(--c-brand));
+  outline: 2px solid var(--cpx-gold, var(--c-brand));
   outline-offset: 3px;
   border-radius: 0.25rem;
 }
@@ -544,20 +544,20 @@
 .cortex-premium,
 .cortex-premium-auth,
 .cs-app.cortex-premium-app {
-  --cx-gold: var(--c-brand);
-  --cx-gold-hover: var(--c-brand-hover);
-  --cx-gold-glow: rgba(244, 174, 11, 0.38);
-  --cx-bg: var(--c-bg);
-  --cx-surface: rgba(16, 16, 18, 0.78);
-  --cx-surface-solid: var(--c-surface-1);
-  --cx-border: rgba(255, 255, 255, 0.08);
-  --cx-border-gold: rgba(232, 168, 56, 0.32);
+  --cpx-gold: var(--c-brand);
+  --cpx-gold-hover: var(--c-brand-hover);
+  --cpx-gold-glow: rgba(244, 174, 11, 0.38);
+  --cpx-bg: var(--c-bg);
+  --cpx-surface: rgba(16, 16, 18, 0.78);
+  --cpx-surface-solid: var(--c-surface-1);
+  --cpx-border: rgba(255, 255, 255, 0.08);
+  --cpx-border-gold: rgba(232, 168, 56, 0.32);
 }
 
 .cortex-premium-auth {
   background:
     radial-gradient(ellipse 80% 50% at 50% -12%, rgba(244, 174, 11, 0.12), transparent 55%),
-    var(--cx-bg);
+    var(--cpx-bg);
 }
 
 .cs-app.cortex-premium-app .cortex-premium-section-title {
@@ -568,7 +568,7 @@
 }
 
 .cortex-premium-stat-tile:hover {
-  border-color: var(--cx-border-gold);
+  border-color: var(--cpx-border-gold);
   box-shadow:
     0 16px 40px rgba(0, 0, 0, 0.4),
     0 0 28px rgba(244, 174, 11, 0.1);

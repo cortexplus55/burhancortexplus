@@ -57,7 +57,7 @@ export default function SifreYenilePage() {
     <PremiumAuthShell title="Şifre yenile" subtitle="Yeni şifreni belirle ve hesabına dön.">
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="space-y-2">
-          <label htmlFor="password" className="text-sm font-medium text-[var(--cx-muted)]">
+          <label htmlFor="password" className="text-sm font-medium text-[var(--cpx-muted)]">
             Yeni şifre
           </label>
           <input
@@ -70,13 +70,13 @@ export default function SifreYenilePage() {
             onChange={(event) => setPassword(event.target.value)}
             aria-describedby="password-rules"
           />
-          <p id="password-rules" className="text-xs text-[var(--cx-muted)]">
+          <p id="password-rules" className="text-xs text-[var(--cpx-muted)]">
             En az 8 karakter, bir büyük harf, bir küçük harf ve bir rakam.
           </p>
         </div>
 
         <div className="space-y-2">
-          <label htmlFor="confirm" className="text-sm font-medium text-[var(--cx-muted)]">
+          <label htmlFor="confirm" className="text-sm font-medium text-[var(--cpx-muted)]">
             Yeni şifre tekrar
           </label>
           <input
@@ -94,8 +94,8 @@ export default function SifreYenilePage() {
           {loading ? "Kaydediliyor…" : "Şifreyi güncelle"}
         </button>
       </form>
-      <p className="mt-4 text-center text-sm text-[var(--cx-muted)]">
-        <Link href="/ayarlar" className="text-[var(--cx-gold-hover)] underline">
+      <p className="mt-4 text-center text-sm text-[var(--cpx-muted)]">
+        <Link href="/ayarlar" className="text-[var(--cpx-gold-hover)] underline">
           Ayarlara dön
         </Link>
       </p>

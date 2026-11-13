@@ -34,7 +34,7 @@ export function SignupPremiumShell({
       <div className="cortex-premium-auth__grid cortex-premium-signup__grid">
         <aside className="cortex-premium-auth__hero hidden lg:block">
           <div className="cortex-premium-auth__hero-inner">
-            <p className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.2em] text-[var(--cx-gold)]">
+            <p className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.2em] text-[var(--cpx-gold)]">
               <CortexMark size={20} />
               Cortex Plus
             </p>
@@ -60,7 +60,7 @@ export function SignupPremiumShell({
         <div className="cortex-premium-auth__panel flex min-h-0 flex-col">
           <header className="cortex-premium-signup__header flex items-center justify-between px-4 py-4 lg:px-8">
             {headerStart}
-            <span className="text-xs text-[var(--cx-muted)]">{stepLabel}</span>
+            <span className="text-xs text-[var(--cpx-muted)]">{stepLabel}</span>
           </header>
           <main className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pb-10 lg:px-8">
             {/* Yeni 3B logo (9 Kasım 2026): formun üstünde ortalanmış işaret. */}
@@ -69,12 +69,12 @@ export function SignupPremiumShell({
             </div>
             {children}
           </main>
-          <p className="mx-auto mb-8 max-w-sm px-4 text-center text-xs text-[var(--cx-muted)]">
-            <Link href={loginHref} className="underline hover:text-[var(--cx-text)]">
+          <p className="mx-auto mb-8 max-w-sm px-4 text-center text-xs text-[var(--cpx-muted)]">
+            <Link href={loginHref} className="underline hover:text-[var(--cpx-text)]">
               Zaten hesabın var mı? Giriş yap
             </Link>
             {" · "}
-            <Link href="/" className="underline hover:text-[var(--cx-text)]">
+            <Link href="/" className="underline hover:text-[var(--cpx-text)]">
               Ana sayfa
             </Link>
           </p>

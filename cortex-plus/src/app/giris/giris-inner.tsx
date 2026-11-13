@@ -98,7 +98,7 @@ export default function GirisPage() {
         {suspended ? (
           <p
             role="status"
-            className="rounded-xl border border-[var(--cx-border)] px-4 py-3 text-sm text-[var(--cx-muted)]"
+            className="rounded-xl border border-[var(--cpx-border)] px-4 py-3 text-sm text-[var(--cpx-muted)]"
           >
             Hesabın askıya alındı; şu an giriş yapılamıyor. Bilgi ve itiraz için{" "}
             <a href="mailto:cortexplus@cortexplus.app" className="underline">
@@ -110,7 +110,7 @@ export default function GirisPage() {
         {otherDevice && !suspended ? (
           <p
             role="status"
-            className="rounded-xl border border-[var(--cx-border)] px-4 py-3 text-sm text-[var(--cx-muted)]"
+            className="rounded-xl border border-[var(--cpx-border)] px-4 py-3 text-sm text-[var(--cpx-muted)]"
           >
             {OTHER_DEVICE_NOTE}
           </p>
@@ -118,14 +118,14 @@ export default function GirisPage() {
         {blockedApp ? (
           <GoogleBlockedNote
             app={blockedApp}
-            className="border-[var(--cx-border)] text-[var(--cx-muted)]"
+            className="border-[var(--cpx-border)] text-[var(--cpx-muted)]"
           />
         ) : (
           <>
             <GoogleSignInButton onClick={google} disabled={loading} />
             {/* Google ile ilk girişte hesap burada da açılabiliyor; kayıt
                 sihirbazındaki onay kutusu bu yolda hiç görünmüyordu. */}
-            <p className="text-center text-xs text-[var(--cx-muted)]">
+            <p className="text-center text-xs text-[var(--cpx-muted)]">
               Google ile devam ederek{" "}
               <Link href="/kullanim-kosullari" className="underline">
                 Kullanım Koşulları
@@ -137,17 +137,17 @@ export default function GirisPage() {
               &apos;ni kabul etmiş olursun.
             </p>
 
-            <div className="flex items-center gap-3 text-xs text-[var(--cx-muted)]">
-              <span className="h-px flex-1 bg-[var(--cx-border)]" aria-hidden />
+            <div className="flex items-center gap-3 text-xs text-[var(--cpx-muted)]">
+              <span className="h-px flex-1 bg-[var(--cpx-border)]" aria-hidden />
               veya e-posta ile
-              <span className="h-px flex-1 bg-[var(--cx-border)]" aria-hidden />
+              <span className="h-px flex-1 bg-[var(--cpx-border)]" aria-hidden />
             </div>
           </>
         )}
 
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-2">
-            <label htmlFor="email" className="text-sm font-medium text-[var(--cx-muted)]">
+            <label htmlFor="email" className="text-sm font-medium text-[var(--cpx-muted)]">
               E-posta
             </label>
             <input
@@ -161,7 +161,7 @@ export default function GirisPage() {
             />
           </div>
           <div className="space-y-2">
-            <label htmlFor="password" className="text-sm font-medium text-[var(--cx-muted)]">
+            <label htmlFor="password" className="text-sm font-medium text-[var(--cpx-muted)]">
               Şifre
             </label>
             <input
@@ -181,29 +181,29 @@ export default function GirisPage() {
         {googleHint ? (
           <p
             role="status"
-            className="rounded-xl border border-[var(--cx-border)] px-4 py-3 text-sm text-[var(--cx-muted)]"
+            className="rounded-xl border border-[var(--cpx-border)] px-4 py-3 text-sm text-[var(--cpx-muted)]"
           >
             {googleHint}
           </p>
         ) : null}
         {unconfirmed ? (
-          <p className="text-center text-sm text-[var(--cx-muted)]" role="status">
+          <p className="text-center text-sm text-[var(--cpx-muted)]" role="status">
             Doğrulama e-postası gelmediyse{" "}
-            <Link href="/email-dogrula" className="text-[var(--cx-gold-hover)] underline">
+            <Link href="/email-dogrula" className="text-[var(--cpx-gold-hover)] underline">
               yenisini gönder
             </Link>
             .
           </p>
         ) : null}
-        <p className="text-center text-sm text-[var(--cx-muted)]">
-          <Link href="/sifremi-unuttum" className="text-[var(--cx-gold-hover)] underline">
+        <p className="text-center text-sm text-[var(--cpx-muted)]">
+          <Link href="/sifremi-unuttum" className="text-[var(--cpx-gold-hover)] underline">
             Şifreni mi unuttun?
           </Link>
           {" · "}
           {/* Beta kodu bağlantısıyla gelen yeni öğrenci (/pay?kod=…) kayıttan sonra koda dönsün. */}
           <Link
             href={params.get("next") ? `/kayit?next=${encodeURIComponent(next)}` : "/kayit"}
-            className="text-[var(--cx-gold-hover)] underline"
+            className="text-[var(--cpx-gold-hover)] underline"
           >
             Kayıt ol
           </Link>

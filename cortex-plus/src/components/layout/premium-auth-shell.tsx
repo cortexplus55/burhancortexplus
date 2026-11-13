@@ -16,7 +16,7 @@ export function PremiumAuthShell({
       <div className="cortex-premium-auth__grid">
         <aside className="cortex-premium-auth__hero" aria-hidden={true}>
           <div className="cortex-premium-auth__hero-inner">
-            <p className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.2em] text-[var(--cx-gold)]">
+            <p className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.2em] text-[var(--cpx-gold)]">
               <CortexMark size={20} />
               Cortex Plus
             </p>
@@ -50,7 +50,7 @@ export function PremiumAuthShell({
             </Link>
             <Link
               href="/kayit"
-              className="cp-tap text-sm font-medium text-[var(--cx-gold-hover)] hover:underline"
+              className="cp-tap text-sm font-medium text-[var(--cpx-gold-hover)] hover:underline"
             >
               Ücretsiz dene
             </Link>
@@ -66,12 +66,12 @@ export function PremiumAuthShell({
             ) : null}
             <div className="mt-6">{children}</div>
           </div>
-          <p className="mx-auto mt-8 max-w-sm text-center text-xs text-[var(--cx-muted)]">
-            <Link href="/" className="underline hover:text-[var(--cx-text)]">
+          <p className="mx-auto mt-8 max-w-sm text-center text-xs text-[var(--cpx-muted)]">
+            <Link href="/" className="underline hover:text-[var(--cpx-text)]">
               Ana sayfaya dön
             </Link>
             {" · "}
-            <Link href="/yardim" className="underline hover:text-[var(--cx-text)]">
+            <Link href="/yardim" className="underline hover:text-[var(--cpx-text)]">
               Yardım
             </Link>
           </p>
