@@ -222,29 +222,30 @@ export function tourWarningSteps(): ("lesson" | "question" | "cards" | "check")[
 /* ---------- 7. adım: Plus önizlemeleri (11 Kasım 2026, kokpit) ---------- */
 
 /**
- * Podcast önizlemesi: uydurma bir diyalog ya da tarayıcının robot sesi DEĞİL. Örnek ders sayfasındaki (`/ornek`)
- * hazır bölümün ilk iki satırı, ürünün kendi sesleriyle; ses dosyası depoda sabit duruyor (`public/ornek`), süreler
- * dosyanın ölçülen süreleri. Bu yüzden konu turdaki örnek not değil, o bölümün notu (fotosentez); kart bunu söyler.
- * Kelime vurgusunu ürünün karaoke bileşeni çizer. Bekçi test satırları ve süreleri `lesson.json` ile karşılaştırır.
+ * Podcast önizlemesi: uydurma bir diyalog ya da tarayıcının robot sesi DEĞİL (13 Kasım 2026). Ürünün kendi podcast
+ * motoru (senarist yazar, denetçi okur) turdaki dersten iki sesli bir bölüm yazdı; bölümün tamamı
+ * `tour-podcast.json`ta. Kesit o bölümün hoca uyarısını karşılayan ardışık iki satırı ("√(x²) … −x"), ürünün kendi
+ * sesleriyle; ses dosyası depoda sabit (`public/ornek`), süreler dosyanın ölçülen süreleri. Kelime vurgusunu ürünün
+ * karaoke bileşeni çizer. Bekçi test satırları ve süreleri `tour-podcast.json` ile karşılaştırır.
  */
 export const TOUR_PODCAST_SAMPLE = {
-  src: "/ornek/podcast-ornek.mp3",
-  source: "Fotosentez ders notu",
-  durationMs: 14280,
+  src: "/ornek/podcast-koklu-sayilar.mp3",
+  source: "Köklü Sayılar ders notu",
+  durationMs: 15672,
   lines: [
     {
       speaker: "ada",
       name: "Ada",
-      text: "Merhaba Kerem, bugün fotosentez konusunu konuşalım. Öncelikle, fotosentez nedir?",
+      text: "√(x²) ifadesinde x negatifse sonuç x mi olur, −x mi?",
       startMs: 0,
-      endMs: 6312,
+      endMs: 7008,
     },
     {
       speaker: "kerem",
       name: "Kerem",
-      text: "Merhaba Ada! Fotosentez, bitkilerin güneş ışığını kullanarak karbondioksit ve sudan besin üretmesidir.",
-      startMs: 6312,
-      endMs: 14280,
+      text: "−x olur, çünkü x negatifken |x| = −x'tir ve karekökün sonucu negatif olamaz.",
+      startMs: 7008,
+      endMs: 15672,
     },
   ],
 } as const;

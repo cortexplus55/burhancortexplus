@@ -21,7 +21,7 @@ import { TourPlusPreview } from "@/components/landing/tour/plus-previews";
 import { TourProductScreen } from "@/components/landing/tour/product-screens";
 import { PLUS_ONLY_ACTIONS, PLUS_ONLY_NODE_KINDS } from "@/lib/billing/free-meters";
 import { FREE_PAGE_TOTAL } from "@/lib/billing/free-tier-copy";
-import demoLesson from "@/lib/demo/lesson.json";
+import tourPodcast from "@/lib/demo/tour-podcast.json";
 import { clearGuestDocuments } from "@/lib/documents/guest-handoff";
 import {
   TOUR_CARDS,
@@ -213,14 +213,23 @@ describe("turun örnek verisi ürünün veri biçiminde ve doğru", () => {
 });
 
 describe("Plus önizlemelerinin verisi gerçek", () => {
-  it("podcast kesiti örnek dersin hazır bölümünün ilk iki satırı; süreler ölçülen süreler; ses dosyası depoda", () => {
-    const lines = demoLesson.podcast.chapters.flatMap((chapter: { lines: { speaker: string; text: string }[] }) => chapter.lines);
+  it("podcast kesiti ürünün motoruyla turdaki dersten yazılan bölümün ardışık iki satırı; süreler ölçülen; ses depoda", () => {
+    // 13 Kasım 2026: bölüm ürünün podcast döngüsüyle (senarist + denetçi) turdaki dersten üretildi; kesit hocanın
+    // uyarısını (√(x²), x'in işareti) karşılayan iki satır. Bölümün tamamı ve ölçülen süreler kayıtta.
+    const lines = tourPodcast.episode.chapters.flatMap((chapter: { lines: { speaker: string; text: string }[] }) => chapter.lines);
+    const start = lines.findIndex((line) => line.text === TOUR_PODCAST_SAMPLE.lines[0]!.text);
+    expect(start).toBeGreaterThanOrEqual(0);
     expect(TOUR_PODCAST_SAMPLE.lines).toHaveLength(2);
     TOUR_PODCAST_SAMPLE.lines.forEach((line, at) => {
-      expect(line.text).toBe(lines[at]!.text);
-      expect(line.speaker).toBe(lines[at]!.speaker);
-      expect(line.endMs - line.startMs).toBe(demoLesson.audio[at]!.durationMs);
+      expect(line.text).toBe(lines[start + at]!.text);
+      expect(line.speaker).toBe(lines[start + at]!.speaker);
+      expect(line).toEqual(tourPodcast.sample.lines[at]);
     });
+    expect(TOUR_PODCAST_SAMPLE.src).toBe(tourPodcast.sample.src);
+    expect(TOUR_PODCAST_SAMPLE.durationMs).toBe(tourPodcast.sample.durationMs);
+    // Kesit hocanın uyarısının konusu: karenin karekökü ve işaret.
+    expect(TOUR_PODCAST_SAMPLE.lines[0]!.text).toContain("√(x²)");
+    expect(JOURNEY_PLUS_PREVIEWS[0]!.note).toContain("Köklü Sayılar");
     expect(TOUR_PODCAST_SAMPLE.lines[0]!.startMs).toBe(0);
     expect(TOUR_PODCAST_SAMPLE.lines[1]!.startMs).toBe(TOUR_PODCAST_SAMPLE.lines[0]!.endMs);
     expect(TOUR_PODCAST_SAMPLE.durationMs).toBe(TOUR_PODCAST_SAMPLE.lines[1]!.endMs);

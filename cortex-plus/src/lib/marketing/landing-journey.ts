@@ -209,7 +209,7 @@ export const JOURNEY_PLUS_PREVIEWS: JourneyPlusPreview[] = [
     tab: "Podcast",
     title: "İki sesli podcast: Ada ve Kerem",
     body: "Notun iki kişilik bir sohbete dönüşür; okunan kelime ekranda işaretlenir.",
-    note: "Gerçek bir bölümden kesit (fotosentez ders notu). Senin notundan da böyle bir bölüm yazılır ve seslendirilir.",
+    note: "Gerçek bir bölümden kesit (bu turdaki Köklü Sayılar dersi). Senin notundan da böyle bir bölüm yazılır ve seslendirilir.",
   },
   {
     id: "video",

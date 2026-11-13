@@ -1,0 +1,218 @@
+{
+  "note": "Ürünün podcast motoruyla turdaki dersten üretilen bölüm (13 Kasım 2026). Kesit: sample.lines.",
+  "model": "gpt-6-luna",
+  "length": "diyalog",
+  "episode": {
+    "title": "Karekökten Eksi Çıkar mı?",
+    "chapters": [
+      {
+        "title": "Çift dereceli kökte işaret",
+        "lines": [
+          {
+            "speaker": "ada",
+            "text": "−5'in karesi pozitif olduğu hâlde, √((−5)²) sonucunun −5 olduğunu söylemek neden tuzaklı?"
+          },
+          {
+            "speaker": "kerem",
+            "text": "Kare alma sırasında eksi kaybolmuş gibi duruyor, kökün bu işlemi geri alıp −5'i vermesini beklemek kolay."
+          },
+          {
+            "speaker": "ada",
+            "text": "Karekök, karesi kökün içindeki sayıyı veren negatif olmayan sayıyı seçer."
+          },
+          {
+            "speaker": "ada",
+            "text": "Çift dereceli kök, derecesi 2, 4 gibi çift olan köktür, sonucu negatif olamayacağı için √(a²) = |a| olur.",
+            "spoken": "Çift dereceli kök, derecesi 2, 4 gibi çift olan köktür, sonucu negatif olamayacağı için √( a kare ) eşittir |a| olur."
+          },
+          {
+            "speaker": "ada",
+            "text": "Mutlak değer, bir sayının sıfıra uzaklığını gösterir ve bu yüzden negatif sonuç vermez."
+          },
+          {
+            "speaker": "kerem",
+            "text": "Örneğin −5'in sıfıra uzaklığı 5'tir, bu nedenle √((−5)²) = |−5| = 5 olur.",
+            "spoken": "Örneğin −5'in sıfıra uzaklığı 5'tir, bu nedenle √((−5)²) eşittir |−5| eşittir 5 olur."
+          },
+          {
+            "speaker": "ada",
+            "text": "Çift dereceli kökte önce mutlak değeri korumak, ardından içteki sayının işaretine göre sonucu belirlemek gerekir."
+          },
+          {
+            "speaker": "kerem",
+            "text": "Neden karekök, karesi aynı olan iki sayıdan negatif olanı seçmiyor?"
+          },
+          {
+            "speaker": "ada",
+            "text": "Bir sayının karesi negatif olamaz ve karekök gösterimi iki olası karekökten negatif olmayanı ifade eder."
+          },
+          {
+            "speaker": "kerem",
+            "text": "Yani kare alma, birbirinin zıttı olan sayıların işaret farkını ortadan kaldırabilir, kök başlangıçtaki işareti kendiliğinden geri getiremez."
+          }
+        ]
+      },
+      {
+        "title": "Mutlak değerin işarete göre açılması",
+        "lines": [
+          {
+            "speaker": "kerem",
+            "text": "Bir öğrenci |x| ifadesini her zaman x diye açabilir mi, yoksa x negatifken sonuç nasıl belirlenir?"
+          },
+          {
+            "speaker": "ada",
+            "text": "X negatifken |x| = −x'tir, x'i eksiyle çarpmak pozitif bir değer verir.",
+            "spoken": "X negatifken |x| eşittir −x'tir, x'i eksiyle çarpmak pozitif bir değer verir."
+          },
+          {
+            "speaker": "kerem",
+            "text": "Örneğin x = −5 ise |x| = −(−5) = 5, mutlak değer işareti sayının sıfıra uzaklığını korur.",
+            "spoken": "Örneğin x eşittir −5 ise |x| eşittir −(−5) eşittir 5, mutlak değer işareti sayının sıfıra uzaklığını korur."
+          },
+          {
+            "speaker": "ada",
+            "text": "Sınavda sık karıştırılan nokta, √(a²) ifadesini koşulsuz olarak a yazmaktır.",
+            "spoken": "Sınavda sık karıştırılan nokta, √( a kare ) ifadesini koşulsuz olarak a yazmaktır."
+          },
+          {
+            "speaker": "kerem",
+            "text": "Çift derece, çift muhafız gibi: mutlak değer çizgileri, sayı negatifse eksi işaretinin yanlışlıkla dışarı çıkmasını engelliyor."
+          },
+          {
+            "speaker": "ada",
+            "text": "Bu benzetme işaret kontrolünü hatırlatır, son adımda mutlak değeri sayının işaretine göre açmalısın."
+          }
+        ]
+      },
+      {
+        "title": "Tek dereceli kökte işaret",
+        "lines": [
+          {
+            "speaker": "kerem",
+            "text": "∛(−27) ile √((−3)²) karşılaştırıldığında, birinde eksi kalırken diğerinde sonuç pozitif çıkıyor."
+          },
+          {
+            "speaker": "ada",
+            "text": "Tek dereceli kök, derecesi 3 gibi tek olan köktür, negatif bir sayının tek kuvveti de negatif kalır."
+          },
+          {
+            "speaker": "ada",
+            "text": "Bu nedenle ∛(a³) = a, işaret korunur ve mutlak değer gerekmez.",
+            "spoken": "Bu nedenle ∛( a küp ) eşittir a, işaret korunur ve mutlak değer gerekmez."
+          },
+          {
+            "speaker": "kerem",
+            "text": "Demek ki ∛(−27) = −3, çünkü (−3)³ = −27, bu kök negatif değeri de verebilir.",
+            "spoken": "Demek ki ∛(−27) eşittir −3, çünkü (−3)³ eşittir −27, bu kök negatif değeri de verebilir."
+          },
+          {
+            "speaker": "kerem",
+            "text": "Neden üçüncü dereceden kökte eksi işareti korunuyor da karekökte korunmuyor?"
+          },
+          {
+            "speaker": "ada",
+            "text": "Tek kuvvette negatif sayılar negatif sonuç verir, bu yüzden kökün içindeki negatif değeri veren sayı da negatiftir."
+          },
+          {
+            "speaker": "ada",
+            "text": "Birbirinin zıttı olan negatif ve pozitif sayıların kareleri aynıdır, çift dereceli kök ise negatif olmayan sonucu seçer."
+          },
+          {
+            "speaker": "kerem",
+            "text": "Karekök örneğinde (−3)² = 9 olduğundan √((−3)²) = |−3| = 3, aynı işaret her kökte aynı davranmaz.",
+            "spoken": "Karekök örneğinde (−3)² eşittir 9 olduğundan √((−3)²) eşittir |−3| eşittir 3, aynı işaret her kökte aynı davranmaz."
+          },
+          {
+            "speaker": "ada",
+            "text": "Karar verirken önce kökün derecesinin tek mi çift mi olduğuna bakılır, işaretin korunup korunmayacağını belirler."
+          }
+        ]
+      },
+      {
+        "title": "İki kuralı aynı işlemde kullanmak",
+        "lines": [
+          {
+            "speaker": "ada",
+            "text": "Bir öğrenci √((−3)²) + ∛(−27) işlemini çözerken her iki kökte de aynı işaret kuralını kullanabilir mi?"
+          },
+          {
+            "speaker": "kerem",
+            "text": "İlk terimde çift dereceli kök, ikinci terimde tek dereceli kök var, bu yüzden terimleri ayrı değerlendirmek gerekir."
+          },
+          {
+            "speaker": "ada",
+            "text": "√((−3)²) = |−3| = 3 ve ∛(−27) = −3 olur, toplam 3 + (−3) = 0'dır.",
+            "spoken": "√((−3)²) eşittir |−3| eşittir 3 ve ∛(−27) eşittir −3 olur, toplam 3 + (−3) eşittir 0'dır."
+          },
+          {
+            "speaker": "kerem",
+            "text": "Böylece aynı ifadede biri pozitif, diğeri negatif çıkar, sonuçları toplamadan önce kök derecelerini ayırırım."
+          },
+          {
+            "speaker": "ada",
+            "text": "Bu örnek, kök derecesini görmeden yalnızca “kare ile kök birbirini götürür” diye düşünmenin neden yetmediğini gösteriyor."
+          },
+          {
+            "speaker": "ada",
+            "text": "√(x²) ifadesinde x negatifse sonuç x mi olur, −x mi?",
+            "spoken": "√( x kare ) ifadesinde x negatifse sonuç x mi olur, −x mi?",
+            "beat": "ask"
+          },
+          {
+            "speaker": "kerem",
+            "text": "−x olur, çünkü x negatifken |x| = −x'tir ve karekökün sonucu negatif olamaz.",
+            "spoken": "−x olur, çünkü x negatifken |x| eşittir −x'tir ve karekökün sonucu negatif olamaz.",
+            "beat": "reveal"
+          },
+          {
+            "speaker": "ada",
+            "text": "Çift derecede mutlak değeri atlama, tek derecede ise işareti gereksiz yere değiştirme."
+          }
+        ]
+      },
+      {
+        "title": "İşaret kontrolü",
+        "lines": [
+          {
+            "speaker": "kerem",
+            "text": "Çift dereceli kökten çıkan sayı mutlak değerle yazılır, böylece negatif bir sayı kökten doğrudan çıkmaz."
+          },
+          {
+            "speaker": "kerem",
+            "text": "Tek dereceli kök, negatif sayının işaretini korur, çünkü tek kuvvet negatif kalır."
+          },
+          {
+            "speaker": "kerem",
+            "text": "X negatifken |x| = −x'tir ve sonuç pozitiftir, x negatif değilse |x| = x olur.",
+            "spoken": "X negatifken |x| eşittir −x'tir ve sonuç pozitiftir, x negatif değilse |x| eşittir x olur."
+          },
+          {
+            "speaker": "ada",
+            "text": "Kökün derecesini belirle, sonra işareti bu kurala göre dışarı çıkar, çift derecede mutlak değeri, tek derecede işaretin korunduğunu hatırla."
+          }
+        ]
+      }
+    ],
+    "length": "diyalog"
+  },
+  "sample": {
+    "src": "/ornek/podcast-koklu-sayilar.mp3",
+    "durationMs": 15672,
+    "lines": [
+      {
+        "speaker": "ada",
+        "name": "Ada",
+        "text": "√(x²) ifadesinde x negatifse sonuç x mi olur, −x mi?",
+        "startMs": 0,
+        "endMs": 7008
+      },
+      {
+        "speaker": "kerem",
+        "name": "Kerem",
+        "text": "−x olur, çünkü x negatifken |x| = −x'tir ve karekökün sonucu negatif olamaz.",
+        "startMs": 7008,
+        "endMs": 15672
+      }
+    ]
+  }
+}
