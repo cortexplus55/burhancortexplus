@@ -67,6 +67,7 @@ export function IcEkranFixture({ screen }: { screen: string }) {
       streak={2}
       account={fixtureAccount(false)}
       {...(screen === "yol" ? { chrome: "focus" as const, minimalTop: true } : {})}
+      {...(screen === "alt-podcast" ? { chrome: "focus" as const, backHref: "/e2e/ic-ekran?ekran=yol" } : {})}
     >
       {screen === "yol" ? (
         <ExamPrepHome
@@ -130,7 +131,7 @@ export function IcEkranFixture({ screen }: { screen: string }) {
         </div>
       ) : screen === "sinavlar" ? (
         <ParityExamPrep cards={PREP_CARDS} userId={null} />
-      ) : screen === "podcast" ? (
+      ) : screen === "podcast" || screen === "alt-podcast" ? (
         <PodcastStudio creditCost={12} />
       ) : screen === "test" ? (
         <QuizStudio creditCost={10} documents={[]} initialDocumentId={null} />

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FounderChip } from "@/components/student/founder-chip";
 import {
   CalendarDays,
   CreditCard,
@@ -94,7 +95,8 @@ export function ProfilePanel({
                 : "Ücretsiz plan"}
           </span>
         </div>
-        {isAdmin ? null : (
+        {/* Kurucu çipi (13 Kasım 2026): üst çubuktan plan bilgisinin yanına taşındı; kredi sayfasının kurucu görünümünü açar. */}
+        {isAdmin ? <FounderChip /> : (
           <Link
             href="/pay"
             className="cp-pp-upgrade"

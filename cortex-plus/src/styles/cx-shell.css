@@ -314,3 +314,44 @@
 .cp-sor-root:has(> .cx-home-top) .cp-prep-tabbar {
   top: env(safe-area-inset-top, 0px);
 }
+
+/* ---------- Alt sayfalarda "Geri": içeriğin sol üstünde 40 px cam düğme (üst çubukta değil) ---------- */
+.cx-shell-back {
+  display: flex;
+  padding: 0 var(--cx-gutter) var(--cx-space-8);
+}
+.cx-shell-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cx-space-6);
+  height: var(--cx-control-s);
+  padding-inline: var(--cx-space-14);
+  border-radius: var(--cx-radius-max);
+  color: var(--cx-text-primary);
+  font: var(--cx-t-button-s);
+  text-decoration: none;
+  transition: scale var(--cx-dur-scale) var(--cx-ease-out);
+}
+.cx-shell-back-link::before {
+  /* Dokunma alanı 44 px; görünen düğme 40 px. */
+  content: "";
+  position: absolute;
+  inset: calc((var(--cx-control-s) - var(--cx-tap-min)) / 2) 0;
+}
+.cx-shell-back-link svg {
+  width: var(--cx-space-16);
+  height: var(--cx-space-16);
+}
+.cx-shell-back-link:hover,
+.cx-shell-back-link:focus-visible {
+  scale: var(--cx-scale-hover);
+}
+.cx-shell-back-link:focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}
+
+/* Fiyat: sabit "Kapat" düğmesi içeriğin üstüne binmesin (ödeme ekranındaki "Paketlere dön" sağ üstte). */
+.cp-sor-root:has(> .cx-shell-close) > .cp-sor-main {
+  padding-top: calc(var(--cx-icon-btn-l) + var(--cx-space-16));
+}

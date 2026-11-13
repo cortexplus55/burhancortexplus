@@ -5,7 +5,7 @@ import { syncLearningPrefsOnce } from "@/lib/client/learning-prefs-store";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { CalendarDays, ChevronRight, FileText, Flame, Gift, Gauge, LayoutGrid, LineChart, NotebookPen, ShieldCheck, Sparkles, Star, Users, X } from "lucide-react";
+import { ArrowLeft, CalendarDays, ChevronRight, FileText, Flame, Gift, Gauge, LayoutGrid, LineChart, NotebookPen, ShieldCheck, Sparkles, Star, Users, X } from "lucide-react";
 import { HOME_START_EVENT } from "@/lib/ui/home-events";
 import { cn } from "@/lib/utils";
 import { readStreakFromStorage } from "@/components/parity/gamification";
@@ -33,6 +33,10 @@ import "@/styles/cx-shell.css";
 import "@/styles/home-cockpit.css";
 
 export type { RecentConversation };
+
+/** Fiyatın "Kapat"ı için: oturumun ilk adresi ve uygulama içinde başka sayfaya geçilip geçilmediği. */
+let firstPathname: string | null = null;
+let movedInApp = false;
 
 function relativeTr(iso: string) {
   const mins = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
@@ -71,6 +75,7 @@ export function ParitySorShell({
   chrome = "app",
   conversationBaseHref,
   minimalTop = false,
+  backHref,
   countdown = null,
   home = false,
   closeHref,
@@ -99,7 +104,10 @@ export function ParitySorShell({
    * Diğer sayfalar `app` kabuğunda kalır.
    */
   chrome?: "app" | "exam" | "focus" | "session";
-  /** Eski odak çubuğunun "Geri" adresi; yeni çubukta Geri yok (gezinme sekmelerden). Çağıranlar için kalır. */
+  /**
+   * Alt sayfanın "Geri" adresi (hazırlığın podcast kurulumu, düello, müfredat …). Üst çubukta değil, içeriğin sol
+   * üstünde 40 px cam düğme: ana ekrana eklenmiş uygulamada tarayıcının geri tuşu yok (13 Kasım 2026).
+   */
   backHref?: string;
   /**
    * Geçmiş satırı bu adresin `?sohbet=` parametresiyle açılır.
@@ -157,6 +165,26 @@ export function ParitySorShell({
    * gezinme sekmelerden, yıldızlar "Daha fazla"dan.
    */
   const showTopBar = chrome !== "session";
+  /** Hazırlık sayfasının kendisinde (sade üst) Geri yok; gezinme sekmelerden. */
+  const showBack = showTopBar && Boolean(backHref) && !minimalTop;
+  // Fiyatın "Kapat"ı geldiği sayfaya döner: uygulama içinde gezinildiyse ya da aynı siteden gelindiyse bir geri,
+  // yoksa (dışarıdan bağlantı, yeni sekme) ana ekran.
+  useEffect(() => {
+    if (firstPathname === null) firstPathname = pathname;
+    else if (pathname !== firstPathname) movedInApp = true;
+  }, [pathname]);
+  const closeFocus = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+    event.preventDefault();
+    let sameSite = false;
+    try {
+      sameSite = Boolean(document.referrer) && new URL(document.referrer).origin === window.location.origin;
+    } catch {
+      sameSite = false;
+    }
+    if ((movedInApp || sameSite) && window.history.length > 1) router.back();
+    else router.push(closeHref ?? "/ogretmen");
+  };
   const startTeacher = () => {
     // Sayfada öğretmen sohbeti varsa (ana ekran) ilk sözü orada açar; yoksa ana ekrana gider ve orada açar.
     const event = new Event(HOME_START_EVENT, { cancelable: true });
@@ -347,9 +375,18 @@ export function ParitySorShell({
         </header>
       ) : closeHref ? (
         /* Tam ekran odak görünümü (fiyat): çubuk ve logo yok; sağ üstte cam kapat. */
-        <Link href={closeHref} className="cx-shell-close cx-glass" aria-label="Kapat">
+        <Link href={closeHref} className="cx-shell-close cx-glass" aria-label="Kapat" onClick={closeFocus}>
           <X aria-hidden />
         </Link>
+      ) : null}
+
+      {showBack && backHref ? (
+        <div className="cx-shell-back">
+          <Link href={backHref} className="cx-shell-back-link cx-glass">
+            <ArrowLeft aria-hidden />
+            Geri
+          </Link>
+        </div>
       ) : null}
 
       {/* Yaklaşan sınav şeridi yalnız sınav listesinde; üst çubuğun parçası değil, altında durur. */}

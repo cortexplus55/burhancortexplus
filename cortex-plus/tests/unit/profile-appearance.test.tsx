@@ -40,6 +40,9 @@ describe("profil menüsü", () => {
     expect(screen.getByText("Kurucu")).toBeTruthy();
     expect(screen.queryByText("Ücretsiz plan")).toBeNull();
     expect(screen.queryByText("Daha hızlı öğren")).toBeNull();
+    // 13 Kasım 2026: kurucu çipi üst çubuktan plan bilgisinin yanına taşındı.
+    const chip = document.querySelector(".cp-pp-plan .cp-founder-chip");
+    expect(chip?.getAttribute("href")).toBe("/krediler");
   });
 });
 

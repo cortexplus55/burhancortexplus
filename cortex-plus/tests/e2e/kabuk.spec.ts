@@ -98,3 +98,22 @@ test("Daha fazla her sayfada aynı paneli açar; Yıldızlar oradan açılır", 
   await expect(panel).toHaveCount(0);
   await expect(page).toHaveURL(/dialog=stars/);
 });
+
+test("alt sayfada Geri içeriğin sol üstünde, 40 px cam; hazırlık sayfasına döner", { tag: ["@public"] }, async ({ page }) => {
+  await prepare(page);
+  for (const width of [375, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/e2e/ic-ekran?ekran=alt-podcast");
+    const back = page.locator(".cx-shell-back-link");
+    await expect(back).toBeVisible();
+    const [box, header] = await Promise.all([back.boundingBox(), page.locator("header.cx-home-top").boundingBox()]);
+    expect(Math.round(box!.height)).toBe(40);
+    expect(box!.y).toBeGreaterThanOrEqual(header!.y + header!.height);
+    expect(Math.round(box!.x)).toBe(width < 768 ? 16 : 24);
+    await page.screenshot({ path: `test-results/kabuk-geri-${width}.png` });
+  }
+  await page.locator(".cx-shell-back-link").click();
+  await expect(page).toHaveURL(/ekran=yol/);
+  // Hazırlık sayfasının kendisinde Geri yok.
+  await expect(page.locator(".cx-shell-back-link")).toHaveCount(0);
+});

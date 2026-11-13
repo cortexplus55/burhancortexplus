@@ -125,4 +125,38 @@ describe("sor-shell kurucu", () => {
     window.removeEventListener(HOME_START_EVENT, listen);
     expect(push).not.toHaveBeenCalled();
   });
+
+  it("alt sayfalarda içeriğin sol üstünde Geri; hazırlık sayfasının kendisinde ve oturumda yok", () => {
+    const sub = render(
+      <ParitySorShell userInitial="K" account={account()} chrome="focus" backHref="/deneme-sinavlari/p1">
+        <div>podcast kurulumu</div>
+      </ParitySorShell>,
+    );
+    const back = sub.container.querySelector(".cx-shell-back-link");
+    expect(back?.getAttribute("href")).toBe("/deneme-sinavlari/p1");
+    expect(back?.textContent).toContain("Geri");
+    // Üst çubukta değil.
+    expect(sub.container.querySelector("header .cx-shell-back-link")).toBeNull();
+    sub.unmount();
+    for (const props of [{ chrome: "focus" as const, minimalTop: true }, { chrome: "session" as const }]) {
+      const other = render(
+        <ParitySorShell userInitial="K" account={account()} backHref="/deneme-sinavlari" {...props}>
+          <div>sayfa</div>
+        </ParitySorShell>,
+      );
+      expect(other.container.querySelector(".cx-shell-back-link")).toBeNull();
+      other.unmount();
+    }
+  });
+
+  it("fiyatın Kapat düğmesi: uygulama içinde gelinmediyse ana ekrana gider", () => {
+    const { container } = render(
+      <ParitySorShell userInitial="K" account={account()} chrome="session" closeHref="/ogretmen">
+        <div>fiyat</div>
+      </ParitySorShell>,
+    );
+    push.mockClear();
+    fireEvent.click(container.querySelector(".cx-shell-close")!);
+    expect(push).toHaveBeenCalledWith("/ogretmen");
+  });
 });
