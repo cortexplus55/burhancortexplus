@@ -1275,11 +1275,12 @@ function ChatPanelSession({
       if (composerZoneRef.current?.contains(event.target as Node)) return;
       // Yazma kutusunun açtığı pencereler (ders seçimi, yükleme, tablo) kutuyu kapatmaz.
       if ((event.target as Element | null)?.closest?.('[role="dialog"], [aria-modal="true"]')) return;
-      if (input.trim() || pendingFile || pendingRemote) return;
+      // Dikte sürerken kutu açık kalır: yazıya çevrilen ses kutuya düşer.
+      if (input.trim() || pendingFile || pendingRemote || listening || transcribing) return;
       setWideComposer(false);
     };
     const onKey = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || input.trim() || pendingFile || pendingRemote) return;
+      if (event.key !== "Escape" || input.trim() || pendingFile || pendingRemote || listening || transcribing) return;
       setWideComposer(false);
     };
     document.addEventListener("pointerdown", collapse);
@@ -1288,7 +1289,7 @@ function ChatPanelSession({
       document.removeEventListener("pointerdown", collapse);
       window.removeEventListener("keydown", onKey);
     };
-  }, [cockpitMode, wideComposer, input, pendingFile, pendingRemote]);
+  }, [cockpitMode, wideComposer, input, pendingFile, pendingRemote, listening, transcribing]);
 
   // Araç tepsisi: Escape ve dışarı tıklama kapatır.
   useEffect(() => {
@@ -1826,7 +1827,9 @@ function ChatPanelSession({
             <div className="cp-sor-composer-main">
             {slimComposer ? (
               /* İnce yazma çubuğu (13 Kasım 2026, ürün sahibinin kararı): öğretmen düğmesi (boşken geniş kutuyu açar,
-                 doluyken gönderir), araç tepsisi, alan (dokununca geniş kutu), mikrofon (sesli öğretmen). */
+                 doluyken gönderir), araç tepsisi, alan (dokununca geniş kutu), mikrofon (dikte: geniş kutuyu açıp sesi yazıya
+                 çevirir). Mikrofon simgesi her yerde dikte demektir; "Cortex Plus ile konuş" (sesli öğretmen) ses dalgası
+                 simgesiyle yalnız geniş kutuda durur (13 Kasım 2026, ürün sahibinin kararı). */
               <div className="cx-slim">
                 {toolsOpen && homeTools ? (
                   <div
@@ -1845,7 +1848,8 @@ function ChatPanelSession({
                   <button
                     type="button"
                     className="cx-slim-teacher cx-brand"
-                    aria-label={hasComposerPayload ? "Gönder" : "Cortex Plus ile konuş"}
+                    // Boşken geniş kutuyu açar: adı yazma alanının kendi metni ("Cortex Plus ile konuş" yalnız sesli öğretmenin).
+                    aria-label={hasComposerPayload ? "Gönder" : (placeholder ?? "Mesaj")}
                     disabled={loading}
                     onClick={() => {
                       if (hasComposerPayload) void sendComposer();
@@ -1875,11 +1879,13 @@ function ChatPanelSession({
                   />
                   <button
                     type="button"
-                    className={cn("cx-slim-icon", voiceMode && "is-live")}
-                    aria-label={voiceModeLabel(voiceMode, { talking, listening, loading, idle: "Cortex Plus ile konuş" })}
-                    aria-pressed={voiceMode}
-                    disabled={!voiceMode && (loading || transcribing)}
-                    onClick={toggleVoiceMode}
+                    className={cn("cx-slim-icon", listening && "is-live")}
+                    aria-label={listening ? "Kaydı bitir" : transcribing ? "Sesin çözümleniyor" : "Mikrofon"}
+                    disabled={loading || transcribing}
+                    onClick={() => {
+                      setWideComposer(true);
+                      startVoiceInput();
+                    }}
                   >
                     <Mic aria-hidden />
                   </button>

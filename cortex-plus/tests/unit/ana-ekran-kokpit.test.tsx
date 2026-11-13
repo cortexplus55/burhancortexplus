@@ -216,6 +216,20 @@ describe("kaynak bekçileri", () => {
     expect(page).not.toContain("countdown={countdown}");
   });
 
+  it("mikrofon simgesi her yerde dikte; sesli öğretmen ince çubukta yok, geniş kutuda ses dalgasıyla", () => {
+    const panel = read("src/components/chat/chat-panel.tsx");
+    const slimStart = panel.indexOf('<div className="cx-slim-bar cx-glass">');
+    const slim = panel.slice(slimStart, panel.indexOf("</div>", panel.indexOf("<Mic aria-hidden />", slimStart)));
+    expect(slim).not.toContain("toggleVoiceMode");
+    expect(slim).toContain("startVoiceInput();");
+    expect(slim).toContain('"Mikrofon"');
+    // Her <Mic> düğmesi dikteyi (startVoiceInput) çağırır; sesli öğretmen düğmeleri AudioLines simgesini taşır.
+    for (const match of panel.matchAll(/onClick=\{toggleVoiceMode\}[\s\S]{0,400}?<\/button>/g)) {
+      expect(match[0]).toContain("AudioLines");
+      expect(match[0]).not.toContain("<Mic");
+    }
+  });
+
   it("home-cockpit.css ham renk yazmaz; renk yalnız --cx-*", () => {
     const css = read("src/styles/home-cockpit.css");
     expect(css).not.toMatch(/#[0-9a-f]{3,8}\b/i);

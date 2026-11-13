@@ -32,7 +32,7 @@ Hazırlığı olan öğrencinin boş ana ekranı beş parçadır; sohbet başlay
 | Sınav şeridi | 73 geniş, kutu 65×80, en çok 4 görünür, 28 px oklar (tıklama 44), seçili cam hap kayar, geride nokta 4 px | `home-cockpit.tsx` (`ExamStrip`) |
 | Konu halkası | en çok `min(510px, 100vh − 150px)`; ≤12 konu yay yay, fazlası kesintisiz + işaret; kaydırıcı "i / N"; 52 px "Devam et" | `TopicRing`, `TopicSlider` |
 | Metin bloğu | en çok 458; meta-l → 6 → heading-l → 40 → mono bağlantı → 40 → 44 px cam "Ayrıntılar" | `CockpitText` |
-| İnce yazma çubuğu | 344×60, alttan 28; öğretmen (brand), ok (tepsi 4×2, öğe 105×84, köşe 32), alan (geniş kutuyu açar), mikrofon (sesli öğretmen) | `chat-panel.tsx` (`homeCockpit`, `homeTools`), `HomeToolsTray` |
+| İnce yazma çubuğu | 344×60, alttan 28; öğretmen (brand), ok (tepsi 4×2, öğe 105×84, köşe 32), alan (geniş kutuyu açar), mikrofon (dikte: geniş kutuyu açıp sesi yazıya çevirir; mikrofon simgesi her yerde dikte, sesli öğretmen ses dalgası simgesiyle yalnız geniş kutuda) | `chat-panel.tsx` (`homeCockpit`, `homeTools`), `HomeToolsTray` |
 
 Veri: `loadHomeCockpit` (`src/lib/learning/home-cockpit.ts`) devam kartıyla aynı kaynaktan okur (hazırlık, yol adımları, konular; üç sorgu). "Geride" = yolda günü geçmiş ama bitmemiş adım (`pathIsBehind`, yolun kendi tarih kuralıyla). Sıra ve açılış seçimi `home-cockpit-model.ts`'te.
 

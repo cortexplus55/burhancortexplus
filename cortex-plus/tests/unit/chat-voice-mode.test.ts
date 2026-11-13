@@ -19,8 +19,9 @@ describe("sohbette Konuş = sesli sohbet (kıyas ürünü, 29 Eylül 2026)", () 
   it("Konuş ilk cevabı beklemeden görünüyor ve sesli sohbeti açıyor", () => {
     expect(panel).toContain("const showExamTalk = examChrome && (!hasComposerPayload || voiceMode);");
     expect(panel).not.toContain("talkLastAnswer");
-    // 13 Kasım 2026: ana ekranın ince yazma çubuğundaki mikrofon da sesli öğretmeni açar (ürün sahibinin kararı 6).
-    expect(panel.match(/onClick=\{toggleVoiceMode\}/g)?.length).toBe(3);
+    // 13 Kasım 2026 (ürün sahibinin kararı): mikrofon simgesi her yerde dikte; sesli öğretmen yalnız geniş kutudaki
+    // ses dalgası düğmesinde (sınav sohbetindeki "Konuş" ve sohbetteki "Cortex Plus ile konuş").
+    expect(panel.match(/onClick=\{toggleVoiceMode\}/g)?.length).toBe(2);
   });
 
   it("sesli sohbette söylenen gönderiliyor, cevap okununca yeniden dinleniyor", () => {

@@ -155,6 +155,18 @@ test("ücretsiz hesap: Plus'a geç altın hap seri sayacının solunda; tepside 
   }
 });
 
+test("ince çubuktaki mikrofon dikteyi başlatır: geniş kutu açılır, sesli öğretmen ses dalgasıyla orada", { tag: ["@public"] }, async ({ page }) => {
+  await prepare(page);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/e2e/ana-ekran?plan=plus&hazirlik=1");
+  await expect(page.locator(".cx-slim-bar").getByRole("button", { name: "Cortex Plus ile konuş" })).toHaveCount(0);
+  await page.locator(".cx-slim-bar").getByRole("button", { name: "Mikrofon" }).click();
+  await expect(page.locator(".cp-sor-composer-box textarea")).toBeVisible();
+  // Geniş kutuda dikte ("Mikrofon" ya da dinlerken "Kaydı bitir") ve ayrı sesli öğretmen düğmesi.
+  await expect(page.locator(".cp-sor-mic")).toHaveCount(1);
+  await expect(page.locator(".cp-sor-voice-chip")).toContainText("Cortex Plus ile konuş");
+});
+
 test("12'den fazla konu: halka kesintisiz, seçim kaydırıcıyla, seçili konu işaretli", { tag: ["@public"] }, async ({ page }) => {
   await prepare(page);
   await page.setViewportSize({ width: 1280, height: 800 });
