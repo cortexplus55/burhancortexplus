@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PageShell } from "@/components/parity/page-shell";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { CreateClassForm } from "@/components/student/create-class-form";
 import { JoinClassForm } from "@/components/student/join-class-form";
@@ -55,13 +56,11 @@ export default async function SiniflarPage({
 
   return (
     <ParitySorShell {...shell}>
-      <div className="cp-exam-page space-y-6">
-        <div>
-          <h1 className="text-xl font-semibold">Çalışma grupları</h1>
-          <p className="mt-1 text-sm text-[var(--cs-muted)]">
-            Kendi çalışma grubunu kur ya da arkadaşının paylaştığı kodla katıl.
-          </p>
-        </div>
+      <PageShell
+        width="read"
+        title="Çalışma grupları"
+        lead="Kendi çalışma grubunu kur ya da arkadaşının paylaştığı kodla katıl."
+      >
 
         {hasAny ? (
           <ul className="space-y-3">
@@ -95,7 +94,7 @@ export default async function SiniflarPage({
           </ul>
         ) : (
           <div className="cp-class-empty">
-            <h1>İlk çalışma grubuna katıl ya da kur</h1>
+            <h2>İlk çalışma grubuna katıl ya da kur</h2>
             <p>
               Öğretmeninin verdiği kodla gir; ya da arkadaşlarınla çalışmak için
               kendi grubunu aç.
@@ -107,7 +106,7 @@ export default async function SiniflarPage({
           <JoinClassForm initialCode={initialCode} />
           <CreateClassForm />
         </div>
-      </div>
+      </PageShell>
     </ParitySorShell>
   );
 }

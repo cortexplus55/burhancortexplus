@@ -1,3 +1,4 @@
+import { PageShell } from "@/components/parity/page-shell";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { ProfilePanel } from "@/components/parity/profile-panel";
 import { ReferralRewardCard } from "@/components/parity/referral-reward-card";
@@ -22,6 +23,8 @@ export default async function ProfilPage() {
 
   return (
     <ParitySorShell {...shell}>
+      {/* 13 Kasım 2026: ortak sayfa iskeleti (okuma genişliği); panelin kendi düzeni Faz 2'de. */}
+      <PageShell width="read">
       <ProfilePanel
         data={dashboard}
         email={user.email ?? null}
@@ -36,6 +39,7 @@ export default async function ProfilPage() {
       >
         <ReferralRewardCard summary={referral} inviteUrl={invite.url} />
       </ProfilePanel>
+      </PageShell>
     </ParitySorShell>
   );
 }

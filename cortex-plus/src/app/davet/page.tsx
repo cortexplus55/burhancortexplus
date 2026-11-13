@@ -1,3 +1,4 @@
+import { PageShell } from "@/components/parity/page-shell";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { InviteShare } from "@/components/parity/invite-share";
 import { ReferralRewardCard } from "@/components/parity/referral-reward-card";
@@ -23,19 +24,20 @@ export default async function DavetPage() {
 
   return (
     <ParitySorShell {...shell}>
-      <div className="cp-exam-page space-y-5">
-        <div>
-          <h1 className="text-xl font-semibold">Arkadaşını davet et</h1>
-          <p className="mt-2 text-sm text-[var(--cs-muted)]">
+      <PageShell
+        width="read"
+        title="Arkadaşını davet et"
+        lead={
+          <>
             QR’ı paylaş veya bağlantıyı kopyala. Arkadaşın kayıt olurken senin
             kodun hesaba işlenir.
-          </p>
-        </div>
-
+          </>
+        }
+      >
         <ReferralRewardCard summary={referral} inviteUrl={inviteUrl} />
 
         <InviteShare url={inviteUrl} code={code ?? "—"} qr={inviteQr} />
-      </div>
+      </PageShell>
     </ParitySorShell>
   );
 }

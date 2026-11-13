@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PageShell } from "@/components/parity/page-shell";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { SectionCard } from "@/components/ui-kit/empty-state";
 import { requireStudentArea } from "@/lib/auth/session";
@@ -179,15 +180,15 @@ export default async function KredilerPage() {
 
   return (
     <ParitySorShell {...shell}>
-      <div className="cp-exam-page space-y-6">
-        <div>
-          <h1 className="text-xl font-semibold">Kullanım limitleri</h1>
-          <p className="mt-1 text-sm text-[var(--cs-muted)]">
-            {isPremium
-              ? "Tüm özellikler açık; sınır yalnızca ne kadar üretebildiğinde."
-              : `${FREE_TIER_SENTENCE} ücretsiz. ${PLUS_ONLY_SENTENCE}`}
-          </p>
-        </div>
+      <PageShell
+        width="read"
+        title="Kullanım limitleri"
+        lead={
+          isPremium
+            ? "Tüm özellikler açık; sınır yalnızca ne kadar üretebildiğinde."
+            : `${FREE_TIER_SENTENCE} ücretsiz. ${PLUS_ONLY_SENTENCE}`
+        }
+      >
 
         {/* Referans üründe de davet kartı kotanın üstünde duruyor: limitini gören
             kullanıcı hemen ardından nasıl artıracağını görüyor. */}
@@ -309,7 +310,7 @@ export default async function KredilerPage() {
           />
         </div>
 
-      </div>
+      </PageShell>
     </ParitySorShell>
   );
 }

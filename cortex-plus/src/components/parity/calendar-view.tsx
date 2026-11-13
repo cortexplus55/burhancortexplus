@@ -9,6 +9,7 @@ import { officialExamOn, schoolBreakOn } from "@/lib/curriculum/calendar";
 import { HOLIDAY_BADGE, turkishHolidayOn } from "@/lib/learning/tr-calendar";
 import { examDayLabel } from "@/lib/learning/exam-time";
 import { useDismiss } from "@/lib/ui/use-dismiss";
+import { PageShell } from "@/components/parity/page-shell";
 import {
   filterCalendar,
   formatDayLabel,
@@ -125,18 +126,15 @@ export function CalendarView({ items }: { items: CalendarItem[] }) {
   }
 
   return (
-    <div className="cp-exam-page space-y-5">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold">Takvimim</h1>
-        <button
-          type="button"
-          className="cp-cal-add"
-          onClick={() => setAdding(true)}
-        >
+    <PageShell
+      title="Takvimim"
+      actions={
+        <button type="button" className="cx-page-btn cx-glass" onClick={() => setAdding(true)}>
           <CalendarPlus className="h-4 w-4" aria-hidden />
           Etkinlik ekle
         </button>
-      </div>
+      }
+    >
 
       <div className="cp-cal-filters" role="tablist" aria-label="Takvim filtresi">
         {FILTERS.map((f) => (
@@ -343,6 +341,6 @@ export function CalendarView({ items }: { items: CalendarItem[] }) {
           </div>
         </div>
       ) : null}
-    </div>
+    </PageShell>
   );
 }

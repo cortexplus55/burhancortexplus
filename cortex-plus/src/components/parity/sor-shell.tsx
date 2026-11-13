@@ -19,7 +19,7 @@ import { PlusLimitBanner } from "@/components/paywall/plus-limit-banner";
 import { PromoBanner, type PromoCampaign } from "@/components/paywall/promo-banner";
 import type { StudentAccountContext } from "@/lib/student/account-context";
 import { StudentShellProvider } from "@/lib/student/student-shell-context";
-import { studentTopTabs, studentBottomTabs } from "@/components/parity/student-shell-nav";
+import { isMorePath, studentTopTabs, studentBottomTabs } from "@/components/parity/student-shell-nav";
 import { ACCOUNT_REFRESH_EVENT } from "@/lib/credits/spendable";
 import { FreePreviewToggle } from "@/components/admin/free-preview-toggle";
 import { EmailVerifyBanner } from "@/components/auth/email-verify-banner";
@@ -30,6 +30,7 @@ import type { ExamCountdown } from "@/lib/learning/exam-countdown";
 import type { RecentConversation } from "@/lib/student/conversation-time";
 import "@/styles/parity-shell.css";
 import "@/styles/cx-shell.css";
+import "@/styles/cx-pages.css";
 import "@/styles/home-cockpit.css";
 
 export type { RecentConversation };
@@ -121,6 +122,9 @@ export function ParitySorShell({
   minimalTop?: boolean;
 }) {
   const pathname = usePathname();
+  // "Daha fazla" panelinin sayfaları: üst çubukta "Daha fazla" etkin; telefonda Profil kendi sayfalarında etkin kalır.
+  const moreActive = isMorePath(pathname ?? "");
+  const morePhoneActive = moreActive && !studentBottomTabs.some((tab) => tab.id === "profile" && tab.match(pathname ?? ""));
   const router = useRouter();
   useEffect(() => {
     const refresh = () => router.refresh();
@@ -307,7 +311,7 @@ export function ParitySorShell({
               {studentTopTabs
                 .filter((tab) => tab.id !== "profile")
                 .map((tab) => {
-                  const active = tab.match(pathname);
+                  const active = tab.match(pathname) && !moreActive;
                   const Icon = tab.icon;
                   return (
                     <Link
@@ -324,7 +328,7 @@ export function ParitySorShell({
             </nav>
             <button
               type="button"
-              className="cx-home-more"
+              className={cn("cx-home-more", moreActive && "is-active cx-glass")}
               aria-label="Daha fazla"
               aria-expanded={menuOpen}
               onClick={() => setMenuOpen(true)}
@@ -364,7 +368,7 @@ export function ParitySorShell({
             </Link>
             <button
               type="button"
-              className="cx-home-more cx-home-more--phone"
+              className={cn("cx-home-more cx-home-more--phone", morePhoneActive && "is-active cx-glass")}
               aria-label="Daha fazla"
               aria-expanded={menuOpen}
               onClick={() => setMenuOpen(true)}
@@ -404,12 +408,13 @@ export function ParitySorShell({
           duyurusu göstermek anlamsız. */}
       {promo && showBuy && !examChrome ? <PromoBanner campaign={promo} /> : null}
 
-      <main className="cp-sor-main">{children}</main>
+      {/* cx-app-main: girişli sayfa kuralları (cx-pages.css, 13 Kasım 2026); odak görünümleri (ders, test, fiyat) almaz. */}
+      <main className={cn("cp-sor-main", chrome === "app" && !closeHref && "cx-app-main")}>{children}</main>
 
       {showTopBar ? <nav className="cp-sor-bottomnav" aria-label="Ana gezinme">
         {studentBottomTabs.map((tab) => {
           const Icon = tab.icon;
-          const active = tab.match(pathname);
+          const active = tab.match(pathname) && !(moreActive && tab.id !== "profile");
           return (
             <Link
               key={tab.id}

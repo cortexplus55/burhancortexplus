@@ -58,8 +58,8 @@ export function NotificationItem({
             type="button"
             className={
               parity
-                ? "rounded-full border border-[var(--cs-border)] px-3 py-1.5 text-xs text-[var(--cs-muted)] hover:bg-[var(--cs-pill)]"
-                : "rounded-md border px-3 py-1.5 text-xs"
+                ? "inline-flex min-h-10 items-center rounded-full bg-[var(--cx-bg-2)] px-4 text-xs text-[var(--cs-muted)] hover:text-[var(--cs-text)]"
+                : "inline-flex min-h-10 items-center rounded-full border px-4 text-xs"
             }
             onClick={() => {
               setRead(true);

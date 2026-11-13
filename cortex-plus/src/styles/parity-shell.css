@@ -123,7 +123,7 @@
   background: var(--cp-gold);
   color: var(--c-bg);
   font-size: 0.75rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.02em;
   flex-shrink: 0;
 }
@@ -1153,7 +1153,8 @@
   position: absolute;
   top: -1.45rem;
   transform: translateX(-50%);
-  font-family: var(--font-hand);
+  /* 13 Kasım 2026: Caveat kalktı, "hedef puan" mono (cx-pages.css meta-s, büyük harf). */
+  font-family: var(--font-mono);
   font-size: 0.875rem;
   font-weight: 400;
   line-height: 1.25rem;
@@ -1337,7 +1338,7 @@
   justify-content: center;
   border-radius: 50%;
   font-size: 0.875rem;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .cp-exam-discover-icon--user {
@@ -1356,7 +1357,7 @@
 .cp-exam-discover-title {
   margin-top: 2.5rem;
   font-size: 1.125rem;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1.25;
   letter-spacing: -0.02em;
 }
@@ -2128,7 +2129,7 @@
 
 .cp-class-empty h1 {
   font-size: 1.35rem;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .cp-class-empty p {
@@ -2227,7 +2228,7 @@
 .cp-chat-group h2 {
   margin-bottom: 0.55rem;
   font-size: 0.75rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.08em;
   color: var(--cp-muted);
 }
@@ -2299,7 +2300,7 @@
 
 .cp-invite-code {
   font-size: 1.25rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.08em;
 }
 
@@ -2514,7 +2515,7 @@
 
 .cp-phone-brand {
   margin-bottom: 0.65rem;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .cp-phone-card h1 {
@@ -2596,7 +2597,7 @@
 .cp-page-title {
   margin: 0;
   font-size: clamp(1.75rem, 3vw, 2.15rem);
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.03em;
 }
 
@@ -4087,7 +4088,7 @@
 .cp-exam-reco h2 {
   margin: 0.25rem 0 0.85rem;
   font-size: 1.75rem;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .cp-exam-reco-go {
@@ -4100,7 +4101,7 @@
   background: #3f51e5;
   color: #fff;
   font: inherit;
-  font-weight: 650;
+  font-weight: 600;
   text-decoration: none;
   cursor: pointer;
 }
@@ -4132,7 +4133,7 @@
   margin: 0;
   text-align: center;
   font-size: 1.45rem;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .cp-topic-pick-lead {
@@ -4316,7 +4317,7 @@
 
 .cp-exam-score-xl {
   font-size: 3rem;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--c-success);
 }
 
@@ -5029,7 +5030,7 @@
 .cp-countdown-days strong {
   font-size: 2.75rem;
   line-height: 1;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
 }
@@ -6014,7 +6015,7 @@
   padding: 0.28rem 0.75rem;
   border-radius: 999px;
   font-size: 0.78rem;
-  font-weight: 650;
+  font-weight: 600;
   letter-spacing: 0.01em;
   color: #fff;
   background: rgba(255, 255, 255, 0.08);
@@ -6439,7 +6440,7 @@
   background: #2a2a2e;
   color: #f2f3f5;
   font-size: 0.8125rem;
-  font-weight: 650;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
@@ -6510,7 +6511,7 @@
   color: #9aa3b5;
   font: inherit;
   font-size: 0.875rem;
-  font-weight: 650;
+  font-weight: 600;
   cursor: pointer;
 }
 
@@ -7225,7 +7226,7 @@
 .tools-hero h1 {
   margin: 0;
   font-size: clamp(1.75rem, 3vw, 2.15rem);
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.03em;
 }
 
@@ -8489,7 +8490,7 @@
   background: rgba(244, 174, 11, 0.14);
   color: var(--c-brand);
   font-size: 0.75rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -9041,7 +9042,7 @@
 
 .cp-exam-credit {
   font-size: 0.75rem;
-  font-weight: 650;
+  font-weight: 600;
   letter-spacing: 0.01em;
   color: rgba(255, 255, 255, 0.62);
   padding-right: 0.15rem;
@@ -10131,7 +10132,7 @@
 .cp-jr-count {
   position: relative;
   font-size: 4rem;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1;
   letter-spacing: -0.03em;
 }
@@ -10799,7 +10800,7 @@
   background: rgba(67, 83, 243, 0.16);
   color: inherit;
   font-size: 0.82rem;
-  font-weight: 650;
+  font-weight: 600;
   text-decoration: none;
 }
 
@@ -10983,7 +10984,7 @@
 
 .cp-path-letters {
   font-size: 0.8rem;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1.05;
   letter-spacing: 0.08em;
   text-align: center;
@@ -11239,7 +11240,7 @@
 .cp-prog-score strong {
   font-size: 2.6rem;
   line-height: 1;
-  font-weight: 800;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
@@ -11633,7 +11634,7 @@
 
 .cp-result-hero strong {
   font-size: 4.5rem;
-  font-weight: 800;
+  font-weight: 700;
   color: #10b981;
 }
 
@@ -13563,7 +13564,7 @@ a.cp-exam-search {
     linear-gradient(90deg, rgba(67, 83, 243, 0.16), rgba(16, 185, 129, 0.1) 55%, rgba(246, 183, 60, 0.08));
   color: var(--cp-text);
   font-size: 0.78rem;
-  font-weight: 650;
+  font-weight: 600;
   letter-spacing: 0.01em;
   text-align: center;
   text-wrap: balance;
@@ -15018,7 +15019,7 @@ a.cp-exam-search {
   background: var(--c-action);
   color: var(--c-on-action);
   font-size: 0.875rem;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 /*
@@ -15520,7 +15521,7 @@ a.cp-exam-search {
 .cp-set-title {
   margin: 0;
   font-size: clamp(1.6rem, 4vw, 2rem);
-  font-weight: 650;
+  font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--c-text);
 }
@@ -15549,7 +15550,7 @@ a.cp-exam-search {
   border: 1px solid color-mix(in srgb, var(--c-action) 35%, transparent);
   color: var(--c-text);
   font-size: 1.6rem;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .cp-set-hero-text {
@@ -15563,7 +15564,7 @@ a.cp-exam-search {
 .cp-set-hero-text > strong {
   overflow: hidden;
   font-size: 1.125rem;
-  font-weight: 650;
+  font-weight: 600;
   color: var(--c-text);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -15778,7 +15779,7 @@ a.cp-exam-search {
 .cp-pay-founder h1 {
   margin: 0;
   font-size: 1.375rem;
-  font-weight: 650;
+  font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--c-text);
 }
@@ -16135,7 +16136,7 @@ a.cp-exam-search {
   display: -webkit-box;
   overflow: hidden;
   font-size: 1.1875rem;
-  font-weight: 650;
+  font-weight: 600;
   line-height: 1.25;
   letter-spacing: -0.02em;
   text-wrap: balance;
@@ -16196,7 +16197,7 @@ a.cp-exam-search {
     0 12px 26px -12px color-mix(in srgb, var(--c-action, #4353f3) 90%, transparent);
   color: #fff;
   font-size: 0.9375rem;
-  font-weight: 650;
+  font-weight: 600;
   transition: background 160ms ease;
 }
 
@@ -16526,7 +16527,7 @@ a.cp-exam-search {
 
 .cp-sor-logo-word {
   font-size: 0.95rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.2em;
 }
 
@@ -16732,7 +16733,7 @@ a.cp-exam-search {
     border: 2px solid var(--c-bg);
     border-radius: 999px;
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 700;
     letter-spacing: 0.04em;
     line-height: 1;
     text-transform: uppercase;
@@ -16814,7 +16815,7 @@ a.cp-exam-search {
     border: 0;
     background: none;
     font-size: 12.5px;
-    font-weight: 650;
+    font-weight: 600;
     line-height: 1.3;
     text-align: left;
     text-wrap: pretty;
@@ -16829,7 +16830,7 @@ a.cp-exam-search {
   .cp-sor-head--c .cp-exam-due-main {
     display: block;
     font-size: 14px;
-    font-weight: 800;
+    font-weight: 700;
   }
 
   .cp-sor-head--c .cp-exam-due-sep {

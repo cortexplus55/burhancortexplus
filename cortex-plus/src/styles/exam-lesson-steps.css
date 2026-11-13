@@ -478,7 +478,7 @@
   color: inherit;
   padding: 0.65rem 1.2rem;
   font: inherit;
-  font-weight: 650;
+  font-weight: 600;
   cursor: pointer;
 }
 
@@ -856,7 +856,7 @@
 /* Anahtar terim: gövde içinde kalıyor ama gözle bulunuyor. Renk değil
    ağırlık kullanıyoruz — paragraf alacalı görünmesin. */
 .als-term {
-  font-weight: 650;
+  font-weight: 600;
   color: var(--cp-text, #fff);
 }
 
@@ -916,7 +916,7 @@
   border-radius: 0.3em;
   background: rgba(255, 138, 61, 0.2);
   color: #ffb27a;
-  font-weight: 650;
+  font-weight: 600;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }

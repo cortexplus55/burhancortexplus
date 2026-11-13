@@ -242,9 +242,8 @@
   /* --- Yazı --- */
   --font-display: var(--font-ui);
   --font-ui: "Figtree", system-ui, sans-serif;
-  /* Etiket eşaralıklı, el yazısı. Piksel yazı (Jersey 10) 13 Kasım 2026'da kalktı (karar 4). */
+  /* Etiket eşaralıklı. Piksel yazı (Jersey 10) ve el yazısı (Caveat) 13 Kasım 2026'da kalktı. */
   --font-mono: var(--font-jetbrains-mono, "JetBrains Mono"), ui-monospace, Menlo, Consolas, monospace;
-  --font-hand: var(--font-hand-face, "Caveat"), cursive;
   /* Yazı ölçeği (kıyas ürünü): başlık 600 ve -0.02em; etiketler 500 ve +0.01em.
      6 Kasım 2026 (ürün sahibi, okunurluk): başlık satır aralığı 1.02 → 1.15 (Türkçe büyük
      harfin noktası ve çengeli — İ, Ş, Ğ — üst satıra değiyordu); etiket tabanı 12 px

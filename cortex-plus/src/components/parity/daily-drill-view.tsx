@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import type { MistakeQuestion } from "@/lib/learning/mistake-notebook";
 import { MistakeRunner } from "@/components/parity/mistake-runner";
+import { PageShell } from "@/components/parity/page-shell";
 
 /**
  * Günün turu.
@@ -37,10 +38,7 @@ export function DailyDrillView({
   if (done) {
     const score = total > 0 ? Math.round((correct / total) * 100) : 0;
     return (
-      <div className="cp-exam-page">
-        <div className="cp-page-head">
-          <h1 className="cp-page-title">Bugünü bitirdin</h1>
-        </div>
+      <PageShell title="Bugünü bitirdin">
 
         <div className="cs-pay-card p-6 text-center">
           <p className="text-4xl font-bold text-[var(--cs-text)]">
@@ -68,15 +66,12 @@ export function DailyDrillView({
             </Link>
           </div>
         </div>
-      </div>
+      </PageShell>
     );
   }
 
   return (
-    <div className="cp-exam-page">
-      <div className="cp-page-head">
-        <h1 className="cp-page-title">Günün turu</h1>
-      </div>
+    <PageShell title="Günün turu">
 
       {/* İlerleme çubuğu: turun sonu görünsün diye. Kaç soru kaldığını
           bilmeyen öğrenci bırakıyor. */}
@@ -106,6 +101,6 @@ export function DailyDrillView({
         onNext={() => setIndex((i) => i + 1)}
         nextLabel={index + 1 >= total ? "Turu bitir" : "Sonraki soru"}
       />
-    </div>
+    </PageShell>
   );
 }

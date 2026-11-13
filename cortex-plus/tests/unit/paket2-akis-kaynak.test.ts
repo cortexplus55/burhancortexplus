@@ -100,7 +100,9 @@ describe("rozet ve soru çöz", () => {
 
   it("/soru-coz başlığı bir kez (stüdyo kartının adı, 8 Kasım 2026), kabuk ikinci h1 yazmaz", () => {
     const page = read("src/app/soru-coz/page.tsx");
-    expect(page).toContain("<AppShell>");
+    // 13 Kasım 2026: ortak sayfa iskeletinin okuma genişliği; başlık verilmez (h1 stüdyo başlığında).
+    expect(page).toContain('<AppShell width="read">');
+    expect(page).not.toMatch(/<AppShell[^>]*title=/);
     expect(page).not.toContain("<h1");
     const hero = read("src/components/learning/solver-hero.tsx");
     expect(hero.match(/<h1/g)?.length).toBe(1);

@@ -89,24 +89,34 @@ export default async function DokumanlarPage() {
       (pdfLearningV2 && d.status === "completed" && d.topic_map_status === "pending"),
   ).map((d) => d.id);
 
+  const brandDocumentId = documents?.find(
+    (document) =>
+      document.status === "completed" && (!pdfLearningV2 || mapReady(document.topic_map_status)),
+  )?.id;
+
   return (
-    <AppShell title="Belgelerim">
+    <AppShell
+      title="Belgelerim"
+      lead="Her belge kendi sınav yoluna bağlı. Yeni belgeyi sınav hazırlığı kurarken yükle."
+      actions={
+        <Link href="/deneme-sinavlari/olustur" className="cx-page-btn cx-glass">
+          <Plus className="h-4 w-4" aria-hidden />
+          Yeni sınav hazırlığı
+        </Link>
+      }
+    >
       <DocumentStatusPoller documentIds={activeDocumentIds} />
       {/* 3 Ekim 2026: Belgeler artık "Daha fazla" menüsünde ve sınav sayfalarıyla
           aynı tasarımda. Yeni belge sınav hazırlığı kurulurken o derse
-          yüklenir (kıyas ürünü); burada ayrı yükleme formu yok. */}
+          yüklenir (kıyas ürünü); burada ayrı yükleme formu yok. 13 Kasım 2026: açıklama ve "Yeni sınav
+          hazırlığı" sayfa iskeletinin başlığında. */}
       <div className="cp-docs">
-        <div className="cp-docs-intro">
-          <p>Her belge kendi sınav yoluna bağlı. Yeni belgeyi sınav hazırlığı kurarken yükle.</p>
-          <Link href="/deneme-sinavlari/olustur" className="cp-docs-new">
-            <Plus className="h-4 w-4" aria-hidden />
-            Yeni sınav hazırlığı
-          </Link>
-        </div>
 
         {documents?.length ? (
           <ul className="cp-docs-list">
             {documents.map((document) => {
+              // Ekranda tek marka düğmesi (13 Kasım 2026): yalnız hazır olan ilk belgenin birincil düğmesi.
+              const brandPrimary = document.id === brandDocumentId;
               const ready =
                 document.status === "completed" &&
                 (!pdfLearningV2 || mapReady(document.topic_map_status));
@@ -166,7 +176,7 @@ export default async function DokumanlarPage() {
                     {ready ? (
                       <Link
                         href={prepId ? `/deneme-sinavlari/${prepId}` : `/deneme-sinavlari/olustur?documentId=${document.id}`}
-                        className="cp-docs-primary"
+                        className={cn("cp-docs-primary", !brandPrimary && "is-weak")}
                       >
                         {prepId ? "Yoluna devam et" : "Sınav hazırlığı kur"}
                       </Link>

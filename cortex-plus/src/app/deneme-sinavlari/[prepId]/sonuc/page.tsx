@@ -190,7 +190,7 @@ export default async function ExamPrepSonucPage({
               />
             </svg>
             <div>
-              <div className="text-5xl font-extrabold tabular-nums">{scoreNum ?? "—"}</div>
+              <div className="text-5xl font-bold tabular-nums">{scoreNum ?? "—"}</div>
               <div className="text-sm text-[color:var(--cp-muted)]">/ 100 puan</div>
             </div>
           </div>

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { CalendarClock, ChevronRight, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { Icon3D, type Icon3DName } from "@/components/ui/icon-3d";
 import { WeeklySurveyCard } from "@/components/feedback/weekly-survey-card";
+import { PageShell } from "@/components/parity/page-shell";
 import { cn } from "@/lib/utils";
 import { useDismiss } from "@/lib/ui/use-dismiss";
 import {
@@ -64,18 +65,33 @@ export function ParityExamPrep({ cards, userId = null }: { cards: ExamPrepCard[]
   const shown = tab === "upcoming" ? upcoming : past;
 
   return (
-    <div className="cp-exam-page cp-exam-page--list">
-      {/* kıyas ürünü: tek şerit — solda Ara, sağda yeni hazırlık. */}
-      <div className="cp-exam-toolbar">
-        <Link href="/deneme-sinavlari/ara" className="cp-exam-toolbar-btn">
-          <Search className="h-4 w-4" aria-hidden />
-          Ara
-        </Link>
-        <Link href="/deneme-sinavlari/olustur" className="cp-exam-toolbar-btn">
-          <Plus className="h-4 w-4" aria-hidden />
-          Yeni hazırlık
-        </Link>
-      </div>
+    /*
+      13 Kasım 2026, ortak sayfa iskeleti (skill §7 liste sayfası): başlık en üstte, sağında cam "Ara" ve "Yeni
+      hazırlık". Hazırlık yokken başlık boş durum kartının içinde kalır (sayfada tek h1).
+    */
+    <PageShell
+      titleId={cards.length ? "my-preps-title" : undefined}
+      title={
+        cards.length ? (
+          /* Başlık bütün hazırlıkların sayfasını açar. */
+          <Link href="/deneme-sinavlari/hazirliklarim" className="cp-prep-title-link">
+            Sınav hazırlıklarım <ChevronRight aria-hidden />
+          </Link>
+        ) : undefined
+      }
+      actions={
+        <>
+          <Link href="/deneme-sinavlari/ara" className="cx-page-btn cx-glass">
+            <Search aria-hidden />
+            Ara
+          </Link>
+          <Link href="/deneme-sinavlari/olustur" className="cx-page-btn cx-glass">
+            <Plus aria-hidden />
+            Yeni hazırlık
+          </Link>
+        </>
+      }
+    >
 
       <nav className="cp-catalog-tiles" aria-label="Hazır hazırlıklar">
         {CATALOG_TILES.map(({ href, label, icon }) => (
@@ -94,12 +110,6 @@ export function ParityExamPrep({ cards, userId = null }: { cards: ExamPrepCard[]
       {cards.length ? (
         <section className="cp-prep-row-section" aria-labelledby="my-preps-title">
           <div className="cp-prep-list-head">
-            <h1 id="my-preps-title" className="cp-prep-row-title">
-              {/* Başlık bütün hazırlıkların sayfasını açar. */}
-              <Link href="/deneme-sinavlari/hazirliklarim">
-                Sınav hazırlıklarım <ChevronRight className="h-4 w-4" aria-hidden />
-              </Link>
-            </h1>
             <div className="cp-prep-when" role="tablist" aria-label="Hazırlıklar">
               <button
                 type="button"
@@ -204,7 +214,7 @@ export function ParityExamPrep({ cards, userId = null }: { cards: ExamPrepCard[]
           </article>
         </div>
       ) : null}
-    </div>
+    </PageShell>
   );
 }
 
@@ -328,7 +338,11 @@ export function PrepCard({ card, showTargetLabel }: { card: ExamPrepCard; showTa
           </strong>{" "}
           <small>konu</small>
         </span>
-        <Link href={card.next && !finished ? card.next.href : card.continueHref} className="cp-prep-card-go">
+        {/* Ekranda tek brand (13 Kasım 2026): yalnız ilk kartın "Devam et"i; öbürleri glass. */}
+        <Link
+          href={card.next && !finished ? card.next.href : card.continueHref}
+          className={cn("cp-prep-card-go", !showTargetLabel && "is-glass")}
+        >
           {finished ? "Deneme çöz" : "Devam et"}
         </Link>
       </div>

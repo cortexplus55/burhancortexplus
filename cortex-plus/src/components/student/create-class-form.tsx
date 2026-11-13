@@ -45,6 +45,7 @@ export function CreateClassForm() {
       <div className="space-y-2">
         <Label htmlFor="class-name">Çalışma grubu adı</Label>
         <Input
+          className="h-10"
           id="class-name"
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -53,7 +54,7 @@ export function CreateClassForm() {
           minLength={2}
         />
       </div>
-      <Button type="submit" disabled={loading || name.trim().length < 2}>
+      <Button type="submit" className="cx-btn-glass" disabled={loading || name.trim().length < 2}>
         Grubu kur
       </Button>
     </form>
