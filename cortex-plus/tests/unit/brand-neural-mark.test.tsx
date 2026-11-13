@@ -94,15 +94,18 @@ describe("yeni 3B logo", () => {
   });
 
   it("uygulama üst çubuğu eski küçük harf cortex yazısını kullanmaz", () => {
-    // 13 Kasım 2026 (kabuk): bütün öğrenci sayfalarında aynı logo; depodaki kırpılmış 3B işaret 24 px ve
-    // "Cortex Plus" yazısı (Figtree 600); yazı telefonda da görünür (gizleyen kural yok).
+    // 13 Kasım 2026 (Faz 2, tasarım tahtası): depodaki dosya düz <img> 76×49 (telefonda 56×36); üstünde iki maskeli
+    // katman (parıltı, renk akışı), arkada yumuşak ışık. "Cortex" beyaz, "Plus" gradyan; yazı telefonda da görünür.
     const shell = read("src/components/parity/sor-shell.tsx");
-    expect(shell).toContain('<span className="cx-home-logo-word">Cortex Plus</span>');
+    expect(shell).toMatch(/<span className="cx-home-logo-word">\s*Cortex <span className="gp">Plus<\/span>/);
     expect(shell).not.toContain('cx-home-logo-word">cortex<');
     expect(shell).toContain('src="/logo-mark-trim.png"');
-    expect(shell).toContain('className="cx-home-logo-mark"');
+    for (const layer of ['className="gl"', 'className="sh"', 'className="fl"']) expect(shell).toContain(layer);
+    expect(shell).not.toContain('from "next/image"');
     const css = read("src/styles/cx-shell.css");
-    expect(css).toContain(".cx-home-logo-mark");
+    expect(css).toMatch(/\.cx-home-logo \.lg \{[^}]*width: 76px;[^}]*height: 49px;/);
+    expect(css).toContain("mask: url(/logo-mark-trim.png) center / contain no-repeat;");
+    expect(css).toMatch(/prefers-reduced-motion: reduce\) \{\s*\.cx-home-logo \.lg \.sh,\s*\.cx-home-logo \.lg \.fl \{\s*animation: none;/);
     expect(css).not.toMatch(/\.cx-home-logo-word \{\s*display:\s*none/);
   });
 });

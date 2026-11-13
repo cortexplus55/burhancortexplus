@@ -3,7 +3,8 @@ import { expect, test, type Page } from "@playwright/test";
 /*
   13 Kasım 2026, ürün sahibinin kararı (kabuk): ana ekranda onaylanan üst çubuk ve telefonun alt çubuğu giriş yapılmış
   bütün öğrenci sayfalarında aynı. Ana ekran, sınavlar listesi ve hazırlık sayfası (odak kabuğu) yan yana ölçülür:
-  çubuğun her öğesi aynı yerde ve aynı boyda; yana taşma yok; telefonda alt çubuk görünür, 4 sekme, en az 48 px.
+  çubuğun her öğesi aynı yerde ve aynı boyda; yana taşma yok; telefonda alt çubuk görünür. Faz 2 (13 Kasım 2026):
+  alt çubukta 5 öğe (Ana Sayfa, Sınavlar, Stüdyo, Kütüphane, Profil), öğe 56 px; logo 76×49; avatar yerine kapsül.
   Fikstürlerin üçü de ücretsiz hesap (çubukta "Plus'a geç" var), böylece öğeler birebir karşılaştırılır.
 */
 
@@ -15,13 +16,13 @@ const PAGES = [
 
 const PARTS = [
   ".cx-home-logo",
-  ".cx-home-logo-mark",
+  ".cx-home-logo .lg",
   ".cx-home-nav",
+  ".cx-home-nav .cx-home-more",
   ".cx-home-start",
   ".cx-home-buy",
   ".cx-home-streak",
-  ".cx-home-avatar",
-  ".cx-home-more--phone",
+  ".cx-home-actions .cx-capsule",
 ];
 
 async function prepare(page: Page) {
@@ -93,12 +94,16 @@ for (const width of [375, 768, 1280]) {
       expect(m.oldBar, `${item.key} eski çubuk öğesi`).toBe(0);
       if (width < 768) {
         expect(m.bottomVisible, `${item.key} alt çubuk`).toBe(true);
-        expect(m.tabs).toHaveLength(4);
-        for (const height of m.tabs) expect(height).toBeGreaterThanOrEqual(48);
+        expect(m.tabs).toHaveLength(5);
+        for (const height of m.tabs) expect(height).toBeGreaterThanOrEqual(56);
+        expect(m.rects[".cx-home-logo .lg"]?.slice(2)).toEqual([56, 36]);
       } else {
         expect(m.bottomVisible, `${item.key} alt çubuk masaüstünde yok`).toBe(false);
-        expect(m.rects[".cx-home-logo-mark"]?.[0]).toBe(24);
-        expect(m.rects[".cx-home-logo-mark"]?.[3]).toBe(24);
+        expect(m.rects[".cx-home-logo .lg"]?.[0]).toBe(24);
+        expect(m.rects[".cx-home-logo .lg"]?.slice(2)).toEqual([76, 49]);
+        // Kapsül sağ boşluğa taşmaz (Faz 2: tablette sağ taraf içerik kadar, sekmeler kalan boşlukta).
+        const capsule = m.rects[".cx-home-actions .cx-capsule"]!;
+        expect(capsule[0] + capsule[2]).toBeLessThanOrEqual(width - 24);
       }
       seen.push(m);
     }
@@ -108,18 +113,39 @@ for (const width of [375, 768, 1280]) {
   });
 }
 
-test("Daha fazla her sayfada aynı paneli açar; Yıldızlar oradan açılır", { tag: ["@public"] }, async ({ page }) => {
+test("Kütüphane her sayfada aynı paneli açar; Yıldızlar profil panelinden açılır", { tag: ["@public"] }, async ({ page }) => {
   await prepare(page);
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto("/e2e/ic-ekran?ekran=yol");
-  const panel = page.getByRole("dialog", { name: "Menü" });
+  const library = page.getByRole("dialog", { name: "Kütüphane" });
   // Yük altında ilk tıklama sayfa canlanmadan düşebilir: panel açılana kadar yeniden basılır.
   await expect(async () => {
-    if (!(await panel.count())) await page.locator(".cx-home-nav .cx-home-more").click();
-    await expect(panel).toBeVisible({ timeout: 2000 });
+    if (!(await library.count())) await page.locator(".cx-home-nav .cx-home-more").click();
+    await expect(library).toBeVisible({ timeout: 2000 });
   }).toPass({ timeout: 30_000 });
-  await panel.getByRole("button", { name: "Yıldızlar" }).click();
-  await expect(panel).toHaveCount(0);
+  await expect(library.locator(".cx-lib-row")).toHaveText(["Belgelerim", "Yanlışlarım", "Çalışma grupları", "Geçmiş konuşmalar"]);
+  for (const row of await library.locator(".cx-lib-row").all()) {
+    expect(Math.round((await row.boundingBox())!.height)).toBe(60);
+  }
+  await expect(library.getByText("Çıkış yap")).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(library).toHaveCount(0);
+
+  // Profil kapsülü: 52 px, planı söyler; yan panel 480 px; Esc kapatır, odak kapsüle döner.
+  const capsule = page.locator(".cx-home-actions .cx-capsule");
+  expect(Math.round((await capsule.boundingBox())!.height)).toBe(52);
+  await expect(capsule).toHaveAttribute("aria-label", "Profil, Ücretsiz plan");
+  await capsule.click();
+  const profile = page.locator(".cx-pp-panel");
+  await expect(profile).toBeVisible();
+  expect(Math.round((await profile.boundingBox())!.width)).toBe(480);
+  await page.keyboard.press("Escape");
+  await expect(profile).toHaveCount(0);
+  await expect(capsule).toBeFocused();
+
+  await capsule.click();
+  await profile.getByRole("button", { name: /Yıldızlar/ }).click();
+  await expect(profile).toHaveCount(0);
   await expect(page).toHaveURL(/dialog=stars/);
 });
 

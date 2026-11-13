@@ -6,20 +6,31 @@ import { FirstStepLauncher } from "@/components/parity/first-step-launcher";
 import { HomeCockpit, HomeSelectionProvider, HomeToolsTray } from "@/components/parity/home-cockpit";
 import type { CockpitPrep, CockpitStep, CockpitTopic } from "@/lib/learning/home-cockpit-model";
 import type { StudentAccountContext } from "@/lib/student/account-context";
+import type { FixturePlan } from "./plan";
 
 /** Yalnız test fikstürü (E2E_FIXTURE=1): ana ekranın yerleşimini veritabanısız çizer. */
-function account(plus: boolean): StudentAccountContext {
+function account(input: boolean | FixturePlan): StudentAccountContext {
+  const kind: FixturePlan = typeof input === "boolean" ? (input ? "plus" : "free") : input;
+  const plus = kind !== "free";
+  const paid = kind === "plus" || kind === "week" || kind === "sigma";
   return {
-    audience: plus ? "plus" : "free",
+    audience: kind === "sigma" ? "sigma" : paid ? "plus" : "free",
     balance: plus ? 7200 : 0,
     freeAllowanceRemaining: 0,
     isPremium: plus,
-    showsUpgradeChrome: !plus,
-    subscriptionBadge: plus ? "Plus" : null,
+    showsUpgradeChrome: kind === "free",
+    subscriptionBadge: kind === "sigma" ? "Sigma" : paid ? "Plus" : null,
     subscriptionAllowance: plus ? 7200 : null,
-    subscriptionPeriodEnd: null,
+    // Sınav Haftası: dönem sonu 5 gün sonra (etiket "Plus · 5 gün"); öbür planlarda sabit bir tarih.
+    subscriptionPeriodEnd:
+      kind === "week"
+        ? new Date(Date.now() + 4.5 * 24 * 60 * 60 * 1000).toISOString()
+        : paid
+          ? "2026-12-13T21:00:00.000Z"
+          : null,
+    planSlug: kind === "week" ? "plus-haftalik" : kind === "sigma" ? "sigma-aylik" : paid ? "plus-aylik" : null,
     canSpend: true,
-    isAdmin: false,
+    isAdmin: kind === "founder",
     resetsAtLabel: "10 Kasım 2026 00:00",
     periodKind: plus ? "monthly" : "weekly",
     usedPercent: 10,
@@ -62,7 +73,7 @@ const MESSAGES = [
   },
 ];
 
-export function fixtureAccount(plus: boolean): StudentAccountContext {
+export function fixtureAccount(plus: boolean | FixturePlan): StudentAccountContext {
   return account(plus);
 }
 
@@ -155,7 +166,10 @@ export function AnaEkranFixture({
   teaching = false,
   freshPrep = false,
   manyTopics = false,
+  planKind,
 }: {
+  /** Profil kimliği (`?plan=hafta|sigma|kurucu`); verilmezse `plus` bayrağı. */
+  planKind?: FixturePlan;
   /** 12'den fazla konu (`?konu=cok`): halka kesintisiz, seçim yalnız kaydırıcıyla. */
   manyTopics?: boolean;
   conversation: boolean;
@@ -201,7 +215,7 @@ export function AnaEkranFixture({
       />
   );
   return (
-    <ParitySorShell home userInitial="Ö" streak={2} account={account(plus)}>
+    <ParitySorShell home userInitial="Ö" userName="Öğrenci" streak={2} account={account(planKind ?? plus)}>
       {cockpit.length ? <HomeSelectionProvider preps={cockpit}>{panel}</HomeSelectionProvider> : panel}
     </ParitySorShell>
   );

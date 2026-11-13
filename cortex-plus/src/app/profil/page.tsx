@@ -1,44 +1,46 @@
 import { PageShell } from "@/components/parity/page-shell";
 import { ParitySorShell } from "@/components/parity/sor-shell";
-import { ProfilePanel } from "@/components/parity/profile-panel";
-import { ReferralRewardCard } from "@/components/parity/referral-reward-card";
+import { ProfileCard } from "@/components/parity/profile-identity";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { loadProfileDashboard } from "@/lib/student/profile-dashboard";
-import { loadReferralSummary } from "@/lib/credits/referral";
-import { loadInviteLink } from "@/lib/credits/invite-code";
+import { planIdentity } from "@/lib/student/plan-identity";
+import { toMyStars } from "@/lib/stars/view";
 import { formatDate } from "@/lib/format";
 
 export const metadata = { title: "Profil" };
 
+/**
+ * Profil (13 Kasım 2026, Faz 2): kapsülün açtığı yan panelle aynı içerik, tam sayfa. Telefonda alt çubuğun Profil
+ * sekmesi buraya gelir. Davet kartı kalktı: "Davet et" listede tek satır, kart /davet'te.
+ */
 export default async function ProfilPage() {
   const { supabase, user } = await requireStudentArea();
 
-  const [shell, dashboard, referral, invite] = await Promise.all([
+  const [shell, dashboard, stars] = await Promise.all([
     loadParityShellProps(supabase, user.id, user.email),
     loadProfileDashboard(supabase, user.id),
-    loadReferralSummary(supabase, user.id),
-    loadInviteLink(supabase, user.id),
+    supabase.rpc("my_stars").then(
+      (result) => (result.error ? null : toMyStars(result.data).all),
+      () => null,
+    ),
   ]);
+
+  const account = shell.account;
+  const name = dashboard.fullName?.trim() || shell.userName || user.email?.split("@")[0] || "Öğrenci";
+  const initial = name.slice(0, 1).toLocaleUpperCase("tr-TR");
 
   return (
     <ParitySorShell {...shell}>
-      {/* 13 Kasım 2026: ortak sayfa iskeleti (okuma genişliği); panelin kendi düzeni Faz 2'de. */}
       <PageShell width="read">
-      <ProfilePanel
-        data={dashboard}
-        email={user.email ?? null}
-        isPremium={Boolean(shell.account?.isPremium)}
-        isAdmin={Boolean(shell.account?.isAdmin)}
-        subscriptionBadge={shell.account?.subscriptionBadge ?? null}
-        periodEndLabel={
-          shell.account?.subscriptionPeriodEnd
-            ? formatDate(shell.account.subscriptionPeriodEnd)
-            : null
-        }
-      >
-        <ReferralRewardCard summary={referral} inviteUrl={invite.url} />
-      </ProfilePanel>
+        <ProfileCard
+          name={name}
+          initial={initial}
+          identity={planIdentity(account)}
+          data={{ dashboard, stars }}
+          heading="h1"
+          periodEndLabel={account?.subscriptionPeriodEnd ? formatDate(account.subscriptionPeriodEnd) : null}
+        />
       </PageShell>
     </ParitySorShell>
   );

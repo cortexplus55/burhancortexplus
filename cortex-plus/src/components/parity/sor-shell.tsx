@@ -1,11 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import { syncLearningPrefsOnce } from "@/lib/client/learning-prefs-store";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { ArrowLeft, CalendarDays, ChevronRight, FileText, Flame, Gift, Gauge, LayoutGrid, LineChart, NotebookPen, ShieldCheck, Sparkles, Star, Users, X } from "lucide-react";
+import { ArrowLeft, ChevronRight, FileText, Flame, History, Library, NotebookPen, ShieldCheck, Sparkles, Users, X } from "lucide-react";
 import { HOME_START_EVENT } from "@/lib/ui/home-events";
 import { cn } from "@/lib/utils";
 import { readStreakFromStorage } from "@/components/parity/gamification";
@@ -19,7 +18,10 @@ import { PlusLimitBanner } from "@/components/paywall/plus-limit-banner";
 import { PromoBanner, type PromoCampaign } from "@/components/paywall/promo-banner";
 import type { StudentAccountContext } from "@/lib/student/account-context";
 import { StudentShellProvider } from "@/lib/student/student-shell-context";
-import { isMorePath, studentTopTabs, studentBottomTabs } from "@/components/parity/student-shell-nav";
+import { isLibraryPath, studentTopTabs, studentBottomTabs } from "@/components/parity/student-shell-nav";
+import { OPEN_STREAK_EVENT, AccountCapsule, ProfileRing, ProfileSidePanel } from "@/components/parity/profile-identity";
+import { planIdentity } from "@/lib/student/plan-identity";
+import { formatDate } from "@/lib/format";
 import { ACCOUNT_REFRESH_EVENT } from "@/lib/credits/spendable";
 import { FreePreviewToggle } from "@/components/admin/free-preview-toggle";
 import { EmailVerifyBanner } from "@/components/auth/email-verify-banner";
@@ -49,24 +51,25 @@ function relativeTr(iso: string) {
   return `${days} gün önce`;
 }
 
-const MORE_LINKS = [
+/**
+ * Kütüphane (13 Kasım 2026, Faz 2; eski adı "Daha fazla"): öğrencinin kendi biriktirdikleri. İlerleme, Takvimim,
+ * Kullanım limitleri, Davet ve Yıldızlar profil paneline; Çıkış yap yalnız profilde.
+ */
+const LIBRARY_LINKS = [
   { href: "/dokumanlar", label: "Belgelerim", icon: FileText },
   // 19 Ekim 2026: testlerdeki yanlışlar ve günlük 10 soruluk tur; önceden yalnız Araçlar'dan ulaşılıyordu.
   { href: "/yanlislarim", label: "Yanlışlarım", icon: NotebookPen },
   { href: "/siniflar", label: "Çalışma grupları", icon: Users },
-  { href: "/ilerleme", label: "İlerleme", icon: LineChart },
-  { href: "/takvimim", label: "Takvimim", icon: CalendarDays },
-  { href: "/krediler", label: "Kullanım limitleri", icon: Gauge },
-  { href: "/davet", label: "Davet et", icon: Gift },
+  { href: "/sohbetler", label: "Geçmiş konuşmalar", icon: History },
 ] as const;
 
-/** Yalnız yönetici ve kurucuya (karar sunucuda: ccount.adminPanel); öğrenci asla görmez. 6 Kasım 2026. */
-export const ADMIN_PANEL_LINK = { href: "/admin", label: "🛡️ Yönetim Paneli" } as const;
+/** Yalnız yönetici ve kurucuya (karar sunucuda: account.adminPanel); öğrenci asla görmez. 6 Kasım 2026. Simge satırda (13 Kasım 2026). */
+export const ADMIN_PANEL_LINK = { href: "/admin", label: "Yönetim Paneli" } as const;
 
 export function ParitySorShell({
   children,
   userInitial,
-  avatarEmoji,
+  userName,
   streak = 0,
   streakFreeze,
   account,
@@ -90,6 +93,9 @@ export function ParitySorShell({
   home?: boolean;
   children: React.ReactNode;
   userInitial?: string;
+  /** Profil kapsülündeki ad (13 Kasım 2026, Faz 2). */
+  userName?: string;
+  /** Eski emoji avatarı: kabuk artık çizmiyor (Faz 2, halkalı baş harf); çağıranlar bozulmasın diye tip duruyor. */
   avatarEmoji?: string | null;
   streak?: number;
   streakFreeze?: StreakFreezeBadgeState | null;
@@ -122,9 +128,8 @@ export function ParitySorShell({
   minimalTop?: boolean;
 }) {
   const pathname = usePathname();
-  // "Daha fazla" panelinin sayfaları: üst çubukta "Daha fazla" etkin; telefonda Profil kendi sayfalarında etkin kalır.
-  const moreActive = isMorePath(pathname ?? "");
-  const morePhoneActive = moreActive && !studentBottomTabs.some((tab) => tab.id === "profile" && tab.match(pathname ?? ""));
+  // Kütüphane'nin sayfaları: üst çubukta ve telefonun alt çubuğunda Kütüphane etkin, sekmelerden hiçbiri değil.
+  const libraryActive = isLibraryPath(pathname ?? "");
   const router = useRouter();
   useEffect(() => {
     const refresh = () => router.refresh();
@@ -136,6 +141,7 @@ export function ParitySorShell({
     syncLearningPrefsOnce();
   }, []);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [streakCount, setStreakCount] = useState(streak);
   const [freezeState, setFreezeState] = useState<StreakFreezeBadgeState | null>(streakFreeze ?? null);
   const [journeyOpen, setJourneyOpen] = useState(false);
@@ -155,6 +161,11 @@ export function ParitySorShell({
    * rozet + dönem + ek paket. Metin `profilePlanView` tek kaynağından gelir.
    */
   const planView = account && !isAdmin ? profilePlanView(account) : null;
+  /** Profil kimliği (13 Kasım 2026, Faz 2): halka, köşe işareti ve plan etiketi; kapsül, panel ve alt çubuk aynı. */
+  const identity = planIdentity(account);
+  const initial = (userInitial?.slice(0, 1) || "?").toLocaleUpperCase("tr-TR");
+  const displayName = userName?.trim() || "Öğrenci";
+  const periodEndLabel = account?.subscriptionPeriodEnd ? formatDate(account.subscriptionPeriodEnd) : null;
   const isStudio = pathname.startsWith("/studio");
   // "focus": sınav kabuğunun başlığı (Geri, seri, menü, avatar) ama temaya
   // uyan renk ve normal sayfa kaydırması. Hazırlık sayfası bunu kullanıyor —
@@ -206,12 +217,6 @@ export function ParitySorShell({
     window.history.replaceState(null, "", query ? `${pathname}?${query}` : pathname);
     window.dispatchEvent(new Event(HOME_START_EVENT));
   }, [pathname]);
-  const openStars = () => {
-    setMenuOpen(false);
-    const params = new URLSearchParams(window.location.search);
-    params.set("dialog", "stars");
-    window.history.pushState(null, "", `${pathname}?${params.toString()}`);
-  };
   const openConversation = (id: string) =>
     conversationBaseHref
       ? `${conversationBaseHref}?sohbet=${encodeURIComponent(id)}`
@@ -256,7 +261,18 @@ export function ParitySorShell({
 
   useEffect(() => {
     setMenuOpen(false);
+    setProfileOpen(false);
   }, [pathname]);
+
+  // Profil panelindeki "Mevcut seri" seri penceresini açar (pencerenin durumu kabukta).
+  useEffect(() => {
+    const open = () => {
+      setJourneyTab("streak");
+      setJourneyOpen(true);
+    };
+    window.addEventListener(OPEN_STREAK_EVENT, open);
+    return () => window.removeEventListener(OPEN_STREAK_EVENT, open);
+  }, []);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -292,26 +308,26 @@ export function ParitySorShell({
       {account?.isAdmin ? null : <EmailVerifyBanner initialUnverified={emailUnverified} />}
       {showTopBar ? (
         <header className="cx-home-top">
-          {/* Logo [karar]: depodaki işaret 24 px, yazı Figtree 600 20 px --cx-text-reading; zemin, kutu, rozet yok. */}
+          {/* Logo (13 Kasım 2026, tasarım tahtası): depodaki dosya düz <img>; üstünde iki maskeli katman (parıltı, renk
+              akışı) ve arkasında yumuşak ışık. Logonun kendisi değişmez. */}
           <Link href="/ogretmen" className="cx-home-logo" aria-label="Cortex Plus Ana Sayfa">
-            <Image
-              src="/logo-mark-trim.png"
-              width={432}
-              height={280}
-              alt=""
-              aria-hidden="true"
-              draggable={false}
-              priority
-              className="cx-home-logo-mark"
-            />
-            <span className="cx-home-logo-word">Cortex Plus</span>
+            <span className="lg" aria-hidden="true">
+              <i className="gl" />
+              {/* eslint-disable-next-line @next/next/no-img-element -- maskeli katmanlar aynı dosyayı kullanıyor; boyut CSS'te */}
+              <img src="/logo-mark-trim.png" alt="" width={432} height={280} draggable={false} />
+              <i className="sh" />
+              <i className="fl" />
+            </span>
+            <span className="cx-home-logo-word">
+              Cortex <span className="gp">Plus</span>
+            </span>
           </Link>
           <div className="cx-home-nav">
             <nav className="cx-home-tray" aria-label="Ana bölümler">
               {studentTopTabs
                 .filter((tab) => tab.id !== "profile")
                 .map((tab) => {
-                  const active = tab.match(pathname) && !moreActive;
+                  const active = tab.match(pathname) && !libraryActive;
                   const Icon = tab.icon;
                   return (
                     <Link
@@ -328,13 +344,14 @@ export function ParitySorShell({
             </nav>
             <button
               type="button"
-              className={cn("cx-home-more", moreActive && "is-active cx-glass")}
-              aria-label="Daha fazla"
+              className={cn("cx-home-more", libraryActive && "is-active cx-glass")}
+              aria-label="Kütüphane"
+              aria-haspopup="dialog"
               aria-expanded={menuOpen}
               onClick={() => setMenuOpen(true)}
             >
-              <LayoutGrid aria-hidden />
-              <span className="cx-home-more-label">Daha fazla</span>
+              <Library aria-hidden />
+              <span className="cx-home-more-label">Kütüphane</span>
             </button>
           </div>
           <div className="cx-home-actions">
@@ -342,13 +359,6 @@ export function ParitySorShell({
               <Sparkles aria-hidden />
               Başla
             </button>
-            {showBuy ? (
-              <Link href="/pay" className="cx-home-buy" aria-label="Plus planına bak">
-                {/* Telefonda mevcut kısa etiket ("Plus"); yazılar eski çubuktakiyle aynı. */}
-                <span className="cx-home-buy-full">Plus&apos;a geç</span>
-                <span className="cx-home-buy-short">Plus</span>
-              </Link>
-            ) : null}
             <button
               type="button"
               className="cx-home-streak cx-glass"
@@ -363,18 +373,20 @@ export function ParitySorShell({
               <span>{streakCount}</span>
               {freezeState ? <StreakFreezeBadge state={freezeState} compact /> : null}
             </button>
-            <Link href="/profil" className="cx-home-avatar" aria-label="Profil">
-              {avatarEmoji ? <span aria-hidden>{avatarEmoji}</span> : (userInitial?.slice(0, 1) ?? "?")}
-            </Link>
-            <button
-              type="button"
-              className={cn("cx-home-more cx-home-more--phone", morePhoneActive && "is-active cx-glass")}
-              aria-label="Daha fazla"
-              aria-expanded={menuOpen}
-              onClick={() => setMenuOpen(true)}
-            >
-              <LayoutGrid aria-hidden />
-            </button>
+            {showBuy ? (
+              <Link href="/pay" className="cx-home-buy" aria-label="Plus planına bak">
+                {/* Telefonda mevcut kısa etiket ("Plus"); yazılar eski çubuktakiyle aynı. */}
+                <span className="cx-home-buy-full">Plus&apos;a geç</span>
+                <span className="cx-home-buy-short">Plus</span>
+              </Link>
+            ) : null}
+            <AccountCapsule
+              name={displayName}
+              initial={initial}
+              identity={identity}
+              open={profileOpen}
+              onOpen={() => setProfileOpen(true)}
+            />
           </div>
         </header>
       ) : closeHref ? (
@@ -411,22 +423,53 @@ export function ParitySorShell({
       {/* cx-app-main: girişli sayfa kuralları (cx-pages.css, 13 Kasım 2026); odak görünümleri (ders, test, fiyat) almaz. */}
       <main className={cn("cp-sor-main", chrome === "app" && !closeHref && "cx-app-main")}>{children}</main>
 
+      {/* Telefon alt çubuğu (13 Kasım 2026, Faz 2): Ana Sayfa, Sınavlar, Stüdyo, Kütüphane, Profil. Profil sekmesinde
+          planlı 28 px halka; Kütüphane paneli açar. */}
       {showTopBar ? <nav className="cp-sor-bottomnav" aria-label="Ana gezinme">
-        {studentBottomTabs.map((tab) => {
-          const Icon = tab.icon;
-          const active = tab.match(pathname) && !(moreActive && tab.id !== "profile");
-          return (
-            <Link
-              key={tab.id}
-              href={tab.href}
-              className={cn("cp-sor-bottomnav-link", active && "cp-sor-bottomnav-link--active cx-glass")}
-              aria-current={active ? "page" : undefined}
-            >
-              <Icon className="h-5 w-5" aria-hidden />
-              <span>{tab.shortLabel ?? tab.label}</span>
-            </Link>
-          );
-        })}
+        {studentBottomTabs
+          .filter((tab) => tab.id !== "profile")
+          .map((tab) => {
+            const Icon = tab.icon;
+            const active = tab.match(pathname) && !libraryActive;
+            return (
+              <Link
+                key={tab.id}
+                href={tab.href}
+                className={cn("cp-sor-bottomnav-link", active && "cp-sor-bottomnav-link--active cx-glass")}
+                aria-current={active ? "page" : undefined}
+              >
+                <Icon className="h-5 w-5" aria-hidden />
+                <span>{tab.shortLabel ?? tab.label}</span>
+              </Link>
+            );
+          })}
+        <button
+          type="button"
+          className={cn("cp-sor-bottomnav-link", libraryActive && "cp-sor-bottomnav-link--active cx-glass")}
+          aria-haspopup="dialog"
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen(true)}
+        >
+          <Library className="h-5 w-5" aria-hidden />
+          <span>Kütüphane</span>
+        </button>
+        {studentBottomTabs
+          .filter((tab) => tab.id === "profile")
+          .map((tab) => {
+            const active = tab.match(pathname);
+            return (
+              <Link
+                key={tab.id}
+                href={tab.href}
+                className={cn("cp-sor-bottomnav-link", active && "cp-sor-bottomnav-link--active cx-glass")}
+                aria-current={active ? "page" : undefined}
+                aria-label={identity.aria}
+              >
+                <ProfileRing initial={initial} identity={identity} size="s" />
+                <span aria-hidden>{tab.label}</span>
+              </Link>
+            );
+          })}
       </nav> : null}
 
       {menuOpen && chrome === "exam" ? (
@@ -439,75 +482,72 @@ export function ParitySorShell({
 
       {menuOpen && chrome !== "exam" ? (
         <div
-          className="cp-sor-menu-backdrop"
+          className="cp-sor-menu-backdrop cx-lib-backdrop"
           role="dialog"
           aria-modal="true"
-          aria-label="Menü"
+          aria-labelledby="cx-lib-title"
           onClick={closeMenu}
         >
-          <div className="cp-sor-menu-panel cp-more-panel" onClick={(e) => e.stopPropagation()}>
-            <div className="cp-sor-menu-head">
-              <h2 className="text-lg font-semibold">Daha fazla</h2>
-              <button
-                type="button"
-                className="rounded-full p-2 text-[var(--cp-muted)]"
-                aria-label="Kapat"
-                onClick={closeMenu}
-              >
-                <X className="h-5 w-5" />
+          {/* Kütüphane (13 Kasım 2026, Faz 2): ortalanmış 480 px diyalog, satırlar 60 px (skill §6 liste satırı). */}
+          <div className="cx-lib-panel cx-surface-1" onClick={(e) => e.stopPropagation()}>
+            <div className="cx-lib-head">
+              <h2 id="cx-lib-title" className="cx-lib-title">Kütüphane</h2>
+              <button type="button" className="cx-lib-close cx-glass" aria-label="Kapat" onClick={closeMenu}>
+                <X aria-hidden />
               </button>
             </div>
-            <div className="cp-more-actions">
-              {MORE_LINKS.map((item) => {
+            <nav className="cx-lib-list" aria-label="Kütüphane">
+              {LIBRARY_LINKS.map((item) => {
                 const Icon = item.icon;
+                const current = pathname === item.href || pathname.startsWith(`${item.href}/`);
                 return (
-                  <Link key={item.href} href={item.href} className="cp-more-action">
-                    <Icon className="h-6 w-6" aria-hidden />
-                    <span className="cp-more-action-label">{item.label}</span>
-                    <ChevronRight className="cp-more-action-chevron" aria-hidden />
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn("cx-lib-row", current && "is-current")}
+                    aria-current={current ? "page" : undefined}
+                  >
+                    <Icon className="cx-lib-row-icon" aria-hidden />
+                    <span className="cx-lib-row-label">{item.label}</span>
+                    <ChevronRight className="cx-lib-row-go" aria-hidden />
                   </Link>
                 );
               })}
-              {/* Yıldızlar penceresi: eski çubuktaki yıldız düğmesinin yeri (yeni çubukta yıldız yok). */}
-              <button type="button" className="cp-more-action" onClick={openStars}>
-                <Star className="h-6 w-6" aria-hidden />
-                <span className="cp-more-action-label">Yıldızlar</span>
-                <ChevronRight className="cp-more-action-chevron" aria-hidden />
-              </button>
-              {account?.adminPanel ? (
-                <Link href={ADMIN_PANEL_LINK.href} className="cp-more-action" data-testid="admin-panel-link">
-                  <ShieldCheck className="h-6 w-6" aria-hidden />
-                  <span className="cp-more-action-label">{ADMIN_PANEL_LINK.label}</span>
-                  <ChevronRight className="cp-more-action-chevron" aria-hidden />
-                </Link>
-              ) : null}
-            </div>
-            <Link href="/sohbetler" className="cp-more-history-head">
-              Geçmiş konuşmalar <span aria-hidden>›</span>
-            </Link>
-            <div className="cp-more-history">
+            </nav>
+            <div className="cx-lib-recent">
               {recentConversations.length ? (
                 recentConversations.map((item) => (
-                  <Link
-                    key={item.id}
-                    href={`/ogretmen?sohbet=${item.id}`}
-                    className="cp-more-history-item"
-                  >
+                  <Link key={item.id} href={`/ogretmen?sohbet=${item.id}`} className="cx-lib-recent-item">
                     <span>{item.title || "Yeni sohbet"}</span>
                     <em>{relativeTr(item.updatedAt)}</em>
                   </Link>
                 ))
               ) : (
-                <p className="cp-more-empty">Henüz sohbet yok</p>
+                <p className="cx-lib-empty">Henüz sohbet yok</p>
               )}
             </div>
-            <form action="/api/auth/signout" method="post" className="mt-4">
-              <button type="submit" className="cp-sor-menu-signout">
-                Çıkış yap
-              </button>
-            </form>
+            {account?.adminPanel ? (
+              <div className="cx-lib-list">
+                <Link href={ADMIN_PANEL_LINK.href} className="cx-lib-row" data-testid="admin-panel-link">
+                  <ShieldCheck className="cx-lib-row-icon" aria-hidden />
+                  <span className="cx-lib-row-label">{ADMIN_PANEL_LINK.label}</span>
+                  <ChevronRight className="cx-lib-row-go" aria-hidden />
+                </Link>
+              </div>
+            ) : null}
           </div>
         </div>
+      ) : null}
+
+      {showTopBar ? (
+        <ProfileSidePanel
+          open={profileOpen}
+          onClose={() => setProfileOpen(false)}
+          name={displayName}
+          initial={initial}
+          identity={identity}
+          periodEndLabel={periodEndLabel}
+        />
       ) : null}
 
       <ParityDialogHost onOpenMenu={openMenuFromUrl} plan={planView} />

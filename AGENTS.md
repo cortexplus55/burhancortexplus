@@ -2717,3 +2717,22 @@ mavi düğme. Yalnız görünüm; metin, iş mantığı ve ödeme akışı aynı
 | Caveat kalktı (17 Ekim ve 8 Kasım kararları değişti): "hedef puan" mono `meta-s`, sohbetin "Ezber kodu" metin yazı tipinde 20 px / 600. Ağırlıklar 600 ve 700'e indi (650, 800, 900 yok; yönetim, pazarlama ve e-posta kapsam dışı) | `layout.tsx`, `tokens.css`, `chat-teaching.css` |
 
 Bekçi: `parity-design-system.test.ts` (Caveat ve `--font-hand` yok), `activity-labels.test.tsx`, `paket2-akis-kaynak.test.ts`.
+
+## Profil kimliği ve Kütüphane (13 Kasım 2026, Faz 2) — kapsül, yan panel, beş öğeli alt çubuk
+
+Ürün sahibinin tasarım tahtası (beş tahta: üst çubuk dört durumda, logo, kapsül, panel, telefon). Yalnız görünüm ve
+gezinme; iş mantığı, ödeme akışı ve metinler aynı (yeni metin yalnız ürün sahibinin verdiği: "Kütüphane", plan
+etiketleri, "Plus'a geç"). Ayrıntılı ölçüler skill'in depo kararı 13'te. Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| "Daha fazla" → **Kütüphane**: yalnız Belgelerim, Yanlışlarım, Çalışma grupları, Geçmiş konuşmalar (+ son konuşmalar), yöneticiye simgeli "Yönetim Paneli" (emoji kalktı). İlerleme, Takvimim, Kullanım limitleri, Davet ve Yıldızlar profil paneline; Çıkış yap yalnız profilde. 13 Kasım'ın Faz 1 satırındaki `MORE_PATHS` kalktı: `LIBRARY_PATHS` (Kütüphane etkin), `PROFILE_PATHS` (telefonda Profil etkin) | `student-shell-nav.ts`, `sor-shell.tsx` |
+| Emoji avatar yerine **profil kapsülü**: halkalı baş harf, ad, plan etiketi; `aria-label` planı söyler ("Profil, Plus, 5 gün kaldı"). Plan tek kaynaktan (`planIdentity`): kurucu → Sigma görünümü "Kurucu"; Sigma; `plus-haftalik` → "Plus · N gün" (dönem sonundan, okunamazsa düz Plus); Plus; ücretsiz. Önizlemedeki kurucu ücretsiz görünür. Sigma tonları yalnız plan kimliğinde, hata kırmızısı değil | `plan-identity.ts`, `profile-identity.tsx`, `cx-profile.css` |
+| Kapsül **yan paneli** açar (480 px, Esc ve dışarıya dokunuş kapatır, odak kapsüle döner); veri açılınca yalnız okuyan uçtan (`GET /api/student/profile-panel`: `loadProfileDashboard` + `my_stars`). "Mevcut seri" kabuğun seri penceresini açar (`OPEN_STREAK_EVENT`), "Yıldızlar" `?dialog=stars`. **`/profil` aynı kartı tam sayfa çizer**; eski profil paneli ve sayfadaki davet kartı kullanılmıyor ("Davet et" listede tek satır) | `api/student/profile-panel`, `profil/page.tsx` |
+| **Logo** 76×49 (telefonda 56×36), düz `<img>` + iki maskeli katman, hareket azaltmada durur; "Cortex" beyaz, "Plus" gradyan. Logo dosyası değişmez | `cx-shell.css` |
+| **Telefon alt çubuğu** beş öğe (Ana Sayfa, Sınavlar, Stüdyo, Kütüphane, Profil), 64 px tepsi, 56 px öğe, Profil'de 28 px planlı halka; üst çubukta kapsül ve eski ızgara düğmesi yok. Tablette ızgara `auto 1fr auto`, kapsül yalnız halka, Plus hapı kısa | `cx-shell.css` |
+| **/yardim ve /mobil-uygulama**: oturum açık öğrenciye uygulama kabuğu (aynı içerik, `cx-mk-body` mk-* sınıflarını kabuğun diline çevirir; misafir kayıt çağrısı yok), misafire bugünkü pazarlama sayfası. Oturum okuması düşerse misafir görünümü | `optional-shell.ts`, `cx-pages.css` |
+| **/davet**: büyük altın kart sade (bg-1, 3B görsel ve altın rozet yok; metinler aynı) | `cx-pages.css` |
+
+Fikstürler: `/e2e/ana-ekran?plan=plus|hafta|sigma|kurucu`, `/e2e/profil?plan=…`. Bekçi: `profil-kutuphane.test.tsx`, e2e
+`kabuk.spec.ts` (5 öğe ≥56 px, logo 76×49, Kütüphane satırları 60 px, kapsül 52 px, panel 480 px, odak dönüşü).

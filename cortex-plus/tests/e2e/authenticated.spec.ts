@@ -37,9 +37,11 @@ test.describe("authenticated student hub", { tag: ["@auth"] }, () => {
     ).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Ana bölümler" })).toBeVisible();
 
-    // Profil üst çubukta yalnız avatarda (sekme tepsisinde üç sekme: Ana Sayfa, Sınavlar, Çalışma Stüdyosu).
-    await expect(page.locator("a.cx-home-avatar")).toBeVisible();
-    await expect(page.locator("a.cx-home-avatar")).toHaveAttribute("aria-label", "Profil");
+    // Profil üst çubukta yalnız kapsülde (sekme tepsisinde üç sekme: Ana Sayfa, Sınavlar, Çalışma Stüdyosu).
+    // Faz 2 (13 Kasım 2026): kapsülün adı planı söyler ("Profil, Ücretsiz plan", "Profil, Plus plan" …).
+    const capsule = page.locator("header.cx-home-top .cx-capsule");
+    await expect(capsule).toBeVisible();
+    await expect(capsule).toHaveAttribute("aria-label", /^Profil, /);
 
     // 13 Kasım 2026: bulunulan sayfanın sekmesi cam hapla ve aria-current ile (gerçek rotalarda).
     const currentTab = page.locator('header.cx-home-top .cx-home-tab[aria-current="page"]');

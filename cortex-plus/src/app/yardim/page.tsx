@@ -4,6 +4,9 @@ import { PLAN_ALLOWANCES } from "@/lib/credits/price-table";
 import Link from "next/link";
 import { LifeBuoy, Mail } from "lucide-react";
 import { MarketingPage } from "@/components/layout/marketing-page";
+import { PageShell } from "@/components/parity/page-shell";
+import { ParitySorShell } from "@/components/parity/sor-shell";
+import { loadOptionalStudentShell } from "@/lib/student/optional-shell";
 import { FREE_DOCUMENT_SENTENCE, PLUS_ONLY_SENTENCE } from "@/lib/billing/free-tier-copy";
 import { supportSlaLine } from "@/lib/support/sla";
 
@@ -46,12 +49,34 @@ const faqs = [
   },
 ];
 
-export default function YardimPage() {
+const TITLE = "Yardım";
+const DESCRIPTION = "Aradığın yanıt burada yoksa bize yazabilirsin.";
+
+/**
+ * 13 Kasım 2026 (Faz 2): oturum açık öğrenci aynı içeriği uygulama kabuğunda görür (üst çubuk, Kütüphane, profil);
+ * misafir bugünkü pazarlama sayfasını. İçerik ikisinde de aynı; görünüm kabuğun sınıflarından.
+ */
+export default async function YardimPage() {
+  const shell = await loadOptionalStudentShell();
+  if (shell) {
+    return (
+      <ParitySorShell {...shell}>
+        <PageShell width="read" title={TITLE} lead={DESCRIPTION} className="cx-mk-body">
+          <YardimContent />
+        </PageShell>
+      </ParitySorShell>
+    );
+  }
   return (
-    <MarketingPage
-      title="Yardım"
-      description="Aradığın yanıt burada yoksa bize yazabilirsin."
-    >
+    <MarketingPage title={TITLE} description={DESCRIPTION}>
+      <YardimContent />
+    </MarketingPage>
+  );
+}
+
+function YardimContent() {
+  return (
+    <>
       <p className="mk-eyebrow">Sık sorulanlar</p>
 
       {/*
@@ -99,6 +124,6 @@ export default function YardimPage() {
           </div>
         </div>
       </div>
-    </MarketingPage>
+    </>
   );
 }

@@ -112,11 +112,14 @@ describe("kıyas ürünü ayrıntıları (tasarım 8. adım)", () => {
     expect(page).not.toContain("MarketingPage");
   });
 
-  it("avatar üst çubukta; yıldızlar Daha fazla'da; Daha fazla satır kartları", () => {
-    // 13 Kasım 2026 (kabuk): yeni üst çubukta yıldız düğmesi yok; pencere "Daha fazla"daki satırdan açılır.
+  it("profil kapsülü üst çubukta; yıldızlar profil panelinde; Kütüphane satır listesi", () => {
+    // 13 Kasım 2026 (Faz 2): emoji avatar yerine planlı halkalı kapsül; Yıldızlar panelin istatistik düğmesi;
+    // "Daha fazla" Kütüphane oldu (satır 60 px, sağda ok).
     const shell = read("src/components/parity/sor-shell.tsx");
-    expect(shell).toContain('className="cx-home-avatar"');
-    expect(shell).toContain('<span className="cp-more-action-label">Yıldızlar</span>');
-    expect(shell).toContain('<ChevronRight className="cp-more-action-chevron" aria-hidden />');
+    expect(shell).not.toContain("cx-home-avatar");
+    expect(shell).toContain("<AccountCapsule");
+    expect(read("src/components/parity/profile-identity.tsx")).toContain('<span className="cx-pp-stat-label">Yıldızlar</span>');
+    expect(shell).toContain('<ChevronRight className="cx-lib-row-go" aria-hidden />');
+    expect(read("src/styles/cx-shell.css")).toMatch(/\.cx-lib-row \{[^}]*min-height: 60px;/);
   });
 });

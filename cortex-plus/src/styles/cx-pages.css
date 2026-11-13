@@ -281,3 +281,165 @@
     font-size: 2rem;
   }
 }
+
+/* ---------- Faz 2 (13 Kasım 2026): /yardim ve /mobil-uygulama oturum açık öğrenciye uygulama kabuğunda ----------
+   İçerik pazarlama sayfasıyla aynı JSX (mk-* sınıfları); burada kabuğun diline çevrilir. Altın ve kenarlık yok,
+   kartlar bg-1, sorular liste satırı (skill §6), birincil eylem cx-brand. */
+.cp-sor-main.cx-app-main .cx-mk-body {
+  --mk-text: var(--cx-text-primary);
+  --mk-muted: var(--cx-text-secondary);
+  --mk-primary: var(--cx-text-brand);
+}
+.cp-sor-main.cx-app-main .cx-mk-body .mk-eyebrow {
+  margin: 0;
+  font: var(--cx-t-meta-s);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cx-text-secondary);
+}
+.cp-sor-main.cx-app-main .cx-mk-body .mk-card,
+.cp-sor-main.cx-app-main .cx-mk-body .mk-feature {
+  border: 0;
+  border-radius: var(--cx-radius-l);
+  background: var(--cx-bg-1);
+  color: var(--cx-text-primary);
+}
+.cp-sor-main.cx-app-main .cx-mk-body .mk-feature {
+  padding: var(--cx-space-24);
+}
+.cp-sor-main.cx-app-main .cx-mk-body .mk-card .mk-card {
+  background: var(--cx-bg-2);
+}
+.cp-sor-main.cx-app-main .cx-mk-body .mk-icon {
+  display: inline-grid;
+  place-items: center;
+  width: var(--cx-icon-btn-l);
+  height: var(--cx-icon-btn-l);
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-bg-2);
+  color: var(--cx-text-primary);
+}
+.cp-sor-main.cx-app-main .cx-mk-body .mk-btn-primary {
+  min-height: var(--cx-control-s);
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-gradient-brand);
+  color: var(--cx-text-on-brand);
+  font: var(--cx-t-button-s);
+  cursor: pointer;
+  transition: scale var(--cx-dur-scale) var(--cx-ease-out);
+}
+.cp-sor-main.cx-app-main .cx-mk-body .mk-btn-primary:hover,
+.cp-sor-main.cx-app-main .cx-mk-body .mk-btn-primary:focus-visible {
+  scale: var(--cx-scale-hover);
+}
+.cp-sor-main.cx-app-main .cx-mk-body .mk-faq {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--cx-radius-l);
+  background: var(--cx-bg-1);
+  overflow: hidden;
+}
+.cp-sor-main.cx-app-main .cx-mk-body .mk-faq__item + .mk-faq__item {
+  box-shadow: inset 0 1px 0 #ffffff0a;
+}
+.cp-sor-main.cx-app-main .cx-mk-body .mk-faq__q {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cx-space-14);
+  min-height: 60px;
+  box-sizing: border-box;
+  padding: var(--cx-space-16) var(--cx-space-20);
+  font: var(--cx-t-label-15);
+  font-weight: 600;
+  color: var(--cx-text-primary);
+  list-style: none;
+  cursor: pointer;
+  transition: background var(--cx-dur-color) ease;
+}
+.cp-sor-main.cx-app-main .cx-mk-body .mk-faq__q::-webkit-details-marker {
+  display: none;
+}
+.cp-sor-main.cx-app-main .cx-mk-body .mk-faq__q::after {
+  content: "";
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-right: 2px solid var(--cx-text-tertiary);
+  border-bottom: 2px solid var(--cx-text-tertiary);
+  transform: rotate(45deg) translate(-0.1rem, -0.1rem);
+  transition: transform var(--cx-dur-scale) var(--cx-ease-out);
+}
+.cp-sor-main.cx-app-main .cx-mk-body .mk-faq__item[open] .mk-faq__q::after {
+  transform: rotate(-135deg) translate(-0.1rem, -0.1rem);
+}
+.cp-sor-main.cx-app-main .cx-mk-body .mk-faq__q:hover {
+  background: var(--cx-bg-2);
+}
+.cp-sor-main.cx-app-main .cx-mk-body .mk-faq__q:focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: -3px;
+}
+.cp-sor-main.cx-app-main .cx-mk-body .mk-faq__a {
+  margin: 0;
+  padding: 0 var(--cx-space-20) var(--cx-space-18);
+  font: var(--cx-t-body-14);
+  line-height: 1.6;
+  color: var(--cx-text-secondary);
+}
+:root:not(.dark) .cp-sor-main.cx-app-main .cx-mk-body .mk-faq__item + .mk-faq__item {
+  box-shadow: inset 0 1px 0 #0000000d;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cp-sor-main.cx-app-main .cx-mk-body .mk-faq__q::after,
+  .cp-sor-main.cx-app-main .cx-mk-body .mk-btn-primary {
+    transition: none;
+  }
+  .cp-sor-main.cx-app-main .cx-mk-body .mk-btn-primary:hover {
+    scale: none;
+  }
+}
+
+/* ---------- Faz 2: davet kartı sade (büyük altın kart yerine bg-1 kart; 3B görsel ve altın rozet yok) ---------- */
+.cp-sor-main.cx-app-main .cp-ref-art {
+  display: none;
+}
+.cp-sor-main.cx-app-main .cp-ref-card {
+  padding: var(--cx-space-24);
+  border-radius: var(--cx-radius-l);
+  overflow: visible;
+}
+.cp-sor-main.cx-app-main .cp-ref-badge {
+  position: static;
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  margin-bottom: var(--cx-space-12);
+  padding: 0 10px;
+  border: 0;
+  background: var(--cx-bg-2);
+  font: var(--cx-t-meta-s);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cx-text-secondary);
+}
+.cp-sor-main.cx-app-main .cp-ref-title {
+  padding-right: 0;
+  font: var(--cx-t-title-l);
+  letter-spacing: var(--cx-ls-heading);
+  text-wrap: balance;
+}
+.cp-sor-main.cx-app-main .cp-ref-body {
+  margin-top: var(--cx-space-8);
+  font: var(--cx-t-body-14);
+  line-height: 1.55;
+  color: var(--cx-text-secondary);
+}
+.cp-sor-main.cx-app-main .cp-ref-actions {
+  margin-top: var(--cx-space-18);
+}
+.cp-sor-main.cx-app-main .cp-ref-primary {
+  border: 0;
+  background: var(--cx-gradient-brand);
+}

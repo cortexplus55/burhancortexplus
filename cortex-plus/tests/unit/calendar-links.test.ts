@@ -7,7 +7,8 @@ import { describe, expect, it } from "vitest";
   sohbeti menüsü çalışma planının tamamına gidiyordu (30 Eylül 2026).
 */
 describe("Takvimim bağlantıları", () => {
-  it.each(["src/components/parity/sor-shell.tsx", "src/components/parity/exam-chat-menu.tsx"])(
+  // 13 Kasım 2026 (Faz 2): Takvimim kabuğun menüsünden profil paneline taşındı (profile-identity.tsx).
+  it.each(["src/components/parity/profile-identity.tsx", "src/components/parity/exam-chat-menu.tsx"])(
     "%s takvim sayfasına gider",
     (file) => {
       const source = readFileSync(file, "utf8");

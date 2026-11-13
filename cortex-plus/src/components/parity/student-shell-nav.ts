@@ -55,7 +55,7 @@ export const CANONICAL_FEATURES = {
  * belgeleri tek programda karıştırıyordu (bir programın altında
  * başka derslerin tekrarları). kıyas ürününde her sınavın yolu yalnız
  * kendi kartında; üçüncü sekme Uygulamalar — bizde Araçlar. Belgeler
- * sekmesi de kalktı (kıyas ürününde yok): "Daha fazla" menüsünde.
+ * sekmesi de kalktı (kıyas ürününde yok): Kütüphane'de (13 Kasım 2026'ya kadar adı "Daha fazla").
  */
 export const studentBottomTabs: StudentNavItem[] = [
   {
@@ -63,7 +63,7 @@ export const studentBottomTabs: StudentNavItem[] = [
     href: "/ogretmen",
     label: "Ana Sayfa",
     icon: Home,
-    // 13 Kasım 2026: /sohbetler artık Ana Sayfa değil; "Daha fazla"daki Geçmiş konuşmalar (MORE_PATHS).
+    // 13 Kasım 2026: /sohbetler artık Ana Sayfa değil; Kütüphane'deki Geçmiş konuşmalar (LIBRARY_PATHS).
     match: (p) => p === "/dashboard" || p === "/" || p === "/ogretmen" || p.startsWith("/ogretmen/"),
   },
   {
@@ -93,33 +93,44 @@ export const studentBottomTabs: StudentNavItem[] = [
     href: "/profil",
     label: "Profil",
     icon: User,
-    match: (p) =>
-      p.startsWith("/profil") ||
-      p.startsWith("/ayarlar") ||
-      p.startsWith("/krediler"),
+    match: (p) => isProfilePath(p),
   },
 ];
 
 export const studentTopTabs: StudentNavItem[] = studentBottomTabs;
 
+function underAny(path: string, bases: readonly string[]): boolean {
+  return bases.some((base) => path === base || path.startsWith(`${base}/`));
+}
+
 /**
- * "Daha fazla" panelinden açılan sayfalar (13 Kasım 2026, ürün sahibi): bu sayfalarda üst çubukta "Daha fazla"
- * etkin görünür, sekmelerden hiçbiri değil. Geçmiş konuşmalar (/sohbetler) da panelden açılır. Telefonda Profil
- * sekmesi kendi sayfalarında (Profil, Ayarlar, Kullanım limitleri) etkin kalır.
+ * Kütüphane (13 Kasım 2026, Faz 2; eski adı "Daha fazla"): öğrencinin kendi biriktirdikleri. Bu sayfalarda üst
+ * çubukta ve telefonun alt çubuğunda Kütüphane etkin görünür, sekmelerden hiçbiri değil.
  */
-export const MORE_PATHS = [
-  "/dokumanlar",
-  "/yanlislarim",
-  "/siniflar",
+export const LIBRARY_PATHS = ["/dokumanlar", "/yanlislarim", "/siniflar", "/sohbetler"] as const;
+
+export function isLibraryPath(path: string): boolean {
+  return underAny(path, LIBRARY_PATHS);
+}
+
+/**
+ * Profil panelinin açtığı sayfalar (13 Kasım 2026, Faz 2): telefonda Profil sekmesi bunlarda etkin. Masaüstünde
+ * profil sekmesi çubukta değil, kapsül olarak durur.
+ */
+export const PROFILE_PATHS = [
+  "/profil",
+  "/ayarlar",
+  "/krediler",
   "/ilerleme",
   "/takvimim",
-  "/krediler",
   "/davet",
-  "/sohbetler",
+  "/yardim",
+  "/mobil-uygulama",
+  "/odemeler",
 ] as const;
 
-export function isMorePath(path: string): boolean {
-  return MORE_PATHS.some((base) => path === base || path.startsWith(`${base}/`));
+export function isProfilePath(path: string): boolean {
+  return underAny(path, PROFILE_PATHS);
 }
 
 export const studentMenuGroups: {
