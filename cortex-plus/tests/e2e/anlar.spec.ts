@@ -89,6 +89,22 @@ for (const size of SIZES) {
   test(`A2 ${size.width} px: tarama anında dört bulgu sırayla belirir, sonra yol açılır; dokunuş anı atlar`, { tag: ["@public"] }, async ({ page }) => {
     await page.setViewportSize(size);
     await page.goto("/");
+    /*
+      Bulgular yalnız tarama anında çizilir ve an bitince kalkar. Yük altında (CI) testin örnekleri seyrek düşer: ilk
+      örnek animasyondan önce (0), sonraki an bittikten sonra gelebilir. Bu yüzden sayfa her karede her bulgunun
+      ulaştığı en yüksek opaklığı kaydeder (13 Kasım 2026).
+    */
+    await page.evaluate(() => {
+      const holder = window as unknown as { __findMax: number[] };
+      holder.__findMax = [];
+      const tick = () => {
+        document.querySelectorAll<HTMLElement>("[data-scan-findings] [data-finding]").forEach((node, at) => {
+          holder.__findMax[at] = Math.max(holder.__findMax[at] ?? 0, Number(getComputedStyle(node).opacity));
+        });
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
     await page.locator("button.lj-zone").evaluate((zone) => zone.scrollIntoView({ block: "center" }));
     await page.locator("button.lj-zone").click();
     const finds = page.locator("[data-scan-findings] [data-finding]");
@@ -96,7 +112,9 @@ for (const size of SIZES) {
     await expect(finds.nth(0)).toHaveText("6 sayfa");
     await expect(finds.nth(2)).toContainText("Hoca uyarısı");
     // Son bulgu anın sonunda görünür (opaklık 1), yol kendiliğinden açılır.
-    await expect.poll(() => finds.nth(3).evaluate((node) => Number(getComputedStyle(node).opacity))).toBeGreaterThan(0.95);
+    await expect
+      .poll(() => page.evaluate(() => (window as unknown as { __findMax: number[] }).__findMax[3] ?? 0))
+      .toBeGreaterThan(0.95);
     await expect(page.getByRole("heading", { name: "Yol haritan çıktı" })).toBeVisible({ timeout: 4000 });
 
     // İkinci tur: dokunuş anı atlar, yol 2,4 sn beklemeden açılır.

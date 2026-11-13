@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type FileChooser, type Page } from "@playwright/test";
 
 /*
   Anlar, uygulamanın içi, C işleri (13 Kasım 2026, ürün sahibinin kararı).
@@ -236,10 +236,15 @@ test.describe("anlar C", { tag: ["@public"] }, () => {
     await settled(page);
     await watchMoment(page, ".cp-first-step-card--upload");
     const core = door.getByRole("button", { name: "Notunu tarama çekirdeğine bırak" });
-    await core.focus();
-    const chooser = page.waitForEvent("filechooser");
-    await page.keyboard.press("Enter");
-    await (await chooser).setFiles({ name: "Fizik notu.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4") });
+    // Yük altında ilk Enter sayfa canlanmadan düşebilir: dosya seçici açılana kadar yeniden basılır (13 Kasım 2026).
+    let chooser: FileChooser | null = null;
+    await expect(async () => {
+      const opened = page.waitForEvent("filechooser", { timeout: 3000 });
+      await core.focus();
+      await page.keyboard.press("Enter");
+      chooser = await opened;
+    }).toPass({ timeout: 45_000 });
+    await chooser!.setFiles({ name: "Fizik notu.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4") });
     await page.waitForURL(/\/deneme-sinavlari\/olustur|\/giris\?next=%2Fdeneme-sinavlari%2Folustur/, { timeout: 60_000 });
     const marker = await page.evaluate(() => window.sessionStorage.getItem("cp:guest-doc"));
     expect(marker).toContain("Fizik notu.pdf");

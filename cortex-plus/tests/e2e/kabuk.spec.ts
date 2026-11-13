@@ -64,8 +64,29 @@ for (const width of [375, 768, 1280]) {
     await page.setViewportSize({ width, height: width < 768 ? 812 : 900 });
     const seen: Awaited<ReturnType<typeof measure>>[] = [];
     for (const item of PAGES) {
+      /*
+        Çubuk ilk çizimden sonra bir kez daha oturur: seri sayacının dondurma simgesi `/api/streak` cevabıyla gelir ve
+        sayaç 59 px'ten 97 px'e büyür (13 Kasım 2026, ölçüldü). Geliştirme sunucusu rotayı ilk kez derlerken cevap
+        saniyeler sürebilir. Her sayfa bu cevaptan sonra ve art arda iki ölçüm aynı olunca ölçülür; yoksa ana ekran
+        simgeden önce, öbür sayfa sonra ölçülüp sahte bir fark çıkıyordu.
+      */
+      const streak = page.waitForResponse((response) => response.url().includes("/api/streak"), { timeout: 30_000 }).catch(() => null);
       await page.goto(item.path);
       await expect(page.locator("header.cx-home-top")).toBeVisible();
+      await page.evaluate(() => document.fonts.ready.then(() => undefined));
+      await streak;
+      let last = "";
+      await expect
+        .poll(
+          async () => {
+            const now = JSON.stringify((await measure(page)).rects);
+            const stable = now === last;
+            last = now;
+            return stable;
+          },
+          { message: `${item.key} çubuk durulmadı`, intervals: [300], timeout: 10_000 },
+        )
+        .toBe(true);
       await page.screenshot({ path: `test-results/kabuk-${item.key}-${width}.png` });
       const m = await measure(page);
       expect(m.overflow, `${item.key} yana taşma`).toBeLessThanOrEqual(1);
@@ -91,9 +112,12 @@ test("Daha fazla her sayfada aynı paneli açar; Yıldızlar oradan açılır", 
   await prepare(page);
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto("/e2e/ic-ekran?ekran=yol");
-  await page.locator(".cx-home-nav .cx-home-more").click();
   const panel = page.getByRole("dialog", { name: "Menü" });
-  await expect(panel).toBeVisible();
+  // Yük altında ilk tıklama sayfa canlanmadan düşebilir: panel açılana kadar yeniden basılır.
+  await expect(async () => {
+    if (!(await panel.count())) await page.locator(".cx-home-nav .cx-home-more").click();
+    await expect(panel).toBeVisible({ timeout: 2000 });
+  }).toPass({ timeout: 30_000 });
   await panel.getByRole("button", { name: "Yıldızlar" }).click();
   await expect(panel).toHaveCount(0);
   await expect(page).toHaveURL(/dialog=stars/);
