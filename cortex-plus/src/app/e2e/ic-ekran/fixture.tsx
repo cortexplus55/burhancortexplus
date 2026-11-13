@@ -31,6 +31,16 @@ const PATH_NODES: HomeNode[] = KINDS.map(([kind, title], index) => ({
   status: index < 2 ? "done" : index === 2 ? "ready" : "locked",
 }));
 
+/**
+ * Konulu yol (B2 anı, 13 Kasım 2026): gerçek hazırlıktaki gibi ders ve test aynı konu bölümünde; ders bitti, test
+ * sıradaki.
+ */
+const TOPIC_PATH_NODES: HomeNode[] = PATH_NODES.map((node, index) => ({
+  ...node,
+  status: index < 1 ? "done" : index === 1 ? "ready" : "locked",
+  sessionMeta: { ...node.sessionMeta, topicTitle: index < 4 ? "Birinci konu" : "İkinci konu" },
+}));
+
 const PREP_CARDS: ExamPrepCard[] = [
   {
     id: "p1",
@@ -66,10 +76,10 @@ export function IcEkranFixture({ screen }: { screen: string }) {
       userInitial="Ö"
       streak={2}
       account={fixtureAccount(false)}
-      {...(screen === "yol" ? { chrome: "focus" as const, minimalTop: true } : {})}
+      {...(screen === "yol" || screen === "yol-konu" ? { chrome: "focus" as const, minimalTop: true } : {})}
       {...(screen === "alt-podcast" ? { chrome: "focus" as const, backHref: "/e2e/ic-ekran?ekran=yol" } : {})}
     >
-      {screen === "yol" ? (
+      {screen === "yol" || screen === "yol-konu" ? (
         <ExamPrepHome
           prepId="fixture-prep"
           title="Fikstür hazırlığı"
@@ -77,7 +87,7 @@ export function IcEkranFixture({ screen }: { screen: string }) {
           examDate={null}
           daysLabel=""
           progressPct={20}
-          nodes={PATH_NODES}
+          nodes={screen === "yol-konu" ? TOPIC_PATH_NODES : PATH_NODES}
           hasTopic
           needsIntro={false}
           startHref="/deneme-sinavlari"

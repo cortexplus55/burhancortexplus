@@ -8,7 +8,7 @@ import type { FirstTopicSummary } from "@/components/parity/exam-node/gates";
 import Link from "next/link";
 import { HOLIDAY_BADGE, turkishHolidayOn } from "@/lib/learning/tr-calendar";
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   AudioLines,
@@ -86,6 +86,8 @@ import { METRIC_HINT, METRIC_LABEL } from "@/lib/learning/prep-metrics";
 import { nodeHeading } from "@/lib/learning/node-heading";
 import { groupNodesByPhase } from "@/lib/learning/exam-plan-phases";
 import { cn } from "@/lib/utils";
+import { MOMENT_MS, startMoment } from "@/lib/ui/moment";
+import { isPathMemory, pathMemoryKey, readMoment, writeMoment, type PathMemory } from "@/lib/ui/moment-memory";
 import { formatDayLong } from "@/lib/format";
 import { PrepBasicsPanel } from "@/components/parity/prep-basics-panel";
 import {
@@ -1264,6 +1266,57 @@ function NextCardActions({
   );
 }
 
+/** Yolda adımın kapanması (B2): az önce biten adım ve sıradaki adım. */
+type PathPlay = { closing: string; opening: string | null };
+
+/**
+ * Yolda adımın kapanması (B2, 13 Kasım 2026): öğrenci bir adımı bitirip yola döndüğünde az önce biten adımın içine ✓
+ * çizilir (220 ms), çizgi sıradakine dolar (380 ms) ve sıradakinin halkası belirir (toplam 600 ms). Bir kez ve yalnız
+ * yeni biten adım için. "Önce" değeri yalnız bu sekmenin oturumunda (`cx:path:<hazırlık>`); yeni API yok. Sayfa
+ * sunucudan çizilip ilk kez canlanıyorsa (yeniden yükleme) an oynamaz: yol zaten son hâliyle ekranda.
+ */
+function usePathMoment(prepId: string, nodes: readonly HomeNode[], currentId: string | null): PathPlay | null {
+  const [play, setPlay] = useState<PathPlay | null>(null);
+  // Hazırlığın "önce" değeri bileşenin ömründe bir kez okunur: geliştirme modundaki çift etki çalıştırması anı silmesin.
+  const [baseline] = useState(() => new Map<string, PathMemory | null>());
+  const [hydrating] = useState(() => typeof document !== "undefined" && document.querySelector(".cp-path-list") !== null);
+  const doneKey = useMemo(
+    () =>
+      nodes
+        .filter((node) => node.status === "done")
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((node) => node.id)
+        .join("|"),
+    [nodes],
+  );
+  useLayoutEffect(() => {
+    const done = doneKey ? doneKey.split("|") : [];
+    const now: PathMemory = { done };
+    if (!baseline.has(prepId)) baseline.set(prepId, hydrating ? null : readMoment(pathMemoryKey(prepId), isPathMemory));
+    const before = baseline.get(prepId) ?? null;
+    writeMoment(pathMemoryKey(prepId), now);
+    if (!before) {
+      baseline.set(prepId, now);
+      return;
+    }
+    const fresh = done.filter((id) => !before.done.includes(id));
+    if (!fresh.length) return;
+    // Birden çok adım bittiyse yolun en ilerisindeki: sıradakine bağlanan o.
+    const closing = fresh[fresh.length - 1]!;
+    let disposed = false;
+    setPlay({ closing, opening: currentId && currentId !== closing ? currentId : null });
+    const handle = startMoment(MOMENT_MS.settle, () => {
+      if (!disposed) baseline.set(prepId, now);
+      setPlay(null);
+    });
+    return () => {
+      disposed = true;
+      handle.end();
+    };
+  }, [prepId, doneKey, currentId, baseline, hydrating]);
+  return play;
+}
+
 function PathSections({
   nodes,
   lead = null,
@@ -1298,6 +1351,7 @@ function PathSections({
   topics?: { id: string; label: string }[];
 }) {
   const today = pathOriginDay(null);
+  const moment = usePathMoment(prepId, nodes, currentId);
   // 7 günden kısa plan (30 Ekim 2026): hafta yok, gün var ("Bugün", "Yarın", "Cum 31 Eki").
   const shortPlan = isShortPlan(pathOrigin, examDate);
   const dated = useMemo(
@@ -1418,6 +1472,7 @@ function PathSections({
                 today={today}
                 doneOn={doneOn}
                 weekday={shortPlan}
+                moment={moment}
               />
             ) : null}
           </section>
@@ -1466,6 +1521,7 @@ function StudyPath({
   today,
   doneOn = {},
   weekday = false,
+  moment = null,
 }: {
   nodes: HomeNode[];
   /** Bölüm başlığı: düğüm etiketi aynı konu adını tekrar etmesin (UX tur 2, bulgu 9). */
@@ -1488,6 +1544,8 @@ function StudyPath({
   doneOn?: Record<string, string>;
   /** Kısa planda gün adı da yazılır ("Cum 31 Eki"). */
   weekday?: boolean;
+  /** Yolda adımın kapanması (B2): oynarken az önce biten ve sıradaki adım. */
+  moment?: PathPlay | null;
 }) {
   // Önerilen sıra aşamalardan geliyor (tanı → öğren → pekiştir); yol aynı
   // sırayı tek bir zikzak olarak çiziyor, aşama başlıkları kıyas ürünündeki gibi yok.
@@ -1554,7 +1612,13 @@ function StudyPath({
               key={node.id}
               ref={node.id === currentId ? currentRef : undefined}
               className={cn("cp-exam-trail-item", far.has(node.id) && "is-far", node.id === currentId && "is-current")}
+              data-closing={moment?.closing === node.id || undefined}
+              data-opening={moment?.opening === node.id || undefined}
             >
+              {/* Az önce biten adımdan sıradakine dolan çizgi (B2); son adımın çizgisi yok. */}
+              {moment?.closing === node.id && pointIndex < points.length - 1 ? (
+                <span className="cx-path-fill" aria-hidden />
+              ) : null}
               <button
                 type="button"
                 className={cn(

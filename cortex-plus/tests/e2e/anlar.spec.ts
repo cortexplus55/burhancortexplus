@@ -285,3 +285,27 @@ test("B1: hareket azaltmada halka hemen son değerde", { tag: ["@public"] }, asy
   await expect(page.locator(".cx-ring-pct")).toHaveText("%27");
   await expect(page.locator(".cx-ring-draw")).toHaveCount(0);
 });
+
+for (const size of SIZES) {
+  test(`B2 ${size.width} px: yola dönüşte az önce biten adım kapanır, çizgi sıradakine dolar, sıradakinin halkası belirir`, { tag: ["@public"] }, async ({ page }) => {
+    await page.setViewportSize(size);
+    await page.goto("/e2e/ic-ekran?ekran=yol-konu");
+    // İlk ziyaret: an yok; biten adımlar oturuma yazılır.
+    await expect.poll(() => page.evaluate(() => sessionStorage.getItem("cx:path:fixture-prep"))).toBe('{"done":["n0"]}');
+    await expect(page.locator("[data-closing]")).toHaveCount(0);
+
+    // Önce hiçbir adım bitmemişti: dönüşte n0 kapanır, n1'in halkası belirir; 600 ms sonra durağan.
+    await page.evaluate(() => sessionStorage.setItem("cx:path:fixture-prep", JSON.stringify({ done: [] })));
+    await page.evaluate(() => (window as unknown as NextWindow).next.router.push("/e2e/ic-ekran?ekran=radar"));
+    test.setTimeout(120_000);
+    await page.waitForURL(/radar/, { timeout: 60_000 });
+    await page.goBack();
+    const closing = page.locator('[data-closing] .cx-node[data-state="done"]');
+    await expect(closing).toHaveCount(1);
+    await expect(page.locator("[data-closing] .cx-path-fill")).toHaveCount(1);
+    await expect(page.locator('[data-opening] .cx-node[data-state="current"]')).toHaveCount(1);
+    expect(await page.locator('[data-opening] .cx-node').evaluate((node) => getComputedStyle(node).animationName)).toBe("cx-node-open");
+    await expect(page.locator("[data-closing], [data-opening], .cx-path-fill")).toHaveCount(0, { timeout: 2000 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+  });
+}

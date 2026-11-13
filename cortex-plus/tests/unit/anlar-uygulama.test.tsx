@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, render } from "@testing-library/react";
+import { ExamPrepHome, type HomeNode } from "@/components/parity/exam-prep-home";
 import { HomeCockpit, HomeSelectionProvider } from "@/components/parity/home-cockpit";
 import type { CockpitPrep } from "@/lib/learning/home-cockpit-model";
 import { MOMENT_MS, easeSettle } from "@/lib/ui/moment";
-import { ringMemoryKey } from "@/lib/ui/moment-memory";
+import { pathMemoryKey, ringMemoryKey } from "@/lib/ui/moment-memory";
 
 /*
   Anlar, uygulamanın içi (13 Kasım 2026, ürün sahibinin kararı). B1: öğrenci ana ekrana döndüğünde hazırlığın
@@ -13,6 +14,11 @@ import { ringMemoryKey } from "@/lib/ui/moment-memory";
 */
 
 vi.mock("next/image", () => ({ default: () => null }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }),
+  usePathname: () => "/deneme-sinavlari/prep-b2",
+  useSearchParams: () => new URLSearchParams(),
+}));
 
 function motion(reduce: boolean) {
   window.matchMedia = ((query: string) => ({
@@ -147,5 +153,70 @@ describe("B1 halkanın dolması", () => {
     ssr.remove();
     expect(pctText(container)).toBe("%50");
     expect(JSON.parse(window.sessionStorage.getItem(ringMemoryKey("P"))!).pct).toBe(50);
+  });
+});
+
+/*
+  B2: öğrenci bir adımı bitirip yola döndüğünde az önce biten adımın içine ✓ çizilir, çizgi sıradakine dolar ve
+  sıradakinin halkası belirir (toplam 600 ms). Bir kez ve yalnız yeni biten adım için.
+*/
+describe("B2 yolda adımın kapanması", () => {
+  const topic = { topicTitle: "Birinci konu" };
+  const done: HomeNode = { id: "lesson-1", kind: "lesson", title: "Giriş Dersi", dayIndex: 1, sortOrder: 0, status: "done", sessionMeta: topic };
+  const next: HomeNode = { id: "quiz-1", kind: "quiz", title: "Konu testi", dayIndex: 1, sortOrder: 1, status: "ready", sessionMeta: topic };
+  const later: HomeNode = { id: "cards-1", kind: "true_false", title: "Doğru / Yanlış", dayIndex: 1, sortOrder: 2, status: "locked", sessionMeta: topic };
+
+  function home() {
+    return render(
+      <ExamPrepHome
+        prepId="prep-b2"
+        title="Hazırlık"
+        examType="Okul"
+        examDate={null}
+        daysLabel=""
+        progressPct={30}
+        nodes={[done, next, later]}
+        hasTopic
+        needsIntro={false}
+        startHref="/deneme-sinavlari/prep-b2"
+        topicCount={1}
+        topicsDone={0}
+        topicLabels={["Birinci konu"]}
+        materials={[]}
+      />,
+    );
+  }
+
+  it("ilk ziyarette an yok; biten adımlar sekme oturumuna yazılır", () => {
+    motion(false);
+    const { container } = home();
+    expect(container.querySelector("[data-closing], [data-opening], .cx-path-fill")).toBeNull();
+    expect(JSON.parse(window.sessionStorage.getItem(pathMemoryKey("prep-b2"))!)).toEqual({ done: ["lesson-1"] });
+  });
+
+  it("yeni biten adım kapanır, çizgi sıradakine dolar, sıradakinin halkası belirir; 600 ms sonra durağan; bir kez", () => {
+    vi.useFakeTimers();
+    motion(false);
+    window.sessionStorage.setItem(pathMemoryKey("prep-b2"), JSON.stringify({ done: [] }));
+    const { container, unmount } = home();
+    const closing = container.querySelector<HTMLElement>("[data-closing]");
+    expect(closing?.querySelector('.cx-node[data-state="done"]')).toBeTruthy();
+    expect(closing?.querySelector(".cx-path-fill")).toBeTruthy();
+    expect(container.querySelector('[data-opening] .cx-node[data-state="current"]')).toBeTruthy();
+    act(() => {
+      vi.advanceTimersByTime(MOMENT_MS.settle);
+    });
+    expect(container.querySelector("[data-closing], [data-opening], .cx-path-fill")).toBeNull();
+    unmount();
+    // Yeniden dönüşte değişiklik yok: an yok.
+    const again = home();
+    expect(again.container.querySelector("[data-closing], [data-opening]")).toBeNull();
+  });
+
+  it("hareket azaltmada an oynamaz", () => {
+    motion(true);
+    window.sessionStorage.setItem(pathMemoryKey("prep-b2"), JSON.stringify({ done: [] }));
+    const { container } = home();
+    expect(container.querySelector("[data-closing], [data-opening], .cx-path-fill")).toBeNull();
   });
 });

@@ -640,10 +640,78 @@
   background: var(--cx-bg-1);
 }
 
+/*
+  Yolda adımın kapanması (B2, 13 Kasım 2026): az önce biten adımın içine ✓ çizilir (220 ms), çizgi sıradakine dolar
+  (380 ms, ✓'den sonra) ve sıradakinin halkası belirir (son 180 ms). Toplam 600 ms; sonunda yol durağan hâliyle aynı
+  (çizgi dolup söner, sıradaki düğüm marka dolgusu ve halkasıyla kalır).
+*/
+.cp-prep-layout .cp-path-list .cx-path-fill {
+  position: absolute;
+  left: calc(var(--cx-icon-btn-l) / 2 - 1px);
+  top: var(--cx-icon-btn-l);
+  bottom: calc(-1 * var(--cx-space-16));
+  z-index: 1;
+  width: 2px;
+  background: var(--cx-gradient-signature);
+  transform-origin: top;
+  transform: scaleY(0);
+  pointer-events: none;
+  animation: cx-path-fill var(--cx-dur-panel) var(--cx-ease-settle) var(--cx-dur-scale) both;
+}
+@keyframes cx-path-fill {
+  0% {
+    transform: scaleY(0);
+    opacity: 1;
+  }
+  75% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scaleY(1);
+    opacity: 0;
+  }
+}
+.cp-prep-layout .cp-path-list .cp-exam-trail-item[data-closing] .cx-node[data-state="done"] svg path {
+  stroke-dasharray: 24;
+  animation: cx-check-draw var(--cx-dur-scale) var(--cx-ease-settle) both;
+}
+@keyframes cx-check-draw {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.cp-prep-layout .cp-path-list .cp-exam-trail-item[data-opening] .cx-node[data-state="current"] {
+  animation: cx-node-open var(--cx-dur-settle) var(--cx-ease-settle) both;
+}
+@keyframes cx-node-open {
+  0%,
+  70% {
+    background: var(--cx-bg-3);
+    color: var(--cx-text-reading);
+    box-shadow: 0 0 0 0 transparent;
+  }
+  100% {
+    background: var(--cx-brand-strong);
+    color: var(--cx-text-on-brand);
+    box-shadow: 0 0 0 4px var(--cx-brand-weak);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .cx-node,
   .cp-prep-layout .cp-prep-aside .cp-prep-hero-icon {
     transition: none;
+  }
+  .cp-prep-layout .cp-path-list .cx-path-fill {
+    display: none;
+  }
+  .cp-prep-layout .cp-path-list .cp-exam-trail-item[data-closing] .cx-node svg path,
+  .cp-prep-layout .cp-path-list .cp-exam-trail-item[data-opening] .cx-node {
+    animation: none;
   }
 }
 
