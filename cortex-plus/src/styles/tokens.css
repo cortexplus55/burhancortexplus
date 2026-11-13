@@ -86,6 +86,9 @@
   --cx-dur-title: 320ms;
   --cx-dur-panel: 380ms;
   --cx-dur-result: 520ms;
+  /* Anlar (depo kararı 11): yerleşme süresi ve bir anın üst sınırı. */
+  --cx-dur-settle: 600ms;
+  --cx-moment-max: 2500ms;
   --cx-dur-press-in: 75ms;
   --cx-dur-press-out: 430ms;
   --cx-scale-hover: 1.03;

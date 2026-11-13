@@ -22,6 +22,27 @@ Bileşende ham hex ya da ham px yazılmaz; token yoksa önce `tokens.css`'e ekle
 | 9 | **Palet: B (sıcak siyah)**, 13 Kasım 2026 | Koyu temada zemin merdiveni ve nötr metin tonları 11 Kasım'ın sıcak siyahı; marka, vurgu, odak ve anlam renkleri skill'den. Skill §2'nin arduvaz merdiveni (A) kaldırıldı |
 | 8 | Ana ekran (`/ogretmen`) beş parça; altı fazlık plan bekler, önce bu ekran | Aşağıdaki "Ana ekran" bölümü; ayrıntı SKILL.md madde 8 |
 
+## Anlar (13 Kasım 2026)
+
+"An", öğrencinin ya da misafirin yaptığı bir işin karşılığını gösteren kısa harekettir. Kurallar (depo kararı 11):
+
+| Kural | Değer |
+|---|---|
+| Aynı anda | Bir ekranda en çok 1 an; yenisi başlarsa öncekinin sonucu hemen gösterilir |
+| Süre | En çok 2,5 sn (`MOMENT_MAX_MS`) |
+| Atlama | Tıklama, dokunma, Enter / Space / Escape anı hemen bitirir; o tıklama kendi işini de yapar. An hiçbir işlemi bekletmez |
+| Hareket azaltma | `prefers-reduced-motion: reduce` açıkken an oynamaz, sonuç 0 ms'de görünür |
+| Süre ve eğri | onay 220 ms (`--cx-dur-scale`), çizgi 380 ms (`--cx-dur-panel`), yerleşme 600 ms (`--cx-dur-settle`, `--cx-ease-settle`) |
+| Kod | `src/lib/ui/moment.ts` (`startMoment`) |
+
+| An | Yer | Ne olur |
+|---|---|---|
+| A2 tarama | Ana sayfa turu, 1. adım | Örnek not çekirdeğe kayar, halkalar bir kez atar, notun bulguları sırayla belirir, 2. adım açılır |
+| A3 ilerleme düğmesi | Ana sayfa turu, 3–6. adım | Ürün içindeki iş bitince alttaki tur düğmesi 600 ms'de ana düğmeye döner (aynı anda iki ana düğme yok) |
+| A4 hoca uyarısı izi | Ana sayfa turu, 2–7. adım | Uyarıdan çıkan adıma geçince başlıktaki "Hoca uyarısı" etiketinin çerçevesi logonun şeridiyle bir kez parlar |
+| B1 halka | Ana ekran (`/ogretmen`) | Tamamlama yüzdesi değiştiyse halka eskiden yeniye dolar, ortadaki sayı sayar |
+| B2 yol | Hazırlık sayfası | Az önce biten adımın içine ✓ çizilir, çizgi sıradakine dolar, sıradakinin halkası belirir |
+
 ## Hazırlık sayfası (3C, 13 Kasım 2026)
 
 Yalnız görünüm (veri, metin, akış aynı); stiller `src/styles/prep-home-cx.css`, seçiciler `.cp-prep-layout` ile başlar.
