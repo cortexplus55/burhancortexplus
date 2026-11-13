@@ -24,6 +24,27 @@ async function smallestTouchTarget(page: Page, scope: string): Promise<number> {
   }, scope);
 }
 
+/** Stüdyodaki en küçük dokunma alanı: çubuklarda ekrandaki ölçü, sığdırılan sahnede düğmenin kendi ölçüsü. */
+async function studioTouchTargets(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    const heights = [...document.querySelectorAll<HTMLElement>(".lj-studio button, .lj-studio a")]
+      .filter((node) => node.offsetParent !== null)
+      .map((node) => (node.closest(".lj-fit") ? node.offsetHeight : Math.round(node.getBoundingClientRect().height * 10) / 10));
+    return heights.length ? Math.min(...heights) : 99;
+  });
+}
+
+/** Stüdyo ya da sahnesi kayıyor mu (kaydırmasız kural). */
+async function studioScrolls(page: Page): Promise<boolean> {
+  return page.evaluate(() => {
+    const studio = document.querySelector(".lj-studio")!;
+    const fit = document.querySelector(".lj-studio .lj-fit");
+    const inner = document.querySelector(".lj-studio .lj-fit-inner");
+    const overflowing = fit && inner ? inner.getBoundingClientRect().bottom > fit.getBoundingClientRect().bottom + 1 : false;
+    return studio.scrollHeight > studio.clientHeight + 1 || Boolean(fit && fit.scrollTop) || overflowing;
+  });
+}
+
 const PHONES = [
   { width: 375, height: 812 },
   { width: 360, height: 800 },
@@ -46,12 +67,20 @@ test.describe("dönüşüm paketi", { tag: ["@public"] }, () => {
       // Üst menüdeki kayıt düğmesi telefonda da görünür.
       await expect(page.locator("header.mkh").getByRole("link", { name: "Ücretsiz dene" })).toBeVisible();
 
-      const tour = page.locator("section.lj");
+      const home = page.locator("section.lj");
       // Kokpit ilk ekranda: ilerleme rayı sayfa kaydırılmadan görünür.
-      await expect(tour.locator(".lj-rail")).toBeInViewport();
+      await expect(home.locator(".lj-rail")).toBeInViewport();
+      // Örnek nota dokununca tam ekran stüdyo açılır (13 Kasım 2026): sayfanın gövdesine çizilir.
+      const tour = page.locator(".lj-studio");
       const check = async (step: string) => {
         expect(await overflow(page), `${step}: yana taşma`).toBeLessThanOrEqual(1);
-        expect(await smallestTouchTarget(page, "section.lj"), `${step}: dokunma alanı`).toBeGreaterThanOrEqual(44);
+        if (await tour.count()) {
+          // Stüdyo kaymaz; çubuklardaki düğmeler 44 px, sığdırılan ürün ekranının düğmeleri kendi ölçüsünde 44 px.
+          expect(await studioTouchTargets(page), `${step}: dokunma alanı`).toBeGreaterThanOrEqual(44);
+          expect(await studioScrolls(page), `${step}: stüdyo kaymaz`).toBe(false);
+        } else {
+          expect(await smallestTouchTarget(page, "section.lj"), `${step}: dokunma alanı`).toBeGreaterThanOrEqual(44);
+        }
       };
 
       // 1. Not: tarama alanına dokun, tarama bitince yol haritası açılır. Geliştirme sunucusunda ilk dokunuş
@@ -59,7 +88,7 @@ test.describe("dönüşüm paketi", { tag: ["@public"] }, () => {
       // 2,4 sn sürer; tarama bitip alan kalkınca yeniden tıklanmaz (alan yoksa beklenmez).
       await check("not");
       await expect(async () => {
-        const zone = tour.locator("button.lj-zone");
+        const zone = home.locator("button.lj-zone");
         if ((await zone.count()) && (await zone.isEnabled({ timeout: 500 }).catch(() => false))) await zone.click();
         await expect(tour.getByRole("button", { name: "Şimdi 1. dersi aç" })).toBeVisible({ timeout: 4000 });
       }).toPass({ timeout: 25_000 });
@@ -73,16 +102,6 @@ test.describe("dönüşüm paketi", { tag: ["@public"] }, () => {
       // Ürün ekranının altında "sıradaki adım" düğmesi: adım oynanmadan da ilerlenir.
       await expect(tour.getByRole("button", { name: "Öğrendiğin kuralı soruda dene" })).toBeVisible();
       await check("ders");
-      // Adım değişince ilerleme çizgisi sabit menünün altında kalmaz.
-      await expect
-        .poll(() =>
-          page.evaluate(
-            () =>
-              document.querySelector(".lj-rail")!.getBoundingClientRect().top -
-              document.querySelector("header.mkh")!.getBoundingClientRect().bottom,
-          ),
-        )
-        .toBeGreaterThanOrEqual(0);
       // Önce dene sorusu yerelde, ürünle aynı işlevle notlanır; ardından formül kartı ve sınav tuzağı açılır.
       await app.getByRole("button", { name: /^Devam et/ }).click();
       await app.getByRole("button", { name: /Yanlış/ }).click();

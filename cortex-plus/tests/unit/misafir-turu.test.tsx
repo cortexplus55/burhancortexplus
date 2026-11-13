@@ -477,7 +477,9 @@ describe("kokpit sırası", () => {
     vi.useFakeTimers();
     const fetchSpy = vi.fn();
     vi.stubGlobal("fetch", fetchSpy);
-    const { container } = render(<FuturisticGuidedJourney segmentId="universite" />);
+    render(<FuturisticGuidedJourney segmentId="universite" />);
+    // Örnek nota dokununca tam ekran stüdyo açılır (13 Kasım 2026); stüdyo sayfanın gövdesine çizilir.
+    const container = document.body;
 
     expect(screen.getByRole("status").textContent).toContain("Adım 1/7");
     click(new RegExp(JOURNEY_FILE.name));
@@ -507,7 +509,7 @@ describe("kokpit sırası", () => {
     expect(container.querySelector('.tp-frame[data-screen="check"]')).toBeTruthy();
     click(nextName(JOURNEY_NEXT_LABEL.check));
 
-    // Plus: dar ekranda üç önizleme seçiciyle tek tek; ilk açılan podcast.
+    // Plus: stüdyoda üç önizleme seçiciyle tek tek (her genişlikte); ilk açılan podcast.
     await act(async () => {
       await vi.dynamicImportSettled();
     });
@@ -527,7 +529,7 @@ describe("kokpit sırası", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it("geniş ekranda üç önizleme yan yana, seçici yok", async () => {
+  it("stüdyoda Plus önizlemeleri her genişlikte seçiciyle tek tek (kaydırmasız sahne)", async () => {
     vi.stubGlobal(
       "matchMedia",
       vi.fn((query: string) => ({
@@ -537,18 +539,20 @@ describe("kokpit sırası", () => {
         removeEventListener: noop,
       })),
     );
-    const { container } = render(<FuturisticGuidedJourney segmentId="lise" />);
+    render(<FuturisticGuidedJourney segmentId="lise" />);
+    const container = document.body;
     fireEvent.click(screen.getAllByRole("button", { name: /^Adım \d: / })[6]!);
     await act(async () => {
       await vi.dynamicImportSettled();
     });
-    expect(screen.queryByRole("tablist", { name: "Plus önizlemeleri" })).toBeNull();
-    expect(container.querySelectorAll(".lj-plus-grid.is-wide > .lj-plus-card")).toHaveLength(3);
-    expect(container.querySelectorAll(".lj-plus-badge")).toHaveLength(3);
+    expect(screen.getByRole("tablist", { name: "Plus önizlemeleri" })).toBeTruthy();
+    expect(container.querySelectorAll(".lj-plus-grid > .lj-plus-card")).toHaveLength(1);
+    expect(container.querySelectorAll(".lj-plus-badge")).toHaveLength(1);
   });
 
   it("doğru/yanlış bitince sonuç halkası gerçek cevaplardan çizilir", async () => {
-    const { container } = render(<FuturisticGuidedJourney segmentId="lise" />);
+    render(<FuturisticGuidedJourney segmentId="lise" />);
+    const container = document.body;
     fireEvent.click(screen.getAllByRole("button", { name: /^Adım \d: / })[5]!);
     await act(async () => {
       await vi.dynamicImportSettled();

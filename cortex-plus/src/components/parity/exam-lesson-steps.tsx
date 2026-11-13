@@ -293,6 +293,13 @@ function ExampleBlock({
 }
 
 /**
+ * Görsel kart blokları: formül, sınav tuzağı, hafıza çivisi, çözümlü örnek. Art arda iki ya da daha fazlası
+ * `.als-cardrow` ile sarılır (13 Kasım 2026). Üründe sarmalayıcı görünmez (`display: contents`, görünüm aynı);
+ * tanıtım turunun tam ekran stüdyosunda geniş ekranda kartlar yan yana, telefonda yana kaydırılan şerit olur.
+ */
+const CARD_BLOCKS: ReadonlySet<string> = new Set(["formula", "exam_trap_card", "memory_hook_card", "example"]);
+
+/**
  * LessonV3 ekranının blokları, dizideki sırayla (16 Ekim 2026). Soru blokları
  * burada çizilmez; soru bölgesi ayrı (kontrol, açıklama, "Doğrusu").
  */
@@ -308,9 +315,7 @@ function LessonBlocks({
   idBase: string;
 }) {
   let sourceShown = !source;
-  return (
-    <>
-      {blocks.map((block, blockIndex) => {
+  const rendered = blocks.map((block, blockIndex) => {
         const key = `${idBase}-${blockIndex}`;
         switch (block.type) {
           case "text": {
@@ -387,9 +392,28 @@ function LessonBlocks({
           default:
             return null;
         }
-      })}
-    </>
-  );
+      });
+  // Art arda gelen görsel kartlar bir satırda toplanır (soru blokları çizilmez, araya girmez).
+  const nodes: ReactNode[] = [];
+  for (let at = 0; at < blocks.length; ) {
+    if (CARD_BLOCKS.has(blocks[at]!.type)) {
+      let end = at;
+      while (end < blocks.length && (CARD_BLOCKS.has(blocks[end]!.type) || blocks[end]!.type === "check")) end += 1;
+      const cards = rendered.slice(at, end).filter(Boolean);
+      if (cards.length >= 2) {
+        nodes.push(
+          <div key={`${idBase}-row-${at}`} className="als-cardrow">
+            {cards}
+          </div>,
+        );
+        at = end;
+        continue;
+      }
+    }
+    nodes.push(rendered[at]);
+    at += 1;
+  }
+  return <>{nodes}</>;
 }
 
 /** Ekran her iki biçimi de alır; içeride V3'e çevrilir (16 Ekim 2026, LessonV3). */

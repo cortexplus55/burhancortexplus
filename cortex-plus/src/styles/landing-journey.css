@@ -9,7 +9,8 @@
   `prefers-reduced-motion`da durur.
 */
 
-.lj {
+/* Palet: ana sayfadaki tur ve body'ye çizilen tam ekran stüdyo aynı değişkenleri kullanır. */
+:is(.lj, .lj-studio) {
   --lj-bg: #0b0907;
   --lj-glass: rgba(26, 20, 15, 0.78);
   --lj-glass-2: rgba(44, 34, 26, 0.62);
@@ -29,6 +30,9 @@
   --lj-muted: #c4b8aa;
   --lj-ribbon: linear-gradient(90deg, #ffb224 0%, #ff4d8d 36%, #8b5cf6 68%, #22d3ee 100%);
   --lj-ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.lj {
   position: relative;
   padding: clamp(2.5rem, 6vw, 4.5rem) 0 clamp(3rem, 7vw, 5rem);
   background:
@@ -133,13 +137,15 @@
 
 /* ---------- Konsol ---------- */
 
+/*
+  Kaydırma hızı (13 Kasım 2026): konsolun arkasındaki 24 px bulanıklaştırma kalktı. Arkasında sürekli salınan ışık
+  olduğu için bulanıklık her karede yeniden hesaplanıyordu (sayfa dururken bile); zemin artık sabit ve koyu.
+*/
 .lj-console {
   position: relative;
   border-radius: 1.5rem;
   border: 1px solid var(--lj-line);
-  background: var(--lj-glass);
-  -webkit-backdrop-filter: blur(24px);
-  backdrop-filter: blur(24px);
+  background: #15110d;
   box-shadow:
     0 0 0 1px rgba(246, 236, 217, 0.06),
     0 2.5rem 6rem rgba(0, 0, 0, 0.7),
@@ -271,60 +277,164 @@
   transform: scale(1.06);
 }
 
-/* ---------- Sahne ---------- */
+/* ---------- Ana sayfadaki birinci adım ---------- */
+
+/* Birinci adımın iki kapısı ana sayfada: iç kaydırma yok, yükseklik içeriği kadar; sayfa tek parça kayar. */
+.lj-door {
+  position: relative;
+  padding: 1rem clamp(1rem, 3.2vw, 2rem) clamp(1rem, 2.4vw, 1.5rem);
+}
+
+/* ---------- Tam ekran stüdyo (13 Kasım 2026) ---------- */
 
 /*
-  Sabit sahne (A1, 13 Kasım 2026): yükseklik adımdan adıma değişmez. Sabit menünün altında ilerleme rayı ve sahne
-  birlikte ekrana sığar; ilk değer ekran biriminden, JS sabit menü ve rayın gerçek yüksekliğiyle düzeltir
-  (`--lj-stage-h`, konsolda). Başlık üstte, alt şerit (ilerleme düğmesi) altta yerinde durur; uzun adımda yalnız
-  gövde kayar, sayfa değil.
+  Örnek nota dokununca tam ekran açılır; sayfa arkada kilitli. Üstte ray, hoca uyarısı ve kapatma; ortada adım;
+  altta tek ilerleme düğmesi. Hiçbir adımda kaydırma yok: sahne ekrana sığar, sığmayan içerik orantılı küçülür
+  (`.lj-fit`). Zemin sabit ve koyu: bulanıklaştırma yok.
 */
-.lj-stage {
-  position: relative;
+.lj-studio {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
   display: flex;
   flex-direction: column;
-  height: var(--lj-stage-h, clamp(26rem, calc(100vh - 12rem), 72.5rem));
-  padding: 1rem clamp(1rem, 3.2vw, 2rem) clamp(1rem, 2.4vw, 1.5rem);
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background:
+    radial-gradient(44rem 22rem at 12% 0%, rgba(255, 77, 141, 0.1), transparent 70%),
+    radial-gradient(40rem 20rem at 92% 8%, rgba(255, 178, 36, 0.08), transparent 70%),
+    var(--lj-bg);
+  color: var(--lj-text);
   outline: none;
+  animation: lj-studio-in 0.28s var(--lj-ease) both;
 }
 
 @supports (height: 100dvh) {
-  .lj-stage {
-    height: var(--lj-stage-h, clamp(26rem, calc(100dvh - 12rem), 72.5rem));
+  .lj-studio {
+    height: 100dvh;
   }
 }
 
-.lj-stage-body {
-  position: relative;
-  flex: 1;
-  min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-width: thin;
-  scrollbar-color: var(--lj-line-strong) transparent;
+@keyframes lj-studio-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.75rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
-/* Alt şerit: ilerleme düğmesi gövdenin dışında; üstündeki ince geçiş, kayan içeriğin şeridin altına girdiğini söyler. */
-.lj-stage-foot {
+/* Üst çubuk: ray (adımlar), hoca uyarısı, kapatma. Telefonda uyarı ikinci satırda. */
+.lj-studio-top {
   position: relative;
   flex: none;
-  padding-top: 0.75rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  padding: max(0.4rem, env(safe-area-inset-top, 0px)) clamp(0.5rem, 2vw, 1.5rem) 0.35rem;
+  border-bottom: 1px solid var(--lj-line);
+  background: #110d0a;
 }
 
-.lj-stage-foot::before {
+.lj-studio-top::after {
   content: "";
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 100%;
-  height: 2rem;
-  background: linear-gradient(to top, color-mix(in srgb, var(--lj-bg) 90%, transparent), transparent);
-  pointer-events: none;
+  bottom: -1px;
+  height: 1px;
+  background: var(--lj-ribbon);
+  opacity: 0.6;
+}
+
+.lj-studio .lj-rail {
+  --lj-rail-pad: 0.25rem;
+  padding-top: 0.35rem;
+  padding-bottom: 0.15rem;
+}
+
+.lj-studio .lj-rail::before,
+.lj-studio .lj-rail::after {
+  top: calc(0.35rem + 1.375rem - 1px);
+}
+
+.lj-warn-slot {
+  display: none;
+}
+
+.lj-studio-close {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 1px solid var(--lj-line-strong);
+  border-radius: 50%;
+  background: #1a1410;
+  color: var(--lj-text);
+  cursor: pointer;
+}
+
+.lj-studio-close:hover {
+  background: #241c15;
+}
+
+.lj-studio-close:focus-visible {
+  outline: 2px solid var(--lj-beam-text);
+  outline-offset: 3px;
+}
+
+/* Sahne: başlık, sığdırılan gövde ve alt çubuk; en geniş 72 rem. */
+.lj-studio .lj-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 0.75rem clamp(0.75rem, 2.6vw, 2rem) max(0.75rem, env(safe-area-inset-bottom, 0px));
+  outline: none;
+}
+
+.lj-studio .lj-stage-head {
+  margin-bottom: 0.65rem;
+}
+
+/*
+  Kaydırmasız gövde: kalan yükseklik. Sığmayan içerik `--lj-fit` ile orantılı küçülür (FitStage). `overflow: clip`:
+  ürün ekranının kendi kaydırma çağrıları da gövdeyi kaydıramaz.
+*/
+.lj-fit {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  overflow: clip;
+}
+
+/* Küçültülen içerik aynı oranda genişletilir: görünen eni sahneyle aynı kalır, satırlar kısalır. */
+.lj-fit-inner {
+  width: calc(100% / var(--lj-fit, 1));
+  transform: scale(var(--lj-fit, 1));
+  transform-origin: 0 0;
+}
+
+/* Alt çubuk: ilerleme düğmesi hep ekranın altında. */
+.lj-stage-foot {
+  position: relative;
+  flex: none;
+  padding-top: 0.65rem;
 }
 
 .lj-stage-foot .lj-next,
-.lj-stage-foot .lj-cta--wide {
+.lj-stage-foot .lj-cta--wide,
+.lj-stage-foot .lj-cta--hero {
   margin-top: 0;
 }
 
@@ -446,7 +556,7 @@
 }
 
 /* Sahne içeriği her adımda yumuşakça belirir. */
-.lj-stage-body > *,
+.lj-fit-inner > *,
 .lj-stage-foot > * {
   animation: lj-rise 0.45s var(--lj-ease) both;
 }
@@ -1619,7 +1729,7 @@
   .lj-next,
   .lj-warn,
   .lj-warn::after,
-  .lj-stage-body > *,
+  .lj-fit-inner > *,
   .lj-stage-foot > *,
   .lj-day {
     animation: none;
@@ -1654,4 +1764,99 @@
 .lj-check {
   display: grid;
   gap: 1rem;
+}
+
+/* ---------- Tam ekran stüdyo: telefon, Plus düzeni (13 Kasım 2026) ---------- */
+
+/* Telefonda üst çubuk iki satır: ray ve kapatma, altında hoca uyarısı. Adımın adı rayda ve yönlendirmede. */
+@media (max-width: 639px) {
+  .lj-studio-top {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "rail close"
+      "warn warn";
+    padding-inline: 0.35rem 0.5rem;
+  }
+
+  .lj-studio-top .lj-rail {
+    grid-area: rail;
+    --lj-rail-pad: 0;
+  }
+
+  .lj-studio-top .lj-warn {
+    grid-area: warn;
+    justify-self: start;
+    margin-left: 0.35rem;
+  }
+
+  .lj-studio-close {
+    grid-area: close;
+  }
+
+  .lj-studio .lj-stop-label {
+    display: none;
+  }
+
+  .lj-studio .lj-stage-head {
+    margin-bottom: 0.5rem;
+  }
+
+  /* Başlık ekran okuyucuda kalır; görünen yerde ray ve yönlendirme var. */
+  .lj-studio .lj-step-title {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .lj-studio .lj-real {
+    display: none;
+  }
+}
+
+/* Çok dar telefonda (≤ 380 px) yedi durak tek satırda 44 px kalsın: kapatma uyarının satırına iner. */
+@media (max-width: 380px) {
+  .lj-studio-top {
+    grid-template-areas:
+      "rail rail"
+      "warn close";
+  }
+
+  .lj-studio-top .lj-warn {
+    align-self: center;
+  }
+}
+
+/* Plus: geniş ekranda önizleme solda, son blok sağda. */
+@media (min-width: 900px) {
+  .lj-studio .lj-plus {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    grid-template-areas:
+      "tabs final"
+      "grid final"
+      "also final";
+    column-gap: 1.5rem;
+    align-items: start;
+  }
+
+  .lj-studio .lj-plus-tabs {
+    grid-area: tabs;
+  }
+
+  .lj-studio .lj-plus-grid {
+    grid-area: grid;
+  }
+
+  .lj-studio .lj-plus-also {
+    grid-area: also;
+  }
+
+  .lj-studio .lj-final {
+    grid-area: final;
+    align-self: center;
+    margin-top: 0;
+  }
 }

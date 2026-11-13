@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 
@@ -73,9 +74,10 @@ describe("A2 tarama anı", () => {
     expect(JOURNEY_FILE.scanMs).toBeLessThanOrEqual(MOMENT_MAX_MS);
     vi.useFakeTimers();
     motion(false);
-    const { container } = render(<FuturisticGuidedJourney segmentId="lise" />);
+    render(<FuturisticGuidedJourney segmentId="lise" />);
     fireEvent.click(screen.getByRole("button", { name: new RegExp(JOURNEY_FILE.name) }));
-    const finds = container.querySelectorAll("[data-scan-findings] [data-finding]");
+    // Tarama tam ekran stüdyoda oynar (sayfanın gövdesine çizilir).
+    const finds = document.body.querySelectorAll(".lj-studio [data-scan-findings] [data-finding]");
     expect([...finds].map((node) => node.textContent)).toEqual(journeyScanFindings().map((finding) => finding.text));
     act(() => {
       vi.advanceTimersByTime(JOURNEY_FILE.scanMs - 1);
@@ -141,8 +143,8 @@ describe("A4 hoca uyarısının izi", () => {
   it("not adımında etiket yok; taramadan sonra kalıcı, uyarı adımına girince bir kez (600 ms) parlar", () => {
     vi.useFakeTimers();
     motion(false);
-    const { container } = render(<FuturisticGuidedJourney segmentId="lise" />);
-    const badge = () => container.querySelector<HTMLElement>("[data-warning]");
+    render(<FuturisticGuidedJourney segmentId="lise" />);
+    const badge = () => document.body.querySelector<HTMLElement>(".lj-studio [data-warning]");
     expect(badge()).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: new RegExp(JOURNEY_FILE.name) }));
     act(() => {
@@ -164,11 +166,95 @@ describe("A4 hoca uyarısının izi", () => {
 
   it("hareket azaltmada etiket durağan, parlamaz", () => {
     motion(true);
-    const { container } = render(<FuturisticGuidedJourney segmentId="lise" />);
+    render(<FuturisticGuidedJourney segmentId="lise" />);
     fireEvent.click(screen.getByRole("button", { name: new RegExp(JOURNEY_FILE.name) }));
     fireEvent.click(screen.getByRole("button", { name: /^Adım 4: / }));
-    const badge = container.querySelector<HTMLElement>("[data-warning]")!;
+    const badge = document.body.querySelector<HTMLElement>(".lj-studio [data-warning]")!;
     expect(badge).toBeTruthy();
     expect(badge.className).not.toContain("is-glow");
+  });
+});
+
+/*
+  Tam ekran kaydırmasız stüdyo (13 Kasım 2026, ürün sahibi): ana sayfada yalnız birinci adım (iki kapı) durur ve iç
+  kaydırmalı kutu yoktur; örnek nota dokununca tam ekran stüdyo açılır, sayfa arkada kilitlenir, ✕ ya da Escape ana
+  sayfaya döner. Sayfanın kaymasını yavaşlatan bulanıklaştırmalar kalktı.
+*/
+describe("tam ekran stüdyo", () => {
+  it("ana sayfada yalnız birinci adım; stüdyo örnek notla açılır, sayfa kilitlenir, ✕ kapatır ve odağı geri verir", () => {
+    motion(true);
+    render(<FuturisticGuidedJourney segmentId="lise" />);
+    expect(document.querySelector(".lj-studio")).toBeNull();
+    expect(document.querySelector(".lj-door [data-step]") ?? document.querySelector('.lj-door[data-step="upload"]')).toBeTruthy();
+    const sample = screen.getByRole("button", { name: new RegExp(JOURNEY_FILE.name) });
+    sample.focus();
+    fireEvent.click(sample);
+    const studio = screen.getByRole("dialog", { name: "Bir not, yedi adımda derse dönüşsün" });
+    expect(studio.className).toContain("lj-studio");
+    expect(document.documentElement.style.overflow).toBe("hidden");
+    // Ana sayfadaki tur arkada etkisiz: ray düğmeleri yalnız stüdyoda bir kez bulunur.
+    expect(screen.getAllByRole("button", { name: /^Adım 3: / })).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "Kapat" }));
+    expect(document.querySelector(".lj-studio")).toBeNull();
+    expect(document.documentElement.style.overflow).toBe("");
+    expect(document.activeElement).toBe(sample);
+  });
+
+  it("Escape stüdyoyu kapatır; tarama anı sürerken yalnız anı atlatır", async () => {
+    motion(false);
+    render(<FuturisticGuidedJourney segmentId="lise" />);
+    fireEvent.click(screen.getByRole("button", { name: new RegExp(JOURNEY_FILE.name) }));
+    await act(async () => {
+      await nextFrame();
+    });
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    });
+    // An atlandı, yol açıldı; stüdyo açık.
+    expect(screen.getByRole("heading", { name: "Yol haritan çıktı" })).toBeTruthy();
+    expect(document.querySelector(".lj-studio")).toBeTruthy();
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    });
+    expect(document.querySelector(".lj-studio")).toBeNull();
+  });
+
+  it("raydaki 1. durak stüdyoyu kapatır; öbür duraklar stüdyoyu o adımda açar", () => {
+    motion(true);
+    render(<FuturisticGuidedJourney segmentId="lise" />);
+    fireEvent.click(screen.getByRole("button", { name: /^Adım 5: / }));
+    expect(document.querySelector('.lj-studio[data-step="cards"]')).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /^Adım 1: / }));
+    expect(document.querySelector(".lj-studio")).toBeNull();
+  });
+
+  it("ana sayfada iç kaydırma ve bulanıklaştırma yok; stüdyo kaymaz, içerik sığdırılır", () => {
+    const strip = (source: string) => source.replace(/\/\*[\s\S]*?\*\//g, "");
+    const journey = strip(readFileSync("src/styles/landing-journey.css", "utf8").replace(/\r\n/g, "\n"));
+    // Eski iç kaydırmalı sahne gövdesi yok; ana sayfadaki kapı içeriği kadar uzar.
+    expect(journey).not.toMatch(/\.lj-stage-body\s*\{/);
+    expect(journey).toMatch(/\.lj-door \{[^}]*position: relative;/);
+    expect(journey).toMatch(/\.lj-studio \{[^}]*position: fixed;[^}]*overflow: hidden;/);
+    expect(journey).toMatch(/\.lj-fit \{[^}]*overflow: clip;/);
+    for (const file of ["src/styles/landing-journey.css", "src/styles/parity-marketing.css"]) {
+      expect(strip(readFileSync(file, "utf8")), file).not.toMatch(/backdrop-filter/);
+    }
+    expect(strip(readFileSync("src/styles/landing.css", "utf8"))).not.toMatch(/\.lp-duo-card \{[^}]*backdrop-filter/);
+    // Bileşende pencereyi kaydıran hizalama yok.
+    const component = readFileSync("src/components/landing/futuristic-guided-journey.tsx", "utf8");
+    expect(component).not.toMatch(/window\.scrollBy|window\.scrollTo|ALIGN_SETTLE/);
+  });
+});
+
+describe("C3 turdan kayda süreklilik: tur yazar", () => {
+  it("stüdyoda ulaşılan adımlar ve sekme yalnız bu sekmenin oturumuna yazılır; birinci adım yazılmaz", () => {
+    motion(true);
+    render(<FuturisticGuidedJourney segmentId="yks-lgs" />);
+    expect(window.sessionStorage.getItem("cp:guest-tour")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: new RegExp(JOURNEY_FILE.name) }));
+    fireEvent.click(screen.getByRole("button", { name: /^Adım 4: / }));
+    const saved = JSON.parse(window.sessionStorage.getItem("cp:guest-tour")!);
+    expect(saved.steps).toEqual(["roadmap", "question"]);
+    expect(saved.segment).toBe("yks-lgs");
   });
 });

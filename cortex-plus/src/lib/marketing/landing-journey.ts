@@ -57,6 +57,8 @@ export const JOURNEY_COPY = {
   kicker: "Kayıt olmadan dene",
   title: "Bir not, yedi adımda derse dönüşsün",
   restart: "Turu baştan oyna",
+  /** Tam ekran stüdyonun kapatma düğmesi (ekran okuyucu adı; görünen ✕). */
+  close: "Kapat",
   /** Çerçevenin üstündeki söz: içindeki ekran çizim değil, ürünün kendisi. */
   real: "Bu çerçevenin içi çizim değil, ürünün kendi ekranı. Kayıt olunca aynısıyla çalışırsın.",
   loading: "Ekran açılıyor…",

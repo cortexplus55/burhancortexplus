@@ -1744,9 +1744,8 @@
   padding: 1.5rem;
   border: 1px solid var(--lp-border-strong);
   border-radius: 1.5rem;
+  /* Kaydırma hızı (13 Kasım 2026): bulanıklaştırma yok; zemin sabit. */
   background: var(--lp-glass);
-  -webkit-backdrop-filter: blur(18px);
-  backdrop-filter: blur(18px);
 }
 
 .lp-duo-card--plus {

@@ -12,60 +12,78 @@ const SIZES = [
 
 const STEP_IDS = ["upload", "roadmap", "lesson", "question", "cards", "check", "plus"] as const;
 
-/** Raydan adıma geç; geliştirme sunucusunda ilk tıklama sayfa canlanmadan düşebilir: adım açılana kadar yeniden dene. */
+/**
+ * Raydan adıma geç; geliştirme sunucusunda ilk tıklama sayfa canlanmadan düşebilir: adım açılana kadar yeniden dene.
+ * 1. durak ana sayfadaki iki kapıya döner (stüdyo kapanır); öbür duraklar tam ekran stüdyoyu o adımda açar.
+ */
 async function goStep(page: Page, at: number) {
   await expect(async () => {
     await page.getByRole("button", { name: new RegExp(`^Adım ${at}: `) }).click();
-    await expect(page.locator(".lj-stage")).toHaveAttribute("data-step", STEP_IDS[at - 1]!, { timeout: 1500 });
+    if (at === 1) await expect(page.locator(".lj-studio")).toHaveCount(0, { timeout: 1500 });
+    else await expect(page.locator(".lj-studio .lj-stage")).toHaveAttribute("data-step", STEP_IDS[at - 1]!, { timeout: 1500 });
   }).toPass({ timeout: 20_000 });
 }
 
+/** Stüdyonun kaydırmasız olduğu ölçü: stüdyo, sahne ve sayfa kaymaz; sığdırılan içerik sahnenin içinde kalır. */
+async function zeroScroll(page: Page) {
+  return page.evaluate(() => {
+    const studio = document.querySelector(".lj-studio")!;
+    const fit = document.querySelector(".lj-studio .lj-fit")!;
+    const inner = document.querySelector(".lj-studio .lj-fit-inner")!;
+    const foot = document.querySelector(".lj-studio .lj-stage-foot")?.getBoundingClientRect() ?? null;
+    const box = fit.getBoundingClientRect();
+    const content = inner.getBoundingClientRect();
+    return {
+      studioScrolls: studio.scrollHeight > studio.clientHeight + 1,
+      fitScrollTop: fit.scrollTop,
+      contentFits: content.bottom <= box.bottom + 1,
+      footInView: foot ? foot.top >= 0 && foot.bottom <= innerHeight + 1 : true,
+      pageOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      scale: Number(getComputedStyle(inner).getPropertyValue("--lj-fit") || 1),
+    };
+  });
+}
+
 for (const size of SIZES) {
-  test(`A1 ${size.width} px: sahne yedi adımda aynı yükseklikte, alt düğme ekranda, uzun adımda yalnız gövde kayar`, { tag: ["@public"] }, async ({ page }) => {
+  test(`A1 ${size.width} px: ana sayfada iç kaydırma yok; örnek notla tam ekran stüdyo açılır, yedi adımda hiç kaydırma yok, 4. adımda beş şık ekranda`, { tag: ["@public"] }, async ({ page }) => {
     await page.setViewportSize(size);
     await page.goto("/");
-    const stage = page.locator(".lj-stage");
-    await expect(stage).toBeVisible();
-    const heights: number[] = [];
-    for (let at = 1; at <= 7; at += 1) {
+    // Ana sayfa: birinci adımın kapısı içeriği kadar, iç kaydırmalı kutu yok.
+    const door = await page.evaluate(() => {
+      const el = document.querySelector(".lj-door")!;
+      const scrollers = [...document.querySelectorAll("section.lj *")].filter((node) => /(auto|scroll)/.test(getComputedStyle(node).overflowY));
+      return { scrolls: el.scrollHeight > el.clientHeight + 1, scrollers: scrollers.length };
+    });
+    expect(door).toEqual({ scrolls: false, scrollers: 0 });
+    await expect(page.locator(".lj-studio")).toHaveCount(0);
+
+    for (let at = 2; at <= 7; at += 1) {
       await goStep(page, at);
-      if (at >= 3 && at <= 6) await expect(page.locator(".tp-app")).toBeVisible({ timeout: 30_000 });
-      await expect(stage).toHaveAttribute("data-step", /.+/);
-      // Adım değişince ilerleme rayı sabit menünün hemen altına hizalanır (1. adım ilk çizim, kaydırılmaz); yumuşak
-      // kaydırma bitene kadar beklenir.
-      if (at > 1) {
-        await expect
-          .poll(() =>
-            page.evaluate(
-              () => document.querySelector(".lj-rail")!.getBoundingClientRect().top - document.querySelector("header.mkh")!.getBoundingClientRect().bottom,
-            ),
-          )
-          .toBeLessThanOrEqual(12);
-      }
-      const m = await page.evaluate(() => {
-        const box = document.querySelector(".lj-stage")!.getBoundingClientRect();
-        const foot = document.querySelector(".lj-stage-foot")?.getBoundingClientRect() ?? null;
-        const header = document.querySelector("header.mkh")!.getBoundingClientRect().bottom;
-        const rail = document.querySelector(".lj-rail")!.getBoundingClientRect().top;
-        return {
-          height: Math.round(box.height),
-          footInView: foot ? foot.top >= 0 && foot.bottom <= innerHeight : true,
-          railGap: rail - header,
-          pageOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-        };
-      });
-      heights.push(m.height);
+      if (at >= 3 && at <= 6) await expect(page.locator(".lj-studio .tp-app")).toBeVisible({ timeout: 30_000 });
+      if (at === 7) await expect(page.locator('.lj-studio [data-plus-preview]')).toHaveCount(1);
+      await expect.poll(async () => (await zeroScroll(page)).contentFits, { timeout: 5000 }).toBe(true);
+      const m = await zeroScroll(page);
+      expect(m.studioScrolls, `adım ${at}: stüdyo kaymaz`).toBe(false);
+      expect(m.fitScrollTop, `adım ${at}: sahne kaymaz`).toBe(0);
       expect(m.footInView, `adım ${at}: alt düğme ekranda`).toBe(true);
       expect(m.pageOverflow).toBeLessThanOrEqual(1);
-      if (at > 1) expect(m.railGap).toBeGreaterThanOrEqual(-1);
+      expect(m.scale, `adım ${at}: ölçek`).toBeGreaterThanOrEqual(0.6);
+      if (at === 4) {
+        // Beş şık birden, kaydırmadan ekranda.
+        const options = page.locator('.lj-studio .tp-app [role="radiogroup"] > button');
+        await expect(options).toHaveCount(5);
+        for (let i = 0; i < 5; i += 1) await expect(options.nth(i)).toBeInViewport({ ratio: 0.99 });
+        // Cevaptan sonra da: açıklama şıkları ekran dışına itmez.
+        await options.nth(2).click();
+        await page.locator(".lj-studio .tp-app").getByRole("button", { name: /Kontrol et/ }).click();
+        await expect.poll(async () => (await zeroScroll(page)).contentFits).toBe(true);
+        for (let i = 0; i < 5; i += 1) await expect(options.nth(i)).toBeInViewport({ ratio: 0.99 });
+      }
     }
-    expect(new Set(heights).size, `yükseklikler: ${heights.join(", ")}`).toBe(1);
-    // Plus adımı her genişlikte sahneden uzun: sayfa değil gövde kayar.
-    const scroll = await page.evaluate(() => {
-      const body = document.querySelector(".lj-stage-body")!;
-      return { scrollable: body.scrollHeight > body.clientHeight + 4, overflowY: getComputedStyle(body).overflowY };
-    });
-    expect(scroll).toEqual({ scrollable: true, overflowY: "auto" });
+    // ✕ ana sayfaya döner; sayfanın kilidi açılır.
+    await page.getByRole("button", { name: "Kapat" }).click();
+    await expect(page.locator(".lj-studio")).toHaveCount(0);
+    expect(await page.evaluate(() => document.documentElement.style.overflow)).toBe("");
   });
 
   test(`A2 ${size.width} px: tarama anında dört bulgu sırayla belirir, sonra yol açılır; dokunuş anı atlar`, { tag: ["@public"] }, async ({ page }) => {
@@ -87,7 +105,7 @@ for (const size of SIZES) {
     await page.locator("button.lj-zone").click();
     await expect(finds).toHaveCount(4);
     const t0 = Date.now();
-    await page.locator(".lj-stage-head").click();
+    await page.locator(".lj-studio .lj-stage-head").click();
     await expect(page.getByRole("heading", { name: "Yol haritan çıktı" })).toBeVisible();
     expect(Date.now() - t0).toBeLessThan(1500);
   });
@@ -116,8 +134,8 @@ for (const size of SIZES) {
   test(`A3 ${size.width} px: 3-6. adımlarda aynı anda tek ana düğme; iş bitince tur düğmesi 600 ms'de ana düğme olur`, { tag: ["@public"] }, async ({ page }) => {
     await page.setViewportSize(size);
     await page.goto("/");
-    const tour = page.locator("section.lj");
-    const next = tour.locator(".lj-stage-foot .lj-next");
+    const tour = page.locator(".lj-studio");
+    const next = page.locator(".lj-studio .lj-stage-foot .lj-next");
 
     // Ders: ürünün "Devam et"i tek ana düğme; tur düğmesi soluk ama tıklanabilir.
     await goStep(page, 3);
@@ -162,7 +180,7 @@ for (const size of SIZES) {
   test(`A4 ${size.width} px: taramadan sonra başlığın yanında "Hoca uyarısı"; uyarı adımına girince bir kez parlar`, { tag: ["@public"] }, async ({ page }) => {
     await page.setViewportSize(size);
     await page.goto("/");
-    const badge = page.locator(".lj-stage-head [data-warning]");
+    const badge = page.locator(".lj-studio [data-warning]");
     await expect(badge).toHaveCount(0);
     await page.locator("button.lj-zone").evaluate((zone) => zone.scrollIntoView({ block: "center" }));
     await page.locator("button.lj-zone").click();
@@ -172,8 +190,8 @@ for (const size of SIZES) {
     await expect(badge).not.toHaveClass(/is-glow/);
     // Etiket başlığın satırında ya da hemen altında; sahneden taşmaz.
     const fits = await page.evaluate(() => {
-      const head = document.querySelector(".lj-stage-head")!.getBoundingClientRect();
-      const tag = document.querySelector(".lj-stage-head [data-warning]")!.getBoundingClientRect();
+      const head = document.querySelector(".lj-studio-top")!.getBoundingClientRect();
+      const tag = document.querySelector(".lj-studio [data-warning]")!.getBoundingClientRect();
       return tag.left >= head.left - 1 && tag.right <= head.right + 1;
     });
     expect(fits).toBe(true);
@@ -195,7 +213,7 @@ test("A4: hareket azaltmada etiket parlamaz", { tag: ["@public"] }, async ({ pag
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
   await goStep(page, 4);
-  const badge = page.locator(".lj-stage-head [data-warning]");
+  const badge = page.locator(".lj-studio [data-warning]");
   await expect(badge).toBeVisible();
   await expect(badge).not.toHaveClass(/is-glow/);
 });
