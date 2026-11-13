@@ -71,8 +71,9 @@ describe("yerleşim: üste binme yok (#604)", () => {
 
   it("öğrenci balonu okunur; tablette üst menü yalnız simge", () => {
     expect(shell).toMatch(/\.cp-sor-root \.cp-sor-msg-user \{[^}]*color: var\(--cp-text\)/);
-    expect(read("src/components/parity/sor-shell.tsx")).toContain('<span className="cp-sor-topnav-label">{tab.label}</span>');
-    expect(shell).toMatch(/\.cp-sor-topnav-label,\n\s*\.cp-sor-more--center \.cp-sor-more-label \{[^}]*clip: rect\(0 0 0 0\)/);
+    // 13 Kasım 2026: kabuğun üst çubuğu (cx-shell.css); tablette sekme yazısı görsel olarak gizli, ad ekran okuyucuda.
+    expect(read("src/components/parity/sor-shell.tsx")).toContain("<span>{tab.label}</span>");
+    expect(read("src/styles/cx-shell.css")).toMatch(/\.cx-home-tab span,\n\s*\.cx-home-more-label \{[^}]*clip: rect\(0 0 0 0\)/);
   });
 });
 

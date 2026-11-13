@@ -145,8 +145,9 @@ describe("podcast oynatıcısı bir oturum ekranı", () => {
     expect(page).toMatch(/<ParitySorShell \{\.\.\.shell\} chrome="session">\s*\n\s*<PrepPodcastSession/);
     // Kabukta oturum kipi alt menüyü çizmez.
     const shell = read("src/components/parity/sor-shell.tsx");
-    expect(shell).toMatch(/const examChrome = [^;]*chrome === "session"/);
-    expect(shell).toContain('{examChrome ? null : <nav className="cp-sor-bottomnav"');
+    // 13 Kasım 2026 (kabuk): oturum kipinde (ders, test, podcast, fiyat) üst çubuk ve alt menü yok.
+    expect(shell).toContain('const showTopBar = chrome !== "session";');
+    expect(shell).toContain('{showTopBar ? <nav className="cp-sor-bottomnav"');
   });
 
   it("yoldaki podcast düğümü de oturum kabuğunda", () => {

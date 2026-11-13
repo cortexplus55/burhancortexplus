@@ -62,7 +62,12 @@ const PREP_CARDS: ExamPrepCard[] = [
 /** Yalnız test fikstürü (E2E_FIXTURE=1). */
 export function IcEkranFixture({ screen }: { screen: string }) {
   return (
-    <ParitySorShell userInitial="Ö" streak={2} account={fixtureAccount(false)}>
+    <ParitySorShell
+      userInitial="Ö"
+      streak={2}
+      account={fixtureAccount(false)}
+      {...(screen === "yol" ? { chrome: "focus" as const, minimalTop: true } : {})}
+    >
       {screen === "yol" ? (
         <ExamPrepHome
           prepId="fixture-prep"

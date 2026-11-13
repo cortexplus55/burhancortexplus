@@ -1,0 +1,316 @@
+/**
+ * Öğrenci kabuğu (13 Kasım 2026, ürün sahibinin kararı): ana ekranda onaylanan üst çubuk ve logo, giriş yapılmış
+ * bütün öğrenci sayfalarında aynı. Tam ekran odak görünümlerinde (ders, test, oturum, fiyat) çubuk ve logo yok.
+ * Telefonda (<768 px) sekmeler alttaki hap tepsisinde [varsayım: referansın mobil görünümü ölçülemedi].
+ * Değerler tokens.css'teki --cx-*'tan; ham renk yok.
+ */
+
+.cx-home-top :focus-visible,
+.cp-sor-bottomnav :focus-visible,
+.cx-shell-close:focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}
+
+/* ---------- 1. Üst çubuk ---------- */
+.cx-home-top {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  height: var(--cx-topbar-h);
+  padding-inline: var(--cx-space-24);
+  background: transparent;
+  flex-shrink: 0;
+}
+
+/* 2. Logo: 24 px işaret, yanında yazı; zemin, kutu, rozet yok. */
+.cx-home-logo {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cx-space-8);
+  min-height: var(--cx-tap-min);
+  color: var(--cx-text-reading);
+  text-decoration: none;
+}
+.cx-home-logo-mark {
+  height: var(--cx-logo-h);
+  width: auto;
+  display: block;
+}
+.cx-home-logo-word {
+  font: 600 1.25rem / 1 var(--cx-font-sans);
+  letter-spacing: var(--cx-ls-heading);
+  color: var(--cx-text-reading);
+  white-space: nowrap;
+}
+
+.cx-home-nav {
+  justify-self: center;
+  display: flex;
+  align-items: center;
+  gap: var(--cx-space-8);
+}
+.cx-home-tray {
+  display: flex;
+  gap: var(--cx-space-2);
+  padding: var(--cx-space-4);
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-bg-1);
+}
+.cx-home-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cx-space-8);
+  height: var(--cx-control-s);
+  padding-inline: var(--cx-space-14);
+  border-radius: var(--cx-radius-max);
+  font: 600 0.8125rem / 1.25 var(--cx-font-sans);
+  letter-spacing: var(--cx-ls-label);
+  color: var(--cx-text-secondary);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color var(--cx-dur-scale) ease;
+}
+.cx-home-tab:hover,
+.cx-home-tab.is-active {
+  color: var(--cx-text-primary);
+}
+.cx-home-tab-icon {
+  width: var(--cx-space-16);
+  height: var(--cx-space-16);
+  flex-shrink: 0;
+}
+.cx-home-more {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cx-space-8);
+  height: var(--cx-space-48);
+  padding-inline: var(--cx-space-18);
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-bg-1);
+  font: 600 0.8125rem / 1.25 var(--cx-font-sans);
+  color: var(--cx-text-secondary);
+  cursor: pointer;
+  transition: color var(--cx-dur-color) ease;
+}
+.cx-home-more svg {
+  width: var(--cx-space-16);
+  height: var(--cx-space-16);
+}
+.cx-home-more:hover {
+  color: var(--cx-text-primary);
+}
+.cx-home-more--phone,
+.cx-home-buy-short {
+  display: none;
+}
+@media (max-width: 767px) {
+  .cx-home-buy-short {
+    display: inline;
+  }
+}
+
+.cx-home-actions {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: var(--cx-space-8);
+}
+.cx-home-start,
+.cx-home-streak,
+.cx-home-buy {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cx-space-6);
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: scale var(--cx-dur-scale) var(--cx-ease-out), color var(--cx-dur-color) ease;
+}
+.cx-home-start {
+  height: var(--cx-control-s);
+  padding-inline: var(--cx-space-18);
+  font: var(--cx-t-button-s);
+}
+.cx-home-start svg {
+  width: var(--cx-space-16);
+  height: var(--cx-space-16);
+}
+/* Ücretsiz hesap: mevcut "Plus'a geç" XS, altın tonlu hap. Plus hesabında yok. */
+.cx-home-buy {
+  height: var(--cx-control-xs);
+  padding-inline: var(--cx-space-14);
+  background: var(--cx-highlight-weak);
+  color: var(--cx-text-highlight);
+  font: var(--cx-t-button-s);
+}
+/* Altın yalnız seri sayacında (Plus hesabında). */
+.cx-home-streak {
+  height: var(--cx-control-s);
+  padding-inline: var(--cx-space-14);
+  font: 600 0.9375rem / 1 var(--cx-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.cx-home-streak > span:first-of-type,
+.cx-home-streak > svg {
+  color: var(--cx-text-highlight);
+}
+.cx-home-streak > svg {
+  width: var(--cx-space-16);
+  height: var(--cx-space-16);
+}
+.cx-home-avatar {
+  display: inline-grid;
+  place-items: center;
+  width: var(--cx-icon-btn-l);
+  height: var(--cx-icon-btn-l);
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-bg-2);
+  color: var(--cx-text-primary);
+  font: var(--cx-t-title-s);
+  text-decoration: none;
+  transition: scale var(--cx-dur-scale) var(--cx-ease-out);
+}
+.cx-home-start:hover,
+.cx-home-streak:hover,
+.cx-home-buy:hover,
+.cx-home-avatar:hover,
+.cx-home-start:focus-visible,
+.cx-home-streak:focus-visible,
+.cx-home-buy:focus-visible,
+.cx-home-avatar:focus-visible {
+  scale: var(--cx-scale-hover);
+}
+
+/* ---------- Tablet (768–1099 px): sekmelerde yalnız simge ---------- */
+@media (max-width: 1099px) and (min-width: 768px) {
+  .cx-home-nav .cx-home-more {
+    width: var(--cx-space-48);
+    padding: 0;
+    justify-content: center;
+  }
+  .cx-home-tab span,
+  .cx-home-more-label {
+    /* Tablette sekme yazısı gizli, simge kalır; ad ekran okuyucuda. */
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+}
+
+/* ---------- Telefon (<768 px) [varsayım] ---------- */
+@media (max-width: 767px) {
+  .cx-home-top {
+    grid-template-columns: 1fr auto;
+    height: auto;
+    padding: var(--cx-space-16);
+  }
+  .cx-home-nav,
+  .cx-home-start,
+  .cx-home-avatar {
+    display: none;
+  }
+  .cx-home-more--phone {
+    display: inline-grid;
+    place-items: center;
+    width: var(--cx-tap-min);
+    height: var(--cx-tap-min);
+    padding: 0;
+    background: var(--cx-bg-1);
+  }
+  .cx-home-streak,
+  .cx-home-buy {
+    min-height: var(--cx-tap-min);
+  }
+  .cx-home-buy-full,
+  .cx-home-streak .cp-streak-freeze {
+    display: none;
+  }
+  .cx-home-actions {
+    gap: var(--cx-space-4);
+  }
+}
+
+/* ---------- Yaklaşan sınav şeridi (yalnız sınav listesi): üst çubuğun altında, çubuğun parçası değil ---------- */
+.cx-shell-countdown {
+  padding-inline: var(--cx-gutter);
+}
+
+/* ---------- Tam ekran odak görünümü (fiyat): çubuk ve logo yok, sağ üstte 40 px cam kapat ---------- */
+.cx-shell-close {
+  position: fixed;
+  z-index: 50;
+  top: calc(var(--cx-space-16) + env(safe-area-inset-top, 0px));
+  right: var(--cx-gutter);
+  display: grid;
+  place-items: center;
+  width: var(--cx-icon-btn-l);
+  height: var(--cx-icon-btn-l);
+  border-radius: var(--cx-radius-max);
+  color: var(--cx-text-primary);
+  transition: scale var(--cx-dur-scale) var(--cx-ease-out);
+}
+.cx-shell-close::before {
+  /* Dokunma alanı 44 px; görünen düğme 40 px. */
+  content: "";
+  position: absolute;
+  inset: calc((var(--cx-icon-btn-l) - var(--cx-tap-min)) / 2);
+}
+.cx-shell-close svg {
+  width: var(--cx-space-18);
+  height: var(--cx-space-18);
+}
+.cx-shell-close:hover,
+.cx-shell-close:focus-visible {
+  scale: var(--cx-scale-hover);
+}
+@media (min-width: 768px) {
+  .cx-shell-close {
+    top: var(--cx-space-24);
+  }
+}
+
+/* ---------- Telefon alt çubuğu (<768 px) [varsayım]: bg-1 hap tepsi, 4 sekme, öğe en az 48 px ---------- */
+@media (max-width: 767px) {
+  .cp-sor-root .cp-sor-bottomnav {
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--cx-space-2);
+    margin: 0 var(--cx-space-16) calc(var(--cx-space-8) + env(safe-area-inset-bottom, 0px));
+    bottom: calc(var(--cx-space-8) + env(safe-area-inset-bottom, 0px));
+    padding: var(--cx-space-4);
+    border: 0;
+    border-radius: var(--cx-radius-max);
+    background: var(--cx-bg-1);
+    box-shadow: var(--cx-shadow-popover);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .cp-sor-root .cp-sor-bottomnav-link {
+    gap: var(--cx-space-2);
+    min-height: var(--cx-space-48);
+    border-radius: var(--cx-radius-max);
+    color: var(--cx-text-secondary);
+    background: transparent;
+    font: 600 0.75rem / 1.25 var(--cx-font-sans);
+    transition: color var(--cx-dur-color) ease;
+  }
+  .cp-sor-root .cp-sor-bottomnav-link--active {
+    color: var(--cx-text-primary);
+  }
+  /* Sohbet ve sınav sohbetinde yazma kutusu alt çubuğun üstüne oturur. */
+  .cp-sor-root--exam:has(> .cp-sor-bottomnav) .cp-sor-composer-zone {
+    bottom: calc(4.6rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Hazırlık sayfasının "Çalışma yolu / İlerleme" sekmeleri: eski odak çubuğu yapışkandı ve sekmeler onun altına
+   (3.95rem) yapışıyordu. Yeni üst çubuk kaydırmayla gider; sekmeler ekranın üstüne yapışır. */
+.cp-sor-root:has(> .cx-home-top) .cp-prep-tabbar {
+  top: env(safe-area-inset-top, 0px);
+}

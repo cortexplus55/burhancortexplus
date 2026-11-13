@@ -94,17 +94,15 @@ describe("yeni 3B logo", () => {
   });
 
   it("uygulama üst çubuğu eski küçük harf cortex yazısını kullanmaz", () => {
+    // 13 Kasım 2026 (kabuk): bütün öğrenci sayfalarında aynı logo; depodaki kırpılmış 3B işaret 24 px ve
+    // "Cortex Plus" yazısı (Figtree 600); yazı telefonda da görünür (gizleyen kural yok).
     const shell = read("src/components/parity/sor-shell.tsx");
-    expect(shell).toContain('className="cp-sor-logo-word"');
-    expect(shell).toContain('className="cp-sor-logo-plus"');
-    expect(shell).not.toContain('cp-sor-logo-word">cortex<');
-    // C tasarımı (9 Kasım 2026): kırpılmış 3B işaret; yazı telefonda da görünür (gizleyen kural yok).
+    expect(shell).toContain('<span className="cx-home-logo-word">Cortex Plus</span>');
+    expect(shell).not.toContain('cx-home-logo-word">cortex<');
     expect(shell).toContain('src="/logo-mark-trim.png"');
-    expect(shell).toContain('className="cp-sor-logo-mark"');
-    const css = read("src/styles/parity-shell.css");
-    expect(css).toMatch(/\.cp-sor-top \{[\s\S]*?flex-wrap:\s*nowrap/);
-    expect(css).toContain(".cp-sor-logo-plus");
-    expect(css).not.toMatch(/\.cp-sor-logo-word \{\s*display:\s*none/);
-    expect(css).toContain(".cp-sor-head--c .cp-sor-logo-mark");
+    expect(shell).toContain('className="cx-home-logo-mark"');
+    const css = read("src/styles/cx-shell.css");
+    expect(css).toContain(".cx-home-logo-mark");
+    expect(css).not.toMatch(/\.cx-home-logo-word \{\s*display:\s*none/);
   });
 });

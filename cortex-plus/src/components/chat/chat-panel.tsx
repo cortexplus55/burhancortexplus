@@ -1312,7 +1312,9 @@ function ChatPanelSession({
   // Üst çubuktaki "Başla" (ana ekran): öğretmen ilk sözü söyler, yazma alanı açılır (model çağrısı yok).
   useEffect(() => {
     if (examChrome || !isParitySor) return;
-    const onStart = () => {
+    const onStart = (event: Event) => {
+      // Dinlendiğini bildirir: kabuk başka sayfaya (ana ekrana) gitmez.
+      event.preventDefault();
       if (startGreeting && messages.length === 0) {
         setMessages([{ role: "assistant", content: startGreeting, local: true }]);
       }

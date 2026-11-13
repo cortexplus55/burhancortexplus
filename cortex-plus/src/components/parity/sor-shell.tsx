@@ -5,7 +5,7 @@ import { syncLearningPrefsOnce } from "@/lib/client/learning-prefs-store";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { ArrowLeft, CalendarDays, ChevronRight, Crown, FileText, Flame, Gift, Gauge, LayoutGrid, LineChart, NotebookPen, ShieldCheck, Sparkles, Users, X } from "lucide-react";
+import { CalendarDays, ChevronRight, FileText, Flame, Gift, Gauge, LayoutGrid, LineChart, NotebookPen, ShieldCheck, Sparkles, Star, Users, X } from "lucide-react";
 import { HOME_START_EVENT } from "@/lib/ui/home-events";
 import { cn } from "@/lib/utils";
 import { readStreakFromStorage } from "@/components/parity/gamification";
@@ -15,14 +15,12 @@ import { JourneyDialog, type JourneyTab } from "@/components/parity/journey-dial
 import { BadgeUnlockNotice } from "@/components/parity/badge-unlock-notice";
 import type { BadgeJourney } from "@/lib/gamification/badges";
 import { ParityDialogHost, MenuDialogUrlSync } from "@/components/parity/parity-dialog-host";
-import { StarsButton } from "@/components/parity/stars-dialog";
 import { PlusLimitBanner } from "@/components/paywall/plus-limit-banner";
 import { PromoBanner, type PromoCampaign } from "@/components/paywall/promo-banner";
 import type { StudentAccountContext } from "@/lib/student/account-context";
 import { StudentShellProvider } from "@/lib/student/student-shell-context";
 import { studentTopTabs, studentBottomTabs } from "@/components/parity/student-shell-nav";
 import { ACCOUNT_REFRESH_EVENT } from "@/lib/credits/spendable";
-import { FounderChip } from "@/components/student/founder-chip";
 import { FreePreviewToggle } from "@/components/admin/free-preview-toggle";
 import { EmailVerifyBanner } from "@/components/auth/email-verify-banner";
 import { profilePlanView } from "@/lib/billing/tier-presentation";
@@ -31,6 +29,7 @@ import { ExamCountdownBadge } from "@/components/parity/exam-countdown-badge";
 import type { ExamCountdown } from "@/lib/learning/exam-countdown";
 import type { RecentConversation } from "@/lib/student/conversation-time";
 import "@/styles/parity-shell.css";
+import "@/styles/cx-shell.css";
 import "@/styles/home-cockpit.css";
 
 export type { RecentConversation };
@@ -70,15 +69,17 @@ export function ParitySorShell({
   promo = null,
   recentConversations = [],
   chrome = "app",
-  backHref = "/deneme-sinavlari",
   conversationBaseHref,
   minimalTop = false,
   countdown = null,
   home = false,
+  closeHref,
 }: {
+  /** Tam ekran odak görünümü (fiyat): çubuk ve logo yok, sağ üstte bu adrese giden cam kapat. */
+  closeHref?: string;
   /**
-   * Ana ekran üst çubuğu (13 Kasım 2026, ürün sahibinin kararı): logo, üç sekme + "Daha fazla", sağda cam
-   * "Başla", seri ve avatar. Yalnız /ogretmen'de; öbür sayfalar kabuk fazına kadar eski çubukta.
+   * Ana ekran göstergesi (13 Kasım 2026): kök `cp-sor-root--home` (kaydırmasız masaüstü). Üst çubuk ve logo
+   * bütün öğrenci sayfalarında aynı (kabuk fazı, 13 Kasım 2026, ürün sahibinin kararı).
    */
   home?: boolean;
   children: React.ReactNode;
@@ -98,6 +99,7 @@ export function ParitySorShell({
    * Diğer sayfalar `app` kabuğunda kalır.
    */
   chrome?: "app" | "exam" | "focus" | "session";
+  /** Eski odak çubuğunun "Geri" adresi; yeni çubukta Geri yok (gezinme sekmelerden). Çağıranlar için kalır. */
   backHref?: string;
   /**
    * Geçmiş satırı bu adresin `?sohbet=` parametresiyle açılır.
@@ -134,7 +136,6 @@ export function ParitySorShell({
   const isAdmin = Boolean(account?.isAdmin);
   const isPremium = Boolean(account?.isPremium);
   const showBuy = !isAdmin && account?.showsUpgradeChrome === true;
-  const planLabel = account?.subscriptionBadge ?? "Plus";
   const showPlusLimit =
     !isAdmin && isPremium && Boolean(account) && !account?.canSpend && !limitDismissed;
   /**
@@ -149,8 +150,36 @@ export function ParitySorShell({
   // "session": ders, test, podcast oturumu. kıyas ürününde üst çubuk yok; yalnız
   // ilerleme ve × (oturumun kendi çubuğu). 3 Ekim 2026.
   const examChrome = chrome === "exam" || chrome === "focus" || chrome === "session";
-  /** Plan bölmesi yıldız/avatar kapsülünde yalnız uygulama kabuğunda (sınav, odak, oturumda eski yerinde). */
-  const planInCapsule = chrome === "app" && !minimalTop;
+  /**
+   * Kabuk (13 Kasım 2026, ürün sahibinin kararı): ana ekrandaki üst çubuk ve telefonun alt çubuğu giriş yapılmış
+   * bütün öğrenci sayfalarında aynı (uygulama, hazırlık, sınav sohbeti). Tam ekran odak görünümlerinde (ders, test,
+   * oturum, fiyat: `session`) çubuk ve logo yok. Eski "Geri"li odak çubuğu, yıldız düğmesi ve kurucu çipi kalktı:
+   * gezinme sekmelerden, yıldızlar "Daha fazla"dan.
+   */
+  const showTopBar = chrome !== "session";
+  const startTeacher = () => {
+    // Sayfada öğretmen sohbeti varsa (ana ekran) ilk sözü orada açar; yoksa ana ekrana gider ve orada açar.
+    const event = new Event(HOME_START_EVENT, { cancelable: true });
+    window.dispatchEvent(event);
+    if (!event.defaultPrevented) router.push("/ogretmen?basla=1");
+  };
+  // Başka sayfadaki "Başla" ana ekrana `?basla=1` ile gelir: öğretmenin ilk sözü açılır, adres temizlenir.
+  // (Çocukların etkileri önce çalışır; sohbetin dinleyicisi bu anda hazır.)
+  useEffect(() => {
+    if (pathname !== "/ogretmen") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("basla") !== "1") return;
+    params.delete("basla");
+    const query = params.toString();
+    window.history.replaceState(null, "", query ? `${pathname}?${query}` : pathname);
+    window.dispatchEvent(new Event(HOME_START_EVENT));
+  }, [pathname]);
+  const openStars = () => {
+    setMenuOpen(false);
+    const params = new URLSearchParams(window.location.search);
+    params.set("dialog", "stars");
+    window.history.pushState(null, "", `${pathname}?${params.toString()}`);
+  };
   const openConversation = (id: string) =>
     conversationBaseHref
       ? `${conversationBaseHref}?sohbet=${encodeURIComponent(id)}`
@@ -229,7 +258,7 @@ export function ParitySorShell({
       ) : null}
       {/* Tek şerit, her öğrenci kabuğunda (Paket J takip #3): oturum ekranları dahil; kurucuda hiç. */}
       {account?.isAdmin ? null : <EmailVerifyBanner initialUnverified={emailUnverified} />}
-      {home && chrome === "app" ? (
+      {showTopBar ? (
         <header className="cx-home-top">
           {/* Logo [karar]: depodaki işaret 24 px, yazı Figtree 600 20 px --cx-text-reading; zemin, kutu, rozet yok. */}
           <Link href="/ogretmen" className="cx-home-logo" aria-label="Cortex Plus Ana Sayfa">
@@ -277,11 +306,7 @@ export function ParitySorShell({
             </button>
           </div>
           <div className="cx-home-actions">
-            <button
-              type="button"
-              className="cx-home-start cx-glass"
-              onClick={() => window.dispatchEvent(new Event(HOME_START_EVENT))}
-            >
+            <button type="button" className="cx-home-start cx-glass" onClick={startTeacher}>
               <Sparkles aria-hidden />
               Başla
             </button>
@@ -320,157 +345,19 @@ export function ParitySorShell({
             </button>
           </div>
         </header>
+      ) : closeHref ? (
+        /* Tam ekran odak görünümü (fiyat): çubuk ve logo yok; sağ üstte cam kapat. */
+        <Link href={closeHref} className="cx-shell-close cx-glass" aria-label="Kapat">
+          <X aria-hidden />
+        </Link>
       ) : null}
-      {/* Üst çubuk ve sınav şeridi tek kapta (9 Kasım 2026, C tasarımı): telefonda seri ve yıldız şerit kartına,
-          Plus etiketi avatara yerleşir; yalnız CSS ile, öğeler ve tıklamalar aynı. */}
-      {home && chrome === "app" ? null : <div className={cn("cp-sor-head", chrome === "app" && !minimalTop && "cp-sor-head--c")}>
-      {chrome === "session" ? null : <header className="cp-sor-top">
-        {examChrome ? (
-          <Link href={backHref} className="cp-exam-back">
-            <ArrowLeft className="h-4 w-4" aria-hidden />
-            Geri
-          </Link>
-        ) : (
-          <>
-            {/* 9 Kasım 2026 (C tasarımı): kırpılmış 3B işaret (şeffaf pay yok) ve her ekranda görünen yazı.
-                Telefonda ortada büyük, masaüstünde solda. */}
-            <Link href="/ogretmen" className="cp-sor-logo" aria-label="Cortex Plus Ana Sayfa">
-              <Image
-                src="/logo-mark-trim.png"
-                width={432}
-                height={280}
-                alt=""
-                aria-hidden="true"
-                draggable={false}
-                priority
-                className="cp-sor-logo-mark"
-              />
-              <span className="cp-sor-logo-word">
-                Cortex <span className="cp-sor-logo-plus">Plus</span>
-              </span>
-            </Link>
 
-            {/* kıyas ürünü (17 Ekim 2026): simgeli sekme grubu ve yanında ayrı "Daha fazla" kutusu.
-                Telefonda sekmeler altta; "Daha fazla" sağ üstte kalır. */}
-            <div className="cp-sor-topnav-group">
-              <nav className="cp-sor-topnav" aria-label="Ana bölümler">
-                {studentTopTabs.map((tab) => {
-                  const active = tab.match(pathname);
-                  const Icon = tab.icon;
-                  return (
-                    <Link
-                      key={tab.id}
-                      href={tab.href}
-                      className={cn("cp-sor-topnav-link", active && "cp-sor-topnav-link--active")}
-                      aria-current={active ? "page" : undefined}
-                      title={tab.label}
-                    >
-                      <Icon className="cp-sor-topnav-icon" aria-hidden />
-                      {/* Tablette (768–1179 px) yalnız simge (8 Kasım 2026): yazılar sığmayıp simgelerle çakışıyordu.
-                          Yazı gizlenince ad ekran okuyucuda kalsın diye görsel gizleme sr-only ile. */}
-                      <span className="cp-sor-topnav-label">{tab.label}</span>
-                    </Link>
-                  );
-                })}
-              </nav>
-              {minimalTop ? null : (
-                <button
-                  type="button"
-                  className="cp-sor-more cp-sor-more--center"
-                  aria-label="Daha fazla"
-                  aria-expanded={menuOpen}
-                  onClick={() => setMenuOpen(true)}
-                >
-                  <LayoutGrid className="h-5 w-5" aria-hidden />
-                  <span className="cp-sor-more-label">Daha fazla</span>
-                </button>
-              )}
-            </div>
-          </>
-        )}
-
-        <div className="cp-sor-top-actions">
-          {/* Hazırlık sayfasının simgeleri buraya taşınır (PREP_TOP_SLOT_ID). */}
-          {chrome === "focus" ? <div id="cp-sor-top-slot" className="cp-sor-top-slot" /> : null}
-          {/* Uygulama kabuğunda plan bölmesi yıldız/avatar kapsülünün başında (aşağıda); diğer kabuklarda burada. */}
-          {minimalTop || planInCapsule ? null : isAdmin && account ? (
-            <FounderChip />
-          ) : null}
-          {/* Abonede kredi çipi yok (29 Eylül 2026): kıyas ürününde Plus'ın üst
-              çubuğunda yalnızca seri, "Daha fazla" ve avatar duruyor; kullanım
-              profil → Kullanım'da yüzde olarak görülüyor. */}
-          {minimalTop ? null : (
-            <>
-            <button
-              type="button"
-              className="cp-sor-streak"
-              aria-label={`Seri: ${streakCount} gün. Seri ve rozetleri aç`}
-              aria-haspopup="dialog"
-              onClick={() => {
-                setJourneyTab("streak");
-                setJourneyOpen(true);
-              }}
-            >
-              <Flame className="h-4 w-4 text-orange-500" aria-hidden />
-              <span>{streakCount}</span>
-              {freezeState ? <StreakFreezeBadge state={freezeState} compact /> : null}
-            </button>
-            {/* Yıldızlar ve avatar tek cam kapsülde (kıyas ürünü, 17 Ekim 2026). */}
-            <div className="cp-sor-me">
-            {/* Plan bölmesi (9 Kasım 2026, masaüstü 2. seçenek): abone altın taçlı plan adı, kurucu altın kurucu
-                çipi, ücretsiz mavi "Plus'a geç". Koşullar ve bağlantılar öncekiyle aynı; telefonda avatarın etiketi. */}
-            {planInCapsule && isPremium ? (
-              <span className="cp-sor-logo-badge cp-sor-plan">
-                <Crown className="cp-sor-plan-icon" aria-hidden />
-                {planLabel}
-              </span>
-            ) : null}
-            {planInCapsule ? (
-              isAdmin && account ? (
-                <FounderChip className="cp-sor-plan" />
-              ) : showBuy ? (
-                <Link href="/pay" className="cp-sor-buy cp-sor-plan" aria-label="Plus planına bak">
-                  <Crown className="cp-sor-plan-icon" aria-hidden />
-                  <span className="cp-sor-buy-full">Plus&apos;a geç</span>
-                  <span className="cp-sor-buy-short">Plus</span>
-                </Link>
-              ) : null
-            ) : null}
-            <StarsButton />
-            <button
-              type="button"
-              className="cp-sor-more cp-sor-more--side"
-              aria-label="Daha fazla"
-              aria-expanded={menuOpen}
-              onClick={() => setMenuOpen(true)}
-            >
-              <LayoutGrid className="h-4 w-4" aria-hidden />
-              <span className="cp-sor-more-label">Daha fazla</span>
-            </button>
-            <Link href="/profil" className="cp-sor-avatar" aria-label="Profil">
-              {avatarEmoji ? (
-                <span className="text-lg" aria-hidden>
-                  {avatarEmoji}
-                </span>
-              ) : (
-                (userInitial?.slice(0, 1) ?? "?")
-              )}
-            </Link>
-            </div>
-            </>
-          )}
-          <Link
-            href="/ayarlar"
-            className="cp-sor-settings-link sr-only"
-            aria-label="Ayarlar"
-          >
-            Ayarlar
-          </Link>
+      {/* Yaklaşan sınav şeridi yalnız sınav listesinde; üst çubuğun parçası değil, altında durur. */}
+      {chrome === "app" && countdown ? (
+        <div className="cx-shell-countdown">
+          <ExamCountdownBadge countdown={countdown} />
         </div>
-      </header>}
-
-      {chrome === "app" ? <ExamCountdownBadge countdown={countdown} /> : null}
-      </div>}
+      ) : null}
 
       {showPlusLimit ? (
         <PlusLimitBanner onDismiss={() => setLimitDismissed(true)} />
@@ -482,7 +369,7 @@ export function ParitySorShell({
 
       <main className="cp-sor-main">{children}</main>
 
-      {examChrome ? null : <nav className="cp-sor-bottomnav" aria-label="Ana gezinme">
+      {showTopBar ? <nav className="cp-sor-bottomnav" aria-label="Ana gezinme">
         {studentBottomTabs.map((tab) => {
           const Icon = tab.icon;
           const active = tab.match(pathname);
@@ -490,7 +377,7 @@ export function ParitySorShell({
             <Link
               key={tab.id}
               href={tab.href}
-              className={cn("cp-sor-bottomnav-link", active && "cp-sor-bottomnav-link--active")}
+              className={cn("cp-sor-bottomnav-link", active && "cp-sor-bottomnav-link--active cx-glass")}
               aria-current={active ? "page" : undefined}
             >
               <Icon className="h-5 w-5" aria-hidden />
@@ -498,9 +385,9 @@ export function ParitySorShell({
             </Link>
           );
         })}
-      </nav>}
+      </nav> : null}
 
-      {menuOpen && examChrome ? (
+      {menuOpen && chrome === "exam" ? (
         <ExamChatMenu
           conversations={recentConversations}
           conversationHref={openConversation}
@@ -508,7 +395,7 @@ export function ParitySorShell({
         />
       ) : null}
 
-      {menuOpen && !examChrome ? (
+      {menuOpen && chrome !== "exam" ? (
         <div
           className="cp-sor-menu-backdrop"
           role="dialog"
@@ -539,6 +426,12 @@ export function ParitySorShell({
                   </Link>
                 );
               })}
+              {/* Yıldızlar penceresi: eski çubuktaki yıldız düğmesinin yeri (yeni çubukta yıldız yok). */}
+              <button type="button" className="cp-more-action" onClick={openStars}>
+                <Star className="h-6 w-6" aria-hidden />
+                <span className="cp-more-action-label">Yıldızlar</span>
+                <ChevronRight className="cp-more-action-chevron" aria-hidden />
+              </button>
               {account?.adminPanel ? (
                 <Link href={ADMIN_PANEL_LINK.href} className="cp-more-action" data-testid="admin-panel-link">
                   <ShieldCheck className="h-6 w-6" aria-hidden />

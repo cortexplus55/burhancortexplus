@@ -21,6 +21,25 @@ Bileşende ham hex ya da ham px yazılmaz; token yoksa önce `tokens.css`'e ekle
 | 7 | Köprü Faz 1'de çevrildi, palet kapısıyla | `--c-*` → `--cx-*`; kapı açıkken B merdiveni `<html data-cx-zemin="sicak">` ile görülür |
 | 8 | Ana ekran (`/ogretmen`) beş parça; altı fazlık plan bekler, önce bu ekran | Aşağıdaki "Ana ekran" bölümü; ayrıntı SKILL.md madde 8 |
 
+## Kabuk (13 Kasım 2026)
+
+Ana ekranda onaylanan üst çubuk ve logo, giriş yapılmış bütün öğrenci sayfalarında aynı (`ParitySorShell`, kurallar
+`src/styles/cx-shell.css`). Kapsam dışı: misafir/pazarlama, yönetim paneli, hukuki sayfalar.
+
+| Kabuk | Üst çubuk | Alt çubuk (<768 px) | Örnek |
+|---|---|---|---|
+| `app` | var | var | ana ekran, sınavlar listesi, stüdyo, ayarlar |
+| `focus`, `exam` | var (eski "Geri"li çubuk kalktı) | var | hazırlık sayfası, hazırlık sohbeti, müfredat |
+| `session` | yok | yok | ders, test, podcast oturumu |
+| `session` + `closeHref` | yok; sağ üstte 40 px cam kapat | yok | fiyat (`/pay`, `AppShell focus`) |
+
+- Çubukta yalnız: logo, üç sekme + "Daha fazla", cam "Başla", ücretsizde "Plus'a geç", seri, avatar. Kurucu çipi, yıldız
+  düğmesi ve ayarlar bağlantısı yok; yıldızlar "Daha fazla"dan (`?dialog=stars`).
+- Hazırlık sayfasının simgeleri (sohbet, kamera, +) üst çubuğa taşınmıyor; sayfanın başında duruyor. Yolun sekmeleri ekranın
+  üstüne yapışır.
+- Sınav listesindeki geri sayım şeridi çubuğun parçası değil, altında durur.
+- Telefon alt çubuğu [varsayım]: `bg-1` hap tepsi, 4 sekme, öğe ≥48 px, güvenli alan payı.
+
 ## Ana ekran (`/ogretmen`, 13 Kasım 2026)
 
 Hazırlığı olan öğrencinin boş ana ekranı beş parçadır; sohbet başlayınca bugünkü sohbet görünümü sürer, hiç hazırlığı olmayan hesapta boş durum (ilk adım kartları) bugünkü hâlindedir.

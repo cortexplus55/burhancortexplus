@@ -74,7 +74,7 @@ setup("authenticate", async ({ page }) => {
   if (new URL(page.url()).pathname.startsWith("/onboarding")) {
     throw new Error("Test hesabı kurulumu (onboarding) bitirmemiş: hesapla bir kez girip kurulumu tamamlayın.");
   }
-  await expect(page.locator("header.cp-sor-top")).toBeVisible({
+  await expect(page.locator("header.cx-home-top")).toBeVisible({
     timeout: 30_000,
   });
 

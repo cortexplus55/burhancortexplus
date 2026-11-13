@@ -1,28 +1,25 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-// 17 Ekim 2026, kıyas ürünüyle yan yana: hazırlık sayfasının üst çubuğunda yalnız Geri ve
-// sayfanın simgeleri var; seri, menü, avatar ve kurucu rozeti yok.
-describe("hazırlık sayfası sade üst çubuk", () => {
-  it("sayfa sade üst çubuğu ister; kabuk seri, menü ve avatarı gizler", () => {
+/*
+  13 Kasım 2026 (kabuk, ürün sahibinin kararı): hazırlık sayfası da bütün öğrenci sayfalarıyla aynı üst çubukta.
+  17 Ekim 2026'daki "sade üst çubuk" (yalnız Geri ve sayfanın simgeleri; seri, menü, avatar yok) ve yapışkan odak
+  çubuğu bilerek değişti: gezinme sekmelerden, sayfanın simgeleri sayfanın başında.
+*/
+describe("hazırlık sayfası üst çubuğu", () => {
+  it("sayfa odak kabuğunda; kabuk odakta da aynı üst çubuğu çizer", () => {
     const page = readFileSync("src/app/deneme-sinavlari/[prepId]/page.tsx", "utf8");
     expect(page).toContain('chrome="focus" backHref="/deneme-sinavlari" minimalTop');
     const shell = readFileSync("src/components/parity/sor-shell.tsx", "utf8");
-    // 9 Kasım 2026: uygulama kabuğunda plan bölmesi yıldız/avatar kapsülüne taşındı; sade üst çubukta yine yok.
-    expect(shell).toContain("{minimalTop || planInCapsule ? null : isAdmin && account ? (");
-    expect(shell).toContain('const planInCapsule = chrome === "app" && !minimalTop;');
-    expect(shell).toMatch(/\{minimalTop \? null : \(\s*<>\s*<button\s+type="button"\s+className="cp-sor-streak"/);
+    expect(shell).toContain('const showTopBar = chrome !== "session";');
+    expect(shell).not.toContain("planInCapsule");
+    expect(shell).not.toContain("minimalTop ? null");
   });
-});
 
-// 17 Ekim 2026 canlıda: üst çubuk kayıp gidiyordu, sekme şeridinin üstünde kalan boşluktan
-// yolun düğümü görünüyordu. kıyas ürününde Geri ve simgeler yerinde kalıyor.
-describe("hazırlık sayfası yapışkan üst çubuk", () => {
-  it("sade üst çubuk sabit; sekmeler tam altında", () => {
+  it("yolun sekmeleri yeni çubukta ekranın üstüne yapışır (eski yapışkan çubuğun altına değil)", () => {
     const shell = readFileSync("src/components/parity/sor-shell.tsx", "utf8");
     expect(shell).toContain('minimalTop && "cp-sor-root--minimal-top"');
-    const css = readFileSync("src/styles/parity-shell.css", "utf8");
-    expect(css).toMatch(/\.cp-sor-root--minimal-top \.cp-sor-top \{\s+position: sticky;\s+top: 0;/);
-    expect(css).toContain("top: calc(env(safe-area-inset-top, 0px) + 3.95rem);");
+    const css = readFileSync("src/styles/cx-shell.css", "utf8");
+    expect(css).toMatch(/\.cp-sor-root:has\(> \.cx-home-top\) \.cp-prep-tabbar \{\s+top: env\(safe-area-inset-top, 0px\);/);
   });
 });

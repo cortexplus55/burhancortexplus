@@ -107,9 +107,11 @@ describe("kıyas ürünü ayrıntıları (tasarım 8. adım)", () => {
     expect(page).not.toContain("MarketingPage");
   });
 
-  it("yıldızlar ve avatar tek cam kapsülde; Daha fazla satır kartları", () => {
+  it("avatar üst çubukta; yıldızlar Daha fazla'da; Daha fazla satır kartları", () => {
+    // 13 Kasım 2026 (kabuk): yeni üst çubukta yıldız düğmesi yok; pencere "Daha fazla"daki satırdan açılır.
     const shell = read("src/components/parity/sor-shell.tsx");
-    expect(shell).toContain('<div className="cp-sor-me">');
+    expect(shell).toContain('className="cx-home-avatar"');
+    expect(shell).toContain('<span className="cp-more-action-label">Yıldızlar</span>');
     expect(shell).toContain('<ChevronRight className="cp-more-action-chevron" aria-hidden />');
   });
 });
