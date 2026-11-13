@@ -54,10 +54,18 @@ test.describe("dönüşüm paketi", { tag: ["@public"] }, () => {
   // 11 Kasım 2026: kayıtsız vitrin 7 adımlı tanıtım turuna dönüştü. Tur telefonda baştan sona oynanır:
   // her adımda yana taşma yok, turdaki her düğme en az 44 px, hiçbir ağ isteği atılmaz.
   for (const phone of PHONES) {
-    test(`ana sayfa turu ${phone.width}px: yedi adım, taşma yok, dokunma alanı 44 px, ağ isteği yok`, async ({ page }) => {
+    test(`ana sayfa turu ${phone.width}px: yedi adım, taşma yok, dokunma alanı 44 px, ağ isteği yok`, async ({ page, baseURL }) => {
       const apiCalls: string[] = [];
+      const origin = new URL(baseURL!).origin;
       page.on("request", (request) => {
-        if (/\/api\//.test(request.url()) && !/\/api\/(health|consent)/.test(request.url())) apiCalls.push(request.url());
+        /*
+          Yalnız sayfanın kendi API istekleri sayılır. Yayındaki derlemede (önizleme, canlı) tarayıcının kendi CSP raporu
+          (`/api/csp-report`: zod'un `Function("")` denemesi, önizlemede Vercel araç çubuğu) ve Sentry'nin oturum sinyali
+          de gider; ikisi de turun attığı istek değil (13 Kasım 2026, önizlemede ölçüldü).
+        */
+        const url = new URL(request.url());
+        if (url.origin !== origin) return;
+        if (/\/api\//.test(url.pathname) && !/\/api\/(health|consent|csp-report)/.test(url.pathname)) apiCalls.push(request.url());
       });
       await page.setViewportSize(phone);
       await page.goto("/?hedef=universite");
@@ -77,7 +85,8 @@ test.describe("dönüşüm paketi", { tag: ["@public"] }, () => {
         if (await tour.count()) {
           // Stüdyo kaymaz; çubuklardaki düğmeler 44 px, sığdırılan ürün ekranının düğmeleri kendi ölçüsünde 44 px.
           expect(await studioTouchTargets(page), `${step}: dokunma alanı`).toBeGreaterThanOrEqual(44);
-          expect(await studioScrolls(page), `${step}: stüdyo kaymaz`).toBe(false);
+          // Yeni içerik (cevap açıklaması) geldiği karede sahne bir kez yeniden sığdırılır (bir sonraki kare); beklenir.
+          await expect.poll(() => studioScrolls(page), { message: `${step}: stüdyo kaymaz`, timeout: 3000 }).toBe(false);
         } else {
           expect(await smallestTouchTarget(page, "section.lj"), `${step}: dokunma alanı`).toBeGreaterThanOrEqual(44);
         }
