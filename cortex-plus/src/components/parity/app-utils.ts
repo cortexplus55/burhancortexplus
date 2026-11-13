@@ -23,6 +23,26 @@ export function parityTimeGreeting(now: Date = new Date()): string {
   return "İyi geceler";
 }
 
+/**
+ * Profil kapsülündeki ad (13 Kasım 2026, Faz 2): selamdaki gibi ilk ad, baş harfi Türkçe kuralla büyük; ad yoksa
+ * e-postanın kullanıcı adı. Kabuğu açan her sayfa bunu verir (ana ekran ve hazırlık sohbeti kabuğu kendisi kuruyor).
+ */
+export function parityShellName(fullName: string | null | undefined, email: string | null | undefined): string {
+  const greet = parityGreetingName(fullName);
+  return greet !== "Merhaba" ? greet : email?.split("@")[0] || "Öğrenci";
+}
+
+/**
+ * Profil kartındaki tam ad (13 Kasım 2026, Faz 2): her sözcüğün baş harfi Türkçe kuralla büyük, gerisine dokunulmaz
+ * (kayıtta küçük harfle yazılan ad panelde "burhan" görünüyordu; selamdaki 8 Kasım kuralının tam ad hâli). Ad yoksa
+ * kapsüldeki ad.
+ */
+export function parityFullName(fullName: string | null | undefined, email: string | null | undefined): string {
+  const words = (fullName ?? "").trim().split(/\s+/).filter((word) => word && !word.includes("@"));
+  if (!words.length) return parityShellName(null, email);
+  return words.map((word) => word.charAt(0).toLocaleUpperCase("tr-TR") + word.slice(1)).join(" ");
+}
+
 export function parityUserInitial(
   fullName: string | null | undefined,
   email: string | null | undefined,

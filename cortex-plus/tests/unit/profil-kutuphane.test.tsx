@@ -250,3 +250,31 @@ describe("kaynak sözleşmesi", () => {
     }
   });
 });
+
+describe("kapsüldeki ad", () => {
+  it("kabuğu kendisi kuran sayfalar da adı verir (canlıda ana ekranda 'Öğrenci' yazıyordu, 13 Kasım 2026)", async () => {
+    const { parityShellName } = await import("@/components/parity/app-utils");
+    expect(parityShellName("burhan önder", "x@ornek.com")).toBe("Burhan");
+    expect(parityShellName(null, "kullanici@ornek.com")).toBe("kullanici");
+    expect(parityShellName("", null)).toBe("Öğrenci");
+    // Panel ve /profil tam adı her sözcüğün baş harfi büyük gösterir (canlıda "burhan" yazıyordu).
+    const { parityFullName } = await import("@/components/parity/app-utils");
+    expect(parityFullName("burhan önder", null)).toBe("Burhan Önder");
+    expect(parityFullName("  ilkay   ışık ", null)).toBe("İlkay Işık");
+    expect(parityFullName(null, "kullanici@ornek.com")).toBe("kullanici");
+    // Kütüphane'de parçalar küçülmez (kısa pencerede son satır kırpılıyordu).
+    expect(read("src/styles/cx-shell.css")).toMatch(/\.cx-lib-panel > \* \{\s*flex-shrink: 0;/);
+    const { readdirSync, statSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const walk = (dir: string): string[] =>
+      readdirSync(dir).flatMap((name) => {
+        const path = join(dir, name);
+        return statSync(path).isDirectory() ? walk(path) : /\.tsx$/.test(name) ? [path] : [];
+      });
+    const missing = walk("src/app")
+      .filter((path) => !path.includes(`${join("src", "app", "e2e")}`))
+      .filter((path) => read(path).includes("<ParitySorShell"))
+      .filter((path) => !/\{\.\.\.shell\}|userName=/.test(read(path)));
+    expect(missing).toEqual([]);
+  });
+});

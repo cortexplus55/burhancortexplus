@@ -5,6 +5,7 @@ import { ParitySorShell } from "@/components/parity/sor-shell";
 import {
   parityGreetingName,
   parityTimeGreeting,
+  parityShellName,
   parityUserInitial,
 } from "@/components/parity/app-utils";
 import { requireStudentArea } from "@/lib/auth/session";
@@ -232,6 +233,7 @@ export default async function OgretmenPage({
     <ParitySorShell
       home
       userInitial={parityUserInitial(profile?.full_name, user.email)}
+      userName={parityShellName(profile?.full_name, user.email)}
       avatarEmoji={avatar && !avatar.startsWith("http") ? avatar : null}
       streak={streak}
       account={account}

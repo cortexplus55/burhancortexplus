@@ -21,6 +21,7 @@ import {
   X,
 } from "lucide-react";
 import { FounderChip } from "@/components/student/founder-chip";
+import { parityFullName } from "@/components/parity/app-utils";
 import type { PlanIdentity } from "@/lib/student/plan-identity";
 import type { ProfileDashboard } from "@/lib/student/profile-dashboard";
 import { useDismiss } from "@/lib/ui/use-dismiss";
@@ -307,7 +308,7 @@ export function ProfileSidePanel({
         onClick={(event) => event.stopPropagation()}
       >
         <ProfileCard
-          name={name}
+          name={data?.dashboard?.fullName ? parityFullName(data.dashboard.fullName, null) : name}
           initial={initial}
           identity={identity}
           data={data}

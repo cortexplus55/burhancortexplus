@@ -655,6 +655,10 @@
   background: var(--cx-bg-1);
   color: var(--cx-text-primary);
 }
+/* Kısa pencerede (dizüstü 639 px) satır grubu küçülüp son satırı kırpıyordu: parçalar küçülmez, panel kayar. */
+.cx-lib-panel > * {
+  flex-shrink: 0;
+}
 .cx-lib-head {
   display: flex;
   align-items: center;

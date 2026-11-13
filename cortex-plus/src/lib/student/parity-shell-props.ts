@@ -1,5 +1,5 @@
 import {
-  parityGreetingName,
+  parityShellName,
   parityUserInitial,
 } from "@/components/parity/app-utils";
 import { getStudentAccountContext } from "@/lib/student/account-context";
@@ -46,14 +46,10 @@ export async function loadParityShellProps(
     .order("updated_at", { ascending: false })
     .limit(5);
 
-  // Profil kapsülündeki ad (13 Kasım 2026): selamdaki gibi ilk ad, baş harfi Türkçe kuralla büyük; ad yoksa
-  // e-postanın kullanıcı adı (profil panelinin bugünkü yedeği).
-  const greetName = parityGreetingName(profile?.full_name);
-  const userName = greetName !== "Merhaba" ? greetName : (email?.split("@")[0] || "Öğrenci");
 
   return {
     userInitial: parityUserInitial(profile?.full_name, email),
-    userName,
+    userName: parityShellName(profile?.full_name, email),
     avatarEmoji: avatar && !avatar.startsWith("http") ? avatar : null,
     streak: streakState.streak,
     streakFreeze: {
