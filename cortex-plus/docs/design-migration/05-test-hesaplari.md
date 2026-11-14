@@ -44,7 +44,8 @@ Hazırlık ürünün kendi işleviyle (`create_exam_prep_graph`, tek işlem) aç
 | `credit_wallets` | Ücretsiz: `balance 0`, `free_allowance_remaining 0`. Ücretli: `balance 0`, `free_allowance_remaining = hak × (1 − kullanım)`, `period_allowance` (`plans.monthly_allowance`: 7.200 / 2.700 / 60.000), `period_kind`, `period_ends_at` | |
 | `subscriptions` | Ücretli: `plan_id` (slug'dan), `status active`, `billing_period`, `current_period_start/end` (aylık +30 gün; haftalık 3 gün − 1 dk), `trial_until null`, `auto_renew false`, `cancel_at_period_end false`, `renewal_reminder_sent_at` ve `expired_notified_at` = koşu anı. Ücretsiz: varsa `inactive` | İki işaret dolu olduğu için dönem sonu hatırlatması ve bitiş bildirimi gitmez |
 | `free_usage` | Önce silinir; `e2e-free-used` için `chat 1`, `e2e-free-exhausted` için `chat 3` + `photo 1` (bugünün İstanbul günü) | |
-| `exam_preps` (+ `study_plans`, `study_plan_tasks`, `exam_prep_topics`, `exam_prep_nodes`, `exam_prep_sessions`) | Yukarıdaki hazırlık; her koşuda `exam_date` ve adım durumları sıfırlanır, adımlar `session_meta {topicId, topicTitle}` ile konusuna bağlanır | `e2e-free-used`'da 1. ders `done`, konu testi `ready`; ötekilerde 1. ders `ready` |
+| `exam_preps` (+ `study_plans`, `study_plan_tasks`, `exam_prep_topics`, `exam_prep_nodes`, `exam_prep_sessions`) | Yukarıdaki hazırlık; her koşuda `exam_date` ve adım durumları sıfırlanır (adımlar tür + başlıkla eşlenir, sayfanın eklediği adımlar kilitli), adımlar `session_meta {topicId, topicTitle}` ile konusuna bağlanır; `intro_deferred_at` dolu (seviye tespiti ertelenmiş) | `e2e-free-used`'da 1. ders `done`, konu testi `ready`; ötekilerde 1. ders `ready`. `intro_deferred_at` olmasa ilk ziyaretteki arka plan isteği onu kendiliğinden doldurur ve sayfa ilk ve ikinci ziyarette farklı görünür |
+| `documents`, `document_pages`, depo (`documents/<kullanıcı>/<belge>/`) | Yalnız `e2e-plus`: "E2E Ders Notu.txt", tek sayfa (`/dokumanlar/:id` için) | `--remove` depo dosyasını da siler |
 | `consent_records` | Giriş betiği, `auth.setup.ts` ile aynı yoldan yazar: `/api/consent/accept` okuma kanıtıyla | |
 
 **Yazılmayanlar:**
@@ -62,8 +63,17 @@ Hazırlık ürünün kendi işleviyle (`create_exam_prep_graph`, tek işlem) aç
 | Davet ve davet hediyesi e-postası | Kampanya izni yok, anahtar kapalı, davet bağı yok; ayrıca `once:referral_invite` var |
 | Plan bitiş hatırlatması ve bildirimi (`api/cron/subscription-renewal`) | `renewal_reminder_sent_at` ve `expired_notified_at` dolu |
 
+**Ücretli çağrı yok:** görsel taban, denetim ve performans ölçümü sunucuyu `OPENAI_API_KEY`, SMTP ve Resend **boş**
+başlatır (`tests/visual/visual.config.ts`, başlatma ayarı `cortex-plus-test-guvenli`, `scripts/perf-baseline.mjs`). Next
+tanımlı bir değişkeni `.env.local` ile ezmez; OpenAI istemcisi boş anahtarla istek göndermeden hata verir. Hazırlık sayfası
+açılınca sıradaki ders arka planda yazılmaya kalkar ve `no_api_key` ile düşer (ücret iade). 14 Kasım 2026'da 8 hesapta
+`ai_usage_events` 0. **3005'teki geliştirme sunucusu gerçek anahtarla çalışır:** test hesaplarıyla hazırlık sayfasını ya da
+ders düğümünü orada açmayın.
+
 **Kabul edilen etki (A seçeneği):**
 - **Yönetim sayıları:** kokpit, Kullanıcı Etkinlikleri, Kullanıcılar, beta ölçütleri, anket sonuçları ve günlük özet bu 8 hesabı sayar.
+- **Ders hataları** (`/admin/ders-hatalari`, `lesson_generation_failures`): her görsel ya da denetim koşusu, test hesaplarının
+  hazırlığı için birkaç `no_api_key` kaydı ekler.
 - **Toplu hizmet duyurusu:** doğrulanmış herkese gider, yani bu 8 adrese de. Adresler teslim edilemez ve Resend'de geri dönme (bounce) olarak görünür. Duyuru göndermeden önce `--remove` ile hesaplar silinebilir, sonra yeniden açılır.
 
 ## Zamanla bayatlayan durumlar: testten önce yeniden çalıştırın

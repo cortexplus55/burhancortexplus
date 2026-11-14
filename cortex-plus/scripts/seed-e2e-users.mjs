@@ -40,7 +40,7 @@ export const E2E_USERS = [
   { name: "e2e-free-fresh", label: "Ücretsiz Yeni", plan: "free", lesson: "open" },
   { name: "e2e-free-used", label: "Ücretsiz Kullanmış", plan: "free", lesson: "done", meters: { chat: 1 } },
   { name: "e2e-free-exhausted", label: "Ücretsiz Dolu", plan: "free", lesson: "open", meters: { chat: 3, photo: 1 } },
-  { name: "e2e-plus", label: "Plus", plan: "plus-aylik", used: 0 },
+  { name: "e2e-plus", label: "Plus", plan: "plus-aylik", used: 0, document: true },
   { name: "e2e-plus-90", label: "Plus Doksan", plan: "plus-aylik", used: 0.9 },
   { name: "e2e-plus-100", label: "Plus Yüz", plan: "plus-aylik", used: 1 },
   { name: "e2e-week", label: "Sınav Haftası", plan: "plus-haftalik", used: 0, daysLeft: 3 },
@@ -271,20 +271,64 @@ async function seedPrep(id, spec, now) {
     if (error || typeof data !== "string") throw new Error(`hazırlık açılamadı (${error?.code ?? "?"})`);
     prep = { id: data };
   }
-  await must("hazırlık", service.from("exam_preps").update({ exam_date: examDate }).eq("id", prep.id));
+  /* `intro_deferred_at`: yolun başındaki "Seviye tespiti" adımı tanı ertelenince kalkar. Hazırlık sayfasının ilk
+     ziyaretindeki arka plan ders isteği bunu kendiliğinden işaretliyordu; ilk ve sonraki ziyaret farklı görünüyordu
+     (görsel taban). Tohum hazırlığı doğrudan bu kalıcı hâlde yazar. */
+  const { data: introRow } = await service.from("exam_preps").select("intro_deferred_at").eq("id", prep.id).maybeSingle();
+  await must(
+    "hazırlık",
+    service.from("exam_preps").update({ exam_date: examDate, ...(introRow?.intro_deferred_at ? {} : { intro_deferred_at: now.toISOString() }) }).eq("id", prep.id),
+  );
   const topics = await must("konular", service.from("exam_prep_topics").select("id, label, sort_order").eq("exam_prep_id", prep.id).order("sort_order"));
-  const all = await must("yol", service.from("exam_prep_nodes").select("id, kind, sort_order").eq("exam_prep_id", prep.id).order("sort_order"));
+  /* Adımlar sıra numarasıyla değil tür + başlıkla eşlenir: hazırlık sayfası ilk açılışta yola eksik adımları ekler
+     (`ensurePathSkeletonNodes`) ve sırayı kaydırabilir. Tohumun yazdığı 7 adım dışındakiler kilitli kalır. */
+  const all = await must("yol", service.from("exam_prep_nodes").select("id, kind, title, sort_order, session_meta").eq("exam_prep_id", prep.id).order("sort_order"));
   const plan = pathNodes();
-  for (const [index, node] of (all ?? []).entries()) {
-    const draft = plan[index];
-    const topic = draft && draft.topic !== undefined ? topics?.[draft.topic] : null;
+  const used = new Set();
+  for (const draft of plan) {
+    const topic = draft.topic !== undefined ? topics?.[draft.topic] : null;
+    const node = (all ?? []).find((n) => !used.has(n.id) && n.kind === draft.kind
+      && (draft.kind === "lesson" ? n.title === draft.title : true)
+      && (!topic || !n.session_meta?.topicId || n.session_meta.topicId === topic.id));
+    if (!node) continue;
+    used.add(node.id);
+    const first = draft.topic === 0;
     let status = "locked";
-    if (index === 0) status = spec.lesson === "done" ? "done" : "ready";
-    if (index === 1 && spec.lesson === "done") status = "ready";
+    if (first && draft.kind === "lesson") status = spec.lesson === "done" ? "done" : "ready";
+    if (first && draft.kind === "quiz" && spec.lesson === "done") status = "ready";
     const patch = { status, ...(topic ? { session_meta: { topicId: topic.id, topicTitle: topic.label } } : {}) };
     await must("yol", service.from("exam_prep_nodes").update(patch).eq("id", node.id));
   }
+  const rest = (all ?? []).filter((n) => !used.has(n.id)).map((n) => n.id);
+  if (rest.length) await must("yol", service.from("exam_prep_nodes").update({ status: "locked" }).in("id", rest));
   return prep.id;
+}
+
+const DOC_NAME = "E2E Ders Notu.txt";
+const DOC_TEXT = [
+  "Sayı Kümeleri",
+  "Doğal sayılar N = {0, 1, 2, ...}; tam sayılar Z; rasyonel sayılar Q = {a/b : a, b tam sayı, b ≠ 0}.",
+  "Üslü Sayılar",
+  "a^m · a^n = a^(m+n); (a^m)^n = a^(m·n); a^0 = 1 (a ≠ 0).",
+  "Köklü Sayılar",
+  "√(a·b) = √a · √b (a, b ≥ 0); √(x²) = |x|.",
+].join("\n");
+
+/** `/dokumanlar/:id` için sabit belge (yalnız `document: true` hesapta): depo dosyası + satır + tek sayfa metni. */
+async function seedDocument(id) {
+  const { data: existing } = await service.from("documents").select("id").eq("user_id", id).eq("file_name", DOC_NAME).is("deleted_at", null).limit(1).maybeSingle();
+  if (existing) return existing.id;
+  const documentId = crypto.randomUUID();
+  const storagePath = `${id}/${documentId}/e2e-ders-notu.txt`;
+  const body = Buffer.from(DOC_TEXT, "utf8");
+  const { error: uploadError } = await service.storage.from("documents").upload(storagePath, body, { contentType: "text/plain", upsert: true });
+  if (uploadError) throw new Error(`belge yüklenemedi (${uploadError.message ?? "?"})`);
+  await must("belge", service.from("documents").insert({
+    id: documentId, user_id: id, file_name: DOC_NAME, storage_path: storagePath, mime_type: "text/plain",
+    size_bytes: body.length, status: "completed", page_count: 1,
+  }));
+  await must("belge sayfası", service.from("document_pages").insert({ document_id: documentId, page_number: 1, text_content: DOC_TEXT }));
+  return documentId;
 }
 
 // Kaldırmada silinen tablolar: hesap silme işçisinin listesi (`account-deletion.ts`) + bu betiğin yazdıkları.
@@ -303,7 +347,10 @@ async function removeUser(name) {
   const user = await ownedTestUser(name);
   if (!user) return "yok";
   if (DRY) return "silinecek";
-  for (const table of PURGE_TABLES) {
+  const { data: docs } = await service.from("documents").select("storage_path").eq("user_id", user.id);
+  const paths = (docs ?? []).map((d) => d.storage_path).filter((p) => typeof p === "string" && p.startsWith(`${user.id}/`));
+  if (paths.length) await service.storage.from("documents").remove(paths);
+  for (const table of ["documents", ...PURGE_TABLES]) {
     const { error } = await service.from(table).delete().eq("user_id", user.id);
     if (error && !isMissingTable(error)) throw new Error(`${name}: ${table} silinemedi (${error.code ?? "?"})`);
   }
@@ -351,7 +398,11 @@ async function main() {
     await seedPlan(id, spec, now);
     await seedMeters(id, spec, now);
     const prepId = await seedPrep(id, spec, now);
-    state.users[spec.name] = { plan: spec.plan, prepId };
+    const documentId = spec.document ? await seedDocument(id) : undefined;
+    const { data: pathRows } = await service.from("exam_prep_nodes").select("id, kind").eq("exam_prep_id", prepId).order("sort_order");
+    const lessonNodeId = pathRows?.find((n) => n.kind === "lesson")?.id ?? null;
+    const quizNodeId = pathRows?.find((n) => n.kind === "quiz")?.id ?? null;
+    state.users[spec.name] = { plan: spec.plan, prepId, lessonNodeId, quizNodeId, ...(documentId ? { documentId } : {}) };
     console.log(`  ${spec.name}: hazır (${spec.plan})`);
   }
   let previous = {};
