@@ -64,11 +64,16 @@ function premiumRefill(wallet: WalletPeriod | null | undefined): {
   return { kind: "monthly", days: 30 };
 }
 
+/** Aboneliğin son 24 saati: sunucu yeni dönem hakkı yazmaz (credit_reserve, 20261115120000). */
+const SUBSCRIPTION_TAIL_MS = 86_400_000;
+
 export function quotaView(
   wallet: WalletPeriod | null | undefined,
   isPremium: boolean,
   now = new Date(),
   premiumAllowance = PREMIUM_MONTHLY_ALLOWANCE,
+  /** Aboneliğin bitişi: yenilenen dönem bunu geçmez, son 24 saatte yenileme yok (sunucuyla aynı kural). */
+  subscriptionEnd?: string | null,
 ): QuotaView {
   const fallbackAllowance = isPremium
     ? premiumAllowance
@@ -96,11 +101,27 @@ export function quotaView(
     const refill = isPremium
       ? premiumRefill(wallet)
       : { kind: "daily" as const, days: 1 };
+    const subEnd = isPremium && subscriptionEnd ? new Date(subscriptionEnd) : null;
+    const subEndKnown = subEnd !== null && !Number.isNaN(subEnd.getTime());
+    if (subEndKnown && subEnd.getTime() - now.getTime() < SUBSCRIPTION_TAIL_MS) {
+      // Aboneliğin son saatleri: yenileme yok, eldeki hak paket bitene kadar geçerli.
+      const allowance = Math.max(1, wallet.period_allowance || fallbackAllowance);
+      const remaining = Math.max(0, Math.min(wallet.free_allowance_remaining, allowance));
+      return {
+        remaining,
+        allowance,
+        usedPercent: Math.round(((allowance - remaining) / allowance) * 100),
+        resetsAt: subEnd,
+        kind: refill.kind,
+        pendingRefill: false,
+      };
+    }
+    const next = nextUtcDayOffset(now, refill.days);
     return {
       remaining: fallbackAllowance,
       allowance: fallbackAllowance,
       usedPercent: 0,
-      resetsAt: nextUtcDayOffset(now, refill.days),
+      resetsAt: subEndKnown && subEnd < next ? subEnd : next,
       kind: refill.kind,
       pendingRefill: true,
     };

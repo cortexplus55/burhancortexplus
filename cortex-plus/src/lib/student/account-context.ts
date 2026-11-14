@@ -127,6 +127,7 @@ export async function getStudentAccountContext(
     isPremium,
     new Date(),
     entitlements.monthlyAllowance ?? undefined,
+    entitlements.subscriptionPeriodEnd,
   );
 
   const meters = !isPremium && !isAdmin ? await loadFreeMeters(createServiceClient(), userId) : null;

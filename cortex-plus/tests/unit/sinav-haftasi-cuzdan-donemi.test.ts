@@ -133,6 +133,7 @@ beforeAll(async () => {
   await db.exec(`${migration("20261024120000_credit_prices_v3")}\n${migration("20261024123000_free_daily_zero")}`);
   await db.exec(migration("20261111180000_free_lesson_trial"));
   await db.exec(migration("20260923180000_paytr_subscription_tier_only"));
+  await db.exec(migration("20261115120000_sinav_haftasi_cuzdan_donemi"));
 }, 90_000);
 afterAll(() => db.close());
 
@@ -181,7 +182,10 @@ describe("aboneliğin son saatleri: yeni dönem hakkı yazılmaz", () => {
     // Cüzdanın dönem sonu ile aboneliğin bitişinin tam ortasına ileri al (boşluk varsa onun içi).
     await advance(user, (walletEnd + end) / 2 - (await dbNow()).getTime());
     const result = await reserve(user, "STUDY_PLAN_GENERATE", "lesson");
-    expect(result).toMatchObject({ ok: false, error: expect.stringContaining("insufficient_credits") });
+    // Boşluk yoksa bu an aboneliğin bitişidir: ücretsiz hesap (ders sayacı); boşluk varsa kuyruk kuralı. İkisinde de
+    // ayırma geçmez ve cüzdana yeni hak yazılmaz.
+    expect(result.ok).toBe(false);
+    expect((await wallet(user)).free_allowance_remaining).toBe(0);
   });
 });
 
@@ -240,5 +244,31 @@ describe("olağan davranış bozulmaz", () => {
     await advance(user, 4 * DAY);
     const result = await reserve(user, "DOCUMENT_PAGE_PROCESS", null);
     expect(result).toMatchObject({ ok: false, error: expect.stringContaining("insufficient_credits") });
+  });
+});
+
+describe("arayüzün hak hesabı (quotaView) sunucuyla aynı kuralı izler", () => {
+  const now = new Date("2026-11-17T05:00:00Z");
+  const expiredWallet = { free_allowance_remaining: 120, period_allowance: 2700, period_ends_at: "2026-11-17T00:00:00Z", period_kind: "weekly" };
+
+  it("aboneliğin son 24 saatinde yenileme beklenmez; sıfırlanma = paket bitişi", async () => {
+    const { quotaView } = await import("@/lib/credits/period");
+    const q = quotaView(expiredWallet, true, now, 2700, "2026-11-17T10:00:00Z");
+    expect(q).toMatchObject({ pendingRefill: false, remaining: 120, allowance: 2700 });
+    expect(q.resetsAt.toISOString()).toBe("2026-11-17T10:00:00.000Z");
+  });
+
+  it("aboneliğe günler varken yenileme beklenir ama sıfırlanma paket bitişini geçmez", async () => {
+    const { quotaView } = await import("@/lib/credits/period");
+    const q = quotaView(expiredWallet, true, now, 2700, "2026-11-20T10:00:00Z");
+    expect(q).toMatchObject({ pendingRefill: true, remaining: 2700 });
+    expect(q.resetsAt.toISOString()).toBe("2026-11-20T10:00:00.000Z");
+  });
+
+  it("abonelik bitişi verilmezse bugünkü davranış", async () => {
+    const { quotaView } = await import("@/lib/credits/period");
+    const q = quotaView(expiredWallet, true, now, 2700);
+    expect(q).toMatchObject({ pendingRefill: true, remaining: 2700 });
+    expect(q.resetsAt.toISOString()).toBe("2026-11-24T00:00:00.000Z");
   });
 });
