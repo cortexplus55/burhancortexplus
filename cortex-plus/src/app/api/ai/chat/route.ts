@@ -272,7 +272,7 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
     // Öğrencinin kendi materyaline bağlanma (15 Kasım 2026): ana sohbette mesaj hazırlık / konu / belge adı, "N gün
     // sonraki sınav" ya da seçili hazırlıkla eşlenir. Yalnız okuma; düşerse bağlantı yok, sohbet bugünkü gibi sürer.
     const materialEarly: Promise<ChatMaterialLink | null> = !rest.prepId && !rest.imageDocumentId
-      ? resolveChatMaterial(service, userId, message, rest.contextPrepId ?? null).catch((error) => {
+      ? resolveChatMaterial(service, userId, message, rest.contextPrepId ?? null, { conversationId: rest.conversationId }).catch((error) => {
           console.warn("chat_material_link_failed", { operationId, cause: String(error instanceof Error ? error.message : error).slice(0, 120) });
           return null;
         })
@@ -730,10 +730,18 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
             const checked = await verifyDocumentAnswer({ client, question: message, answer: content, evidence, strict, signal: request.signal, model: reviewModel });
             await recordUsage(service, { userId, actionCode, model: reviewModel, tokensIn: checked.tokensIn, tokensOut: checked.tokensOut, reservationId });
             if (!checked.ok) {
-              logOpsEvent("document_answer_rejected", { operationId, attempt, strict, evidence: evidence.length, reasons: checked.reasons });
+              logOpsEvent("document_answer_rejected", { operationId, attempt, strict, evidence: evidence.length, reasons: checked.reasons, linked: linkedEvidence });
               if (!strict && offDocument && isAcceptableOutsideAnswer(content)) {
                 citations = [];
                 content = await polishPrep(content);
+                accepted = true;
+                break;
+              }
+              // Sistemin kendisinin bağladığı not (15 Kasım 2026, canlı): öğrenci "Yalnızca belgem" seçmedi. Cevap eğitim
+              // denetiminden geçtiyse kalır, yalnız sayfa atfı çıkmaz. Canlıda özet isteği iki kez kaynak denetiminden
+              // (schema_mismatch) düşüp "emin olamadım"a dönüyordu; yeniden yazmak aynı yerde takılıyordu.
+              if (linkedEvidence && !strict) {
+                citations = [];
                 accepted = true;
                 break;
               }

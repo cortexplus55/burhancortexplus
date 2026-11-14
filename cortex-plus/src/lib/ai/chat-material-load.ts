@@ -98,10 +98,30 @@ export async function resolveChatMaterial(
   userId: string,
   message: string,
   contextPrepId: string | null,
+  options: { conversationId?: string | null } = {},
 ): Promise<ChatMaterialLink | null> {
   const index = await loadChatMaterialIndex(service, userId);
   if (!index.preps.length && !index.documents.length) return null;
-  const match = matchChatMaterial(message, index, { contextPrepId });
+  let match = matchChatMaterial(message, index, { contextPrepId });
+  // "Bu konudan test hazırla" (15 Kasım 2026, canlı): mesajda ad yoksa konuşmanın son öğrenci mesajlarında adı geçen
+  // hazırlık geçerli; seçili hazırlık ancak onlarda da ad yoksa.
+  if (match.reason !== "named" && match.reason !== "days" && options.conversationId) {
+    const { data: recent } = await service
+      .from("messages")
+      .select("content")
+      .eq("conversation_id", options.conversationId)
+      .eq("user_id", userId)
+      .eq("role", "user")
+      .order("created_at", { ascending: false })
+      .limit(3);
+    for (const row of recent ?? []) {
+      const earlier = matchChatMaterial(String(row.content ?? ""), index);
+      if (earlier.reason === "named" || earlier.reason === "days") {
+        match = { ...earlier, materialCue: match.materialCue || earlier.materialCue };
+        break;
+      }
+    }
+  }
   const intent = detectChatIntent(message);
   if (match.reason === "none" && !match.materialCue && !intent.tool && !intent.summary) return null;
 
