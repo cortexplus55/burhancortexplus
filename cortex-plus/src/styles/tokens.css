@@ -447,6 +447,10 @@
   --cx-plan-sigma-chip-bg: #ffe4e6;
   --cx-plan-sigma-chip-text: #9f1239;
   --cx-plan-sigma-glow: radial-gradient(90% 38% at 20% 0%, #f43f5e26, transparent 72%);
+  /* Heyecan kiti şeritleri (Faz 4A, 14 Kasım 2026, ANA-PROMPT 4A): sen, bot, arkadaş. Açık temada okunur koyu tonlar. */
+  --cx-lane-you: #0e7490;
+  --cx-lane-bot: #a21caf;
+  --cx-lane-friend: #6d28d9;
 }
 
 .dark {
@@ -456,6 +460,10 @@
    * sıcak siyahı; marka, vurgu, odak ve anlam renkleri skill'den. Skill §2'nin arduvaz merdiveni (A) kullanılmaz.
    */
   --cx-bg-0: #0b0907;
+  /* Heyecan kiti şeritleri (Faz 4A): ANA-PROMPT 4A değerleri. */
+  --cx-lane-you: #22d3ee;
+  --cx-lane-bot: #e879f9;
+  --cx-lane-friend: #a78bfa;
   --cx-bg-1: #15110d;
   --cx-bg-2: #1e1813;
   --cx-bg-3: #29211a;
