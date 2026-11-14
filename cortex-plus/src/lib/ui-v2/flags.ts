@@ -49,3 +49,17 @@ export async function uiV2(key: UiV2Key, userId?: string | null): Promise<boolea
     return false;
   }
 }
+
+/**
+ * Durağan (ISR) sayfalar için bayrak (Faz 12B): istek çerezi okunmaz, bu yüzden sayfa durağan kalır. Canlıda veritabanı
+ * satırı (sayfa `revalidate` süresinde yeniden çizilir), önizlemede açık, yerelde yalnız `UI_V2` ortam değişkeni.
+ * Giriş ve kayıt bayrak okumak için dinamik olunca hidrasyon büyüyüp engelleme süresi ~%50 artıyordu.
+ */
+export async function uiV2Static(key: UiV2Key): Promise<boolean> {
+  const env = process.env.VERCEL_ENV;
+  if (env === "production") {
+    return isFeatureEnabled(createServiceClient(), `ui.v2.${key}`, null).catch(() => false);
+  }
+  if (env === "preview") return true;
+  return listed(process.env.UI_V2, key);
+}

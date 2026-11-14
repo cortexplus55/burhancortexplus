@@ -1,17 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
 
 /*
-  Faz 7 (14 Kasım 2026): giriş + kayıt (`ui.v2.giris`), kurulum (`ui.v2.kurulum`), /pay (`ui.v2.pay`). Yerel sunucuda
-  bayrak `cx-ui-v2` çereziyle açılır; canlıda çerez yok sayılır. Gerçek hesap açılmaz, gerçek giriş ve ödeme yapılmaz:
+  Faz 7 (14 Kasım 2026): giriş + kayıt (`ui.v2.giris`), kurulum (`ui.v2.kurulum`), /pay (`ui.v2.pay`). Giriş ve
+  kayıt sayfaları durağan (Faz 12B): yeni görünüm `/e2e/giris?ui=v2` fikstüründe, kapalı hâl gerçek /giris'te. Gerçek hesap açılmaz, gerçek giriş ve ödeme yapılmaz:
   Supabase kimlik ucu ağ katmanında taklit, paket kartları fikstürde (satın alma düğmesine basılmaz).
 */
 
 const WIDTHS = [375, 768, 1280] as const;
-
-async function flag(page: Page, value: string) {
-  const base = test.info().project.use.baseURL ?? "http://localhost:3006";
-  await page.context().addCookies([{ name: "cx-ui-v2", value, url: base }]);
-}
 
 async function overflow(page: Page): Promise<number> {
   return page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
@@ -22,8 +17,7 @@ for (const width of WIDTHS) {
     test.use({ viewport: { width, height: 860 } });
 
     test("giriş v2: 48 px hap alanlar, 16 px yazı, şifre göster / gizle, tek brand", { tag: ["@public"] }, async ({ page }) => {
-      await flag(page, "giris");
-      await page.goto("/giris");
+      await page.goto("/e2e/giris?ui=v2");
       await expect(page.locator('.cx-ui-scope[data-ui~="giris"]')).toHaveCount(1);
       const email = page.getByLabel("E-posta");
       const password = page.getByLabel("Şifre", { exact: true });
@@ -48,7 +42,6 @@ for (const width of WIDTHS) {
     });
 
     test("giriş v2: Enter gönderir, çift tıklama tek istek, hata metni aynı", { tag: ["@public"] }, async ({ page }) => {
-      await flag(page, "giris");
       let calls = 0;
       await page.route("**/auth/v1/token**", async (route) => {
         calls += 1;
@@ -62,7 +55,7 @@ for (const width of WIDTHS) {
       await page.route("**/api/auth/giris-ipucu", (route) =>
         route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ hint: null }) }),
       );
-      await page.goto("/giris");
+      await page.goto("/e2e/giris?ui=v2");
       await page.getByLabel("E-posta").fill("ogrenci-test@example.com");
       await page.getByLabel("Şifre", { exact: true }).fill("Yanlis1234!");
       await page.getByLabel("Şifre", { exact: true }).press("Enter");
@@ -80,8 +73,7 @@ for (const width of WIDTHS) {
     });
 
     test("kayıt v2: sarmalayıcı var, taşma yok", { tag: ["@public"] }, async ({ page }) => {
-      await flag(page, "giris");
-      await page.goto("/kayit");
+      await page.goto("/e2e/giris?ui=v2&sayfa=kayit");
       await expect(page.locator('.cx-ui-scope[data-ui~="giris"]')).toHaveCount(1);
       expect(await overflow(page)).toBeLessThanOrEqual(0);
     });

@@ -81,9 +81,10 @@ describe("sayfalar bayrağı okur, kapalıyken sarmalayıcı yok", () => {
   it("giriş, kayıt ve şifre sıfırlama düzeni ui.v2.giris; kurulum ui.v2.kurulum; /pay ui.v2.pay", () => {
     for (const route of ["giris", "kayit", "sifremi-unuttum"]) {
       const layout = read(`src/app/${route}/layout.tsx`);
-      expect(layout).toContain('uiV2("giris")');
-      expect(layout).toContain('(await uiV2("giris")) ? ["giris"] : []');
-      expect(layout).toContain('export const dynamic = "force-dynamic"');
+      // Faz 12B: durağan sayfa, bayrak çerezsiz okunur (dinamik çizim engelleme süresini artırıyordu).
+      expect(layout).toContain('(await uiV2Static("giris")) ? ["giris"] : []');
+      expect(layout).toContain("export const revalidate = 60;");
+      expect(layout).not.toContain("force-dynamic");
     }
     expect(read("src/app/sifremi-unuttum/layout.tsx")).toContain('title: "Şifremi unuttum"');
     expect(read("src/app/deneme-sinavlari/olustur/page.tsx")).toContain('uiV2("kurulum", user.id)');
