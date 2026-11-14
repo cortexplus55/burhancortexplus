@@ -208,13 +208,13 @@ describe("402 gövdesinde gate (sunucu retinin kapı dili)", () => {
     expect(gateFromRefusal("insufficient_credits", NOW)).toBeNull();
     expect(gateFromRefusal("generation_failed", NOW)).toBeNull();
   });
-  it("errorResponse 402'ye gate ekler, öbür durumlara eklemez; error ve code aynen", async () => {
+  it("errorResponse hak retlerine gate ekler, öbür kodlara eklemez; error ve code aynen", async () => {
     const { errorResponse } = await import("@/lib/api/guards");
     const refused = await errorResponse(402, "free_chat_limit").json();
     expect(refused).toMatchObject({ code: "free_chat_limit", gate: { state: "locked", reason: "daily_messages_used" } });
     expect(typeof refused.error).toBe("string");
     expect(await errorResponse(402, "insufficient_credits").json()).not.toHaveProperty("gate");
-    expect(await errorResponse(409, "free_chat_limit").json()).not.toHaveProperty("gate");
+    expect(await errorResponse(400, "generation_failed").json()).not.toHaveProperty("gate");
   });
   it("assertGate: kilitliyse 402 + { gate }, açıksa geçer", async () => {
     const { assertGate } = await import("@/lib/entitlements/server");

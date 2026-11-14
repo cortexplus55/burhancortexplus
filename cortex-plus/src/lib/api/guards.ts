@@ -391,12 +391,14 @@ export function errorResponse(
 
     `error` alanı olduğu gibi duruyor — mevcut istemciler onu okuyor.
 
-    Faz 3A (14 Kasım 2026): 402'de gövdeye `gate` de eklenir (hak sisteminin kapısı; `gateFromRefusal`). Karar
-    değişmez: ret yine bugünkü kontrolden gelir, `gate` yalnız onu arayüzün diliyle söyler. Tanınmayan kodda yok.
+    Faz 3A (14 Kasım 2026): hak retlerinin gövdesine `gate` de eklenir (hak sisteminin kapısı; `gateFromRefusal`
+    yalnız ücretsiz sınırı ve Plus retlerinin kodlarını tanır). Karar değişmez: ret yine bugünkü kontrolden gelir,
+    `gate` yalnız onu arayüzün diliyle söyler. Tanınmayan kodda yok.
   */
-  const gate = status === 402 ? gateFromRefusal(code) : null;
+  const gate = gateFromRefusal(code);
+  if (gate) extras = { gate, ...extras };
   return NextResponse.json(
-    { error: messages[code] ?? "Beklenmeyen bir hata oluştu.", code, ...(gate ? { gate } : {}), ...extras },
+    { error: messages[code] ?? "Beklenmeyen bir hata oluştu.", code, ...extras },
     { status },
   );
 }

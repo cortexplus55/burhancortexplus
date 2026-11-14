@@ -76,7 +76,7 @@ export async function startAction(context: NodeContext): Promise<NextResponse> {
   if (firstTopicLock) {
     if (prefetch) return NextResponse.json({ ok: true, skipped: "free_topic" });
     return NextResponse.json(
-      { error: "Bu konu Plus'ta.", code: FREE_TOPIC_LIMIT_CODE, gate: gateFromRefusal(FREE_TOPIC_LIMIT_CODE), firstTopic: firstTopicLock },
+      { error: "Bu konu Plus'ta.", code: FREE_TOPIC_LIMIT_CODE, firstTopic: firstTopicLock, gate: gateFromRefusal(FREE_TOPIC_LIMIT_CODE) },
       { status: 402 },
     );
   }

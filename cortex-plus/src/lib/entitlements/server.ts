@@ -14,7 +14,7 @@ import type { Action, EntitlementSnapshot, Gate, GateContext, GateReason } from 
 
   Rotalar bugün hakkı zaten zorluyor (SQL `credit_reserve_metered`, `freeLessonRefused`, `freeTopicGate` …) ve
   sunucu gerçektir. Bu yüzden `assertGate` rotalara İKİNCİ bir ön kontrol olarak takılmadı: ikinci bir karar
-  ancak birinciyle ayrışabilirdi (OTONOM §9). Her ret 402 gövdesinde `gate` taşır (`errorResponse`,
+  ancak birinciyle ayrışabilirdi (OTONOM §9). Her hak reddinin gövdesi `gate` taşır (`errorResponse`,
   `gateFromRefusal`); `assertGate`, hak kararını önceden isteyen yeni bir uç için hazırdır.
 */
 
@@ -67,6 +67,8 @@ export async function assertGate(
 ): Promise<AssertedGate> {
   const gate = getGate(await load(service, userId), action, context);
   if (gate.state !== "locked") return { ok: true, gate };
+  // Ret kodu bugünkü sunucunun kodlarından biri: free_lesson_limit, free_chat_limit, free_photo_limit, premium_required,
+  // free_topic_limit, free_prep_limit, free_included_limit, free_photo_abuse_limit, spend_cap_free, insufficient_credits.
   return {
     ok: false,
     gate,

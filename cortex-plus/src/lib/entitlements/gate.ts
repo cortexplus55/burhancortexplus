@@ -10,8 +10,8 @@ import type { Action, EntitlementSnapshot, Gate, GateContext, GateReason, MeterS
   `KNOWN_DEVIATION` testlerinde. Ret sırası `reserveCredits` + `credit_reserve_metered` ile aynı:
     kurucu (önizleme kapalı) ve abone → dönem hakkı + bakiye (`credit_reserve`);
     ücretsiz → ders kapısı (bakiye = hediye) → harcama sigortası → okunamayan fotoğraf → Plus'a özel iş → sayaç → bakiye.
-  Arayüz bu kararı yalnız GÖSTERİR; işi açıp kapatan yine sunucudur. Sunucu reddederse 402 gövdesindeki `gate`
-  (`gateFromRefusal`) kazanır.
+  Arayüz bu kararı yalnız GÖSTERİR; işi açıp kapatan yine sunucudur. Sunucu reddederse ret yanıtının gövdesindeki
+  `gate` (`gateFromRefusal`) kazanır.
 */
 
 /** Profilden plan: kimlik kapsülüyle aynı çözücü (`planIdentity`); `is_admin` = Kurucu görünümü (OTONOM §9 karar 4). */
