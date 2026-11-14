@@ -1,0 +1,320 @@
+/*
+ * Hak sistemi görünümü (Faz 3B): kapı işaretleri ve yükseltme penceresi. Değerler yalnız --cx-* token'larından;
+ * ham renk ve ölçü yazılmaz. Kartta kenarlık yok; pencere zemin basamağıyla ayrılır.
+ */
+
+/* ---------------- Kapı işaretleri ---------------- */
+.cx-gate {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cx-gate-lock {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--cx-text-highlight);
+}
+.cx-gate-lock svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+.cx-gate-plus {
+  padding: 2px 6px;
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-highlight-weak);
+  color: var(--cx-text-highlight);
+}
+
+.cx-gate-count {
+  color: var(--cx-text-secondary);
+  white-space: nowrap;
+}
+.cx-gate-count[data-low] {
+  color: var(--cx-warning);
+}
+
+/* ---------------- Yükseltme penceresi ---------------- */
+.cx-ent-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: var(--cx-dim);
+}
+
+.cx-ent-sheet {
+  position: relative;
+  width: min(480px, 100%);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 32px 24px 24px;
+  border-radius: var(--cx-radius-xl);
+  background: var(--cx-bg-1);
+  color: var(--cx-text-primary);
+  box-shadow: var(--cx-shadow-popover);
+  transition:
+    opacity var(--cx-dur-color) ease,
+    scale var(--cx-dur-color) var(--cx-ease-glide);
+}
+@starting-style {
+  .cx-ent-sheet {
+    opacity: 0;
+    scale: 0.96;
+  }
+}
+
+.cx-ent-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--cx-radius-max);
+}
+.cx-ent-close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.cx-ent-title {
+  margin: 0;
+  padding: 0 48px;
+  text-align: center;
+  text-wrap: balance;
+}
+.cx-ent-figure {
+  margin: 0;
+  text-align: center;
+}
+.cx-ent-body {
+  margin: 0;
+  text-align: center;
+  color: var(--cx-text-secondary);
+  text-wrap: balance;
+}
+.cx-ent-mini {
+  align-self: center;
+  margin: 0;
+  padding: 6px 12px;
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-bg-2);
+  color: var(--cx-text-secondary);
+}
+.cx-ent-meter {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  color: var(--cx-text-secondary);
+}
+
+.cx-ent-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.cx-ent-option {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 12px;
+  align-items: center;
+  padding: 14px 16px;
+  border-radius: var(--cx-radius-m);
+  background: var(--cx-bg-2);
+}
+.cx-ent-option-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.cx-ent-option-note {
+  grid-column: 1;
+  color: var(--cx-text-secondary);
+}
+.cx-ent-option-price {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+.cx-ent-reco {
+  padding: 2px 8px;
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-brand-weak);
+  color: var(--cx-text-brand);
+}
+
+.cx-ent-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+.cx-ent-primary,
+.cx-ent-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--cx-radius-max);
+  text-decoration: none;
+  transition: scale var(--cx-dur-scale) var(--cx-ease-out);
+}
+.cx-ent-primary {
+  min-height: 52px;
+  padding: 0 24px;
+}
+.cx-ent-secondary {
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  cursor: pointer;
+}
+.cx-ent-primary:hover,
+.cx-ent-primary:focus-visible,
+.cx-ent-secondary:hover,
+.cx-ent-secondary:focus-visible {
+  scale: 1.03;
+}
+.cx-ent-sheet :focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}
+
+/* Telefon: alttan tam genişlik, güvenli alan, hedefler ≥ 44 px. */
+@media (max-width: 767px) {
+  .cx-ent-scrim {
+    place-items: end stretch;
+    padding: 0;
+  }
+  .cx-ent-sheet {
+    width: 100%;
+    max-height: calc(100dvh - 24px);
+    border-radius: var(--cx-radius-xl) var(--cx-radius-xl) 0 0;
+    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+    box-shadow: var(--cx-shadow-sheet);
+  }
+  .cx-ent-close {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cx-ent-sheet {
+    transition: opacity var(--cx-dur-color) ease;
+  }
+  @starting-style {
+    .cx-ent-sheet {
+      scale: 1;
+    }
+  }
+  .cx-ent-primary:hover,
+  .cx-ent-primary:focus-visible,
+  .cx-ent-secondary:hover,
+  .cx-ent-secondary:focus-visible {
+    scale: none;
+  }
+}
+
+/* ---------------- Öğretmen çubuğu: mesaj hakkı ---------------- */
+.cx-msg-quota {
+  color: var(--cx-text-secondary);
+  white-space: nowrap;
+}
+.cx-msg-quota[data-low] {
+  color: var(--cx-warning);
+}
+/* İnce çubukta çubuğun üstünde, sağda; çubuğun yüksekliğini ve yerini değiştirmez. */
+.cx-msg-quota[data-variant="slim"] {
+  position: absolute;
+  right: 16px;
+  bottom: calc(100% + 6px);
+  pointer-events: none;
+}
+.cx-msg-quota[data-variant="inline"] {
+  align-self: center;
+  padding-inline: 4px;
+}
+
+/* ---------------- Ana ekran ---------------- */
+.cx-free-lesson {
+  margin-top: var(--cx-space-8);
+  padding: 2px 8px;
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-bg-2);
+  color: var(--cx-text-secondary);
+}
+.cx-rights {
+  margin-top: var(--cx-space-24);
+  padding: var(--cx-space-14) var(--cx-space-16);
+  border-radius: var(--cx-radius-l);
+  background: var(--cx-bg-1);
+  min-width: 0;
+}
+.cx-rights-title {
+  margin: 0 0 var(--cx-space-8);
+  color: var(--cx-text-tertiary);
+}
+.cx-rights-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cx-space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--cx-text-secondary);
+}
+.cx-rights-count {
+  color: var(--cx-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.cx-rights-list [data-low] .cx-rights-count {
+  color: var(--cx-warning);
+}
+
+/* Araç tepsisi: kilit rozeti eski "Plus" rozetinin yerinde (sağ üst); kontrol soluk değil, basılabilir. */
+.cx-tray-item > .cx-gate-lock {
+  position: absolute;
+  top: var(--cx-space-4);
+  right: var(--cx-space-4);
+}
+
+/* ---------------- Profil: Kullanım ---------------- */
+.cx-usage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cx-space-4);
+  padding: var(--cx-space-14) var(--cx-space-20);
+  border-radius: var(--cx-radius-l);
+  background: var(--cx-bg-2);
+}
+.cx-usage-label {
+  color: var(--cx-text-tertiary);
+}
+.cx-usage-line {
+  color: var(--cx-text-secondary);
+  text-align: left;
+}
+button.cx-usage-line {
+  min-height: 40px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--cx-text-primary);
+  cursor: pointer;
+}
+@media (max-width: 767px) {
+  button.cx-usage-line {
+    min-height: 44px;
+  }
+}

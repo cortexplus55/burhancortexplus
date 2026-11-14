@@ -18,6 +18,8 @@ import { PlusLimitBanner } from "@/components/paywall/plus-limit-banner";
 import { PromoBanner, type PromoCampaign } from "@/components/paywall/promo-banner";
 import type { StudentAccountContext } from "@/lib/student/account-context";
 import { StudentShellProvider } from "@/lib/student/student-shell-context";
+import { EntitlementUiProvider } from "@/components/entitlements/entitlement-ui";
+import type { EntitlementSnapshot } from "@/lib/entitlements/types";
 import { isLibraryPath, studentTopTabs, studentBottomTabs } from "@/components/parity/student-shell-nav";
 import { OPEN_STREAK_EVENT, AccountCapsule, ProfileRing, ProfileSidePanel } from "@/components/parity/profile-identity";
 import { planIdentity } from "@/lib/student/plan-identity";
@@ -83,7 +85,13 @@ export function ParitySorShell({
   countdown = null,
   home = false,
   closeHref,
+  entitlements,
 }: {
+  /**
+   * Hak sistemi (Faz 3B): sayfanın bildiği ücretsiz ilk ders durumu ve sınava kalan gün. Kapı ve yükseltme
+   * penceresi kabuğun her sayfasında aynı sağlayıcıdan; verilmezse kapı ilk ders için açık der (OTONOM §9 karar 3).
+   */
+  entitlements?: { firstLesson?: EntitlementSnapshot["firstLesson"]; examDaysLeft?: number | null };
   /** Tam ekran odak görünümü (fiyat): çubuk ve logo yok, sağ üstte bu adrese giden cam kapat. */
   closeHref?: string;
   /**
@@ -297,6 +305,7 @@ export function ParitySorShell({
 
   return (
     <StudentShellProvider account={account}>
+      <EntitlementUiProvider firstLesson={entitlements?.firstLesson ?? null} examDaysLeft={entitlements?.examDaysLeft ?? null}>
       <div className={cn("cp-sor-root", home && chrome === "app" && "cp-sor-root--home", isPremium && "cp-sor-root--plus", isStudio && "cp-sor-root--studio", chrome === "exam" && "cp-sor-root--exam", chrome === "focus" && "cp-sor-root--focus", chrome === "session" && "cp-sor-root--session", minimalTop && "cp-sor-root--minimal-top")}>
       {account?.freePreview && chrome !== "session" ? (
         <div className="cp-free-preview-bar" role="status">
@@ -569,6 +578,7 @@ export function ParitySorShell({
         }}
       />
     </div>
+      </EntitlementUiProvider>
     </StudentShellProvider>
   );
 }
