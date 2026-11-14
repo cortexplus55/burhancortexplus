@@ -136,7 +136,9 @@ if (mode === "manifest") {
   console.log(`Görsel taban manifestle aynı (${manifest.count} görüntü, ${manifest.totalMB} MB).`);
   if (mode === "run") process.exit(playwright(rest));
 } else if (mode === "update") {
-  const status = playwright(["--update-snapshots", ...rest]);
+  // "all": yalın --update-snapshots Playwright'ta "changed" kipidir ve eşik içindeki görüntüyü yeniden yazmaz; taban
+  // eski üretimden kalırdı (14 Kasım 2026'da bu yüzden manifest ile yeni üretim ayrıştı).
+  const status = playwright(["--update-snapshots=all", ...rest]);
   if (status !== 0) {
     console.error("Playwright başarısız; manifest yazılmadı.");
     process.exit(status);
