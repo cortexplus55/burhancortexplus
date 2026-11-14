@@ -1,0 +1,23 @@
+/*
+ * Kütüphane iç ekranları yeni görünüm (Faz 11A, bayrak `ui.v2.kutuphane`): Belgelerim, Yanlışlarım, Çalışma grupları,
+ * Geçmiş konuşmalar. Yalnız `[data-ui~="kutuphane"]` altında; listeler, eylemler, silme onayları ve veri aynen.
+ */
+[data-ui~="kutuphane"] .cp-docs-card,
+[data-ui~="kutuphane"] .cp-classroom-card {
+  border: 0;
+  border-radius: var(--cx-radius-l);
+  background: var(--cx-bg-1);
+}
+[data-ui~="kutuphane"] .cp-search {
+  min-height: 48px;
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-bg-1);
+}
+[data-ui~="kutuphane"] .cp-search input {
+  font-size: 16px;
+}
+[data-ui~="kutuphane"] :focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}

@@ -4,6 +4,7 @@ import { ChatPanel } from "@/components/chat/chat-panel";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { FirstStepLauncher } from "@/components/parity/first-step-launcher";
 import { HomeCockpit, HomeSelectionProvider, HomeToolsTray } from "@/components/parity/home-cockpit";
+import { InviteStrip } from "@/components/growth/invite-strip";
 import type { CockpitPrep, CockpitStep, CockpitTopic } from "@/lib/learning/home-cockpit-model";
 import type { StudentAccountContext } from "@/lib/student/account-context";
 import type { FixturePlan } from "./plan";
@@ -206,7 +207,10 @@ export function AnaEkranFixture({
   planKind,
   rights,
   quota,
+  growth = false,
 }: {
+  /** Faz 11C (`?buyume=1`): davet şeridi (bağlantı örnek). */
+  growth?: boolean;
   /** Hak durumu (Faz 3B); verilmezse sayaçsız (bugünkü görünüm). */
   rights?: FixtureRights;
   /** Plus kotasının kullanılan yüzdesi (Faz 3B). */
@@ -230,7 +234,7 @@ export function AnaEkranFixture({
   );
   const panel = (
       <ChatPanel
-        homeCockpit={cockpit.length ? <HomeCockpit /> : undefined}
+        homeCockpit={cockpit.length ? <HomeCockpit aside={growth ? <InviteStrip url="https://cortexplus.app/kayit?ref=ORNEK" plan="free" /> : undefined} /> : undefined}
         homeTools={cockpit.length ? <HomeToolsTray freeAccount={!plus} /> : undefined}
         variant="parity"
         composerMode="parity"

@@ -451,7 +451,7 @@ function RemainingRights() {
   );
 }
 
-function CockpitText() {
+function CockpitText({ aside }: { aside?: React.ReactNode }) {
   const { preps, prepIndex, topicIndex } = useSelection();
   const prep = preps[prepIndex]!;
   const topic = prep.topics[topicIndex];
@@ -477,12 +477,16 @@ function CockpitText() {
         Ayrıntılar
       </Link>
       <RemainingRights />
+      {aside}
     </div>
   );
 }
 
-/** Beş parçanın ortası: şerit, halka ve metin. Seçim değişince halka ve metin 160 ms solarak yenilenir. */
-export function HomeCockpit() {
+/**
+ * Beş parçanın ortası: şerit, halka ve metin. Seçim değişince halka ve metin 160 ms solarak yenilenir.
+ * `aside` (Faz 11C, `ui.v2.buyume`): metin bloğunun altındaki küçük büyüme yerleşimi; verilmezse hiçbir şey çizilmez.
+ */
+export function HomeCockpit({ aside }: { aside?: React.ReactNode } = {}) {
   const { preps, prepIndex } = useSelection();
   const prep = preps[prepIndex];
   if (!prep) return null;
@@ -492,7 +496,7 @@ export function HomeCockpit() {
       {/* Halka + metin grubu sayfanın yatay merkezinde; kaydırıcı grubun en sağ ucunda (13 Kasım 2026). */}
       <div key={prep.id} className="cx-cockpit-body">
         <TopicRing />
-        <CockpitText />
+        <CockpitText aside={aside} />
         <TopicSlider />
       </div>
     </section>
