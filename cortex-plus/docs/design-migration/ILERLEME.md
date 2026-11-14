@@ -1,7 +1,17 @@
 # İlerleme defteri (tasarım geçişi)
 
-Kaynak: `ANA-PROMPT.md` (14 Kasım 2026). Her PR sonunda güncellenir; oturum başında ve bağlam sıkışmasından sonra ilk bu
-dosya okunur. Hiçbir PR'ı Claude birleştirmez; birleştirme yalnızca "BİRLEŞTİR <PR adı>" ile.
+Kaynaklar: `ANA-PROMPT.md` ve `OTONOM-PROMPT.md` (ikisi de 14 Kasım 2026; çakışmada OTONOM kazanır). Her PR sonunda
+güncellenir; oturum başında ve bağlam sıkışmasından sonra ilk bu dosya okunur.
+
+**Yetki (OTONOM §2):** kapılar + CI yeşil + diff incelemesi temiz + rapor güncelse PR'ı Claude birleştirir (alttan yukarı),
+deploy'u izler, production duman testini (`scripts/smoke-prod.mjs`) koşar, bayrakları §5 sırasıyla açar, düello göçünü §6
+koşullarıyla uygular. Kırmızı çizgiler OTONOM §3; durak koşulları yalnız OTONOM §8 (D1–D5).
+
+**Önceden verilmiş kararlar (OTONOM §9):** sunucu gerçektir, tablo hedeftir; `getGate` bugünkü sunucuyu birebir taşır,
+farklar `10-entitlements.md` "Tablo–sunucu farkları" + `bilinen-sunucu-sapmalari.md` + `KNOWN_DEVIATION` testleri. Plus
+%100 + ek paket = açık; Sınav Haftası dönem boşluğu sunucuya dokunmadan testle sabit, %90/%100 sheet'i açılmaz; ücretsiz
+ilk ders kesin değilse açık, kilit 402 ile; `is_admin` = Kurucu görünümü; eksik ret nedenleri `GateReason`'a, `spend_cap`'te
+teklif yok; sayaç "önce artır, hata olursa iade" kabul; sohbette 402 sonrası metin korunur (yalnız 402 yolu).
 
 | PR | Dal | Durum | PR no | Bayrak | Bekleyen Burhan işi | Notlar |
 |---|---|---|---|---|---|---|
@@ -31,6 +41,15 @@ dosya okunur. Hiçbir PR'ı Claude birleştirmez; birleştirme yalnızca "BİRLE
 | 12A · Durumlar, hata sayfaları | `design/kapanis-durumlar` | bekliyor | — | — | | |
 | 12B · Erişilebilirlik ve performans | `design/kapanis-olcum` | bekliyor | — | — | | |
 | 12C · Temizlik ve kapanış | `design/kapanis-temizlik` | bekliyor | — | — | Bayrak temizliği onayı | |
+
+## Park edilenler
+
+(henüz yok)
+
+## Burhan-only açık işler
+
+1. CI'da hesaplı e2e için GitHub sırrı `E2E_USERS_JSON` (05, "CI").
+2. Canlı duman testini zorunlu kontrol yapmak (06 §9; depo ayarı).
 
 ## Burhan kararı bekleyenler
 
