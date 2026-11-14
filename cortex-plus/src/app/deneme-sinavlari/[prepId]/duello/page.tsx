@@ -7,6 +7,9 @@ import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { DUEL_RULES } from "@/lib/learning/duel";
 import "@/styles/duel.css";
+import "@/styles/ui-v2-duello.css";
+import { uiV2 } from "@/lib/ui-v2/flags";
+import { UiScope } from "@/lib/ui-v2/scope";
 
 export const metadata = { title: "Düellolar" };
 export const dynamic = "force-dynamic";
@@ -15,7 +18,10 @@ export const dynamic = "force-dynamic";
 export default async function PrepDuelsPage({ params }: { params: Promise<{ prepId: string }> }) {
   const { prepId } = await params;
   const { supabase, user } = await requireStudentArea();
-  const shell = await loadParityShellProps(supabase, user.id, user.email);
+  const [shell, duelloV2] = await Promise.all([
+    loadParityShellProps(supabase, user.id, user.email),
+    uiV2("duello", user.id),
+  ]);
 
   const { data: prep } = await supabase
     .from("exam_preps")
@@ -50,11 +56,12 @@ export default async function PrepDuelsPage({ params }: { params: Promise<{ prep
 
   return (
     <ParitySorShell {...shell} chrome="focus" backHref={`/deneme-sinavlari/${prepId}`}>
+      <UiScope keys={duelloV2 ? ["duello"] : []}>
       <div className="cp-exam-page cp-duel-list">
         <header className="cp-duel-list-head">
           <h1>Düellolar</h1>
           <p>Aynı sorularda diğer öğrencileri yen ya da bir arkadaşına düello gönder.</p>
-          <NewDuelButton prepId={prepId} />
+          <NewDuelButton prepId={prepId} gated={duelloV2} />
         </header>
 
         <ol className="cp-duel-rules">
@@ -91,6 +98,7 @@ export default async function PrepDuelsPage({ params }: { params: Promise<{ prep
           </p>
         )}
       </div>
+      </UiScope>
     </ParitySorShell>
   );
 }

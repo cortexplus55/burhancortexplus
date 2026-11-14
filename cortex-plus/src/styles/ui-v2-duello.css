@@ -1,0 +1,82 @@
+/*
+ * Düello yeni görünüm (Faz 9, bayrak `ui.v2.duello`). Yalnız `[data-ui~="duello"]` altında. Soru üretimi, puanlama
+ * (sunucuda), bot turu (sunucuda, tohumlu) ve paylaşım bağlantısı aynen. Bayrak açıkken bot "BOT" etiketli ve bu
+ * sorudaki sonucu öğrenci cevaplayana kadar nötr ("cevapladı").
+ */
+
+[data-ui~="duello"] .cp-duel-card {
+  border: 0;
+  border-radius: var(--cx-radius-l);
+  background: var(--cx-bg-1);
+}
+
+/* Ekranda tek brand: birincil düğme marka gradyanı, ikincil cam. */
+[data-ui~="duello"] .cp-duel-primary {
+  min-height: 52px;
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-gradient-brand);
+  color: var(--cx-text-on-brand);
+  font: var(--cx-t-button-l);
+}
+[data-ui~="duello"] .cp-duel-secondary {
+  min-height: 44px;
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-glass-background);
+  box-shadow: var(--cx-glass-bevel);
+  color: var(--cx-text-primary);
+  font: var(--cx-t-button-s);
+}
+
+/* Şıklar: hap, en az 56 px, harf rozeti solda. */
+[data-ui~="duello"] .cp-duel-option {
+  min-height: 56px;
+  padding: 8px 20px 8px 8px;
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-bg-2);
+  color: var(--cx-text-primary);
+  font: var(--cx-t-label-15);
+  transition: background 0.16s ease;
+}
+[data-ui~="duello"] .cp-duel-option:hover:not(:disabled) {
+  background: var(--cx-bg-3);
+}
+[data-ui~="duello"] .cp-duel-option b {
+  display: inline-grid;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-bg-3);
+  color: var(--cx-text-secondary);
+  font: var(--cx-t-meta-s);
+}
+
+/* Bot: "BOT" etiketi; bu sorunun nötr işareti (renk değil, dolu gri). */
+[data-ui~="duello"] .cp-duel-bot-tag {
+  display: inline-flex;
+  align-items: center;
+  margin-inline-start: 6px;
+  padding: 2px 8px;
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-bg-3);
+  color: var(--cx-text-secondary);
+  font: var(--cx-t-meta-xs);
+  letter-spacing: 0.04em;
+}
+[data-ui~="duello"] .cp-duel-bot-track li.is-done {
+  background: var(--cx-text-tertiary);
+}
+
+[data-ui~="duello"] :focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-ui~="duello"] .cp-duel-bot-track li {
+    animation: none;
+  }
+}
