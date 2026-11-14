@@ -1,0 +1,86 @@
+/* 404 ve hata ekranları (Faz 12A): sıcak siyah zemin, tek brand eylem, altın yok. */
+.cx-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  padding: 48px 16px;
+  background: var(--cx-bg-0, var(--c-bg));
+  color: var(--cx-text-primary, var(--c-text));
+  text-align: center;
+}
+.cx-status-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 40px;
+  color: var(--cx-text-primary, var(--c-text));
+  text-decoration: none;
+}
+.cx-status-logo img {
+  width: 56px;
+  height: auto;
+}
+.cx-status-word {
+  font: var(--cx-t-title-m, 600 18px / 1.25 var(--font-ui));
+  letter-spacing: -0.02em;
+}
+.cx-status-word span {
+  background: var(--cx-gradient-brand-text);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.cx-status-title {
+  margin: 0;
+  font: var(--cx-t-heading-s, 600 28px / 1.02 var(--font-ui));
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+.cx-status-text {
+  max-width: 28rem;
+  margin: 12px 0 0;
+  color: var(--cx-text-secondary, var(--c-text-muted));
+  font: var(--cx-t-body-16, 400 16px / 1.4 var(--font-ui));
+}
+.cx-status-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 32px;
+}
+.cx-status-actions .cx-status-brand,
+.cx-status-actions .cx-status-weak {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 0 24px;
+  border: 0;
+  border-radius: var(--cx-radius-max, 999px);
+  font: var(--cx-t-button-l, 600 16px / 1 var(--font-ui));
+  text-decoration: none;
+  cursor: pointer;
+}
+.cx-status-brand {
+  background: var(--cx-gradient-brand);
+  color: var(--cx-text-on-brand, #fff);
+}
+.cx-status-weak {
+  background: var(--cx-bg-2);
+  color: var(--cx-text-secondary);
+}
+.cx-status-weak:hover {
+  color: var(--cx-text-primary);
+}
+.cx-status :focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}
+.cx-status-code {
+  margin: 24px 0 0;
+  color: var(--cx-text-tertiary, var(--c-text-muted));
+  font: var(--cx-t-meta-s, 500 11px / 1.25 var(--font-mono));
+}

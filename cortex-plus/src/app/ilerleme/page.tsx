@@ -198,7 +198,7 @@ export default async function IlerlemePage() {
             </div>
             <Link
               href={prepInsights.href}
-              className="mt-4 inline-flex text-sm font-semibold text-[var(--cs-primary)]"
+              className="mt-4 inline-flex text-sm font-semibold text-[var(--cx-text-brand)]"
             >
               Hazırlık yoluna git →
             </Link>
@@ -251,7 +251,7 @@ export default async function IlerlemePage() {
                   {formatNumber(stat.value)}
                   {stat.suffix ?? ""}
                 </p>
-                <p className="mt-2 text-xs font-semibold text-[var(--cs-primary)]">
+                <p className="mt-2 text-xs font-semibold text-[var(--cx-text-brand)]">
                   Detaya git →
                 </p>
               </Link>
@@ -293,7 +293,7 @@ export default async function IlerlemePage() {
                     : "Yanlış yaptığın sorular burada birikir"}
               </span>
             </span>
-            <span className="shrink-0 text-xs font-semibold text-[var(--cs-primary)]">
+            <span className="shrink-0 text-xs font-semibold text-[var(--cx-text-brand)]">
               Aç →
             </span>
           </Link>

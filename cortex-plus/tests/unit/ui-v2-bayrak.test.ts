@@ -45,6 +45,24 @@ describe("uiV2", () => {
   });
 });
 
+describe("uiV2Static (durağan sayfalar, Faz 12B)", () => {
+  it("çerez okunmaz: yerelde yalnız UI_V2; önizlemede açık; canlıda kimliksiz veritabanı satırı", async () => {
+    const { uiV2Static } = await import("@/lib/ui-v2/flags");
+    vi.stubEnv("VERCEL_ENV", "");
+    cookie = "giris";
+    expect(await uiV2Static("giris")).toBe(false);
+    vi.stubEnv("UI_V2", "giris");
+    expect(await uiV2Static("giris")).toBe(true);
+    vi.stubEnv("VERCEL_ENV", "preview");
+    vi.stubEnv("UI_V2", "");
+    expect(await uiV2Static("giris")).toBe(true);
+    vi.stubEnv("VERCEL_ENV", "production");
+    flagRead.mockResolvedValueOnce(true);
+    expect(await uiV2Static("giris")).toBe(true);
+    expect(flagRead).toHaveBeenCalledWith({}, "ui.v2.giris", null);
+  });
+});
+
 describe("ders sayfası: bayrak kapalıyken sarmalayıcı yok", () => {
   it("sarmalayıcı yalnız uiKeys doluysa; kurallar yalnız [data-ui~=ders] altında", () => {
     const page = readFileSync("src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/page.tsx", "utf8");

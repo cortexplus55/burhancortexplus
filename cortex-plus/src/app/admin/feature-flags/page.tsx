@@ -76,6 +76,67 @@ const KNOWN = [
     description:
       "Havuz derslerinin anlatımını kalite ölçütüyle yeniden yazan işin acil durdurma anahtarı. Kapatırsan yenileme durur; yayındaki dersler aynen kalır.",
   },
+  // Tasarım geçişi (14 Kasım 2026): yeni görünüm anahtarları. Satır yokken kapalı; açınca satır yazılır.
+  {
+    key: "ui.v2.ders",
+    label: "Yeni görünüm · Ders ekranı",
+    description: "Açıkken bu ekran yeni tasarımla görünür; kapatınca anında eski görünüme döner (geri alma). Davranış ve veriler iki durumda da aynı.",
+  },
+  {
+    key: "ui.v2.tekrar",
+    label: "Yeni görünüm · Konu testi, doğru / yanlış ve kartlar",
+    description: "Açıkken bu ekran yeni tasarımla görünür; kapatınca anında eski görünüme döner (geri alma). Davranış ve veriler iki durumda da aynı.",
+  },
+  {
+    key: "ui.v2.ogretmen",
+    label: "Yeni görünüm · Öğretmen sohbeti",
+    description: "Açıkken bu ekran yeni tasarımla görünür; kapatınca anında eski görünüme döner (geri alma). Davranış ve veriler iki durumda da aynı.",
+  },
+  {
+    key: "ui.v2.giris",
+    label: "Yeni görünüm · Giriş, kayıt ve şifre sıfırlama",
+    description: "Açıkken bu ekran yeni tasarımla görünür; kapatınca anında eski görünüme döner (geri alma). Davranış ve veriler iki durumda da aynı.",
+  },
+  {
+    key: "ui.v2.kurulum",
+    label: "Yeni görünüm · Hazırlık kurulumu",
+    description: "Açıkken bu ekran yeni tasarımla görünür; kapatınca anında eski görünüme döner (geri alma). Davranış ve veriler iki durumda da aynı.",
+  },
+  {
+    key: "ui.v2.pay",
+    label: "Yeni görünüm · Abonelik sayfası",
+    description: "Açıkken bu ekran yeni tasarımla görünür; kapatınca anında eski görünüme döner (geri alma). Davranış ve veriler iki durumda da aynı. Açmadan önce önizlemede ödeme çerçevesinin açıldığını doğrula (kapanış raporu).",
+  },
+  {
+    key: "ui.v2.studyo",
+    label: "Yeni görünüm · Çalışma Stüdyosu",
+    description: "Açıkken bu ekran yeni tasarımla görünür; kapatınca anında eski görünüme döner (geri alma). Davranış ve veriler iki durumda da aynı.",
+  },
+  {
+    key: "ui.v2.ayarlar",
+    label: "Yeni görünüm · Ayarlar ve davet",
+    description: "Açıkken bu ekran yeni tasarımla görünür; kapatınca anında eski görünüme döner (geri alma). Davranış ve veriler iki durumda da aynı.",
+  },
+  {
+    key: "ui.v2.kutuphane",
+    label: "Yeni görünüm · Kütüphane ekranları",
+    description: "Açıkken bu ekran yeni tasarımla görünür; kapatınca anında eski görünüme döner (geri alma). Davranış ve veriler iki durumda da aynı.",
+  },
+  {
+    key: "ui.v2.araclar2",
+    label: "Yeni görünüm · Laboratuvarlar ve hesap araçları",
+    description: "Açıkken bu ekran yeni tasarımla görünür; kapatınca anında eski görünüme döner (geri alma). Davranış ve veriler iki durumda da aynı.",
+  },
+  {
+    key: "ui.v2.buyume",
+    label: "Yeni görünüm · Ana ekran davet şeridi",
+    description: "Açıkken bu ekran yeni tasarımla görünür; kapatınca anında eski görünüme döner (geri alma). Davranış ve veriler iki durumda da aynı. Günde en çok bir öneri; kapatılınca 30 gün çıkmaz.",
+  },
+  {
+    key: "ui.v2.duello",
+    label: "Yeni görünüm · Düello",
+    description: "Açıkken bu ekran yeni tasarımla görünür; kapatınca anında eski görünüme döner (geri alma). Davranış ve veriler iki durumda da aynı. Düello sunucusu hazır olmadan açma (kapanış raporu: park).",
+  },
 ];
 
 /**

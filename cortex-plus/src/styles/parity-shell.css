@@ -5518,7 +5518,8 @@
 }
 
 .cp-cal-day--muted {
-  color: #52525b;
+  /* Faz 12B: ay dışı gün okunur kontrastta (#52525b 2,4:1 idi). */
+  color: var(--cx-text-tertiary, #a09384);
 }
 
 .cp-cal-day--has {
@@ -7419,7 +7420,8 @@
 .pt-z {
   font-size: 0.5rem;
   line-height: 1;
-  opacity: 0.75;
+  /* Faz 12B: küçük numara kategori renginde 3,9:1 idi; okunur metin rengi (kategori kenarlıkta ve lejantta). */
+  color: var(--cx-text-secondary, #b9ada0);
   font-variant-numeric: tabular-nums;
 }
 
@@ -10358,10 +10360,6 @@
 
 .cp-sor-top-slot .cp-prep-actions {
   margin: 0 0.5rem 0 0;
-}
-
-.cp-sor-root--focus .cp-prep-actions--pending {
-  display: none;
 }
 
 /* Telefonda kıyas ürünü gibi tek satır: Geri, simgeler, seri, menü, avatar.

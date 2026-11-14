@@ -67,7 +67,7 @@ export function DocumentRetryButton({
       type="button"
       disabled={pending}
       onClick={() => void retry(false)}
-      className="text-xs font-medium text-[var(--cs-primary)] underline underline-offset-2 disabled:opacity-60"
+      className="text-xs font-medium text-[var(--cx-text-brand)] underline underline-offset-2 disabled:opacity-60"
     >
       {pending ? "İşleniyor…" : "Yeniden Dene"}
     </button>

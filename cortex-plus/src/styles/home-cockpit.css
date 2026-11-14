@@ -90,6 +90,13 @@
 .cx-strip-list::-webkit-scrollbar {
   display: none;
 }
+/* Sekme listesi kaydırma kabının içinde aynı yönde ve aralıkla (telefonda kap yataylaşınca o da). */
+.cx-strip-tabs {
+  display: flex;
+  flex-direction: inherit;
+  gap: inherit;
+  flex-shrink: 0;
+}
 .cx-strip-tab {
   position: relative;
   flex-shrink: 0;
@@ -100,7 +107,8 @@
   border: 0;
   border-radius: var(--cx-radius-inner);
   background: transparent;
-  color: var(--cx-text-disabled);
+  /* Faz 12B: seçili olmayan sınavın gün sayısı okunur kontrastta (text-disabled 3,8:1 idi). */
+  color: var(--cx-text-tertiary);
   cursor: pointer;
   scroll-snap-align: start;
   text-decoration: none;

@@ -103,12 +103,14 @@ describe("kıyas ürünü ayrıntıları (tasarım 8. adım)", () => {
     expect(read("src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/sonuc/page.tsx")).toContain("<LessonRatingCard attemptId=");
   });
 
-  it("404 bize özgü: tek başlık, beyin görseli, destek adresi; pazarlama menüsü yok", () => {
+  it("404 (Faz 12A, 14 Kasım 2026): ortak durum ekranı, tek başlık, gerçek logo; 3B görsel ve sarı 404 yok; pazarlama menüsü yok", () => {
+    // 17 Ekim'in "beyin görseli + destek adresi" 404'ü ANA-PROMPT 12A ile değişti: altın yalnız Plus kimliği.
     const page = read("src/app/not-found.tsx");
-    expect(page.match(/<h1/g)).toHaveLength(1);
-    expect(page).toContain("Sayfa bulunamadı");
-    expect(page).toContain('<Icon3D name="avatar"');
-    expect(page).toContain("cortexplus@cortexplus.app");
+    const screen = read("src/components/brand/status-screen.tsx");
+    expect(screen.match(/<h1/g)).toHaveLength(1);
+    expect(page).toContain('title="Sayfa bulunamadı"');
+    expect(screen).toContain('src="/logo-mark-trim.png"');
+    expect(page).not.toContain("Icon3D");
     expect(page).not.toContain("MarketingPage");
   });
 

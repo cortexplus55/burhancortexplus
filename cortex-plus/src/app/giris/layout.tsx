@@ -1,13 +1,16 @@
 import type { ReactNode } from "react";
-import { uiV2 } from "@/lib/ui-v2/flags";
+import { uiV2Static } from "@/lib/ui-v2/flags";
 import { UiScope } from "@/lib/ui-v2/scope";
 import "@/styles/ui-v2-giris.css";
 
-/** Faz 7A: `ui.v2.giris` açıkken sayfa yeni görünümün sarmalayıcısıyla (kapalıyken DOM aynı). Bayrak istek anında okunur. */
-export const dynamic = "force-dynamic";
+/**
+ * Faz 7A: `ui.v2.giris` açıkken sayfa yeni görünümün sarmalayıcısıyla (kapalıyken DOM aynı). Sayfa durağan kalır, bayrak
+ * en geç 60 sn'de bir tazelenir (Faz 12B: dinamik çizim engelleme süresini artırıyordu). Yerel test: `/e2e/giris?ui=v2`.
+ */
+export const revalidate = 60;
 
 export default async function Layout({ children }: { children: ReactNode }) {
   return (
-    <UiScope keys={(await uiV2("giris")) ? ["giris"] : []}>{children}</UiScope>
+    <UiScope keys={(await uiV2Static("giris")) ? ["giris"] : []}>{children}</UiScope>
   );
 }

@@ -23,46 +23,35 @@ teklif yok; sayaç "önce artır, hata olursa iade" kabul; sohbette 402 sonrası
 | 5A+5B · Tekrar ekranları (tek PR) | `design/tekrar-test` | **birleşti** (4bebc92a) | #652 | `ui.v2.tekrar` | — | 5B ayrı dal yerine aynı PR |
 | 6A · Sohbet kabuğu | `design/ogretmen-sohbet` | **birleşti** (fe33cc21) | #653 | `ui.v2.ogretmen` | Gerçek cihazda klavye | `ChatPanel followUser` bayrağa bağlı |
 | 6B · Fotoğraf hak kapısı | `design/ogretmen-foto` | **birleşti** (b9e26948), production duman 11/11 | #654 | `ui.v2.ogretmen` | Gerçek cihazda fotoğraf | |
-| 7A+7B+7C · Giriş + kayıt, kurulum, /pay (tek PR) | `design/faz7` | PR açık | — | `ui.v2.giris`, `ui.v2.kurulum`, `ui.v2.pay` | Önizlemede gerçek ödeme denemesi (rapor §10) | `?plan=` artık kartı açıp işaretliyor (bayraktan bağımsız) |
-| 8A · Podcast + video | `design/studyo-medya` | bekliyor | — | `ui.v2.studyo` | | |
-| 8B · Sözlü + Yazılı + Sabah kâğıdı | `design/studyo-sinav` | bekliyor | — | `ui.v2.studyo` | | |
-| 8C · /araclar + DNA + net + İlerleme | `design/studyo-arac` | bekliyor | — | `ui.v2.studyo` | | |
-| 9A · Düello arayüzü | `design/duello-arayuz` | bekliyor | — | `ui.v2.duello` | | |
-| 9B · Düello sunucusu | `design/duello-sunucu` | bekliyor | — | `duel.enabled` | Migration'ı uygulamak | |
-| 9C · Düello bağlama | `design/duello-bagla` | bekliyor | — | `ui.v2.duello` | | |
-| 10A · Kart + Paylaş | `design/paylas-kart` | bekliyor | — | `ui.v2.paylas` | | |
-| 10B · `/d/KOD`, meydan okuma | `design/meydan` | bekliyor | — | `ui.v2.paylas` | Hız sınırı eşikleri, cihaz denemeleri | |
-| 11A · Ayarlar, Sınavlar, Kütüphane, /davet | `design/ekranlar-kalan` | bekliyor | — | `ui.v2.ayarlar`, `ui.v2.kutuphane` | | |
-| 11B · Laboratuvarlar ve araçlar | `design/lab-araclar` | bekliyor | — | `ui.v2.araclar2` | | |
-| 11C · Büyüme | `design/buyume` | bekliyor | — | `ui.v2.buyume` | Kart şablonları (tahta) | |
-| 12A · Durumlar, hata sayfaları | `design/kapanis-durumlar` | bekliyor | — | — | | |
-| 12B · Erişilebilirlik ve performans | `design/kapanis-olcum` | bekliyor | — | — | | |
-| 12C · Temizlik ve kapanış | `design/kapanis-temizlik` | bekliyor | — | — | Bayrak temizliği onayı | |
+| 7A+7B+7C · Giriş + kayıt, kurulum, /pay (tek PR) | `design/faz7` | **birleşti** (08df6fdc), production duman 11/11 | #655 | `ui.v2.giris`, `ui.v2.kurulum`, `ui.v2.pay` | Önizlemede gerçek ödeme denemesi (rapor §10) | `?plan=` kartı açıp işaretliyor (bayraktan bağımsız) |
+| 8A+8B+8C · Stüdyo (tek PR) | `design/faz8` | **birleşti** (8c1bf91d), production duman 11/11 | #656 | `ui.v2.studyo` | — | /araclar Plus kartlarında `<Gate>`; podcast satırı, dikey video |
+| 9 · Düello (9.0 + 9A'nın bugünkü ekranlara uygulanabilen kısmı) | `design/faz9` | **birleşti** (13ddb3d0), production duman 11/11 | #657 | `ui.v2.duello` (kapalı kalır) | Yeni üretim istemi kararı; göçü SQL ekranında uygulamak | Tasarım `09-duello-tasarim.md`; 9B, 9C, Faz 10 park |
+| 9B · Düello sunucusu | — | **park** | — | `duel.enabled` | Üretim istemi onayı + göç | Gerekçe `09-duello-tasarim.md` I |
+| 9C · Düello bağlama | — | **park** | — | — | 9B'ye bağlı | |
+| 10A+10B · Paylaşım kartı, `/d/KOD` | — | **park** | — | `ui.v2.paylas` | 9B'ye bağlı | `/d/ZZZZZZZZ` 404 (duman testi) |
+| 11A+11B+11C · Ayarlar, Kütüphane, araçlar, büyüme (tek PR) | `design/faz11` | **birleşti** (50889a28) | #658 | `ui.v2.ayarlar`, `ui.v2.kutuphane`, `ui.v2.araclar2`, `ui.v2.buyume` | Telefonda davet şeridi yeri | Yerleşim 7 kodlandı, öbürleri bekliyor |
+| 12A+12B+12C · Durumlar, erişilebilirlik ve performans, kapanış | `design/faz12` | **birleşti** (bu PR; kapanış raporu `12-kapanis-raporu.md`) | #659 | — | 7 gün sonra bayrak temizliği | 404 / hata ekranları, axe düzeltmeleri |
 
 ## Sıradaki adımlar (bağlam sıkışırsa buradan)
 
-1. #648 → #654 yığını alttan birleştir: CI yeşil + diff temiz → `gh pr merge N --merge` (dal silinmez) → bir üstün
-   tabanını main'e çevir (`gh pr edit M --base main`), yerelde `git rebase --autostash` + push, CI'ı bekle.
-2. Her birleştirmeden sonra Vercel durumu (`gh api repos/cortexplus55/burhancortexplus/commits/<sha>/status`) ve
-   `node scripts/smoke-prod.mjs --auth`.
-3. Sonra Faz 7 (7.0 inceleme → 7A giriş/kayıt, 7B kurulum, 7C /pay: `ui.v2.giris|kurulum|pay`), aynı yöntem: sayfa bayrak
-   açıkken `<div class="cx-ui-scope" data-ui="...">` ile sarar, görünüm yalnız CSS (`src/styles/ui-v2-*.css`).
-4. Yerel kapılar: `npx tsc --noEmit`, `npm run lint`, `npx vitest run --exclude "tests/unit/_tmp/**"`, üretim derlemesi
-   (`E2E_FIXTURE=1 SENTRY_AUTH_TOKEN="" npx next build`), sunucu `preview_start cortex-plus-test-guvenli` (3006),
-   `npm run test:visual`, `npm run design:audit -- --skip-login`, yeni e2e `E2E_BASE_URL=http://localhost:3006 npx playwright test <spec> --project=chromium`.
-
-## Faz 7 için not (ölçülmeden yazılmadı)
-
-- `/giris` ve `/kayit` bugün statik; `ui.v2.giris` bayrağını canlıda okumak bölümü dinamik yapar (`force-dynamic` ya da
-  `cookies()`), ilk yükleme süresi değişir. Önce `perf:measure` ile giriş/kayıt ölçülecek; çıta aşılırsa bayrak okuması
-  istemciye taşınır (herkese açık `feature_flags` satırı yok: ayrı bir yol gerekir) ya da Burhan'a sorulacak.
-- Açık yönlendirme koruması var: `src/lib/auth/safe-next-path.ts` (yalnız aynı kökenden göreli yol). DUR koşulu yok.
-- Şifre göster / gizle düğmesi bugün yok (`giris-inner.tsx`): eklemek davranış eki; 7A'da bayrak altında.
-- Ortak sarmalayıcı bileşeni önerisi: `UiScope({ keys })` (4B/5/6A'daki elle yazılan desenin ortak hâli).
+1. #657 (Faz 9) → #658 (Faz 11) → Faz 12 PR'ı sırayla: CI yeşil → `gh pr merge N --merge` → üstünün tabanını main'e
+   çevir (`gh pr edit M --base main`) → ayrı çalışma kopyasında (`git worktree add $TEMP/wt-merge <dal>`) `git merge
+   origin/main -m "main dala eşitlendi (#N birleşti)"` + push (derleme sürerken ana kopyada dal değiştirme).
+2. Her birleşmeden sonra Vercel durumu ve `node scripts/smoke-prod.mjs --auth`.
+3. Faz 12: axe (`node scripts/axe-scan.mjs --label <ad>`, `--v2` ile bayraklar açık; oturumlar
+   `E2E_BASE_URL=http://127.0.0.1:3006 node scripts/e2e-login.mjs`, çerez alanı 127.0.0.1), perf
+   (`npm run perf:measure -- --base http://127.0.0.1:3006 --label faz12-<sha>` + `perf:compare`), görsel taban
+   (`npm run test:visual`, değişen rotalar bilinçli güncellenir), `design:audit`.
+4. Bayraklar: canlıda Özellik Anahtarları (yönetim paneli, PIN kapısı) → Burhan-only; adımlar kapanış raporunda.
+5. Kapanış raporu `docs/design-migration/12-kapanis-raporu.md` (OTONOM §11, 8 başlık), sonra dur.
 
 ## Park edilenler
 
-(henüz yok)
+- **9B · Düello sunucusu ve `duel.enabled`:** yeni üretim istemi (tür karışımı, kademeli zorluk) ANA-PROMPT B gereği Burhan onayı ister; göç SQL ekranından uygulanıyor, OTONOM §6.2 "yapılandırılmış standart migration yolu" şartı yok. Gerekçe `09-duello-tasarim.md`.
+- **9C · Bağlama ve gerçek veritabanı e2e:** 9B'ye bağlı.
+- **Faz 10 · Paylaşım kartı ve `/d/KOD`:** 9B'ye bağlı; `ui.v2.paylas` kapalı.
+- **Düello bayrakları (`ui.v2.duello`, `duel.enabled`, `ui.v2.paylas`):** OTONOM §5 şartları (§6 göçü + 9C e2e) yok; açılmaz.
+- **Büyüme yerleşimleri 1–6, 8:** şablon tahtada yok ya da yazdırma karşılaştırması bekliyor (`raporlar/faz11.md` tablo).
 
 ## Burhan-only açık işler
 

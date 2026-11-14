@@ -44,13 +44,14 @@ export function HucreLab() {
       subject="Biyoloji"
       summary="Organeli seç, yuvaya yerleştir. Doğru yerde sınav ipucu açılır; yanlışta düzeltme görürsün."
       inputs={
-        <div className="sim-palette" role="listbox" aria-label="Organeller">
+        // Seçim düğmeleri grubu (Faz 12B axe: listbox içinde "Sıfırla" düğmesi ve option rolündeki düğmeler
+        // "aria-required-children" ihlaliydi). Seçili organel `aria-pressed` ile söylenir.
+        <div className="sim-palette" role="group" aria-label="Organeller">
           {CELL_ORGANELLES.map((item) => (
             <button
               key={item.id}
               type="button"
-              role="option"
-              aria-selected={selected === item.id}
+              aria-pressed={selected === item.id}
               className={`sim-chip${selected === item.id ? " is-on" : ""}`}
               onClick={() => setSelected(item.id)}
             >
@@ -64,7 +65,8 @@ export function HucreLab() {
       }
       result={
         <div>
-          <svg viewBox="0 0 320 300" className="sim-svg sim-cell" role="img" aria-label="Hücre">
+          {/* İçinde yuva düğmeleri var: çizim "img" değil, etiketli grup (Faz 12B axe "nested-interactive"). */}
+          <svg viewBox="0 0 320 300" className="sim-svg sim-cell" role="group" aria-label="Hücre">
             <ellipse cx="160" cy="150" rx="138" ry="122" className="sim-cell-wall" />
             <ellipse cx="160" cy="150" rx="124" ry="108" className="sim-cell-membrane" />
             {SLOTS.map((slot) => {

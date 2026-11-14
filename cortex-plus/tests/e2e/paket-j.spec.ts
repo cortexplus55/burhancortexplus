@@ -113,8 +113,13 @@ test.describe("Paket J akışları", { tag: ["@public"] }, () => {
     await page.getByRole("button", { name: "Sonraki →" }).click();
     await expect(page.getByText("3 / 20", { exact: true })).toBeVisible();
 
+    // Taslak tarayıcıya hemen yazılır; yenilemeden önce yazıldığını bekle (CI'ın geliştirme sunucusunda yenilenen sayfa
+    // yeniden derlenir, ilk çizim 5 sn'yi aşabiliyordu: 14 Kasım 2026, kararsız koşu).
+    await expect
+      .poll(() => page.evaluate(() => Object.keys(localStorage).some((key) => key.startsWith("cp:exam-draft:") && localStorage.getItem(key)!.includes('"cursor":2'))))
+      .toBe(true);
     await page.reload();
-    await expect(page.getByText("3 / 20", { exact: true })).toBeVisible();
+    await expect(page.getByText("3 / 20", { exact: true })).toBeVisible({ timeout: 20_000 });
     await expect(page.getByText("2 / 20 yanıtlandı")).toBeVisible();
     await page.getByRole("button", { name: "← Önceki" }).click().catch(() => undefined);
     await expect(page.getByRole("button", { name: /Seçenek 2 C/ })).toHaveAttribute("aria-pressed", "true");

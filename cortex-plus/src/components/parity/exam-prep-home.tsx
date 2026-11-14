@@ -420,12 +420,11 @@ export function ExamPrepHome({
   const [sharing, setSharing] = useState(false);
   const [view, setView] = useState<"yol" | "ilerleme">("yol");
   const [topSlot, setTopSlot] = useState<HTMLElement | null>(null);
-  // Sunucu çiziminde simgeler gizli: yoksa açılışta bir an ayrı satırda
-  // görünüp üst çubuğa zıplıyorlardı.
-  const [mounted, setMounted] = useState(false);
+  // Üst çubuk yuvası (`cp-sor-top-slot`) Kasım 2026 kabuğunda yok: simgeler sayfanın başında kalır. Sunucu çiziminde
+  // de görünür (Faz 12B: önce "üst çubuğa taşınacak" diye gizleniyor, hidrasyondan sonra yerinde belirip yol kartını
+  // ~60 px itiyordu; hazırlık sayfasında CLS 0,063). Yuva bir gün geri gelirse simgeler oraya taşınır.
   useEffect(() => {
     setTopSlot(document.getElementById(PREP_TOP_SLOT_ID));
-    setMounted(true);
   }, []);
   // Düğüm açılış ölçümü ve ön yükleme (3 Kasım 2026): yoldaki her tıklamanın zamanı saklanır (düğüm sayfası ilk
   // ekranda okur, lesson_timings 'node_*'); sıradaki adımın rotası önceden yüklenir, tıklayınca kabuk anında çizilir.
@@ -643,7 +642,7 @@ export function ExamPrepHome({
   // "focus" başlığında yer açıyor; yer yoksa (test ortamı) simgeler sayfanın başında kalır.
   const toolbar = (
       <div
-        className={cn("cp-prep-actions", !mounted && "cp-prep-actions--pending")}
+        className="cp-prep-actions"
         role="toolbar"
         aria-label="Hazırlık işlemleri"
       >

@@ -1,0 +1,477 @@
+{
+ "label": "faz12-de54e95-yeniden",
+ "measuredAt": "2026-11-14T19:34:36.292Z",
+ "profile": {
+  "viewport": "375x812",
+  "cpu": "4x",
+  "network": "Hızlı 4G (60 ms, 9/1.5 Mbit)",
+  "warm": 1,
+  "runs": 9
+ },
+ "routes": [
+  {
+   "name": "giris",
+   "path": "/giris",
+   "why": "Giriş akışının ilk ekranı",
+   "status": 200,
+   "median": {
+    "lcp": 1268,
+    "cls": 0,
+    "tbt": 244,
+    "js": 458554,
+    "css": 72879,
+    "total": 629170,
+    "dom": 146
+   },
+   "runs": [
+    {
+     "status": 200,
+     "finalPath": "/giris",
+     "lcp": 1312,
+     "cls": 0,
+     "tbt": 260,
+     "js": 458554,
+     "css": 72879,
+     "total": 629170,
+     "dom": 146
+    },
+    {
+     "status": 200,
+     "finalPath": "/giris",
+     "lcp": 1256,
+     "cls": 0,
+     "tbt": 244,
+     "js": 458554,
+     "css": 72879,
+     "total": 629170,
+     "dom": 146
+    },
+    {
+     "status": 200,
+     "finalPath": "/giris",
+     "lcp": 1260,
+     "cls": 0,
+     "tbt": 233,
+     "js": 458554,
+     "css": 72879,
+     "total": 629170,
+     "dom": 147
+    },
+    {
+     "status": 200,
+     "finalPath": "/giris",
+     "lcp": 1256,
+     "cls": 0,
+     "tbt": 242,
+     "js": 458554,
+     "css": 72879,
+     "total": 629170,
+     "dom": 146
+    },
+    {
+     "status": 200,
+     "finalPath": "/giris",
+     "lcp": 1268,
+     "cls": 0,
+     "tbt": 238,
+     "js": 458554,
+     "css": 72879,
+     "total": 629170,
+     "dom": 147
+    },
+    {
+     "status": 200,
+     "finalPath": "/giris",
+     "lcp": 1276,
+     "cls": 0,
+     "tbt": 248,
+     "js": 458554,
+     "css": 72879,
+     "total": 629170,
+     "dom": 146
+    },
+    {
+     "status": 200,
+     "finalPath": "/giris",
+     "lcp": 1268,
+     "cls": 0,
+     "tbt": 248,
+     "js": 458554,
+     "css": 72879,
+     "total": 629170,
+     "dom": 146
+    },
+    {
+     "status": 200,
+     "finalPath": "/giris",
+     "lcp": 1272,
+     "cls": 0,
+     "tbt": 253,
+     "js": 458554,
+     "css": 72879,
+     "total": 629176,
+     "dom": 146
+    },
+    {
+     "status": 200,
+     "finalPath": "/giris",
+     "lcp": 1252,
+     "cls": 0,
+     "tbt": 233,
+     "js": 458554,
+     "css": 72879,
+     "total": 629133,
+     "dom": 146
+    }
+   ]
+  },
+  {
+   "name": "kayit",
+   "path": "/kayit",
+   "why": "Kayıt sihirbazı (dönüşüm yolu)",
+   "status": 200,
+   "median": {
+    "lcp": 1328,
+    "cls": 0.0188,
+    "tbt": 247,
+    "js": 438044,
+    "css": 72879,
+    "total": 572899,
+    "dom": 187
+   },
+   "runs": [
+    {
+     "status": 200,
+     "finalPath": "/kayit",
+     "lcp": 1328,
+     "cls": 0.0188,
+     "tbt": 241,
+     "js": 438044,
+     "css": 72879,
+     "total": 572899,
+     "dom": 187
+    },
+    {
+     "status": 200,
+     "finalPath": "/kayit",
+     "lcp": 1324,
+     "cls": 0.0188,
+     "tbt": 248,
+     "js": 438044,
+     "css": 72879,
+     "total": 572899,
+     "dom": 186
+    },
+    {
+     "status": 200,
+     "finalPath": "/kayit",
+     "lcp": 1300,
+     "cls": 0.0188,
+     "tbt": 243,
+     "js": 438044,
+     "css": 72879,
+     "total": 572899,
+     "dom": 186
+    },
+    {
+     "status": 200,
+     "finalPath": "/kayit",
+     "lcp": 1340,
+     "cls": 0.0188,
+     "tbt": 239,
+     "js": 438044,
+     "css": 72879,
+     "total": 572899,
+     "dom": 187
+    },
+    {
+     "status": 200,
+     "finalPath": "/kayit",
+     "lcp": 1324,
+     "cls": 0.0188,
+     "tbt": 245,
+     "js": 438044,
+     "css": 72879,
+     "total": 572899,
+     "dom": 187
+    },
+    {
+     "status": 200,
+     "finalPath": "/kayit",
+     "lcp": 1328,
+     "cls": 0.0188,
+     "tbt": 249,
+     "js": 438044,
+     "css": 72879,
+     "total": 572899,
+     "dom": 187
+    },
+    {
+     "status": 200,
+     "finalPath": "/kayit",
+     "lcp": 1332,
+     "cls": 0.0188,
+     "tbt": 247,
+     "js": 438044,
+     "css": 72879,
+     "total": 572899,
+     "dom": 187
+    },
+    {
+     "status": 200,
+     "finalPath": "/kayit",
+     "lcp": 1332,
+     "cls": 0.0188,
+     "tbt": 252,
+     "js": 438044,
+     "css": 72879,
+     "total": 572899,
+     "dom": 185
+    },
+    {
+     "status": 200,
+     "finalPath": "/kayit",
+     "lcp": 1324,
+     "cls": 0.0188,
+     "tbt": 252,
+     "js": 438044,
+     "css": 72879,
+     "total": 572899,
+     "dom": 186
+    }
+   ]
+  },
+  {
+   "name": "404",
+   "path": "/bu-sayfa-yok-e2e",
+   "why": "Bulunamadı sayfası (Faz 12'de değişecek)",
+   "status": 404,
+   "median": {
+    "lcp": 1112,
+    "cls": 0,
+    "tbt": 186,
+    "js": 347990,
+    "css": 64197,
+    "total": 607114,
+    "dom": 96
+   },
+   "runs": [
+    {
+     "status": 404,
+     "finalPath": "/bu-sayfa-yok-e2e",
+     "lcp": 1108,
+     "cls": 0,
+     "tbt": 190,
+     "js": 347990,
+     "css": 64197,
+     "total": 607114,
+     "dom": 95
+    },
+    {
+     "status": 404,
+     "finalPath": "/bu-sayfa-yok-e2e",
+     "lcp": 1116,
+     "cls": 0,
+     "tbt": 181,
+     "js": 347990,
+     "css": 64197,
+     "total": 607114,
+     "dom": 96
+    },
+    {
+     "status": 404,
+     "finalPath": "/bu-sayfa-yok-e2e",
+     "lcp": 1092,
+     "cls": 0,
+     "tbt": 184,
+     "js": 347990,
+     "css": 64197,
+     "total": 607114,
+     "dom": 93
+    },
+    {
+     "status": 404,
+     "finalPath": "/bu-sayfa-yok-e2e",
+     "lcp": 1112,
+     "cls": 0,
+     "tbt": 186,
+     "js": 347990,
+     "css": 64197,
+     "total": 607114,
+     "dom": 96
+    },
+    {
+     "status": 404,
+     "finalPath": "/bu-sayfa-yok-e2e",
+     "lcp": 1132,
+     "cls": 0,
+     "tbt": 190,
+     "js": 347990,
+     "css": 64197,
+     "total": 607114,
+     "dom": 96
+    },
+    {
+     "status": 404,
+     "finalPath": "/bu-sayfa-yok-e2e",
+     "lcp": 1088,
+     "cls": 0,
+     "tbt": 182,
+     "js": 347990,
+     "css": 64197,
+     "total": 607114,
+     "dom": 94
+    },
+    {
+     "status": 404,
+     "finalPath": "/bu-sayfa-yok-e2e",
+     "lcp": 1128,
+     "cls": 0,
+     "tbt": 193,
+     "js": 347990,
+     "css": 64197,
+     "total": 607114,
+     "dom": 96
+    },
+    {
+     "status": 404,
+     "finalPath": "/bu-sayfa-yok-e2e",
+     "lcp": 1096,
+     "cls": 0,
+     "tbt": 186,
+     "js": 347990,
+     "css": 64197,
+     "total": 607114,
+     "dom": 95
+    },
+    {
+     "status": 404,
+     "finalPath": "/bu-sayfa-yok-e2e",
+     "lcp": 1116,
+     "cls": 0,
+     "tbt": 185,
+     "js": 347990,
+     "css": 64197,
+     "total": 607114,
+     "dom": 96
+    }
+   ]
+  },
+  {
+   "name": "hazirlik",
+   "path": "/deneme-sinavlari/:id",
+   "why": "Hazırlık sayfası: çalışma yolu",
+   "status": 200,
+   "median": {
+    "lcp": 2108,
+    "cls": 0,
+    "tbt": 473,
+    "js": 829129,
+    "css": 134723,
+    "total": 1378381,
+    "dom": 336
+   },
+   "runs": [
+    {
+     "status": 200,
+     "finalPath": "/deneme-sinavlari/711fc63b-c86d-48c6-80b6-2aaabcc2316c",
+     "lcp": 2108,
+     "cls": 0,
+     "tbt": 450,
+     "js": 829129,
+     "css": 134723,
+     "total": 1378384,
+     "dom": 337
+    },
+    {
+     "status": 200,
+     "finalPath": "/deneme-sinavlari/711fc63b-c86d-48c6-80b6-2aaabcc2316c",
+     "lcp": 2068,
+     "cls": 0,
+     "tbt": 429,
+     "js": 829129,
+     "css": 134723,
+     "total": 1378385,
+     "dom": 336
+    },
+    {
+     "status": 200,
+     "finalPath": "/deneme-sinavlari/711fc63b-c86d-48c6-80b6-2aaabcc2316c",
+     "lcp": 2056,
+     "cls": 0,
+     "tbt": 432,
+     "js": 829129,
+     "css": 134723,
+     "total": 1378381,
+     "dom": 336
+    },
+    {
+     "status": 200,
+     "finalPath": "/deneme-sinavlari/711fc63b-c86d-48c6-80b6-2aaabcc2316c",
+     "lcp": 2004,
+     "cls": 0,
+     "tbt": 442,
+     "js": 829129,
+     "css": 134817,
+     "total": 1378478,
+     "dom": 336
+    },
+    {
+     "status": 200,
+     "finalPath": "/deneme-sinavlari/711fc63b-c86d-48c6-80b6-2aaabcc2316c",
+     "lcp": 2028,
+     "cls": 0,
+     "tbt": 541,
+     "js": 829129,
+     "css": 134836,
+     "total": 1377050,
+     "dom": 336
+    },
+    {
+     "status": 200,
+     "finalPath": "/deneme-sinavlari/711fc63b-c86d-48c6-80b6-2aaabcc2316c",
+     "lcp": 2364,
+     "cls": 0,
+     "tbt": 473,
+     "js": 829129,
+     "css": 134723,
+     "total": 1378381,
+     "dom": 337
+    },
+    {
+     "status": 200,
+     "finalPath": "/deneme-sinavlari/711fc63b-c86d-48c6-80b6-2aaabcc2316c",
+     "lcp": 2200,
+     "cls": 0,
+     "tbt": 526,
+     "js": 829129,
+     "css": 134723,
+     "total": 1372865,
+     "dom": 339
+    },
+    {
+     "status": 200,
+     "finalPath": "/deneme-sinavlari/711fc63b-c86d-48c6-80b6-2aaabcc2316c",
+     "lcp": 2204,
+     "cls": 0,
+     "tbt": 488,
+     "js": 829129,
+     "css": 134700,
+     "total": 1372842,
+     "dom": 337
+    },
+    {
+     "status": 200,
+     "finalPath": "/deneme-sinavlari/711fc63b-c86d-48c6-80b6-2aaabcc2316c",
+     "lcp": 2132,
+     "cls": 0,
+     "tbt": 485,
+     "js": 829129,
+     "css": 134840,
+     "total": 1376998,
+     "dom": 336
+    }
+   ]
+  }
+ ]
+}
