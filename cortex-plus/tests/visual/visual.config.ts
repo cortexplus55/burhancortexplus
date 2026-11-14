@@ -1,5 +1,6 @@
 import { defineConfig } from "@playwright/test";
 import { loadEnvConfig } from "@next/env";
+import path from "path";
 
 /*
   Görsel taban çizgisi (Faz 0, 2.6). Ana yapılandırmanın (`playwright.config.ts`) aynı kurulumu; tek farkları:
@@ -61,6 +62,8 @@ export default defineConfig({
   // CI'da görsel taban yok (görüntüler yalnız yerelde, Windows'ta): sunucu kalkmaz, testler atlanır.
   webServer: process.env.CI ? undefined : {
     command: `node scripts/copy-pdf-worker.mjs && npx next build && npx next start -p ${PORT}`,
+    // Playwright komutu yapılandırma dosyasının klasöründe çalıştırır; derleme uygulama kökünde olmalı.
+    cwd: path.join(__dirname, "..", ".."),
     url: BASE,
     reuseExistingServer: !process.env.CI,
     timeout: 1_200_000,
