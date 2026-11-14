@@ -17,6 +17,8 @@
 /* Üst çubuk 56 px: solda tür + "1 / 7", ortada 472 px ilerleme, sağda cam kapat. Bulanıklık yok. */
 [data-ui~="ders"] .als-top {
   min-height: 56px;
+  /* Eski çubuğun −4 px yan payı 768 px'lik sütunda sayfayı taşırıyordu (768 px ölçümü). */
+  margin-inline: 0;
   margin-bottom: 0;
   padding-block: var(--cx-space-8);
   background: var(--cx-bg-0);
