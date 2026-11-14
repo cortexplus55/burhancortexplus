@@ -8671,6 +8671,11 @@ exports[`yol etkinliği rotası: start × tür > podcast: Plus'ta yazılır, kon
   "json": {
     "code": "premium_required",
     "error": "Bu özellik Plus aboneliğine özel.",
+    "gate": {
+      "reason": "feature_requires_plus",
+      "requiredPlan": "plus",
+      "state": "locked",
+    },
   },
   "status": 402,
   "tables": {
@@ -8788,7 +8793,7 @@ exports[`yol etkinliği rotası: start × tür > podcast: Plus'ta yazılır, kon
     "db select subscriptions [status, current_period_end, cancel_at_period_end, plans(is_premium, tier, name, slug, monthly_allowance)] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(status,"active") or(current_period_end.is.null,current_period_end.gt.2026-10-30T09:00:00.000Z) maybe",
     "db select admin_free_preview [user_id] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
     "rpc is_admin {"uid":"00000000-0000-4000-8000-00000000aaaa"}",
-    "response 402 {"error":"Bu özellik Plus aboneliğine özel.","code":"premium_required"}",
+    "response 402 {"error":"Bu özellik Plus aboneliğine özel.","code":"premium_required","gate":{"state":"locked","reason":"feature_requires_plus","requiredPlan":"plus"}}",
     "after:run",
     "db select subscriptions [status, current_period_end, cancel_at_period_end, plans(is_premium, tier, name, slug, monthly_allowance)] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(status,"active") or(current_period_end.is.null,current_period_end.gt.2026-10-30T09:00:00.000Z) maybe",
     "db select admin_free_preview [user_id] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",

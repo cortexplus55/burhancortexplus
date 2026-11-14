@@ -15,13 +15,12 @@ teklif yok; sayaç "önce artır, hata olursa iade" kabul; sohbette 402 sonrası
 
 | PR | Dal | Durum | PR no | Bayrak | Bekleyen Burhan işi | Notlar |
 |---|---|---|---|---|---|---|
-| Faz 0 · Envanter, test hesapları, görsel taban, denetim, performans tabanı | `design/faz0-envanter` | bitti, birleştirme bekliyor (CI) | #647 | — | CI için `E2E_USERS_JSON` sırrı (05) | Görsel taban yerel, manifest commit'li |
-| 3A · `lib/entitlements` | `design/hak-sistemi` | bekliyor | — | — | — | Karakterizasyon önce; fark çıkarsa DUR |
-| 3B · Gate, UpgradeSheet, ana ekran | `design/hak-arayuzu` | bekliyor | — | — | — | |
-| 4A · Heyecan kiti | `design/heyecan-kiti` | bekliyor | — | — | — | Görünür değişiklik yok |
-| 4B · Ders ekranı | `design/ders-ekrani` | bekliyor | — | `ui.v2.ders` | Bayrağı önizlemede açmak | |
-| 5A · Konu testi + Doğru/Yanlış | `design/tekrar-test` | bekliyor | — | `ui.v2.tekrar` | Bayrak | |
-| 5B · Akıllı kartlar | `design/tekrar-kartlar` | bekliyor | — | `ui.v2.tekrar` | Bayrak | |
+| Faz 0 · Envanter, test hesapları, görsel taban, denetim, performans tabanı | `design/faz0-envanter` | **birleşti** (a8bd6967), production duman 11/11 | #647 | — | CI için `E2E_USERS_JSON` sırrı (05) | Görsel taban yerel, manifest commit'li |
+| 3A · `lib/entitlements` | `design/hak-sistemi` | PR açık | — | — | — | Karakterizasyon PGlite'ta SQL ile; 402'ye `gate`; `assertGate` rotalara eklenmedi (gerekçe 10-entitlements) |
+| 3B · Gate, UpgradeSheet, ana ekran | `design/hak-arayuzu` | PR açık (3A üstüne) | — | — | — | Sağlayıcı kabukta; fiyat tarayıcıdan; görsel taban 17 görüntü bilinçli güncellendi |
+| 4A · Heyecan kiti | `design/heyecan-kiti` | PR açık (3B üstüne) | — | — | — | Görünür değişiklik yok; galeri `/arena` |
+| 4B · Ders ekranı | `design/ders-ekrani` | PR açık (4A üstüne) | — | `ui.v2.ders` | — | Bayrak altyapısı `src/lib/ui-v2/flags.ts`; `data-ui` sarmalayıcısı + yalnız CSS |
+| 5A+5B · Tekrar ekranları (tek PR) | `design/tekrar-test` | PR açık (4B üstüne) | — | `ui.v2.tekrar` | — | 5B ayrı dal yerine aynı PR |
 | 6A · Sohbet kabuğu | `design/ogretmen-sohbet` | bekliyor | — | `ui.v2.ogretmen` | Gerçek cihazda klavye | |
 | 6B · Başla, fotoğraf, el yazısı | `design/ogretmen-foto` | bekliyor | — | `ui.v2.ogretmen` | | |
 | 7A · Giriş + kayıt | `design/giris-kayit` | bekliyor | — | `ui.v2.giris` | | |

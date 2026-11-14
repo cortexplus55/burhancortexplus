@@ -17,6 +17,14 @@
       "env": { "E2E_FIXTURE": "1" }
     },
     {
+      "name": "cortex-plus-test-guvenli",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["next", "start", "-p", "3006"],
+      "port": 3006,
+      "cwd": "cortex-plus",
+      "env": { "E2E_FIXTURE": "1", "OPENAI_API_KEY": "", "SMTP_HOST": "", "SMTP_USER": "", "SMTP_PASS": "", "RESEND_API_KEY": "", "NEXT_TELEMETRY_DISABLED": "1" }
+    },
+    {
       "name": "cortex-plus-uretim",
       "runtimeExecutable": "npx",
       "runtimeArgs": ["next", "start", "-p", "3010"],

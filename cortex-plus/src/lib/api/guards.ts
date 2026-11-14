@@ -14,6 +14,7 @@ import {
 import { hashIp, recordAbuse, requestIp } from "@/lib/abuse/record";
 import { isAdminUser } from "@/lib/auth/roles";
 import { FREE_LESSON_REFUSAL_MESSAGE } from "@/lib/billing/free-meters";
+import { gateFromRefusal } from "@/lib/entitlements/gate";
 
 export type ApiContext = {
   userId: string;
@@ -389,7 +390,13 @@ export function errorResponse(
     var; Türkçe metni karşılaştırmak, metni değiştiren ilk kişide kırılırdı.
 
     `error` alanı olduğu gibi duruyor — mevcut istemciler onu okuyor.
+
+    Faz 3A (14 Kasım 2026): hak retlerinin gövdesine `gate` de eklenir (hak sisteminin kapısı; `gateFromRefusal`
+    yalnız ücretsiz sınırı ve Plus retlerinin kodlarını tanır). Karar değişmez: ret yine bugünkü kontrolden gelir,
+    `gate` yalnız onu arayüzün diliyle söyler. Tanınmayan kodda yok.
   */
+  const gate = gateFromRefusal(code);
+  if (gate) extras = { gate, ...extras };
   return NextResponse.json(
     { error: messages[code] ?? "Beklenmeyen bir hata oluştu.", code, ...extras },
     { status },

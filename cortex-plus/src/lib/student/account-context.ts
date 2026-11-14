@@ -52,6 +52,12 @@ export type StudentAccountContext = {
   usedPercent: number;
   /** Satın alınmış ek paketin dönem hakkına oranı (%); yoksa null. */
   extraPercent: number | null;
+  /**
+   * Dönem hakkının kalanı ve toplamı, tembel yenileme uygulanmış (`quotaView`; Faz 3A hak kapısı okur). Ham
+   * `freeAllowanceRemaining` dönem dolmuşsa eski değeri taşır; sunucu ilk işte yeniler. Ücretsizde yok.
+   */
+  quotaRemaining?: number;
+  quotaAllowance?: number;
   /** Ücretsiz hesabın sayaçları (günlük mesaj ve fotoğraf; 24 Ekim 2026). Ders sayacı yok (11 Kasım 2026 akşamı). */
   freeMeters?: FreeMeterView[];
 };
@@ -142,6 +148,7 @@ export async function getStudentAccountContext(
     periodKind: quota.kind,
     usedPercent: quota.usedPercent,
     extraPercent: allowanceShare(balance, quota.allowance),
+    ...(isPremium ? { quotaRemaining: quota.remaining, quotaAllowance: quota.allowance } : {}),
     ...(meters ? { ...freeView(meters), canSpend: true } : {}),
   };
 }
