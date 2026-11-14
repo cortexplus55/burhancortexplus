@@ -51,10 +51,10 @@ describe("ders sayfası: bayrak kapalıyken sarmalayıcı yok", () => {
     expect(page).toContain('uiV2("ders", user.id)');
     expect(page).toMatch(/uiKeys\.length \? \(\s*<div className="cx-ui-scope" data-ui=\{uiKeys\.join\(" "\)\}>/);
     const css = readFileSync("src/styles/ui-v2-ders.css", "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
-    const selectors = css.match(/^[^@{}\n][^{]*\{/gm) ?? [];
-    for (const selector of selectors) {
-      if (selector.trim().startsWith(".cx-ui-scope")) continue;
-      expect(selector, selector).toContain('[data-ui~="ders"]');
+    for (const rule of css.match(/[^{}]+\{/g) ?? []) {
+      const selector = rule.replace("{", "").trim();
+      if (!selector || selector.startsWith("@") || selector === ".cx-ui-scope") continue;
+      for (const part of selector.split(",")) expect(part.trim(), part).toMatch(/^\[data-ui~="ders"\]/);
     }
     expect(css).not.toMatch(/#[0-9a-f]{3,8}\b/i);
     expect(css).not.toMatch(/outline:\s*none/);
