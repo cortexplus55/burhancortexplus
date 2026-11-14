@@ -28,6 +28,9 @@ import { ContinueLine } from "@/components/parity/continue-line";
 import { HomeCockpit, HomeSelectionProvider, HomeToolsTray } from "@/components/parity/home-cockpit";
 import { loadHomeCockpit, type NodeRow } from "@/lib/learning/home-cockpit";
 import { uiV2 } from "@/lib/ui-v2/flags";
+import { InviteStrip } from "@/components/growth/invite-strip";
+import { loadInviteLink } from "@/lib/credits/invite-code";
+import "@/styles/ui-v2-buyume.css";
 import "@/styles/ui-v2-ogretmen.css";
 import { firstLessonStatus, freeTopicLocks } from "@/lib/billing/free-topic-gate";
 
@@ -232,10 +235,18 @@ export default async function OgretmenPage({
   const avatar = profile?.avatar_url as string | null | undefined;
   // Yeni görünüm bayrağı (Faz 6A, `ui.v2.ogretmen`): KAPALIYKEN sarmalayıcı yok ve sohbet bugünkü gibi kayar.
   const uiOgretmen = await uiV2("ogretmen", user.id);
+  // Faz 11C (`ui.v2.buyume`): ilk ders tamamlanınca ana ekranda davet şeridi (ücretsizde ilk dersin durumu, ücretlide
+  // yolda biten bir adım). Bağlantı /davet ile aynı kaynaktan; bayrak kapalıyken okunmaz.
+  const inviteStrip =
+    cockpit.length && (firstLesson === "done" || cockpit.some((prep) => prep.progress.done > 0)) && (await uiV2("buyume", user.id))
+      ? await loadInviteLink(supabase, user.id)
+          .then(({ url }) => <InviteStrip url={url} plan={account?.audience ?? "free"} />)
+          .catch(() => undefined)
+      : undefined;
 
   const panel = (
       <ChatPanel
-        homeCockpit={cockpit.length ? <HomeCockpit /> : undefined}
+        homeCockpit={cockpit.length ? <HomeCockpit aside={inviteStrip} /> : undefined}
         homeTools={cockpit.length ? <HomeToolsTray freeAccount={freeAccount} /> : undefined}
         variant="parity"
         composerMode="parity"

@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { AnaEkranFixture } from "./fixture";
+import "@/styles/ui-v2-buyume.css";
 import { fixturePlan } from "./plan";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +14,7 @@ export const dynamic = "force-dynamic";
 export default async function E2eAnaEkranPage({
   searchParams,
 }: {
-  searchParams: Promise<{ durum?: string; plan?: string; hazirlik?: string; konu?: string; hak?: string; kota?: string }>;
+  searchParams: Promise<{ durum?: string; plan?: string; hazirlik?: string; konu?: string; hak?: string; kota?: string; buyume?: string }>;
 }) {
   if (process.env.E2E_FIXTURE !== "1") notFound();
   const params = await searchParams;
@@ -29,6 +30,7 @@ export default async function E2eAnaEkranPage({
       manyTopics={params.konu === "cok"}
       rights={params.hak === "taze" || params.hak === "kullanildi" || params.hak === "bitti" ? params.hak : undefined}
       quota={params.kota === "90" ? 90 : params.kota === "100" ? 100 : undefined}
+      growth={params.buyume === "1"}
     />
   );
 }

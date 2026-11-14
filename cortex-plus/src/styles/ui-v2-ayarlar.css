@@ -1,0 +1,34 @@
+/*
+ * Ayarlar ve /davet yeni görünüm (Faz 11A, bayrak `ui.v2.ayarlar`). Yalnız `[data-ui~="ayarlar"]` altında. Ayarların
+ * etkisi, kaydetme modeli, hesap ve gizlilik akışları, onay diyalogları aynen. Gruplar kenarsız bg-1 köşe 24; satırlar
+ * arası çizgi yerine boşluk; yıkıcı grup tehlike tonunda başlıklı.
+ */
+[data-ui~="ayarlar"] .cp-set-group-body {
+  gap: 2px;
+  border: 0;
+  border-radius: var(--cx-radius-l);
+  background: var(--cx-bg-1);
+}
+[data-ui~="ayarlar"] .cp-set-rows {
+  gap: 2px;
+}
+[data-ui~="ayarlar"] .cp-set-rows li + li {
+  border-top: 0;
+}
+[data-ui~="ayarlar"] .cp-set-row {
+  border-radius: var(--cx-radius-m);
+  transition: background 0.16s ease;
+}
+[data-ui~="ayarlar"] .cp-set-row:hover {
+  background: var(--cx-bg-2);
+}
+[data-ui~="ayarlar"] .cp-set-group--danger .cp-set-group-body {
+  background: var(--cx-danger-weak);
+}
+[data-ui~="ayarlar"] .cp-set-group--danger .cp-set-group-title {
+  color: var(--cx-danger);
+}
+[data-ui~="ayarlar"] :focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}

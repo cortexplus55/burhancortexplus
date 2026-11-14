@@ -1,0 +1,38 @@
+/*
+ * Laboratuvarlar ve hesap araçları yeni görünüm (Faz 11B, bayrak `ui.v2.araclar2`). Yalnız `[data-ui~="araclar2"]`
+ * altında; çizim motoru ve matematik aynen. Periyodik tablo kendi kabında yana kayar (sayfa taşmaz), hücre en az
+ * 40 px, hücre içi yazı en az 11 px; girişler 44 px; sonuç bloğu kenarsız bg-1.
+ */
+/* 18 × 40 px + 17 × 3 px aralık = 771 px. Alt seriler kendi 18 sütunlu ızgarasında; kapları yalnız genişler. */
+[data-ui~="araclar2"] .pt-grid,
+[data-ui~="araclar2"] .pt-grid--series {
+  grid-template-columns: repeat(18, minmax(40px, 1fr));
+  min-width: 771px;
+}
+[data-ui~="araclar2"] .pt-series {
+  min-width: 771px;
+}
+[data-ui~="araclar2"] .pt-z {
+  font-size: 11px;
+}
+[data-ui~="araclar2"] .tool-input {
+  min-height: 44px;
+  border-radius: var(--cx-radius-m);
+}
+[data-ui~="araclar2"] .tool-result {
+  border: 0;
+  border-radius: var(--cx-radius-l);
+  background: var(--cx-bg-1);
+}
+[data-ui~="araclar2"] :focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-ui~="araclar2"] .pt-cell,
+  [data-ui~="araclar2"] .pt-cell:hover,
+  [data-ui~="araclar2"] .pt-cell.is-on {
+    transform: none;
+    transition: background 0.16s ease;
+  }
+}

@@ -1,0 +1,52 @@
+/*
+ * Büyüme yerleşimleri (Faz 11C, `ui.v2.buyume`). Yerleşim yalnız bayrak açıkken çizilir; kap küçük (bg-1, köşe 24,
+ * kenarlık yok), tek satır metin + tek eylem + kapat. Telefonda ana ekran kaydırmasız: "Kalan haklar" gibi gizli.
+ */
+.cx-growth {
+  display: flex;
+  align-items: center;
+  gap: var(--cx-space-12);
+  margin-top: var(--cx-space-16);
+  padding: var(--cx-space-8) var(--cx-space-8) var(--cx-space-8) var(--cx-space-16);
+  border-radius: var(--cx-radius-l);
+  background: var(--cx-bg-1);
+  min-width: 0;
+}
+.cx-growth-text {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  color: var(--cx-text-secondary);
+}
+.cx-growth-action {
+  flex: none;
+  min-height: 40px;
+  padding-inline: var(--cx-space-14);
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  font: var(--cx-t-button-s);
+}
+.cx-growth-close {
+  display: inline-grid;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  background: transparent;
+  color: var(--cx-text-secondary);
+}
+.cx-growth-close svg {
+  width: 16px;
+  height: 16px;
+}
+.cx-growth :focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}
+@media (max-width: 767px) {
+  .cx-growth {
+    display: none;
+  }
+}
