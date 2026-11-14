@@ -223,6 +223,13 @@ describe("profil içeriği", () => {
     await act(async () => {});
     expect(founder.container.querySelector(".cx-pp-strip--sigma .cx-pp-founder")).not.toBeNull();
     expect(founder.container.textContent).toContain("Sınırsız · işlemler hakkından düşmez");
+    // Silinen eski panel testinin güvenceleri (14 Kasım 2026): kurucu çipi kredi sayfasının kurucu görünümünü açar,
+    // Sigma görünümünde (Σ, altın taç değil); kurucuda satın alma yok; tema seçimi profilde değil.
+    const chip = founder.container.querySelector(".cx-pp-founder");
+    expect(chip?.getAttribute("href")).toBe("/krediler");
+    expect(chip?.querySelector(".cp-founder-chip__mark")?.textContent?.trim()).toBe("Σ");
+    expect(founder.container.querySelector(".cx-pp-gold")).toBeNull();
+    expect(founder.container.querySelector('[role="radiogroup"]')).toBeNull();
   });
 });
 
@@ -248,5 +255,58 @@ describe("kaynak sözleşmesi", () => {
       expect(source).toContain("<ParitySorShell {...shell}>");
       expect(source).toContain("<MarketingPage");
     }
+  });
+});
+
+describe("kapsüldeki ad", () => {
+  it("kabuğu kendisi kuran sayfalar da adı verir (canlıda ana ekranda 'Öğrenci' yazıyordu, 13 Kasım 2026)", async () => {
+    const { parityShellName } = await import("@/components/parity/app-utils");
+    expect(parityShellName("burhan önder", "x@ornek.com")).toBe("Burhan");
+    expect(parityShellName(null, "kullanici@ornek.com")).toBe("kullanici");
+    expect(parityShellName("", null)).toBe("Öğrenci");
+    // Panel ve /profil tam adı her sözcüğün baş harfi büyük gösterir (canlıda "burhan" yazıyordu).
+    const { parityFullName } = await import("@/components/parity/app-utils");
+    expect(parityFullName("burhan önder", null)).toBe("Burhan Önder");
+    expect(parityFullName("  ilkay   ışık ", null)).toBe("İlkay Işık");
+    expect(parityFullName(null, "kullanici@ornek.com")).toBe("kullanici");
+    // Kütüphane'de parçalar küçülmez (kısa pencerede son satır kırpılıyordu).
+    expect(read("src/styles/cx-shell.css")).toMatch(/\.cx-lib-panel > \* \{\s*flex-shrink: 0;/);
+    const { readdirSync, statSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const walk = (dir: string): string[] =>
+      readdirSync(dir).flatMap((name) => {
+        const path = join(dir, name);
+        return statSync(path).isDirectory() ? walk(path) : /\.tsx$/.test(name) ? [path] : [];
+      });
+    const missing = walk("src/app")
+      .filter((path) => !path.includes(`${join("src", "app", "e2e")}`))
+      .filter((path) => read(path).includes("<ParitySorShell"))
+      .filter((path) => !/\{\.\.\.shell\}|userName=/.test(read(path)));
+    expect(missing).toEqual([]);
+  });
+});
+
+describe("Prompt 1 kararları (14 Kasım 2026)", () => {
+  it("Kurucu her yerde Sigma görünümünde: çip, rozet ve kredi kartında altın ve taç yok", () => {
+    const founderCss = read("src/styles/founder.css");
+    expect(founderCss).not.toMatch(/--cp-gold|pm-glow-amber|244, 174, 11|#f4ae0b/i);
+    expect(founderCss).toMatch(/\.cp-founder-chip \{[^}]*background: var\(--cx-plan-sigma-chip-bg\);/);
+    expect(founderCss).toMatch(/\.cp-founder-card__badge \{[^}]*var\(--cx-plan-sigma-ring\)/);
+    for (const file of ["src/components/student/founder-chip.tsx", "src/components/student/founder-credits-view.tsx"]) {
+      expect(read(file)).not.toContain("Crown");
+      expect(read(file)).toContain("Σ");
+    }
+    // Plan tonları tek kaynakta (tokens.css), koyu ve açık temada.
+    const tokens = read("src/styles/tokens.css");
+    expect(tokens.match(/--cx-plan-sigma-chip-bg:/g)?.length).toBe(2);
+    expect(read("src/styles/cx-profile.css")).not.toMatch(/--cx-plan-[a-z-]+:/);
+  });
+
+  it("eski profil paneli ve avatar seçici yok; avatar alanı ve API'si yerinde", () => {
+    const { existsSync } = require("node:fs") as typeof import("node:fs");
+    expect(existsSync("src/components/parity/profile-panel.tsx")).toBe(false);
+    expect(existsSync("src/components/parity/avatar-picker.tsx")).toBe(false);
+    expect(read("src/components/parity/profile-dialog.tsx")).not.toMatch(/AvatarPicker|avatarEmoji|cp-settings-avatar/);
+    expect(read("src/app/api/profile/me/route.ts")).toContain("avatar_url");
   });
 });

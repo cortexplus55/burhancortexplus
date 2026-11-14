@@ -2,7 +2,7 @@ import { emailUnverifiedFromMetadata } from "@/lib/auth/email-unverified-flag";
 import { notFound } from "next/navigation";
 import { ChatPanel } from "@/components/chat/chat-panel";
 import { ParitySorShell } from "@/components/parity/sor-shell";
-import { parityUserInitial } from "@/components/parity/app-utils";
+import { parityShellName, parityUserInitial } from "@/components/parity/app-utils";
 import { requireStudentArea } from "@/lib/auth/session";
 import { getCreditCost } from "@/lib/credits/rules";
 import { isPremiumUser } from "@/lib/ai/generate";
@@ -117,6 +117,7 @@ export default async function ExamPrepChatPage({
       backHref={`/deneme-sinavlari/${prepId}`}
       conversationBaseHref={chatPath}
       userInitial={parityUserInitial(profile?.full_name, user.email)}
+      userName={parityShellName(profile?.full_name, user.email)}
       avatarEmoji={avatar && !avatar.startsWith("http") ? avatar : null}
       streak={streak}
       account={account}

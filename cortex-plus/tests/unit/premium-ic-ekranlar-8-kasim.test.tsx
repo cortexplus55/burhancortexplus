@@ -254,11 +254,12 @@ describe("ayarlar tek merkez", () => {
     const host = read("src/components/parity/parity-dialog-host.tsx");
     expect(host).toContain('{ hesap: "account", okul: "school", tercihler: "learning" }');
     expect(read("src/components/parity/profile-dialog.tsx")).not.toContain("AppearanceRow");
-    expect(read("src/components/parity/profile-panel.tsx")).not.toContain("AppearanceRow");
+    // 14 Kasım 2026: eski profil paneli silindi; profilin içeriği profile-identity.tsx'te.
+    expect(read("src/components/parity/profile-identity.tsx")).not.toContain("AppearanceRow");
   });
 
   it("bütün 'Ayarlar' girişleri /ayarlar'a gider", () => {
-    expect(read("src/components/parity/profile-panel.tsx")).toContain('<Link href="/ayarlar" className="cp-pp-settings">');
+    expect(read("src/components/parity/profile-identity.tsx")).toContain('{ href: "/ayarlar", label: "Ayarlar", icon: Settings }');
     // 13 Kasım 2026 (kabuk): yeni üst çubukta ayarlar bağlantısı yok; Ayarlar profilden açılır.
     expect(read("src/components/parity/sor-shell.tsx")).not.toContain('href="/ayarlar"');
     expect(read("src/components/chat/chat-panel.tsx")).toContain('<Link href="/ayarlar" role="menuitem" className="cp-mood-menu-more">');

@@ -7,6 +7,7 @@ import { loadProfileDashboard } from "@/lib/student/profile-dashboard";
 import { planIdentity } from "@/lib/student/plan-identity";
 import { toMyStars } from "@/lib/stars/view";
 import { formatDate } from "@/lib/format";
+import { parityFullName } from "@/components/parity/app-utils";
 
 export const metadata = { title: "Profil" };
 
@@ -27,7 +28,7 @@ export default async function ProfilPage() {
   ]);
 
   const account = shell.account;
-  const name = dashboard.fullName?.trim() || shell.userName || user.email?.split("@")[0] || "Öğrenci";
+  const name = parityFullName(dashboard.fullName, user.email);
   const initial = name.slice(0, 1).toLocaleUpperCase("tr-TR");
 
   return (

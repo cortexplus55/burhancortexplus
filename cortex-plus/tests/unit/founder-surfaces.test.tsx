@@ -102,13 +102,17 @@ describe("kurucu çipi", () => {
     expect(link.getAttribute("data-tip")).toBe("Bu hesapta hiçbir işlem kredi düşürmez.");
     expect(link.querySelector(".cp-founder-chip__full")?.textContent).toBe("Kurucu · Sınırsız");
     expect(link.querySelector(".cp-founder-chip__short")?.textContent).toBe("Sınırsız");
-    expect(link.querySelector("svg")).not.toBeNull();
+    // 14 Kasım 2026 (ürün sahibinin kararı): Kurucu Sigma görünümünde; taç simgesi yerine Σ köşe işareti.
+    expect(link.querySelector("svg")).toBeNull();
+    expect(link.querySelector(".cp-founder-chip__mark")?.textContent?.trim()).toBe("Σ");
+    expect(link.querySelector(".cp-founder-chip__mark")?.getAttribute("aria-hidden")).toBe("true");
   });
 
   it("ayarlar rozeti bağlantı değil", () => {
     const { container } = render(<FounderBadge />);
     expect(container.querySelector("a")).toBeNull();
-    expect(container.textContent).toBe("Kurucu");
+    expect(container.querySelector(".cp-founder-chip__mark")?.textContent?.trim()).toBe("Σ");
+    expect(container.textContent?.replace("Σ", "").trim()).toBe("Kurucu");
   });
 });
 

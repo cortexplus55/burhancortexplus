@@ -1,7 +1,7 @@
 /*
-  Kurucu (yönetici) hesabının yüzeyleri: üst çubuk çipi, kredi sayfası kartı,
-  ayarlardaki rozet. Yeni renk yok; altın `--cp-gold`, zeminler aynı altının
-  saydam tonları (mevcut kredi çipiyle aynı aile).
+  Kurucu (yönetici) hesabının yüzeyleri: profil panelindeki çip, kredi sayfası kartı, Ayarlar ve Abonelik
+  sayfasındaki rozet. 14 Kasım 2026 (ürün sahibinin kararı): Kurucu Sigma görünümündedir; altın yok. Renkler
+  tokens.css'teki `--cx-plan-sigma-*`'tan (hata kırmızısı değil).
 */
 
 .cp-founder-chip {
@@ -12,14 +12,12 @@
   height: 28px;
   padding: 0 10px;
   border-radius: 9999px;
-  /* kıyas ürünü paletinde altın durum rengi yok (17 Ekim 2026): kurucu çipi de nötr cam kapsül. */
   border: 0;
-  background: var(--glass-bg);
-  box-shadow: var(--glass-inset);
-  color: var(--c-text-muted);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1;
+  background: var(--cx-plan-sigma-chip-bg);
+  color: var(--cx-plan-sigma-chip-text);
+  font: 500 0.6875rem / 1 var(--cx-font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   white-space: nowrap;
   text-decoration: none;
   transition:
@@ -28,7 +26,8 @@
 }
 
 .cp-founder-chip:hover {
-  color: var(--c-text);
+  color: var(--cx-plan-sigma-chip-text);
+  background: var(--cx-plan-sigma-tint-open), var(--cx-plan-sigma-chip-bg);
 }
 
 .cp-founder-chip:active {
@@ -36,14 +35,23 @@
 }
 
 .cp-founder-chip:focus-visible {
-  outline: 2px solid var(--cp-gold);
-  outline-offset: 2px;
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
 }
 
-.cp-founder-chip__icon {
-  width: 14px;
-  height: 14px;
+/* Köşe işareti: Sigma halkasıyla aynı degrade daire, içinde Σ. */
+.cp-founder-chip__mark {
+  display: inline-grid;
+  place-items: center;
   flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--cx-plan-sigma-mark);
+  color: var(--cx-plan-mark-text);
+  font: 500 0.6875rem / 1 var(--cx-font-mono);
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .cp-founder-chip__short {
@@ -125,8 +133,9 @@
   align-items: flex-start;
   padding: 24px;
   border-radius: 20px;
-  border: 1px solid rgba(244, 174, 11, 0.35);
-  box-shadow: var(--pm-glow-amber, none);
+  border: 0;
+  background: var(--cx-plan-sigma-tint), var(--cx-bg-1);
+  box-shadow: inset 0 0 0 1px var(--cx-plan-sigma-line);
 }
 
 .cp-founder-card__badge {
@@ -137,8 +146,10 @@
   width: 40px;
   height: 40px;
   border-radius: 9999px;
-  background: var(--cp-gold);
-  color: var(--cp-bg);
+  /* Sigma halkası: degrade halka, ortası kartın zemini, içinde Σ. */
+  background: radial-gradient(circle, var(--cx-bg-1) 0 58%, transparent 60%), var(--cx-plan-sigma-ring);
+  color: var(--cx-plan-sigma-chip-text);
+  font: 500 1rem / 1 var(--cx-font-mono);
 }
 
 .cp-founder-card__title {

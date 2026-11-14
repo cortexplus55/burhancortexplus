@@ -55,6 +55,13 @@ export default defineConfig({
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
         process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "sb-e2e-local-only",
       E2E_FIXTURE: "1",
+      /*
+        Next geliştirme sunucusu yığının %80'ine gelince kendini yeniden başlatıyor ("Server is approaching the used
+        memory threshold, restarting..."); o arada gelen istek ERR_CONNECTION_REFUSED alıyor. Varsayılan sınır makine
+        belleğinin yarısı (CI'da 16 GB → 8 GB) ve 220 testlik paket bunu aşıyordu: sonlara denk gelen rotalar düşüyordu
+        (13–14 Kasım 2026, dört koşuda). CI'da sınır 12 GB; yerelde Next'in varsayılanı.
+      */
+      ...(process.env.CI ? { NODE_OPTIONS: "--max-old-space-size=12288" } : {}),
     },
   },
   projects: [

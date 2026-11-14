@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { ChevronLeft, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { AvatarPicker } from "@/components/parity/avatar-picker";
 import { TUTOR_STYLE_OPTIONS, type TutorStyle } from "@/lib/learning/tutor-style";
 import {
   DAILY_GOAL_OPTIONS,
@@ -38,7 +37,7 @@ export type ProfilePlanView = {
 };
 
 /**
- * Profil düzenleme penceresi (ad, avatar, rol, okul, öğrenme tercihleri). 8 Kasım 2026: bütün ayarların tek adresi
+ * Profil düzenleme penceresi (ad, rol, okul, öğrenme tercihleri; avatar seçici 14 Kasım 2026'da kalktı, kabukta baş harf). 8 Kasım 2026: bütün ayarların tek adresi
  * `/ayarlar`; pencere oradaki satırlardan istenen sekmeyle açılır (`?dialog=profile&sekme=okul`). Tema ve hesap
  * bağlantıları pencereden kalktı (üç ayrı yerde tema seçimi vardı).
  */
@@ -67,7 +66,6 @@ export function ProfileDialog({
   const [todayMinutes, setTodayMinutes] = useState(0);
   const [fullName, setFullName] = useState("");
   const [gradeLevel, setGradeLevel] = useState("");
-  const [avatarEmoji, setAvatarEmoji] = useState<string | null>(null);
   const [tutorStyle, setTutorStyle] = useState<TutorStyle>("step_by_step");
   const [suggestions, setSuggestions] = useState(true);
   const [readable, setReadable] = useState(false);
@@ -87,7 +85,6 @@ export function ProfileDialog({
         setTodayMinutes(Number(data.today_minutes) || 0);
         setFullName(data.full_name ?? "");
         setGradeLevel(data.grade_level ?? "");
-        setAvatarEmoji(data.avatar_emoji ?? null);
         if (data.tutor_style) setTutorStyle(data.tutor_style);
         setSuggestions(data.show_suggestions !== false);
         setReadable(data.readable_font === true);
@@ -259,12 +256,6 @@ export function ProfileDialog({
 
         {tab === "account" ? (
           <div className="cp-profile-body">
-            <div className="cp-settings-avatar">
-              <span className="cp-pp-avatar" aria-hidden>
-                {avatarEmoji ?? (fullName.trim().slice(0, 1).toLocaleUpperCase("tr-TR") || "?")}
-              </span>
-              <AvatarPicker current={avatarEmoji} onChange={setAvatarEmoji} />
-            </div>
             <label className="cp-field">
               <span>İsim</span>
               <input value={fullName} maxLength={80} onChange={(e) => setFullName(e.target.value)} />
