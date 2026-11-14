@@ -74,7 +74,15 @@ try {
   if (sameLock("package-lock.json") && sameLock("package.json")) fs.symlinkSync(path.join(ROOT, "node_modules"), LINK, "junction");
   else if (run("npm", ["ci"], { cwd: APP }) !== 0) throw new Error("npm ci başarısız");
   fs.copyFileSync(path.join(ROOT, ".env.local"), path.join(APP, ".env.local"));
-  fs.cpSync(path.join(ROOT, "tests/.auth"), path.join(APP, "tests/.auth"), { recursive: true });
+  // fs.cpSync burada kullanılmaz: Node 24 bu makinede (Türkçe karakterli yol) onunla sessizce 127 koduyla kapanıyor.
+  const copyDir = (from, to) => {
+    fs.mkdirSync(to, { recursive: true });
+    for (const entry of fs.readdirSync(from, { withFileTypes: true })) {
+      if (entry.isDirectory()) copyDir(path.join(from, entry.name), path.join(to, entry.name));
+      else fs.copyFileSync(path.join(from, entry.name), path.join(to, entry.name));
+    }
+  };
+  copyDir(path.join(ROOT, "tests/.auth"), path.join(APP, "tests/.auth"));
 
   const committed = JSON.parse(fs.readFileSync(path.join(APP, "tests/visual/baseline-manifest.json"), "utf8"));
   if (run("npm", ["run", "test:visual:update"], { cwd: APP }) !== 0) throw new Error("test:visual:update başarısız");
