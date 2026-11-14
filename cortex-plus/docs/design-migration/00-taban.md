@@ -65,3 +65,37 @@ Tek komut, 2–7 adımlarını yapar ve sonucu `docs/design-migration/data/gorse
 ```bash
 node scripts/visual-reproduce.mjs --commit <Faz 0 commit'i>
 ```
+
+### Tarifin uygulanması (14 Kasım 2026)
+
+Taban: manifest `BASELINE_SHA 151da31f`, 203 görüntü, 27,15 MB. Tarif `421c06e0` commit'inde temiz worktree'de
+`node scripts/visual-reproduce.mjs` ile uygulandı. Ayrıntı: `data/gorsel-yeniden-uretim.json`.
+
+| Ölçü | Sonuç |
+|---|---|
+| Algısal karşılaştırma: bu makinedeki taban, temiz derlemeyle `test:visual` (eşik `maxDiffPixelRatio` 0,002) | **203/203 geçti** |
+| Bayt karşılaştırması: temiz worktree'de yeniden üretilen görüntülerin sha256'ları manifestle | **157/203 aynı**, 46 farklı |
+
+**Hüküm:** üretim **algısal olarak deterministik**, **bayt düzeyinde değil**.
+- Aynı makinede, aynı derlemeyle iki koşu arasında sıfır toleranslı karşılaştırma da benzer sonuç verdi: 158/203 piksel
+  piksel aynı.
+- Kalan farklar, normal eşiğin saymadığı küçük renk oynamaları. Yerleri profil halkası, konik geçişli halkalar ve
+  geçişli zeminlerdeki kenar yumuşatması.
+- Yeni ekran açılmıyor, yerleşim kaymıyor.
+
+Bu yüzden:
+- Karşılaştırma algısal eşikle yapılır (`test:visual`).
+- Manifestteki sha256'lar "bu makinedeki dosyalar kayıtlı taban mı" denetimi içindir, yeniden üretimin bayt eşitliği
+  için değil.
+
+**Yolda bulunan ve düzeltilen nedenler** (tarif ilk uygulamada 105/203 aynı vermişti):
+1. **Çerez bandı:** sabit saatten sonra yapılan girişte çerez tercihi "ileri tarihli" sayılıp reddediliyor, bant ekrana
+   biniyordu.
+2. **"Seri" penceresi:** kurucu fikstürü görüntülerine biniyordu.
+3. **Hız sınırı:** seri ve okul arama istekleri hız sınırına takılıp 200, 429 ya da geç dönüyordu. Görsel testte ağ
+   katmanında sabitlendi.
+4. **Geç gelen veri:** üst çubuk ve profil paneli veriyle geç kayıyordu. Çekim, yerleşim oturana ve ilgili yanıt gelene
+   kadar bekliyor.
+5. **Güncelleme komutu:** yalın `--update-snapshots` Playwright'ta "changed" kipi; eşik içindeki görüntüyü yeniden
+   yazmıyordu. Artık `--update-snapshots=all`.
+6. **Sunucu klasörü:** `webServer` yapılandırma klasöründe çalışıyordu; artık uygulama kökünde.
