@@ -115,10 +115,17 @@ export function SubscriptionCards({
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnTo = searchParams.get("returnTo");
+  // Yükseltme penceresinin bağlantısı (/pay?plan=plus|week|sigma&from=…, Faz 3B): istenen kart açık ve işaretli gelir.
+  // Bilinmeyen değer yok sayılır (bugünkü varsayılan); `from` hiçbir yerde ekrana basılmaz.
+  const pickedPlan = pickedPlanFrom(searchParams.get("plan"));
   const [yearly, setYearly] = useState(false);
   const [plusOpen, setPlusOpen] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
-  const [otherPlansOpen, setOtherPlansOpen] = useState(false);
+  const [otherPlansOpen, setOtherPlansOpen] = useState(pickedPlan === "sigma");
+  useEffect(() => {
+    if (!pickedPlan) return;
+    document.querySelector("[data-cx-picked]")?.scrollIntoView({ block: "center" });
+  }, [pickedPlan]);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [iframeUrl, setIframeUrl] = useState<string | null>(null);
   const [iframeReady, setIframeReady] = useState(false);
@@ -468,7 +475,10 @@ export function SubscriptionCards({
         )}
       >
         {plusOwned ? null : (
-        <article className="cs-pay-card cs-pay-card--premium cs-pay-card--recommended p-5">
+        <article
+          className="cs-pay-card cs-pay-card--premium cs-pay-card--recommended p-5"
+          data-cx-picked={pickedPlan === "plus" || pickedPlan === "week" ? pickedPlan : undefined}
+        >
           <div className="flex items-start gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/20 text-amber-400">
               <Plus className="h-6 w-6" />
@@ -498,6 +508,7 @@ export function SubscriptionCards({
               <button
                 type="button"
                 disabled={!checkoutEnabled || plusOwned || loadingId === plusPlan?.id}
+                data-cx-main="plus"
                 className="cortex-premium-btn-primary mt-4 disabled:opacity-60"
                 onClick={() =>
                   plusOwned
@@ -533,6 +544,7 @@ export function SubscriptionCards({
                 <button
                   type="button"
                   className="mt-3 w-full rounded-full border border-[var(--cs-border)] py-2.5 text-sm text-[var(--cs-text)] disabled:opacity-60"
+                  data-cx-main="week"
                   disabled={loadingId === plusWeekly.id}
                   onClick={() =>
                     guestMode
@@ -591,7 +603,10 @@ export function SubscriptionCards({
         ) : null}
 
         {showSigmaCard && sigmaPlan ? (
-          <article className="cs-pay-card cs-pay-card--premium relative overflow-hidden p-5">
+          <article
+            className="cs-pay-card cs-pay-card--premium relative overflow-hidden p-5"
+            data-cx-picked={pickedPlan === "sigma" ? "sigma" : undefined}
+          >
             <span className="absolute right-3 top-3 rounded-full border border-violet-400/40 bg-violet-500/10 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-violet-200">
               Daha yüksek limit
             </span>
@@ -627,6 +642,7 @@ export function SubscriptionCards({
                 <button
                   type="button"
                   disabled={!checkoutEnabled || sigmaOwned || loadingId === sigmaPlan.id}
+                  data-cx-main="sigma"
                   className={cn(
                     "mt-4 w-full rounded-full py-3.5 text-sm font-semibold disabled:opacity-60",
                     sigmaUnderFold
@@ -856,4 +872,9 @@ export function SubscriptionCards({
       </div>
     </div>
   );
+}
+
+/** `?plan=` değerinin bilinen biçimi; başka her şey (boş, enjeksiyon denemesi) yok sayılır. */
+export function pickedPlanFrom(value: string | null | undefined): "plus" | "week" | "sigma" | null {
+  return value === "plus" || value === "week" || value === "sigma" ? value : null;
 }

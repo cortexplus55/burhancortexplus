@@ -1,0 +1,76 @@
+/*
+ * /pay yeni görünüm (Faz 7C, bayrak `ui.v2.pay`). Yalnız `[data-ui~="pay"]` altında. PayTR çerçevesinin içi, ödeme
+ * token'ı, aktivasyon, fiyatlar ve metinler aynen; yalnız kartların ve kapsayıcının görünümü. Var olan kurallar
+ * `.cs-app .cs-pay-card`, `.cp-sor-root .cs-pay-card` (0,2,0): buradakiler `#planlar` ile öncelikli.
+ */
+
+[data-ui~="pay"] #planlar .cs-pay-card {
+  border-color: transparent;
+  border-radius: var(--cx-radius-l);
+  background: var(--cx-bg-1);
+  box-shadow: none;
+}
+[data-ui~="pay"] #planlar .cs-pay-card--recommended {
+  box-shadow: inset 0 0 0 1px var(--cx-plan-plus-line);
+}
+
+/* `?plan=` ile istenen kart (yükseltme penceresinden gelen öğrenci): marka çerçevesiyle işaretli. */
+[data-ui~="pay"] #planlar .cs-pay-card[data-cx-picked] {
+  box-shadow: inset 0 0 0 2px var(--cx-brand);
+}
+
+/*
+ * Ekranda tek brand: istenen kartın (`?plan=`) ana düğmesi, yoksa önerilen Plus kartınınki. Öbür satın alma
+ * düğmeleri cam, ek paket düğmeleri zayıf. Metinler ve tıklama davranışı aynen.
+ */
+[data-ui~="pay"] #planlar [data-cx-main] {
+  min-height: 48px;
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-glass-background);
+  box-shadow: var(--cx-glass-bevel);
+  color: var(--cx-text-primary);
+  font: var(--cx-t-button-s);
+}
+[data-ui~="pay"] #planlar .cs-pay-card--recommended [data-cx-main="plus"],
+[data-ui~="pay"] #planlar [data-cx-picked="week"] [data-cx-main="week"],
+[data-ui~="pay"] #planlar [data-cx-picked="sigma"] [data-cx-main="sigma"] {
+  min-height: 52px;
+  background: var(--cx-gradient-brand);
+  box-shadow: none;
+  color: var(--cx-text-on-brand);
+  font: var(--cx-t-button-l);
+}
+[data-ui~="pay"] #planlar:has([data-cx-picked="week"], [data-cx-picked="sigma"]) .cs-pay-card--recommended [data-cx-main="plus"] {
+  min-height: 48px;
+  background: var(--cx-glass-background);
+  box-shadow: var(--cx-glass-bevel);
+  color: var(--cx-text-primary);
+  font: var(--cx-t-button-s);
+}
+[data-ui~="pay"] #planlar .cs-btn-primary:not([data-cx-main]) {
+  min-height: 40px;
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-bg-2);
+  color: var(--cx-text-secondary);
+}
+[data-ui~="pay"] #planlar .cs-btn-primary:not([data-cx-main]):hover {
+  color: var(--cx-text-primary);
+}
+
+/* PayTR çerçevesinin kapsayıcısı: 375 px'te yana taşmaz (içi PayTR'ın). */
+[data-ui~="pay"] iframe {
+  max-width: 100%;
+}
+
+[data-ui~="pay"] #planlar :focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}
+
+@media (max-width: 767px) {
+  [data-ui~="pay"] #planlar .cs-btn-primary:not([data-cx-main]) {
+    min-height: 44px;
+  }
+}

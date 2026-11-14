@@ -43,6 +43,7 @@ import { useGoogleBlockedWebViewApp } from "@/lib/auth/in-app-browser";
 import { safeNextPath } from "@/lib/auth/safe-next-path";
 import { GoogleBlockedNote } from "@/components/auth/google-blocked-note";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
+import { PasswordToggle } from "@/components/auth/password-toggle";
 import { foldTr } from "@/lib/documents/page-analysis";
 import { supabaseConfigIssue } from "@/lib/supabase/config-check";
 import { readGuestMarker } from "@/lib/documents/guest-handoff";
@@ -64,6 +65,8 @@ export function SignupWizard() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showPassword2, setShowPassword2] = useState(false);
   // Uyum paketi (7 Kasım 2026): iki metin ayrı ayrı ve yalnız açılıp sonuna kadar okununca onaylanır; yaş
   // beyanı ve 18 altındaysa velinin izni. Kanıt (sürüm, açılış ve onay anı) sunucuya gider.
   const [kvkkRead, setKvkkRead] = useState<ReadGateChange>({ checked: false, evidence: null });
@@ -504,6 +507,7 @@ export function SignupWizard() {
                 <Input
                   id="email"
                   type="email"
+                  inputMode="email"
                   autoComplete="email"
                   required
                   value={email}
@@ -513,35 +517,42 @@ export function SignupWizard() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Şifre</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="border-[var(--mk-border)] bg-[#0c0c0c]"
-                />
+                <div className="cx-pw">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="new-password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="border-[var(--mk-border)] bg-[#0c0c0c]"
+                  />
+                  <PasswordToggle shown={showPassword} onToggle={() => setShowPassword((v) => !v)} controls="password" />
+                </div>
                 <p className="text-xs text-[var(--mk-muted)]">
                   En az 8 karakter, bir büyük harf, bir küçük harf ve bir rakam.
                 </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password2">Şifre tekrar</Label>
-                <Input
-                  id="password2"
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                  value={password2}
-                  onChange={(e) => setPassword2(e.target.value)}
-                  className="border-[var(--mk-border)] bg-[#0c0c0c]"
-                />
+                <div className="cx-pw">
+                  <Input
+                    id="password2"
+                    type={showPassword2 ? "text" : "password"}
+                    autoComplete="new-password"
+                    required
+                    value={password2}
+                    onChange={(e) => setPassword2(e.target.value)}
+                    className="border-[var(--mk-border)] bg-[#0c0c0c]"
+                  />
+                  <PasswordToggle shown={showPassword2} onToggle={() => setShowPassword2((v) => !v)} controls="password2" />
+                </div>
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
+                aria-busy={loading}
                 className={blockedApp ? "signup-continue w-full" : "mk-btn-outline w-full py-3 text-sm font-semibold"}
               >
                 {loading ? "Oluşturuluyor…" : "E-postayla hesabı oluştur"}
