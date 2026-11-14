@@ -52,8 +52,11 @@ const H1 = "h1";
 const ROUTES: Route[] = MATRIX.routes.map(templated);
 
 const openProfilePanel = async (page: Page) => {
+  // Panel verisi açılınca gelir (`/api/student/profile-panel`); gelmeden çekilirse satırlar ~18 px kayık kalır.
+  const data = page.waitForResponse((r) => r.url().includes("/api/student/profile-panel"), { timeout: 30_000 }).catch(() => null);
   await page.locator("button.cx-capsule").first().click();
   await page.locator(".cx-pp-panel").first().waitFor({ state: "visible" });
+  await data;
 };
 const PROFILE_PANEL: Route = {
   ...templated(MATRIX.profilePanel),
@@ -151,11 +154,16 @@ async function waitForStableLayout(page: Page) {
 async function shoot(page: Page, route: Route, url: string, file: string) {
   await prepareContext(page);
   await page.clock.setFixedTime(FIXED_NOW);
+  /* Kabuk açılınca `/api/streak` ister; cevapla seri öğesine 🧊 eklenir ve üst çubuk 1 px uzar (alttaki her şey kayar).
+     Cevap gelmeden çekilmez (sayfaya özgü hazır koşulu; genel ağ sakinliği değil). */
+  let streak = page.waitForResponse((r) => r.url().includes("/api/streak"), { timeout: 30_000 }).catch(() => null);
   let response = await page.goto(url, { timeout: 150_000 });
   /* `next dev` paralel derlemede bazen bir kez 500 verir ("__webpack_modules__[moduleId] is not a function"); yalnız
      bu durumda bir kez yeniden yüklenir. Üretim sunucusunda bu yok; ikinci 500 gerçek hatadır ve test düşer. */
+  const streakAgain = () => page.waitForResponse((r) => r.url().includes("/api/streak"), { timeout: 30_000 }).catch(() => null);
   if ((response?.status() ?? 0) >= 500) {
     await page.waitForTimeout(2_000);
+    streak = streakAgain();
     response = await page.goto(url, { timeout: 150_000 });
   }
   expect(response?.status() ?? 0, `${url} durum kodu`).toBeLessThan(400);
@@ -164,10 +172,12 @@ async function shoot(page: Page, route: Route, url: string, file: string) {
   const onLogin = () => new URL(page.url()).pathname.startsWith("/giris");
   if (!url.startsWith("/e2e/") && onLogin()) {
     await page.waitForTimeout(3_000);
+    streak = streakAgain();
     await page.goto(url, { timeout: 150_000 });
     expect(onLogin(), `${url}: oturum yok (giriş sayfasına düştü); npm run e2e:login`).toBe(false);
   }
   await page.locator(route.ready ?? H1).first().waitFor({ state: "visible", timeout: 60_000 });
+  await streak;
   if (route.open) await route.open(page);
   await page.evaluate(() => document.fonts.ready);
   await waitForStableLayout(page);
