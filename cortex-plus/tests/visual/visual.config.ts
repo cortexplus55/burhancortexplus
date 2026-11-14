@@ -35,7 +35,10 @@ export default defineConfig({
   updateSnapshots: "none",
   expect: {
     timeout: 20_000,
-    toHaveScreenshot: { maxDiffPixelRatio: 0.002, animations: "disabled", caret: "hide", scale: "css" },
+    // VISUAL_STRICT=1: sıfır tolerans (tanı için; hangi pikselin değiştiğini görmek). Olağan eşik 0,002.
+    toHaveScreenshot: process.env.VISUAL_STRICT === "1"
+      ? { maxDiffPixels: 0, threshold: 0, animations: "disabled", caret: "hide", scale: "css" }
+      : { maxDiffPixelRatio: 0.002, animations: "disabled", caret: "hide", scale: "css" },
   },
   use: {
     baseURL: BASE,

@@ -96,7 +96,29 @@ async function markDynamic(page: Page) {
   });
 }
 
+/*
+  Sabit saate bağlı başlangıç durumu (14 Kasım 2026). Çerez okuyucusu (`src/lib/consent/cookie-consent.ts:41`) zaman
+  damgası sayfanın "şimdi"sinden 5 dakikadan ileride olan tercihi geçersiz sayar. Damga girişin gerçek anı olunca, sabit
+  saatten (12:00) sonra yapılan her girişte bant ekranın altını kaplıyordu: aynı test günün saatine göre farklı görüntü
+  üretiyordu. Tercih her bağlamda sabit saatten bir saat önceki damgayla yazılır. İlk ziyaretteki "Seri" penceresinin
+  görülmüş işareti de her bağlamda yazılır (kurucu fikstürü giriş dosyası kullanmıyor; pencere görüntüye biniyordu).
+*/
+async function prepareContext(page: Page) {
+  const value = JSON.parse(decodeURIComponent(CONSENT_COOKIE.value)) as Record<string, unknown>;
+  await page.context().addCookies([
+    { ...CONSENT_COOKIE, value: encodeURIComponent(JSON.stringify({ ...value, t: FIXED_NOW.getTime() - 3_600_000 })) },
+  ]);
+  await page.addInitScript(() => {
+    try {
+      localStorage.setItem("cortex-gamification-v1", "1");
+    } catch {
+      /* depolama kapalıysa pencere çıkar; test bunu görür */
+    }
+  });
+}
+
 async function shoot(page: Page, route: Route, url: string, file: string) {
+  await prepareContext(page);
   await page.clock.setFixedTime(FIXED_NOW);
   let response = await page.goto(url, { timeout: 150_000 });
   /* `next dev` paralel derlemede bazen bir kez 500 verir ("__webpack_modules__[moduleId] is not a function"); yalnız
@@ -155,8 +177,7 @@ for (const user of PLAN_USERS) {
 
 test.describe("kurucu (fikstür)", () => {
   for (const route of FOUNDER_ROUTES) {
-    test(route.name, async ({ page, context }) => {
-      await context.addCookies([CONSENT_COOKIE]);
+    test(route.name, async ({ page }) => {
       await shoot(page, route, route.path as string, `kurucu/${route.name}.png`);
     });
   }
