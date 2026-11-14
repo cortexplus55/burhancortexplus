@@ -28,3 +28,11 @@ describe("ui.v2.ogretmen", () => {
     expect(css).not.toMatch(/outline:\s*none/);
   });
 });
+
+describe("Faz 6B: fotoğraf düğmesi hak kapısıyla (yalnız bayrak açıkken)", () => {
+  it("Görsel ekle followUser'da Gate photo.solve içinde; kapalıyken düz düğme", () => {
+    const chat = readFileSync("src/components/chat/chat-panel.tsx", "utf8");
+    expect(chat).toContain('return followUser ? <Gate action="photo.solve">{imageButton}</Gate> : imageButton;');
+    expect(chat).toContain('aria-label="Görsel ekle"');
+  });
+});
