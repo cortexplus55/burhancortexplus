@@ -53,6 +53,8 @@
 
   --cx-gradient-brand: radial-gradient(55% 90% at 100% 50%, #ffffff1f, #fff0 70%), linear-gradient(90deg, #4f46e5, #6366f1);
   --cx-gradient-signature: linear-gradient(120deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
+  /* Logo yazısının "Plus"u (üst çubuk ve giriş/kayıt; 13 Kasım 2026 tasarım tahtası). */
+  --cx-gradient-wordmark: linear-gradient(90deg, #e879f9, #fb923c);
   --cx-gradient-brand-text: linear-gradient(90deg, #4338ca, #4f46e5 40%, #6366f1 70%, #312e81);
   --cx-gradient-glow: radial-gradient(70% 55% at 50% 0%, color-mix(in srgb, #6366f1 10%, transparent), transparent 70%);
 
@@ -176,7 +178,8 @@
   --cx-logo-h: 24px;
   --cx-strip-w: 73px;
   --cx-strip-item-w: 65px;
-  --cx-strip-item-h: 80px;
+  /* 80 → 104 (15 Kasım 2026): kutuda hazırlığın adı da var (iki satır). */
+  --cx-strip-item-h: 104px;
   --cx-strip-arrow-h: 28px;
   --cx-dot: 4px;
   --cx-ring-max: 510px;

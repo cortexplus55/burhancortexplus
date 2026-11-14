@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { HomeSelectionContext as SelectionContext, type HomeSelection as Selection } from "@/components/parity/home-selection";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, CalendarDays, ChevronDown, ChevronUp, Play, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -31,15 +32,6 @@ import "@/styles/home-cockpit.css";
  * bloğu. Seçim sayfa değiştirmez; yazma çubuğundaki araç tepsisi de aynı seçimi okur (bağlam).
  */
 
-type Selection = {
-  preps: CockpitPrep[];
-  prepIndex: number;
-  topicIndex: number;
-  selectPrep: (index: number) => void;
-  selectTopic: (index: number) => void;
-};
-
-const SelectionContext = createContext<Selection | null>(null);
 
 export function HomeSelectionProvider({ preps, children }: { preps: CockpitPrep[]; children: React.ReactNode }) {
   const [prepIndex, setPrepIndex] = useState(() => initialCockpitIndex(preps));
@@ -176,14 +168,23 @@ function ExamStrip() {
                 />
               ) : null}
               {prep.behind ? <span className="cx-strip-dot" aria-hidden /> : null}
-              {typeof days === "number" ? (
-                <span className="cx-strip-day" aria-hidden>
-                  <span className="cx-strip-num">{dayValue(days)}</span>
-                  {days > 0 ? <span className="cx-strip-unit">gün sonra</span> : null}
-                </span>
-              ) : (
-                <CalendarDays className="cx-strip-cal" aria-hidden />
-              )}
+              {/* Kutuda hazırlığın adı da (15 Kasım 2026, canlı stres testi): aynı gün üç sınavı olan öğrenci yalnız gün
+                  sayısından hangisinin hangisi olduğunu ayırt edemiyordu. Sınav bugünse "Bugün" (birimsiz "0" değil). */}
+              <span className="cx-strip-day" aria-hidden>
+                {typeof days === "number" ? (
+                  days === 0 ? (
+                    <span className="cx-strip-num cx-strip-today">Bugün</span>
+                  ) : (
+                    <>
+                      <span className="cx-strip-num">{dayValue(days)}</span>
+                      {days > 0 ? <span className="cx-strip-unit">gün sonra</span> : null}
+                    </>
+                  )
+                ) : (
+                  <CalendarDays className="cx-strip-cal" />
+                )}
+                <span className="cx-strip-name">{prep.title}</span>
+              </span>
             </button>
           );
         })}

@@ -32,6 +32,21 @@ teklif yok; sayaç "önce artır, hata olursa iade" kabul; sohbette 402 sonrası
 | 11A+11B+11C · Ayarlar, Kütüphane, araçlar, büyüme (tek PR) | `design/faz11` | **birleşti** (50889a28) | #658 | `ui.v2.ayarlar`, `ui.v2.kutuphane`, `ui.v2.araclar2`, `ui.v2.buyume` | Telefonda davet şeridi yeri | Yerleşim 7 kodlandı, öbürleri bekliyor |
 | 12A+12B+12C · Durumlar, erişilebilirlik ve performans, kapanış | `design/faz12` | **birleşti** (bu PR; kapanış raporu `12-kapanis-raporu.md`) | #659 | — | 7 gün sonra bayrak temizliği | 404 / hata ekranları, axe düzeltmeleri |
 
+## Kapanış sonrası (15 Kasım 2026)
+
+**Bayraklar (canlı):** 10'u açık: `ui.v2.ders`, `tekrar`, `ogretmen`, `giris`, `kurulum`, `studyo`, `ayarlar`, `kutuphane`,
+`araclar2`, `buyume`. Kapalı: `ui.v2.pay` (seçenekler `pay-bayragi-secenekler.md`), `ui.v2.duello`, `ui.v2.paylas`,
+`duel.enabled` (9B onayı). Tablo ve 25 planın PR eşlemesi `12-kapanis-raporu.md` §3 ve §3b.
+
+| İş | PR | Durum |
+|---|---|---|
+| Giriş ve kayıt sol paneli tasarım dilimizle (yazı ortada, altın yok) | #661 | **birleşti** (50327ff0), canlıda doğrulandı |
+| `/ogretmen` canlı stres testi: şerit adları, materyal bağlama, stüdyo düğmeleri, 5 şık, usta hoca | #662 | CI'da |
+| Playwright yalnız CI'da `retries: 1` + kararsız test raporu | #663 | CI'da |
+| CSP "eval" rapor gürültüsü (kök düzenden zod çıktı) | #664 | CI'da |
+| Sınav Haftası (ve aylık Plus) cüzdan dönemi boşluğu: test + önerilen düzeltme | #660 | **taslak, birleştirilmez** (Burhan onayı + göç) |
+| Düello 9B üretim istemi ve maliyet önerisi | — | `duello-9b-oneri.md`, Burhan onayı |
+
 ## Sıradaki adımlar (bağlam sıkışırsa buradan)
 
 1. #657 (Faz 9) → #658 (Faz 11) → Faz 12 PR'ı sırayla: CI yeşil → `gh pr merge N --merge` → üstünün tabanını main'e
@@ -59,6 +74,14 @@ teklif yok; sayaç "önce artır, hata olursa iade" kabul; sohbette 402 sonrası
 2. Canlı duman testini zorunlu kontrol yapmak (06 §9; depo ayarı).
 
 ## Burhan kararı bekleyenler
+
+0. **15 Kasım 2026 eklenenler:**
+   - Sınav Haftası dönem boşluğu düzeltmesi: PR #660 (taslak) ve göç `20261115120000`. Önce göç SQL ekranında uygulanır,
+     sonra PR birleştirilir.
+   - `ui.v2.pay` açma yolu: `pay-bayragi-secenekler.md` A / B / C.
+   - Düello 9B: `duello-9b-oneri.md` (istem, ücret, günlük sınır, paylaşım uyarısı, göç).
+   - Kararsız test listesini ayrı yapıt olarak saklamak: `ci.yml`'e `upload-artifact` adımı. İş akışı dosyası bu
+     oturumun yetkisiyle push edilemiyor; liste şimdilik iş özetinde.
 
 1. **Hazırlık sayfasının ilk ziyareti "Seviye tespiti" adımını kaldırıyor** (06 §12): sıradaki düğümün önceden yüklenmesi
    tanıyı erteliyor. İstenmeyen yan etki gibi duruyor; düzeltme ürün kararı.

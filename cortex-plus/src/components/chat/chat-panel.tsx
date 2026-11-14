@@ -71,6 +71,7 @@ import { useStudentShellAccount } from "@/lib/student/student-shell-context";
 import { HOME_START_EVENT } from "@/lib/ui/home-events";
 import { MessageActions, type Rating } from "@/components/chat/message-actions";
 import { TutorReplyView } from "@/components/chat/tutor-reply-view";
+import { useSelectedCockpitPrepId } from "@/components/parity/home-selection";
 import { SourceModePill } from "@/components/chat/source-mode-pill";
 import { TutorModeSwitcher } from "@/components/chat/tutor-mode-switcher";
 import {
@@ -361,6 +362,8 @@ function ChatPanelSession({
   examChrome?: boolean;
 }) {
   const shellAccount = useStudentShellAccount();
+  // Ana ekranda seçili hazırlık (15 Kasım 2026): sohbet o hazırlığın bağlamında başlar; hazırlık sohbetinde prepId geçerli.
+  const contextPrepId = useSelectedCockpitPrepId();
   // Kurucuda kota ve mesaj başı maliyet satırı yok: hiçbir mesaj kredi düşürmüyor.
   const founder = shellAccount?.isAdmin === true;
   const allowAdvanced = shellAccount?.audience === "sigma";
@@ -1087,6 +1090,7 @@ function ChatPanelSession({
           audience,
           imageDocumentId: activeDocumentId.current,
           prepId,
+          contextPrepId: prepId ? undefined : (contextPrepId ?? undefined),
           mood: chatMood === DEFAULT_MOOD ? undefined : chatMood,
           tutorStyle,
         }),

@@ -670,3 +670,75 @@ mark.cp-key {
   line-height: 1.6;
   color: var(--c-text);
 }
+
+/* Cevabın altındaki gerçek stüdyo düğmeleri (15 Kasım 2026, `/ogretmen` canlı stres testi): özet isteğinde Sınav Sabahı
+   Kağıdı, konu dersi ve konu testi; araç isteğinde o aracı açan düğme. Kenarsız basamak kartı; ilki marka-zayıf (ekranın
+   tek marka eylemi yazma çubuğundaki öğretmen düğmesi kalır). Dokunma alanı 52 px. */
+.cp-chat-actions {
+  display: grid;
+  gap: var(--cx-space-8, 8px);
+  margin: var(--cx-space-14, 14px) 0 var(--cx-space-4, 4px);
+}
+@media (min-width: 640px) {
+  .cp-chat-actions {
+    grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  }
+}
+.cp-chat-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cx-space-12, 12px);
+  min-height: 52px;
+  padding: var(--cx-space-10, 10px) var(--cx-space-16, 16px);
+  border-radius: var(--cx-radius-m, 16px);
+  background: var(--cx-bg-2);
+  color: var(--cx-text-primary);
+  text-decoration: none;
+  transition:
+    background var(--cx-dur-color, 160ms) ease,
+    scale var(--cx-dur-scale, 220ms) var(--cx-ease-out, ease);
+}
+.cp-chat-action:hover {
+  background: var(--cx-bg-3);
+}
+.cp-chat-action:focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}
+.cp-chat-action--primary {
+  background: var(--cx-brand-weak);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cx-brand) 55%, transparent);
+}
+.cp-chat-action--primary:hover {
+  background: var(--cx-brand-weak-plus);
+}
+.cp-chat-action-text {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+.cp-chat-action-label {
+  font: var(--cx-t-label-15, 500 15px / 1.25 var(--font-ui));
+  font-weight: 600;
+}
+.cp-chat-action--primary .cp-chat-action-label {
+  color: var(--cx-text-brand);
+}
+.cp-chat-action-context {
+  overflow: hidden;
+  font: var(--cx-t-body-12, 400 12px / 1.4 var(--font-ui));
+  color: var(--cx-text-tertiary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cp-chat-action > svg {
+  flex: none;
+  color: var(--cx-text-secondary);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .cp-chat-action:active {
+    scale: 0.98;
+  }
+}

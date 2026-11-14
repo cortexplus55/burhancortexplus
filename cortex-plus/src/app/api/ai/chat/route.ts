@@ -31,7 +31,18 @@ import { loadTodayMood } from "@/lib/companion/today-mood";
 import { env, type ActionCode } from "@/lib/env";
 import { recordUsage, refundCredits, refusalCode, reserveCredits } from "@/lib/credits/service";
 import { titleConversation } from "@/lib/ai/conversation-title";
-import { searchDocumentChunks } from "@/lib/rag/pipeline";
+import { searchDocumentChunks, searchDocumentChunksAcross } from "@/lib/rag/pipeline";
+import { resolveChatMaterial, type ChatMaterialLink } from "@/lib/ai/chat-material-load";
+import {
+  actionMarker,
+  buildChatActions,
+  detectChatIntent,
+  materialTurnLines,
+  readTeacherTone,
+  stripModelActionMarkers,
+  type ChatAction,
+} from "@/lib/ai/chat-material-link";
+import { studentOptionCount } from "@/lib/learning/student-pedagogy";
 import { NO_SOURCE_CREDIT_NOTE, NO_SOURCE_MESSAGE, saidNoSource, stripNoSourceMarker } from "@/lib/ai/grounding";
 import { chatSourceBlock } from "@/lib/learning/chat-source-block";
 import { loadTeacherBrief } from "@/lib/documents/teacher-analysis-run";
@@ -106,6 +117,12 @@ const bodySchema = z.object({
   audience: z.enum(["student"]).default("student"),
   imageDocumentId: z.string().uuid().optional(),
   prepId: z.string().uuid().optional(),
+  /**
+   * Ana ekranda seçili hazırlık (15 Kasım 2026): sohbeti hazırlık yoluna (öğretmen JSON yolu) geçirmez; ana sohbet o
+   * hazırlığın bağlamında başlar ve öğrenci kendi notundan söz edince o hazırlığın belgelerinde aranır. Sunucu yalnız
+   * öğrencinin kendi hazırlıklarından biriyse kullanır.
+   */
+  contextPrepId: z.string().uuid().optional(),
   /** "Bugünkü ruh hali" (kıyas ürünü gibi yazı kutusunun ayar düğmesinden). */
   mood: z.string().max(20).optional(),
   /** Canlı anlatım anahtarı; yoksa profildeki `tutor_style` okunur. */
@@ -252,6 +269,15 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
     const groundingEarly = quiet(rest.prepId ? loadPrepChatGrounding(service, userId, rest.prepId, message) : Promise.resolve(null));
     // Öğrenme hafızası (5 Kasım 2026): öğretmen yolunda okunur, öbür okumalara paralel; yoksa null.
     const studentMemoryEarly = quiet(rest.prepId ? loadStudentMemory(service, userId) : Promise.resolve(null));
+    // Öğrencinin kendi materyaline bağlanma (15 Kasım 2026): ana sohbette mesaj hazırlık / konu / belge adı, "N gün
+    // sonraki sınav" ya da seçili hazırlıkla eşlenir. Yalnız okuma; düşerse bağlantı yok, sohbet bugünkü gibi sürer.
+    const materialEarly: Promise<ChatMaterialLink | null> = !rest.prepId && !rest.imageDocumentId
+      ? resolveChatMaterial(service, userId, message, rest.contextPrepId ?? null, { conversationId: rest.conversationId }).catch((error) => {
+          console.warn("chat_material_link_failed", { operationId, cause: String(error instanceof Error ? error.message : error).slice(0, 120) });
+          return null;
+        })
+      : Promise.resolve(null);
+    const optionCountEarly = quiet(!rest.prepId ? studentOptionCount(service, userId) : Promise.resolve(5 as const));
     // Girdi denetimi (3 Kasım 2026): hazırlık sohbetinde model çağrısıyla PARALEL koşar; ilk kelime
     // denetimi beklemez. Kapı açılana kadar token'lar sunucuda tamponlanır (live.gate); ret gelirse
     // model iptal edilir, tampon atılır, kredi iade edilir ve öğrenciye yalnız güvenli mesaj gider.
@@ -328,13 +354,21 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
     // Öğretmen sohbeti hazırlığın kendi belgelerine bakar (prepGrounding); tüm
     // belgelerde arama ve erken "kaynak yok" dönüşü bu yolda gereksiz.
     const teacherPrepChat = Boolean(rest.prepId) && !imageUrl;
+    const material = !teacherPrepChat && !imageUrl ? await materialEarly : null;
     if (useDocuments && !documentAttached && !imageUrl && !teacherPrepChat) {
       const matches = await searchDocumentChunks(service, userId, message, 6, {
         minSimilarity: documentsOnly ? 0.32 : undefined,
       });
       evidence = matches.map((m, i) => ({ reference: i + 1, documentId: m.documentId, documentName: m.documentName, pageNumber: m.pageNumber, chunkId: m.chunkId, content: m.content }));
+    } else if (material && !documentAttached && !imageUrl && !teacherPrepChat && (material.documentIds.length || material.searchAll)) {
+      // Öğrenci "Genel" moddayken de kendi notundan söz ediyorsa o notta aranır; "yeniden yükle" denmez.
+      const matches = material.documentIds.length
+        ? await searchDocumentChunksAcross(service, userId, message, material.documentIds, { limit: 6, perDocument: 3 })
+        : await searchDocumentChunks(service, userId, message, 6);
+      evidence = matches.map((m, i) => ({ reference: i + 1, documentId: m.documentId, documentName: m.documentName, pageNumber: m.pageNumber, chunkId: m.chunkId, content: m.content }));
     }
-    const grounded = useDocuments || documentAttached;
+    const linkedEvidence = !useDocuments && Boolean(material) && evidence.length > 0;
+    const grounded = useDocuments || documentAttached || linkedEvidence;
     // "Yalnızca belgem" ancak belge modu açıkken geçerli. 19 Ekim 2026: öğrenci "Genel sohbet"teyken
     // PDF ekleyince istemci documentsOnly=true gönderiyordu; sohbet katı moda düşüp belgede açıkça
     // yazan cevapları "belgede yok" diye reddediyordu.
@@ -358,6 +392,8 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
     let tokensIn = 0;
     let tokensOut = 0;
     let gradedForStore: GradedClaim | null = null;
+    /** Cevabın altındaki gerçek stüdyo düğmeleri (sunucu ekler; model yazamaz). */
+    let chatActions: ChatAction[] = [];
     let prepGrounding: Awaited<ReturnType<typeof loadPrepChatGrounding>> | null = null;
     if (strict && !evidence.length && !imageUrl && !teacherPrepChat) {
       content = NO_SOURCE_MESSAGE + NO_SOURCE_CREDIT_NOTE;
@@ -433,6 +469,21 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
       const turn = readChatTurn({ message, style: tutorStyle, history, baseMood: chatMood });
       const priorSupport = turn.feelingOnly && !turn.crisis ? await recentSupportVerdict(service, userId) : false;
       const turnLines = chatTurnLines(turn, tutorStyle, { priorSupport });
+      // Ana sohbetin materyal, özet, araç, usta hoca ve şık satırları (15 Kasım 2026). Kriz ve yalnız duygu turunda yok.
+      if (!rest.prepId && !imageUrl && !turn.crisis && !turn.feelingOnly) {
+        const intent = material?.intent ?? detectChatIntent(message);
+        turnLines.push(
+          ...materialTurnLines({
+            match: material?.match ?? null,
+            intent,
+            hasEvidence: linkedEvidence,
+            optionCount: await optionCountEarly.catch(() => 5 as const),
+            tone: readTeacherTone(message),
+            linkLine: Boolean(material && (material.documentIds.length || material.searchAll || material.match.reason !== "context")),
+          }),
+        );
+        chatActions = material?.actions ?? buildChatActions({ intent, match: { preps: [], documents: [], reason: "none", materialCue: false }, nodesByPrep: new Map() });
+      }
       const moodLine = turn.mood === "neutral" ? "" : ` ${moodPrompt(turn.mood)}`;
       const requestMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
         { role: "system", content: `${SYSTEM_GUARDRAIL} ${studentInstruction} ${teacherTurn} ${teacherStyleLine(tutorStyle)} ${CHAT_NATURAL_VOICE}${rest.prepId && prepGrounding ? "" : `\n\n${CHAT_TEACHING_MARKUP}\n\n`} ${answerFirstLine(message, tutorStyle)}${moodLine}${examContext?.block ?? ""}${attachedBrief ? `\n${SOURCE_PAGE_FORMULA_RULE}\n${attachedBrief}` : ""}${contextBlock}${tutorAddendum ? `\n\n${tutorAddendum}` : ""}${simplifyLine(message) ? `\n\n${simplifyLine(message)}` : ""}${chatTurnBlock(turnLines)}` },
@@ -679,10 +730,18 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
             const checked = await verifyDocumentAnswer({ client, question: message, answer: content, evidence, strict, signal: request.signal, model: reviewModel });
             await recordUsage(service, { userId, actionCode, model: reviewModel, tokensIn: checked.tokensIn, tokensOut: checked.tokensOut, reservationId });
             if (!checked.ok) {
-              logOpsEvent("document_answer_rejected", { operationId, attempt, strict, evidence: evidence.length, reasons: checked.reasons });
+              logOpsEvent("document_answer_rejected", { operationId, attempt, strict, evidence: evidence.length, reasons: checked.reasons, linked: linkedEvidence });
               if (!strict && offDocument && isAcceptableOutsideAnswer(content)) {
                 citations = [];
                 content = await polishPrep(content);
+                accepted = true;
+                break;
+              }
+              // Sistemin kendisinin bağladığı not (15 Kasım 2026, canlı): öğrenci "Yalnızca belgem" seçmedi. Cevap eğitim
+              // denetiminden geçtiyse kalır, yalnız sayfa atfı çıkmaz. Canlıda özet isteği iki kez kaynak denetiminden
+              // (schema_mismatch) düşüp "emin olamadım"a dönüyordu; yeniden yazmak aynı yerde takılıyordu.
+              if (linkedEvidence && !strict) {
+                citations = [];
                 accepted = true;
                 break;
               }
@@ -756,6 +815,8 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
     // Türkçe aritmetik sağlama (10 Kasım 2026, güven paketi): "A × B = C" eşitliğinde sonuç yalnız ayırıcı karışıklığının
     // imzasıyla (bin katı) sapıyorsa düzeltilir. Kayıttan ÖNCE ve kaynak işaretlerinden önce: akan taslak bitişte kayıtlı
     // metinle değiştiği için öğrencinin gördüğü ve saklanan metin aynıdır. Günlüğe yalnız sayı yazılır.
+    // Düğme işaretini yalnız sunucu basar: modelin yazdığı taklit işaretler silinir.
+    content = stripModelActionMarkers(content);
     const mathFix = verifyAndFixTurkishMathExpressions(content);
     if (mathFix.fixes) {
       content = mathFix.text;
@@ -781,6 +842,7 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
       if (markers.length) content += `\n${markers.join("\n")}`;
     } else if (citations.length) content += "\n\nKaynaklar:\n" + citations.map((c) =>
       `- [${c.documentName.replace(/[\\[\]()*<>]/g, "")} ${c.pageNumber ? `· s.${c.pageNumber}` : ""}](${citationHref(c)})`).join("\n");
+    if (charge && chatActions.length) content += `\n\n${chatActions.map(actionMarker).join("\n")}`;
     const refused = await settleModeration();
     if (refused) return refused;
     if (request.signal.aborted) throw new Error("request_cancelled");

@@ -146,6 +146,26 @@
   text-transform: uppercase;
   text-align: center;
 }
+/* Sınav bugün: rakam yerine "Bugün" (mono, büyük harf). */
+.cx-strip-today {
+  font: var(--cx-t-meta-m);
+  font-weight: 600;
+  letter-spacing: var(--cx-ls-meta);
+  text-transform: uppercase;
+}
+/* Hazırlığın adı (15 Kasım 2026): iki satır, taşarsa üç nokta; kutunun içinde. */
+.cx-strip-name {
+  display: -webkit-box;
+  max-width: calc(var(--cx-strip-item-w) - var(--cx-space-8));
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font: var(--cx-t-label-11);
+  line-height: 1.2;
+  text-align: center;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
 .cx-strip-cal,
 .cx-strip-new svg {
   position: relative;

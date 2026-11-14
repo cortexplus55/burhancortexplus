@@ -61,12 +61,8 @@ export function validReadEvidence(
   return nowMs - confirmed <= EVIDENCE_MAX_AGE_MS;
 }
 
-/** Yaş beyanında eksik ne: arayüz ve sunucu aynı cümleyi kullanır. */
-export function ageProblem(age: Partial<AgeDeclaration> | null | undefined): string | null {
-  if (!age || typeof age.minor !== "boolean") return "Yaşını seç.";
-  if (age.minor && !age.guardianAck) return "18 yaşından küçüksen velinin iznini onayla.";
-  return null;
-}
+/** Yaş beyanında eksik ne: arayüz ve sunucu aynı cümleyi kullanır (zod'suz modülde; tarayıcı oradan alır). */
+export { ageProblem } from "@/lib/legal/consent-age";
 
 export type ConsentRow = { consent_type: string; version: string };
 

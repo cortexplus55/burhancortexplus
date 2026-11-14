@@ -10,12 +10,9 @@ import {
   ageDeclarationOf,
   type AgeValue,
 } from "@/components/legal/age-declaration";
-import {
-  ageProblem,
-  type ConsentEvidence,
-  type ConsentStatus,
-  type MissingConsent,
-} from "@/lib/legal/consent-evidence";
+// Yalnız tür: zod şemaları kök düzenin paketine girmez (her sayfada CSP "eval" raporu; 15 Kasım 2026).
+import type { ConsentEvidence, ConsentStatus, MissingConsent } from "@/lib/legal/consent-evidence";
+import { ageProblem } from "@/lib/legal/consent-age";
 import { LEGAL_CHANGE_NOTES, REQUIRED_CONSENT_KEY, type ConsentType } from "@/lib/legal/versions";
 import { hasSessionCookie, sessionFingerprint } from "@/lib/consent/session-cookie";
 import "@/styles/legal-consent.css";
