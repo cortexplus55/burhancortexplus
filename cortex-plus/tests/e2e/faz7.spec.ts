@@ -42,7 +42,8 @@ for (const width of WIDTHS) {
       await page.getByRole("button", { name: "Şifreyi gizle" }).click();
       await expect(password).toHaveAttribute("type", "password");
       const submit = page.getByRole("button", { name: "Giriş yap" });
-      expect(await submit.evaluate((node) => getComputedStyle(node).backgroundImage)).toContain("gradient");
+      // Marka gradyanı (#4F46E5 → #6366F1); cam yüzey de gradyan taşıdığı için renkle ayırt edilir.
+      expect(await submit.evaluate((node) => getComputedStyle(node).backgroundImage)).toContain("rgb(79, 70, 229)");
       expect(await overflow(page)).toBeLessThanOrEqual(0);
     });
 
@@ -117,7 +118,7 @@ for (const width of WIDTHS) {
       const brands = await page.evaluate(() =>
         Array.from(document.querySelectorAll("#planlar button"))
           .filter((node) => (node as HTMLElement).offsetParent !== null)
-          .filter((node) => getComputedStyle(node).backgroundImage.includes("gradient")).length,
+          .filter((node) => getComputedStyle(node).backgroundImage.includes("rgb(79, 70, 229)")).length,
       );
       expect(brands).toBe(1);
       await expect(page.getByText("lesson.create")).toHaveCount(0);

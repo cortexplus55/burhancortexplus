@@ -16,16 +16,14 @@ teklif yok; sayaç "önce artır, hata olursa iade" kabul; sohbette 402 sonrası
 | PR | Dal | Durum | PR no | Bayrak | Bekleyen Burhan işi | Notlar |
 |---|---|---|---|---|---|---|
 | Faz 0 · Envanter, test hesapları, görsel taban, denetim, performans tabanı | `design/faz0-envanter` | **birleşti** (a8bd6967), production duman 11/11 | #647 | — | CI için `E2E_USERS_JSON` sırrı (05) | Görsel taban yerel, manifest commit'li |
-| 3A · `lib/entitlements` | `design/hak-sistemi` | PR açık, CI koşuyor | #648 | — | — | Karakterizasyon PGlite'ta SQL ile; 402'ye `gate`; `assertGate` rotalara eklenmedi (gerekçe 10-entitlements) |
-| 3B · Gate, UpgradeSheet, ana ekran | `design/hak-arayuzu` | PR açık (3A üstüne) | #649 | — | — | Sağlayıcı kabukta; fiyat tarayıcıdan; görsel taban 17 görüntü bilinçli güncellendi |
-| 4A · Heyecan kiti | `design/heyecan-kiti` | PR açık (3B üstüne) | #650 | — | — | Görünür değişiklik yok; galeri `/arena` |
-| 4B · Ders ekranı | `design/ders-ekrani` | PR açık (4A üstüne) | #651 | `ui.v2.ders` | — | Bayrak altyapısı `src/lib/ui-v2/flags.ts`; `data-ui` sarmalayıcısı + yalnız CSS |
-| 5A+5B · Tekrar ekranları (tek PR) | `design/tekrar-test` | PR açık (4B üstüne) | #652 | `ui.v2.tekrar` | — | 5B ayrı dal yerine aynı PR |
-| 6A · Sohbet kabuğu | `design/ogretmen-sohbet` | PR açık (5 üstüne) | #653 | `ui.v2.ogretmen` | Gerçek cihazda klavye | `ChatPanel followUser` bayrağa bağlı |
-| 6B · Fotoğraf hak kapısı | `design/ogretmen-foto` | PR açık (6A üstüne) | #654 | `ui.v2.ogretmen` | Gerçek cihazda fotoğraf | |
-| 7A · Giriş + kayıt | `design/giris-kayit` | bekliyor | — | `ui.v2.giris` | | |
-| 7B · Hazırlık kurulumu | `design/kurulum` | bekliyor | — | `ui.v2.kurulum` | | |
-| 7C · /pay | `design/pay` | bekliyor | — | `ui.v2.pay` | Önizlemede gerçek ödeme denemesi | |
+| 3A · `lib/entitlements` | `design/hak-sistemi` | **birleşti** (bb675c6a) | #648 | — | — | Karakterizasyon PGlite'ta SQL ile; 402'ye `gate`; `assertGate` rotalara eklenmedi (gerekçe 10-entitlements) |
+| 3B · Gate, UpgradeSheet, ana ekran | `design/hak-arayuzu` | **birleşti** (b5a0042d) | #649 | — | — | Sağlayıcı kabukta; fiyat tarayıcıdan; görsel taban 17 görüntü bilinçli güncellendi |
+| 4A · Heyecan kiti | `design/heyecan-kiti` | **birleşti** (507e8bb0) | #650 | — | — | Görünür değişiklik yok; galeri `/arena` |
+| 4B · Ders ekranı | `design/ders-ekrani` | **birleşti** (3e06bab7) | #651 | `ui.v2.ders` | — | Bayrak altyapısı `src/lib/ui-v2/flags.ts`; `data-ui` sarmalayıcısı + yalnız CSS |
+| 5A+5B · Tekrar ekranları (tek PR) | `design/tekrar-test` | **birleşti** (4bebc92a) | #652 | `ui.v2.tekrar` | — | 5B ayrı dal yerine aynı PR |
+| 6A · Sohbet kabuğu | `design/ogretmen-sohbet` | **birleşti** (fe33cc21) | #653 | `ui.v2.ogretmen` | Gerçek cihazda klavye | `ChatPanel followUser` bayrağa bağlı |
+| 6B · Fotoğraf hak kapısı | `design/ogretmen-foto` | **birleşti** (b9e26948), production duman 11/11 | #654 | `ui.v2.ogretmen` | Gerçek cihazda fotoğraf | |
+| 7A+7B+7C · Giriş + kayıt, kurulum, /pay (tek PR) | `design/faz7` | PR açık | — | `ui.v2.giris`, `ui.v2.kurulum`, `ui.v2.pay` | Önizlemede gerçek ödeme denemesi (rapor §10) | `?plan=` artık kartı açıp işaretliyor (bayraktan bağımsız) |
 | 8A · Podcast + video | `design/studyo-medya` | bekliyor | — | `ui.v2.studyo` | | |
 | 8B · Sözlü + Yazılı + Sabah kâğıdı | `design/studyo-sinav` | bekliyor | — | `ui.v2.studyo` | | |
 | 8C · /araclar + DNA + net + İlerleme | `design/studyo-arac` | bekliyor | — | `ui.v2.studyo` | | |

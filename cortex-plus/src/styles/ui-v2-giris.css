@@ -36,6 +36,10 @@
   transform: none;
 }
 
+/* Eski altın odak halkası (box-shadow) yerine tek camgöbeği çizgi; iki halka üst üste binmesin. */
+[data-ui~="giris"] input.cortex-premium-input:focus-visible {
+  box-shadow: none;
+}
 [data-ui~="giris"] input:focus-visible,
 [data-ui~="giris"] button:focus-visible,
 [data-ui~="giris"] a:focus-visible {
