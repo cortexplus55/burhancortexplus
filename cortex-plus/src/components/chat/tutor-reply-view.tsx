@@ -1,10 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef } from "react";
 import { RememberCard } from "@/components/chat/remember-card";
 import { splitRememberBlock } from "@/lib/learning/remember-facts";
 import {
   AlertCircle,
+  ArrowRight,
   CheckCircle2,
   ChevronDown,
   CircleDot,
@@ -17,6 +19,7 @@ import { Markdown } from "@/components/markdown";
 import { MathText } from "@/components/learning/math-text";
 import { formatSourceSections, generalOnlyAnswer } from "@/lib/ai/source-sections";
 import { splitTutorChrome, type ReplyChip, type ReplyQuote } from "@/lib/learning/tutor-reply";
+import { splitActionMarkers, type ChatAction } from "@/lib/ai/chat-material-link";
 import "@/styles/chat-teaching.css";
 import { SOCRATIC_QUICK_CHIPS, stepQuickChips, type TutorStyle } from "@/lib/learning/tutor-style";
 
@@ -44,6 +47,32 @@ function TutorBody({
       </blockquote>
       {after?.trim() ? <Markdown content={after.trim()} variant={variant} /> : null}
     </>
+  );
+}
+
+/**
+ * Cevabın altındaki gerçek stüdyo düğmeleri (15 Kasım 2026): sunucunun bastığı işaretlerden (model yazamaz). Bağlantı
+ * yalnız uygulama içi çalışma sayfalarına; ilk kart birincil (ekranın tek marka eylemi), öbürleri cam.
+ */
+function StudioActionCards({ actions }: { actions: ChatAction[] }) {
+  if (!actions.length) return null;
+  return (
+    <nav className="cp-chat-actions" aria-label="Çalışma araçları">
+      {actions.map((action, index) => (
+        <Link
+          key={action.href}
+          href={action.href}
+          className={index === 0 ? "cp-chat-action cp-chat-action--primary" : "cp-chat-action"}
+          data-kind={action.kind}
+        >
+          <span className="cp-chat-action-text">
+            <span className="cp-chat-action-label">{action.label}</span>
+            {action.context ? <span className="cp-chat-action-context">{action.context}</span> : null}
+          </span>
+          <ArrowRight size={16} aria-hidden />
+        </Link>
+      ))}
+    </nav>
   );
 }
 
@@ -86,9 +115,11 @@ export function TutorReplyView({
   tutorStyle?: TutorStyle;
 }) {
   const checkRef = useRef<HTMLDivElement | null>(null);
+  // Stüdyo düğmeleri cevaptan ayrılır (sunucunun işareti); kalan metin bugünkü gibi çizilir.
+  const split = useMemo(() => splitActionMarkers(content), [content]);
   const view = useMemo(
-    () => splitTutorChrome(formatSourceSections(content)),
-    [content],
+    () => splitTutorChrome(formatSourceSections(split.body)),
+    [split.body],
   );
   // "Akılda kalsın" kutusu cevaptan ayrılır, düğmeli kartla çizilir (8 Kasım 2026).
   const remember = useMemo(() => splitRememberBlock(view.body), [view.body]);
@@ -235,6 +266,7 @@ export function TutorReplyView({
           {view.scope.label}
         </button>
       ) : null}
+      <StudioActionCards actions={split.actions} />
       {chips.length ? (
         <div className="cp-tutor-chips" role="group" aria-label="Devam önerileri">
           {chips.map((chip) => (

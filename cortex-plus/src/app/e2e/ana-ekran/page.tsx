@@ -20,8 +20,9 @@ export default async function E2eAnaEkranPage({
   const params = await searchParams;
   return (
     <AnaEkranFixture
-      conversation={params.durum === "sohbet" || params.durum === "cevapsiz" || params.durum === "ogretim"}
+      conversation={params.durum === "sohbet" || params.durum === "cevapsiz" || params.durum === "ogretim" || params.durum === "ozet"}
       teaching={params.durum === "ogretim"}
+      summary={params.durum === "ozet"}
       unanswered={params.durum === "cevapsiz"}
       plus={fixturePlan(params.plan) !== "free"}
       planKind={fixturePlan(params.plan)}
