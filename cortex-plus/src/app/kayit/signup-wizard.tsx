@@ -18,7 +18,8 @@ import {
   ageDeclarationOf,
   type AgeValue,
 } from "@/components/legal/age-declaration";
-import { ageProblem, type ConsentEvidence } from "@/lib/legal/consent-evidence";
+import type { ConsentEvidence } from "@/lib/legal/consent-evidence";
+import { ageProblem } from "@/lib/legal/consent-age";
 import { createClient } from "@/lib/supabase/client";
 import { passwordIssues } from "@/lib/auth/password";
 import {
