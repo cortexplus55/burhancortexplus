@@ -117,6 +117,37 @@ async function prepareContext(page: Page) {
   });
 }
 
+/*
+  Yerleşim oturana kadar bekle (14 Kasım 2026, katı karşılaştırmada bulundu): üst çubuğun sağındaki öğeler ve profil
+  paneli verisi sonradan gelir; gelince menünün ortası yana, panelin satırları ~18 px aşağı kayıyordu ve taban aralıklı
+  olarak %0,3–9 farklı çıkıyordu. Üst çubuk, panel ve ana alanın kutuları ile sayfa metninin uzunluğu art arda dört
+  ölçümde (200 ms arayla) aynı kalınca çekilir; en çok 10 sn.
+*/
+async function waitForStableLayout(page: Page) {
+  await page
+    .waitForFunction(
+      () => {
+        const w = window as unknown as { __cxSig?: string; __cxSame?: number };
+        const boxes = Array.from(document.querySelectorAll("header *, .cx-pp-panel *, main > *"))
+          .slice(0, 600)
+          .map((el) => {
+            const r = el.getBoundingClientRect();
+            return `${Math.round(r.x)},${Math.round(r.y)},${Math.round(r.width)},${Math.round(r.height)}`;
+          })
+          .join("|");
+        const sig = `${boxes}#${document.body.innerText.length}`;
+        w.__cxSame = sig === w.__cxSig ? (w.__cxSame ?? 0) + 1 : 0;
+        w.__cxSig = sig;
+        return (w.__cxSame ?? 0) >= 4;
+      },
+      undefined,
+      { polling: 200, timeout: 10_000 },
+    )
+    .catch(() => {
+      /* 10 sn'de oturmadıysa yine çekilir; fark eşikte görünür */
+    });
+}
+
 async function shoot(page: Page, route: Route, url: string, file: string) {
   await prepareContext(page);
   await page.clock.setFixedTime(FIXED_NOW);
@@ -139,6 +170,7 @@ async function shoot(page: Page, route: Route, url: string, file: string) {
   await page.locator(route.ready ?? H1).first().waitFor({ state: "visible", timeout: 60_000 });
   if (route.open) await route.open(page);
   await page.evaluate(() => document.fonts.ready);
+  await waitForStableLayout(page);
   // Next'in geliştirme simgesi (yalnız `next dev`) görüntüye girmesin.
   await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" });
   await markDynamic(page);
