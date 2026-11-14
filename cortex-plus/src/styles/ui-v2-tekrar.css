@@ -1,0 +1,159 @@
+/*
+ * Tekrar ekranları yeni görünüm (Faz 5A/5B, bayrak `ui.v2.tekrar`, desen-türetme: desen-haritasi/tekrar.md).
+ * Yalnız `[data-ui~="tekrar"]` altında; bayrak KAPALIYKEN sayfa sarmalayıcıyı çizmez (eski görünüm birebir). DOM ve
+ * davranış aynı; şık sayısı veriden (`options.length`); Gate yok (ilk dersin ekranları ücretsizde açık).
+ */
+.cx-ui-scope {
+  display: contents;
+}
+
+/* Kapat: cam ikon düğmesi 40 px (telefonda 44). */
+[data-ui~="tekrar"] .cp-back-pill {
+  min-width: 40px;
+  min-height: 40px;
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-glass-background);
+  box-shadow: var(--cx-glass-bevel);
+  color: var(--cx-text-primary);
+}
+
+/* Şık: hap, en az 56 px; durum renk + ikon (✓ ✕) + gizli metin (bileşende). */
+[data-ui~="tekrar"] [data-cx-option] {
+  min-height: 56px;
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  padding: 8px 20px 8px 8px;
+  background: var(--cx-bg-1);
+  color: var(--cx-text-secondary);
+  transition: background-color var(--cx-dur-color) ease, color var(--cx-dur-color) ease;
+}
+[data-ui~="tekrar"] [data-cx-option="idle"]:hover:not(:disabled),
+[data-ui~="tekrar"] [data-cx-option="selected"] {
+  background: var(--cx-bg-2);
+  color: var(--cx-text-primary);
+}
+[data-ui~="tekrar"] [data-cx-option="right"] {
+  background: var(--cx-success-weak);
+  color: var(--cx-text-primary);
+  font-weight: 600;
+}
+[data-ui~="tekrar"] [data-cx-option="wrong"] {
+  background: var(--cx-danger-weak);
+  color: var(--cx-text-primary);
+  font-weight: 600;
+}
+[data-ui~="tekrar"] [data-cx-option="missed"] {
+  background: var(--cx-bg-0);
+  color: var(--cx-text-secondary);
+}
+[data-ui~="tekrar"] [data-cx-option] [data-cx-letter] {
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-bg-2);
+  color: var(--cx-text-disabled);
+  font: var(--cx-t-meta-s);
+}
+[data-ui~="tekrar"] [data-cx-option="selected"] [data-cx-letter] {
+  background: var(--cx-bg-3);
+  color: var(--cx-text-primary);
+}
+[data-ui~="tekrar"] [data-cx-option="right"] [data-cx-letter] {
+  background: var(--cx-success);
+  color: var(--cx-text-inverted);
+}
+[data-ui~="tekrar"] [data-cx-option="wrong"] [data-cx-letter] {
+  background: var(--cx-danger);
+  color: var(--cx-text-inverted);
+}
+[data-ui~="tekrar"] [data-cx-option="missed"] [data-cx-letter] {
+  background: var(--cx-bg-2);
+  color: var(--cx-success);
+}
+
+/* Tek brand: mevcut ana eylem ("Cevapla", "Sonraki soru", "Bitir"). Öbürleri weak. */
+[data-ui~="tekrar"] .cp-exam-continue--primary {
+  min-height: 52px;
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-gradient-brand);
+  color: var(--cx-text-on-brand);
+  font: var(--cx-t-button-l);
+}
+[data-ui~="tekrar"] .cp-exam-continue:not(.cp-exam-continue--primary) {
+  min-height: 44px;
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-bg-2);
+  color: var(--cx-text-secondary);
+}
+[data-ui~="tekrar"] .cp-two-chip {
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-bg-2);
+  color: var(--cx-text-secondary);
+}
+
+/* Açıklama: kenarlıksız, bir üst basamak; KaTeX yalnız kendi bloğunda kayar. */
+[data-ui~="tekrar"] .cp-quiz-why {
+  border-radius: var(--cx-radius-m);
+  background: var(--cx-bg-1);
+  padding: 10px 14px;
+  overflow-x: auto;
+}
+
+/* Doğru / Yanlış odak kartı. */
+[data-ui~="tekrar"] .tf-focus-card {
+  border: 0;
+  border-radius: var(--cx-radius-xl);
+  background: var(--cx-bg-1);
+  box-shadow: none;
+}
+[data-ui~="tekrar"] .tf-focus-choices > button {
+  min-height: 56px;
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-bg-2);
+  color: var(--cx-text-primary);
+}
+[data-ui~="tekrar"] .tf-focus-next {
+  min-height: 52px;
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-gradient-brand);
+  color: var(--cx-text-on-brand);
+}
+
+/* Akıllı kartlar (5B): kart kenarlıksız, sahnede; değerlendirme hapları. */
+[data-ui~="tekrar"] .cp-exam-flash-side {
+  border: 0;
+  border-radius: var(--cx-radius-xl);
+  background: var(--cx-bg-1);
+  box-shadow: none;
+}
+[data-ui~="tekrar"] .cp-exam-card-rate {
+  min-height: 52px;
+  border: 0;
+  border-radius: var(--cx-radius-max);
+}
+[data-ui~="tekrar"] .cp-exam-card-progress {
+  color: var(--cx-text-secondary);
+  font: var(--cx-t-label-13);
+}
+
+[data-ui~="tekrar"] :focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}
+
+@media (max-width: 767px) {
+  [data-ui~="tekrar"] .cp-back-pill {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  [data-ui~="tekrar"] .cp-exam-continue--primary {
+    margin-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}

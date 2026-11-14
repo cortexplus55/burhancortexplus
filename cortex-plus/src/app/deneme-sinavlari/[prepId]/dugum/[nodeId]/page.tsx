@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { uiV2 } from "@/lib/ui-v2/flags";
 import "@/styles/ui-v2-ders.css";
+import "@/styles/ui-v2-tekrar.css";
 import { ExamNodeSession } from "@/components/parity/exam-node-session";
 import { poolSliceForTopic } from "@/lib/content-pool/serve";
 import { poolLessonPreview, savedLessonPreview } from "@/lib/content-pool/lesson-preview";
@@ -56,6 +57,9 @@ async function requestOrigin(): Promise<string> {
  * son kontrol, zayıf nokta gibi bütün hazırlığı kapsayan işler bütün materyalleri gösterir.
  */
 const TOPIC_SCOPED_KINDS = new Set<PlanNodeKind>(["lesson", "podcast", "qa", "quiz", "true_false", "spaced"]);
+
+/** Faz 5 tekrar ekranları: konu testi, doğru/yanlış, kartlar. */
+const TEKRAR_KINDS: ReadonlySet<string> = new Set(["quiz", "true_false", "flashcards", "spaced"]);
 
 export const metadata = { title: "Ders" };
 
@@ -386,8 +390,12 @@ export default async function ExamNodePage({
       : null;
   timer.log("node_page");
   const serverRenderMs = timer.totalMs();
-  // Yeni görünüm bayrağı (Faz 4B, `ui.v2.ders`): KAPALIYKEN sarmalayıcı çizilmez (DOM ve görünüm eskisiyle aynı).
-  const uiKeys = node.kind === "lesson" && (await uiV2("ders", user.id)) ? ["ders"] : [];
+  // Yeni görünüm bayrakları (Faz 4B `ui.v2.ders`, Faz 5 `ui.v2.tekrar`): KAPALIYKEN sarmalayıcı çizilmez (DOM ve görünüm
+  // eskisiyle aynı).
+  const uiKeys = [
+    ...(node.kind === "lesson" && (await uiV2("ders", user.id)) ? ["ders"] : []),
+    ...(TEKRAR_KINDS.has(String(node.kind)) && (await uiV2("tekrar", user.id)) ? ["tekrar"] : []),
+  ];
 
   const session = (
       <ExamNodeSession
