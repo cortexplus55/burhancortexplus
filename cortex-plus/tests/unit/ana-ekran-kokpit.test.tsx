@@ -95,7 +95,7 @@ describe("geride sinyali (yolda günü geçmiş ama bitmemiş adım)", () => {
 });
 
 describe("sınav şeridi", () => {
-  it("tablist, en yakın sınav seçili; gün sayısı ve 'gün sonra'; bugün yalnız 0; tarihsizde takvim; geride nokta", () => {
+  it("tablist, en yakın sınav seçili; gün sayısı, 'gün sonra' ve hazırlığın adı; bugün 'Bugün'; tarihsizde takvim; geride nokta", () => {
     const { container } = render(
       <HomeSelectionProvider preps={PREPS}>
         <HomeCockpit />
@@ -105,9 +105,11 @@ describe("sınav şeridi", () => {
     const tabs = within(list).getAllByRole("tab");
     expect(tabs).toHaveLength(4);
     expect(tabs[1]!.getAttribute("aria-selected")).toBe("true");
-    expect(tabs[1]!.textContent).toBe("0");
-    expect(tabs[2]!.textContent).toBe("37gün sonra");
-    expect(tabs[3]!.textContent).toBe("");
+    // 15 Kasım 2026: kutuda hazırlığın adı da var; sınav bugünse birimsiz "0" yerine "Bugün".
+    expect(tabs[1]!.textContent).toBe("BugünHazırlık D");
+    expect(tabs[2]!.textContent).toBe("37gün sonraHazırlık B");
+    expect(tabs[3]!.textContent).toBe("Hazırlık C");
+    expect(tabs[3]!.querySelector(".cx-strip-cal")).not.toBeNull();
     expect(tabs[3]!.getAttribute("aria-label")).toBe("Hazırlık C");
     expect(tabs[2]!.querySelector(".cx-strip-dot")).not.toBeNull();
     expect(tabs[1]!.querySelector(".cx-strip-dot")).toBeNull();

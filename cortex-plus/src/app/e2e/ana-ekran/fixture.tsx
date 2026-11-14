@@ -1,6 +1,7 @@
 "use client";
 
 import { ChatPanel } from "@/components/chat/chat-panel";
+import { actionMarker } from "@/lib/ai/chat-material-link";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { FirstStepLauncher } from "@/components/parity/first-step-launcher";
 import { HomeCockpit, HomeSelectionProvider, HomeToolsTray } from "@/components/parity/home-cockpit";
@@ -84,6 +85,35 @@ export const TEACHING_MESSAGES = [
     "role": "assistant" as const,
     "content": "- **Sistol**, kalp kasının kasılıp kanı ileri pompaladığı evredir.\n- **Diyastol**, kalp kasının gevşeyip kalp boşluklarının kanla dolduğu evredir.\n- Kulakçıklar ve karıncıklar bu evreleri sırayla geçirir; bir bölüm kasılırken diğeri gevşeyebilir.\n\n> ⚠️ Sık hata: Sistol ve diyastolü kalbin aynı anda bütünüyle kasılıp gevşemesi gibi düşünme; kulakçıklarla karıncıkların evreleri farklı zamanlarda gerçekleşir.\n\n> ✅ Akılda kalsın:\n> - **Sistol** kalbin ==kasılıp kanı pompaladığı== evredir.\n> - **Diyastol** kalbin ==gevşeyip kanla dolduğu== evredir."
   }
+];
+
+/**
+ * Özet + stüdyo düğmeleri (15 Kasım 2026, `?durum=ozet`): sunucunun bastığı işaretlerle (biçim `actionMarker`).
+ * Hazırlık kimliği örnek; düğmeler fikstürde bir yere gitmez.
+ */
+const FIXTURE_PREP = "0f0f0f0f-0f0f-4f0f-8f0f-0f0f0f0f0f0f";
+export const SUMMARY_MESSAGES = [
+  { role: "user" as const, content: "Yüklediğim hücre bölünmesi notundan bana sınav öncesi net bir özet çıkart." },
+  {
+    role: "assistant" as const,
+    content: [
+      "- **Mitoz**: vücut hücrelerinde, ==bir bölünme== sonunda iki özdeş hücre.",
+      "- **Mayoz**: üreme hücrelerinde, iki bölünme sonunda ==dört haploit hücre==.",
+      "",
+      "$$\\text{mayoz sonu kromozom} = \\frac{2n}{2} = n$$",
+      "",
+      "> 📌 Sınav ipucu: Karşılaştırma sorularında bölünme sayısı, hücre sayısı ve kromozom sayısını birlikte iste.",
+      "",
+      "> ⚠️ Sık hata: Krossing over mitozda da olur sanma; yalnız mayoz I sırasında görülür.",
+      "",
+      "> ✅ Akılda kalsın:",
+      "> - Mayozda kromozom sayısı ==yarıya iner==.",
+      "",
+      actionMarker({ kind: "cram", label: "⚡ Sınav Sabahı Kağıdı'nı Aç", context: "Hücre Bölünmeleri ve Kalıtım", href: `/deneme-sinavlari/${FIXTURE_PREP}/sinav-sabahi` }),
+      actionMarker({ kind: "lesson", label: "📖 Konu Dersine Git", context: "Hücre Bölünmeleri ve Kalıtım · Mayoz", href: `/deneme-sinavlari/${FIXTURE_PREP}/dugum/n1` }),
+      actionMarker({ kind: "quiz", label: "🎯 Konu Testini Başlat", context: "Hücre Bölünmeleri ve Kalıtım · Mayoz", href: `/deneme-sinavlari/${FIXTURE_PREP}/dugum/n2` }),
+    ].join("\n"),
+  },
 ];
 
 const MESSAGES = [
@@ -202,6 +232,7 @@ export function AnaEkranFixture({
   hasPrep,
   unanswered = false,
   teaching = false,
+  summary = false,
   freshPrep = false,
   manyTopics = false,
   planKind,
@@ -226,6 +257,8 @@ export function AnaEkranFixture({
   freshPrep?: boolean;
   unanswered?: boolean;
   teaching?: boolean;
+  /** Özet cevabı ve altındaki stüdyo düğmeleri (`?durum=ozet`). */
+  summary?: boolean;
 }) {
   // 13 Kasım 2026: hazırlığı olanda boş ana ekran beş parça (canlıdaki `/ogretmen` gibi).
   const cockpit = hasPrep ? fixtureCockpit({ fresh: freshPrep, manyTopics, lockAfterFirst: rights === "kullanildi" || rights === "bitti" }) : [];
@@ -252,7 +285,9 @@ export function AnaEkranFixture({
               ? [...MESSAGES, { role: "user" as const, content: "Aynı mantıkla benzer bir örnek soru üret ve çöz." }]
               : teaching
                 ? TEACHING_MESSAGES
-                : MESSAGES
+                : summary
+                  ? SUMMARY_MESSAGES
+                  : MESSAGES
             : []
         }
         hasDocuments={teaching}

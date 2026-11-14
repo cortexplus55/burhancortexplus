@@ -178,7 +178,8 @@
   --cx-logo-h: 24px;
   --cx-strip-w: 73px;
   --cx-strip-item-w: 65px;
-  --cx-strip-item-h: 80px;
+  /* 80 → 104 (15 Kasım 2026): kutuda hazırlığın adı da var (iki satır). */
+  --cx-strip-item-h: 104px;
   --cx-strip-arrow-h: 28px;
   --cx-dot: 4px;
   --cx-ring-max: 510px;
