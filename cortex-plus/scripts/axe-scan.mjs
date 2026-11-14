@@ -60,7 +60,10 @@ const policy = /COOKIE_POLICY_VERSION = "([^"]+)"/.exec(fs.readFileSync(path.joi
 
 async function scan(browser, { user, route }, width) {
   const mobile = width < 768;
-  const storageState = ["kurucu", "misafir"].includes(user) ? undefined : path.join(ROOT, "tests/.auth", `${user}.json`);
+  // Yerel sunucuda tests/.auth/<kullanıcı>.json; başka adreste (önizleme) e2e-login'in yazdığı tests/.auth/<host>/<kullanıcı>.json.
+  const host = new URL(BASE).hostname;
+  const authDir = ["127.0.0.1", "localhost"].includes(host) ? "tests/.auth" : path.join("tests/.auth", host);
+  const storageState = ["kurucu", "misafir"].includes(user) ? undefined : path.join(ROOT, authDir, `${user}.json`);
   const context = await browser.newContext({
     baseURL: BASE,
     storageState,

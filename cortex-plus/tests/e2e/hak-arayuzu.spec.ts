@@ -113,7 +113,8 @@ for (const size of WIDTHS) {
       await open(page, "plan=plus&kota=90&hazirlik=1");
       await page.getByRole("button", { name: /^Profil/ }).click();
       const usage = page.getByRole("button", { name: /Bu ay %90/ });
-      await expect(usage).toBeVisible();
+      // Yan panel ilk açılışta derlenir (CI geliştirme sunucusu); satırın gelmesini bekle (14 Kasım 2026, kararsız koşu).
+      await expect(usage).toBeVisible({ timeout: 20_000 });
       await expect(usage).toContainText("12 Aralık'ta sıfırlanır · Planın aktif");
       await usage.click();
       const dialog = page.getByRole("dialog", { name: "Aylık limitine yaklaşıyorsun" });

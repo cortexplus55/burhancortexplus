@@ -44,7 +44,9 @@
 - **Testler:** birim 742 dosya / 7.128 test geçti, 1 atlandı (taban 728 / 6.869); uçtan uca (chromium projesi) 289 (yerel üretim derlemesine karşı 286 geçti, 1 atlandı; 2 düşen mevcut CSP rapor gürültüsünden, CI'da geçiyor: §5) test (taban 220).
 - **Erişilebilirlik (axe, WCAG 2.1 A + AA):** 210 ekran (70 ekran × 1280 / 768 / 375; misafir, ücretsiz, Plus, Sigma,
   kurucu fikstürü). İlk tarama 179 serious / critical düğüm; düzeltmeden sonra **0**, bayraklar açıkken de **0**
-  (`audit/axe-faz12-kapali.json`, `audit/axe-faz12-acik.json`).
+  (`audit/axe-faz12-kapali.json`, `audit/axe-faz12-acik.json`). Önizlemede (bütün bayraklar açık, gerçek ortam) 195 ekran,
+  **0** (`audit/axe-onizleme-faz12.json`); önizlemede duman testi 11/11 ve 9 ekranın 3 genişlikte görüntüsü elle
+  incelendi: taşma 0, her sayfada doğru bayrak kapsamı.
 - **Hareket azaltma:** 12 rotada boşta sonsuz animasyon 0.
 - **Görsel fark:** bayrak kapalıyken her faz sonunda görsel taban (203 görüntü) sıfır fark; Faz 12'nin bilinçli
   değişiklikleri (kontrast düzeltmeleri, 404) için taban güncellendi: 203/203 tolerans içinde, yeni taban manifesti `BASELINE_SHA de54e951`.
@@ -87,7 +89,9 @@
   kodunun Crockford base32'ye geçişi; puanlamada "doğru sayısı önce"; sınav sabahı altbilgisi (yazdırma karşılaştırması);
   kök düzendeki `consent-evidence.ts` modül yüklenirken zod şeması kuruyor, zod 4'ün `Function("")` yoklaması rapor
   kipindeki CSP'den her sayfada `/api/csp-report` isteği doğuruyor (engelleme yok, gürültü; çözüm şemayı ilk kullanımda
-  kurmak ya da zod'u `jitless` yapmak).
+  kurmak ya da zod'u `jitless` yapmak); CI e2e'si yeniden deneme yapmıyor ve geliştirme sunucusunda koşuyor: iki test
+  (deneme taslağının yenilemeden sonra yerinde olması, profil panelinin kullanım satırı) ilk derlemede 5 sn'yi aşıp
+  düşebiliyordu, koşulu bekleyecek şekilde sağlamlaştırıldı; CI'a `retries` eklemek ayrı karar.
 
 ## 6. Burhan-only açık işler
 
