@@ -85,6 +85,10 @@ try {
   copyDir(path.join(ROOT, "tests/.auth"), path.join(APP, "tests/.auth"));
 
   const committed = JSON.parse(fs.readFileSync(path.join(APP, "tests/visual/baseline-manifest.json"), "utf8"));
+  // 1) Algısal karşılaştırma: bu makinedeki tabanı worktree'ye koy, temiz derlemeyle `test:visual` (eşik 0,002).
+  copyDir(path.join(ROOT, "tests/visual/__screenshots__"), path.join(APP, "tests/visual/__screenshots__"));
+  const perceptual = run("npm", ["run", "test:visual"], { cwd: APP }) === 0;
+  // 2) Bayt karşılaştırması: tabanı temiz worktree'de yeniden üret, sha256'ları commit'teki manifestle karşılaştır.
   if (run("npm", ["run", "test:visual:update"], { cwd: APP }) !== 0) throw new Error("test:visual:update başarısız");
 
   const dir = path.join(APP, "tests/visual/__screenshots__");
@@ -98,6 +102,7 @@ try {
   const result = {
     commit: execFileSync("git", ["rev-parse", "HEAD"], { cwd: APP }).toString().trim(),
     manifestSha: committed.BASELINE_SHA,
+    perceptualPass: perceptual,
     produced: produced.count,
     expected: committed.count,
     matched: committed.count - mismatched.length,
@@ -105,7 +110,8 @@ try {
   };
   const out = path.join(ROOT, "docs/design-migration/data/gorsel-yeniden-uretim.json");
   fs.writeFileSync(out, `${JSON.stringify({ ranAt: new Date().toISOString(), ...result }, null, 1)}\n`);
-  console.log(`\n${result.matched}/${result.expected} görüntü manifestle birebir aynı${mismatched.length ? `; farklı: ${mismatched.slice(0, 10).join(", ")}` : ""}.`);
+  console.log(`\nAlgısal karşılaştırma (eşik 0,002): ${perceptual ? "geçti" : "DÜŞTÜ"}.`);
+  console.log(`${result.matched}/${result.expected} görüntü manifestle birebir aynı${mismatched.length ? `; farklı: ${mismatched.slice(0, 10).join(", ")}` : ""}.`);
   console.log(`Sonuç: ${path.relative(ROOT, out)}`);
   exitCode = mismatched.length ? 1 : 0;
 } catch (error) {

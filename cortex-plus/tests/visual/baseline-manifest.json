@@ -1,8 +1,8 @@
 {
  "_not": "Görsel taban görüntüleri git'te değil; bu dosya onların kaydıdır. Yeniden üretim: docs/design-migration/00-taban.md.",
- "BASELINE_SHA": "675aec9167273a931d0e6a9d4d5667f950aac914",
+ "BASELINE_SHA": "151da31f57152f5bfc433a7af09f786e288612d4",
  "workingTreeClean": true,
- "generatedAt": "2026-11-14T10:20:29.887Z",
+ "generatedAt": "2026-11-14T12:24:20.900Z",
  "os": "Windows_NT 10.0.26200 x64",
  "node": "v24.14.1",
  "playwright": "1.62.1",
@@ -19,8 +19,8 @@
  },
  "fixedTime": "2026-11-14T12:00:00+03:00",
  "count": 203,
- "totalBytes": 27746005,
- "totalMB": 26.46,
+ "totalBytes": 28467766,
+ "totalMB": 27.15,
  "images": [
   {
    "file": "masaustu/e2e-free-exhausted-araclar.png",
@@ -28,8 +28,8 @@
    "width": 1280,
    "user": "e2e-free-exhausted",
    "route": "araclar",
-   "bytes": 180591,
-   "sha256": "78598e9d019297f1aaf3dbec1b7a997ff807aff111eb22ac6c3f200840b3474e"
+   "bytes": 180089,
+   "sha256": "d531dc809447d2740dc8052fc3ab018544edd7568f5cae04273efbeec51ded5b"
   },
   {
    "file": "masaustu/e2e-free-exhausted-ayarlar.png",
@@ -37,8 +37,8 @@
    "width": 1280,
    "user": "e2e-free-exhausted",
    "route": "ayarlar",
-   "bytes": 97296,
-   "sha256": "9805713111a7005b81be55fdb29226681cb64dbe839173829c690e1e68b41379"
+   "bytes": 96880,
+   "sha256": "c38001ec7973d4ad1f41c3be3535de661f6294b4560ebce41d7b22993e784b9e"
   },
   {
    "file": "masaustu/e2e-free-exhausted-hazirlik.png",
@@ -46,8 +46,8 @@
    "width": 1280,
    "user": "e2e-free-exhausted",
    "route": "hazirlik",
-   "bytes": 97820,
-   "sha256": "98de4dfb350a517083b2a37e617321e038e1745f056259f498eecc4e98ea165d"
+   "bytes": 97408,
+   "sha256": "bc61347fbc156fa4cb752aaed728d3d4aa1b3c271be1dd6720dbbcff19fee44c"
   },
   {
    "file": "masaustu/e2e-free-exhausted-ilerleme.png",
@@ -55,8 +55,8 @@
    "width": 1280,
    "user": "e2e-free-exhausted",
    "route": "ilerleme",
-   "bytes": 69727,
-   "sha256": "11c4db40aaa1ddf791ba9a040cf64404c04878e5176d55bae25bce1015e0ffc2"
+   "bytes": 69207,
+   "sha256": "c75904cb7bd8646071c16859d715da1899c508342594492ad25773a86495a5e1"
   },
   {
    "file": "masaustu/e2e-free-exhausted-ogretmen.png",
@@ -64,8 +64,8 @@
    "width": 1280,
    "user": "e2e-free-exhausted",
    "route": "ogretmen",
-   "bytes": 85521,
-   "sha256": "09abc355eb9292a19a8c42e5c1b14f9203f0fd0ffae4b386dfd261793e4f2c57"
+   "bytes": 85665,
+   "sha256": "5c74c682947ecfd4a00cd1c439a05ce31fd509b93a4405bd704c71938c6f151b"
   },
   {
    "file": "masaustu/e2e-free-exhausted-pay.png",
@@ -82,8 +82,8 @@
    "width": 1280,
    "user": "e2e-free-exhausted",
    "route": "profil-paneli",
-   "bytes": 114948,
-   "sha256": "454011d84127b4d0c81c2b478d11a27fe8b44701a8859bb40d0adadf1afe9738"
+   "bytes": 120329,
+   "sha256": "708960c5ae5583d7c15b073f12a837cfdb47e7efe79793358fb1da4af6e39fbc"
   },
   {
    "file": "masaustu/e2e-free-fresh-araclar.png",
@@ -91,8 +91,8 @@
    "width": 1280,
    "user": "e2e-free-fresh",
    "route": "araclar",
-   "bytes": 180591,
-   "sha256": "78598e9d019297f1aaf3dbec1b7a997ff807aff111eb22ac6c3f200840b3474e"
+   "bytes": 180089,
+   "sha256": "d531dc809447d2740dc8052fc3ab018544edd7568f5cae04273efbeec51ded5b"
   },
   {
    "file": "masaustu/e2e-free-fresh-ayarlar.png",
@@ -100,8 +100,8 @@
    "width": 1280,
    "user": "e2e-free-fresh",
    "route": "ayarlar",
-   "bytes": 97321,
-   "sha256": "aaba7f927aca278092bccaed65e1e81c576d7472944576637e3b9f73cf84757e"
+   "bytes": 96780,
+   "sha256": "94e77e4332f98471f1cfad5589e85808be370167b647e63d5b524f60e0bd8525"
   },
   {
    "file": "masaustu/e2e-free-fresh-hazirlik.png",
@@ -109,8 +109,8 @@
    "width": 1280,
    "user": "e2e-free-fresh",
    "route": "hazirlik",
-   "bytes": 97820,
-   "sha256": "98de4dfb350a517083b2a37e617321e038e1745f056259f498eecc4e98ea165d"
+   "bytes": 97424,
+   "sha256": "f9562d00aec49e8f7d15dbf4c38d5b5cc4ca751628a39b2fb4932097ba04bbca"
   },
   {
    "file": "masaustu/e2e-free-fresh-ilerleme.png",
@@ -118,8 +118,8 @@
    "width": 1280,
    "user": "e2e-free-fresh",
    "route": "ilerleme",
-   "bytes": 70022,
-   "sha256": "3453371aaa2eadf24b348b3248b126aa2bfdc08afcc1c321dc43a3d7d78376f2"
+   "bytes": 69431,
+   "sha256": "11bc9ad6b3c665a049e1beebc6e1f759e1dda2731d3bd9d0b62e7eab9eafd8b3"
   },
   {
    "file": "masaustu/e2e-free-fresh-ogretmen.png",
@@ -127,8 +127,8 @@
    "width": 1280,
    "user": "e2e-free-fresh",
    "route": "ogretmen",
-   "bytes": 85521,
-   "sha256": "09abc355eb9292a19a8c42e5c1b14f9203f0fd0ffae4b386dfd261793e4f2c57"
+   "bytes": 85665,
+   "sha256": "5c74c682947ecfd4a00cd1c439a05ce31fd509b93a4405bd704c71938c6f151b"
   },
   {
    "file": "masaustu/e2e-free-fresh-pay.png",
@@ -145,8 +145,8 @@
    "width": 1280,
    "user": "e2e-free-fresh",
    "route": "profil-paneli",
-   "bytes": 114948,
-   "sha256": "454011d84127b4d0c81c2b478d11a27fe8b44701a8859bb40d0adadf1afe9738"
+   "bytes": 120403,
+   "sha256": "245274812e2e2e79692984ccbaa6e1f1c35b28aa448f4131bd3db704b54228a2"
   },
   {
    "file": "masaustu/e2e-plus-ara.png",
@@ -154,8 +154,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "ara",
-   "bytes": 172212,
-   "sha256": "eb813e60e3c297598132c0dc2bdd3e72b08c8641d4341b6d7f1f1c45f75cf6a4"
+   "bytes": 171666,
+   "sha256": "8614d05958be1218fc0aa0832bf039296c0bf54ee770695c22fec6dca7ad2b1b"
   },
   {
    "file": "masaustu/e2e-plus-araclar-birim-cember.png",
@@ -163,8 +163,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "araclar-birim-cember",
-   "bytes": 203352,
-   "sha256": "675c183b4ef00a4de663c3ca1e0826e473c79c86a694887ab011e556177fdc64"
+   "bytes": 202899,
+   "sha256": "cfe90db587e308667776c145d5a6b14616f21a3af9549e8c1032d255fe47a568"
   },
   {
    "file": "masaustu/e2e-plus-araclar-birim.png",
@@ -172,8 +172,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "araclar-birim",
-   "bytes": 187941,
-   "sha256": "5c445dc4dac445b081fc215f516983f0d7d8289203e7c7da3fbb331074116b87"
+   "bytes": 187446,
+   "sha256": "f5b1b7352d6a817f8ed6dc8018029fd5ce3b839c6e9f464b5d887124eee8ab18"
   },
   {
    "file": "masaustu/e2e-plus-araclar-denklem.png",
@@ -181,8 +181,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "araclar-denklem",
-   "bytes": 189624,
-   "sha256": "1a77a5d261437626971de02d6e1b721419cc8641d54c673499ec304dfe17d972"
+   "bytes": 189199,
+   "sha256": "c1ebac01024a6ba5bd19f7105ddcb2e90c9067347f83e2a7556a459d4a4e70e9"
   },
   {
    "file": "masaustu/e2e-plus-araclar-hucre.png",
@@ -190,8 +190,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "araclar-hucre",
-   "bytes": 214609,
-   "sha256": "0dc52a29dcec8e94e359af5f7ce0848523f4945dc36be9a6b63a469192f6c3bd"
+   "bytes": 214135,
+   "sha256": "4e05de353441d07e345f054adb43b8a7c0f446d3923c1f3ce2c99903de757850"
   },
   {
    "file": "masaustu/e2e-plus-araclar-integral.png",
@@ -199,8 +199,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "araclar-integral",
-   "bytes": 193835,
-   "sha256": "81e6475bcba3d52474da5ac9ea2475caad226908f7f86244077fffb733c1383c"
+   "bytes": 193407,
+   "sha256": "0d1779d1f34cdc2f99dd22781f56646943d67d511b7195231fa3ff89d2cc31f3"
   },
   {
    "file": "masaustu/e2e-plus-araclar-parabol.png",
@@ -208,8 +208,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "araclar-parabol",
-   "bytes": 196749,
-   "sha256": "57723cd4824e2ef3e9211675720d92e166ea74a47425d7d62d5e53bc490f2d02"
+   "bytes": 196287,
+   "sha256": "1243f1582995c007557913f22803bba389145d4f25b39fdd8e1ec833bd7293c4"
   },
   {
    "file": "masaustu/e2e-plus-araclar-periyodik.png",
@@ -217,8 +217,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "araclar-periyodik",
-   "bytes": 228829,
-   "sha256": "d0b4143ba8262fd434413c9bb81522f02bc7d986a95c441711376bd290e224f0"
+   "bytes": 228381,
+   "sha256": "9a04572383339780d0a10be1efedffdf78f85cbdb737cd66a420030c5fa7f278"
   },
   {
    "file": "masaustu/e2e-plus-araclar.png",
@@ -226,8 +226,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "araclar",
-   "bytes": 307088,
-   "sha256": "252f48aad2c918c641c60bba099e5b58aaf20155895e2d05b90b2ca2a1413af9"
+   "bytes": 306954,
+   "sha256": "f87f7a97bd1e54a81a7b5ffe4d42803b238641af990d5c1576b77649bcd6873f"
   },
   {
    "file": "masaustu/e2e-plus-ayarlar.png",
@@ -235,8 +235,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "ayarlar",
-   "bytes": 203566,
-   "sha256": "c2f5c5308b69904068f6cfb86f1b869170e2124df6ac1d57a5c444f4facf54c7"
+   "bytes": 203140,
+   "sha256": "4cdb58095ed5950a987991ffcaa26ec656544e65560ad82617e487c7a184ecd6"
   },
   {
    "file": "masaustu/e2e-plus-davet.png",
@@ -244,8 +244,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "davet",
-   "bytes": 201792,
-   "sha256": "c31ac5aaddff8d6aca6337d8ffa1fe514e3086103f6620a32c03245b162d287a"
+   "bytes": 201401,
+   "sha256": "7d45efbaaf705a28250787338e62089b5a5677daeac83eadce5fb3a819d28efe"
   },
   {
    "file": "masaustu/e2e-plus-deneme-sinavlari.png",
@@ -253,8 +253,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "deneme-sinavlari",
-   "bytes": 170867,
-   "sha256": "038a40ec98a25fd909d8576a293b443c64933e23d8e82cd3356a148155a554d0"
+   "bytes": 170380,
+   "sha256": "cd50990c803f7cf3b27e924e4a5ec0fa878854db8f62f093b57bcbf1ae653c6c"
   },
   {
    "file": "masaustu/e2e-plus-ders-dugumu.png",
@@ -262,8 +262,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "ders-dugumu",
-   "bytes": 170720,
-   "sha256": "40d40ed6ca4e58957e0e6a2f3b3c9b8583b4166ca1af779d69e3111b62964a81"
+   "bytes": 157763,
+   "sha256": "cfb6fea68b6fae1b6d47a0b5300093d55edd5fe27d5b10426c02abf8e5788911"
   },
   {
    "file": "masaustu/e2e-plus-dokuman.png",
@@ -271,8 +271,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "dokuman",
-   "bytes": 198421,
-   "sha256": "fe3e7ff393c96cc07079363102cdef3c8656efe452350d0ef5f169c37a10a101"
+   "bytes": 188365,
+   "sha256": "28bf5b7c35f8b1af76356b9a41b162ca04dd42011f983a35e86a88b0aa9b7f9b"
   },
   {
    "file": "masaustu/e2e-plus-dokumanlar.png",
@@ -280,8 +280,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "dokumanlar",
-   "bytes": 167790,
-   "sha256": "4dcb86378645292a67e3d46444494379f3956cb16b5c74abae5bef18ba47633a"
+   "bytes": 167309,
+   "sha256": "aeea830b5537669c7444c694b6c805836a3d6123eceda1544b78fd9fb7383fd6"
   },
   {
    "file": "masaustu/e2e-plus-flashcardlar.png",
@@ -289,8 +289,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "flashcardlar",
-   "bytes": 167113,
-   "sha256": "2c73da72b8ad40e4d314554d78e596ff712c6520e149ac0f2aec0a74725f83ff"
+   "bytes": 166668,
+   "sha256": "657111c601e158fd68d26a58711c92ca246102ddd7e1de5de0b8793b1a48cd53"
   },
   {
    "file": "masaustu/e2e-plus-gunluk.png",
@@ -298,8 +298,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "gunluk",
-   "bytes": 155585,
-   "sha256": "d4be43c8ca931e675475376d49adafaf50e07f0a6caacfe575baee91a052d9dc"
+   "bytes": 155091,
+   "sha256": "159758c59abef448fb7986a3ca9d6afce115382e42ea8129147de73312feba1f"
   },
   {
    "file": "masaustu/e2e-plus-hazirlik.png",
@@ -307,8 +307,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "hazirlik",
-   "bytes": 184734,
-   "sha256": "883ede5b7a65433b78d11e42084306a94a59cdce415212d8825c46ece9b5ac65"
+   "bytes": 183859,
+   "sha256": "496a9a99fcaf90d5a674440f4edc5b34f1296fd9f3c634da0307763c7a468ba8"
   },
   {
    "file": "masaustu/e2e-plus-hazirliklarim.png",
@@ -316,8 +316,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "hazirliklarim",
-   "bytes": 189655,
-   "sha256": "f2540bfbca415d8ac1d150766073e982798a60f1479ef0d6b0bfb35336b9db71"
+   "bytes": 189166,
+   "sha256": "8bd7ebaa998ddabc37f2d83b6ee3bc03c98532f45155dfdf54996a259eba30a7"
   },
   {
    "file": "masaustu/e2e-plus-ilerleme.png",
@@ -325,8 +325,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "ilerleme",
-   "bytes": 179835,
-   "sha256": "9f6a1c32fee97cb3a0f7914dfa50e0faaafc740720fabb81666e095938c4a4b6"
+   "bytes": 179377,
+   "sha256": "c40fe5ab965104935e01ded60553daf1d041c08ebeca16bbb64dfe49f5af1a1b"
   },
   {
    "file": "masaustu/e2e-plus-krediler.png",
@@ -334,8 +334,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "krediler",
-   "bytes": 208809,
-   "sha256": "ba57ee4157bcd287f3fa717c97d76eaabf88c5943c19f7b22fb4af4756d51b24"
+   "bytes": 208406,
+   "sha256": "5a5c6f02c5e3dc85e803694e5745e64648044168f951c1a540041b600d50837f"
   },
   {
    "file": "masaustu/e2e-plus-mufredat.png",
@@ -343,8 +343,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "mufredat",
-   "bytes": 266580,
-   "sha256": "9ffda764a384703411a85799417c7cbb40543f3bcfc57af72d2fcea90db60696"
+   "bytes": 266011,
+   "sha256": "5f8b9e37e4f5ac111b2869aacc6e667793203ca7618462c767163c9ea9e76679"
   },
   {
    "file": "masaustu/e2e-plus-ogretmen.png",
@@ -352,8 +352,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "ogretmen",
-   "bytes": 85906,
-   "sha256": "729a488324bd9664752d386496bd44bc14759fa9bf0031cac0cb00dc39b1a1ee"
+   "bytes": 86490,
+   "sha256": "d8acb2f433ee602dd8615f190c7cedc64c956d9d18b1e660db06b15b4c9e3db5"
   },
   {
    "file": "masaustu/e2e-plus-okulum.png",
@@ -361,8 +361,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "okulum",
-   "bytes": 166113,
-   "sha256": "b1743a1ba00c09a1948257c56b2569676afc60baac6786520a059187a9beed6e"
+   "bytes": 169024,
+   "sha256": "84221bbae528775a779319226d47b7d37b9a92344c3d0c52d9ec41fad305ea2d"
   },
   {
    "file": "masaustu/e2e-plus-olustur.png",
@@ -370,8 +370,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "olustur",
-   "bytes": 186942,
-   "sha256": "d9d15d63083a1e77555443470fcac03f71be46068e63e8fd25c97a7c3e5dff42"
+   "bytes": 186185,
+   "sha256": "3349fde9b316b1b5207efa762b992a1e2d4d619ee9efcf5cf2d60f11b326f6cc"
   },
   {
    "file": "masaustu/e2e-plus-pay.png",
@@ -388,8 +388,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "profil-paneli",
-   "bytes": 125310,
-   "sha256": "319ce7cba9942a6c2690558bdd4cb60be47d9717a1ae8e56296ada13df9be771"
+   "bytes": 127519,
+   "sha256": "12549c58373c83d53389a4f8cf5b1a3127e4d78e7d312e254cc444059ad3db3a"
   },
   {
    "file": "masaustu/e2e-plus-profil.png",
@@ -397,8 +397,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "profil",
-   "bytes": 194569,
-   "sha256": "b8997784b1117f7f7df1e96311e2bdfba7ae1aa85a6cf7da07f6407d5fb94880"
+   "bytes": 194231,
+   "sha256": "0acb64544c8aef99506988d6dbeaff91ac1b995e2455c5f6cc031979a3a6569e"
   },
   {
    "file": "masaustu/e2e-plus-quizler.png",
@@ -406,8 +406,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "quizler",
-   "bytes": 159113,
-   "sha256": "75b24f6bedc2750432a2990936b2f7a2f0af0a36add6c592f06a332e3d67fc77"
+   "bytes": 158646,
+   "sha256": "c6d05c269cd99cc5387f722ef16dbacc7af8358dae1289eafd6e9c703c6a3da8"
   },
   {
    "file": "masaustu/e2e-plus-resmi.png",
@@ -415,8 +415,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "resmi",
-   "bytes": 271664,
-   "sha256": "c8a82d0149f5cb740fe16eb7f98fbae8d54f53627f7ebc531b2caf3b2c88cce8"
+   "bytes": 271226,
+   "sha256": "06aab36593b25bff2b0b90e5f66620834100908cf0c3a381015bbb8551d3deb9"
   },
   {
    "file": "masaustu/e2e-plus-siniflar.png",
@@ -424,8 +424,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "siniflar",
-   "bytes": 196096,
-   "sha256": "d85f22781cf6f0d477a5364caf8d7d9347f88c1e6bfd49873ba71a0f885c0a56"
+   "bytes": 195636,
+   "sha256": "e05fd760f7915c4ca28d2d8b50b250b890d9e9199400fec54ba163dabc1cedf9"
   },
   {
    "file": "masaustu/e2e-plus-sohbetler.png",
@@ -433,8 +433,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "sohbetler",
-   "bytes": 171415,
-   "sha256": "8a98dd51d26434feb2130c14cfe40f5094ce78e283ea7fe513d5f864ebc1945d"
+   "bytes": 157854,
+   "sha256": "73df9b9b35ae56b93f4a5e2e4db73e046227649e69e56382c794a64f7d857433"
   },
   {
    "file": "masaustu/e2e-plus-soru-coz.png",
@@ -442,8 +442,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "soru-coz",
-   "bytes": 203346,
-   "sha256": "2da8bd92090f9385b7baa235ade3010a39d4e26b7e1f9e87f4049545b74a6533"
+   "bytes": 203086,
+   "sha256": "8523b4d2f59746c8f838be42a42e680540871888ca90e279d2348eaed2eaf7a1"
   },
   {
    "file": "masaustu/e2e-plus-studio-anlat.png",
@@ -451,8 +451,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "studio-anlat",
-   "bytes": 209432,
-   "sha256": "6eefa73eb7bf9f257525b170e8794359a0e788689d427c50987a2b2fca581d93"
+   "bytes": 208970,
+   "sha256": "1b40282b680265e1699c15c220b85b2c34ce5febea2fb4c3d57c951ada183e3d"
   },
   {
    "file": "masaustu/e2e-plus-studio-dogru-yanlis.png",
@@ -460,8 +460,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "studio-dogru-yanlis",
-   "bytes": 259391,
-   "sha256": "812b393bfc8e1621cd967d3be29739e8f8c0e8e98fb781866396e5c2e11c64e4"
+   "bytes": 259011,
+   "sha256": "901bc73e3e7c146446ce3ac4036ff1da25a0be14b9d044a9f2b617b2c3c1a3f8"
   },
   {
    "file": "masaustu/e2e-plus-studio-flashcard.png",
@@ -469,8 +469,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "studio-flashcard",
-   "bytes": 251943,
-   "sha256": "71bd987ad8b28e2c5d5c9336bcfbe49cdad0e36b73fac44c868049c8b3d4870c"
+   "bytes": 251506,
+   "sha256": "0eac00c6bc6e080e7fd7675ea101bf287c8113ab581eda32598357363be81401"
   },
   {
    "file": "masaustu/e2e-plus-studio-podcast.png",
@@ -478,8 +478,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "studio-podcast",
-   "bytes": 275276,
-   "sha256": "ae25467c7cc573191203e3e5d13f8943a1295089bdfe014a4fea400ea8def74f"
+   "bytes": 274799,
+   "sha256": "cd8f7a2ec79f3e1fc50eb9b4b9c133eec205417ba6aef9b441073b9b27e3b58c"
   },
   {
    "file": "masaustu/e2e-plus-studio-quiz.png",
@@ -487,8 +487,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "studio-quiz",
-   "bytes": 276888,
-   "sha256": "347b726689dab461ef9800bf8622138c93ee490e0f1f665e6eddc0f9a3656b5a"
+   "bytes": 276402,
+   "sha256": "58f8c41719ed63e7b7559f311f37e52cef14f1da209db018baad185c600d0277"
   },
   {
    "file": "masaustu/e2e-plus-studio-sozlu.png",
@@ -496,8 +496,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "studio-sozlu",
-   "bytes": 270016,
-   "sha256": "47c8ea212d887d95713d9c626af7dfd76ea1f9d6791caace531c54e746316bc3"
+   "bytes": 269565,
+   "sha256": "08281409e20d0da05b6dc76715ef0d4a7c0995127710169cbf1c3da67b910d83"
   },
   {
    "file": "masaustu/e2e-plus-studio-yazili.png",
@@ -505,8 +505,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "studio-yazili",
-   "bytes": 259308,
-   "sha256": "d81d00f09bec8b638304f9ca41b9c89d73fdb930fde41d7b96e4e31ca9935c58"
+   "bytes": 258895,
+   "sha256": "14a023127fdd81dd7488333378ed4db97991974145351c30ce932e0db62da29d"
   },
   {
    "file": "masaustu/e2e-plus-takvimim.png",
@@ -514,8 +514,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "takvimim",
-   "bytes": 173017,
-   "sha256": "a3db1f535f2061f5c6b5c6b7cac5459363be0634460693f7e1377d0421235295"
+   "bytes": 159279,
+   "sha256": "680d1c17fb84f719cff6eb13dc450b7b074acd802bbf176732c07316a3064b39"
   },
   {
    "file": "masaustu/e2e-plus-yanlislarim.png",
@@ -523,8 +523,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "yanlislarim",
-   "bytes": 183160,
-   "sha256": "bb5d9cd401f15c439f487ec1007009cec9fcaa43a24bebf2a2bf93b6937726a0"
+   "bytes": 182724,
+   "sha256": "3e20b956c98870caca52837a98dbb5447c9f5946ffac6269f0ecffc683bf2f79"
   },
   {
    "file": "masaustu/e2e-plus-yardim.png",
@@ -532,8 +532,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "yardim",
-   "bytes": 198601,
-   "sha256": "af54060fbc8320c4654e71be22f55542fa22cc83d1fa04863ad847cdd72b3101"
+   "bytes": 198167,
+   "sha256": "3b207a5c112db0608ba582d0d2d8eb75343adf669fb0d474933528f0f4977ae9"
   },
   {
    "file": "masaustu/e2e-sigma-araclar.png",
@@ -541,8 +541,8 @@
    "width": 1280,
    "user": "e2e-sigma",
    "route": "araclar",
-   "bytes": 308415,
-   "sha256": "6e2193a86cd0a1cfc3144ea6b86dfbe56b648f68dee836604a52cfcc8e56c79b"
+   "bytes": 308117,
+   "sha256": "4179a3030cf17bd69cca822af2dc010041e7de209e436d64e61ecb41fa0fd8e1"
   },
   {
    "file": "masaustu/e2e-sigma-ayarlar.png",
@@ -550,8 +550,8 @@
    "width": 1280,
    "user": "e2e-sigma",
    "route": "ayarlar",
-   "bytes": 206341,
-   "sha256": "840715405db59d9189ba11839d7c6946cd6d412cdb847240cc3842634a8a8927"
+   "bytes": 205806,
+   "sha256": "d2ce9e03b8453b7f60d0da93770004503e7e6725a8d081b47db85283aa903952"
   },
   {
    "file": "masaustu/e2e-sigma-hazirlik.png",
@@ -559,8 +559,8 @@
    "width": 1280,
    "user": "e2e-sigma",
    "route": "hazirlik",
-   "bytes": 185779,
-   "sha256": "a9b82b5845bd89966731fd38b82695c2481039666c50d8d88b0569d39dd134bc"
+   "bytes": 185225,
+   "sha256": "ad13acede127f44a8cfc9ed4df0ac11542475b7c523a855079300ef9d9ce3d0e"
   },
   {
    "file": "masaustu/e2e-sigma-ilerleme.png",
@@ -568,8 +568,8 @@
    "width": 1280,
    "user": "e2e-sigma",
    "route": "ilerleme",
-   "bytes": 181193,
-   "sha256": "a748e40ab3d6eec934f54a95f455e9c50e740728bdd24da6376d5ea0f6c8ee15"
+   "bytes": 180882,
+   "sha256": "b6eefe38006b1ad00a3d774128397917f7febb9d6701c5c05e2235308a802f73"
   },
   {
    "file": "masaustu/e2e-sigma-ogretmen.png",
@@ -577,8 +577,8 @@
    "width": 1280,
    "user": "e2e-sigma",
    "route": "ogretmen",
-   "bytes": 86551,
-   "sha256": "3abca7dcfc8181dd16f981d5543c7dfb892e8db6d803e3bd76bca132787970d2"
+   "bytes": 87068,
+   "sha256": "89043942e0a115c30ede1cc0a0b9fd431c1a6bb647e20bbfe592cf4aefd893e6"
   },
   {
    "file": "masaustu/e2e-sigma-pay.png",
@@ -595,8 +595,8 @@
    "width": 1280,
    "user": "e2e-sigma",
    "route": "profil-paneli",
-   "bytes": 147046,
-   "sha256": "fe3a8a0c9acb4d62596c966d356ce6d94721e8e626e6fc48d6f9f10c0ec931c5"
+   "bytes": 152611,
+   "sha256": "4a8bd097aa235a045e90360cb6b39d31c6485a9dea8107913fa703319a21dce4"
   },
   {
    "file": "masaustu/kurucu-ayarlar.png",
@@ -604,8 +604,8 @@
    "width": 1280,
    "user": "kurucu (fikstür)",
    "route": "ayarlar",
-   "bytes": 76130,
-   "sha256": "4add8e9f279b028c22a2b4beda40dccb7b4ff31e87000b21b58c9165ffdc9a6d"
+   "bytes": 172993,
+   "sha256": "8e0d3399496710cc0336591aa50211eff2a16b1dc3e2a47e9de53727373c0b06"
   },
   {
    "file": "masaustu/kurucu-krediler.png",
@@ -613,8 +613,8 @@
    "width": 1280,
    "user": "kurucu (fikstür)",
    "route": "krediler",
-   "bytes": 87350,
-   "sha256": "f823c31e426ba15ab70921258795c79bf2dd61f4f69dce4e4bfaca92b9c4815d"
+   "bytes": 180484,
+   "sha256": "3466804c86ed8771d7912011157c4b4b7ca33cc53f7bffcbcb8818601ffa5235"
   },
   {
    "file": "masaustu/kurucu-ogretmen.png",
@@ -622,8 +622,8 @@
    "width": 1280,
    "user": "kurucu (fikstür)",
    "route": "ogretmen",
-   "bytes": 70052,
-   "sha256": "f23c6883131ba72a36f60be00107245846b7d74df0a8ecd65d40eae4a1d7f17f"
+   "bytes": 100215,
+   "sha256": "71967110c5d432a87c3fe7352b2976e06f45a331139b580986ec1826cff80074"
   },
   {
    "file": "masaustu/kurucu-pay.png",
@@ -631,8 +631,8 @@
    "width": 1280,
    "user": "kurucu (fikstür)",
    "route": "pay",
-   "bytes": 71685,
-   "sha256": "456122ee73241440281de97ed418ee9df4b836109df55e3c04646559ca66fbeb"
+   "bytes": 160261,
+   "sha256": "45e3c9fa690deb7da66f0203023ac7e4f498a6afe6dd4c9b05877e38c5796074"
   },
   {
    "file": "masaustu/kurucu-profil-paneli.png",
@@ -640,8 +640,8 @@
    "width": 1280,
    "user": "kurucu (fikstür)",
    "route": "profil-paneli",
-   "bytes": 93189,
-   "sha256": "16b82c850f42bebd8da0624cf5a8e1d1d41c3e1358eaccf7f5a39af3df795a24"
+   "bytes": 206342,
+   "sha256": "3761a3c0b5343f3dfab9f45ddff8e030e50a280e6eaa598e9d6f6b08ee378c34"
   },
   {
    "file": "tablet/e2e-free-exhausted-araclar.png",
@@ -685,8 +685,8 @@
    "width": 768,
    "user": "e2e-free-exhausted",
    "route": "ogretmen",
-   "bytes": 71011,
-   "sha256": "089ea3dbfc569a93982cbc3f7c3418afc3102e6420f3e7671afed22f0840ae03"
+   "bytes": 70847,
+   "sha256": "c30568d86dd23181482652077091cbaaf9db3cf189bd7f43d41cfcddd6161f93"
   },
   {
    "file": "tablet/e2e-free-exhausted-pay.png",
@@ -703,8 +703,8 @@
    "width": 768,
    "user": "e2e-free-exhausted",
    "route": "profil-paneli",
-   "bytes": 63490,
-   "sha256": "79013f9a0c2e8943ef1c21ee081d6b09215b72429efe1bb4993a0134498f624e"
+   "bytes": 69044,
+   "sha256": "6e3b58e0f8e3a85e3096a28366558f678419d1eced0c8b0433dd75e0162027a4"
   },
   {
    "file": "tablet/e2e-free-fresh-araclar.png",
@@ -712,8 +712,8 @@
    "width": 768,
    "user": "e2e-free-fresh",
    "route": "araclar",
-   "bytes": 239568,
-   "sha256": "dca4fa6f77b77b89e9581cdd79b927243a53613720ea0536c191201c1888a1da"
+   "bytes": 240006,
+   "sha256": "75b37fc71d8f22f7657698a6813839c9516f65170754c3c97d7bd8f8d1dc4519"
   },
   {
    "file": "tablet/e2e-free-fresh-ayarlar.png",
@@ -721,8 +721,8 @@
    "width": 768,
    "user": "e2e-free-fresh",
    "route": "ayarlar",
-   "bytes": 102959,
-   "sha256": "5e111cd4ae374d66b10fbd2e9860a6f9bcebbf0d0182b43c50175d4473433d6a"
+   "bytes": 102721,
+   "sha256": "a9691edcad909b6c58e8b14d1e1a8fbfad6fb36d3478f76ade40ca8aab53bd22"
   },
   {
    "file": "tablet/e2e-free-fresh-hazirlik.png",
@@ -748,8 +748,8 @@
    "width": 768,
    "user": "e2e-free-fresh",
    "route": "ogretmen",
-   "bytes": 71011,
-   "sha256": "089ea3dbfc569a93982cbc3f7c3418afc3102e6420f3e7671afed22f0840ae03"
+   "bytes": 70847,
+   "sha256": "c30568d86dd23181482652077091cbaaf9db3cf189bd7f43d41cfcddd6161f93"
   },
   {
    "file": "tablet/e2e-free-fresh-pay.png",
@@ -766,8 +766,8 @@
    "width": 768,
    "user": "e2e-free-fresh",
    "route": "profil-paneli",
-   "bytes": 63372,
-   "sha256": "88f14b011238031faf9bb23a29d55a35289a9a27d7ac9910811ca62ec7b0a46f"
+   "bytes": 69229,
+   "sha256": "3b92f80c176aadeb9ed24afe738ad94ac165b123f35e40a38c01ec9767a30e5c"
   },
   {
    "file": "tablet/e2e-plus-ara.png",
@@ -776,7 +776,7 @@
    "user": "e2e-plus",
    "route": "ara",
    "bytes": 144064,
-   "sha256": "3a303d99666161cf469232bee90771314e63983def21bc8100c2c36f8d82287f"
+   "sha256": "797c3dc8049ffdea2ebd00a0bd7eeb10a065f34eb32c61ba26ffb7773b2a2664"
   },
   {
    "file": "tablet/e2e-plus-araclar-birim-cember.png",
@@ -784,8 +784,8 @@
    "width": 768,
    "user": "e2e-plus",
    "route": "araclar-birim-cember",
-   "bytes": 160300,
-   "sha256": "394805037798a8afa2ce8cd68ae1a8758dd00f38db849fcd8e98dd47d33e0da2"
+   "bytes": 159880,
+   "sha256": "1afb37e8121d88216daff466d75c8886e7ec1313487be4e62ed48cf61b7557cd"
   },
   {
    "file": "tablet/e2e-plus-araclar-birim.png",
@@ -793,8 +793,8 @@
    "width": 768,
    "user": "e2e-plus",
    "route": "araclar-birim",
-   "bytes": 159303,
-   "sha256": "a29681177470f42944011909cc23b8116537ac52e08d94f1da7ecf8af675ceb1"
+   "bytes": 144784,
+   "sha256": "571836c608a83faf4a9d60af37ea3c4158e5a549d339bd50791c85648c8a4202"
   },
   {
    "file": "tablet/e2e-plus-araclar-denklem.png",
@@ -802,8 +802,8 @@
    "width": 768,
    "user": "e2e-plus",
    "route": "araclar-denklem",
-   "bytes": 150295,
-   "sha256": "4f60708446aa5de54e2079777fd71333a2092ad192ddaa752c58d14c71cb6d5f"
+   "bytes": 149887,
+   "sha256": "b5901af6f32952945ca68afd1e109415d442264a2e7c3c1a8319a08145b5e2e0"
   },
   {
    "file": "tablet/e2e-plus-araclar-hucre.png",
@@ -811,8 +811,8 @@
    "width": 768,
    "user": "e2e-plus",
    "route": "araclar-hucre",
-   "bytes": 170980,
-   "sha256": "b20754437387fa79d9531b969379755c88cd2556b671f8fd6028224b13ffd75d"
+   "bytes": 170973,
+   "sha256": "354cc9b99d4b953a101b90fde5e3d3db76c269ccbf88cbeb8ded035d4c0bf663"
   },
   {
    "file": "tablet/e2e-plus-araclar-integral.png",
@@ -829,8 +829,8 @@
    "width": 768,
    "user": "e2e-plus",
    "route": "araclar-parabol",
-   "bytes": 153601,
-   "sha256": "ffba6f09260fa45f5459a7b17f13d4fd5ce18615d1e982ca8aea10002e5fb8ec"
+   "bytes": 153606,
+   "sha256": "04568ecb13c8eb2aba3690e9c59bbc3ecae6513c3b74ac01c21b9f7eeb6d41c0"
   },
   {
    "file": "tablet/e2e-plus-araclar-periyodik.png",
@@ -856,8 +856,8 @@
    "width": 768,
    "user": "e2e-plus",
    "route": "ayarlar",
-   "bytes": 181253,
-   "sha256": "fdf2caa2f19a069d4077d000c5eb2424327b0d59565ac1f5711898526a768386"
+   "bytes": 169642,
+   "sha256": "c3892b9a936b27c9987764f1bb2e25034d10128e63d6c106ea21a3fcd7e1b3ed"
   },
   {
    "file": "tablet/e2e-plus-davet.png",
@@ -874,8 +874,8 @@
    "width": 768,
    "user": "e2e-plus",
    "route": "deneme-sinavlari",
-   "bytes": 154137,
-   "sha256": "e037807fac04ea2478833d7df4885072b48b13b0fa3a4d0a3a80bb7a369aaa3f"
+   "bytes": 140537,
+   "sha256": "8400fa9cc4c040b6c4d3e49f44b12e823b3220b917d83fcf9bf4aa18c372eea0"
   },
   {
    "file": "tablet/e2e-plus-ders-dugumu.png",
@@ -883,8 +883,8 @@
    "width": 768,
    "user": "e2e-plus",
    "route": "ders-dugumu",
-   "bytes": 135864,
-   "sha256": "68cb9246e73c1e9d5d587ade088f4a0c68dbf166c6fea86efa8b73bde7e49b58"
+   "bytes": 121883,
+   "sha256": "7cfc6e21985e82d67162aaf5f2ce3773e61cc1ccb265affdff43852439a7d693"
   },
   {
    "file": "tablet/e2e-plus-dokuman.png",
@@ -982,8 +982,8 @@
    "width": 768,
    "user": "e2e-plus",
    "route": "okulum",
-   "bytes": 136012,
-   "sha256": "8da2f3df8093b9f39188dea659bde7bd3e46fa32d7ed827db77c052fff1cf455"
+   "bytes": 139408,
+   "sha256": "dd457651cbb4b201fcdf5ee78242d010b8dfb134ce4130a7e77aafd47e54affc"
   },
   {
    "file": "tablet/e2e-plus-olustur.png",
@@ -991,8 +991,8 @@
    "width": 768,
    "user": "e2e-plus",
    "route": "olustur",
-   "bytes": 193307,
-   "sha256": "268a7e661d591495fea50b7ecb98e3c343a51d43cea35031e8b76df5acd4f9e0"
+   "bytes": 192887,
+   "sha256": "b67963e196e4c22742be5e2c8fb7bd07f96633586ec1dfa7e842e433f213909e"
   },
   {
    "file": "tablet/e2e-plus-pay.png",
@@ -1009,8 +1009,8 @@
    "width": 768,
    "user": "e2e-plus",
    "route": "profil-paneli",
-   "bytes": 71296,
-   "sha256": "8a69aa7c1b9dee8265989ede028ab6f41b60bf6ab535a00dd76655ba13290d0f"
+   "bytes": 74811,
+   "sha256": "ee3deccdddb6b78f87aa9586049050a5da9d771fa46d927efeae29f5b162587e"
   },
   {
    "file": "tablet/e2e-plus-profil.png",
@@ -1018,8 +1018,8 @@
    "width": 768,
    "user": "e2e-plus",
    "route": "profil",
-   "bytes": 167395,
-   "sha256": "43f6fef2bdd9fe39a6b8a07347728d68759cb6e788a6e1dfd199f6af60de3951"
+   "bytes": 153581,
+   "sha256": "03be88f20c8c655d91391391bc843f455fe5386b90d5ef008823b3b00dcf27cc"
   },
   {
    "file": "tablet/e2e-plus-quizler.png",
@@ -1054,8 +1054,8 @@
    "width": 768,
    "user": "e2e-plus",
    "route": "sohbetler",
-   "bytes": 122678,
-   "sha256": "3fe19021244d29c1bb2f7f5a8e703934ec0474bf91e19179a1a245eb7d4bdcc2"
+   "bytes": 108441,
+   "sha256": "a3a2faddb4e4133d34e009fdeed7c155e7bf30af06eb813b7ed709601e091fee"
   },
   {
    "file": "tablet/e2e-plus-soru-coz.png",
@@ -1072,8 +1072,8 @@
    "width": 768,
    "user": "e2e-plus",
    "route": "studio-anlat",
-   "bytes": 185533,
-   "sha256": "b1e5b9627d4c01cf77a742444daee14c9d662eb62ffc545500460011dd03b199"
+   "bytes": 185534,
+   "sha256": "243e2e008851fde8ac04c899750787717b643c1b80630a87cb838b030a95d4f2"
   },
   {
    "file": "tablet/e2e-plus-studio-dogru-yanlis.png",
@@ -1081,8 +1081,8 @@
    "width": 768,
    "user": "e2e-plus",
    "route": "studio-dogru-yanlis",
-   "bytes": 238223,
-   "sha256": "8465b6ba8a5e152e818d769f75acfb9ba0dfec116100a1b8fed74ec108fb1ea5"
+   "bytes": 223518,
+   "sha256": "59e919028470fb1ab708b921f63662714f8933d170ef1b5217b5c560e2f0aeaf"
   },
   {
    "file": "tablet/e2e-plus-studio-flashcard.png",
@@ -1216,8 +1216,8 @@
    "width": 768,
    "user": "e2e-sigma",
    "route": "profil-paneli",
-   "bytes": 98808,
-   "sha256": "73eedd0a3491f28a85d0e6b1dbe15295011fe91532d1acf3319c4fddf80127d2"
+   "bytes": 105563,
+   "sha256": "5dddbc417c0bb716dc857903dfbc84de99d18e063468e3bb086b09c3b11f3068"
   },
   {
    "file": "tablet/kurucu-ayarlar.png",
@@ -1225,8 +1225,8 @@
    "width": 768,
    "user": "kurucu (fikstür)",
    "route": "ayarlar",
-   "bytes": 64270,
-   "sha256": "64841780f057e1112f810912a8df309cd0a86e50592188cc6945c5cedeb9b1b4"
+   "bytes": 126641,
+   "sha256": "8bb3389beb67e1d9a814124376fee9984b2354cb0388995f787e4e61153149b3"
   },
   {
    "file": "tablet/kurucu-krediler.png",
@@ -1234,8 +1234,8 @@
    "width": 768,
    "user": "kurucu (fikstür)",
    "route": "krediler",
-   "bytes": 72244,
-   "sha256": "844a1c6d69c09408b02697a0bc2ff13bd4a766e42f2b505e828695d83894e81d"
+   "bytes": 132597,
+   "sha256": "50b4a2cbe8c8162e9b3256f1b6aee7db4de90a0c5b6b6601253f3ff35d63adff"
   },
   {
    "file": "tablet/kurucu-ogretmen.png",
@@ -1243,8 +1243,8 @@
    "width": 768,
    "user": "kurucu (fikstür)",
    "route": "ogretmen",
-   "bytes": 54994,
-   "sha256": "c0bcb8524363e723c12ad223e0332ddb56962e421a12365a0f01f8ecdfd879ef"
+   "bytes": 78371,
+   "sha256": "9209c93dfc79bfd0e8e47258753fe3e515b3f6b5c4618b9f900c725b4afc4f12"
   },
   {
    "file": "tablet/kurucu-pay.png",
@@ -1252,8 +1252,8 @@
    "width": 768,
    "user": "kurucu (fikstür)",
    "route": "pay",
-   "bytes": 63446,
-   "sha256": "331c7cd1c9a3b773dcdf74670c86ea6142ed4e53ca2e0a22fbfdea52fb199338"
+   "bytes": 133634,
+   "sha256": "34e4e6dc7805822313268e9d50efcc626ed90acd49001362f3f66a854a608a7d"
   },
   {
    "file": "tablet/kurucu-profil-paneli.png",
@@ -1261,8 +1261,8 @@
    "width": 768,
    "user": "kurucu (fikstür)",
    "route": "profil-paneli",
-   "bytes": 84963,
-   "sha256": "bb11875b2a686d7284815f0e07df11924830bde2152a77f584e1aa89fb2d600a"
+   "bytes": 162041,
+   "sha256": "3093d7cc8e8c3431064258766b29935f27b38697ab0c2e39b14690164dfcdeec"
   },
   {
    "file": "telefon/e2e-free-exhausted-araclar.png",
@@ -1342,8 +1342,8 @@
    "width": 375,
    "user": "e2e-free-fresh",
    "route": "hazirlik",
-   "bytes": 64835,
-   "sha256": "93d4064a25842779be57a32d6d12e647e1d4d83b9526e9aa5d5f0d86b35d924d"
+   "bytes": 64707,
+   "sha256": "61e555e2db2652edae39c62e6218d279b358d99ba608e82c95a31d3def2e8dff"
   },
   {
    "file": "telefon/e2e-free-fresh-ilerleme.png",
@@ -1379,7 +1379,7 @@
    "user": "e2e-plus",
    "route": "ara",
    "bytes": 87543,
-   "sha256": "5eb4999d5eb588cd9ce5dafa796d5bace6ed1469478702bd3375892c23d862d1"
+   "sha256": "93accea0626d4edf1060dfea3afc7c3c35f39f9044fe87402625ec4d25eecfda"
   },
   {
    "file": "telefon/e2e-plus-araclar-birim-cember.png",
@@ -1387,8 +1387,8 @@
    "width": 375,
    "user": "e2e-plus",
    "route": "araclar-birim-cember",
-   "bytes": 102018,
-   "sha256": "e26a4669ead5bcec1b3514e0578230153a4660ff606b7320152b92de8da55605"
+   "bytes": 102020,
+   "sha256": "b6a6423e74fb8902985a2f154be717d7008b35ed57c9e2aae4817e660e34955d"
   },
   {
    "file": "telefon/e2e-plus-araclar-birim.png",
@@ -1396,8 +1396,8 @@
    "width": 375,
    "user": "e2e-plus",
    "route": "araclar-birim",
-   "bytes": 95364,
-   "sha256": "35964142bc35f07be28f91e27efd099c738cc69d54eeb11c322f3d6775cc2e3e"
+   "bytes": 95363,
+   "sha256": "d7d2c8e4af079c4a629d0fdfd6696860485282e997c8685726b6453c6f7ab790"
   },
   {
    "file": "telefon/e2e-plus-araclar-denklem.png",
@@ -1406,7 +1406,7 @@
    "user": "e2e-plus",
    "route": "araclar-denklem",
    "bytes": 93410,
-   "sha256": "a0f689aa2b24407c4ed2a13156a42ed6d38631299e8919b1ecafab4d360973b4"
+   "sha256": "6e19845c992e2e92a14a7cd148c3b7bd11d9ac5683cc12150847a3abd6c4579c"
   },
   {
    "file": "telefon/e2e-plus-araclar-hucre.png",
@@ -1414,8 +1414,8 @@
    "width": 375,
    "user": "e2e-plus",
    "route": "araclar-hucre",
-   "bytes": 117014,
-   "sha256": "b915e0bb8b70ac86af68ca8c4c3aa8d9014c2588d93594ae57a9e35ee88baa90"
+   "bytes": 117019,
+   "sha256": "6cd18056bee2f38ae1583e9386ee160801b47f04df2d267e6de3697af11f0094"
   },
   {
    "file": "telefon/e2e-plus-araclar-integral.png",
@@ -1424,7 +1424,7 @@
    "user": "e2e-plus",
    "route": "araclar-integral",
    "bytes": 100847,
-   "sha256": "5f6714e2d1cee9ea0b67915116a9a29146fe2a249d7643427a1dac7a06674e30"
+   "sha256": "0600b03dfa9b0bbbea5d0b8c16ccba4579c70aafcad222528f9835833dffcb3b"
   },
   {
    "file": "telefon/e2e-plus-araclar-parabol.png",
@@ -1432,8 +1432,8 @@
    "width": 375,
    "user": "e2e-plus",
    "route": "araclar-parabol",
-   "bytes": 88947,
-   "sha256": "ad99191010013ea9c5c7cbe3396760b2d4ec195aa32e326c485fe24fefe19bdf"
+   "bytes": 88949,
+   "sha256": "578a39dac1b53565d119cc15d5c4facc46797f1c038524b434a1033af9aba5c7"
   },
   {
    "file": "telefon/e2e-plus-araclar-periyodik.png",
@@ -1441,8 +1441,8 @@
    "width": 375,
    "user": "e2e-plus",
    "route": "araclar-periyodik",
-   "bytes": 101547,
-   "sha256": "d3dafd2d00d55ab621d7d9f4be0f43ec99199abcdba7c627d2378d3d24f02127"
+   "bytes": 100559,
+   "sha256": "71de06b77364e4d08199bf7d784d737c418941000f92434b8efc26369e21a588"
   },
   {
    "file": "telefon/e2e-plus-araclar.png",
@@ -1450,8 +1450,8 @@
    "width": 375,
    "user": "e2e-plus",
    "route": "araclar",
-   "bytes": 157224,
-   "sha256": "b00da21694971822dff3d8b5cb17647f5925b973f885d869e28a18c199702775"
+   "bytes": 157303,
+   "sha256": "763f6e2ec80e7e600dd863ac6c924f2eb0ab9a56b252ff2562031ad8fe9cbd74"
   },
   {
    "file": "telefon/e2e-plus-ayarlar.png",
@@ -1459,8 +1459,8 @@
    "width": 375,
    "user": "e2e-plus",
    "route": "ayarlar",
-   "bytes": 98253,
-   "sha256": "b0c67009e7df8f6b11135033322ec2ac6d6b00cad81df30b488eed3ccaed0fea"
+   "bytes": 98325,
+   "sha256": "577f814717ec2cda19d1a9193491a19abc4444e11feefb6d9b59871dfbe7743e"
   },
   {
    "file": "telefon/e2e-plus-davet.png",
@@ -1477,8 +1477,8 @@
    "width": 375,
    "user": "e2e-plus",
    "route": "deneme-sinavlari",
-   "bytes": 97937,
-   "sha256": "eba10471f680daea51a89a96dbd558b3fd9d68fcb8b5bc618abf2266d74a3d2f"
+   "bytes": 97938,
+   "sha256": "0260595efb35e2eb1dd6fd5b23ba2d72eb305b27b0bb3ea79bc6bca450ee48a0"
   },
   {
    "file": "telefon/e2e-plus-ders-dugumu.png",
@@ -1486,8 +1486,8 @@
    "width": 375,
    "user": "e2e-plus",
    "route": "ders-dugumu",
-   "bytes": 74096,
-   "sha256": "8dacb9c22cdd222f3a6080acfafca83de97d2e2aa814eb6ddb8a30e8dcd2019e"
+   "bytes": 62189,
+   "sha256": "b30caa0343e62f2919cc45fa69b1f99d87f5ad344822848e5d662e31e1017c54"
   },
   {
    "file": "telefon/e2e-plus-dokuman.png",
@@ -1495,8 +1495,8 @@
    "width": 375,
    "user": "e2e-plus",
    "route": "dokuman",
-   "bytes": 87393,
-   "sha256": "035ae0a9f25b14e3f7d668c8841af2f45bec24d0e89985f63a39d6559c238d40"
+   "bytes": 87354,
+   "sha256": "cc460273262fb253eb67b7b989b10a4397dff76c09f54fbddd340bb29fc1fade"
   },
   {
    "file": "telefon/e2e-plus-dokumanlar.png",
@@ -1540,8 +1540,8 @@
    "width": 375,
    "user": "e2e-plus",
    "route": "hazirliklarim",
-   "bytes": 99878,
-   "sha256": "3549e1e9098ab6d8b2e2881856f582de51434215238ba02384e382f873cffcb3"
+   "bytes": 99862,
+   "sha256": "95f141e13a70b15ac83005e8206d6d8373ce05fb909b22f926eac96e5f95d57d"
   },
   {
    "file": "telefon/e2e-plus-ilerleme.png",
@@ -1585,8 +1585,8 @@
    "width": 375,
    "user": "e2e-plus",
    "route": "okulum",
-   "bytes": 78891,
-   "sha256": "94102f39f1173b87d66c2396c02d4a8afcb2408abdd57acf5f2913bc2564e175"
+   "bytes": 82967,
+   "sha256": "f1d67487027ac9d3c6d6b03acc76672bd7bb9e9d213c9cc9af3cb6eaee57b8ed"
   },
   {
    "file": "telefon/e2e-plus-olustur.png",
@@ -1612,8 +1612,8 @@
    "width": 375,
    "user": "e2e-plus",
    "route": "profil",
-   "bytes": 95010,
-   "sha256": "33eae7ac9b075e66518a06014fbf9138a49000f9dac55629fc5a67b796b3175d"
+   "bytes": 95033,
+   "sha256": "daed572c629949a1d0d66f6c092d9f63326688750e13d2898d0ac69df570b9bb"
   },
   {
    "file": "telefon/e2e-plus-quizler.png",
@@ -1648,8 +1648,8 @@
    "width": 375,
    "user": "e2e-plus",
    "route": "sohbetler",
-   "bytes": 83120,
-   "sha256": "63bf9e593b9832e81665757caf6dc759314cdcbbb1b33b54ca54e8209647f10c"
+   "bytes": 79914,
+   "sha256": "cbd4de240b0234737723fa7aba1e7e7ecdfbc150bc2e89b472d1d85079a49c8e"
   },
   {
    "file": "telefon/e2e-plus-soru-coz.png",
@@ -1684,8 +1684,8 @@
    "width": 375,
    "user": "e2e-plus",
    "route": "studio-flashcard",
-   "bytes": 125642,
-   "sha256": "24ebf189d17d0985d944a99c86964f5e6c9b1028a1f0251b73fc4f390600b7ba"
+   "bytes": 125602,
+   "sha256": "07081746a1c9a8288c1868aea902a53858e14113f0adccd9c48c722940d684d9"
   },
   {
    "file": "telefon/e2e-plus-studio-podcast.png",
@@ -1783,8 +1783,8 @@
    "width": 375,
    "user": "e2e-sigma",
    "route": "ilerleme",
-   "bytes": 86082,
-   "sha256": "dc4de67dea41782d80cea20bf12502202edd585a0715a16b6b3da81ca1ddb20c"
+   "bytes": 85957,
+   "sha256": "3793393be13874cc04b171a1638c6905a10381359b233e26dd00b5b204852a8d"
   },
   {
    "file": "telefon/e2e-sigma-ogretmen.png",
@@ -1810,8 +1810,8 @@
    "width": 375,
    "user": "kurucu (fikstür)",
    "route": "ayarlar",
-   "bytes": 48875,
-   "sha256": "6d30856fce6191486d7a946963f95ca83b95d42698bb33ce9659e861f4e26d4f"
+   "bytes": 70395,
+   "sha256": "cecc22106b6b67d9fff541c2127b41c689808d7623f44f44703244c84d0d1684"
   },
   {
    "file": "telefon/kurucu-krediler.png",
@@ -1819,8 +1819,8 @@
    "width": 375,
    "user": "kurucu (fikstür)",
    "route": "krediler",
-   "bytes": 49005,
-   "sha256": "0f3c658a064c3cd14fce2d671fa93a1307976d8db2e84b4f63164c04d5165c7d"
+   "bytes": 81678,
+   "sha256": "a357ed294fee984bda6987b0d8d79aa8bc1650bc404e928f742e5497dcb93c01"
   },
   {
    "file": "telefon/kurucu-ogretmen.png",
@@ -1828,8 +1828,8 @@
    "width": 375,
    "user": "kurucu (fikstür)",
    "route": "ogretmen",
-   "bytes": 47420,
-   "sha256": "87afa357e51130695f5c2bbc224e220d94473b6bfda0414734832e9b392d71a7"
+   "bytes": 65089,
+   "sha256": "9838cdd9cb8b311cd4457f394a03e931f781b4a918e9c003e7f3791919d1daf7"
   },
   {
    "file": "telefon/kurucu-pay.png",
@@ -1837,8 +1837,8 @@
    "width": 375,
    "user": "kurucu (fikstür)",
    "route": "pay",
-   "bytes": 46250,
-   "sha256": "d6e73220bbcd5f0c21699da6b67fccdab5171880a79ea203c88ef1bdf23294fc"
+   "bytes": 68194,
+   "sha256": "3a86489613e34099a3de974046db4691394d963a6c986c360f47a8f0ee3b7f1b"
   },
   {
    "file": "telefon/kurucu-profil-paneli.png",
@@ -1846,8 +1846,8 @@
    "width": 375,
    "user": "kurucu (fikstür)",
    "route": "profil-paneli",
-   "bytes": 54876,
-   "sha256": "519c55021935b236aeab6f1d99b2314b2deb7a1e5f2e2c750255fb7af915d737"
+   "bytes": 101591,
+   "sha256": "ee362bdd0fd41e036a2b3741003dc78ac8b19ccbbb90b49867c0c920c05a9a20"
   }
  ]
 }
