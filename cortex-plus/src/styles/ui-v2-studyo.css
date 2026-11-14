@@ -1,0 +1,71 @@
+/*
+ * Stüdyo araçları yeni görünüm (Faz 8, bayrak `ui.v2.studyo`). Yalnız `[data-ui~="studyo"]` altında. Ses ve video
+ * üretim hattı, PDF, soru üretimi ve puanlama, oynatma mantığı ve metinler aynen; yalnız kartlar, podcast'in şimdiki
+ * satırı ve 1 dk video çerçevesi.
+ */
+
+/* /araclar stüdyo kartları: bg-1, köşe 24, kenarlık yok; stüdyonun rengi yalnız simge plakasında. */
+[data-ui~="studyo"] .sg .sg-card {
+  border: 0;
+  border-radius: var(--cx-radius-l);
+  background: var(--cx-bg-1);
+  box-shadow: none;
+}
+[data-ui~="studyo"] .sg .sg-card:hover {
+  background: var(--cx-bg-2);
+  transform: none;
+}
+[data-ui~="studyo"] .sg .sg-card:focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}
+[data-ui~="studyo"] .sg .sg-card .cx-gate-lock {
+  position: absolute;
+  inset-block-start: var(--cx-space-18);
+  inset-inline-end: var(--cx-space-18);
+}
+
+/* Podcast metni: şimdiki satır renk + kalınlık + sol çizgi (renk tek başına anlam taşımaz), en az 16 px. */
+[data-ui~="studyo"] .cp-pod-script-lines .cp-pod-line-jump.is-now {
+  border-color: transparent;
+  box-shadow: inset 3px 0 0 currentColor;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--cx-text-primary);
+}
+[data-ui~="studyo"] .cp-pod-script-lines .cp-pod-line-jump.is-ada.is-now {
+  box-shadow: inset 3px 0 0 var(--cx-speaker-ada);
+}
+[data-ui~="studyo"] .cp-pod-script-lines .cp-pod-line-jump.is-kerem.is-now {
+  box-shadow: inset 3px 0 0 var(--cx-speaker-kerem);
+}
+[data-ui~="studyo"] .cp-pod-script-lines .cp-pod-line-jump:focus-visible,
+[data-ui~="studyo"] .cp-pod-controls button:focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}
+[data-ui~="studyo"] .cp-pod-controls button {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* 1 dk video: dikey çerçeve masaüstünde ortalı, en çok 405 × 720. */
+@media (min-width: 768px) {
+  [data-ui~="studyo"] .cp-video-frame.is-portrait {
+    width: min(100%, 405px);
+    max-height: 720px;
+    margin-inline: auto;
+  }
+}
+
+/* Sözlü: mikrofon düğmesi en az 56 px (bugün 72), odak halkası. */
+[data-ui~="studyo"] .cp-oral-mic-btn:focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-ui~="studyo"] .sg .sg-card {
+    transition: background 0.16s ease;
+  }
+}

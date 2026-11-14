@@ -89,7 +89,7 @@ describe("Çalışma Stüdyosu sekmesi", () => {
 
   it("sayfa stüdyolarla başlar; sekme, arama ve ders süzgeci kalktı", () => {
     const hub = read("src/components/parity/tools-hub.tsx");
-    expect(hub).toContain("<StudioGallery freeAccount={freeAccount} />");
+    expect(hub).toContain("<StudioGallery freeAccount={freeAccount} gated={gated} />");
     expect(hub.indexOf("<StudioGallery")).toBeLessThan(hub.indexOf("İnteraktif laboratuvarlar"));
     expect(hub).not.toContain("tools-tabs");
     expect(hub).not.toContain("tools-search");
