@@ -1,0 +1,77 @@
+/*
+ * Hazırlık kurulumu yeni görünüm (Faz 7B, bayrak `ui.v2.kurulum`, desen-haritasi/kurulum.md). Yalnız
+ * `[data-ui~="kurulum"]` altında; adım yapısı, alan sırası, `?ders=` / `?istem=` bağlantıları, yükleme hattı, sınırlar
+ * ve oluşturma aynen. Sihirbazın kendi kuralları `.apw .x` biçiminde: buradakiler `[data-ui~="kurulum"] .apw .x`
+ * ile bir basamak öncelikli.
+ */
+
+/* Tek ana eylem: marka gradyanı, 52 px hap. Devre dışı hâl dolu kalır (yapışkan düğmenin altı görünmesin). */
+[data-ui~="kurulum"] .apw .apw-cta {
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-gradient-brand);
+  color: var(--cx-text-on-brand);
+  font: var(--cx-t-button-l);
+  transition:
+    scale 0.22s var(--cx-ease-out),
+    background 0.16s ease;
+}
+[data-ui~="kurulum"] .apw .apw-cta:hover:not(:disabled),
+[data-ui~="kurulum"] .apw .apw-cta:focus-visible {
+  background: var(--cx-gradient-brand);
+  scale: 1.03;
+}
+[data-ui~="kurulum"] .apw .apw-cta:disabled {
+  background: var(--cx-bg-2);
+  color: var(--cx-text-disabled);
+  scale: 1;
+}
+
+/* Kartlar kenarsız; katman bir basamak açık zeminle ayrılır. */
+[data-ui~="kurulum"] .apw .apw-card {
+  border-color: transparent;
+  border-radius: var(--cx-radius-l);
+  background: var(--cx-bg-1);
+}
+
+/* Yükleme yüzeyi: bg-1, köşe 24, kenarlık yok; sürükleme durumu renk + başlık metniyle (metin bileşenden, aynen). */
+[data-ui~="kurulum"] .apw .apw-drop {
+  border: 0;
+  border-radius: var(--cx-radius-l);
+  background: var(--cx-bg-1);
+}
+[data-ui~="kurulum"] .apw .apw-drop--over {
+  background: var(--cx-brand-weak);
+  box-shadow: inset 0 0 0 1px var(--cx-brand);
+}
+
+/* Sınav türü hapları: 40 px, telefonda 44. */
+[data-ui~="kurulum"] .apw .apw-tracks .apw-quick-btn {
+  min-height: 40px;
+  border-radius: var(--cx-radius-max);
+}
+
+[data-ui~="kurulum"] .apw .apw-ghost {
+  border-radius: var(--cx-radius-max);
+}
+
+[data-ui~="kurulum"] .apw :focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}
+
+@media (max-width: 767px) {
+  [data-ui~="kurulum"] .apw .apw-tracks .apw-quick-btn,
+  [data-ui~="kurulum"] .apw .apw-ghost {
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-ui~="kurulum"] .apw .apw-cta,
+  [data-ui~="kurulum"] .apw .apw-cta:hover:not(:disabled),
+  [data-ui~="kurulum"] .apw .apw-cta:focus-visible {
+    scale: 1;
+    transition: background 0.16s ease;
+  }
+}

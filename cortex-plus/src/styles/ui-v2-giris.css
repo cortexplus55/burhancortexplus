@@ -1,0 +1,90 @@
+/*
+ * Giriş, kayıt, şifre sıfırlama yeni görünüm (Faz 7A, bayrak `ui.v2.giris`). Yalnız `[data-ui~="giris"]` altında;
+ * kimlik doğrulama, yönlendirme (`safeNextPath`), doğrulama kuralları ve form davranışı aynen. Alan yazısı 16 px (iOS
+ * yakınlaştırmasını önler), yükseklik 48, hap; tek brand (gönder düğmesi); ikincil bağlantılar zeminsiz.
+ * Var olan kurallar `.cortex-premium-*` (0,1,0) ve `:focus-visible` (0,2,0): buradakiler en az (0,2,1).
+ */
+
+[data-ui~="giris"] input.cortex-premium-input,
+[data-ui~="giris"] input[type="email"],
+[data-ui~="giris"] input[type="password"],
+[data-ui~="giris"] input[type="text"] {
+  min-height: 48px;
+  padding-inline: var(--cx-space-18);
+  border-radius: var(--cx-radius-max);
+  font-size: 16px;
+}
+
+[data-ui~="giris"] button.cortex-premium-btn-primary,
+[data-ui~="giris"] button[type="submit"].mk-btn-outline,
+[data-ui~="giris"] button[type="submit"].signup-continue {
+  min-height: 52px;
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-gradient-brand);
+  box-shadow: none;
+  color: var(--cx-text-on-brand);
+  font: var(--cx-t-button-l);
+  transition:
+    scale 0.22s var(--cx-ease-out),
+    opacity 0.16s ease;
+}
+[data-ui~="giris"] button.cortex-premium-btn-primary:hover:not(:disabled),
+[data-ui~="giris"] button.cortex-premium-btn-primary:focus-visible {
+  box-shadow: none;
+  scale: 1.03;
+  transform: none;
+}
+
+/* Eski altın odak halkası (box-shadow) yerine tek camgöbeği çizgi; iki halka üst üste binmesin. */
+[data-ui~="giris"] input.cortex-premium-input:focus-visible {
+  box-shadow: none;
+}
+[data-ui~="giris"] input:focus-visible,
+[data-ui~="giris"] button:focus-visible,
+[data-ui~="giris"] a:focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}
+
+[data-ui~="giris"] a {
+  text-underline-offset: 3px;
+}
+
+/* Şifre göster / gizle: kapsayıcı her zaman var (görünüşü değiştirmez), düğme yalnız yeni görünümde. */
+.cx-pw {
+  position: relative;
+}
+.cx-pw-toggle {
+  display: none;
+}
+[data-ui~="giris"] .cx-pw input {
+  padding-inline-end: 52px;
+}
+[data-ui~="giris"] .cx-pw .cx-pw-toggle {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-end: 4px;
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  background: transparent;
+  color: var(--cx-text-secondary);
+  translate: 0 -50%;
+  transition: color 0.16s ease;
+}
+[data-ui~="giris"] .cx-pw .cx-pw-toggle:hover,
+[data-ui~="giris"] .cx-pw .cx-pw-toggle[aria-pressed="true"] {
+  color: var(--cx-text-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-ui~="giris"] button.cortex-premium-btn-primary:hover:not(:disabled),
+  [data-ui~="giris"] button.cortex-premium-btn-primary:focus-visible {
+    scale: 1;
+  }
+}

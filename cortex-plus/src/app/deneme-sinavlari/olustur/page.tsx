@@ -5,6 +5,9 @@ import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { freePrepLimitReached } from "@/lib/billing/free-prep-limit";
 import { createServiceClient } from "@/lib/supabase/server";
 import { NOT_STUDIO_EXAM_FILTER } from "@/lib/learning/studio-exam";
+import { uiV2 } from "@/lib/ui-v2/flags";
+import { UiScope } from "@/lib/ui-v2/scope";
+import "@/styles/ui-v2-kurulum.css";
 
 export const metadata = { title: "Sınav oluştur" };
 export const dynamic = "force-dynamic";
@@ -57,9 +60,11 @@ export default async function ExamCreatePage({
     if (!seenSubjects.has(key)) seenSubjects.set(key, label);
   }
   const recentSubjects = [...seenSubjects.values()].slice(0, 6);
+  const kurulumV2 = await uiV2("kurulum", user.id);
 
   return (
     <ParitySorShell {...shell}>
+      <UiScope keys={kurulumV2 ? ["kurulum"] : []}>
       <ExamCreateEntry
         initialDocumentId={documentId}
         userId={user.id}
@@ -70,6 +75,7 @@ export default async function ExamCreatePage({
         gradeLevel={typeof profile?.grade_level === "string" ? profile.grade_level : null}
         profileGoal={typeof goalRow?.goal_text === "string" ? goalRow.goal_text : null}
       />
+      </UiScope>
     </ParitySorShell>
   );
 }

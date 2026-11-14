@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { PremiumAuthShell } from "@/components/layout/premium-auth-shell";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
+import { PasswordToggle } from "@/components/auth/password-toggle";
 import { GoogleBlockedNote } from "@/components/auth/google-blocked-note";
 import { useGoogleBlockedWebViewApp } from "@/lib/auth/in-app-browser";
 import { createClient } from "@/lib/supabase/client";
@@ -32,6 +33,7 @@ export default function GirisPage() {
   const otherDevice = params.get("oturum") === OTHER_DEVICE_PARAM;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [unconfirmed, setUnconfirmed] = useState(false);
   // Hesap Google ile açılmış ve şifresi yoksa (8 Kasım 2026): "Giriş başarısız" yerine nedeni söyleyen not.
@@ -153,6 +155,7 @@ export default function GirisPage() {
             <input
               id="email"
               type="email"
+              inputMode="email"
               autoComplete="email"
               required
               className="cortex-premium-input"
@@ -164,17 +167,20 @@ export default function GirisPage() {
             <label htmlFor="password" className="text-sm font-medium text-[var(--cpx-muted)]">
               Şifre
             </label>
-            <input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              className="cortex-premium-input"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <div className="cx-pw">
+              <input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
+                required
+                className="cortex-premium-input"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <PasswordToggle shown={showPassword} onToggle={() => setShowPassword((v) => !v)} controls="password" />
+            </div>
           </div>
-          <button type="submit" disabled={loading} className="cortex-premium-btn-primary w-full">
+          <button type="submit" disabled={loading} aria-busy={loading} className="cortex-premium-btn-primary w-full">
             Giriş yap
           </button>
         </form>

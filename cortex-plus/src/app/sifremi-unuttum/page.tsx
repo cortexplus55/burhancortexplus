@@ -54,6 +54,7 @@ export default function SifremiUnuttumPage() {
             <input
               id="email"
               type="email"
+              inputMode="email"
               autoComplete="email"
               required
               className="cortex-premium-input"
@@ -61,7 +62,7 @@ export default function SifremiUnuttumPage() {
               onChange={(event) => setEmail(event.target.value)}
             />
           </div>
-          <button type="submit" disabled={loading} className="cortex-premium-btn-primary">
+          <button type="submit" disabled={loading} aria-busy={loading} className="cortex-premium-btn-primary">
             {loading ? "Gönderiliyor…" : "Sıfırlama bağlantısı gönder"}
           </button>
         </form>

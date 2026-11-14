@@ -1,4 +1,7 @@
 import { AppShell } from "@/components/layout/app-shell";
+import { uiV2 } from "@/lib/ui-v2/flags";
+import { UiScope } from "@/lib/ui-v2/scope";
+import "@/styles/ui-v2-pay.css";
 import { SubscriptionCards } from "@/components/parity/subscription-cards";
 import { PromoRedeem } from "@/components/billing/promo-redeem";
 import { requireUser } from "@/lib/auth/session";
@@ -20,7 +23,7 @@ export default async function PayPage({ searchParams }: { searchParams: Promise<
   const kodParam = (await searchParams).kod;
   const initialCode = (Array.isArray(kodParam) ? kodParam[0] : kodParam)?.slice(0, 40) ?? "";
 
-  const [extendedPlans, currentBadge, entitlements, prices, account] = await Promise.all([
+  const [extendedPlans, currentBadge, entitlements, prices, account, payV2] = await Promise.all([
     supabase
       .from("plans")
       .select(
@@ -32,6 +35,7 @@ export default async function PayPage({ searchParams }: { searchParams: Promise<
     getUserEntitlements(supabase, user.id),
     loadPlusPrices(supabase),
     getStudentAccountContext(supabase, user.id).catch(() => null),
+    uiV2("pay", user.id),
   ]);
   // Kurucu hesabı (8 Kasım 2026): bütün özellikler açık; "Plus'a yükselt" satışı yerine hesabın durumu.
   const founder = account?.isAdmin === true;
@@ -53,6 +57,7 @@ export default async function PayPage({ searchParams }: { searchParams: Promise<
 
   return (
     <AppShell focus>
+      <UiScope keys={payV2 ? ["pay"] : []}>
       {founder ? (
         <section className="cp-pay-founder" aria-label="Hesabının durumu">
           <FounderBadge />
@@ -83,6 +88,7 @@ export default async function PayPage({ searchParams }: { searchParams: Promise<
           primary={{ label: "Plus'ı seç", href: "#planlar" }}
         />
       ) : null}
+      </UiScope>
     </AppShell>
   );
 }
