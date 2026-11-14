@@ -1,0 +1,606 @@
+{
+ "base": "yerel (3005)",
+ "measuredAt": "2026-11-14T05:30:10.227Z",
+ "results": [
+  {
+   "user": "e2e-plus",
+   "route": "/deneme-sinavlari",
+   "width": 768,
+   "status": 200,
+   "finalPath": "/deneme-sinavlari",
+   "overflow": 0,
+   "shell": true,
+   "minFont": 11,
+   "minFontText": "Plus",
+   "smallTargets": [
+    {
+     "size": 32,
+     "label": "⏳ Sınavına 45 Gün Kaldı — Bugünkü Hedefi"
+    }
+   ],
+   "smallTargetCount": 1,
+   "brands": 1,
+   "brandLabels": [
+    "Devam et"
+   ],
+   "capsule": "Profil, Plus plan",
+   "title": "Sınav hazırlığı | Cortex Plus",
+   "h1": "Sınav hazırlıklarım",
+   "quota": null,
+   "consoleErrors": []
+  },
+  {
+   "user": "e2e-plus",
+   "route": "/deneme-sinavlari",
+   "width": 375,
+   "status": 200,
+   "finalPath": "/deneme-sinavlari",
+   "overflow": 0,
+   "shell": true,
+   "minFont": 11,
+   "minFontText": "Okulum",
+   "smallTargets": [
+    {
+     "size": 32,
+     "label": "⏳ Sınavına 45 Gün Kaldı — Bugünkü Hedefi"
+    },
+    {
+     "size": 40,
+     "label": "Sınav hazırlıklarım"
+    }
+   ],
+   "smallTargetCount": 2,
+   "brands": 1,
+   "brandLabels": [
+    "Devam et"
+   ],
+   "capsule": "Profil, Plus plan",
+   "title": "Sınav hazırlığı | Cortex Plus",
+   "h1": "Sınav hazırlıklarım",
+   "quota": null,
+   "consoleErrors": []
+  },
+  {
+   "user": "e2e-plus",
+   "route": "/araclar",
+   "width": 768,
+   "status": 200,
+   "finalPath": "/araclar",
+   "overflow": 0,
+   "shell": true,
+   "minFont": 11,
+   "minFontText": "Plus",
+   "smallTargets": [],
+   "smallTargetCount": 0,
+   "brands": 0,
+   "brandLabels": [],
+   "capsule": "Profil, Plus plan",
+   "title": "Çalışma Stüdyosu | Cortex Plus",
+   "h1": "Bugün nasıl çalışmak istersin?",
+   "quota": null,
+   "consoleErrors": []
+  },
+  {
+   "user": "e2e-plus",
+   "route": "/araclar",
+   "width": 375,
+   "status": 200,
+   "finalPath": "/araclar",
+   "overflow": 0,
+   "shell": true,
+   "minFont": 11,
+   "minFontText": "Çalışma Stüdyosu",
+   "smallTargets": [
+    {
+     "size": 40,
+     "label": "Kendi Belgemden Çalış"
+    },
+    {
+     "size": 40,
+     "label": "İlerleme"
+    },
+    {
+     "size": 40,
+     "label": "Sohbet geçmişi"
+    },
+    {
+     "size": 40,
+     "label": "Yanlışlar Defteri"
+    }
+   ],
+   "smallTargetCount": 4,
+   "brands": 0,
+   "brandLabels": [],
+   "capsule": "Profil, Plus plan",
+   "title": "Çalışma Stüdyosu | Cortex Plus",
+   "h1": "Bugün nasıl çalışmak istersin?",
+   "quota": null,
+   "consoleErrors": []
+  },
+  {
+   "user": "e2e-plus",
+   "route": "/dokumanlar",
+   "width": 768,
+   "status": 200,
+   "finalPath": "/dokumanlar",
+   "overflow": 0,
+   "shell": true,
+   "minFont": 11,
+   "minFontText": "Plus",
+   "smallTargets": [],
+   "smallTargetCount": 0,
+   "brands": 1,
+   "brandLabels": [
+    "Sınav hazırlığı kur"
+   ],
+   "capsule": "Profil, Plus plan",
+   "title": "Belgelerim | Cortex Plus",
+   "h1": "Belgelerim",
+   "quota": null,
+   "consoleErrors": []
+  },
+  {
+   "user": "e2e-plus",
+   "route": "/dokumanlar",
+   "width": 375,
+   "status": 200,
+   "finalPath": "/dokumanlar",
+   "overflow": 0,
+   "shell": true,
+   "minFont": 11,
+   "minFontText": "Ana Sayfa",
+   "smallTargets": [],
+   "smallTargetCount": 0,
+   "brands": 1,
+   "brandLabels": [
+    "Sınav hazırlığı kur"
+   ],
+   "capsule": "Profil, Plus plan",
+   "title": "Belgelerim | Cortex Plus",
+   "h1": "Belgelerim",
+   "quota": null,
+   "consoleErrors": []
+  },
+  {
+   "user": "e2e-plus",
+   "route": "/yanlislarim",
+   "width": 768,
+   "status": 200,
+   "finalPath": "/yanlislarim",
+   "overflow": 0,
+   "shell": true,
+   "minFont": 11,
+   "minFontText": "Plus",
+   "smallTargets": [],
+   "smallTargetCount": 0,
+   "brands": 1,
+   "brandLabels": [
+    "İlk testini çöz"
+   ],
+   "capsule": "Profil, Plus plan",
+   "title": "Yanlış defteri | Cortex Plus",
+   "h1": "Yanlışlar Defteri",
+   "quota": null,
+   "consoleErrors": []
+  },
+  {
+   "user": "e2e-plus",
+   "route": "/yanlislarim",
+   "width": 375,
+   "status": 200,
+   "finalPath": "/yanlislarim",
+   "overflow": 0,
+   "shell": true,
+   "minFont": 11,
+   "minFontText": "Ana Sayfa",
+   "smallTargets": [],
+   "smallTargetCount": 0,
+   "brands": 1,
+   "brandLabels": [
+    "İlk testini çöz"
+   ],
+   "capsule": "Profil, Plus plan",
+   "title": "Yanlış defteri | Cortex Plus",
+   "h1": "Yanlışlar Defteri",
+   "quota": null,
+   "consoleErrors": []
+  },
+  {
+   "user": "e2e-plus",
+   "route": "/siniflar",
+   "width": 768,
+   "status": 200,
+   "finalPath": "/siniflar",
+   "overflow": 0,
+   "shell": true,
+   "minFont": 11,
+   "minFontText": "Plus",
+   "smallTargets": [],
+   "smallTargetCount": 0,
+   "brands": 1,
+   "brandLabels": [
+    "Gruba katıl"
+   ],
+   "capsule": "Profil, Plus plan",
+   "title": "Çalışma grupları | Cortex Plus",
+   "h1": "Çalışma grupları",
+   "quota": null,
+   "consoleErrors": []
+  },
+  {
+   "user": "e2e-plus",
+   "route": "/siniflar",
+   "width": 375,
+   "status": 200,
+   "finalPath": "/siniflar",
+   "overflow": 0,
+   "shell": true,
+   "minFont": 11,
+   "minFontText": "Ana Sayfa",
+   "smallTargets": [
+    {
+     "size": 40,
+     "label": "INPUT"
+    },
+    {
+     "size": 40,
+     "label": "INPUT"
+    }
+   ],
+   "smallTargetCount": 2,
+   "brands": 1,
+   "brandLabels": [
+    "Gruba katıl"
+   ],
+   "capsule": "Profil, Plus plan",
+   "title": "Çalışma grupları | Cortex Plus",
+   "h1": "Çalışma grupları",
+   "quota": null,
+   "consoleErrors": []
+  },
+  {
+   "user": "e2e-plus",
+   "route": "/ilerleme",
+   "width": 768,
+   "status": 200,
+   "finalPath": "/ilerleme",
+   "overflow": 0,
+   "shell": true,
+   "minFont": 11,
+   "minFontText": "Plus",
+   "smallTargets": [],
+   "smallTargetCount": 0,
+   "brands": 1,
+   "brandLabels": [
+    "Deneme çöz"
+   ],
+   "capsule": "Profil, Plus plan",
+   "title": "İlerleme | Cortex Plus",
+   "h1": "İlerleme",
+   "quota": null,
+   "consoleErrors": []
+  },
+  {
+   "user": "e2e-plus",
+   "route": "/ilerleme",
+   "width": 375,
+   "status": 200,
+   "finalPath": "/ilerleme",
+   "overflow": 0,
+   "shell": true,
+   "minFont": 11,
+   "minFontText": "Ana Sayfa",
+   "smallTargets": [],
+   "smallTargetCount": 0,
+   "brands": 1,
+   "brandLabels": [
+    "Deneme çöz"
+   ],
+   "capsule": "Profil, Plus plan",
+   "title": "İlerleme | Cortex Plus",
+   "h1": "İlerleme",
+   "quota": null,
+   "consoleErrors": []
+  },
+  {
+   "user": "e2e-plus",
+   "route": "/takvimim",
+   "width": 768,
+   "status": 200,
+   "finalPath": "/takvimim",
+   "overflow": 0,
+   "shell": true,
+   "minFont": 11,
+   "minFontText": "Plus",
+   "smallTargets": [],
+   "smallTargetCount": 0,
+   "brands": 0,
+   "brandLabels": [],
+   "capsule": "Profil, Plus plan",
+   "title": "Takvimim | Cortex Plus",
+   "h1": "Takvimim",
+   "quota": null,
+   "consoleErrors": []
+  },
+  {
+   "user": "e2e-plus",
+   "route": "/takvimim",
+   "width": 375,
+   "status": 200,
+   "finalPath": "/takvimim",
+   "overflow": 0,
+   "shell": true,
+   "minFont": 11,
+   "minFontText": "Ana Sayfa",
+   "smallTargets": [],
+   "smallTargetCount": 0,
+   "brands": 0,
+   "brandLabels": [],
+   "capsule": "Profil, Plus plan",
+   "title": "Takvimim | Cortex Plus",
+   "h1": "Takvimim",
+   "quota": null,
+   "consoleErrors": []
+  },
+  {
+   "user": "e2e-plus",
+   "route": "/krediler",
+   "width": 768,
+   "status": 200,
+   "finalPath": "/krediler",
+   "overflow": 0,
+   "shell": true,
+   "minFont": 11,
+   "minFontText": "Plus",
+   "smallTargets": [
+    {
+     "size": 39,
+     "label": "Ek paket al"
+    }
+   ],
+   "smallTargetCount": 1,
+   "brands": 2,
+   "brandLabels": [
+    "Bağlantıyı kopyala",
+    "Ek paket al"
+   ],
+   "capsule": "Profil, Plus plan",
+   "title": "Kullanım limitleri | Cortex Plus",
+   "h1": "Kullanım limitleri",
+   "quota": "%0 kullanıldı",
+   "consoleErrors": []
+  },
+  {
+   "user": "e2e-plus",
+   "route": "/krediler",
+   "width": 375,
+   "status": 200,
+   "finalPath": "/krediler",
+   "overflow": 0,
+   "shell": true,
+   "minFont": 11,
+   "minFontText": "0/3 davet hediyesi",
+   "smallTargets": [
+    {
+     "size": 39,
+     "label": "Ek paket al"
+    }
+   ],
+   "smallTargetCount": 1,
+   "brands": 2,
+   "brandLabels": [
+    "Bağlantıyı kopyala",
+    "Ek paket al"
+   ],
+   "capsule": "Profil, Plus plan",
+   "title": "Kullanım limitleri | Cortex Plus",
+   "h1": "Kullanım limitleri",
+   "quota": "%0 kullanıldı",
+   "consoleErrors": []
+  },
+  {
+   "user": "e2e-plus",
+   "route": "/davet",
+   "width": 768,
+   "status": 200,
+   "finalPath": "/davet",
+   "overflow": 0,
+   "shell": true,
+   "minFont": 11,
+   "minFontText": "Plus",
+   "smallTargets": [],
+   "smallTargetCount": 0,
+   "brands": 1,
+   "brandLabels": [
+    "Bağlantıyı kopyala"
+   ],
+   "capsule": "Profil, Plus plan",
+   "title": "Davet et | Cortex Plus",
+   "h1": "Arkadaşını davet et",
+   "quota": null,
+   "consoleErrors": []
+  },
+  {
+   "user": "e2e-plus",
+   "route": "/davet",
+   "width": 375,
+   "status": 200,
+   "finalPath": "/davet",
+   "overflow": 0,
+   "shell": true,
+   "minFont": 11,
+   "minFontText": "0/3 davet hediyesi",
+   "smallTargets": [],
+   "smallTargetCount": 0,
+   "brands": 1,
+   "brandLabels": [
+    "Bağlantıyı kopyala"
+   ],
+   "capsule": "Profil, Plus plan",
+   "title": "Davet et | Cortex Plus",
+   "h1": "Arkadaşını davet et",
+   "quota": null,
+   "consoleErrors": []
+  },
+  {
+   "user": "e2e-plus",
+   "route": "/sohbetler",
+   "width": 768,
+   "status": 200,
+   "finalPath": "/sohbetler",
+   "overflow": 0,
+   "shell": true,
+   "minFont": 11,
+   "minFontText": "Plus",
+   "smallTargets": [],
+   "smallTargetCount": 0,
+   "brands": 2,
+   "brandLabels": [
+    "Yeni sohbet",
+    "Yeni sohbet"
+   ],
+   "capsule": "Profil, Plus plan",
+   "title": "Sohbetler | Cortex Plus",
+   "h1": "Geçmiş konuşmalar",
+   "quota": null,
+   "consoleErrors": []
+  },
+  {
+   "user": "e2e-plus",
+   "route": "/sohbetler",
+   "width": 375,
+   "status": 200,
+   "finalPath": "/sohbetler",
+   "overflow": 0,
+   "shell": true,
+   "minFont": 11,
+   "minFontText": "Ana Sayfa",
+   "smallTargets": [],
+   "smallTargetCount": 0,
+   "brands": 2,
+   "brandLabels": [
+    "Yeni sohbet",
+    "Yeni sohbet"
+   ],
+   "capsule": "Profil, Plus plan",
+   "title": "Sohbetler | Cortex Plus",
+   "h1": "Geçmiş konuşmalar",
+   "quota": null,
+   "consoleErrors": []
+  },
+  {
+   "user": "e2e-plus",
+   "route": "/profil",
+   "width": 768,
+   "status": 200,
+   "finalPath": "/profil",
+   "overflow": 0,
+   "shell": true,
+   "minFont": 11,
+   "minFontText": "Plus",
+   "smallTargets": [],
+   "smallTargetCount": 0,
+   "brands": 0,
+   "brandLabels": [],
+   "capsule": "Profil, Plus plan",
+   "title": "Profil | Cortex Plus",
+   "h1": "E2E Plus",
+   "quota": null,
+   "consoleErrors": []
+  },
+  {
+   "user": "e2e-plus",
+   "route": "/profil",
+   "width": 375,
+   "status": 200,
+   "finalPath": "/profil",
+   "overflow": 0,
+   "shell": true,
+   "minFont": 11,
+   "minFontText": "12",
+   "smallTargets": [
+    {
+     "size": 40,
+     "label": "Ek paket"
+    }
+   ],
+   "smallTargetCount": 1,
+   "brands": 0,
+   "brandLabels": [],
+   "capsule": "Profil, Plus plan",
+   "title": "Profil | Cortex Plus",
+   "h1": "E2E Plus",
+   "quota": null,
+   "consoleErrors": []
+  },
+  {
+   "user": "e2e-plus",
+   "route": "/ayarlar",
+   "width": 768,
+   "status": 200,
+   "finalPath": "/ayarlar",
+   "overflow": 0,
+   "shell": true,
+   "minFont": 11,
+   "minFontText": "Plus",
+   "smallTargets": [],
+   "smallTargetCount": 0,
+   "brands": 1,
+   "brandLabels": [
+    "Profili düzenle"
+   ],
+   "capsule": "Profil, Plus plan",
+   "title": "Ayarlar | Cortex Plus",
+   "h1": "Ayarlar",
+   "quota": null,
+   "consoleErrors": []
+  },
+  {
+   "user": "e2e-plus",
+   "route": "/ayarlar",
+   "width": 375,
+   "status": 200,
+   "finalPath": "/ayarlar",
+   "overflow": 0,
+   "shell": true,
+   "minFont": 11,
+   "minFontText": "Ana Sayfa",
+   "smallTargets": [
+    {
+     "size": 40,
+     "label": "Profili düzenle"
+    },
+    {
+     "size": 40,
+     "label": "Açık"
+    },
+    {
+     "size": 40,
+     "label": "Koyu"
+    },
+    {
+     "size": 40,
+     "label": "Sistem"
+    },
+    {
+     "size": 40,
+     "label": "E-posta adresini değiştir"
+    },
+    {
+     "size": 40,
+     "label": "Çerez tercihleri"
+    }
+   ],
+   "smallTargetCount": 6,
+   "brands": 1,
+   "brandLabels": [
+    "Profili düzenle"
+   ],
+   "capsule": "Profil, Plus plan",
+   "title": "Ayarlar | Cortex Plus",
+   "h1": "Ayarlar",
+   "quota": null,
+   "consoleErrors": []
+  }
+ ]
+}

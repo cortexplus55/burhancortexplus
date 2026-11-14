@@ -1,0 +1,5446 @@
+{
+  "generatedAt": "2026-11-14T00:41:33.140Z",
+  "protectedPrefixes": [
+    "/onboarding",
+    "/ogretmen",
+    "/sohbetler",
+    "/dokumanlar",
+    "/soru-coz",
+    "/quizler",
+    "/flashcardlar",
+    "/studio",
+    "/deneme-sinavlari",
+    "/uygulamalar",
+    "next",
+    "/araclar",
+    "/ilerleme",
+    "/krediler",
+    "/siniflar",
+    "/davet",
+    "/pay",
+    "/odemeler",
+    "/bildirimler",
+    "/profil",
+    "/ayarlar",
+    "/destek",
+    "/admin",
+    "/tasarim"
+  ],
+  "rows": [
+    {
+      "url": "/",
+      "kind": "sayfa",
+      "file": "src/app/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "parity/marketing",
+        "landing/landing-page"
+      ]
+    },
+    {
+      "url": "/admin",
+      "kind": "sayfa",
+      "file": "src/app/admin/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/admin/page.tsx"
+      ],
+      "params": [],
+      "components": [
+        "admin/admin-shell",
+        "admin/cockpit-quarantine",
+        "admin/cockpit-superseded",
+        "admin/free-preview-toggle",
+        "admin/fx-rate-form",
+        "admin/spend-cap-form",
+        "admin/admin-ui"
+      ]
+    },
+    {
+      "url": "/admin/adaptive",
+      "kind": "sayfa",
+      "file": "src/app/admin/adaptive/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "admin/admin-shell",
+        "admin/admin-ui"
+      ]
+    },
+    {
+      "url": "/admin/ai-kullanimi",
+      "kind": "sayfa",
+      "file": "src/app/admin/ai-kullanimi/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "admin/admin-shell",
+        "admin/admin-ui"
+      ]
+    },
+    {
+      "url": "/admin/anket",
+      "kind": "sayfa",
+      "file": "src/app/admin/anket/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "admin/admin-shell",
+        "admin/admin-ui"
+      ]
+    },
+    {
+      "url": "/admin/audit-log",
+      "kind": "sayfa",
+      "file": "src/app/admin/audit-log/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "admin/admin-shell",
+        "admin/admin-ui"
+      ]
+    },
+    {
+      "url": "/admin/beta",
+      "kind": "sayfa",
+      "file": "src/app/admin/beta/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "admin/admin-shell",
+        "admin/admin-ui"
+      ]
+    },
+    {
+      "url": "/admin/ders-hatalari",
+      "kind": "sayfa",
+      "file": "src/app/admin/ders-hatalari/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "admin/admin-shell",
+        "admin/admin-ui",
+        "admin/stuck-reset-button"
+      ]
+    },
+    {
+      "url": "/admin/destek",
+      "kind": "sayfa",
+      "file": "src/app/admin/destek/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "admin/admin-shell",
+        "admin/admin-ui",
+        "admin/support-answered-button"
+      ]
+    },
+    {
+      "url": "/admin/eposta",
+      "kind": "sayfa",
+      "file": "src/app/admin/eposta/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "admin/admin-shell",
+        "admin/admin-ui",
+        "admin/email-composer",
+        "admin/referral-cap-form",
+        "admin/resend-status-card",
+        "admin/lifecycle-mails-card"
+      ]
+    },
+    {
+      "url": "/admin/etkinlik",
+      "kind": "sayfa",
+      "file": "src/app/admin/etkinlik/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "admin/admin-shell",
+        "admin/admin-ui"
+      ]
+    },
+    {
+      "url": "/admin/feature-flags",
+      "kind": "sayfa",
+      "file": "src/app/admin/feature-flags/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "admin/admin-shell",
+        "admin/admin-ui",
+        "admin/admin-rows"
+      ]
+    },
+    {
+      "url": "/admin/kapi",
+      "kind": "sayfa",
+      "file": "src/app/admin/kapi/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "admin/admin-shell",
+        "admin/admin-ui",
+        "admin/admin-gate-form"
+      ]
+    },
+    {
+      "url": "/admin/kotuye-kullanim",
+      "kind": "sayfa",
+      "file": "src/app/admin/kotuye-kullanim/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "admin/admin-shell",
+        "admin/admin-ui"
+      ]
+    },
+    {
+      "url": "/admin/kredi-kurallari",
+      "kind": "sayfa",
+      "file": "src/app/admin/kredi-kurallari/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "admin/admin-shell",
+        "admin/admin-ui",
+        "admin/admin-rows"
+      ]
+    },
+    {
+      "url": "/admin/kullanicilar",
+      "kind": "sayfa",
+      "file": "src/app/admin/kullanicilar/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/admin/kullanicilar/page.tsx"
+      ],
+      "params": [],
+      "components": [
+        "admin/admin-shell",
+        "admin/admin-ui",
+        "admin/user-actions"
+      ]
+    },
+    {
+      "url": "/admin/kullanicilar/:userId",
+      "kind": "sayfa",
+      "file": "src/app/admin/kullanicilar/[userId]/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [
+        "userId"
+      ],
+      "components": [
+        "admin/admin-shell",
+        "admin/admin-ui",
+        "admin/subscription-extend",
+        "admin/user-actions",
+        "admin/user-manage-tools",
+        "admin/user-content-delete"
+      ]
+    },
+    {
+      "url": "/admin/kullanicilar/:userId/hazirlik/:prepId",
+      "kind": "sayfa",
+      "file": "src/app/admin/kullanicilar/[userId]/hazirlik/[prepId]/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [
+        "userId",
+        "prepId"
+      ],
+      "components": [
+        "admin/admin-shell",
+        "admin/admin-ui"
+      ]
+    },
+    {
+      "url": "/admin/maliyetler",
+      "kind": "sayfa",
+      "file": "src/app/admin/maliyetler/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/admin/maliyetler/page.tsx"
+      ],
+      "params": [],
+      "components": [
+        "admin/admin-shell",
+        "admin/admin-ui",
+        "admin/fx-rate-form",
+        "admin/spend-cap-form"
+      ]
+    },
+    {
+      "url": "/admin/odemeler",
+      "kind": "sayfa",
+      "file": "src/app/admin/odemeler/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "admin/admin-shell",
+        "admin/admin-ui",
+        "admin/refund-button"
+      ]
+    },
+    {
+      "url": "/admin/ogretmen-basvurulari",
+      "kind": "sayfa",
+      "file": "src/app/admin/ogretmen-basvurulari/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "admin/admin-shell",
+        "admin/admin-ui",
+        "admin/application-review"
+      ]
+    },
+    {
+      "url": "/admin/paketler",
+      "kind": "sayfa",
+      "file": "src/app/admin/paketler/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "admin/admin-shell",
+        "admin/admin-ui",
+        "admin/plan-editor"
+      ]
+    },
+    {
+      "url": "/admin/promosyonlar",
+      "kind": "sayfa",
+      "file": "src/app/admin/promosyonlar/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "admin/admin-shell",
+        "admin/admin-ui",
+        "admin/promo-tools",
+        "admin/campaign-form"
+      ]
+    },
+    {
+      "url": "/admin/promptlar",
+      "kind": "sayfa",
+      "file": "src/app/admin/promptlar/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "admin/admin-shell",
+        "admin/admin-ui",
+        "admin/admin-rows",
+        "admin/prompt-editor"
+      ]
+    },
+    {
+      "url": "/admin/sistem",
+      "kind": "sayfa",
+      "file": "src/app/admin/sistem/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/admin/schema-probe.ts"
+      ],
+      "params": [],
+      "components": [
+        "admin/admin-shell",
+        "admin/admin-ui",
+        "admin/smtp-test-button",
+        "admin/digest-send-button",
+        "admin/maintenance-button",
+        "admin/code-aware"
+      ]
+    },
+    {
+      "url": "/admin/yanit-oylari",
+      "kind": "sayfa",
+      "file": "src/app/admin/yanit-oylari/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "admin/admin-shell",
+        "admin/admin-ui"
+      ]
+    },
+    {
+      "url": "/admin/yoneticiler",
+      "kind": "sayfa",
+      "file": "src/app/admin/yoneticiler/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/auth/admin-role.ts",
+        "src/lib/admin/admin-team.ts"
+      ],
+      "params": [],
+      "components": [
+        "admin/admin-shell",
+        "admin/admin-ui",
+        "admin/admin-team-controls"
+      ]
+    },
+    {
+      "url": "/araclar",
+      "kind": "sayfa",
+      "file": "src/app/araclar/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [
+        "src/components/parity/tools-hub.tsx"
+      ],
+      "params": [],
+      "components": [
+        "parity/sor-shell",
+        "parity/tools-hub"
+      ]
+    },
+    {
+      "url": "/araclar/:id",
+      "kind": "sayfa",
+      "file": "src/app/araclar/[id]/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [
+        "id"
+      ],
+      "components": [
+        "parity/sor-shell",
+        "lab/tools/birim-cember",
+        "lab/tools/birim-donusturucu",
+        "lab/tools/denklem-cozucu",
+        "lab/tools/hucre-lab",
+        "lab/tools/integral-hesaplayici",
+        "lab/tools/parabol-kesif",
+        "lab/tools/periyodik-tablo"
+      ]
+    },
+    {
+      "url": "/auth/auth-code-error",
+      "kind": "sayfa",
+      "file": "src/app/auth/auth-code-error/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "layout/marketing-page",
+        "marketing/result-card"
+      ]
+    },
+    {
+      "url": "/ayarlar",
+      "kind": "sayfa",
+      "file": "src/app/ayarlar/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/ayarlar/page.tsx",
+        "src/lib/billing/plan-value.ts"
+      ],
+      "params": [],
+      "components": [
+        "layout/app-shell",
+        "profile/data-deletion-button",
+        "legal/cookie-banner",
+        "profile/email-change-card",
+        "profile/email-preferences-card",
+        "parity/appearance-row",
+        "student/founder-chip",
+        "parity/dialog-link"
+      ]
+    },
+    {
+      "url": "/bildirimler",
+      "kind": "sayfa",
+      "file": "src/app/bildirimler/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "layout/app-shell",
+        "ui-kit/empty-state",
+        "notifications/notification-item"
+      ]
+    },
+    {
+      "url": "/cerez-politikasi",
+      "kind": "sayfa",
+      "file": "src/app/cerez-politikasi/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "layout/legal-document",
+        "legal/cookie-banner"
+      ]
+    },
+    {
+      "url": "/davet",
+      "kind": "sayfa",
+      "file": "src/app/davet/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "parity/page-shell",
+        "parity/sor-shell",
+        "parity/invite-share",
+        "parity/referral-reward-card"
+      ]
+    },
+    {
+      "url": "/deneme-sinavlari",
+      "kind": "sayfa",
+      "file": "src/app/deneme-sinavlari/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/deneme-sinavlari/page.tsx",
+        "src/lib/learning/prep-cards.ts",
+        "src/lib/billing/node-free-meter.ts"
+      ],
+      "params": [],
+      "components": [
+        "parity/exam-prep",
+        "parity/sor-shell"
+      ]
+    },
+    {
+      "url": "/deneme-sinavlari/:prepId",
+      "kind": "sayfa",
+      "file": "src/app/deneme-sinavlari/[prepId]/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/deneme-sinavlari/[prepId]/page.tsx",
+        "src/lib/learning/lesson-prefetch.ts",
+        "src/lib/billing/node-free-meter.ts",
+        "src/lib/learning/learning-tracking.ts",
+        "src/lib/billing/free-topic-gate.ts",
+        "src/lib/billing/entitlements.ts",
+        "src/lib/camp/offer.ts"
+      ],
+      "params": [
+        "prepId"
+      ],
+      "components": [
+        "parity/sor-shell",
+        "level-check/unit-level-check",
+        "level-check/mastery-map",
+        "parity/exam-prep-home",
+        "camp/camp-card"
+      ]
+    },
+    {
+      "url": "/deneme-sinavlari/:prepId/calis",
+      "kind": "sayfa",
+      "file": "src/app/deneme-sinavlari/[prepId]/calis/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "middleware",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [
+        "prepId"
+      ],
+      "components": []
+    },
+    {
+      "url": "/deneme-sinavlari/:prepId/degerlendirme",
+      "kind": "sayfa",
+      "file": "src/app/deneme-sinavlari/[prepId]/degerlendirme/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/deneme-sinavlari/[prepId]/degerlendirme/page.tsx",
+        "src/lib/billing/node-free-meter.ts",
+        "src/lib/learning/learning-tracking.ts"
+      ],
+      "params": [
+        "prepId"
+      ],
+      "components": [
+        "parity/sor-shell",
+        "parity/exam-prep-assessment"
+      ]
+    },
+    {
+      "url": "/deneme-sinavlari/:prepId/deneme/:examId",
+      "kind": "sayfa",
+      "file": "src/app/deneme-sinavlari/[prepId]/deneme/[examId]/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [
+        "prepId",
+        "examId"
+      ],
+      "components": [
+        "parity/sor-shell",
+        "parity/exam-runner",
+        "parity/paper-exam-runner"
+      ]
+    },
+    {
+      "url": "/deneme-sinavlari/:prepId/deneme/:examId/incele",
+      "kind": "sayfa",
+      "file": "src/app/deneme-sinavlari/[prepId]/deneme/[examId]/incele/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [
+        "prepId",
+        "examId"
+      ],
+      "components": [
+        "parity/sor-shell",
+        "parity/exam-question-review-client"
+      ]
+    },
+    {
+      "url": "/deneme-sinavlari/:prepId/deneme/kurulum",
+      "kind": "sayfa",
+      "file": "src/app/deneme-sinavlari/[prepId]/deneme/kurulum/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/deneme-sinavlari/[prepId]/deneme/kurulum/page.tsx",
+        "src/components/parity/mock-exam-setup.tsx",
+        "src/lib/auth/roles.ts",
+        "src/lib/learning/mock-exam/create.ts"
+      ],
+      "params": [
+        "prepId"
+      ],
+      "components": [
+        "parity/sor-shell",
+        "parity/mock-exam-setup"
+      ]
+    },
+    {
+      "url": "/deneme-sinavlari/:prepId/ders/:lessonId",
+      "kind": "sayfa",
+      "file": "src/app/deneme-sinavlari/[prepId]/ders/[lessonId]/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [
+        "prepId",
+        "lessonId"
+      ],
+      "components": [
+        "parity/exam-lesson-body",
+        "parity/exam-lesson-toolbar",
+        "parity/exam-lesson-steps",
+        "parity/sor-shell"
+      ]
+    },
+    {
+      "url": "/deneme-sinavlari/:prepId/duello",
+      "kind": "sayfa",
+      "file": "src/app/deneme-sinavlari/[prepId]/duello/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [
+        "prepId"
+      ],
+      "components": [
+        "parity/sor-shell",
+        "duel/new-duel-button"
+      ]
+    },
+    {
+      "url": "/deneme-sinavlari/:prepId/dugum/:nodeId",
+      "kind": "sayfa",
+      "file": "src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/page.tsx",
+        "src/lib/learning/learning-tracking.ts",
+        "src/lib/billing/free-topic-gate.ts",
+        "src/components/parity/first-topic-lock.tsx"
+      ],
+      "params": [
+        "prepId",
+        "nodeId"
+      ],
+      "components": [
+        "parity/sor-shell",
+        "parity/exam-node-session",
+        "parity/first-topic-lock"
+      ]
+    },
+    {
+      "url": "/deneme-sinavlari/:prepId/dugum/:nodeId/sonuc",
+      "kind": "sayfa",
+      "file": "src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/sonuc/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/learning/learning-tracking.ts",
+        "src/lib/streak/record-activity.ts"
+      ],
+      "params": [
+        "prepId",
+        "nodeId"
+      ],
+      "components": [
+        "parity/lesson-rating-card",
+        "parity/level-suggest-card",
+        "parity/sor-shell"
+      ]
+    },
+    {
+      "url": "/deneme-sinavlari/:prepId/konu",
+      "kind": "sayfa",
+      "file": "src/app/deneme-sinavlari/[prepId]/konu/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [
+        "prepId"
+      ],
+      "components": [
+        "parity/sor-shell",
+        "parity/exam-topic-pick"
+      ]
+    },
+    {
+      "url": "/deneme-sinavlari/:prepId/oturum",
+      "kind": "sayfa",
+      "file": "src/app/deneme-sinavlari/[prepId]/oturum/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [
+        "prepId"
+      ],
+      "components": [
+        "parity/sor-shell",
+        "parity/adaptive-study-session"
+      ]
+    },
+    {
+      "url": "/deneme-sinavlari/:prepId/podcast",
+      "kind": "sayfa",
+      "file": "src/app/deneme-sinavlari/[prepId]/podcast/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [
+        "prepId"
+      ],
+      "components": [
+        "parity/sor-shell",
+        "parity/prep-podcast-session",
+        "parity/prep-studio-entry"
+      ]
+    },
+    {
+      "url": "/deneme-sinavlari/:prepId/sinav-sabahi",
+      "kind": "sayfa",
+      "file": "src/app/deneme-sinavlari/[prepId]/sinav-sabahi/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/deneme-sinavlari/[prepId]/sinav-sabahi/page.tsx",
+        "src/components/parity/plus-only-gate.tsx",
+        "src/lib/billing/node-free-meter.ts"
+      ],
+      "params": [
+        "prepId"
+      ],
+      "components": [
+        "parity/sor-shell",
+        "parity/cram-sheet-view",
+        "parity/plus-only-gate"
+      ]
+    },
+    {
+      "url": "/deneme-sinavlari/:prepId/sohbet",
+      "kind": "sayfa",
+      "file": "src/app/deneme-sinavlari/[prepId]/sohbet/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/deneme-sinavlari/[prepId]/sohbet/page.tsx",
+        "src/components/chat/chat-panel.tsx",
+        "src/lib/ai/generate.ts",
+        "src/lib/streak/record-activity.ts",
+        "src/lib/documents/teacher-analysis-run.ts"
+      ],
+      "params": [
+        "prepId"
+      ],
+      "components": [
+        "chat/chat-panel",
+        "parity/sor-shell",
+        "parity/app-utils"
+      ]
+    },
+    {
+      "url": "/deneme-sinavlari/:prepId/sonuc",
+      "kind": "sayfa",
+      "file": "src/app/deneme-sinavlari/[prepId]/sonuc/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [
+        "prepId"
+      ],
+      "components": [
+        "parity/sor-shell"
+      ]
+    },
+    {
+      "url": "/deneme-sinavlari/:prepId/tanisma",
+      "kind": "sayfa",
+      "file": "src/app/deneme-sinavlari/[prepId]/tanisma/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [
+        "prepId"
+      ],
+      "components": [
+        "parity/sor-shell",
+        "parity/exam-intro-quiz"
+      ]
+    },
+    {
+      "url": "/deneme-sinavlari/:prepId/tekrar",
+      "kind": "sayfa",
+      "file": "src/app/deneme-sinavlari/[prepId]/tekrar/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [
+        "prepId"
+      ],
+      "components": [
+        "parity/sor-shell",
+        "parity/prep-review-session"
+      ]
+    },
+    {
+      "url": "/deneme-sinavlari/:prepId/tekrarlar",
+      "kind": "sayfa",
+      "file": "src/app/deneme-sinavlari/[prepId]/tekrarlar/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [
+        "prepId"
+      ],
+      "components": [
+        "parity/sor-shell",
+        "parity/exam-prep-reviews"
+      ]
+    },
+    {
+      "url": "/deneme-sinavlari/:prepId/video",
+      "kind": "sayfa",
+      "file": "src/app/deneme-sinavlari/[prepId]/video/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/deneme-sinavlari/[prepId]/video/page.tsx",
+        "src/lib/billing/entitlements.ts",
+        "src/lib/billing/free-preview.ts",
+        "src/lib/learning/audio-cache.ts"
+      ],
+      "params": [
+        "prepId"
+      ],
+      "components": [
+        "parity/sor-shell",
+        "parity/video-lesson"
+      ]
+    },
+    {
+      "url": "/deneme-sinavlari/:prepId/zor-sorular",
+      "kind": "sayfa",
+      "file": "src/app/deneme-sinavlari/[prepId]/zor-sorular/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [
+        "prepId"
+      ],
+      "components": [
+        "parity/challenge-set-play",
+        "parity/sor-shell"
+      ]
+    },
+    {
+      "url": "/deneme-sinavlari/ara",
+      "kind": "sayfa",
+      "file": "src/app/deneme-sinavlari/ara/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "parity/sor-shell",
+        "parity/prep-search-view"
+      ]
+    },
+    {
+      "url": "/deneme-sinavlari/hazirliklarim",
+      "kind": "sayfa",
+      "file": "src/app/deneme-sinavlari/hazirliklarim/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/deneme-sinavlari/hazirliklarim/page.tsx",
+        "src/lib/learning/prep-cards.ts",
+        "src/lib/billing/node-free-meter.ts"
+      ],
+      "params": [],
+      "components": [
+        "parity/sor-shell",
+        "parity/my-preps-view"
+      ]
+    },
+    {
+      "url": "/deneme-sinavlari/mufredat",
+      "kind": "sayfa",
+      "file": "src/app/deneme-sinavlari/mufredat/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "parity/sor-shell",
+        "parity/exam-catalog-pages"
+      ]
+    },
+    {
+      "url": "/deneme-sinavlari/okulum",
+      "kind": "sayfa",
+      "file": "src/app/deneme-sinavlari/okulum/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "parity/sor-shell",
+        "parity/exam-catalog-pages"
+      ]
+    },
+    {
+      "url": "/deneme-sinavlari/olustur",
+      "kind": "sayfa",
+      "file": "src/app/deneme-sinavlari/olustur/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/billing/free-prep-limit.ts"
+      ],
+      "params": [],
+      "components": [
+        "parity/sor-shell",
+        "parity/exam-create-entry"
+      ]
+    },
+    {
+      "url": "/deneme-sinavlari/resmi",
+      "kind": "sayfa",
+      "file": "src/app/deneme-sinavlari/resmi/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "parity/sor-shell",
+        "parity/exam-catalog-pages"
+      ]
+    },
+    {
+      "url": "/deneme-sinavlari/resmi/kurulum",
+      "kind": "sayfa",
+      "file": "src/app/deneme-sinavlari/resmi/kurulum/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "parity/sor-shell",
+        "parity/official-setup-flow"
+      ]
+    },
+    {
+      "url": "/destek",
+      "kind": "sayfa",
+      "file": "src/app/destek/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "layout/app-shell",
+        "ui-kit/empty-state",
+        "support/support-form"
+      ]
+    },
+    {
+      "url": "/dokumanlar",
+      "kind": "sayfa",
+      "file": "src/app/dokumanlar/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "layout/app-shell",
+        "documents/document-retry-button",
+        "documents/document-delete-button",
+        "documents/document-status-poller",
+        "ui-kit/empty-state"
+      ]
+    },
+    {
+      "url": "/dokumanlar/:documentId",
+      "kind": "sayfa",
+      "file": "src/app/dokumanlar/[documentId]/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/dokumanlar/[documentId]/page.tsx",
+        "src/lib/auth/roles.ts"
+      ],
+      "params": [
+        "documentId"
+      ],
+      "components": [
+        "parity/sor-shell",
+        "documents/topic-map-editor",
+        "documents/document-delete-button",
+        "documents/document-retry-button",
+        "documents/document-reanalyze-button",
+        "documents/document-status-poller",
+        "documents/document-pdf-preview"
+      ]
+    },
+    {
+      "url": "/duello/:code",
+      "kind": "sayfa",
+      "file": "src/app/duello/[code]/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [
+        "code"
+      ],
+      "components": [
+        "duel/duel-play"
+      ]
+    },
+    {
+      "url": "/e2e/ana-ekran",
+      "kind": "sayfa",
+      "file": "src/app/e2e/ana-ekran/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": true,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/e2e/ana-ekran/fixture.tsx"
+      ],
+      "params": [],
+      "components": [
+        "./fixture",
+        "./plan"
+      ]
+    },
+    {
+      "url": "/e2e/ayarlar",
+      "kind": "sayfa",
+      "file": "src/app/e2e/ayarlar/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": true,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "profile/email-change-card",
+        "ui-kit/empty-state"
+      ]
+    },
+    {
+      "url": "/e2e/deneme",
+      "kind": "sayfa",
+      "file": "src/app/e2e/deneme/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": true,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "parity/exam-runner"
+      ]
+    },
+    {
+      "url": "/e2e/ders-mobil",
+      "kind": "sayfa",
+      "file": "src/app/e2e/ders-mobil/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": true,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "./fixture"
+      ]
+    },
+    {
+      "url": "/e2e/hakimiyet",
+      "kind": "sayfa",
+      "file": "src/app/e2e/hakimiyet/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": true,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "./fixture"
+      ]
+    },
+    {
+      "url": "/e2e/hakimiyet-tyt",
+      "kind": "sayfa",
+      "file": "src/app/e2e/hakimiyet-tyt/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": true,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "./fixture",
+        "./scenario"
+      ]
+    },
+    {
+      "url": "/e2e/havuz-ders",
+      "kind": "sayfa",
+      "file": "src/app/e2e/havuz-ders/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": true,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "./fixture"
+      ]
+    },
+    {
+      "url": "/e2e/hizli-tarama",
+      "kind": "sayfa",
+      "file": "src/app/e2e/hizli-tarama/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": true,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "./fixture"
+      ]
+    },
+    {
+      "url": "/e2e/ic-ekran",
+      "kind": "sayfa",
+      "file": "src/app/e2e/ic-ekran/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": true,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "./fixture"
+      ]
+    },
+    {
+      "url": "/e2e/ilerleme",
+      "kind": "sayfa",
+      "file": "src/app/e2e/ilerleme/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": true,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "student/activity-history",
+        "student/learning-time-card",
+        "ui-kit/empty-state",
+        "level-check/ilerleme-net"
+      ]
+    },
+    {
+      "url": "/e2e/ilk-adim",
+      "kind": "sayfa",
+      "file": "src/app/e2e/ilk-adim/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": true,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "parity/first-step-launcher",
+        "learning/coach-chrome"
+      ]
+    },
+    {
+      "url": "/e2e/kamp",
+      "kind": "sayfa",
+      "file": "src/app/e2e/kamp/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": true,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/e2e/kamp/page.tsx",
+        "src/lib/camp/offer.ts"
+      ],
+      "params": [],
+      "components": [
+        "camp/camp-card"
+      ]
+    },
+    {
+      "url": "/e2e/kurucu",
+      "kind": "sayfa",
+      "file": "src/app/e2e/kurucu/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": true,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "./fixture"
+      ]
+    },
+    {
+      "url": "/e2e/kurulum",
+      "kind": "sayfa",
+      "file": "src/app/e2e/kurulum/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": true,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "./fixture"
+      ]
+    },
+    {
+      "url": "/e2e/mufredat",
+      "kind": "sayfa",
+      "file": "src/app/e2e/mufredat/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": true,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "./fixture"
+      ]
+    },
+    {
+      "url": "/e2e/odeme",
+      "kind": "sayfa",
+      "file": "src/app/e2e/odeme/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": true,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "billing/payment-activation"
+      ]
+    },
+    {
+      "url": "/e2e/paket-j",
+      "kind": "sayfa",
+      "file": "src/app/e2e/paket-j/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": true,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "auth/email-verify-banner",
+        "learning/question-report-button",
+        "learning/twin-question-card",
+        "parity/cram-sheet-view",
+        "./wall",
+        "./lock",
+        "parity/exam-result-card"
+      ]
+    },
+    {
+      "url": "/e2e/profil",
+      "kind": "sayfa",
+      "file": "src/app/e2e/profil/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": true,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/e2e/profil/fixture.tsx"
+      ],
+      "params": [],
+      "components": [
+        "./fixture"
+      ]
+    },
+    {
+      "url": "/e2e/quiz-kilit",
+      "kind": "sayfa",
+      "file": "src/app/e2e/quiz-kilit/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": true,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "./fixture"
+      ]
+    },
+    {
+      "url": "/e2e/resmi-kurulum",
+      "kind": "sayfa",
+      "file": "src/app/e2e/resmi-kurulum/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": true,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "./fixture"
+      ]
+    },
+    {
+      "url": "/e2e/rozet",
+      "kind": "sayfa",
+      "file": "src/app/e2e/rozet/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": true,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "./fixture"
+      ]
+    },
+    {
+      "url": "/e2e/sihirbaz",
+      "kind": "sayfa",
+      "file": "src/app/e2e/sihirbaz/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": true,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/e2e/sihirbaz/fixture.tsx"
+      ],
+      "params": [],
+      "components": [
+        "./fixture"
+      ]
+    },
+    {
+      "url": "/e2e/studyo",
+      "kind": "sayfa",
+      "file": "src/app/e2e/studyo/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": true,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "./fixture"
+      ]
+    },
+    {
+      "url": "/e2e/unite-kontrol",
+      "kind": "sayfa",
+      "file": "src/app/e2e/unite-kontrol/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": true,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "./fixture"
+      ]
+    },
+    {
+      "url": "/email-dogrula",
+      "kind": "sayfa",
+      "file": "src/app/email-dogrula/page.tsx",
+      "client": true,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "layout/marketing-page",
+        "ui/button"
+      ]
+    },
+    {
+      "url": "/eposta/abonelik",
+      "kind": "sayfa",
+      "file": "src/app/eposta/abonelik/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "layout/marketing-page",
+        "./unsubscribe-button"
+      ]
+    },
+    {
+      "url": "/fiyatlandirma",
+      "kind": "sayfa",
+      "file": "src/app/fiyatlandirma/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "parity/marketing",
+        "marketing/advantage-sections",
+        "parity/subscription-cards"
+      ]
+    },
+    {
+      "url": "/flashcardlar",
+      "kind": "sayfa",
+      "file": "src/app/flashcardlar/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "layout/app-shell",
+        "learning/learning-generate-panels",
+        "learning/flashcard-deck",
+        "ui-kit/empty-state"
+      ]
+    },
+    {
+      "url": "/giris",
+      "kind": "sayfa",
+      "file": "src/app/giris/page.tsx",
+      "client": true,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "./giris-inner"
+      ]
+    },
+    {
+      "url": "/gizlilik",
+      "kind": "sayfa",
+      "file": "src/app/gizlilik/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "layout/legal-document"
+      ]
+    },
+    {
+      "url": "/gunluk",
+      "kind": "sayfa",
+      "file": "src/app/gunluk/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "parity/sor-shell",
+        "parity/page-shell",
+        "parity/daily-drill-view"
+      ]
+    },
+    {
+      "url": "/hakkimizda",
+      "kind": "sayfa",
+      "file": "src/app/hakkimizda/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "layout/marketing-page"
+      ]
+    },
+    {
+      "url": "/hazirlik-davet/:token",
+      "kind": "sayfa",
+      "file": "src/app/hazirlik-davet/[token]/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [
+        "token"
+      ],
+      "components": [
+        "parity/sor-shell",
+        "parity/prep-invite-join-button"
+      ]
+    },
+    {
+      "url": "/hizli-tarama",
+      "kind": "sayfa",
+      "file": "src/app/hizli-tarama/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "level-check/guest-quick-scan"
+      ]
+    },
+    {
+      "url": "/ilerleme",
+      "kind": "sayfa",
+      "file": "src/app/ilerleme/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "parity/page-shell",
+        "parity/sor-shell",
+        "ui-kit/empty-state",
+        "student/topic-bars",
+        "student/activity-history",
+        "student/learning-time-card",
+        "parity/streak-freeze-badge",
+        "parity/prep-radar-chart",
+        "parity/prep-forecast-chart",
+        "level-check/ilerleme-net",
+        "student/learning-dna-card"
+      ]
+    },
+    {
+      "url": "/iletisim",
+      "kind": "sayfa",
+      "file": "src/app/iletisim/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "layout/marketing-page",
+        "layout/seller-warning"
+      ]
+    },
+    {
+      "url": "/iptal-iade",
+      "kind": "sayfa",
+      "file": "src/app/iptal-iade/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "layout/legal-document",
+        "layout/seller-warning"
+      ]
+    },
+    {
+      "url": "/kayit",
+      "kind": "sayfa",
+      "file": "src/app/kayit/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "./signup-wizard"
+      ]
+    },
+    {
+      "url": "/kayit/tamamla",
+      "kind": "sayfa",
+      "file": "src/app/kayit/tamamla/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "./finalizer"
+      ]
+    },
+    {
+      "url": "/krediler",
+      "kind": "sayfa",
+      "file": "src/app/krediler/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/krediler/page.tsx",
+        "src/lib/credits/period.ts",
+        "src/lib/billing/free-preview.ts",
+        "src/lib/documents/photo-quota.ts",
+        "src/lib/billing/free-usage-server.ts",
+        "src/lib/billing/free-meters.ts",
+        "src/lib/billing/free-topic-gate.ts",
+        "src/lib/billing/tier-presentation.ts"
+      ],
+      "params": [],
+      "components": [
+        "parity/page-shell",
+        "parity/sor-shell",
+        "ui-kit/empty-state",
+        "parity/referral-reward-card",
+        "student/founder-credits-view"
+      ]
+    },
+    {
+      "url": "/kullanim-kosullari",
+      "kind": "sayfa",
+      "file": "src/app/kullanim-kosullari/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "layout/legal-document"
+      ]
+    },
+    {
+      "url": "/kunye",
+      "kind": "sayfa",
+      "file": "src/app/kunye/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "layout/marketing-page",
+        "layout/seller-warning"
+      ]
+    },
+    {
+      "url": "/kvkk",
+      "kind": "sayfa",
+      "file": "src/app/kvkk/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "layout/legal-document"
+      ]
+    },
+    {
+      "url": "/mesafeli-satis",
+      "kind": "sayfa",
+      "file": "src/app/mesafeli-satis/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "layout/legal-document",
+        "layout/seller-warning"
+      ]
+    },
+    {
+      "url": "/mobil-uygulama",
+      "kind": "sayfa",
+      "file": "src/app/mobil-uygulama/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": true,
+      "optionalShell": true,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "layout/marketing-page",
+        "pwa/install-app",
+        "parity/page-shell",
+        "parity/sor-shell"
+      ]
+    },
+    {
+      "url": "/mufredat",
+      "kind": "sayfa",
+      "file": "src/app/mufredat/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "layout/marketing-page"
+      ]
+    },
+    {
+      "url": "/mufredat/:programId",
+      "kind": "sayfa",
+      "file": "src/app/mufredat/[programId]/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [
+        "programId"
+      ],
+      "components": [
+        "layout/marketing-page",
+        "curriculum/official-links",
+        "ui/external-anchor"
+      ]
+    },
+    {
+      "url": "/mufredat/:programId/:unitId",
+      "kind": "sayfa",
+      "file": "src/app/mufredat/[programId]/[unitId]/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [
+        "programId",
+        "unitId"
+      ],
+      "components": [
+        "layout/marketing-page"
+      ]
+    },
+    {
+      "url": "/mufredat/:programId/:unitId/:outcomeId",
+      "kind": "sayfa",
+      "file": "src/app/mufredat/[programId]/[unitId]/[outcomeId]/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [
+        "programId",
+        "unitId",
+        "outcomeId"
+      ],
+      "components": [
+        "layout/marketing-page"
+      ]
+    },
+    {
+      "url": "/odeme/basarili",
+      "kind": "sayfa",
+      "file": "src/app/odeme/basarili/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "parity/marketing",
+        "billing/payment-activation"
+      ]
+    },
+    {
+      "url": "/odeme/basarisiz",
+      "kind": "sayfa",
+      "file": "src/app/odeme/basarisiz/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "layout/marketing-page",
+        "marketing/result-card"
+      ]
+    },
+    {
+      "url": "/odeme/veli/:token",
+      "kind": "sayfa",
+      "file": "src/app/odeme/veli/[token]/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [
+        "token"
+      ],
+      "components": [
+        "layout/marketing-page",
+        "marketing/result-card",
+        "billing/parent-pay-form"
+      ]
+    },
+    {
+      "url": "/odeme/veli/basarisiz",
+      "kind": "sayfa",
+      "file": "src/app/odeme/veli/basarisiz/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "layout/marketing-page",
+        "marketing/result-card"
+      ]
+    },
+    {
+      "url": "/odeme/veli/tesekkurler",
+      "kind": "sayfa",
+      "file": "src/app/odeme/veli/tesekkurler/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "layout/marketing-page",
+        "marketing/result-card"
+      ]
+    },
+    {
+      "url": "/odemeler",
+      "kind": "sayfa",
+      "file": "src/app/odemeler/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "layout/app-shell",
+        "ui-kit/empty-state",
+        "ui/badge",
+        "billing/subscription-card"
+      ]
+    },
+    {
+      "url": "/odemeler/sozlesme/:siparis",
+      "kind": "sayfa",
+      "file": "src/app/odemeler/sozlesme/[siparis]/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [
+        "siparis"
+      ],
+      "components": [
+        "layout/legal-document"
+      ]
+    },
+    {
+      "url": "/ogretmen",
+      "kind": "sayfa",
+      "file": "src/app/ogretmen/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/ogretmen/page.tsx",
+        "src/components/chat/chat-panel.tsx",
+        "src/lib/ai/generate.ts",
+        "src/lib/streak/record-activity.ts",
+        "src/lib/learning/prep-cards.ts",
+        "src/lib/billing/node-free-meter.ts"
+      ],
+      "params": [],
+      "components": [
+        "chat/chat-panel",
+        "parity/sor-shell",
+        "parity/app-utils",
+        "parity/first-step-launcher",
+        "parity/continue-line",
+        "parity/home-cockpit"
+      ]
+    },
+    {
+      "url": "/ogretmenler-ve-profesorler-icin",
+      "kind": "sayfa",
+      "file": "src/app/ogretmenler-ve-profesorler-icin/page.tsx",
+      "client": false,
+      "redirectOnly": true,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/on-bilgilendirme",
+      "kind": "sayfa",
+      "file": "src/app/on-bilgilendirme/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "layout/legal-document",
+        "layout/seller-warning"
+      ]
+    },
+    {
+      "url": "/onboarding",
+      "kind": "sayfa",
+      "file": "src/app/onboarding/page.tsx",
+      "client": true,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "middleware",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "ui/label",
+        "layout/onboarding-shell",
+        "parity/marketing"
+      ]
+    },
+    {
+      "url": "/ornek",
+      "kind": "sayfa",
+      "file": "src/app/ornek/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "demo/demo-walkthrough",
+        "marketing/advantage-sections",
+        "parity/marketing"
+      ]
+    },
+    {
+      "url": "/ozellikler",
+      "kind": "sayfa",
+      "file": "src/app/ozellikler/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/billing/free-meters.ts"
+      ],
+      "params": [],
+      "components": [
+        "marketing/advantage-sections",
+        "parity/marketing",
+        "ui/icon-3d"
+      ]
+    },
+    {
+      "url": "/pay",
+      "kind": "sayfa",
+      "file": "src/app/pay/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/pay/page.tsx",
+        "src/lib/student/subscription-badge.ts",
+        "src/lib/billing/entitlements.ts"
+      ],
+      "params": [],
+      "components": [
+        "layout/app-shell",
+        "parity/subscription-cards",
+        "billing/promo-redeem",
+        "marketing/plus-month",
+        "student/founder-chip"
+      ]
+    },
+    {
+      "url": "/profil",
+      "kind": "sayfa",
+      "file": "src/app/profil/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/profil/page.tsx",
+        "src/lib/student/plan-identity.ts"
+      ],
+      "params": [],
+      "components": [
+        "parity/page-shell",
+        "parity/sor-shell",
+        "parity/profile-identity",
+        "parity/app-utils"
+      ]
+    },
+    {
+      "url": "/profil/duzenle",
+      "kind": "sayfa",
+      "file": "src/app/profil/duzenle/page.tsx",
+      "client": false,
+      "redirectOnly": true,
+      "fixture": false,
+      "auth": "middleware",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/quizler",
+      "kind": "sayfa",
+      "file": "src/app/quizler/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "layout/app-shell",
+        "learning/learning-generate-panels",
+        "learning/quiz-runner",
+        "ui-kit/empty-state"
+      ]
+    },
+    {
+      "url": "/resmi",
+      "kind": "sayfa",
+      "file": "src/app/resmi/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "layout/marketing-page",
+        "ui/external-anchor"
+      ]
+    },
+    {
+      "url": "/sifre-yenile",
+      "kind": "sayfa",
+      "file": "src/app/sifre-yenile/page.tsx",
+      "client": true,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "layout/premium-auth-shell"
+      ]
+    },
+    {
+      "url": "/sifremi-unuttum",
+      "kind": "sayfa",
+      "file": "src/app/sifremi-unuttum/page.tsx",
+      "client": true,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "layout/premium-auth-shell"
+      ]
+    },
+    {
+      "url": "/sinav-hazirligi",
+      "kind": "sayfa",
+      "file": "src/app/sinav-hazirligi/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "parity/marketing",
+        "ui/icon-3d"
+      ]
+    },
+    {
+      "url": "/siniflar",
+      "kind": "sayfa",
+      "file": "src/app/siniflar/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "parity/page-shell",
+        "parity/sor-shell",
+        "student/create-class-form",
+        "student/join-class-form"
+      ]
+    },
+    {
+      "url": "/siniflar/:id",
+      "kind": "sayfa",
+      "file": "src/app/siniflar/[id]/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [
+        "id"
+      ],
+      "components": [
+        "parity/classroom-discussion",
+        "parity/classroom-share-prep",
+        "parity/class-invite",
+        "parity/sor-shell"
+      ]
+    },
+    {
+      "url": "/sohbetler",
+      "kind": "sayfa",
+      "file": "src/app/sohbetler/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "parity/sor-shell",
+        "parity/sohbetler-list"
+      ]
+    },
+    {
+      "url": "/soru-coz",
+      "kind": "sayfa",
+      "file": "src/app/soru-coz/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/soru-coz/page.tsx"
+      ],
+      "params": [],
+      "components": [
+        "layout/app-shell",
+        "learning/question-solver",
+        "learning/solver-hero"
+      ]
+    },
+    {
+      "url": "/studio/anlat",
+      "kind": "sayfa",
+      "file": "src/app/studio/anlat/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "learning/studio/explain-studio"
+      ]
+    },
+    {
+      "url": "/studio/dogru-yanlis",
+      "kind": "sayfa",
+      "file": "src/app/studio/dogru-yanlis/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [
+        "src/components/learning/studio/true-false-studio.tsx"
+      ],
+      "params": [],
+      "components": [
+        "learning/studio/true-false-studio"
+      ]
+    },
+    {
+      "url": "/studio/flashcard",
+      "kind": "sayfa",
+      "file": "src/app/studio/flashcard/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "learning/studio/flashcard-studio"
+      ]
+    },
+    {
+      "url": "/studio/podcast",
+      "kind": "sayfa",
+      "file": "src/app/studio/podcast/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [
+        "src/components/learning/studio/podcast-studio.tsx"
+      ],
+      "params": [],
+      "components": [
+        "learning/studio/podcast-studio"
+      ]
+    },
+    {
+      "url": "/studio/quiz",
+      "kind": "sayfa",
+      "file": "src/app/studio/quiz/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [
+        "src/components/learning/studio/quiz-studio.tsx"
+      ],
+      "params": [],
+      "components": [
+        "learning/studio/quiz-studio"
+      ]
+    },
+    {
+      "url": "/studio/sozlu",
+      "kind": "sayfa",
+      "file": "src/app/studio/sozlu/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "learning/studio/oral-studio"
+      ]
+    },
+    {
+      "url": "/studio/yazili",
+      "kind": "sayfa",
+      "file": "src/app/studio/yazili/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "learning/studio/written-studio"
+      ]
+    },
+    {
+      "url": "/takvimim",
+      "kind": "sayfa",
+      "file": "src/app/takvimim/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "parity/sor-shell",
+        "parity/calendar-view"
+      ]
+    },
+    {
+      "url": "/tasarim",
+      "kind": "sayfa",
+      "file": "src/app/tasarim/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "ui/button",
+        "ui/icon-button",
+        "ui/badge",
+        "ui/card",
+        "ui/option-card",
+        "ui/progress-bar",
+        "ui/progress-ring",
+        "ui/timer-pill",
+        "ui/stat-card",
+        "ui/error-state",
+        "ui/skeleton",
+        "ui/sticky-action-bar",
+        "ui/tasarim-interactive"
+      ]
+    },
+    {
+      "url": "/tekrar",
+      "kind": "sayfa",
+      "file": "src/app/tekrar/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "parity/sor-shell",
+        "learning/review-deck-session"
+      ]
+    },
+    {
+      "url": "/teslimat",
+      "kind": "sayfa",
+      "file": "src/app/teslimat/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "layout/legal-document",
+        "layout/seller-warning"
+      ]
+    },
+    {
+      "url": "/yanlislarim",
+      "kind": "sayfa",
+      "file": "src/app/yanlislarim/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": true,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": [
+        "parity/sor-shell",
+        "parity/mistake-notebook-view"
+      ]
+    },
+    {
+      "url": "/yardim",
+      "kind": "sayfa",
+      "file": "src/app/yardim/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": true,
+      "optionalShell": true,
+      "planContent": [
+        "src/lib/billing/free-meters.ts",
+        "src/lib/billing/tier-presentation.ts"
+      ],
+      "params": [],
+      "components": [
+        "layout/marketing-page",
+        "parity/page-shell",
+        "parity/sor-shell"
+      ]
+    },
+    {
+      "url": "/yukle/:token",
+      "kind": "sayfa",
+      "file": "src/app/yukle/[token]/page.tsx",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [
+        "token"
+      ],
+      "components": [
+        "parity/phone-upload-client"
+      ]
+    },
+    {
+      "url": "/api/activity/time",
+      "kind": "api",
+      "file": "src/app/api/activity/time/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/adaptive/mastery",
+      "kind": "api",
+      "file": "src/app/api/adaptive/mastery/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/adaptive/readiness",
+      "kind": "api",
+      "file": "src/app/api/adaptive/readiness/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/adaptive/replan",
+      "kind": "api",
+      "file": "src/app/api/adaptive/replan/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/adaptive/session/complete",
+      "kind": "api",
+      "file": "src/app/api/adaptive/session/complete/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/adaptive/session/content",
+      "kind": "api",
+      "file": "src/app/api/adaptive/session/content/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/adaptive/session/evidence",
+      "kind": "api",
+      "file": "src/app/api/adaptive/session/evidence/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/adaptive/session/next",
+      "kind": "api",
+      "file": "src/app/api/adaptive/session/next/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/adaptive/session/start",
+      "kind": "api",
+      "file": "src/app/api/adaptive/session/start/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/adaptive/today",
+      "kind": "api",
+      "file": "src/app/api/adaptive/today/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/ai/chat",
+      "kind": "api",
+      "file": "src/app/api/ai/chat/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/api/ai/chat/route.ts",
+        "src/lib/ai/chat-fallback.ts",
+        "src/lib/api/guards.ts",
+        "src/lib/ai/model-router.ts",
+        "src/lib/ai/model-upgrade.ts",
+        "src/lib/ai/generate.ts",
+        "src/lib/billing/entitlements.ts",
+        "src/lib/credits/service.ts",
+        "src/lib/documents/teacher-analysis-run.ts",
+        "src/lib/streak/record-activity.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/ai/chat/feedback",
+      "kind": "api",
+      "file": "src/app/api/ai/chat/feedback/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/ai/conversations",
+      "kind": "api",
+      "file": "src/app/api/ai/conversations/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/ai/solve",
+      "kind": "api",
+      "file": "src/app/api/ai/solve/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts",
+        "src/lib/solve/solve-run.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/assetlinks",
+      "kind": "api",
+      "file": "src/app/api/assetlinks/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/auth/eposta-dogrula",
+      "kind": "api",
+      "file": "src/app/api/auth/eposta-dogrula/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/auth/eposta-dogrula/gonder",
+      "kind": "api",
+      "file": "src/app/api/auth/eposta-dogrula/gonder/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/auth/giris-ipucu",
+      "kind": "api",
+      "file": "src/app/api/auth/giris-ipucu/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/auth/sifre-sifirla",
+      "kind": "api",
+      "file": "src/app/api/auth/sifre-sifirla/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/auth/signout",
+      "kind": "api",
+      "file": "src/app/api/auth/signout/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/auth/signup",
+      "kind": "api",
+      "file": "src/app/api/auth/signup/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/calendar",
+      "kind": "api",
+      "file": "src/app/api/calendar/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/consent/accept",
+      "kind": "api",
+      "file": "src/app/api/consent/accept/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/consent/cookies",
+      "kind": "api",
+      "file": "src/app/api/consent/cookies/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/consent/status",
+      "kind": "api",
+      "file": "src/app/api/consent/status/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/content/fill-status",
+      "kind": "api",
+      "file": "src/app/api/content/fill-status/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/content-pool/fill-auth.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/content/unit",
+      "kind": "api",
+      "file": "src/app/api/content/unit/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/api/content/unit/route.ts",
+        "src/lib/api/guards.ts",
+        "src/lib/auth/roles.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/cron/content-pool-fill",
+      "kind": "api",
+      "file": "src/app/api/cron/content-pool-fill/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/content-pool/fill-auth.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/cron/content-pool-refresh",
+      "kind": "api",
+      "file": "src/app/api/cron/content-pool-refresh/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/content-pool/fill-auth.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/cron/data-deletion",
+      "kind": "api",
+      "file": "src/app/api/cron/data-deletion/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/cron/study-reminders",
+      "kind": "api",
+      "file": "src/app/api/cron/study-reminders/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/email/lifecycle.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/cron/subscription-renewal",
+      "kind": "api",
+      "file": "src/app/api/cron/subscription-renewal/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/credits/service.ts",
+        "src/lib/learning/mock-exam-durable.ts",
+        "src/lib/learning/mock-exam/fallback-exam.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/csp-report",
+      "kind": "api",
+      "file": "src/app/api/csp-report/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/curriculum",
+      "kind": "api",
+      "file": "src/app/api/curriculum/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/curriculum/:programId",
+      "kind": "api",
+      "file": "src/app/api/curriculum/[programId]/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [
+        "programId"
+      ],
+      "components": []
+    },
+    {
+      "url": "/api/curriculum/setup",
+      "kind": "api",
+      "file": "src/app/api/curriculum/setup/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/documents",
+      "kind": "api",
+      "file": "src/app/api/documents/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/documents/:documentId",
+      "kind": "api",
+      "file": "src/app/api/documents/[documentId]/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [
+        "documentId"
+      ],
+      "components": []
+    },
+    {
+      "url": "/api/documents/:documentId/page-preview",
+      "kind": "api",
+      "file": "src/app/api/documents/[documentId]/page-preview/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [
+        "documentId"
+      ],
+      "components": []
+    },
+    {
+      "url": "/api/documents/:documentId/topic-map",
+      "kind": "api",
+      "file": "src/app/api/documents/[documentId]/topic-map/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [
+        "documentId"
+      ],
+      "components": []
+    },
+    {
+      "url": "/api/documents/from-url",
+      "kind": "api",
+      "file": "src/app/api/documents/from-url/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/api/documents/from-url/route.ts",
+        "src/lib/api/guards.ts",
+        "src/lib/ai/generate.ts",
+        "src/lib/documents/storage-quota.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/documents/preflight",
+      "kind": "api",
+      "file": "src/app/api/documents/preflight/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/api/documents/preflight/route.ts",
+        "src/lib/api/guards.ts",
+        "src/lib/documents/document-limits.ts",
+        "src/lib/auth/roles.ts",
+        "src/lib/documents/free-pages.ts",
+        "src/lib/billing/entitlements.ts",
+        "src/lib/credits/service.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/documents/process",
+      "kind": "api",
+      "file": "src/app/api/documents/process/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/api/documents/process/route.ts",
+        "src/lib/api/guards.ts",
+        "src/lib/documents/teacher-analysis-run.ts",
+        "src/lib/credits/service.ts",
+        "src/lib/documents/free-pages.ts",
+        "src/lib/documents/photo-quota.ts",
+        "src/lib/documents/pdf-ingestion.ts",
+        "src/lib/billing/free-preview.ts",
+        "src/lib/learning/fast-access.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/documents/upload",
+      "kind": "api",
+      "file": "src/app/api/documents/upload/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/api/documents/upload/route.ts",
+        "src/lib/api/guards.ts",
+        "src/lib/ai/generate.ts",
+        "src/lib/documents/storage-quota.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/documents/upload/abort",
+      "kind": "api",
+      "file": "src/app/api/documents/upload/abort/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/documents/upload/complete",
+      "kind": "api",
+      "file": "src/app/api/documents/upload/complete/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/documents/upload/prepare",
+      "kind": "api",
+      "file": "src/app/api/documents/upload/prepare/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts",
+        "src/lib/ai/generate.ts",
+        "src/lib/documents/storage-quota.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/duels/:code/bot",
+      "kind": "api",
+      "file": "src/app/api/duels/[code]/bot/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [
+        "code"
+      ],
+      "components": []
+    },
+    {
+      "url": "/api/duels/:code/run",
+      "kind": "api",
+      "file": "src/app/api/duels/[code]/run/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [
+        "code"
+      ],
+      "components": []
+    },
+    {
+      "url": "/api/email/abonelik",
+      "kind": "api",
+      "file": "src/app/api/email/abonelik/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/feedback/weekly",
+      "kind": "api",
+      "file": "src/app/api/feedback/weekly/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/api/feedback/weekly/route.ts",
+        "src/lib/api/guards.ts",
+        "src/lib/feedback/weekly-survey-server.ts",
+        "src/lib/auth/roles.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/health",
+      "kind": "api",
+      "file": "src/app/api/health/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/admin/schema-probe.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/jobs/tick",
+      "kind": "api",
+      "file": "src/app/api/jobs/tick/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/learning/mock-exam-durable.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam-prep/activity",
+      "kind": "api",
+      "file": "src/app/api/learning/exam-prep/activity/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam-prep/add-source",
+      "kind": "api",
+      "file": "src/app/api/learning/exam-prep/add-source/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam-prep/challenge",
+      "kind": "api",
+      "file": "src/app/api/learning/exam-prep/challenge/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/api/learning/exam-prep/challenge/route.ts",
+        "src/lib/api/guards.ts",
+        "src/lib/ai/generate.ts",
+        "src/lib/billing/free-lesson-gate.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam-prep/coach",
+      "kind": "api",
+      "file": "src/app/api/learning/exam-prep/coach/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/api/learning/exam-prep/coach/route.ts",
+        "src/lib/api/guards.ts",
+        "src/lib/ai/generate.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam-prep/create",
+      "kind": "api",
+      "file": "src/app/api/learning/exam-prep/create/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/learning/lesson-prefetch.ts",
+        "src/lib/documents/teacher-analysis-run.ts",
+        "src/lib/api/guards.ts",
+        "src/lib/billing/free-prep-limit.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam-prep/details",
+      "kind": "api",
+      "file": "src/app/api/learning/exam-prep/details/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam-prep/draft",
+      "kind": "api",
+      "file": "src/app/api/learning/exam-prep/draft/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam-prep/duel",
+      "kind": "api",
+      "file": "src/app/api/learning/exam-prep/duel/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/api/learning/exam-prep/duel/route.ts",
+        "src/lib/api/guards.ts",
+        "src/lib/ai/generate.ts",
+        "src/lib/learning/exam-quiz-generate.ts",
+        "src/lib/billing/free-lesson-gate.ts",
+        "src/lib/credits/service.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam-prep/exam-result",
+      "kind": "api",
+      "file": "src/app/api/learning/exam-prep/exam-result/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam-prep/feedback",
+      "kind": "api",
+      "file": "src/app/api/learning/exam-prep/feedback/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/api/learning/exam-prep/feedback/route.ts",
+        "src/lib/api/guards.ts",
+        "src/lib/ai/generate.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam-prep/goal",
+      "kind": "api",
+      "file": "src/app/api/learning/exam-prep/goal/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam-prep/ground-topic",
+      "kind": "api",
+      "file": "src/app/api/learning/exam-prep/ground-topic/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam-prep/intake",
+      "kind": "api",
+      "file": "src/app/api/learning/exam-prep/intake/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/api/learning/exam-prep/intake/route.ts",
+        "src/lib/api/guards.ts",
+        "src/lib/ai/generate.ts",
+        "src/lib/learning/topic-merge-model.ts",
+        "src/lib/learning/consolidate-documents.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam-prep/intro",
+      "kind": "api",
+      "file": "src/app/api/learning/exam-prep/intro/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/api/learning/exam-prep/intro/route.ts",
+        "src/lib/api/guards.ts",
+        "src/lib/ai/generate.ts",
+        "src/lib/learning/diagnostic-generate.ts",
+        "src/lib/learning/exam-quiz-generate.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam-prep/invite/join",
+      "kind": "api",
+      "file": "src/app/api/learning/exam-prep/invite/join/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts",
+        "src/lib/billing/free-prep-limit.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam-prep/lesson",
+      "kind": "api",
+      "file": "src/app/api/learning/exam-prep/lesson/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam-prep/lesson-podcast",
+      "kind": "api",
+      "file": "src/app/api/learning/exam-prep/lesson-podcast/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts",
+        "src/app/api/learning/exam-prep/podcast/route.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam-prep/level",
+      "kind": "api",
+      "file": "src/app/api/learning/exam-prep/level/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts",
+        "src/lib/learning/lesson-prefetch.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam-prep/material-check",
+      "kind": "api",
+      "file": "src/app/api/learning/exam-prep/material-check/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam-prep/mock-exam",
+      "kind": "api",
+      "file": "src/app/api/learning/exam-prep/mock-exam/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/api/learning/exam-prep/mock-exam/route.ts",
+        "src/lib/api/guards.ts",
+        "src/lib/ai/generate.ts",
+        "src/lib/auth/roles.ts",
+        "src/lib/learning/mock-exam/pool-exam.ts",
+        "src/lib/learning/mock-exam-durable.ts",
+        "src/lib/learning/mock-exam/fallback-exam.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam-prep/mock-exam/status",
+      "kind": "api",
+      "file": "src/app/api/learning/exam-prep/mock-exam/status/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam-prep/node",
+      "kind": "api",
+      "file": "src/app/api/learning/exam-prep/node/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/learning/lesson-prefetch.ts",
+        "src/lib/api/guards.ts",
+        "src/lib/billing/spend-breaker.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam-prep/pending-materials",
+      "kind": "api",
+      "file": "src/app/api/learning/exam-prep/pending-materials/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam-prep/pending-materials/advance",
+      "kind": "api",
+      "file": "src/app/api/learning/exam-prep/pending-materials/advance/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam-prep/podcast",
+      "kind": "api",
+      "file": "src/app/api/learning/exam-prep/podcast/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/api/learning/exam-prep/podcast/route.ts",
+        "src/lib/api/guards.ts",
+        "src/lib/billing/entitlements.ts",
+        "src/lib/documents/teacher-analysis-run.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam-prep/rating",
+      "kind": "api",
+      "file": "src/app/api/learning/exam-prep/rating/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam-prep/reexplain",
+      "kind": "api",
+      "file": "src/app/api/learning/exam-prep/reexplain/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/api/learning/exam-prep/reexplain/route.ts",
+        "src/lib/api/guards.ts",
+        "src/lib/ai/generate.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam-prep/reschedule",
+      "kind": "api",
+      "file": "src/app/api/learning/exam-prep/reschedule/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam-prep/review",
+      "kind": "api",
+      "file": "src/app/api/learning/exam-prep/review/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts",
+        "src/lib/streak/record-activity.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam-prep/review/solved",
+      "kind": "api",
+      "file": "src/app/api/learning/exam-prep/review/solved/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam-prep/select-topic",
+      "kind": "api",
+      "file": "src/app/api/learning/exam-prep/select-topic/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam-prep/settings",
+      "kind": "api",
+      "file": "src/app/api/learning/exam-prep/settings/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam-prep/topic",
+      "kind": "api",
+      "file": "src/app/api/learning/exam-prep/topic/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam-prep/topic-test",
+      "kind": "api",
+      "file": "src/app/api/learning/exam-prep/topic-test/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam-prep/video",
+      "kind": "api",
+      "file": "src/app/api/learning/exam-prep/video/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/api/learning/exam-prep/video/route.ts",
+        "src/lib/api/guards.ts",
+        "src/lib/billing/free-preview.ts",
+        "src/lib/billing/entitlements.ts",
+        "src/lib/documents/teacher-analysis-run.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam-prep/video/complete",
+      "kind": "api",
+      "file": "src/app/api/learning/exam-prep/video/complete/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam-prep/voice",
+      "kind": "api",
+      "file": "src/app/api/learning/exam-prep/voice/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/api/learning/exam-prep/voice/route.ts",
+        "src/lib/api/guards.ts",
+        "src/lib/ai/model-router.ts",
+        "src/lib/credits/service.ts",
+        "src/lib/documents/teacher-analysis-run.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam/generate",
+      "kind": "api",
+      "file": "src/app/api/learning/exam/generate/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/api/learning/exam/generate/route.ts",
+        "src/lib/api/guards.ts",
+        "src/lib/ai/generate.ts",
+        "src/lib/learning/mock-exam/create.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam/grade",
+      "kind": "api",
+      "file": "src/app/api/learning/exam/grade/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam/paper-read",
+      "kind": "api",
+      "file": "src/app/api/learning/exam/paper-read/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts",
+        "src/lib/ai/model-router.ts",
+        "src/lib/credits/service.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam/review-like",
+      "kind": "api",
+      "file": "src/app/api/learning/exam/review-like/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/exam/session",
+      "kind": "api",
+      "file": "src/app/api/learning/exam/session/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/explain",
+      "kind": "api",
+      "file": "src/app/api/learning/explain/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/api/learning/explain/route.ts",
+        "src/lib/api/guards.ts",
+        "src/lib/ai/generate.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/explain/history",
+      "kind": "api",
+      "file": "src/app/api/learning/explain/history/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/flashcards/generate",
+      "kind": "api",
+      "file": "src/app/api/learning/flashcards/generate/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts",
+        "src/lib/billing/free-lesson-gate.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/focus-prep",
+      "kind": "api",
+      "file": "src/app/api/learning/focus-prep/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/jobs/:id",
+      "kind": "api",
+      "file": "src/app/api/learning/jobs/[id]/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts",
+        "src/lib/learning/mock-exam-durable.ts"
+      ],
+      "params": [
+        "id"
+      ],
+      "components": []
+    },
+    {
+      "url": "/api/learning/jobs/:id/retry",
+      "kind": "api",
+      "file": "src/app/api/learning/jobs/[id]/retry/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts",
+        "src/lib/learning/mock-exam-durable.ts"
+      ],
+      "params": [
+        "id"
+      ],
+      "components": []
+    },
+    {
+      "url": "/api/learning/lesson-timing",
+      "kind": "api",
+      "file": "src/app/api/learning/lesson-timing/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/mistakes/review",
+      "kind": "api",
+      "file": "src/app/api/learning/mistakes/review/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts",
+        "src/lib/streak/record-activity.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/oral/generate",
+      "kind": "api",
+      "file": "src/app/api/learning/oral/generate/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/oral/grade",
+      "kind": "api",
+      "file": "src/app/api/learning/oral/grade/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/api/learning/oral/grade/route.ts",
+        "src/lib/api/guards.ts",
+        "src/lib/ai/generate.ts",
+        "src/lib/streak/record-activity.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/oral/transcribe",
+      "kind": "api",
+      "file": "src/app/api/learning/oral/transcribe/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/api/learning/oral/transcribe/route.ts",
+        "src/lib/api/guards.ts",
+        "src/lib/billing/entitlements.ts",
+        "src/lib/credits/service.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/podcast/audio",
+      "kind": "api",
+      "file": "src/app/api/learning/podcast/audio/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/api/learning/podcast/audio/route.ts",
+        "src/lib/api/guards.ts",
+        "src/lib/billing/entitlements.ts",
+        "src/lib/learning/audio-cache.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/podcast/generate",
+      "kind": "api",
+      "file": "src/app/api/learning/podcast/generate/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/api/learning/podcast/generate/route.ts",
+        "src/lib/api/guards.ts",
+        "src/lib/billing/entitlements.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/question-report",
+      "kind": "api",
+      "file": "src/app/api/learning/question-report/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/quiz/generate",
+      "kind": "api",
+      "file": "src/app/api/learning/quiz/generate/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/api/learning/quiz/generate/route.ts",
+        "src/lib/api/guards.ts",
+        "src/lib/teacher/entitlements.ts",
+        "src/lib/ai/generate.ts",
+        "src/lib/learning/exam-quiz-generate.ts",
+        "src/lib/billing/free-lesson-gate.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/quiz/grade",
+      "kind": "api",
+      "file": "src/app/api/learning/quiz/grade/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts",
+        "src/lib/streak/record-activity.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/speech",
+      "kind": "api",
+      "file": "src/app/api/learning/speech/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/api/learning/speech/route.ts",
+        "src/lib/api/guards.ts",
+        "src/lib/billing/entitlements.ts",
+        "src/lib/learning/audio-cache.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/study-plan/generate",
+      "kind": "api",
+      "file": "src/app/api/learning/study-plan/generate/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/api/learning/study-plan/generate/route.ts",
+        "src/lib/api/guards.ts",
+        "src/lib/ai/generate.ts",
+        "src/lib/billing/free-lesson-gate.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/true-false/generate",
+      "kind": "api",
+      "file": "src/app/api/learning/true-false/generate/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts",
+        "src/lib/billing/free-lesson-gate.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/twin-question",
+      "kind": "api",
+      "file": "src/app/api/learning/twin-question/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/learning/two-option-hint",
+      "kind": "api",
+      "file": "src/app/api/learning/two-option-hint/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/level-check/answer",
+      "kind": "api",
+      "file": "src/app/api/level-check/answer/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/level-check/start",
+      "kind": "api",
+      "file": "src/app/api/level-check/start/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/payments/parent-link",
+      "kind": "api",
+      "file": "src/app/api/payments/parent-link/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/payments/parent-link/checkout",
+      "kind": "api",
+      "file": "src/app/api/payments/parent-link/checkout/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/payments/paytr/callback",
+      "kind": "api",
+      "file": "src/app/api/payments/paytr/callback/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/email/lifecycle.ts",
+        "src/lib/stars/invite.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/payments/paytr/create-token",
+      "kind": "api",
+      "file": "src/app/api/payments/paytr/create-token/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/payments/status",
+      "kind": "api",
+      "file": "src/app/api/payments/status/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/api/payments/status/route.ts",
+        "src/lib/api/guards.ts",
+        "src/lib/billing/entitlements.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/payments/subscription",
+      "kind": "api",
+      "file": "src/app/api/payments/subscription/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/profile/email-preferences",
+      "kind": "api",
+      "file": "src/app/api/profile/email-preferences/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/profile/me",
+      "kind": "api",
+      "file": "src/app/api/profile/me/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/profile/study-reminder",
+      "kind": "api",
+      "file": "src/app/api/profile/study-reminder/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/promo/redeem",
+      "kind": "api",
+      "file": "src/app/api/promo/redeem/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/email/lifecycle.ts",
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/review/deck",
+      "kind": "api",
+      "file": "src/app/api/review/deck/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts",
+        "src/lib/streak/record-activity.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/rozetler",
+      "kind": "api",
+      "file": "src/app/api/rozetler/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/school",
+      "kind": "api",
+      "file": "src/app/api/school/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/billing/free-prep-limit.ts",
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/schools/search",
+      "kind": "api",
+      "file": "src/app/api/schools/search/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/stars",
+      "kind": "api",
+      "file": "src/app/api/stars/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/streak",
+      "kind": "api",
+      "file": "src/app/api/streak/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts",
+        "src/lib/streak/record-activity.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/student/classroom-post",
+      "kind": "api",
+      "file": "src/app/api/student/classroom-post/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/student/classroom-share-prep",
+      "kind": "api",
+      "file": "src/app/api/student/classroom-share-prep/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/student/create-class",
+      "kind": "api",
+      "file": "src/app/api/student/create-class/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/student/join-class",
+      "kind": "api",
+      "file": "src/app/api/student/join-class/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/api/student/join-class/route.ts",
+        "src/lib/api/guards.ts",
+        "src/lib/teacher/entitlements.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/student/mood",
+      "kind": "api",
+      "file": "src/app/api/student/mood/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/student/profile-panel",
+      "kind": "api",
+      "file": "src/app/api/student/profile-panel/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/support",
+      "kind": "api",
+      "file": "src/app/api/support/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/uploads/phone-session",
+      "kind": "api",
+      "file": "src/app/api/uploads/phone-session/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/api/uploads/phone-session/:token",
+      "kind": "api",
+      "file": "src/app/api/uploads/phone-session/[token]/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "sayfa kapısı",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [
+        "token"
+      ],
+      "components": []
+    },
+    {
+      "url": "/api/uploads/phone/:token",
+      "kind": "api",
+      "file": "src/app/api/uploads/phone/[token]/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/app/api/uploads/phone/[token]/route.ts",
+        "src/lib/api/guards.ts",
+        "src/lib/ai/generate.ts",
+        "src/lib/documents/storage-quota.ts"
+      ],
+      "params": [
+        "token"
+      ],
+      "components": []
+    },
+    {
+      "url": "/api/uploads/phone/:token/complete",
+      "kind": "api",
+      "file": "src/app/api/uploads/phone/[token]/complete/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts"
+      ],
+      "params": [
+        "token"
+      ],
+      "components": []
+    },
+    {
+      "url": "/api/uploads/phone/:token/prepare",
+      "kind": "api",
+      "file": "src/app/api/uploads/phone/[token]/prepare/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [
+        "src/lib/api/guards.ts",
+        "src/lib/ai/generate.ts",
+        "src/lib/documents/storage-quota.ts"
+      ],
+      "params": [
+        "token"
+      ],
+      "components": []
+    },
+    {
+      "url": "/auth/callback",
+      "kind": "api",
+      "file": "src/app/auth/callback/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": []
+    },
+    {
+      "url": "/auth/confirm",
+      "kind": "api",
+      "file": "src/app/auth/confirm/route.ts",
+      "client": false,
+      "redirectOnly": false,
+      "fixture": false,
+      "auth": "herkese açık",
+      "shellPlan": false,
+      "optionalShell": false,
+      "planContent": [],
+      "params": [],
+      "components": []
+    }
+  ]
+}

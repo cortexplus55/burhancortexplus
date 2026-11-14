@@ -1,0 +1,2494 @@
+{
+ "usage": {
+  "Button": {
+   "files": [
+    "src/components/ui/button.tsx",
+    "src/components/ui/button-variants.ts"
+   ],
+   "routes": [
+    "/admin/sistem",
+    "/araclar",
+    "/araclar/:id",
+    "/ayarlar",
+    "/bildirimler",
+    "/davet",
+    "/deneme-sinavlari",
+    "/deneme-sinavlari/:prepId",
+    "/deneme-sinavlari/:prepId/degerlendirme",
+    "/deneme-sinavlari/:prepId/deneme/:examId",
+    "/deneme-sinavlari/:prepId/deneme/:examId/incele",
+    "/deneme-sinavlari/:prepId/deneme/kurulum",
+    "/deneme-sinavlari/:prepId/ders/:lessonId",
+    "/deneme-sinavlari/:prepId/duello",
+    "/deneme-sinavlari/:prepId/dugum/:nodeId",
+    "/deneme-sinavlari/:prepId/dugum/:nodeId/sonuc",
+    "/deneme-sinavlari/:prepId/konu",
+    "/deneme-sinavlari/:prepId/oturum",
+    "/deneme-sinavlari/:prepId/podcast",
+    "/deneme-sinavlari/:prepId/sinav-sabahi",
+    "/deneme-sinavlari/:prepId/sohbet",
+    "/deneme-sinavlari/:prepId/sonuc",
+    "/deneme-sinavlari/:prepId/tanisma",
+    "/deneme-sinavlari/:prepId/tekrar",
+    "/deneme-sinavlari/:prepId/tekrarlar",
+    "/deneme-sinavlari/:prepId/video",
+    "/deneme-sinavlari/:prepId/zor-sorular",
+    "/deneme-sinavlari/ara",
+    "/deneme-sinavlari/hazirliklarim",
+    "/deneme-sinavlari/mufredat",
+    "/deneme-sinavlari/okulum",
+    "/deneme-sinavlari/olustur",
+    "/deneme-sinavlari/resmi",
+    "/deneme-sinavlari/resmi/kurulum",
+    "/destek",
+    "/dokumanlar",
+    "/dokumanlar/:documentId",
+    "/email-dogrula",
+    "/flashcardlar",
+    "/gunluk",
+    "/hazirlik-davet/:token",
+    "/ilerleme",
+    "/kayit",
+    "/krediler",
+    "/mobil-uygulama",
+    "/odemeler",
+    "/ogretmen",
+    "/pay",
+    "/profil",
+    "/quizler",
+    "/siniflar",
+    "/siniflar/:id",
+    "/sohbetler",
+    "/soru-coz",
+    "/studio/anlat",
+    "/studio/dogru-yanlis",
+    "/studio/flashcard",
+    "/studio/podcast",
+    "/studio/quiz",
+    "/studio/sozlu",
+    "/studio/yazili",
+    "/takvimim",
+    "/tasarim",
+    "/tekrar",
+    "/yanlislarim",
+    "/yardim"
+   ],
+   "importers": [
+    "src/app/email-dogrula/page.tsx",
+    "src/app/kayit/signup-wizard.tsx",
+    "src/app/tasarim/page.tsx",
+    "src/components/admin/digest-send-button.tsx",
+    "src/components/admin/smtp-test-button.tsx",
+    "src/components/billing/promo-redeem.tsx",
+    "src/components/billing/subscription-card.tsx",
+    "src/components/chat/chat-panel.tsx",
+    "src/components/learning/flashcard-deck.tsx",
+    "src/components/learning/generator-form.tsx",
+    "src/components/learning/quiz-runner.tsx",
+    "src/components/parity/gamification.tsx",
+    "src/components/profile/data-deletion-button.tsx",
+    "src/components/student/create-class-form.tsx",
+    "src/components/student/join-class-form.tsx",
+    "src/components/support/support-form.tsx",
+    "src/components/theme-toggle.tsx",
+    "src/components/ui/error-state.tsx",
+    "src/components/ui-kit/empty-state.tsx"
+   ]
+  },
+  "IconButton": {
+   "files": [
+    "src/components/ui/icon-button.tsx"
+   ],
+   "routes": [
+    "/tasarim"
+   ],
+   "importers": [
+    "src/app/tasarim/page.tsx"
+   ]
+  },
+  "Badge": {
+   "files": [
+    "src/components/ui/badge.tsx"
+   ],
+   "routes": [
+    "/deneme-sinavlari/:prepId/sohbet",
+    "/odemeler",
+    "/ogretmen",
+    "/tasarim"
+   ],
+   "importers": [
+    "src/app/odemeler/page.tsx",
+    "src/app/tasarim/page.tsx",
+    "src/components/billing/subscription-card.tsx",
+    "src/components/chat/chat-panel.tsx"
+   ]
+  },
+  "Segmented": {
+   "files": [
+    "src/components/ui/segmented-control.tsx",
+    "src/components/chat/tutor-mode-switcher.tsx",
+    "src/components/landing/audience-tabs.tsx"
+   ],
+   "routes": [
+    "/",
+    "/deneme-sinavlari/:prepId/sohbet",
+    "/ogretmen",
+    "/tasarim"
+   ],
+   "importers": [
+    "src/components/chat/chat-panel.tsx",
+    "src/components/landing/audience-hero.tsx",
+    "src/components/ui/tasarim-interactive.tsx"
+   ]
+  },
+  "Card": {
+   "files": [
+    "src/components/ui/card.tsx",
+    "src/components/ui/stat-card.tsx"
+   ],
+   "routes": [
+    "/tasarim"
+   ],
+   "importers": [
+    "src/app/tasarim/page.tsx"
+   ]
+  },
+  "ListRow": {
+   "files": [],
+   "routes": [],
+   "importers": []
+  },
+  "Dialog": {
+   "files": [
+    "src/components/parity/profile-dialog.tsx",
+    "src/components/parity/stars-dialog.tsx",
+    "src/components/parity/journey-dialog.tsx",
+    "src/components/parity/parity-dialog-host.tsx"
+   ],
+   "routes": [
+    "/",
+    "/araclar",
+    "/araclar/:id",
+    "/ayarlar",
+    "/bildirimler",
+    "/davet",
+    "/deneme-sinavlari",
+    "/deneme-sinavlari/:prepId",
+    "/deneme-sinavlari/:prepId/degerlendirme",
+    "/deneme-sinavlari/:prepId/deneme/:examId",
+    "/deneme-sinavlari/:prepId/deneme/:examId/incele",
+    "/deneme-sinavlari/:prepId/deneme/kurulum",
+    "/deneme-sinavlari/:prepId/ders/:lessonId",
+    "/deneme-sinavlari/:prepId/duello",
+    "/deneme-sinavlari/:prepId/dugum/:nodeId",
+    "/deneme-sinavlari/:prepId/dugum/:nodeId/sonuc",
+    "/deneme-sinavlari/:prepId/konu",
+    "/deneme-sinavlari/:prepId/oturum",
+    "/deneme-sinavlari/:prepId/podcast",
+    "/deneme-sinavlari/:prepId/sinav-sabahi",
+    "/deneme-sinavlari/:prepId/sohbet",
+    "/deneme-sinavlari/:prepId/sonuc",
+    "/deneme-sinavlari/:prepId/tanisma",
+    "/deneme-sinavlari/:prepId/tekrar",
+    "/deneme-sinavlari/:prepId/tekrarlar",
+    "/deneme-sinavlari/:prepId/video",
+    "/deneme-sinavlari/:prepId/zor-sorular",
+    "/deneme-sinavlari/ara",
+    "/deneme-sinavlari/hazirliklarim",
+    "/deneme-sinavlari/mufredat",
+    "/deneme-sinavlari/okulum",
+    "/deneme-sinavlari/olustur",
+    "/deneme-sinavlari/resmi",
+    "/deneme-sinavlari/resmi/kurulum",
+    "/destek",
+    "/dokumanlar",
+    "/dokumanlar/:documentId",
+    "/flashcardlar",
+    "/gunluk",
+    "/hazirlik-davet/:token",
+    "/ilerleme",
+    "/krediler",
+    "/mobil-uygulama",
+    "/odemeler",
+    "/ogretmen",
+    "/pay",
+    "/profil",
+    "/quizler",
+    "/siniflar",
+    "/siniflar/:id",
+    "/sohbetler",
+    "/soru-coz",
+    "/studio/anlat",
+    "/studio/dogru-yanlis",
+    "/studio/flashcard",
+    "/studio/podcast",
+    "/studio/quiz",
+    "/studio/sozlu",
+    "/studio/yazili",
+    "/takvimim",
+    "/tekrar",
+    "/yanlislarim",
+    "/yardim"
+   ],
+   "importers": [
+    "src/components/parity/badge-unlock-notice.tsx",
+    "src/components/parity/exam-node/use-node-lifecycle.ts",
+    "src/components/parity/sor-shell.tsx",
+    "src/components/parity/video-lesson.tsx"
+   ]
+  },
+  "Sheet": {
+   "files": [
+    "src/components/parity/profile-identity.tsx",
+    "src/components/paywall/upgrade-sheet.tsx"
+   ],
+   "routes": [
+    "/",
+    "/araclar",
+    "/araclar/:id",
+    "/ayarlar",
+    "/bildirimler",
+    "/davet",
+    "/deneme-sinavlari",
+    "/deneme-sinavlari/:prepId",
+    "/deneme-sinavlari/:prepId/degerlendirme",
+    "/deneme-sinavlari/:prepId/deneme/:examId",
+    "/deneme-sinavlari/:prepId/deneme/:examId/incele",
+    "/deneme-sinavlari/:prepId/deneme/kurulum",
+    "/deneme-sinavlari/:prepId/ders/:lessonId",
+    "/deneme-sinavlari/:prepId/duello",
+    "/deneme-sinavlari/:prepId/dugum/:nodeId",
+    "/deneme-sinavlari/:prepId/dugum/:nodeId/sonuc",
+    "/deneme-sinavlari/:prepId/konu",
+    "/deneme-sinavlari/:prepId/oturum",
+    "/deneme-sinavlari/:prepId/podcast",
+    "/deneme-sinavlari/:prepId/sinav-sabahi",
+    "/deneme-sinavlari/:prepId/sohbet",
+    "/deneme-sinavlari/:prepId/sonuc",
+    "/deneme-sinavlari/:prepId/tanisma",
+    "/deneme-sinavlari/:prepId/tekrar",
+    "/deneme-sinavlari/:prepId/tekrarlar",
+    "/deneme-sinavlari/:prepId/video",
+    "/deneme-sinavlari/:prepId/zor-sorular",
+    "/deneme-sinavlari/ara",
+    "/deneme-sinavlari/hazirliklarim",
+    "/deneme-sinavlari/mufredat",
+    "/deneme-sinavlari/okulum",
+    "/deneme-sinavlari/olustur",
+    "/deneme-sinavlari/resmi",
+    "/deneme-sinavlari/resmi/kurulum",
+    "/destek",
+    "/dokumanlar",
+    "/dokumanlar/:documentId",
+    "/flashcardlar",
+    "/gunluk",
+    "/hazirlik-davet/:token",
+    "/ilerleme",
+    "/krediler",
+    "/mobil-uygulama",
+    "/odemeler",
+    "/ogretmen",
+    "/pay",
+    "/profil",
+    "/quizler",
+    "/siniflar",
+    "/siniflar/:id",
+    "/sohbetler",
+    "/soru-coz",
+    "/studio/anlat",
+    "/studio/dogru-yanlis",
+    "/studio/flashcard",
+    "/studio/podcast",
+    "/studio/quiz",
+    "/studio/sozlu",
+    "/studio/yazili",
+    "/takvimim",
+    "/tekrar",
+    "/yanlislarim",
+    "/yardim"
+   ],
+   "importers": [
+    "src/app/e2e/paket-j/wall.tsx",
+    "src/app/e2e/profil/fixture.tsx",
+    "src/app/profil/page.tsx",
+    "src/components/parity/sor-shell.tsx",
+    "src/components/paywall/credit-gate.tsx"
+   ]
+  },
+  "Popover": {
+   "files": [
+    "src/components/chat/source-mode-pill.tsx"
+   ],
+   "routes": [
+    "/deneme-sinavlari/:prepId/sohbet",
+    "/ogretmen"
+   ],
+   "importers": [
+    "src/components/chat/chat-panel.tsx"
+   ]
+  },
+  "Toast": {
+   "files": [
+    "src/components/ui/sonner.tsx"
+   ],
+   "routes": [
+    "/",
+    "/admin",
+    "/admin/adaptive",
+    "/admin/ai-kullanimi",
+    "/admin/anket",
+    "/admin/audit-log",
+    "/admin/beta",
+    "/admin/ders-hatalari",
+    "/admin/destek",
+    "/admin/eposta",
+    "/admin/etkinlik",
+    "/admin/feature-flags",
+    "/admin/kapi",
+    "/admin/kotuye-kullanim",
+    "/admin/kredi-kurallari",
+    "/admin/kullanicilar",
+    "/admin/kullanicilar/:userId",
+    "/admin/kullanicilar/:userId/hazirlik/:prepId",
+    "/admin/maliyetler",
+    "/admin/odemeler",
+    "/admin/ogretmen-basvurulari",
+    "/admin/paketler",
+    "/admin/promosyonlar",
+    "/admin/promptlar",
+    "/admin/sistem",
+    "/admin/yanit-oylari",
+    "/admin/yoneticiler",
+    "/araclar",
+    "/araclar/:id",
+    "/auth/auth-code-error",
+    "/ayarlar",
+    "/bildirimler",
+    "/cerez-politikasi",
+    "/davet",
+    "/deneme-sinavlari",
+    "/deneme-sinavlari/:prepId",
+    "/deneme-sinavlari/:prepId/calis",
+    "/deneme-sinavlari/:prepId/degerlendirme",
+    "/deneme-sinavlari/:prepId/deneme/:examId",
+    "/deneme-sinavlari/:prepId/deneme/:examId/incele",
+    "/deneme-sinavlari/:prepId/deneme/kurulum",
+    "/deneme-sinavlari/:prepId/ders/:lessonId",
+    "/deneme-sinavlari/:prepId/duello",
+    "/deneme-sinavlari/:prepId/dugum/:nodeId",
+    "/deneme-sinavlari/:prepId/dugum/:nodeId/sonuc",
+    "/deneme-sinavlari/:prepId/konu",
+    "/deneme-sinavlari/:prepId/oturum",
+    "/deneme-sinavlari/:prepId/podcast",
+    "/deneme-sinavlari/:prepId/sinav-sabahi",
+    "/deneme-sinavlari/:prepId/sohbet",
+    "/deneme-sinavlari/:prepId/sonuc",
+    "/deneme-sinavlari/:prepId/tanisma",
+    "/deneme-sinavlari/:prepId/tekrar",
+    "/deneme-sinavlari/:prepId/tekrarlar",
+    "/deneme-sinavlari/:prepId/video",
+    "/deneme-sinavlari/:prepId/zor-sorular",
+    "/deneme-sinavlari/ara",
+    "/deneme-sinavlari/hazirliklarim",
+    "/deneme-sinavlari/mufredat",
+    "/deneme-sinavlari/okulum",
+    "/deneme-sinavlari/olustur",
+    "/deneme-sinavlari/resmi",
+    "/deneme-sinavlari/resmi/kurulum",
+    "/destek",
+    "/dokumanlar",
+    "/dokumanlar/:documentId",
+    "/duello/:code",
+    "/email-dogrula",
+    "/eposta/abonelik",
+    "/fiyatlandirma",
+    "/flashcardlar",
+    "/giris",
+    "/gizlilik",
+    "/gunluk",
+    "/hakkimizda",
+    "/hazirlik-davet/:token",
+    "/hizli-tarama",
+    "/ilerleme",
+    "/iletisim",
+    "/iptal-iade",
+    "/kayit",
+    "/kayit/tamamla",
+    "/krediler",
+    "/kullanim-kosullari",
+    "/kunye",
+    "/kvkk",
+    "/mesafeli-satis",
+    "/mobil-uygulama",
+    "/mufredat",
+    "/mufredat/:programId",
+    "/mufredat/:programId/:unitId",
+    "/mufredat/:programId/:unitId/:outcomeId",
+    "/odeme/basarili",
+    "/odeme/basarisiz",
+    "/odeme/veli/:token",
+    "/odeme/veli/basarisiz",
+    "/odeme/veli/tesekkurler",
+    "/odemeler",
+    "/odemeler/sozlesme/:siparis",
+    "/ogretmen",
+    "/ogretmenler-ve-profesorler-icin",
+    "/on-bilgilendirme",
+    "/onboarding",
+    "/ornek",
+    "/ozellikler",
+    "/pay",
+    "/profil",
+    "/profil/duzenle",
+    "/quizler",
+    "/resmi",
+    "/sifre-yenile",
+    "/sifremi-unuttum",
+    "/sinav-hazirligi",
+    "/siniflar",
+    "/siniflar/:id",
+    "/sohbetler",
+    "/soru-coz",
+    "/studio/anlat",
+    "/studio/dogru-yanlis",
+    "/studio/flashcard",
+    "/studio/podcast",
+    "/studio/quiz",
+    "/studio/sozlu",
+    "/studio/yazili",
+    "/takvimim",
+    "/tasarim",
+    "/tekrar",
+    "/teslimat",
+    "/yanlislarim",
+    "/yardim",
+    "/yukle/:token"
+   ],
+   "importers": [
+    "src/components/providers.tsx"
+   ]
+  },
+  "Skeleton": {
+   "files": [
+    "src/components/ui/skeleton.tsx"
+   ],
+   "routes": [
+    "/tasarim"
+   ],
+   "importers": [
+    "src/app/tasarim/page.tsx"
+   ]
+  },
+  "Progress": {
+   "files": [
+    "src/components/ui/progress-bar.tsx",
+    "src/components/ui/progress-ring.tsx"
+   ],
+   "routes": [
+    "/",
+    "/deneme-sinavlari/:prepId/dugum/:nodeId",
+    "/ornek",
+    "/tasarim"
+   ],
+   "importers": [
+    "src/app/tasarim/page.tsx",
+    "src/components/demo/demo-walkthrough.tsx",
+    "src/components/parity/oral-exam-flow.tsx"
+   ]
+  },
+  "AnswerOption": {
+   "files": [
+    "src/components/ui/option-card.tsx"
+   ],
+   "routes": [
+    "/tasarim"
+   ],
+   "importers": [
+    "src/app/tasarim/page.tsx"
+   ]
+  },
+  "Composer": {
+   "files": [
+    "src/components/chat/chat-panel.tsx",
+    "src/components/parity/home-cockpit.tsx"
+   ],
+   "routes": [
+    "/deneme-sinavlari/:prepId/sohbet",
+    "/ogretmen"
+   ],
+   "importers": [
+    "src/app/deneme-sinavlari/[prepId]/sohbet/page.tsx",
+    "src/app/e2e/ana-ekran/fixture.tsx",
+    "src/app/ogretmen/page.tsx"
+   ]
+  },
+  "Callout": {
+   "files": [],
+   "routes": [],
+   "importers": []
+  },
+  "TopBar": {
+   "files": [
+    "src/components/parity/sor-shell.tsx"
+   ],
+   "routes": [
+    "/araclar",
+    "/araclar/:id",
+    "/ayarlar",
+    "/bildirimler",
+    "/davet",
+    "/deneme-sinavlari",
+    "/deneme-sinavlari/:prepId",
+    "/deneme-sinavlari/:prepId/degerlendirme",
+    "/deneme-sinavlari/:prepId/deneme/:examId",
+    "/deneme-sinavlari/:prepId/deneme/:examId/incele",
+    "/deneme-sinavlari/:prepId/deneme/kurulum",
+    "/deneme-sinavlari/:prepId/ders/:lessonId",
+    "/deneme-sinavlari/:prepId/duello",
+    "/deneme-sinavlari/:prepId/dugum/:nodeId",
+    "/deneme-sinavlari/:prepId/dugum/:nodeId/sonuc",
+    "/deneme-sinavlari/:prepId/konu",
+    "/deneme-sinavlari/:prepId/oturum",
+    "/deneme-sinavlari/:prepId/podcast",
+    "/deneme-sinavlari/:prepId/sinav-sabahi",
+    "/deneme-sinavlari/:prepId/sohbet",
+    "/deneme-sinavlari/:prepId/sonuc",
+    "/deneme-sinavlari/:prepId/tanisma",
+    "/deneme-sinavlari/:prepId/tekrar",
+    "/deneme-sinavlari/:prepId/tekrarlar",
+    "/deneme-sinavlari/:prepId/video",
+    "/deneme-sinavlari/:prepId/zor-sorular",
+    "/deneme-sinavlari/ara",
+    "/deneme-sinavlari/hazirliklarim",
+    "/deneme-sinavlari/mufredat",
+    "/deneme-sinavlari/okulum",
+    "/deneme-sinavlari/olustur",
+    "/deneme-sinavlari/resmi",
+    "/deneme-sinavlari/resmi/kurulum",
+    "/destek",
+    "/dokumanlar",
+    "/dokumanlar/:documentId",
+    "/flashcardlar",
+    "/gunluk",
+    "/hazirlik-davet/:token",
+    "/ilerleme",
+    "/krediler",
+    "/mobil-uygulama",
+    "/odemeler",
+    "/ogretmen",
+    "/pay",
+    "/profil",
+    "/quizler",
+    "/siniflar",
+    "/siniflar/:id",
+    "/sohbetler",
+    "/soru-coz",
+    "/studio/anlat",
+    "/studio/dogru-yanlis",
+    "/studio/flashcard",
+    "/studio/podcast",
+    "/studio/quiz",
+    "/studio/sozlu",
+    "/studio/yazili",
+    "/takvimim",
+    "/tekrar",
+    "/yanlislarim",
+    "/yardim"
+   ],
+   "importers": [
+    "src/app/araclar/page.tsx",
+    "src/app/araclar/[id]/page.tsx",
+    "src/app/davet/page.tsx",
+    "src/app/deneme-sinavlari/ara/page.tsx",
+    "src/app/deneme-sinavlari/hazirliklarim/page.tsx",
+    "src/app/deneme-sinavlari/mufredat/page.tsx",
+    "src/app/deneme-sinavlari/okulum/page.tsx",
+    "src/app/deneme-sinavlari/olustur/page.tsx",
+    "src/app/deneme-sinavlari/page.tsx",
+    "src/app/deneme-sinavlari/resmi/kurulum/page.tsx",
+    "src/app/deneme-sinavlari/resmi/page.tsx",
+    "src/app/deneme-sinavlari/[prepId]/degerlendirme/page.tsx",
+    "src/app/deneme-sinavlari/[prepId]/deneme/kurulum/page.tsx",
+    "src/app/deneme-sinavlari/[prepId]/deneme/[examId]/incele/page.tsx",
+    "src/app/deneme-sinavlari/[prepId]/deneme/[examId]/page.tsx",
+    "src/app/deneme-sinavlari/[prepId]/ders/[lessonId]/page.tsx",
+    "src/app/deneme-sinavlari/[prepId]/duello/page.tsx",
+    "src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/page.tsx",
+    "src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/sonuc/page.tsx",
+    "src/app/deneme-sinavlari/[prepId]/konu/page.tsx",
+    "src/app/deneme-sinavlari/[prepId]/oturum/page.tsx",
+    "src/app/deneme-sinavlari/[prepId]/page.tsx",
+    "src/app/deneme-sinavlari/[prepId]/podcast/page.tsx",
+    "src/app/deneme-sinavlari/[prepId]/sinav-sabahi/page.tsx",
+    "src/app/deneme-sinavlari/[prepId]/sohbet/page.tsx",
+    "src/app/deneme-sinavlari/[prepId]/sonuc/page.tsx",
+    "src/app/deneme-sinavlari/[prepId]/tanisma/page.tsx",
+    "src/app/deneme-sinavlari/[prepId]/tekrar/page.tsx",
+    "src/app/deneme-sinavlari/[prepId]/tekrarlar/page.tsx",
+    "src/app/deneme-sinavlari/[prepId]/video/page.tsx",
+    "src/app/deneme-sinavlari/[prepId]/zor-sorular/page.tsx",
+    "src/app/dokumanlar/[documentId]/page.tsx",
+    "src/app/e2e/ana-ekran/fixture.tsx",
+    "src/app/e2e/ic-ekran/fixture.tsx",
+    "src/app/e2e/kurucu/fixture.tsx",
+    "src/app/e2e/profil/fixture.tsx",
+    "src/app/e2e/sihirbaz/fixture.tsx",
+    "src/app/e2e/studyo/fixture.tsx",
+    "src/app/gunluk/page.tsx",
+    "src/app/hazirlik-davet/[token]/page.tsx",
+    "src/app/ilerleme/page.tsx",
+    "src/app/krediler/page.tsx",
+    "src/app/mobil-uygulama/page.tsx",
+    "src/app/ogretmen/page.tsx",
+    "src/app/profil/page.tsx",
+    "src/app/siniflar/page.tsx",
+    "src/app/siniflar/[id]/page.tsx",
+    "src/app/sohbetler/page.tsx",
+    "src/app/takvimim/page.tsx",
+    "src/app/tekrar/page.tsx",
+    "src/app/yanlislarim/page.tsx",
+    "src/app/yardim/page.tsx",
+    "src/components/layout/app-shell.tsx"
+   ]
+  },
+  "ProfileCapsule": {
+   "files": [
+    "src/components/parity/profile-identity.tsx"
+   ],
+   "routes": [
+    "/araclar",
+    "/araclar/:id",
+    "/ayarlar",
+    "/bildirimler",
+    "/davet",
+    "/deneme-sinavlari",
+    "/deneme-sinavlari/:prepId",
+    "/deneme-sinavlari/:prepId/degerlendirme",
+    "/deneme-sinavlari/:prepId/deneme/:examId",
+    "/deneme-sinavlari/:prepId/deneme/:examId/incele",
+    "/deneme-sinavlari/:prepId/deneme/kurulum",
+    "/deneme-sinavlari/:prepId/ders/:lessonId",
+    "/deneme-sinavlari/:prepId/duello",
+    "/deneme-sinavlari/:prepId/dugum/:nodeId",
+    "/deneme-sinavlari/:prepId/dugum/:nodeId/sonuc",
+    "/deneme-sinavlari/:prepId/konu",
+    "/deneme-sinavlari/:prepId/oturum",
+    "/deneme-sinavlari/:prepId/podcast",
+    "/deneme-sinavlari/:prepId/sinav-sabahi",
+    "/deneme-sinavlari/:prepId/sohbet",
+    "/deneme-sinavlari/:prepId/sonuc",
+    "/deneme-sinavlari/:prepId/tanisma",
+    "/deneme-sinavlari/:prepId/tekrar",
+    "/deneme-sinavlari/:prepId/tekrarlar",
+    "/deneme-sinavlari/:prepId/video",
+    "/deneme-sinavlari/:prepId/zor-sorular",
+    "/deneme-sinavlari/ara",
+    "/deneme-sinavlari/hazirliklarim",
+    "/deneme-sinavlari/mufredat",
+    "/deneme-sinavlari/okulum",
+    "/deneme-sinavlari/olustur",
+    "/deneme-sinavlari/resmi",
+    "/deneme-sinavlari/resmi/kurulum",
+    "/destek",
+    "/dokumanlar",
+    "/dokumanlar/:documentId",
+    "/flashcardlar",
+    "/gunluk",
+    "/hazirlik-davet/:token",
+    "/ilerleme",
+    "/krediler",
+    "/mobil-uygulama",
+    "/odemeler",
+    "/ogretmen",
+    "/pay",
+    "/profil",
+    "/quizler",
+    "/siniflar",
+    "/siniflar/:id",
+    "/sohbetler",
+    "/soru-coz",
+    "/studio/anlat",
+    "/studio/dogru-yanlis",
+    "/studio/flashcard",
+    "/studio/podcast",
+    "/studio/quiz",
+    "/studio/sozlu",
+    "/studio/yazili",
+    "/takvimim",
+    "/tekrar",
+    "/yanlislarim",
+    "/yardim"
+   ],
+   "importers": [
+    "src/app/e2e/profil/fixture.tsx",
+    "src/app/profil/page.tsx",
+    "src/components/parity/sor-shell.tsx"
+   ]
+  },
+  "PhoneTabBar": {
+   "files": [
+    "src/components/parity/sor-shell.tsx"
+   ],
+   "routes": [
+    "/araclar",
+    "/araclar/:id",
+    "/ayarlar",
+    "/bildirimler",
+    "/davet",
+    "/deneme-sinavlari",
+    "/deneme-sinavlari/:prepId",
+    "/deneme-sinavlari/:prepId/degerlendirme",
+    "/deneme-sinavlari/:prepId/deneme/:examId",
+    "/deneme-sinavlari/:prepId/deneme/:examId/incele",
+    "/deneme-sinavlari/:prepId/deneme/kurulum",
+    "/deneme-sinavlari/:prepId/ders/:lessonId",
+    "/deneme-sinavlari/:prepId/duello",
+    "/deneme-sinavlari/:prepId/dugum/:nodeId",
+    "/deneme-sinavlari/:prepId/dugum/:nodeId/sonuc",
+    "/deneme-sinavlari/:prepId/konu",
+    "/deneme-sinavlari/:prepId/oturum",
+    "/deneme-sinavlari/:prepId/podcast",
+    "/deneme-sinavlari/:prepId/sinav-sabahi",
+    "/deneme-sinavlari/:prepId/sohbet",
+    "/deneme-sinavlari/:prepId/sonuc",
+    "/deneme-sinavlari/:prepId/tanisma",
+    "/deneme-sinavlari/:prepId/tekrar",
+    "/deneme-sinavlari/:prepId/tekrarlar",
+    "/deneme-sinavlari/:prepId/video",
+    "/deneme-sinavlari/:prepId/zor-sorular",
+    "/deneme-sinavlari/ara",
+    "/deneme-sinavlari/hazirliklarim",
+    "/deneme-sinavlari/mufredat",
+    "/deneme-sinavlari/okulum",
+    "/deneme-sinavlari/olustur",
+    "/deneme-sinavlari/resmi",
+    "/deneme-sinavlari/resmi/kurulum",
+    "/destek",
+    "/dokumanlar",
+    "/dokumanlar/:documentId",
+    "/flashcardlar",
+    "/gunluk",
+    "/hazirlik-davet/:token",
+    "/ilerleme",
+    "/krediler",
+    "/mobil-uygulama",
+    "/odemeler",
+    "/ogretmen",
+    "/pay",
+    "/profil",
+    "/quizler",
+    "/siniflar",
+    "/siniflar/:id",
+    "/sohbetler",
+    "/soru-coz",
+    "/studio/anlat",
+    "/studio/dogru-yanlis",
+    "/studio/flashcard",
+    "/studio/podcast",
+    "/studio/quiz",
+    "/studio/sozlu",
+    "/studio/yazili",
+    "/takvimim",
+    "/tekrar",
+    "/yanlislarim",
+    "/yardim"
+   ],
+   "importers": [
+    "src/app/araclar/page.tsx",
+    "src/app/araclar/[id]/page.tsx",
+    "src/app/davet/page.tsx",
+    "src/app/deneme-sinavlari/ara/page.tsx",
+    "src/app/deneme-sinavlari/hazirliklarim/page.tsx",
+    "src/app/deneme-sinavlari/mufredat/page.tsx",
+    "src/app/deneme-sinavlari/okulum/page.tsx",
+    "src/app/deneme-sinavlari/olustur/page.tsx",
+    "src/app/deneme-sinavlari/page.tsx",
+    "src/app/deneme-sinavlari/resmi/kurulum/page.tsx",
+    "src/app/deneme-sinavlari/resmi/page.tsx",
+    "src/app/deneme-sinavlari/[prepId]/degerlendirme/page.tsx",
+    "src/app/deneme-sinavlari/[prepId]/deneme/kurulum/page.tsx",
+    "src/app/deneme-sinavlari/[prepId]/deneme/[examId]/incele/page.tsx",
+    "src/app/deneme-sinavlari/[prepId]/deneme/[examId]/page.tsx",
+    "src/app/deneme-sinavlari/[prepId]/ders/[lessonId]/page.tsx",
+    "src/app/deneme-sinavlari/[prepId]/duello/page.tsx",
+    "src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/page.tsx",
+    "src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/sonuc/page.tsx",
+    "src/app/deneme-sinavlari/[prepId]/konu/page.tsx",
+    "src/app/deneme-sinavlari/[prepId]/oturum/page.tsx",
+    "src/app/deneme-sinavlari/[prepId]/page.tsx",
+    "src/app/deneme-sinavlari/[prepId]/podcast/page.tsx",
+    "src/app/deneme-sinavlari/[prepId]/sinav-sabahi/page.tsx",
+    "src/app/deneme-sinavlari/[prepId]/sohbet/page.tsx",
+    "src/app/deneme-sinavlari/[prepId]/sonuc/page.tsx",
+    "src/app/deneme-sinavlari/[prepId]/tanisma/page.tsx",
+    "src/app/deneme-sinavlari/[prepId]/tekrar/page.tsx",
+    "src/app/deneme-sinavlari/[prepId]/tekrarlar/page.tsx",
+    "src/app/deneme-sinavlari/[prepId]/video/page.tsx",
+    "src/app/deneme-sinavlari/[prepId]/zor-sorular/page.tsx",
+    "src/app/dokumanlar/[documentId]/page.tsx",
+    "src/app/e2e/ana-ekran/fixture.tsx",
+    "src/app/e2e/ic-ekran/fixture.tsx",
+    "src/app/e2e/kurucu/fixture.tsx",
+    "src/app/e2e/profil/fixture.tsx",
+    "src/app/e2e/sihirbaz/fixture.tsx",
+    "src/app/e2e/studyo/fixture.tsx",
+    "src/app/gunluk/page.tsx",
+    "src/app/hazirlik-davet/[token]/page.tsx",
+    "src/app/ilerleme/page.tsx",
+    "src/app/krediler/page.tsx",
+    "src/app/mobil-uygulama/page.tsx",
+    "src/app/ogretmen/page.tsx",
+    "src/app/profil/page.tsx",
+    "src/app/siniflar/page.tsx",
+    "src/app/siniflar/[id]/page.tsx",
+    "src/app/sohbetler/page.tsx",
+    "src/app/takvimim/page.tsx",
+    "src/app/tekrar/page.tsx",
+    "src/app/yanlislarim/page.tsx",
+    "src/app/yardim/page.tsx",
+    "src/components/layout/app-shell.tsx"
+   ]
+  }
+ },
+ "raw": [
+  {
+   "file": "src/components/chat/chat-panel.tsx",
+   "buttons": 49,
+   "styledLinks": 1,
+   "usesShared": true
+  },
+  {
+   "file": "src/components/parity/exam-create-wizard.tsx",
+   "buttons": 46,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/exam-prep-home.tsx",
+   "buttons": 22,
+   "styledLinks": 14,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/oral-exam-flow.tsx",
+   "buttons": 21,
+   "styledLinks": 2,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/exam-podcast-player.tsx",
+   "buttons": 17,
+   "styledLinks": 3,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/exam-lesson-steps.tsx",
+   "buttons": 19,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/official-setup-flow.tsx",
+   "buttons": 18,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/landing/futuristic-guided-journey.tsx",
+   "buttons": 14,
+   "styledLinks": 2,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/exam-runner.tsx",
+   "buttons": 16,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/sor-shell.tsx",
+   "buttons": 5,
+   "styledLinks": 10,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/video-lesson.tsx",
+   "buttons": 13,
+   "styledLinks": 2,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/subscription-cards.tsx",
+   "buttons": 12,
+   "styledLinks": 2,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/learning/question-solver.tsx",
+   "buttons": 12,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/adaptive-study-session.tsx",
+   "buttons": 9,
+   "styledLinks": 4,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/exam-prep.tsx",
+   "buttons": 5,
+   "styledLinks": 8,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/mock-exam-setup.tsx",
+   "buttons": 13,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/admin/promo-tools.tsx",
+   "buttons": 12,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/profile-dialog.tsx",
+   "buttons": 9,
+   "styledLinks": 2,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/admin/user-manage-tools.tsx",
+   "buttons": 10,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/marketing/parity-site-header.tsx",
+   "buttons": 1,
+   "styledLinks": 9,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/official-curriculum-panel.tsx",
+   "buttons": 10,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/profile-identity.tsx",
+   "buttons": 5,
+   "styledLinks": 5,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/stars-dialog.tsx",
+   "buttons": 8,
+   "styledLinks": 2,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/admin/email-composer.tsx",
+   "buttons": 9,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/admin/refund-button.tsx",
+   "buttons": 9,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/demo/demo-walkthrough.tsx",
+   "buttons": 8,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/duel/duel-play.tsx",
+   "buttons": 8,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/exam-intro-quiz.tsx",
+   "buttons": 6,
+   "styledLinks": 3,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/exam-node/result.tsx",
+   "buttons": 5,
+   "styledLinks": 4,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/exam-voice-tutor.tsx",
+   "buttons": 9,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/journey-dialog.tsx",
+   "buttons": 7,
+   "styledLinks": 2,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/paper-exam-runner.tsx",
+   "buttons": 9,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/prep-basics-panel.tsx",
+   "buttons": 9,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/deneme-sinavlari/[prepId]/sonuc/page.tsx",
+   "buttons": 0,
+   "styledLinks": 8,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/feedback/weekly-survey-card.tsx",
+   "buttons": 8,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/learning/studio/podcast-studio.tsx",
+   "buttons": 6,
+   "styledLinks": 2,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/learning/studio/studio-shared.tsx",
+   "buttons": 5,
+   "styledLinks": 3,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/legal/cookie-banner.tsx",
+   "buttons": 8,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/first-step-launcher.tsx",
+   "buttons": 3,
+   "styledLinks": 5,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/generation-warmup.tsx",
+   "buttons": 8,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/home-cockpit.tsx",
+   "buttons": 3,
+   "styledLinks": 5,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/sohbetler-list.tsx",
+   "buttons": 6,
+   "styledLinks": 2,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/admin/etkinlik/page.tsx",
+   "buttons": 1,
+   "styledLinks": 6,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/dokumanlar/[documentId]/page.tsx",
+   "buttons": 0,
+   "styledLinks": 7,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/giris/giris-inner.tsx",
+   "buttons": 1,
+   "styledLinks": 6,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/calendar-view.tsx",
+   "buttons": 7,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/exam-create-chat.tsx",
+   "buttons": 7,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/exam-node/chrome.tsx",
+   "buttons": 7,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/lesson-open-chrome.tsx",
+   "buttons": 6,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/mistake-notebook-view.tsx",
+   "buttons": 4,
+   "styledLinks": 3,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/prep-review-session.tsx",
+   "buttons": 5,
+   "styledLinks": 2,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/prep-search-view.tsx",
+   "buttons": 4,
+   "styledLinks": 3,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/sonuc/page.tsx",
+   "buttons": 0,
+   "styledLinks": 6,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/kayit/signup-wizard.tsx",
+   "buttons": 4,
+   "styledLinks": 2,
+   "usesShared": true
+  },
+  {
+   "file": "src/components/chat/message-actions.tsx",
+   "buttons": 6,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/learning/review-deck-session.tsx",
+   "buttons": 4,
+   "styledLinks": 2,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/learning/studio/quiz-studio.tsx",
+   "buttons": 4,
+   "styledLinks": 2,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/level-check/level-check-runner.tsx",
+   "buttons": 5,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/exam-catalog-pages.tsx",
+   "buttons": 2,
+   "styledLinks": 4,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/exam-chat-menu.tsx",
+   "buttons": 2,
+   "styledLinks": 4,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/exam-prep-progress.tsx",
+   "buttons": 3,
+   "styledLinks": 3,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/exam-quiz-play.tsx",
+   "buttons": 3,
+   "styledLinks": 3,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/math-keyboard.tsx",
+   "buttons": 6,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/school-feed-view.tsx",
+   "buttons": 5,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/admin/adaptive/jev-admin-controls.tsx",
+   "buttons": 5,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/admin/kullanicilar/page.tsx",
+   "buttons": 1,
+   "styledLinks": 4,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/admin/user-content-delete.tsx",
+   "buttons": 4,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/documents/topic-map-editor.tsx",
+   "buttons": 4,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/landing/landing-page.tsx",
+   "buttons": 0,
+   "styledLinks": 5,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/marketing/plus-month.tsx",
+   "buttons": 1,
+   "styledLinks": 4,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/exam-prep-settings-panel.tsx",
+   "buttons": 5,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/exam-question-review-client.tsx",
+   "buttons": 3,
+   "styledLinks": 2,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/mistake-runner.tsx",
+   "buttons": 3,
+   "styledLinks": 2,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/oral-answer-desk.tsx",
+   "buttons": 5,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/sketch-dialog.tsx",
+   "buttons": 5,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/start-hub.tsx",
+   "buttons": 2,
+   "styledLinks": 3,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/subject-modal.tsx",
+   "buttons": 5,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/admin/page.tsx",
+   "buttons": 0,
+   "styledLinks": 4,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/dokumanlar/page.tsx",
+   "buttons": 0,
+   "styledLinks": 4,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/admin/admin-team-controls.tsx",
+   "buttons": 4,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/admin/user-actions.tsx",
+   "buttons": 4,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/chat/tutor-reply-view.tsx",
+   "buttons": 3,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/demo/source-upload.tsx",
+   "buttons": 2,
+   "styledLinks": 2,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/layout/premium-auth-shell.tsx",
+   "buttons": 0,
+   "styledLinks": 4,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/learning/flashcard-deck.tsx",
+   "buttons": 4,
+   "styledLinks": 0,
+   "usesShared": true
+  },
+  {
+   "file": "src/components/learning/question-report-button.tsx",
+   "buttons": 4,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/learning/studio/explain-studio.tsx",
+   "buttons": 4,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/learning/studio/studio-setup.tsx",
+   "buttons": 4,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/learning/studio/written-studio.tsx",
+   "buttons": 4,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/level-check/mastery-map.tsx",
+   "buttons": 4,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/level-check/reinforce-box.tsx",
+   "buttons": 4,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/curriculum-pick-panel.tsx",
+   "buttons": 4,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/exam-node/open-screens.tsx",
+   "buttons": 1,
+   "styledLinks": 3,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/exam-prep-assessment.tsx",
+   "buttons": 0,
+   "styledLinks": 4,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/exam-prep-reviews.tsx",
+   "buttons": 0,
+   "styledLinks": 4,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/prep-add-material.tsx",
+   "buttons": 4,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/study-tools-hub.tsx",
+   "buttons": 3,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/wizard-processing-panel.tsx",
+   "buttons": 4,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/paywall/upgrade-sheet.tsx",
+   "buttons": 2,
+   "styledLinks": 2,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/profile/email-change-card.tsx",
+   "buttons": 3,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/admin/adaptive/page.tsx",
+   "buttons": 0,
+   "styledLinks": 3,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/admin/kullanicilar/[userId]/page.tsx",
+   "buttons": 0,
+   "styledLinks": 3,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/error.tsx",
+   "buttons": 1,
+   "styledLinks": 2,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/ilerleme/page.tsx",
+   "buttons": 0,
+   "styledLinks": 3,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/iletisim/page.tsx",
+   "buttons": 0,
+   "styledLinks": 3,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/krediler/page.tsx",
+   "buttons": 0,
+   "styledLinks": 3,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/kunye/page.tsx",
+   "buttons": 0,
+   "styledLinks": 3,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/ozellikler/page.tsx",
+   "buttons": 0,
+   "styledLinks": 3,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/sinav-hazirligi/page.tsx",
+   "buttons": 0,
+   "styledLinks": 3,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/admin/admin-rows.tsx",
+   "buttons": 3,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/admin/cockpit-quarantine.tsx",
+   "buttons": 3,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/admin/lifecycle-mails-card.tsx",
+   "buttons": 3,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/admin/maintenance-button.tsx",
+   "buttons": 3,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/billing/payment-activation.tsx",
+   "buttons": 1,
+   "styledLinks": 2,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/documents/document-delete-button.tsx",
+   "buttons": 3,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/layout/onboarding-shell.tsx",
+   "buttons": 3,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/learning/studio/oral-studio.tsx",
+   "buttons": 3,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/learning/studio/true-false-studio.tsx",
+   "buttons": 3,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/learning/twin-question-card.tsx",
+   "buttons": 3,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/level-check/unit-level-check.tsx",
+   "buttons": 3,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/challenge-set-play.tsx",
+   "buttons": 1,
+   "styledLinks": 2,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/exam-node/cards.tsx",
+   "buttons": 3,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/exam-node/local-session.tsx",
+   "buttons": 2,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/exam-readiness-screen.tsx",
+   "buttons": 1,
+   "styledLinks": 2,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/exam-result-card.tsx",
+   "buttons": 3,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/exam-topic-pick.tsx",
+   "buttons": 1,
+   "styledLinks": 2,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/lesson-visual-cards.tsx",
+   "buttons": 3,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/level-suggest-card.tsx",
+   "buttons": 3,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/material-notes-card.tsx",
+   "buttons": 3,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/my-preps-view.tsx",
+   "buttons": 2,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/pending-materials-banner.tsx",
+   "buttons": 3,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/review-tools.tsx",
+   "buttons": 3,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/scratch-pad.tsx",
+   "buttons": 3,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/source-page-drawer.tsx",
+   "buttons": 3,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/tools-hub.tsx",
+   "buttons": 0,
+   "styledLinks": 3,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/upload-modal.tsx",
+   "buttons": 3,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/profile/data-deletion-button.tsx",
+   "buttons": 3,
+   "styledLinks": 0,
+   "usesShared": true
+  },
+  {
+   "file": "src/app/admin/ders-hatalari/page.tsx",
+   "buttons": 1,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/admin/layout.tsx",
+   "buttons": 0,
+   "styledLinks": 2,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/admin/odemeler/page.tsx",
+   "buttons": 0,
+   "styledLinks": 2,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/deneme-sinavlari/[prepId]/ders/[lessonId]/page.tsx",
+   "buttons": 0,
+   "styledLinks": 2,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/eposta/abonelik/page.tsx",
+   "buttons": 0,
+   "styledLinks": 2,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/eposta/abonelik/unsubscribe-button.tsx",
+   "buttons": 1,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/fiyatlandirma/page.tsx",
+   "buttons": 0,
+   "styledLinks": 2,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/gizlilik/page.tsx",
+   "buttons": 0,
+   "styledLinks": 2,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/hazirlik-davet/[token]/page.tsx",
+   "buttons": 0,
+   "styledLinks": 2,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/kayit/tamamla/finalizer.tsx",
+   "buttons": 0,
+   "styledLinks": 2,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/mufredat/[programId]/[unitId]/page.tsx",
+   "buttons": 0,
+   "styledLinks": 2,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/mufredat/[programId]/[unitId]/[outcomeId]/page.tsx",
+   "buttons": 0,
+   "styledLinks": 2,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/not-found.tsx",
+   "buttons": 0,
+   "styledLinks": 2,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/sifre-yenile/page.tsx",
+   "buttons": 1,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/sifremi-unuttum/page.tsx",
+   "buttons": 1,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/siniflar/page.tsx",
+   "buttons": 0,
+   "styledLinks": 2,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/siniflar/[id]/page.tsx",
+   "buttons": 0,
+   "styledLinks": 2,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/soru-coz/page.tsx",
+   "buttons": 0,
+   "styledLinks": 2,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/admin/application-review.tsx",
+   "buttons": 2,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/admin/campaign-form.tsx",
+   "buttons": 2,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/admin/prompt-editor.tsx",
+   "buttons": 2,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/billing/parent-pay-link-button.tsx",
+   "buttons": 2,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/chat/source-mode-pill.tsx",
+   "buttons": 2,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/demo/demo-visual-feast.tsx",
+   "buttons": 1,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/documents/document-pdf-preview.tsx",
+   "buttons": 2,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/duel/new-duel-button.tsx",
+   "buttons": 2,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/lab/tool-shell.tsx",
+   "buttons": 1,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/lab/tools/hucre-lab.tsx",
+   "buttons": 2,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/lab/tools/periyodik-tablo.tsx",
+   "buttons": 2,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/landing/tour/plus-previews.tsx",
+   "buttons": 2,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/layout/signup-premium-shell.tsx",
+   "buttons": 0,
+   "styledLinks": 2,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/learning/quiz-runner.tsx",
+   "buttons": 1,
+   "styledLinks": 1,
+   "usesShared": true
+  },
+  {
+   "file": "src/components/learning/true-false-focus-card.tsx",
+   "buttons": 2,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/learning/two-option-hint.tsx",
+   "buttons": 2,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/legal/consent-gate.tsx",
+   "buttons": 2,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/legal/read-gate.tsx",
+   "buttons": 1,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/level-check/guest-quick-scan.tsx",
+   "buttons": 1,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/marketing/cinematic-cta.tsx",
+   "buttons": 0,
+   "styledLinks": 2,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/marketing/result-card.tsx",
+   "buttons": 0,
+   "styledLinks": 2,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/badge-unlock-notice.tsx",
+   "buttons": 2,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/class-invite.tsx",
+   "buttons": 2,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/daily-drill-view.tsx",
+   "buttons": 0,
+   "styledLinks": 2,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/exam-node-coach.tsx",
+   "buttons": 2,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/exam-wizard-chrome.tsx",
+   "buttons": 2,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/exam-written-review.tsx",
+   "buttons": 1,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/free-activity-picker.tsx",
+   "buttons": 2,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/guest-document-offer.tsx",
+   "buttons": 2,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/node-generation-progress.tsx",
+   "buttons": 2,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/node-sources.tsx",
+   "buttons": 2,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/paste-text-panel.tsx",
+   "buttons": 2,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/phone-upload-panel.tsx",
+   "buttons": 2,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/photo-quality-prompt.tsx",
+   "buttons": 2,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/prep-invite-join-button.tsx",
+   "buttons": 1,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/prep-podcast-session.tsx",
+   "buttons": 1,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/prep-share-tools.tsx",
+   "buttons": 1,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/referral-reward-card.tsx",
+   "buttons": 2,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/review-grade-buttons.tsx",
+   "buttons": 2,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/url-import-panel.tsx",
+   "buttons": 2,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/ui-kit/empty-state.tsx",
+   "buttons": 0,
+   "styledLinks": 2,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/admin/ai-kullanimi/page.tsx",
+   "buttons": 0,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/admin/anket/page.tsx",
+   "buttons": 0,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/admin/destek/page.tsx",
+   "buttons": 0,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/admin/kotuye-kullanim/page.tsx",
+   "buttons": 0,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/admin/kullanicilar/[userId]/hazirlik/[prepId]/page.tsx",
+   "buttons": 0,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/admin/maliyetler/page.tsx",
+   "buttons": 0,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/admin/promosyonlar/page.tsx",
+   "buttons": 0,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/deneme-sinavlari/[prepId]/deneme/[examId]/incele/page.tsx",
+   "buttons": 0,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/deneme-sinavlari/[prepId]/deneme/[examId]/page.tsx",
+   "buttons": 0,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/deneme-sinavlari/[prepId]/duello/page.tsx",
+   "buttons": 0,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/duello/[code]/page.tsx",
+   "buttons": 0,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/email-dogrula/page.tsx",
+   "buttons": 0,
+   "styledLinks": 1,
+   "usesShared": true
+  },
+  {
+   "file": "src/app/gunluk/page.tsx",
+   "buttons": 0,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/mufredat/page.tsx",
+   "buttons": 0,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/odemeler/page.tsx",
+   "buttons": 0,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/pay/page.tsx",
+   "buttons": 0,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/app/yardim/page.tsx",
+   "buttons": 0,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/admin/admin-gate-form.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/admin/admin-nav-links.tsx",
+   "buttons": 0,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/admin/cockpit-superseded.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/admin/free-preview-toggle.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/admin/fx-rate-form.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/admin/plan-editor.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/admin/referral-cap-form.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/admin/resend-status-card.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/admin/spend-cap-form.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/admin/stuck-reset-button.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/admin/subscription-extend.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/admin/support-answered-button.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/auth/email-verify-banner.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/auth/google-sign-in-button.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/billing/parent-pay-form.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/camp/camp-card.tsx",
+   "buttons": 0,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/chat/remember-card.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/chat/tutor-mode-switcher.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/documents/document-reanalyze-button.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/documents/document-retry-button.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/lab/tools/birim-donusturucu.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/landing/audience-hero.tsx",
+   "buttons": 0,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/landing/audience-tabs.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/layout/in-app-browser-banner.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/layout/legal-document.tsx",
+   "buttons": 0,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/layout/marketing-page.tsx",
+   "buttons": 0,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/learning/generator-form.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": true
+  },
+  {
+   "file": "src/components/learning/studio/flashcard-studio.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/level-check/ilerleme-net.tsx",
+   "buttons": 0,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/marketing/advantage-sections.tsx",
+   "buttons": 0,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/notifications/notification-item.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/appearance-row.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/classroom-discussion.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/classroom-share-prep.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/continue-line.tsx",
+   "buttons": 0,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/cram-print-button.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/cram-sheet-view.tsx",
+   "buttons": 0,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/dialog-link.tsx",
+   "buttons": 0,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/difficulty-picker.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/exam-countdown-badge.tsx",
+   "buttons": 0,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/exam-create-entry.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/exam-finish-button.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/exam-node/lesson.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/gamification.tsx",
+   "buttons": 0,
+   "styledLinks": 1,
+   "usesShared": true
+  },
+  {
+   "file": "src/components/parity/invite-share.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/lesson-rating-card.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/marketing.tsx",
+   "buttons": 0,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/phone-upload-client.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/podcast-listening-check.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/prep-review-card.tsx",
+   "buttons": 0,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/prep-studio-entry.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/studio-gallery.tsx",
+   "buttons": 0,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/parity/topic-gain-card.tsx",
+   "buttons": 0,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/paywall/ask-parent-payment.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/paywall/plus-limit-banner.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/paywall/promo-banner.tsx",
+   "buttons": 0,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/profile/study-reminder-toggle.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/pwa/install-app.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/student/founder-chip.tsx",
+   "buttons": 0,
+   "styledLinks": 1,
+   "usesShared": false
+  },
+  {
+   "file": "src/components/support/support-form.tsx",
+   "buttons": 1,
+   "styledLinks": 0,
+   "usesShared": true
+  }
+ ],
+ "pageCount": 131
+}

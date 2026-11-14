@@ -1,0 +1,1289 @@
+{
+ "label": "faz0-492e206",
+ "measuredAt": "2026-11-14T14:16:34.388Z",
+ "profile": {
+  "viewport": "375x812",
+  "cpu": "4x",
+  "network": "Hızlı 4G (60 ms, 9/1.5 Mbit)",
+  "warm": 1,
+  "runs": 9
+ },
+ "routes": [
+  {
+   "name": "ana-sayfa",
+   "path": "/",
+   "why": "Misafirin ilk gördüğü ve en ağır pazarlama sayfası (kokpit turu)",
+   "status": 200,
+   "median": {
+    "lcp": 1380,
+    "cls": 0,
+    "tbt": 338,
+    "js": 488265,
+    "css": 71226,
+    "total": 676779,
+    "dom": 545
+   },
+   "runs": [
+    {
+     "status": 200,
+     "finalPath": "/",
+     "lcp": 1380,
+     "cls": 0,
+     "tbt": 525,
+     "js": 488265,
+     "css": 71226,
+     "total": 676779,
+     "dom": 546
+    },
+    {
+     "status": 200,
+     "finalPath": "/",
+     "lcp": 1320,
+     "cls": 0,
+     "tbt": 471,
+     "js": 488265,
+     "css": 71226,
+     "total": 676779,
+     "dom": 545
+    },
+    {
+     "status": 200,
+     "finalPath": "/",
+     "lcp": 1384,
+     "cls": 0,
+     "tbt": 315,
+     "js": 488265,
+     "css": 71226,
+     "total": 676779,
+     "dom": 545
+    },
+    {
+     "status": 200,
+     "finalPath": "/",
+     "lcp": 1328,
+     "cls": 0,
+     "tbt": 508,
+     "js": 488265,
+     "css": 71226,
+     "total": 676779,
+     "dom": 546
+    },
+    {
+     "status": 200,
+     "finalPath": "/",
+     "lcp": 1304,
+     "cls": 0,
+     "tbt": 338,
+     "js": 488265,
+     "css": 71226,
+     "total": 676779,
+     "dom": 545
+    },
+    {
+     "status": 200,
+     "finalPath": "/",
+     "lcp": 1396,
+     "cls": 0,
+     "tbt": 338,
+     "js": 488265,
+     "css": 71226,
+     "total": 676779,
+     "dom": 545
+    },
+    {
+     "status": 200,
+     "finalPath": "/",
+     "lcp": 1340,
+     "cls": 0,
+     "tbt": 530,
+     "js": 488265,
+     "css": 71226,
+     "total": 676779,
+     "dom": 545
+    },
+    {
+     "status": 200,
+     "finalPath": "/",
+     "lcp": 1380,
+     "cls": 0,
+     "tbt": 330,
+     "js": 488265,
+     "css": 71226,
+     "total": 676779,
+     "dom": 545
+    },
+    {
+     "status": 200,
+     "finalPath": "/",
+     "lcp": 1392,
+     "cls": 0,
+     "tbt": 328,
+     "js": 488265,
+     "css": 71226,
+     "total": 676779,
+     "dom": 546
+    }
+   ]
+  },
+  {
+   "name": "giris",
+   "path": "/giris",
+   "why": "Giriş akışının ilk ekranı",
+   "status": 200,
+   "median": {
+    "lcp": 1300,
+    "cls": 0,
+    "tbt": 265,
+    "js": 456175,
+    "css": 71311,
+    "total": 626965,
+    "dom": 141
+   },
+   "runs": [
+    {
+     "status": 200,
+     "finalPath": "/giris",
+     "lcp": 1300,
+     "cls": 0,
+     "tbt": 287,
+     "js": 456175,
+     "css": 71311,
+     "total": 626965,
+     "dom": 142
+    },
+    {
+     "status": 200,
+     "finalPath": "/giris",
+     "lcp": 1388,
+     "cls": 0,
+     "tbt": 326,
+     "js": 456175,
+     "css": 71311,
+     "total": 626965,
+     "dom": 141
+    },
+    {
+     "status": 200,
+     "finalPath": "/giris",
+     "lcp": 1300,
+     "cls": 0,
+     "tbt": 265,
+     "js": 456175,
+     "css": 71311,
+     "total": 626965,
+     "dom": 142
+    },
+    {
+     "status": 200,
+     "finalPath": "/giris",
+     "lcp": 1292,
+     "cls": 0,
+     "tbt": 253,
+     "js": 456175,
+     "css": 71311,
+     "total": 626965,
+     "dom": 141
+    },
+    {
+     "status": 200,
+     "finalPath": "/giris",
+     "lcp": 1316,
+     "cls": 0,
+     "tbt": 268,
+     "js": 456175,
+     "css": 71311,
+     "total": 626965,
+     "dom": 141
+    },
+    {
+     "status": 200,
+     "finalPath": "/giris",
+     "lcp": 1272,
+     "cls": 0,
+     "tbt": 250,
+     "js": 456175,
+     "css": 71311,
+     "total": 626965,
+     "dom": 141
+    },
+    {
+     "status": 200,
+     "finalPath": "/giris",
+     "lcp": 1300,
+     "cls": 0,
+     "tbt": 258,
+     "js": 456175,
+     "css": 71311,
+     "total": 626965,
+     "dom": 141
+    },
+    {
+     "status": 200,
+     "finalPath": "/giris",
+     "lcp": 1372,
+     "cls": 0,
+     "tbt": 270,
+     "js": 456175,
+     "css": 71311,
+     "total": 626965,
+     "dom": 142
+    },
+    {
+     "status": 200,
+     "finalPath": "/giris",
+     "lcp": 1296,
+     "cls": 0,
+     "tbt": 257,
+     "js": 456175,
+     "css": 71311,
+     "total": 626965,
+     "dom": 142
+    }
+   ]
+  },
+  {
+   "name": "kayit",
+   "path": "/kayit",
+   "why": "Kayıt sihirbazı (dönüşüm yolu)",
+   "status": 200,
+   "median": {
+    "lcp": 1372,
+    "cls": 0.0188,
+    "tbt": 277,
+    "js": 438690,
+    "css": 71311,
+    "total": 572690,
+    "dom": 184
+   },
+   "runs": [
+    {
+     "status": 200,
+     "finalPath": "/kayit",
+     "lcp": 1392,
+     "cls": 0.0188,
+     "tbt": 284,
+     "js": 438690,
+     "css": 71311,
+     "total": 572690,
+     "dom": 184
+    },
+    {
+     "status": 200,
+     "finalPath": "/kayit",
+     "lcp": 1368,
+     "cls": 0.0188,
+     "tbt": 277,
+     "js": 438690,
+     "css": 71311,
+     "total": 572690,
+     "dom": 183
+    },
+    {
+     "status": 200,
+     "finalPath": "/kayit",
+     "lcp": 1372,
+     "cls": 0.0188,
+     "tbt": 261,
+     "js": 438690,
+     "css": 71311,
+     "total": 572690,
+     "dom": 183
+    },
+    {
+     "status": 200,
+     "finalPath": "/kayit",
+     "lcp": 1356,
+     "cls": 0.0188,
+     "tbt": 263,
+     "js": 438690,
+     "css": 71311,
+     "total": 572690,
+     "dom": 184
+    },
+    {
+     "status": 200,
+     "finalPath": "/kayit",
+     "lcp": 1400,
+     "cls": 0.0188,
+     "tbt": 279,
+     "js": 438690,
+     "css": 71311,
+     "total": 572690,
+     "dom": 184
+    },
+    {
+     "status": 200,
+     "finalPath": "/kayit",
+     "lcp": 1400,
+     "cls": 0.0188,
+     "tbt": 277,
+     "js": 438690,
+     "css": 71311,
+     "total": 572690,
+     "dom": 184
+    },
+    {
+     "status": 200,
+     "finalPath": "/kayit",
+     "lcp": 1364,
+     "cls": 0.0188,
+     "tbt": 270,
+     "js": 438690,
+     "css": 71311,
+     "total": 572690,
+     "dom": 184
+    },
+    {
+     "status": 200,
+     "finalPath": "/kayit",
+     "lcp": 1404,
+     "cls": 0.0188,
+     "tbt": 289,
+     "js": 438690,
+     "css": 71311,
+     "total": 572690,
+     "dom": 184
+    },
+    {
+     "status": 200,
+     "finalPath": "/kayit",
+     "lcp": 1360,
+     "cls": 0.0188,
+     "tbt": 261,
+     "js": 438690,
+     "css": 71311,
+     "total": 572690,
+     "dom": 184
+    }
+   ]
+  },
+  {
+   "name": "404",
+   "path": "/bu-sayfa-yok-e2e",
+   "why": "Bulunamadı sayfası (Faz 12'de değişecek)",
+   "status": 404,
+   "median": {
+    "lcp": 592,
+    "cls": 0,
+    "tbt": 216,
+    "js": 347488,
+    "css": 64472,
+    "total": 485462,
+    "dom": 102
+   },
+   "runs": [
+    {
+     "status": 404,
+     "finalPath": "/bu-sayfa-yok-e2e",
+     "lcp": 800,
+     "cls": 0,
+     "tbt": 216,
+     "js": 347488,
+     "css": 64472,
+     "total": 485462,
+     "dom": 102
+    },
+    {
+     "status": 404,
+     "finalPath": "/bu-sayfa-yok-e2e",
+     "lcp": 592,
+     "cls": 0,
+     "tbt": 218,
+     "js": 347488,
+     "css": 64472,
+     "total": 485462,
+     "dom": 102
+    },
+    {
+     "status": 404,
+     "finalPath": "/bu-sayfa-yok-e2e",
+     "lcp": 800,
+     "cls": 0,
+     "tbt": 214,
+     "js": 347488,
+     "css": 64472,
+     "total": 485462,
+     "dom": 101
+    },
+    {
+     "status": 404,
+     "finalPath": "/bu-sayfa-yok-e2e",
+     "lcp": 556,
+     "cls": 0,
+     "tbt": 225,
+     "js": 347488,
+     "css": 64472,
+     "total": 485462,
+     "dom": 101
+    },
+    {
+     "status": 404,
+     "finalPath": "/bu-sayfa-yok-e2e",
+     "lcp": 824,
+     "cls": 0,
+     "tbt": 238,
+     "js": 347488,
+     "css": 64472,
+     "total": 485462,
+     "dom": 102
+    },
+    {
+     "status": 404,
+     "finalPath": "/bu-sayfa-yok-e2e",
+     "lcp": 556,
+     "cls": 0,
+     "tbt": 209,
+     "js": 347488,
+     "css": 64472,
+     "total": 485462,
+     "dom": 101
+    },
+    {
+     "status": 404,
+     "finalPath": "/bu-sayfa-yok-e2e",
+     "lcp": 576,
+     "cls": 0,
+     "tbt": 227,
+     "js": 347488,
+     "css": 64472,
+     "total": 485462,
+     "dom": 102
+    },
+    {
+     "status": 404,
+     "finalPath": "/bu-sayfa-yok-e2e",
+     "lcp": 596,
+     "cls": 0,
+     "tbt": 198,
+     "js": 347488,
+     "css": 64472,
+     "total": 485462,
+     "dom": 102
+    },
+    {
+     "status": 404,
+     "finalPath": "/bu-sayfa-yok-e2e",
+     "lcp": 568,
+     "cls": 0,
+     "tbt": 213,
+     "js": 347488,
+     "css": 64472,
+     "total": 485462,
+     "dom": 102
+    }
+   ]
+  },
+  {
+   "name": "ogretmen",
+   "path": "/ogretmen",
+   "why": "Girişli ana ekran: kabuk, kapsül, sohbet",
+   "status": 200,
+   "median": {
+    "lcp": 1632,
+    "cls": 0,
+    "tbt": 466,
+    "js": 707810,
+    "css": 121950,
+    "total": 1238088,
+    "dom": 247
+   },
+   "runs": [
+    {
+     "status": 200,
+     "finalPath": "/ogretmen",
+     "lcp": 1628,
+     "cls": 0,
+     "tbt": 424,
+     "js": 707810,
+     "css": 121950,
+     "total": 1238089,
+     "dom": 247
+    },
+    {
+     "status": 200,
+     "finalPath": "/ogretmen",
+     "lcp": 1632,
+     "cls": 0,
+     "tbt": 522,
+     "js": 707810,
+     "css": 121950,
+     "total": 1238089,
+     "dom": 246
+    },
+    {
+     "status": 200,
+     "finalPath": "/ogretmen",
+     "lcp": 1664,
+     "cls": 0,
+     "tbt": 453,
+     "js": 707810,
+     "css": 121927,
+     "total": 1238066,
+     "dom": 245
+    },
+    {
+     "status": 200,
+     "finalPath": "/ogretmen",
+     "lcp": 1604,
+     "cls": 0,
+     "tbt": 468,
+     "js": 707810,
+     "css": 121950,
+     "total": 1238088,
+     "dom": 248
+    },
+    {
+     "status": 200,
+     "finalPath": "/ogretmen",
+     "lcp": 1652,
+     "cls": 0,
+     "tbt": 469,
+     "js": 707810,
+     "css": 121950,
+     "total": 1238089,
+     "dom": 247
+    },
+    {
+     "status": 200,
+     "finalPath": "/ogretmen",
+     "lcp": 1876,
+     "cls": 0,
+     "tbt": 464,
+     "js": 707810,
+     "css": 121927,
+     "total": 1236600,
+     "dom": 247
+    },
+    {
+     "status": 200,
+     "finalPath": "/ogretmen",
+     "lcp": 1616,
+     "cls": 0,
+     "tbt": 473,
+     "js": 707810,
+     "css": 121950,
+     "total": 1238087,
+     "dom": 246
+    },
+    {
+     "status": 200,
+     "finalPath": "/ogretmen",
+     "lcp": 1632,
+     "cls": 0,
+     "tbt": 466,
+     "js": 707810,
+     "css": 121950,
+     "total": 1238087,
+     "dom": 247
+    },
+    {
+     "status": 200,
+     "finalPath": "/ogretmen",
+     "lcp": 1632,
+     "cls": 0,
+     "tbt": 447,
+     "js": 707810,
+     "css": 121950,
+     "total": 1238088,
+     "dom": 247
+    }
+   ]
+  },
+  {
+   "name": "hazirlik",
+   "path": "/deneme-sinavlari/:id",
+   "why": "Hazırlık sayfası: çalışma yolu",
+   "status": 200,
+   "median": {
+    "lcp": 2120,
+    "cls": 0.0629,
+    "tbt": 459,
+    "js": 846085,
+    "css": 132499,
+    "total": 1388194,
+    "dom": 335
+   },
+   "runs": [
+    {
+     "status": 200,
+     "finalPath": "/deneme-sinavlari/711fc63b-c86d-48c6-80b6-2aaabcc2316c",
+     "lcp": 2100,
+     "cls": 0.0629,
+     "tbt": 501,
+     "js": 846085,
+     "css": 132499,
+     "total": 1388194,
+     "dom": 336
+    },
+    {
+     "status": 200,
+     "finalPath": "/deneme-sinavlari/711fc63b-c86d-48c6-80b6-2aaabcc2316c",
+     "lcp": 2024,
+     "cls": 0.0629,
+     "tbt": 437,
+     "js": 846085,
+     "css": 132499,
+     "total": 1388194,
+     "dom": 334
+    },
+    {
+     "status": 200,
+     "finalPath": "/deneme-sinavlari/711fc63b-c86d-48c6-80b6-2aaabcc2316c",
+     "lcp": 2100,
+     "cls": 0.0629,
+     "tbt": 511,
+     "js": 846085,
+     "css": 132499,
+     "total": 1388194,
+     "dom": 336
+    },
+    {
+     "status": 200,
+     "finalPath": "/deneme-sinavlari/711fc63b-c86d-48c6-80b6-2aaabcc2316c",
+     "lcp": 2120,
+     "cls": 0.0629,
+     "tbt": 452,
+     "js": 846085,
+     "css": 132476,
+     "total": 1392194,
+     "dom": 336
+    },
+    {
+     "status": 200,
+     "finalPath": "/deneme-sinavlari/711fc63b-c86d-48c6-80b6-2aaabcc2316c",
+     "lcp": 3440,
+     "cls": 0.0629,
+     "tbt": 470,
+     "js": 846085,
+     "css": 132499,
+     "total": 1393666,
+     "dom": 335
+    },
+    {
+     "status": 200,
+     "finalPath": "/deneme-sinavlari/711fc63b-c86d-48c6-80b6-2aaabcc2316c",
+     "lcp": 2244,
+     "cls": 0.0629,
+     "tbt": 456,
+     "js": 846085,
+     "css": 132499,
+     "total": 1392165,
+     "dom": 335
+    },
+    {
+     "status": 200,
+     "finalPath": "/deneme-sinavlari/711fc63b-c86d-48c6-80b6-2aaabcc2316c",
+     "lcp": 3920,
+     "cls": 0.0629,
+     "tbt": 459,
+     "js": 846085,
+     "css": 132499,
+     "total": 1388194,
+     "dom": 335
+    },
+    {
+     "status": 200,
+     "finalPath": "/deneme-sinavlari/711fc63b-c86d-48c6-80b6-2aaabcc2316c",
+     "lcp": 2128,
+     "cls": 0.0629,
+     "tbt": 449,
+     "js": 846085,
+     "css": 132499,
+     "total": 1393667,
+     "dom": 335
+    },
+    {
+     "status": 200,
+     "finalPath": "/deneme-sinavlari/711fc63b-c86d-48c6-80b6-2aaabcc2316c",
+     "lcp": 2116,
+     "cls": 0.0629,
+     "tbt": 488,
+     "js": 846085,
+     "css": 132499,
+     "total": 1388194,
+     "dom": 337
+    }
+   ]
+  },
+  {
+   "name": "ders",
+   "path": "/deneme-sinavlari/:id/dugum/:id",
+   "why": "Ders ekranı (açılış kartı)",
+   "status": 200,
+   "median": {
+    "lcp": 1656,
+    "cls": 0.0002,
+    "tbt": 529,
+    "js": 846085,
+    "css": 140166,
+    "total": 1044522,
+    "dom": 129
+   },
+   "runs": [
+    {
+     "status": 200,
+     "finalPath": "/deneme-sinavlari/711fc63b-c86d-48c6-80b6-2aaabcc2316c/dugum/25629368-6dd6-4845-bd28-09db698dfdc7",
+     "lcp": 1776,
+     "cls": 0.0002,
+     "tbt": 498,
+     "js": 846085,
+     "css": 140166,
+     "total": 1044522,
+     "dom": 128
+    },
+    {
+     "status": 200,
+     "finalPath": "/deneme-sinavlari/711fc63b-c86d-48c6-80b6-2aaabcc2316c/dugum/25629368-6dd6-4845-bd28-09db698dfdc7",
+     "lcp": 1580,
+     "cls": 0.0002,
+     "tbt": 513,
+     "js": 846085,
+     "css": 140166,
+     "total": 1044522,
+     "dom": 128
+    },
+    {
+     "status": 200,
+     "finalPath": "/deneme-sinavlari/711fc63b-c86d-48c6-80b6-2aaabcc2316c/dugum/25629368-6dd6-4845-bd28-09db698dfdc7",
+     "lcp": 1656,
+     "cls": 0.0002,
+     "tbt": 548,
+     "js": 846085,
+     "css": 140166,
+     "total": 1044522,
+     "dom": 129
+    },
+    {
+     "status": 200,
+     "finalPath": "/deneme-sinavlari/711fc63b-c86d-48c6-80b6-2aaabcc2316c/dugum/25629368-6dd6-4845-bd28-09db698dfdc7",
+     "lcp": 2028,
+     "cls": 0.0002,
+     "tbt": 522,
+     "js": 846085,
+     "css": 140166,
+     "total": 1044522,
+     "dom": 143
+    },
+    {
+     "status": 200,
+     "finalPath": "/deneme-sinavlari/711fc63b-c86d-48c6-80b6-2aaabcc2316c/dugum/25629368-6dd6-4845-bd28-09db698dfdc7",
+     "lcp": 1632,
+     "cls": 0.0002,
+     "tbt": 529,
+     "js": 846085,
+     "css": 140166,
+     "total": 1044522,
+     "dom": 129
+    },
+    {
+     "status": 200,
+     "finalPath": "/deneme-sinavlari/711fc63b-c86d-48c6-80b6-2aaabcc2316c/dugum/25629368-6dd6-4845-bd28-09db698dfdc7",
+     "lcp": 1600,
+     "cls": 0.0002,
+     "tbt": 538,
+     "js": 846085,
+     "css": 140166,
+     "total": 1044522,
+     "dom": 127
+    },
+    {
+     "status": 200,
+     "finalPath": "/deneme-sinavlari/711fc63b-c86d-48c6-80b6-2aaabcc2316c/dugum/25629368-6dd6-4845-bd28-09db698dfdc7",
+     "lcp": 1652,
+     "cls": 0.0002,
+     "tbt": 502,
+     "js": 846085,
+     "css": 140166,
+     "total": 1044522,
+     "dom": 128
+    },
+    {
+     "status": 200,
+     "finalPath": "/deneme-sinavlari/711fc63b-c86d-48c6-80b6-2aaabcc2316c/dugum/25629368-6dd6-4845-bd28-09db698dfdc7",
+     "lcp": 1672,
+     "cls": 0.0002,
+     "tbt": 586,
+     "js": 846085,
+     "css": 140166,
+     "total": 1044522,
+     "dom": 130
+    },
+    {
+     "status": 200,
+     "finalPath": "/deneme-sinavlari/711fc63b-c86d-48c6-80b6-2aaabcc2316c/dugum/25629368-6dd6-4845-bd28-09db698dfdc7",
+     "lcp": 1860,
+     "cls": 0.0002,
+     "tbt": 545,
+     "js": 846085,
+     "css": 140166,
+     "total": 1044523,
+     "dom": 143
+    }
+   ]
+  },
+  {
+   "name": "konu-testi",
+   "path": "/deneme-sinavlari/:id/dugum/:id",
+   "why": "Konu testi düğümü",
+   "status": 200,
+   "median": {
+    "lcp": 1676,
+    "cls": 0.0002,
+    "tbt": 506,
+    "js": 846085,
+    "css": 140166,
+    "total": 1043204,
+    "dom": 129
+   },
+   "runs": [
+    {
+     "status": 200,
+     "finalPath": "/deneme-sinavlari/711fc63b-c86d-48c6-80b6-2aaabcc2316c/dugum/ad66a1b4-0c58-478d-9dec-6cbc25588784",
+     "lcp": 1568,
+     "cls": 0.0002,
+     "tbt": 516,
+     "js": 846085,
+     "css": 140166,
+     "total": 1043203,
+     "dom": 127
+    },
+    {
+     "status": 200,
+     "finalPath": "/deneme-sinavlari/711fc63b-c86d-48c6-80b6-2aaabcc2316c/dugum/ad66a1b4-0c58-478d-9dec-6cbc25588784",
+     "lcp": 1576,
+     "cls": 0.0002,
+     "tbt": 502,
+     "js": 846085,
+     "css": 140166,
+     "total": 1043204,
+     "dom": 128
+    },
+    {
+     "status": 200,
+     "finalPath": "/deneme-sinavlari/711fc63b-c86d-48c6-80b6-2aaabcc2316c/dugum/ad66a1b4-0c58-478d-9dec-6cbc25588784",
+     "lcp": 1688,
+     "cls": 0.0002,
+     "tbt": 506,
+     "js": 846085,
+     "css": 140166,
+     "total": 1043204,
+     "dom": 127
+    },
+    {
+     "status": 200,
+     "finalPath": "/deneme-sinavlari/711fc63b-c86d-48c6-80b6-2aaabcc2316c/dugum/ad66a1b4-0c58-478d-9dec-6cbc25588784",
+     "lcp": 1900,
+     "cls": 0.0002,
+     "tbt": 500,
+     "js": 846085,
+     "css": 140166,
+     "total": 1043203,
+     "dom": 144
+    },
+    {
+     "status": 200,
+     "finalPath": "/deneme-sinavlari/711fc63b-c86d-48c6-80b6-2aaabcc2316c/dugum/ad66a1b4-0c58-478d-9dec-6cbc25588784",
+     "lcp": 2032,
+     "cls": 0.0002,
+     "tbt": 470,
+     "js": 846085,
+     "css": 140166,
+     "total": 1043204,
+     "dom": 143
+    },
+    {
+     "status": 200,
+     "finalPath": "/deneme-sinavlari/711fc63b-c86d-48c6-80b6-2aaabcc2316c/dugum/ad66a1b4-0c58-478d-9dec-6cbc25588784",
+     "lcp": 1584,
+     "cls": 0.0002,
+     "tbt": 552,
+     "js": 846085,
+     "css": 140166,
+     "total": 1043204,
+     "dom": 129
+    },
+    {
+     "status": 200,
+     "finalPath": "/deneme-sinavlari/711fc63b-c86d-48c6-80b6-2aaabcc2316c/dugum/ad66a1b4-0c58-478d-9dec-6cbc25588784",
+     "lcp": 1676,
+     "cls": 0.0002,
+     "tbt": 536,
+     "js": 846085,
+     "css": 140166,
+     "total": 1043204,
+     "dom": 127
+    },
+    {
+     "status": 200,
+     "finalPath": "/deneme-sinavlari/711fc63b-c86d-48c6-80b6-2aaabcc2316c/dugum/ad66a1b4-0c58-478d-9dec-6cbc25588784",
+     "lcp": 1600,
+     "cls": 0.0002,
+     "tbt": 583,
+     "js": 846085,
+     "css": 140166,
+     "total": 1043204,
+     "dom": 130
+    },
+    {
+     "status": 200,
+     "finalPath": "/deneme-sinavlari/711fc63b-c86d-48c6-80b6-2aaabcc2316c/dugum/ad66a1b4-0c58-478d-9dec-6cbc25588784",
+     "lcp": 7596,
+     "cls": 0.0002,
+     "tbt": 482,
+     "js": 846085,
+     "css": 140166,
+     "total": 1043204,
+     "dom": 143
+    }
+   ]
+  },
+  {
+   "name": "kutuphane",
+   "path": "/dokumanlar",
+   "why": "Kütüphane bir panel; ilk sayfası Belgelerim",
+   "status": 200,
+   "median": {
+    "lcp": 1696,
+    "cls": 0,
+    "tbt": 287,
+    "js": 438828,
+    "css": 91150,
+    "total": 914120,
+    "dom": 210
+   },
+   "runs": [
+    {
+     "status": 200,
+     "finalPath": "/dokumanlar",
+     "lcp": 4864,
+     "cls": 0,
+     "tbt": 297,
+     "js": 438828,
+     "css": 91150,
+     "total": 914120,
+     "dom": 210
+    },
+    {
+     "status": 200,
+     "finalPath": "/dokumanlar",
+     "lcp": 1928,
+     "cls": 0,
+     "tbt": 287,
+     "js": 438828,
+     "css": 91150,
+     "total": 912620,
+     "dom": 210
+    },
+    {
+     "status": 200,
+     "finalPath": "/dokumanlar",
+     "lcp": 1696,
+     "cls": 0,
+     "tbt": 287,
+     "js": 438828,
+     "css": 91150,
+     "total": 912620,
+     "dom": 211
+    },
+    {
+     "status": 200,
+     "finalPath": "/dokumanlar",
+     "lcp": 1644,
+     "cls": 0,
+     "tbt": 267,
+     "js": 438828,
+     "css": 91150,
+     "total": 914120,
+     "dom": 210
+    },
+    {
+     "status": 200,
+     "finalPath": "/dokumanlar",
+     "lcp": 1640,
+     "cls": 0,
+     "tbt": 291,
+     "js": 438828,
+     "css": 91150,
+     "total": 914120,
+     "dom": 209
+    },
+    {
+     "status": 200,
+     "finalPath": "/dokumanlar",
+     "lcp": 1588,
+     "cls": 0,
+     "tbt": 276,
+     "js": 438828,
+     "css": 91150,
+     "total": 914120,
+     "dom": 210
+    },
+    {
+     "status": 200,
+     "finalPath": "/dokumanlar",
+     "lcp": 1704,
+     "cls": 0,
+     "tbt": 278,
+     "js": 438828,
+     "css": 91150,
+     "total": 914120,
+     "dom": 211
+    },
+    {
+     "status": 200,
+     "finalPath": "/dokumanlar",
+     "lcp": 1716,
+     "cls": 0,
+     "tbt": 272,
+     "js": 438828,
+     "css": 91150,
+     "total": 914120,
+     "dom": 210
+    },
+    {
+     "status": 200,
+     "finalPath": "/dokumanlar",
+     "lcp": 1540,
+     "cls": 0,
+     "tbt": 302,
+     "js": 438828,
+     "css": 91150,
+     "total": 912655,
+     "dom": 211
+    }
+   ]
+  },
+  {
+   "name": "araclar",
+   "path": "/araclar",
+   "why": "Çalışma Stüdyosu (kart ızgarası)",
+   "status": 200,
+   "median": {
+    "lcp": 1560,
+    "cls": 0,
+    "tbt": 253,
+    "js": 460787,
+    "css": 94201,
+    "total": 1128749,
+    "dom": 441
+   },
+   "runs": [
+    {
+     "status": 200,
+     "finalPath": "/araclar",
+     "lcp": 1560,
+     "cls": 0,
+     "tbt": 232,
+     "js": 460787,
+     "css": 94201,
+     "total": 1128749,
+     "dom": 441
+    },
+    {
+     "status": 200,
+     "finalPath": "/araclar",
+     "lcp": 1548,
+     "cls": 0,
+     "tbt": 256,
+     "js": 460787,
+     "css": 94201,
+     "total": 1128749,
+     "dom": 441
+    },
+    {
+     "status": 200,
+     "finalPath": "/araclar",
+     "lcp": 1580,
+     "cls": 0,
+     "tbt": 290,
+     "js": 460787,
+     "css": 94201,
+     "total": 1128749,
+     "dom": 443
+    },
+    {
+     "status": 200,
+     "finalPath": "/araclar",
+     "lcp": 1720,
+     "cls": 0,
+     "tbt": 309,
+     "js": 460787,
+     "css": 94310,
+     "total": 1128858,
+     "dom": 444
+    },
+    {
+     "status": 200,
+     "finalPath": "/araclar",
+     "lcp": 1672,
+     "cls": 0,
+     "tbt": 231,
+     "js": 460787,
+     "css": 94201,
+     "total": 1128749,
+     "dom": 441
+    },
+    {
+     "status": 200,
+     "finalPath": "/araclar",
+     "lcp": 1548,
+     "cls": 0,
+     "tbt": 249,
+     "js": 460787,
+     "css": 94201,
+     "total": 1128749,
+     "dom": 440
+    },
+    {
+     "status": 200,
+     "finalPath": "/araclar",
+     "lcp": 1508,
+     "cls": 0,
+     "tbt": 259,
+     "js": 460787,
+     "css": 94201,
+     "total": 1128749,
+     "dom": 440
+    },
+    {
+     "status": 200,
+     "finalPath": "/araclar",
+     "lcp": 1544,
+     "cls": 0,
+     "tbt": 253,
+     "js": 460787,
+     "css": 94201,
+     "total": 1128749,
+     "dom": 441
+    },
+    {
+     "status": 200,
+     "finalPath": "/araclar",
+     "lcp": 1568,
+     "cls": 0,
+     "tbt": 249,
+     "js": 460787,
+     "css": 94201,
+     "total": 1128749,
+     "dom": 441
+    }
+   ]
+  },
+  {
+   "name": "pay",
+   "path": "/pay",
+   "why": "Abonelik ve fiyat (satın alma yolu)",
+   "status": 200,
+   "median": {
+    "lcp": 1552,
+    "cls": 0,
+    "tbt": 394,
+    "js": 474891,
+    "css": 101432,
+    "total": 678976,
+    "dom": 182
+   },
+   "runs": [
+    {
+     "status": 200,
+     "finalPath": "/pay",
+     "lcp": 1532,
+     "cls": 0,
+     "tbt": 380,
+     "js": 474891,
+     "css": 101432,
+     "total": 678976,
+     "dom": 182
+    },
+    {
+     "status": 200,
+     "finalPath": "/pay",
+     "lcp": 1576,
+     "cls": 0,
+     "tbt": 402,
+     "js": 474891,
+     "css": 101432,
+     "total": 678976,
+     "dom": 182
+    },
+    {
+     "status": 200,
+     "finalPath": "/pay",
+     "lcp": 1552,
+     "cls": 0,
+     "tbt": 420,
+     "js": 474891,
+     "css": 101432,
+     "total": 678976,
+     "dom": 183
+    },
+    {
+     "status": 200,
+     "finalPath": "/pay",
+     "lcp": 1492,
+     "cls": 0,
+     "tbt": 377,
+     "js": 474891,
+     "css": 101432,
+     "total": 678976,
+     "dom": 180
+    },
+    {
+     "status": 200,
+     "finalPath": "/pay",
+     "lcp": 1508,
+     "cls": 0,
+     "tbt": 379,
+     "js": 474891,
+     "css": 101432,
+     "total": 678976,
+     "dom": 181
+    },
+    {
+     "status": 200,
+     "finalPath": "/pay",
+     "lcp": 1540,
+     "cls": 0,
+     "tbt": 390,
+     "js": 474891,
+     "css": 101432,
+     "total": 678976,
+     "dom": 182
+    },
+    {
+     "status": 200,
+     "finalPath": "/pay",
+     "lcp": 2948,
+     "cls": 0.0001,
+     "tbt": 423,
+     "js": 474891,
+     "css": 101455,
+     "total": 678999,
+     "dom": 195
+    },
+    {
+     "status": 200,
+     "finalPath": "/pay",
+     "lcp": 1820,
+     "cls": 0,
+     "tbt": 394,
+     "js": 474891,
+     "css": 101432,
+     "total": 678976,
+     "dom": 182
+    },
+    {
+     "status": 200,
+     "finalPath": "/pay",
+     "lcp": 1600,
+     "cls": 0,
+     "tbt": 413,
+     "js": 474891,
+     "css": 101432,
+     "total": 678976,
+     "dom": 181
+    }
+   ]
+  }
+ ]
+}

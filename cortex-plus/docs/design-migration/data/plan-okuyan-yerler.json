@@ -1,0 +1,199 @@
+{
+ "summary": {
+  "rows": 3156,
+  "files": 651,
+  "byKind": {
+   "yorum": 333,
+   "limit": 899,
+   "sorgu/hız sınırı (plan değil)": 527,
+   "mantık": 617,
+   "görünüm": 445,
+   "ilgisiz (günlük hedef, e-posta)": 41,
+   "API zorlaması": 263,
+   "yönlendirme": 31
+  },
+  "byPlan": {
+   "Plus/ücretli": 1045,
+   "belirsiz": 1608,
+   "Sigma+Sınav Haftası+Plus/ücretli": 6,
+   "Plus/ücretli+Ücretsiz": 167,
+   "Ücretsiz": 150,
+   "Sigma+Plus/ücretli": 40,
+   "Sigma": 10,
+   "Sigma+Plus/ücretli+Ücretsiz": 18,
+   "Kurucu": 41,
+   "Kurucu+Sigma+Plus/ücretli": 16,
+   "Sınav Haftası": 13,
+   "Kurucu+Plus/ücretli+Ücretsiz": 7,
+   "Kurucu+Plus/ücretli": 12,
+   "Sınav Haftası+Plus/ücretli": 14,
+   "Sınav Haftası+Plus/ücretli+Ücretsiz": 2,
+   "Sigma+Sınav Haftası": 1,
+   "Kurucu+Ücretsiz": 4,
+   "Kurucu+Sigma+Plus/ücretli+Ücretsiz": 1,
+   "Kurucu+Sigma+Sınav Haftası+Plus/ücretli+Ücretsiz": 1
+  },
+  "topFiles": [
+   [
+    "src/lib/payments/refund.ts",
+    82
+   ],
+   [
+    "src/app/krediler/page.tsx",
+    65
+   ],
+   [
+    "src/lib/billing/entitlements.ts",
+    57
+   ],
+   [
+    "src/components/parity/subscription-cards.tsx",
+    54
+   ],
+   [
+    "src/lib/billing/tier-presentation.ts",
+    53
+   ],
+   [
+    "src/components/marketing/plus-month.tsx",
+    37
+   ],
+   [
+    "src/components/parity/exam-create-wizard.tsx",
+    35
+   ],
+   [
+    "src/lib/student/account-context.ts",
+    35
+   ],
+   [
+    "src/lib/api/guards.ts",
+    34
+   ],
+   [
+    "src/components/chat/chat-panel.tsx",
+    32
+   ],
+   [
+    "src/lib/adaptive/daily-planner.ts",
+    32
+   ],
+   [
+    "src/lib/documents/pdf-ingestion.ts",
+    30
+   ],
+   [
+    "src/lib/credits/period.ts",
+    29
+   ],
+   [
+    "src/app/admin/kullanicilar/[userId]/page.tsx",
+    26
+   ],
+   [
+    "src/lib/curriculum/topic-map.ts",
+    26
+   ],
+   [
+    "src/lib/billing/free-meters.ts",
+    25
+   ],
+   [
+    "src/lib/email/lifecycle-templates.ts",
+    25
+   ],
+   [
+    "src/components/landing/futuristic-guided-journey.tsx",
+    24
+   ],
+   [
+    "src/lib/admin/user-manage.ts",
+    24
+   ],
+   [
+    "src/app/admin/kullanicilar/page.tsx",
+    22
+   ],
+   [
+    "src/app/api/documents/process/route.ts",
+    22
+   ],
+   [
+    "src/lib/admin/schema-probe.ts",
+    22
+   ],
+   [
+    "src/lib/learning/exam-schedule-v2.ts",
+    22
+   ],
+   [
+    "src/lib/teacher/entitlements.ts",
+    22
+   ],
+   [
+    "src/app/api/cron/subscription-renewal/route.ts",
+    19
+   ],
+   [
+    "src/app/api/documents/preflight/route.ts",
+    19
+   ],
+   [
+    "src/app/api/payments/subscription/route.ts",
+    19
+   ],
+   [
+    "src/components/admin/promo-tools.tsx",
+    18
+   ],
+   [
+    "src/lib/payments/subscription.ts",
+    18
+   ],
+   [
+    "src/lib/adaptive/session-engine.ts",
+    17
+   ],
+   [
+    "src/lib/learning/node/start.ts",
+    17
+   ],
+   [
+    "src/lib/rag/pipeline.ts",
+    17
+   ],
+   [
+    "src/lib/learning/prep-material-copy.ts",
+    16
+   ],
+   [
+    "src/app/deneme-sinavlari/[prepId]/page.tsx",
+    15
+   ],
+   [
+    "src/components/parity/exam-node/use-node-lifecycle.ts",
+    15
+   ],
+   [
+    "src/components/parity/profile-dialog.tsx",
+    15
+   ],
+   [
+    "src/components/parity/sor-shell.tsx",
+    15
+   ],
+   [
+    "src/lib/admin/daily-digest.ts",
+    15
+   ],
+   [
+    "src/lib/admin/user-manage-copy.ts",
+    15
+   ],
+   [
+    "src/lib/ai/generation-slots.ts",
+    15
+   ]
+  ]
+ }
+}

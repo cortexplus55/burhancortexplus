@@ -7,6 +7,23 @@ import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button-variants";
 
 
+/**
+ * Tasarım sistemi rolü (Faz 0, 14 Kasım 2026): yalnız `data-variant` niteliğine yazılır, görünümü değiştirmez.
+ * Denetim betiği (`scripts/design-audit.mjs`) ekranda birden çok `brand` olup olmadığını bununla sayar.
+ */
+const BUTTON_ROLE: Record<string, "brand" | "glass" | "weak" | "inverse" | "link" | "danger"> = {
+  primary: "brand",
+  default: "brand",
+  brand: "brand",
+  secondary: "glass",
+  outline: "glass",
+  ghost: "weak",
+  link: "link",
+  danger: "danger",
+  destructive: "danger",
+  "danger-ghost": "danger",
+};
+
 type ButtonProps = ButtonPrimitive.Props &
   VariantProps<typeof buttonVariants> & {
     loading?: boolean;
@@ -29,6 +46,7 @@ function Button({
   return (
     <ButtonPrimitive
       data-slot="button"
+      data-variant={BUTTON_ROLE[variant ?? "primary"] ?? "brand"}
       className={cn(buttonVariants({ variant, size, block, className }))}
       disabled={disabled || busy}
       aria-busy={busy || undefined}
