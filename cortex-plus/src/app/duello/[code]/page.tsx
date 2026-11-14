@@ -7,6 +7,9 @@ import { isBotLevel } from "@/lib/learning/duel-bot";
 import { duelSignupHref } from "@/lib/learning/duel-share";
 import { appOrigin } from "@/lib/app-url";
 import "@/styles/duel.css";
+import "@/styles/ui-v2-duello.css";
+import { uiV2 } from "@/lib/ui-v2/flags";
+import { UiScope } from "@/lib/ui-v2/scope";
 
 export const metadata = {
   title: "Düello",
@@ -53,18 +56,22 @@ export default async function DuelPage({
   ]);
 
   let signedIn = false;
+  let userId: string | null = null;
   try {
     const supabase = await createClient();
     const { data } = await supabase.auth.getUser();
     signedIn = Boolean(data.user);
+    userId = data.user?.id ?? null;
   } catch {
     signedIn = false;
   }
+  const duelloV2 = await uiV2("duello", userId);
 
   const creatorName = String(creator?.full_name ?? "").trim().split(/\s+/)[0] || "Bir arkadaşın";
   const questions = (Array.isArray(duel.questions) ? duel.questions : []) as DuelQuestion[];
 
   return (
+    <UiScope keys={duelloV2 ? ["duello"] : []}>
     <main className="cp-duel-page">
       <header className="cp-duel-top">
         <Link href="/" className="cp-duel-logo">
@@ -86,7 +93,9 @@ export default async function DuelPage({
         initialBot={initialBot}
         shareUrl={`${appOrigin()}/duello/${code}`}
         signupHref={duelSignupHref((creator as { referral_code?: string | null } | null)?.referral_code)}
+        neutralBot={duelloV2}
       />
     </main>
+    </UiScope>
   );
 }

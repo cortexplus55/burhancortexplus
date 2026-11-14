@@ -80,6 +80,7 @@ export function DuelPlay({
   countdownSeconds = DUEL_COUNTDOWN_SECONDS,
   signupHref = "/kayit",
   shareUrl: shareUrlProp,
+  neutralBot = false,
 }: {
   code: string;
   title: string;
@@ -96,6 +97,11 @@ export function DuelPlay({
   signupHref?: string;
   /** Düellonun tam adresi (paylaşım ve kopyalama). */
   shareUrl?: string;
+  /**
+   * Faz 9 (`ui.v2.duello`): rakip bilgi sızdırmaz. Botun bu sorudaki doğru / yanlışı ve puanı öğrenci cevaplayana kadar
+   * gösterilmez ("cevapladı" nötr işareti); bot "BOT" etiketli. Kapalıyken bugünkü canlı akış.
+   */
+  neutralBot?: boolean;
 }) {
   const [stage, setStage] = useState<"intro" | "countdown" | "play" | "sending" | "result">("intro");
   /** Oyun öncesi 3-2-1 (30 Ekim 2026, canlı tur): sorular gelince 1. sorunun süresi hemen başlıyor, öğrenci kaçırıyordu. */
@@ -268,8 +274,10 @@ export function DuelPlay({
     const question = questions[Math.min(index, questions.length - 1)];
     const left = Math.max(0, Math.ceil((limitMs - elapsed) / 1000));
     const isLast = index === questions.length - 1;
-    const botScore = bot ? botScoreUntil(bot.steps, index, elapsed) : 0;
-    const botCombo = bot ? botComboUntil(bot.steps, index, elapsed) : 0;
+    // Nötr kipte bu soru (öğrenci henüz cevaplamadı) sayılmaz: yalnız biten sorular.
+    const botVisibleMs = neutralBot ? -1 : elapsed;
+    const botScore = bot ? botScoreUntil(bot.steps, index, botVisibleMs) : 0;
+    const botCombo = bot ? botComboUntil(bot.steps, index, botVisibleMs) : 0;
     const botStep = bot?.steps[index];
     const botDone = Boolean(botStep && botStep.ms <= elapsed);
     return (
@@ -278,6 +286,7 @@ export function DuelPlay({
           <div className="cp-duel-bot" data-bot-level={bot.level}>
             <span className="cp-duel-bot-name">
               <Bot className="h-4 w-4" aria-hidden /> {bot.name}
+              {neutralBot ? <span className="cp-duel-bot-tag">BOT</span> : null}
             </span>
             <span className="cp-duel-bot-score" aria-label={`${bot.name} puanı ${botScore}`}>
               {botScore} puan
@@ -285,13 +294,24 @@ export function DuelPlay({
             {botCombo >= 2 ? <span className="cp-duel-bot-combo">🔥 x{botCombo}</span> : null}
             <ol className="cp-duel-bot-track" aria-label="Botun ilerleyişi">
               {bot.steps.map((step, i) => {
-                const state = i < index || (i === index && botDone) ? (step.correct ? "right" : "wrong") : i === index ? "live" : "wait";
+                const state =
+                  i < index || (i === index && botDone && !neutralBot)
+                    ? step.correct
+                      ? "right"
+                      : "wrong"
+                    : i === index
+                      ? botDone
+                        ? "done"
+                        : "live"
+                      : "wait";
                 return <li key={i} className={`is-${state}`} aria-hidden />;
               })}
             </ol>
             <span className="cp-duel-bot-status">
               {botDone && botStep
-                ? `${botStep.correct ? "✓ bildi" : "✗ yanıldı"} · ${(botStep.ms / 1000).toFixed(1)} sn`
+                ? neutralBot
+                  ? "cevapladı"
+                  : `${botStep.correct ? "✓ bildi" : "✗ yanıldı"} · ${(botStep.ms / 1000).toFixed(1)} sn`
                 : "düşünüyor…"}
             </span>
           </div>
