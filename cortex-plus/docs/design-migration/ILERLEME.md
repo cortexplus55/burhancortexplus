@@ -24,13 +24,13 @@ teklif yok; sayaç "önce artır, hata olursa iade" kabul; sohbette 402 sonrası
 | 6A · Sohbet kabuğu | `design/ogretmen-sohbet` | **birleşti** (fe33cc21) | #653 | `ui.v2.ogretmen` | Gerçek cihazda klavye | `ChatPanel followUser` bayrağa bağlı |
 | 6B · Fotoğraf hak kapısı | `design/ogretmen-foto` | **birleşti** (b9e26948), production duman 11/11 | #654 | `ui.v2.ogretmen` | Gerçek cihazda fotoğraf | |
 | 7A+7B+7C · Giriş + kayıt, kurulum, /pay (tek PR) | `design/faz7` | **birleşti** (08df6fdc), production duman 11/11 | #655 | `ui.v2.giris`, `ui.v2.kurulum`, `ui.v2.pay` | Önizlemede gerçek ödeme denemesi (rapor §10) | `?plan=` kartı açıp işaretliyor (bayraktan bağımsız) |
-| 8A+8B+8C · Stüdyo (tek PR) | `design/faz8` | **birleşti** (8c1bf91d) | #656 | `ui.v2.studyo` | — | /araclar Plus kartlarında `<Gate>`; podcast satırı, dikey video |
-| 9 · Düello (9.0 + 9A'nın bugünkü ekranlara uygulanabilen kısmı) | `design/faz9` | PR açık | #657 | `ui.v2.duello` (kapalı kalır) | Yeni üretim istemi kararı; göçü SQL ekranında uygulamak | Tasarım `09-duello-tasarim.md`; 9B, 9C, Faz 10 park |
+| 8A+8B+8C · Stüdyo (tek PR) | `design/faz8` | **birleşti** (8c1bf91d), production duman 11/11 | #656 | `ui.v2.studyo` | — | /araclar Plus kartlarında `<Gate>`; podcast satırı, dikey video |
+| 9 · Düello (9.0 + 9A'nın bugünkü ekranlara uygulanabilen kısmı) | `design/faz9` | **birleşti** (13ddb3d0), production duman 11/11 | #657 | `ui.v2.duello` (kapalı kalır) | Yeni üretim istemi kararı; göçü SQL ekranında uygulamak | Tasarım `09-duello-tasarim.md`; 9B, 9C, Faz 10 park |
 | 9B · Düello sunucusu | — | **park** | — | `duel.enabled` | Üretim istemi onayı + göç | Gerekçe `09-duello-tasarim.md` I |
 | 9C · Düello bağlama | — | **park** | — | — | 9B'ye bağlı | |
 | 10A+10B · Paylaşım kartı, `/d/KOD` | — | **park** | — | `ui.v2.paylas` | 9B'ye bağlı | `/d/ZZZZZZZZ` 404 (duman testi) |
-| 11A+11B+11C · Ayarlar, Kütüphane, araçlar, büyüme (tek PR) | `design/faz11` | PR açık | #658 | `ui.v2.ayarlar`, `ui.v2.kutuphane`, `ui.v2.araclar2`, `ui.v2.buyume` | Telefonda davet şeridi yeri | Yerleşim 7 kodlandı, öbürleri bekliyor |
-| 12A+12B+12C · Durumlar, erişilebilirlik ve performans, kapanış | `design/faz12` | hazırlanıyor | — | — | 7 gün sonra bayrak temizliği | 404 / hata ekranları, axe düzeltmeleri |
+| 11A+11B+11C · Ayarlar, Kütüphane, araçlar, büyüme (tek PR) | `design/faz11` | **birleşti** (50889a28) | #658 | `ui.v2.ayarlar`, `ui.v2.kutuphane`, `ui.v2.araclar2`, `ui.v2.buyume` | Telefonda davet şeridi yeri | Yerleşim 7 kodlandı, öbürleri bekliyor |
+| 12A+12B+12C · Durumlar, erişilebilirlik ve performans, kapanış | `design/faz12` | PR açık | #659 | — | 7 gün sonra bayrak temizliği | 404 / hata ekranları, axe düzeltmeleri |
 
 ## Sıradaki adımlar (bağlam sıkışırsa buradan)
 

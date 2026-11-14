@@ -1,20 +1,20 @@
 {
- "measuredAt": "2026-11-14T15:24:25.602Z",
+ "measuredAt": "2026-11-14T19:58:53.607Z",
  "base": "yerel güvenli sunucu",
  "totals": {
   "overflowX": 0,
-  "smallTarget": 1014,
+  "smallTarget": 1012,
   "smallFont": 360,
   "multiBrand": 38,
   "unlabeledIcon": 0,
-  "contrast": 152
+  "contrast": 0
  },
  "screens": 203,
  "errors": 0,
  "top": [
   [
    "e2e-plus araclar-periyodik",
-   830
+   741
   ],
   [
    "e2e-free-fresh pay",
@@ -41,16 +41,16 @@
    27
   ],
   [
-   "kurucu ogretmen",
-   26
-  ],
-  [
    "e2e-plus studio-flashcard",
    24
   ],
   [
    "e2e-plus studio-yazili",
    24
+  ],
+  [
+   "e2e-plus studio-dogru-yanlis",
+   21
   ]
  ],
  "results": [
@@ -1033,7 +1033,7 @@
     "smallFont": 118,
     "multiBrand": 0,
     "unlabeledIcon": 0,
-    "contrast": 41
+    "contrast": 0
    },
    "detail": {
     "overflowPx": 0,
@@ -1738,68 +1738,7 @@
     ],
     "brand": [],
     "unlabeledIcon": [],
-    "contrast": [
-     {
-      "target": "button[aria-label=\"Neon, atom numarası 10\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 3.97 (foreground color: #8a61ad, background color: #12100e, font size: 6.0pt "
-     },
-     {
-      "target": "button[aria-label=\"Sodyum, atom numarası 11\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 3.9 (foreground color: #ae5949, background color: #12100e, font size: 6.0pt ("
-     },
-     {
-      "target": "button[aria-label=\"Argon, atom numarası 18\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 3.97 (foreground color: #8a61ad, background color: #12100e, font size: 6.0pt "
-     },
-     {
-      "target": "button[aria-label=\"Potasyum, atom numarası 19\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 3.9 (foreground color: #ae5949, background color: #12100e, font size: 6.0pt ("
-     },
-     {
-      "target": "button[aria-label=\"Kripton, atom numarası 36\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 3.97 (foreground color: #8a61ad, background color: #12100e, font size: 6.0pt "
-     },
-     {
-      "target": "button[aria-label=\"Rubidyum, atom numarası 37\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 3.9 (foreground color: #ae5949, background color: #12100e, font size: 6.0pt ("
-     },
-     {
-      "target": "button[aria-label=\"Ksenon, atom numarası 54\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 3.97 (foreground color: #8a61ad, background color: #12100e, font size: 6.0pt "
-     },
-     {
-      "target": "button[aria-label=\"Sezyum, atom numarası 55\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 3.9 (foreground color: #ae5949, background color: #12100e, font size: 6.0pt ("
-     },
-     {
-      "target": "button[aria-label=\"Radon, atom numarası 86\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 3.97 (foreground color: #8a61ad, background color: #12100e, font size: 6.0pt "
-     },
-     {
-      "target": "button[aria-label=\"Fransiyum, atom numarası 87\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 3.9 (foreground color: #ae5949, background color: #12100e, font size: 6.0pt ("
-     },
-     {
-      "target": "button[aria-label=\"Oganesson, atom numarası 118\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 3.97 (foreground color: #8a61ad, background color: #12100e, font size: 6.0pt "
-     },
-     {
-      "target": "button[aria-label=\"Lantan, atom numarası 57\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 4.4 (foreground color: #ae6189, background color: #12100e, font size: 6.0pt ("
-     },
-     {
-      "target": "button[aria-label=\"Seryum, atom numarası 58\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 4.4 (foreground color: #ae6189, background color: #12100e, font size: 6.0pt ("
-     },
-     {
-      "target": "button[aria-label=\"Praseodim, atom numarası 59\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 4.4 (foreground color: #ae6189, background color: #12100e, font size: 6.0pt ("
-     },
-     {
-      "target": "button[aria-label=\"Neodim, atom numarası 60\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 4.4 (foreground color: #ae6189, background color: #12100e, font size: 6.0pt ("
-     }
-    ]
+    "contrast": []
    },
    "info": {
     "borderedCards": [
@@ -1824,7 +1763,7 @@
     "smallFont": 118,
     "multiBrand": 0,
     "unlabeledIcon": 0,
-    "contrast": 27
+    "contrast": 0
    },
    "detail": {
     "overflowPx": 0,
@@ -2529,68 +2468,7 @@
     ],
     "brand": [],
     "unlabeledIcon": [],
-    "contrast": [
-     {
-      "target": "button[aria-label=\"Sodyum, atom numarası 11\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 3.9 (foreground color: #ae5949, background color: #12100e, font size: 6.0pt ("
-     },
-     {
-      "target": "button[aria-label=\"Potasyum, atom numarası 19\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 3.9 (foreground color: #ae5949, background color: #12100e, font size: 6.0pt ("
-     },
-     {
-      "target": "button[aria-label=\"Rubidyum, atom numarası 37\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 3.9 (foreground color: #ae5949, background color: #12100e, font size: 6.0pt ("
-     },
-     {
-      "target": "button[aria-label=\"Sezyum, atom numarası 55\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 3.9 (foreground color: #ae5949, background color: #12100e, font size: 6.0pt ("
-     },
-     {
-      "target": "button[aria-label=\"Fransiyum, atom numarası 87\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 3.9 (foreground color: #ae5949, background color: #12100e, font size: 6.0pt ("
-     },
-     {
-      "target": "button[aria-label=\"Lantan, atom numarası 57\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 4.4 (foreground color: #ae6189, background color: #12100e, font size: 6.0pt ("
-     },
-     {
-      "target": "button[aria-label=\"Seryum, atom numarası 58\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 4.4 (foreground color: #ae6189, background color: #12100e, font size: 6.0pt ("
-     },
-     {
-      "target": "button[aria-label=\"Praseodim, atom numarası 59\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 4.4 (foreground color: #ae6189, background color: #12100e, font size: 6.0pt ("
-     },
-     {
-      "target": "button[aria-label=\"Neodim, atom numarası 60\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 4.4 (foreground color: #ae6189, background color: #12100e, font size: 6.0pt ("
-     },
-     {
-      "target": "button[aria-label=\"Prometyum, atom numarası 61\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 4.4 (foreground color: #ae6189, background color: #12100e, font size: 6.0pt ("
-     },
-     {
-      "target": "button[aria-label=\"Samaryum, atom numarası 62\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 4.4 (foreground color: #ae6189, background color: #12100e, font size: 6.0pt ("
-     },
-     {
-      "target": "button[aria-label=\"Evropiyum, atom numarası 63\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 4.4 (foreground color: #ae6189, background color: #12100e, font size: 6.0pt ("
-     },
-     {
-      "target": "button[aria-label=\"Gadolinyum, atom numarası 64\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 4.4 (foreground color: #ae6189, background color: #12100e, font size: 6.0pt ("
-     },
-     {
-      "target": "button[aria-label=\"Terbiyum, atom numarası 65\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 4.4 (foreground color: #ae6189, background color: #12100e, font size: 6.0pt ("
-     },
-     {
-      "target": "button[aria-label=\"Disprosyum, atom numarası 66\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 4.4 (foreground color: #ae6189, background color: #12100e, font size: 6.0pt ("
-     }
-    ]
+    "contrast": []
    },
    "info": {
     "borderedCards": [
@@ -2615,7 +2493,7 @@
     "smallFont": 118,
     "multiBrand": 0,
     "unlabeledIcon": 0,
-    "contrast": 21
+    "contrast": 0
    },
    "detail": {
     "overflowPx": 0,
@@ -3320,68 +3198,7 @@
     ],
     "brand": [],
     "unlabeledIcon": [],
-    "contrast": [
-     {
-      "target": "button[aria-label=\"Sodyum, atom numarası 11\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 3.9 (foreground color: #ae5949, background color: #12100e, font size: 6.0pt ("
-     },
-     {
-      "target": "button[aria-label=\"Potasyum, atom numarası 19\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 3.9 (foreground color: #ae5949, background color: #12100e, font size: 6.0pt ("
-     },
-     {
-      "target": "button[aria-label=\"Rubidyum, atom numarası 37\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 3.9 (foreground color: #ae5949, background color: #12100e, font size: 6.0pt ("
-     },
-     {
-      "target": "button[aria-label=\"Sezyum, atom numarası 55\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 3.9 (foreground color: #ae5949, background color: #12100e, font size: 6.0pt ("
-     },
-     {
-      "target": "button[aria-label=\"Fransiyum, atom numarası 87\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 3.9 (foreground color: #ae5949, background color: #12100e, font size: 6.0pt ("
-     },
-     {
-      "target": "button[aria-label=\"Lantan, atom numarası 57\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 4.4 (foreground color: #ae6189, background color: #12100e, font size: 6.0pt ("
-     },
-     {
-      "target": "button[aria-label=\"Seryum, atom numarası 58\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 4.4 (foreground color: #ae6189, background color: #12100e, font size: 6.0pt ("
-     },
-     {
-      "target": "button[aria-label=\"Praseodim, atom numarası 59\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 4.4 (foreground color: #ae6189, background color: #12100e, font size: 6.0pt ("
-     },
-     {
-      "target": "button[aria-label=\"Neodim, atom numarası 60\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 4.4 (foreground color: #ae6189, background color: #12100e, font size: 6.0pt ("
-     },
-     {
-      "target": "button[aria-label=\"Prometyum, atom numarası 61\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 4.4 (foreground color: #ae6189, background color: #12100e, font size: 6.0pt ("
-     },
-     {
-      "target": "button[aria-label=\"Samaryum, atom numarası 62\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 4.4 (foreground color: #ae6189, background color: #12100e, font size: 6.0pt ("
-     },
-     {
-      "target": "button[aria-label=\"Evropiyum, atom numarası 63\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 4.4 (foreground color: #ae6189, background color: #12100e, font size: 6.0pt ("
-     },
-     {
-      "target": "button[aria-label=\"Gadolinyum, atom numarası 64\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 4.4 (foreground color: #ae6189, background color: #12100e, font size: 6.0pt ("
-     },
-     {
-      "target": "button[aria-label=\"Aktinyum, atom numarası 89\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 4.18 (foreground color: #9761ad, background color: #12100e, font size: 6.0pt "
-     },
-     {
-      "target": "button[aria-label=\"Toryum, atom numarası 90\"] > .pt-z",
-      "summary": "Element has insufficient color contrast of 4.18 (foreground color: #9761ad, background color: #12100e, font size: 6.0pt "
-     }
-    ]
+    "contrast": []
    },
    "info": {
     "borderedCards": [
@@ -5649,7 +5466,7 @@
    "status": 200,
    "counts": {
     "overflowX": 0,
-    "smallTarget": 3,
+    "smallTarget": 1,
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
@@ -5662,16 +5479,6 @@
       "size": 40,
       "label": "Deneme çöz",
       "at": "a.mt-4.inline-flex"
-     },
-     {
-      "size": 40,
-      "label": "Ana Sayfa",
-      "at": "a.cp-sor-bottomnav-link"
-     },
-     {
-      "size": 40,
-      "label": "Sınavlar",
-      "at": "a.cp-sor-bottomnav-link"
      }
     ],
     "smallFont": [],
@@ -5682,12 +5489,12 @@
     "contrast": []
    },
    "info": {
-    "borderedCards": [],
+    "borderedCards": [
+     "div.cs-pay-card.p-6"
+    ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: net::ERR_NO_BUFFER_SPACE"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -5703,7 +5510,7 @@
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
-    "contrast": 2
+    "contrast": 0
    },
    "detail": {
     "overflowPx": 0,
@@ -5713,16 +5520,7 @@
      "Deneme çöz"
     ],
     "unlabeledIcon": [],
-    "contrast": [
-     {
-      "target": ".inline-flex",
-      "summary": "Element has insufficient color contrast of 2.98 (foreground color: #4f46e5, background color: #15110d, font size: 10.5pt"
-     },
-     {
-      "target": ".shrink-0",
-      "summary": "Element has insufficient color contrast of 2.98 (foreground color: #4f46e5, background color: #15110d, font size: 9.0pt "
-     }
-    ]
+    "contrast": []
    },
    "info": {
     "borderedCards": [
@@ -5750,7 +5548,7 @@
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
-    "contrast": 2
+    "contrast": 0
    },
    "detail": {
     "overflowPx": 0,
@@ -5760,16 +5558,7 @@
      "Deneme çöz"
     ],
     "unlabeledIcon": [],
-    "contrast": [
-     {
-      "target": ".inline-flex",
-      "summary": "Element has insufficient color contrast of 2.98 (foreground color: #4f46e5, background color: #15110d, font size: 10.5pt"
-     },
-     {
-      "target": ".shrink-0",
-      "summary": "Element has insufficient color contrast of 2.98 (foreground color: #4f46e5, background color: #15110d, font size: 9.0pt "
-     }
-    ]
+    "contrast": []
    },
    "info": {
     "borderedCards": [
@@ -5797,7 +5586,7 @@
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
-    "contrast": 2
+    "contrast": 0
    },
    "detail": {
     "overflowPx": 0,
@@ -5807,16 +5596,7 @@
      "Deneme çöz"
     ],
     "unlabeledIcon": [],
-    "contrast": [
-     {
-      "target": ".inline-flex",
-      "summary": "Element has insufficient color contrast of 2.98 (foreground color: #4f46e5, background color: #15110d, font size: 10.5pt"
-     },
-     {
-      "target": ".shrink-0",
-      "summary": "Element has insufficient color contrast of 2.98 (foreground color: #4f46e5, background color: #15110d, font size: 9.0pt "
-     }
-    ]
+    "contrast": []
    },
    "info": {
     "borderedCards": [
@@ -8354,7 +8134,7 @@
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
-    "contrast": 6
+    "contrast": 0
    },
    "detail": {
     "overflowPx": 0,
@@ -8362,32 +8142,7 @@
     "smallFont": [],
     "brand": [],
     "unlabeledIcon": [],
-    "contrast": [
-     {
-      "target": ".cp-cal-day--muted.cp-cal-day:nth-child(1) > span",
-      "summary": "Element has insufficient color contrast of 2.43 (foreground color: #52525b, background color: #15110d, font size: 9.8pt "
-     },
-     {
-      "target": ".cp-cal-day--muted.cp-cal-day:nth-child(2) > span",
-      "summary": "Element has insufficient color contrast of 2.43 (foreground color: #52525b, background color: #15110d, font size: 9.8pt "
-     },
-     {
-      "target": ".cp-cal-day--muted.cp-cal-day:nth-child(3) > span",
-      "summary": "Element has insufficient color contrast of 2.43 (foreground color: #52525b, background color: #15110d, font size: 9.8pt "
-     },
-     {
-      "target": ".cp-cal-day--holiday > span",
-      "summary": "Element has insufficient color contrast of 2.43 (foreground color: #52525b, background color: #15110d, font size: 9.8pt "
-     },
-     {
-      "target": ".cp-cal-day--muted.cp-cal-day:nth-child(5) > span",
-      "summary": "Element has insufficient color contrast of 2.43 (foreground color: #52525b, background color: #15110d, font size: 9.8pt "
-     },
-     {
-      "target": ".cp-cal-day--muted.cp-cal-day:nth-child(6) > span",
-      "summary": "Element has insufficient color contrast of 2.43 (foreground color: #52525b, background color: #15110d, font size: 9.8pt "
-     }
-    ]
+    "contrast": []
    },
    "info": {
     "borderedCards": [
@@ -8411,7 +8166,7 @@
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
-    "contrast": 6
+    "contrast": 0
    },
    "detail": {
     "overflowPx": 0,
@@ -8419,32 +8174,7 @@
     "smallFont": [],
     "brand": [],
     "unlabeledIcon": [],
-    "contrast": [
-     {
-      "target": ".cp-cal-day--muted.cp-cal-day:nth-child(1) > span",
-      "summary": "Element has insufficient color contrast of 2.43 (foreground color: #52525b, background color: #15110d, font size: 9.8pt "
-     },
-     {
-      "target": ".cp-cal-day--muted.cp-cal-day:nth-child(2) > span",
-      "summary": "Element has insufficient color contrast of 2.43 (foreground color: #52525b, background color: #15110d, font size: 9.8pt "
-     },
-     {
-      "target": ".cp-cal-day--muted.cp-cal-day:nth-child(3) > span",
-      "summary": "Element has insufficient color contrast of 2.43 (foreground color: #52525b, background color: #15110d, font size: 9.8pt "
-     },
-     {
-      "target": ".cp-cal-day--holiday > span",
-      "summary": "Element has insufficient color contrast of 2.43 (foreground color: #52525b, background color: #15110d, font size: 9.8pt "
-     },
-     {
-      "target": ".cp-cal-day--muted.cp-cal-day:nth-child(5) > span",
-      "summary": "Element has insufficient color contrast of 2.43 (foreground color: #52525b, background color: #15110d, font size: 9.8pt "
-     },
-     {
-      "target": ".cp-cal-day--muted.cp-cal-day:nth-child(6) > span",
-      "summary": "Element has insufficient color contrast of 2.43 (foreground color: #52525b, background color: #15110d, font size: 9.8pt "
-     }
-    ]
+    "contrast": []
    },
    "info": {
     "borderedCards": [
@@ -8468,7 +8198,7 @@
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
-    "contrast": 6
+    "contrast": 0
    },
    "detail": {
     "overflowPx": 0,
@@ -8476,32 +8206,7 @@
     "smallFont": [],
     "brand": [],
     "unlabeledIcon": [],
-    "contrast": [
-     {
-      "target": ".cp-cal-day--muted.cp-cal-day:nth-child(1) > span",
-      "summary": "Element has insufficient color contrast of 2.43 (foreground color: #52525b, background color: #15110d, font size: 9.8pt "
-     },
-     {
-      "target": ".cp-cal-day--muted.cp-cal-day:nth-child(2) > span",
-      "summary": "Element has insufficient color contrast of 2.43 (foreground color: #52525b, background color: #15110d, font size: 9.8pt "
-     },
-     {
-      "target": ".cp-cal-day--muted.cp-cal-day:nth-child(3) > span",
-      "summary": "Element has insufficient color contrast of 2.43 (foreground color: #52525b, background color: #15110d, font size: 9.8pt "
-     },
-     {
-      "target": ".cp-cal-day--holiday > span",
-      "summary": "Element has insufficient color contrast of 2.43 (foreground color: #52525b, background color: #15110d, font size: 9.8pt "
-     },
-     {
-      "target": ".cp-cal-day--muted.cp-cal-day:nth-child(5) > span",
-      "summary": "Element has insufficient color contrast of 2.43 (foreground color: #52525b, background color: #15110d, font size: 9.8pt "
-     },
-     {
-      "target": ".cp-cal-day--muted.cp-cal-day:nth-child(6) > span",
-      "summary": "Element has insufficient color contrast of 2.43 (foreground color: #52525b, background color: #15110d, font size: 9.8pt "
-     }
-    ]
+    "contrast": []
    },
    "info": {
     "borderedCards": [
@@ -9019,7 +8724,7 @@
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
-    "contrast": 2
+    "contrast": 0
    },
    "detail": {
     "overflowPx": 0,
@@ -9029,16 +8734,7 @@
      "Deneme çöz"
     ],
     "unlabeledIcon": [],
-    "contrast": [
-     {
-      "target": ".inline-flex",
-      "summary": "Element has insufficient color contrast of 2.98 (foreground color: #4f46e5, background color: #15110d, font size: 10.5pt"
-     },
-     {
-      "target": ".shrink-0",
-      "summary": "Element has insufficient color contrast of 2.98 (foreground color: #4f46e5, background color: #15110d, font size: 9.0pt "
-     }
-    ]
+    "contrast": []
    },
    "info": {
     "borderedCards": [
@@ -9068,7 +8764,7 @@
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
-    "contrast": 2
+    "contrast": 0
    },
    "detail": {
     "overflowPx": 0,
@@ -9078,16 +8774,7 @@
      "Deneme çöz"
     ],
     "unlabeledIcon": [],
-    "contrast": [
-     {
-      "target": ".inline-flex",
-      "summary": "Element has insufficient color contrast of 2.98 (foreground color: #4f46e5, background color: #15110d, font size: 10.5pt"
-     },
-     {
-      "target": ".shrink-0",
-      "summary": "Element has insufficient color contrast of 2.98 (foreground color: #4f46e5, background color: #15110d, font size: 9.0pt "
-     }
-    ]
+    "contrast": []
    },
    "info": {
     "borderedCards": [
@@ -9117,7 +8804,7 @@
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
-    "contrast": 2
+    "contrast": 0
    },
    "detail": {
     "overflowPx": 0,
@@ -9127,16 +8814,7 @@
      "Deneme çöz"
     ],
     "unlabeledIcon": [],
-    "contrast": [
-     {
-      "target": ".inline-flex",
-      "summary": "Element has insufficient color contrast of 2.98 (foreground color: #4f46e5, background color: #15110d, font size: 10.5pt"
-     },
-     {
-      "target": ".shrink-0",
-      "summary": "Element has insufficient color contrast of 2.98 (foreground color: #4f46e5, background color: #15110d, font size: 9.0pt "
-     }
-    ]
+    "contrast": []
    },
    "info": {
     "borderedCards": [
@@ -10300,7 +9978,7 @@
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
-    "contrast": 2
+    "contrast": 0
    },
    "detail": {
     "overflowPx": 0,
@@ -10310,16 +9988,7 @@
      "Deneme çöz"
     ],
     "unlabeledIcon": [],
-    "contrast": [
-     {
-      "target": ".inline-flex",
-      "summary": "Element has insufficient color contrast of 2.98 (foreground color: #4f46e5, background color: #15110d, font size: 10.5pt"
-     },
-     {
-      "target": ".shrink-0",
-      "summary": "Element has insufficient color contrast of 2.98 (foreground color: #4f46e5, background color: #15110d, font size: 9.0pt "
-     }
-    ]
+    "contrast": []
    },
    "info": {
     "borderedCards": [
@@ -10349,7 +10018,7 @@
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
-    "contrast": 2
+    "contrast": 0
    },
    "detail": {
     "overflowPx": 0,
@@ -10359,16 +10028,7 @@
      "Deneme çöz"
     ],
     "unlabeledIcon": [],
-    "contrast": [
-     {
-      "target": ".inline-flex",
-      "summary": "Element has insufficient color contrast of 2.98 (foreground color: #4f46e5, background color: #15110d, font size: 10.5pt"
-     },
-     {
-      "target": ".shrink-0",
-      "summary": "Element has insufficient color contrast of 2.98 (foreground color: #4f46e5, background color: #15110d, font size: 9.0pt "
-     }
-    ]
+    "contrast": []
    },
    "info": {
     "borderedCards": [
@@ -10398,7 +10058,7 @@
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
-    "contrast": 2
+    "contrast": 0
    },
    "detail": {
     "overflowPx": 0,
@@ -10408,16 +10068,7 @@
      "Deneme çöz"
     ],
     "unlabeledIcon": [],
-    "contrast": [
-     {
-      "target": ".inline-flex",
-      "summary": "Element has insufficient color contrast of 2.98 (foreground color: #4f46e5, background color: #15110d, font size: 10.5pt"
-     },
-     {
-      "target": ".shrink-0",
-      "summary": "Element has insufficient color contrast of 2.98 (foreground color: #4f46e5, background color: #15110d, font size: 9.0pt "
-     }
-    ]
+    "contrast": []
    },
    "info": {
     "borderedCards": [
@@ -11551,7 +11202,7 @@
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
-    "contrast": 2
+    "contrast": 0
    },
    "detail": {
     "overflowPx": 0,
@@ -11561,16 +11212,7 @@
      "Deneme çöz"
     ],
     "unlabeledIcon": [],
-    "contrast": [
-     {
-      "target": ".inline-flex",
-      "summary": "Element has insufficient color contrast of 2.98 (foreground color: #4f46e5, background color: #15110d, font size: 10.5pt"
-     },
-     {
-      "target": ".shrink-0",
-      "summary": "Element has insufficient color contrast of 2.98 (foreground color: #4f46e5, background color: #15110d, font size: 9.0pt "
-     }
-    ]
+    "contrast": []
    },
    "info": {
     "borderedCards": [
@@ -11598,7 +11240,7 @@
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
-    "contrast": 2
+    "contrast": 0
    },
    "detail": {
     "overflowPx": 0,
@@ -11608,16 +11250,7 @@
      "Deneme çöz"
     ],
     "unlabeledIcon": [],
-    "contrast": [
-     {
-      "target": ".inline-flex",
-      "summary": "Element has insufficient color contrast of 2.98 (foreground color: #4f46e5, background color: #15110d, font size: 10.5pt"
-     },
-     {
-      "target": ".shrink-0",
-      "summary": "Element has insufficient color contrast of 2.98 (foreground color: #4f46e5, background color: #15110d, font size: 9.0pt "
-     }
-    ]
+    "contrast": []
    },
    "info": {
     "borderedCards": [
@@ -11645,7 +11278,7 @@
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
-    "contrast": 2
+    "contrast": 0
    },
    "detail": {
     "overflowPx": 0,
@@ -11655,16 +11288,7 @@
      "Deneme çöz"
     ],
     "unlabeledIcon": [],
-    "contrast": [
-     {
-      "target": ".inline-flex",
-      "summary": "Element has insufficient color contrast of 2.98 (foreground color: #4f46e5, background color: #15110d, font size: 10.5pt"
-     },
-     {
-      "target": ".shrink-0",
-      "summary": "Element has insufficient color contrast of 2.98 (foreground color: #4f46e5, background color: #15110d, font size: 9.0pt "
-     }
-    ]
+    "contrast": []
    },
    "info": {
     "borderedCards": [
@@ -12395,7 +12019,7 @@
     "smallFont": 0,
     "multiBrand": 1,
     "unlabeledIcon": 0,
-    "contrast": 3
+    "contrast": 0
    },
    "detail": {
     "overflowPx": 0,
@@ -12418,7 +12042,7 @@
      {
       "size": 20,
       "label": "İlerlemeni gör",
-      "at": "a.text-sm.text-[var(--cs-primary)]"
+      "at": "a.text-sm.text-[var(--cx-text-brand)]"
      }
     ],
     "smallFont": [],
@@ -12428,20 +12052,7 @@
      "Devam et"
     ],
     "unlabeledIcon": [],
-    "contrast": [
-     {
-      "target": "button[aria-label=\"TYT Fizik\"] > .cx-strip-day[aria-hidden=\"true\"] > .cx-strip-num",
-      "summary": "Element has insufficient color contrast of 3.78 (foreground color: #7a6e62, background color: #15110d, font size: 15.0pt"
-     },
-     {
-      "target": "button[aria-label=\"TYT Fizik\"] > .cx-strip-day[aria-hidden=\"true\"] > .cx-strip-unit",
-      "summary": "Element has insufficient color contrast of 3.78 (foreground color: #7a6e62, background color: #15110d, font size: 8.3pt "
-     },
-     {
-      "target": ".text-\\[var\\(--cs-primary\\)\\]",
-      "summary": "Element has insufficient color contrast of 2.98 (foreground color: #4f46e5, background color: #15110d, font size: 10.5pt"
-     }
-    ]
+    "contrast": []
    },
    "info": {
     "borderedCards": [],
@@ -12469,7 +12080,7 @@
     "smallFont": 0,
     "multiBrand": 1,
     "unlabeledIcon": 0,
-    "contrast": 3
+    "contrast": 0
    },
    "detail": {
     "overflowPx": 0,
@@ -12492,7 +12103,7 @@
      {
       "size": 20,
       "label": "İlerlemeni gör",
-      "at": "a.text-sm.text-[var(--cs-primary)]"
+      "at": "a.text-sm.text-[var(--cx-text-brand)]"
      }
     ],
     "smallFont": [],
@@ -12502,20 +12113,7 @@
      "Devam et"
     ],
     "unlabeledIcon": [],
-    "contrast": [
-     {
-      "target": "button[aria-label=\"TYT Fizik\"] > .cx-strip-day[aria-hidden=\"true\"] > .cx-strip-num",
-      "summary": "Element has insufficient color contrast of 3.78 (foreground color: #7a6e62, background color: #15110d, font size: 15.0pt"
-     },
-     {
-      "target": "button[aria-label=\"TYT Fizik\"] > .cx-strip-day[aria-hidden=\"true\"] > .cx-strip-unit",
-      "summary": "Element has insufficient color contrast of 3.78 (foreground color: #7a6e62, background color: #15110d, font size: 8.3pt "
-     },
-     {
-      "target": ".text-\\[var\\(--cs-primary\\)\\]",
-      "summary": "Element has insufficient color contrast of 2.98 (foreground color: #4f46e5, background color: #15110d, font size: 10.5pt"
-     }
-    ]
+    "contrast": []
    },
    "info": {
     "borderedCards": [],
@@ -12543,7 +12141,7 @@
     "smallFont": 0,
     "multiBrand": 1,
     "unlabeledIcon": 0,
-    "contrast": 3
+    "contrast": 0
    },
    "detail": {
     "overflowPx": 0,
@@ -12576,7 +12174,7 @@
      {
       "size": 20,
       "label": "İlerlemeni gör",
-      "at": "a.text-sm.text-[var(--cs-primary)]"
+      "at": "a.text-sm.text-[var(--cx-text-brand)]"
      }
     ],
     "smallFont": [],
@@ -12586,20 +12184,7 @@
      "Devam et"
     ],
     "unlabeledIcon": [],
-    "contrast": [
-     {
-      "target": "button[aria-label=\"TYT Fizik\"] > .cx-strip-day[aria-hidden=\"true\"] > .cx-strip-num",
-      "summary": "Element has insufficient color contrast of 3.78 (foreground color: #7a6e62, background color: #15110d, font size: 15.0pt"
-     },
-     {
-      "target": "button[aria-label=\"TYT Fizik\"] > .cx-strip-day[aria-hidden=\"true\"] > .cx-strip-unit",
-      "summary": "Element has insufficient color contrast of 3.78 (foreground color: #7a6e62, background color: #15110d, font size: 8.3pt "
-     },
-     {
-      "target": ".text-\\[var\\(--cs-primary\\)\\]",
-      "summary": "Element has insufficient color contrast of 2.98 (foreground color: #4f46e5, background color: #15110d, font size: 10.5pt"
-     }
-    ]
+    "contrast": []
    },
    "info": {
     "borderedCards": [],
@@ -12627,7 +12212,7 @@
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
-    "contrast": 1
+    "contrast": 0
    },
    "detail": {
     "overflowPx": 0,
@@ -12635,7 +12220,7 @@
      {
       "size": 20,
       "label": "İlerlemeni gör",
-      "at": "a.text-sm.text-[var(--cs-primary)]"
+      "at": "a.text-sm.text-[var(--cx-text-brand)]"
      }
     ],
     "smallFont": [],
@@ -12643,12 +12228,7 @@
      "Devam et"
     ],
     "unlabeledIcon": [],
-    "contrast": [
-     {
-      "target": ".text-\\[var\\(--cs-primary\\)\\]",
-      "summary": "Element has insufficient color contrast of 2.98 (foreground color: #4f46e5, background color: #15110d, font size: 10.5pt"
-     }
-    ]
+    "contrast": []
    },
    "info": {
     "borderedCards": [
@@ -12677,7 +12257,7 @@
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
-    "contrast": 1
+    "contrast": 0
    },
    "detail": {
     "overflowPx": 0,
@@ -12685,7 +12265,7 @@
      {
       "size": 20,
       "label": "İlerlemeni gör",
-      "at": "a.text-sm.text-[var(--cs-primary)]"
+      "at": "a.text-sm.text-[var(--cx-text-brand)]"
      }
     ],
     "smallFont": [],
@@ -12693,12 +12273,7 @@
      "Devam et"
     ],
     "unlabeledIcon": [],
-    "contrast": [
-     {
-      "target": ".text-\\[var\\(--cs-primary\\)\\]",
-      "summary": "Element has insufficient color contrast of 2.98 (foreground color: #4f46e5, background color: #15110d, font size: 10.5pt"
-     }
-    ]
+    "contrast": []
    },
    "info": {
     "borderedCards": [
@@ -12727,7 +12302,7 @@
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
-    "contrast": 1
+    "contrast": 0
    },
    "detail": {
     "overflowPx": 0,
@@ -12735,7 +12310,7 @@
      {
       "size": 20,
       "label": "İlerlemeni gör",
-      "at": "a.text-sm.text-[var(--cs-primary)]"
+      "at": "a.text-sm.text-[var(--cx-text-brand)]"
      }
     ],
     "smallFont": [],
@@ -12743,12 +12318,7 @@
      "Devam et"
     ],
     "unlabeledIcon": [],
-    "contrast": [
-     {
-      "target": ".text-\\[var\\(--cs-primary\\)\\]",
-      "summary": "Element has insufficient color contrast of 2.98 (foreground color: #4f46e5, background color: #15110d, font size: 10.5pt"
-     }
-    ]
+    "contrast": []
    },
    "info": {
     "borderedCards": [
@@ -12777,7 +12347,7 @@
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
-    "contrast": 1
+    "contrast": 0
    },
    "detail": {
     "overflowPx": 0,
@@ -12785,7 +12355,7 @@
      {
       "size": 20,
       "label": "İlerlemeni gör",
-      "at": "a.text-sm.text-[var(--cs-primary)]"
+      "at": "a.text-sm.text-[var(--cx-text-brand)]"
      }
     ],
     "smallFont": [],
@@ -12793,12 +12363,7 @@
      "Devam et"
     ],
     "unlabeledIcon": [],
-    "contrast": [
-     {
-      "target": ".text-\\[var\\(--cs-primary\\)\\]",
-      "summary": "Element has insufficient color contrast of 2.98 (foreground color: #4f46e5, background color: #15110d, font size: 10.5pt"
-     }
-    ]
+    "contrast": []
    },
    "info": {
     "borderedCards": [
@@ -12827,7 +12392,7 @@
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
-    "contrast": 1
+    "contrast": 0
    },
    "detail": {
     "overflowPx": 0,
@@ -12835,7 +12400,7 @@
      {
       "size": 20,
       "label": "İlerlemeni gör",
-      "at": "a.text-sm.text-[var(--cs-primary)]"
+      "at": "a.text-sm.text-[var(--cx-text-brand)]"
      }
     ],
     "smallFont": [],
@@ -12843,12 +12408,7 @@
      "Devam et"
     ],
     "unlabeledIcon": [],
-    "contrast": [
-     {
-      "target": ".text-\\[var\\(--cs-primary\\)\\]",
-      "summary": "Element has insufficient color contrast of 2.98 (foreground color: #4f46e5, background color: #15110d, font size: 10.5pt"
-     }
-    ]
+    "contrast": []
    },
    "info": {
     "borderedCards": [
@@ -12877,7 +12437,7 @@
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
-    "contrast": 1
+    "contrast": 0
    },
    "detail": {
     "overflowPx": 0,
@@ -12885,7 +12445,7 @@
      {
       "size": 20,
       "label": "İlerlemeni gör",
-      "at": "a.text-sm.text-[var(--cs-primary)]"
+      "at": "a.text-sm.text-[var(--cx-text-brand)]"
      }
     ],
     "smallFont": [],
@@ -12893,12 +12453,7 @@
      "Devam et"
     ],
     "unlabeledIcon": [],
-    "contrast": [
-     {
-      "target": ".text-\\[var\\(--cs-primary\\)\\]",
-      "summary": "Element has insufficient color contrast of 2.98 (foreground color: #4f46e5, background color: #15110d, font size: 10.5pt"
-     }
-    ]
+    "contrast": []
    },
    "info": {
     "borderedCards": [
@@ -12927,7 +12482,7 @@
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
-    "contrast": 1
+    "contrast": 0
    },
    "detail": {
     "overflowPx": 0,
@@ -12935,7 +12490,7 @@
      {
       "size": 20,
       "label": "İlerlemeni gör",
-      "at": "a.text-sm.text-[var(--cs-primary)]"
+      "at": "a.text-sm.text-[var(--cx-text-brand)]"
      }
     ],
     "smallFont": [],
@@ -12943,12 +12498,7 @@
      "Devam et"
     ],
     "unlabeledIcon": [],
-    "contrast": [
-     {
-      "target": ".text-\\[var\\(--cs-primary\\)\\]",
-      "summary": "Element has insufficient color contrast of 2.98 (foreground color: #4f46e5, background color: #15110d, font size: 10.5pt"
-     }
-    ]
+    "contrast": []
    },
    "info": {
     "borderedCards": [
@@ -12980,7 +12530,7 @@
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
-    "contrast": 1
+    "contrast": 0
    },
    "detail": {
     "overflowPx": 0,
@@ -12988,7 +12538,7 @@
      {
       "size": 20,
       "label": "İlerlemeni gör",
-      "at": "a.text-sm.text-[var(--cs-primary)]"
+      "at": "a.text-sm.text-[var(--cx-text-brand)]"
      }
     ],
     "smallFont": [],
@@ -12996,12 +12546,7 @@
      "Devam et"
     ],
     "unlabeledIcon": [],
-    "contrast": [
-     {
-      "target": ".text-\\[var\\(--cs-primary\\)\\]",
-      "summary": "Element has insufficient color contrast of 2.98 (foreground color: #4f46e5, background color: #15110d, font size: 10.5pt"
-     }
-    ]
+    "contrast": []
    },
    "info": {
     "borderedCards": [
@@ -13033,7 +12578,7 @@
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
-    "contrast": 1
+    "contrast": 0
    },
    "detail": {
     "overflowPx": 0,
@@ -13041,7 +12586,7 @@
      {
       "size": 20,
       "label": "İlerlemeni gör",
-      "at": "a.text-sm.text-[var(--cs-primary)]"
+      "at": "a.text-sm.text-[var(--cx-text-brand)]"
      }
     ],
     "smallFont": [],
@@ -13049,12 +12594,7 @@
      "Devam et"
     ],
     "unlabeledIcon": [],
-    "contrast": [
-     {
-      "target": ".text-\\[var\\(--cs-primary\\)\\]",
-      "summary": "Element has insufficient color contrast of 2.98 (foreground color: #4f46e5, background color: #15110d, font size: 10.5pt"
-     }
-    ]
+    "contrast": []
    },
    "info": {
     "borderedCards": [
@@ -13087,7 +12627,7 @@
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
-    "contrast": 1
+    "contrast": 0
    },
    "detail": {
     "overflowPx": 0,
@@ -13095,7 +12635,7 @@
      {
       "size": 20,
       "label": "İlerlemeni gör",
-      "at": "a.text-sm.text-[var(--cs-primary)]"
+      "at": "a.text-sm.text-[var(--cx-text-brand)]"
      }
     ],
     "smallFont": [],
@@ -13103,12 +12643,7 @@
      "Devam et"
     ],
     "unlabeledIcon": [],
-    "contrast": [
-     {
-      "target": ".text-\\[var\\(--cs-primary\\)\\]",
-      "summary": "Element has insufficient color contrast of 2.98 (foreground color: #4f46e5, background color: #15110d, font size: 10.5pt"
-     }
-    ]
+    "contrast": []
    },
    "info": {
     "borderedCards": [],
@@ -13135,7 +12670,7 @@
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
-    "contrast": 1
+    "contrast": 0
    },
    "detail": {
     "overflowPx": 0,
@@ -13143,7 +12678,7 @@
      {
       "size": 20,
       "label": "İlerlemeni gör",
-      "at": "a.text-sm.text-[var(--cs-primary)]"
+      "at": "a.text-sm.text-[var(--cx-text-brand)]"
      }
     ],
     "smallFont": [],
@@ -13151,12 +12686,7 @@
      "Devam et"
     ],
     "unlabeledIcon": [],
-    "contrast": [
-     {
-      "target": ".text-\\[var\\(--cs-primary\\)\\]",
-      "summary": "Element has insufficient color contrast of 2.98 (foreground color: #4f46e5, background color: #15110d, font size: 10.5pt"
-     }
-    ]
+    "contrast": []
    },
    "info": {
     "borderedCards": [],
@@ -13183,7 +12713,7 @@
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
-    "contrast": 1
+    "contrast": 0
    },
    "detail": {
     "overflowPx": 0,
@@ -13196,7 +12726,7 @@
      {
       "size": 20,
       "label": "İlerlemeni gör",
-      "at": "a.text-sm.text-[var(--cs-primary)]"
+      "at": "a.text-sm.text-[var(--cx-text-brand)]"
      }
     ],
     "smallFont": [],
@@ -13204,12 +12734,7 @@
      "Devam et"
     ],
     "unlabeledIcon": [],
-    "contrast": [
-     {
-      "target": ".text-\\[var\\(--cs-primary\\)\\]",
-      "summary": "Element has insufficient color contrast of 2.98 (foreground color: #4f46e5, background color: #15110d, font size: 10.5pt"
-     }
-    ]
+    "contrast": []
    },
    "info": {
     "borderedCards": [],
