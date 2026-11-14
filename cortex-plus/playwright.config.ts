@@ -22,6 +22,13 @@ const LIVE_BASE_URL = process.env.E2E_BASE_URL?.trim() || "";
 export default defineConfig({
   testDir: "tests/e2e",
   fullyParallel: true,
+  /*
+    Yalnız CI'da bir yeniden deneme (15 Kasım 2026): yük altındaki geliştirme sunucusunda tek tük zaman aşımı işi
+    kırmızıya çeviriyordu. Yeniden denemede geçen test "flaky" sayılır ve gizlenmez: `tests/e2e/flaky-reporter.ts`
+    onu `test-results/flaky.md` dosyasına ve GitHub iş özetine yazar. Yerelde yeniden deneme yok.
+  */
+  retries: process.env.CI ? 1 : 0,
+  reporter: process.env.CI ? [["dot"], ["./tests/e2e/flaky-reporter.ts"]] : [["list"]],
   use: {
     baseURL: LIVE_BASE_URL || "http://127.0.0.1:3005",
     trace: "on-first-retry",
