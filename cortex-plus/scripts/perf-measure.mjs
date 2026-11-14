@@ -115,7 +115,9 @@ const median = (values) => {
 
 const browser = await chromium.launch();
 const routes = [];
-for (const route of PERF_ROUTES) {
+// `--routes=giris,kayit`: yalnız bu rotalar (yeniden ölçüm için; çıktı yine aynı biçimde).
+const ONLY_ROUTES = opt("routes", "").split(",").filter(Boolean);
+for (const route of PERF_ROUTES.filter((r) => !ONLY_ROUTES.length || ONLY_ROUTES.includes(r.name))) {
   if (route.auth && !fs.existsSync(AUTH)) throw new Error("tests/.auth/e2e-plus.json yok: npm run e2e:seed && npm run e2e:login");
   for (let i = 0; i < WARM; i += 1) await measureOnce(browser, route).catch(() => null);
   const runs = [];

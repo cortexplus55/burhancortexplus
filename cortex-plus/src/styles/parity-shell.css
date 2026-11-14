@@ -10362,10 +10362,6 @@
   margin: 0 0.5rem 0 0;
 }
 
-.cp-sor-root--focus .cp-prep-actions--pending {
-  display: none;
-}
-
 /* Telefonda kıyas ürünü gibi tek satır: Geri, simgeler, seri, menü, avatar.
    18 Ekim 2026 telefon denetimi (375 px): "Geri"li üst çubuk yalnız odak kabuğunda
    daralıyordu; sınav kabuğunda (sohbet, podcast, düello, ara, müfredat…) "Daha fazla"
