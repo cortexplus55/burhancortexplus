@@ -51,6 +51,8 @@ next-env.d.ts
 /blob-report
 /playwright/.cache
 /playwright/.auth
+# E2E test hesapları (Faz 0, 2.5): giriş durumları ve yerel parola dosyası depoya girmez
+/tests/.auth/
 
 # typescript
 

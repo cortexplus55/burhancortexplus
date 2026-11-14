@@ -108,3 +108,28 @@ ORTAK KURALLAR "ham hex yazma" diyor; Faz 2 (#645) ve #646'da şunlar kaldı (Fa
 - `src/styles/cx-profile.css`: Sigma şeridinin çerçevesi (:419 `#fb718540`; `--cx-plan-sigma-line` ile aynı ailede ama ayrı
   saydamlık), satır ayracı (:502 `#ffffff0a`).
 - Öneri: logo değerleri için `--cx-logo-*`, ayraç için `--cx-divider` token'ı; ilk dokunulan fazda.
+
+## 11. Prompt 1'in 1.3 ölçümü: 12 ekran, gerçek oturumla (14 Kasım 2026)
+
+Faz 1'de giriş gerektirdiği için ölçülemeyen 12 ekran, `e2e-plus` hesabının gerçek oturumuyla açıldı. Sunucu: yerel 3005,
+canlı veritabanı, main `492e206e` + bu dal. Genişlikler 768×1024 ve 375×812 (telefon kipi, dokunmatik). Betik:
+`npm run design:measure`; ham sonuç `data/onizleme-12-ekran.json`.
+
+| Ölçü | Sonuç (24 ölçüm) |
+|---|---|
+| Durum kodu | 24/24 `200`, yönlendirme yok |
+| Kabuk (üst çubuk ya da alt menü) | 24/24 var |
+| Yatay taşma | 0 (hepsinde) |
+| En küçük yazı | 11 px (mono etiketler, ör. "0/3 davet hediyesi") |
+| Konsol hatası | 0 |
+| Ekranda birden çok marka düğmesi | **2 ekran:** `/krediler` ("Bağlantıyı kopyala" + "Ek paket al"), `/sohbetler` boş durumu (başlıkta ve kartta iki "Yeni sohbet"). Marka düğmesi olmayan: `/araclar`, `/takvimim`, `/profil` |
+| Eşik altı dokunma hedefi (768'de 40, 375'te 44) | 768: "⏳ Sınavına 45 Gün Kaldı" şeridi 32 px (`/deneme-sinavlari`), "Ek paket al" 39 px (`/krediler`). 375: aynı ikisi + 40 px'lik öğeler: "Sınav hazırlıklarım" başlık bağlantısı, Stüdyo kısayol hapları (4), `/siniflar` iki giriş kutusu, `/profil` "Ek paket", Ayarlar satır düğmeleri (Profili düzenle, Açık/Koyu/Sistem, E-posta adresini değiştir, Çerez tercihleri) |
+
+Ölçüm notları:
+- **İlk ziyaretteki "Seri" penceresi** (`gamification.tsx`) temiz her tarayıcıda sayfanın üstüne çıkıyor. İlk koşuda ölçüme
+  karıştı: her sayfada bir marka düğmesi ve 20 px'lik "İlerlemeni gör" çıktı. Giriş betiği artık öğrencinin "Devam et"inin
+  yazdığı anahtarı (`cortex-gamification-v1`) oturum dosyasına yazıyor. Görsel taban (2.6) aynı dosyaları kullanacak.
+- Sol alttaki "N" Next'in geliştirme simgesi; yalnız yerel sunucuda var ve gölge DOM'da olduğu için ölçüme girmiyor. Görsel
+  tabanda gizlenmeli (2.6).
+- 40 px'lik öğeler masaüstü kuralını (40) karşılıyor, telefon kuralını (44) karşılamıyor. Hepsi Faz 0'da yalnız kayıt; 2.7'deki
+  denetim betiğinin "ratchet" tabanına bugünkü sayılarıyla girecek.

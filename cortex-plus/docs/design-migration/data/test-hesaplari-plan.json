@@ -1,0 +1,234 @@
+{
+ "base": "yerel (3005)",
+ "measuredAt": "2026-11-14T05:23:36.955Z",
+ "results": [
+  {
+   "user": "e2e-free-fresh",
+   "route": "/krediler",
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/krediler",
+   "overflow": 0,
+   "shell": true,
+   "minFont": 11,
+   "minFontText": "Ücretsiz",
+   "smallTargets": [
+    {
+     "size": 36,
+     "label": "Plus planına bak"
+    },
+    {
+     "size": 39,
+     "label": "Kullanımını artır"
+    }
+   ],
+   "smallTargetCount": 2,
+   "brands": 0,
+   "capsule": "Profil, Ücretsiz plan",
+   "title": "Kullanım limitleri | Cortex Plus",
+   "h1": "Kullanım limitleri",
+   "quota": null,
+   "consoleErrors": []
+  },
+  {
+   "user": "e2e-free-used",
+   "route": "/krediler",
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/krediler",
+   "overflow": 0,
+   "shell": true,
+   "minFont": 11,
+   "minFontText": "Ücretsiz",
+   "smallTargets": [
+    {
+     "size": 36,
+     "label": "Plus planına bak"
+    },
+    {
+     "size": 39,
+     "label": "Kullanımını artır"
+    }
+   ],
+   "smallTargetCount": 2,
+   "brands": 0,
+   "capsule": "Profil, Ücretsiz plan",
+   "title": "Kullanım limitleri | Cortex Plus",
+   "h1": "Kullanım limitleri",
+   "quota": null,
+   "consoleErrors": []
+  },
+  {
+   "user": "e2e-free-exhausted",
+   "route": "/krediler",
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/krediler",
+   "overflow": 0,
+   "shell": true,
+   "minFont": 11,
+   "minFontText": "Ücretsiz",
+   "smallTargets": [
+    {
+     "size": 36,
+     "label": "Plus planına bak"
+    },
+    {
+     "size": 39,
+     "label": "Kullanımını artır"
+    }
+   ],
+   "smallTargetCount": 2,
+   "brands": 0,
+   "capsule": "Profil, Ücretsiz plan",
+   "title": "Kullanım limitleri | Cortex Plus",
+   "h1": "Kullanım limitleri",
+   "quota": null,
+   "consoleErrors": []
+  },
+  {
+   "user": "e2e-plus",
+   "route": "/krediler",
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/krediler",
+   "overflow": 0,
+   "shell": true,
+   "minFont": 11,
+   "minFontText": "Plus",
+   "smallTargets": [
+    {
+     "size": 39,
+     "label": "Ek paket al"
+    }
+   ],
+   "smallTargetCount": 1,
+   "brands": 0,
+   "capsule": "Profil, Plus plan",
+   "title": "Kullanım limitleri | Cortex Plus",
+   "h1": "Kullanım limitleri",
+   "quota": "%0 kullanıldı",
+   "consoleErrors": []
+  },
+  {
+   "user": "e2e-plus-90",
+   "route": "/krediler",
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/krediler",
+   "overflow": 0,
+   "shell": true,
+   "minFont": 11,
+   "minFontText": "Plus",
+   "smallTargets": [
+    {
+     "size": 20,
+     "label": "İlerlemeni gör"
+    },
+    {
+     "size": 39,
+     "label": "Ek paket al"
+    }
+   ],
+   "smallTargetCount": 2,
+   "brands": 1,
+   "capsule": "Profil, Plus plan",
+   "title": "Kullanım limitleri | Cortex Plus",
+   "h1": "Kullanım limitleri",
+   "quota": "%90 kullanıldı",
+   "consoleErrors": []
+  },
+  {
+   "user": "e2e-plus-100",
+   "route": "/krediler",
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/krediler",
+   "overflow": 0,
+   "shell": true,
+   "minFont": 11,
+   "minFontText": "Plus",
+   "smallTargets": [
+    {
+     "size": 15,
+     "label": "Limitleri gör"
+    },
+    {
+     "size": 15,
+     "label": "Ek paket al"
+    },
+    {
+     "size": 20,
+     "label": "İlerlemeni gör"
+    },
+    {
+     "size": 22,
+     "label": "Kapat"
+    },
+    {
+     "size": 39,
+     "label": "Ek paket al"
+    }
+   ],
+   "smallTargetCount": 5,
+   "brands": 1,
+   "capsule": "Profil, Plus plan",
+   "title": "Kullanım limitleri | Cortex Plus",
+   "h1": "Kullanım limitleri",
+   "quota": "%100 kullanıldı",
+   "consoleErrors": []
+  },
+  {
+   "user": "e2e-week",
+   "route": "/krediler",
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/krediler",
+   "overflow": 0,
+   "shell": true,
+   "minFont": 11,
+   "minFontText": "Plus · 3 gün",
+   "smallTargets": [
+    {
+     "size": 39,
+     "label": "Ek paket al"
+    }
+   ],
+   "smallTargetCount": 1,
+   "brands": 0,
+   "capsule": "Profil, Plus, 3 gün kaldı",
+   "title": "Kullanım limitleri | Cortex Plus",
+   "h1": "Kullanım limitleri",
+   "quota": "%0 kullanıldı",
+   "consoleErrors": []
+  },
+  {
+   "user": "e2e-sigma",
+   "route": "/krediler",
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/krediler",
+   "overflow": 0,
+   "shell": true,
+   "minFont": 11,
+   "minFontText": "Sigma",
+   "smallTargets": [
+    {
+     "size": 20,
+     "label": "İlerlemeni gör"
+    },
+    {
+     "size": 39,
+     "label": "Ek paket al"
+    }
+   ],
+   "smallTargetCount": 2,
+   "brands": 1,
+   "capsule": "Profil, Sigma plan",
+   "title": "Kullanım limitleri | Cortex Plus",
+   "h1": "Kullanım limitleri",
+   "quota": "%0 kullanıldı",
+   "consoleErrors": []
+  }
+ ]
+}
