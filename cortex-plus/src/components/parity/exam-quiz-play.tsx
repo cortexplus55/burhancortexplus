@@ -175,6 +175,8 @@ export function ExamQuizPlay({
               type="button"
               disabled={!examMode && revealed}
               onClick={() => pick(option)}
+              // Faz 5A: yeni görünümün kancası (`ui.v2.tekrar`); görünümü değiştirmez.
+              data-cx-option={showGreen ? "right" : showRed ? "wrong" : missedCorrect ? "missed" : selectedThis ? "selected" : "idle"}
               className={cn(
                 "group w-full flex items-center gap-4 p-4 sm:p-5 rounded-2xl text-left transition-all duration-150 relative overflow-hidden border",
                 showGreen
@@ -189,6 +191,7 @@ export function ExamQuizPlay({
               )}
             >
               <div
+                data-cx-letter=""
                 className={cn(
                   "flex-shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center font-bold text-sm",
                   question.multi && !showFeedback ? "rounded-md" : "",
