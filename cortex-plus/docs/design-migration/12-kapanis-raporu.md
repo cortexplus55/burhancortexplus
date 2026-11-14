@@ -29,7 +29,7 @@
 | #656 8 stüdyo | `design/faz8` | 8c1bf91d | 14.11 22:12 | duman 11/11 |
 | #657 9 düello (görünüm, nötr bot, kapı) | `design/faz9` | 13ddb3d0 | 14.11 22:27 | duman 11/11 |
 | #658 11 ayarlar, kütüphane, araçlar, büyüme | `design/faz11` | 50889a28 | 14.11 22:59 | duman 11/11 |
-| #659 12 durumlar, erişilebilirlik, ölçüm, kapanış | `design/faz12` | (birleşince kapanış eki PR'ında) | | |
+| #659 12 durumlar, erişilebilirlik, ölçüm, kapanış | `design/faz12` | bu raporu taşıyan birleşme commit'i (`git log --grep "#659" --merges`) | 14.11 | birleşmeden sonra duman testi (sonuç kapanış özetinde) |
 
 ## 3. Bayrak tablosu
 

@@ -30,7 +30,7 @@ teklif yok; sayaç "önce artır, hata olursa iade" kabul; sohbette 402 sonrası
 | 9C · Düello bağlama | — | **park** | — | — | 9B'ye bağlı | |
 | 10A+10B · Paylaşım kartı, `/d/KOD` | — | **park** | — | `ui.v2.paylas` | 9B'ye bağlı | `/d/ZZZZZZZZ` 404 (duman testi) |
 | 11A+11B+11C · Ayarlar, Kütüphane, araçlar, büyüme (tek PR) | `design/faz11` | **birleşti** (50889a28) | #658 | `ui.v2.ayarlar`, `ui.v2.kutuphane`, `ui.v2.araclar2`, `ui.v2.buyume` | Telefonda davet şeridi yeri | Yerleşim 7 kodlandı, öbürleri bekliyor |
-| 12A+12B+12C · Durumlar, erişilebilirlik ve performans, kapanış | `design/faz12` | PR açık | #659 | — | 7 gün sonra bayrak temizliği | 404 / hata ekranları, axe düzeltmeleri |
+| 12A+12B+12C · Durumlar, erişilebilirlik ve performans, kapanış | `design/faz12` | **birleşti** (bu PR; kapanış raporu `12-kapanis-raporu.md`) | #659 | — | 7 gün sonra bayrak temizliği | 404 / hata ekranları, axe düzeltmeleri |
 
 ## Sıradaki adımlar (bağlam sıkışırsa buradan)
 
