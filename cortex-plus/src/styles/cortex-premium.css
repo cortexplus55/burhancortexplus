@@ -573,3 +573,16 @@
     0 16px 40px rgba(0, 0, 0, 0.4),
     0 0 28px rgba(244, 174, 11, 0.1);
 }
+
+/* Giriş ve kayıt yeni görünümünün parçaları (15 Kasım 2026): yalnız `[data-ui~="giris"]` altında çizilir
+   (ui-v2-giris.css). Bayrak kapalıyken gizli; eski görünüm aynen kalır. */
+.cx-auth-logo,
+.cx-auth-ring,
+.cx-auth-badge-icon {
+  display: none;
+}
+.cx-auth-head-start {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
