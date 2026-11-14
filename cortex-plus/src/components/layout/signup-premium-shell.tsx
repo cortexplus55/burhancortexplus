@@ -1,4 +1,6 @@
 import { CortexMark } from "@/components/brand/cortex-mark";
+import { AuthHeroRing, AuthLogo } from "@/components/layout/auth-brand";
+import { Check } from "lucide-react";
 import Link from "next/link";
 import "@/styles/cortex-premium.css";
 
@@ -34,7 +36,9 @@ export function SignupPremiumShell({
       <div className="cortex-premium-auth__grid cortex-premium-signup__grid">
         <aside className="cortex-premium-auth__hero hidden lg:block">
           <div className="cortex-premium-auth__hero-inner">
-            <p className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.2em] text-[var(--cpx-gold)]">
+            <AuthHeroRing />
+            <AuthLogo />
+            <p className="cortex-premium-auth__brand flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.2em] text-[var(--cpx-gold)]">
               <CortexMark size={20} />
               Cortex Plus
             </p>
@@ -42,29 +46,38 @@ export function SignupPremiumShell({
               Dekoratif yan panel — sayfanın `h1`'i sihirbazın o anki adımı
               (`signup-wizard.tsx`). İki `h1` bir arada olunca hem ekran
               okuyucu hem test hangisinin sayfa başlığı olduğunu bilemiyordu.
+              İki ton (15 Kasım 2026): ilk satır ikincil gri, ikincisi beyaz; metin aynı.
             */}
             <p className="cortex-premium-auth__hero-title">
-              Dakikalar içinde kişisel AI öğretmenin
+              <span className="cx-auth-tone">Dakikalar içinde</span>{" "}
+              <span>kişisel AI öğretmenin</span>
             </p>
             <p className="cortex-premium-auth__hero-lead">
               Sınıfını ve hedefini söyle; notunu yükleyince ders, podcast, test ve
               sözlü pratik senin notundan hazırlanır.
             </p>
             <div className="cortex-premium-auth__badges">
-              <span className="cortex-premium-auth__badge">Ücretsiz başlangıç</span>
-              <span className="cortex-premium-auth__badge">Kart istemiyoruz</span>
-              <span className="cortex-premium-auth__badge">7/24 erişim</span>
+              {["Ücretsiz başlangıç", "Kart istemiyoruz", "7/24 erişim"].map((badge) => (
+                <span key={badge} className="cortex-premium-auth__badge">
+                  <Check className="cx-auth-badge-icon" aria-hidden strokeWidth={3} />
+                  {badge}
+                </span>
+              ))}
             </div>
           </div>
         </aside>
         <div className="cortex-premium-auth__panel flex min-h-0 flex-col">
           <header className="cortex-premium-signup__header flex items-center justify-between px-4 py-4 lg:px-8">
-            {headerStart}
-            <span className="text-xs text-[var(--cpx-muted)]">{stepLabel}</span>
+            <span className="cx-auth-head-start">
+              {headerStart}
+              {/* Yeni görünümde telefonda logo burada; geniş ekranda sol panelde. */}
+              <AuthLogo className="cx-auth-logo--head" />
+            </span>
+            <span className="cx-auth-step text-xs text-[var(--cpx-muted)]">{stepLabel}</span>
           </header>
           <main className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pb-10 lg:px-8">
-            {/* Yeni 3B logo (9 Kasım 2026): formun üstünde ortalanmış işaret. */}
-            <div className="mb-4 flex justify-center">
+            {/* Yeni 3B logo (9 Kasım 2026): formun üstünde ortalanmış işaret. Yeni görünümde logo üstte, bu gizli. */}
+            <div className="cx-auth-mark mb-4 flex justify-center">
               <CortexMark size={56} priority />
             </div>
             {children}

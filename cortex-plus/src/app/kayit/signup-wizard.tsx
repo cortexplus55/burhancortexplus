@@ -317,7 +317,7 @@ export function SignupWizard() {
       <button
         type="button"
         onClick={back}
-        className="rounded-full p-2 text-[var(--cpx-muted)] hover:bg-[var(--cpx-surface-solid)]"
+        className="cx-auth-back rounded-full p-2 text-[var(--cpx-muted)] hover:bg-[var(--cpx-surface-solid)]"
         aria-label="Geri"
       >
         <ArrowLeft className="h-5 w-5" />
@@ -325,7 +325,7 @@ export function SignupWizard() {
     ) : (
       <Link
         href="/"
-        className="text-sm font-semibold text-[var(--cpx-gold-hover)]"
+        className="cx-auth-home text-sm font-semibold text-[var(--cpx-gold-hover)]"
       >
         Cortex Plus
       </Link>

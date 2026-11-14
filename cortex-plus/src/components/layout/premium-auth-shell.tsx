@@ -1,4 +1,6 @@
 ﻿import { CortexMark } from "@/components/brand/cortex-mark";
+import { AuthHeroRing, AuthLogo } from "@/components/layout/auth-brand";
+import { Check } from "lucide-react";
 import Link from "next/link";
 import "@/styles/cortex-premium.css";
 
@@ -16,7 +18,9 @@ export function PremiumAuthShell({
       <div className="cortex-premium-auth__grid">
         <aside className="cortex-premium-auth__hero" aria-hidden={true}>
           <div className="cortex-premium-auth__hero-inner">
-            <p className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.2em] text-[var(--cpx-gold)]">
+            <AuthHeroRing />
+            <AuthLogo decorative />
+            <p className="cortex-premium-auth__brand flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.2em] text-[var(--cpx-gold)]">
               <CortexMark size={20} />
               Cortex Plus
             </p>
@@ -26,16 +30,20 @@ export function PremiumAuthShell({
               kaldığı için görünüm değişmiyor.
             */}
             <p className="cortex-premium-auth__hero-title">
-              Sınav hazırlığını adım adım ilerlet
+              <span className="cx-auth-tone">Sınav hazırlığını</span>{" "}
+              <span>adım adım ilerlet</span>
             </p>
             <p className="cortex-premium-auth__hero-lead">
               Notundan ders, podcast, test ve sözlü pratik — kendi hızında, sınav gününe
               kadar.
             </p>
             <div className="cortex-premium-auth__badges">
-              <span className="cortex-premium-auth__badge">Adım adım çözüm</span>
-              <span className="cortex-premium-auth__badge">Tüm dersler</span>
-              <span className="cortex-premium-auth__badge">Mobil + web</span>
+              {["Adım adım çözüm", "Tüm dersler", "Mobil + web"].map((badge) => (
+                <span key={badge} className="cortex-premium-auth__badge">
+                  <Check className="cx-auth-badge-icon" aria-hidden strokeWidth={3} />
+                  {badge}
+                </span>
+              ))}
             </div>
           </div>
         </aside>
@@ -48,6 +56,8 @@ export function PremiumAuthShell({
               <CortexMark size={24} />
               Cortex Plus
             </Link>
+            {/* Yeni görünümde telefonda logo burada; geniş ekranda sol panelde. */}
+            <AuthLogo className="cx-auth-logo--head" />
             <Link
               href="/kayit"
               className="cp-tap text-sm font-medium text-[var(--cpx-gold-hover)] hover:underline"
@@ -57,7 +67,7 @@ export function PremiumAuthShell({
           </div>
           <div className="cortex-premium-auth__card">
             {/* Yeni 3B logo (9 Kasım 2026): kartın üstünde ortalanmış işaret. */}
-            <div className="mb-5 flex justify-center">
+            <div className="cx-auth-mark mb-5 flex justify-center">
               <CortexMark size={72} priority className="h-16 w-16 sm:h-[72px] sm:w-[72px]" />
             </div>
             <h1 className="cortex-premium-auth__title">{title}</h1>
