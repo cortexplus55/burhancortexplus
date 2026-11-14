@@ -28,7 +28,8 @@
     "test:visual:update": "node scripts/visual-baseline.mjs update",
     "perf:measure": "node scripts/perf-measure.mjs",
     "perf:compare": "node scripts/perf-compare.mjs",
-    "perf:baseline": "node scripts/perf-baseline.mjs"
+    "perf:baseline": "node scripts/perf-baseline.mjs",
+    "smoke:prod": "node scripts/smoke-prod.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
