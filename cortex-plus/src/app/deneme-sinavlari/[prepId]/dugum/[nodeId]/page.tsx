@@ -3,6 +3,7 @@ import { ParitySorShell } from "@/components/parity/sor-shell";
 import { uiV2 } from "@/lib/ui-v2/flags";
 import "@/styles/ui-v2-ders.css";
 import "@/styles/ui-v2-tekrar.css";
+import "@/styles/ui-v2-studyo.css";
 import { ExamNodeSession } from "@/components/parity/exam-node-session";
 import { poolSliceForTopic } from "@/lib/content-pool/serve";
 import { poolLessonPreview, savedLessonPreview } from "@/lib/content-pool/lesson-preview";
@@ -60,6 +61,8 @@ const TOPIC_SCOPED_KINDS = new Set<PlanNodeKind>(["lesson", "podcast", "qa", "qu
 
 /** Faz 5 tekrar ekranları: konu testi, doğru/yanlış, kartlar. */
 const TEKRAR_KINDS: ReadonlySet<string> = new Set(["quiz", "true_false", "flashcards", "spaced"]);
+/** Faz 8 (`ui.v2.studyo`): yoldaki podcast ve sözlü adımı stüdyo görünümüyle. */
+const STUDYO_KINDS: ReadonlySet<string> = new Set(["podcast", "oral"]);
 
 export const metadata = { title: "Ders" };
 
@@ -395,6 +398,7 @@ export default async function ExamNodePage({
   const uiKeys = [
     ...(node.kind === "lesson" && (await uiV2("ders", user.id)) ? ["ders"] : []),
     ...(TEKRAR_KINDS.has(String(node.kind)) && (await uiV2("tekrar", user.id)) ? ["tekrar"] : []),
+    ...(STUDYO_KINDS.has(String(node.kind)) && (await uiV2("studyo", user.id)) ? ["studyo"] : []),
   ];
 
   const session = (

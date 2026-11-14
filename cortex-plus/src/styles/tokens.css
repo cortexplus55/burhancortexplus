@@ -451,6 +451,9 @@
   --cx-lane-you: #0e7490;
   --cx-lane-bot: #a21caf;
   --cx-lane-friend: #6d28d9;
+  /* Podcast konuşmacıları (Faz 8): bugünkü oynatıcının Ada ve Kerem renkleri, açık temada okunur koyu tonlar. */
+  --cx-speaker-ada: #a21caf;
+  --cx-speaker-kerem: #0f766e;
 }
 
 .dark {
@@ -464,6 +467,8 @@
   --cx-lane-you: #22d3ee;
   --cx-lane-bot: #e879f9;
   --cx-lane-friend: #a78bfa;
+  --cx-speaker-ada: #e879f9;
+  --cx-speaker-kerem: #5eead4;
   --cx-bg-1: #15110d;
   --cx-bg-2: #1e1813;
   --cx-bg-3: #29211a;

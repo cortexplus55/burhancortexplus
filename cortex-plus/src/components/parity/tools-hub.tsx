@@ -53,7 +53,7 @@ const ICONS: Record<string, LucideIcon> = {
   "dogru-yanlis": BookOpen,
 };
 
-export function ToolsHub({ deck }: { deck?: { dueCount: number; total: number } }) {
+export function ToolsHub({ deck, gated = false }: { deck?: { dueCount: number; total: number }; gated?: boolean }) {
   const shellAccount = useStudentShellAccount();
   const freeAccount = shellAccount ? shellAccount.showsUpgradeChrome : false;
   // Stüdyolar kendi galerisinde (studios.ts); burada yalnız laboratuvar, hesap aracı ve kısayol.
@@ -90,7 +90,7 @@ export function ToolsHub({ deck }: { deck?: { dueCount: number; total: number } 
         </Link>
       ) : null}
 
-      <StudioGallery freeAccount={freeAccount} />
+      <StudioGallery freeAccount={freeAccount} gated={gated} />
 
       <section className="tools-section">
         <h2>
