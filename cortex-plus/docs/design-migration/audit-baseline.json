@@ -1,0 +1,54 @@
+{
+ "updatedAt": "2026-11-14T12:44:20.528Z",
+ "screens": 203,
+ "totals": {
+  "overflowX": 0,
+  "smallTarget": 1036,
+  "smallFont": 360,
+  "multiBrand": 38,
+  "unlabeledIcon": 0,
+  "contrast": 152
+ },
+ "top": [
+  [
+   "e2e-plus araclar-periyodik",
+   830
+  ],
+  [
+   "e2e-free-fresh pay",
+   46
+  ],
+  [
+   "e2e-free-exhausted pay",
+   46
+  ],
+  [
+   "e2e-plus studio-quiz",
+   36
+  ],
+  [
+   "e2e-plus pay",
+   28
+  ],
+  [
+   "e2e-sigma pay",
+   28
+  ],
+  [
+   "e2e-plus studio-podcast",
+   27
+  ],
+  [
+   "kurucu ogretmen",
+   26
+  ],
+  [
+   "e2e-plus studio-flashcard",
+   24
+  ],
+  [
+   "e2e-plus studio-yazili",
+   24
+  ]
+ ]
+}
