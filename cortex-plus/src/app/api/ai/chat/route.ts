@@ -730,10 +730,18 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
             const checked = await verifyDocumentAnswer({ client, question: message, answer: content, evidence, strict, signal: request.signal, model: reviewModel });
             await recordUsage(service, { userId, actionCode, model: reviewModel, tokensIn: checked.tokensIn, tokensOut: checked.tokensOut, reservationId });
             if (!checked.ok) {
-              logOpsEvent("document_answer_rejected", { operationId, attempt, strict, evidence: evidence.length, reasons: checked.reasons });
+              logOpsEvent("document_answer_rejected", { operationId, attempt, strict, evidence: evidence.length, reasons: checked.reasons, linked: linkedEvidence });
               if (!strict && offDocument && isAcceptableOutsideAnswer(content)) {
                 citations = [];
                 content = await polishPrep(content);
+                accepted = true;
+                break;
+              }
+              // Sistemin kendisinin bağladığı not (15 Kasım 2026, canlı): öğrenci "Yalnızca belgem" seçmedi. Cevap eğitim
+              // denetiminden geçtiyse kalır, yalnız sayfa atfı çıkmaz. Canlıda özet isteği iki kez kaynak denetiminden
+              // (schema_mismatch) düşüp "emin olamadım"a dönüyordu; yeniden yazmak aynı yerde takılıyordu.
+              if (linkedEvidence && !strict) {
+                citations = [];
                 accepted = true;
                 break;
               }

@@ -296,3 +296,13 @@ describe("sohbet ucu ve istemci bağlantısı", () => {
     expect(readFileSync("src/components/chat/tutor-reply-view.tsx", "utf8")).toContain("<StudioActionCards actions={split.actions} />");
   });
 });
+
+describe("canlı (15 Kasım 2026): bağlanan notun özeti kaynak denetiminde düşmez", () => {
+  it("eğitim denetiminden geçen cevap, kaynak denetçisi reddetse de kalır (atıfsız); öğrencinin seçtiği belge modu aynen katı", () => {
+    const route = readFileSync("src/app/api/ai/chat/route.ts", "utf8");
+    const branch = route.slice(route.indexOf("if (!checked.ok) {"), route.indexOf("citations = checked.citations;"));
+    expect(branch).toMatch(/if \(linkedEvidence && !strict\) \{\s*citations = \[\];\s*accepted = true;\s*break;/);
+    // linkedEvidence yalnız öğrenci belge modunu seçmediğinde doğru (useDocuments yolu değişmedi).
+    expect(route).toContain("const linkedEvidence = !useDocuments && Boolean(material) && evidence.length > 0;");
+  });
+});
