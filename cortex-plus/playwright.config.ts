@@ -55,6 +55,13 @@ export default defineConfig({
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
         process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "sb-e2e-local-only",
       E2E_FIXTURE: "1",
+      /*
+        Geliştirme sunucusu bellek sınırına yaklaşınca kendini yeniden başlatıyor ("Server is approaching the used
+        memory threshold, restarting..."); yeniden başlarken gelen istek ERR_CONNECTION_REFUSED alıyordu. CI'da
+        (13 Kasım 2026) 220 testin sonuna denk gelen /admin rotaları bu yüzden düşüyordu. Sınır, üretim derlemesiyle
+        aynı (package.json "build"); GitHub koşucusunda 16 GB var.
+      */
+      NODE_OPTIONS: [process.env.NODE_OPTIONS, "--max-old-space-size=6144"].filter(Boolean).join(" "),
     },
   },
   projects: [

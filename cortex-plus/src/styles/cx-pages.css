@@ -19,11 +19,6 @@
     .cs-pay-card,
     .cp-section,
     .lc-box,
-    .cp-pp-head,
-    .cp-pp-plan,
-    .cp-pp-streak,
-    .cp-pp-card,
-    .cp-pp-menu,
     .cp-ref-card,
     .pm-card,
     .cp-founder-card,
@@ -40,7 +35,7 @@
   border-color: transparent;
   box-shadow: none;
 }
-.cp-sor-main.cx-app-main :is(.cp-docs-card, .cp-prep-card, .tool-card, .cp-pp-card, .cp-catalog-tile):hover {
+.cp-sor-main.cx-app-main :is(.cp-docs-card, .cp-prep-card, .tool-card, .cp-catalog-tile):hover {
   border-color: transparent;
   box-shadow: none;
   background: var(--cx-bg-2);
@@ -60,9 +55,6 @@
   background: var(--cx-bg-2);
 }
 /* Belgelerim ve Ayarlar'daki çok satırlı listeler: çizgi yerine satır başına kart, aralarında 4 px. */
-.cp-sor-main.cx-app-main .cp-pp-menu {
-  background: transparent;
-}
 .cp-sor-main.cx-app-main .cortex-premium-inset-list {
   display: flex;
   flex-direction: column;
@@ -85,19 +77,6 @@
 }
 
 /* ---------- 2. Altın yalnız Plus, seri ve başarıda ---------- */
-/* Profil başlık kartının sıcak ışığı ve avatarın kahverengi zemini. */
-.cp-sor-main.cx-app-main .cp-pp-head {
-  background: var(--cx-bg-1);
-}
-.cp-sor-main.cx-app-main .cp-pp-avatar {
-  background: var(--cx-bg-2);
-  color: var(--cx-text-primary);
-}
-/* Profil'deki Takvimim sayacı. */
-.cp-sor-main.cx-app-main .cp-pp-card-badge {
-  background: var(--cx-bg-3);
-  color: var(--cx-text-primary);
-}
 /* Davet kartı: sıcak ışık ve altın durum yazısı. */
 .cp-sor-main.cx-app-main .cp-ref-card {
   background: var(--cx-bg-1);
@@ -253,21 +232,16 @@
 .cp-sor-main.cx-app-main .cp-set-rows > li {
   border-color: transparent;
 }
-/* 40 px hedefler (telefonda 44): Takvimim etkinlik başlığı, İlerleme bağlantıları, Profil'in küçük eylemleri. */
+/* 40 px hedefler (telefonda 44): Takvimim etkinlik başlığı, İlerleme bağlantıları. */
 .cp-sor-main.cx-app-main .cp-cal-item-title a,
-.cp-sor-main.cx-app-main .cp-section-body > a.inline-flex,
-.cp-sor-main.cx-app-main :is(.cp-avatar-pick-toggle, .cp-pp-settings, .cp-pp-plan .cp-founder-chip) {
+.cp-sor-main.cx-app-main .cp-section-body > a.inline-flex {
   display: inline-flex;
   align-items: center;
   min-height: var(--cx-control-s);
 }
-.cp-sor-main.cx-app-main .cp-avatar-pick-toggle {
-  padding-inline: var(--cx-space-12);
-}
 @media (max-width: 767px) {
   .cp-sor-main.cx-app-main .cp-cal-item-title a,
-  .cp-sor-main.cx-app-main .cp-section-body > a.inline-flex,
-  .cp-sor-main.cx-app-main :is(.cp-avatar-pick-toggle, .cp-pp-settings, .cp-pp-plan .cp-founder-chip) {
+  .cp-sor-main.cx-app-main .cp-section-body > a.inline-flex {
     min-height: var(--cx-tap-min);
   }
 }

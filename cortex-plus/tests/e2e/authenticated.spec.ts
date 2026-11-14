@@ -113,10 +113,19 @@ test.describe("authenticated student hub", { tag: ["@auth"] }, () => {
       const fit = await page.evaluate((selector) => {
         const root = document.documentElement;
         const header = document.querySelector(selector);
+        /*
+          Fiyatın kapat düğmesi (a.cx-shell-close) 40 px görünür, dokunma alanı ::before ile 44 px; bu alan bilerek
+          2 px taşar ve scrollWidth'e girer. Düğme için ölçü "ekranın dışına taşıyor mu" (13 Kasım'dan beri canlı
+          duman testi bu yüzden kırmızıydı, üründe taşma yokken). Üst çubuk için eski ölçü aynen.
+        */
+        const offscreen = (el: Element) => {
+          const rect = el.getBoundingClientRect();
+          return Math.max(0, Math.ceil(rect.right - root.clientWidth), Math.ceil(-rect.left));
+        };
         return {
           page: root.scrollWidth - root.clientWidth,
           hasHeader: Boolean(header),
-          header: header ? header.scrollWidth - header.clientWidth : 0,
+          header: header ? (header.matches("a.cx-shell-close") ? offscreen(header) : header.scrollWidth - header.clientWidth) : 0,
         };
       }, chromeSelector);
       expect(fit.hasHeader, `${path} üst çubuk yok`).toBe(true);

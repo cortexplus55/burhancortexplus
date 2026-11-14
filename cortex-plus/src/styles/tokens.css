@@ -431,6 +431,22 @@
   --als-ai: var(--c-ai);
   --als-info: var(--c-info);
   --als-warning: var(--c-warning);
+  /* Plan kimliği (13 Kasım 2026, Faz 2 tasarım tahtası; 14 Kasım'da cx-profile.css'ten taşındı). Açık tema. */
+  --cx-plan-free-ring: #3a332d;
+  --cx-plan-plus-ring: conic-gradient(from 200deg, #fde68a, #f59e0b, #b45309, #f59e0b, #fde68a);
+  --cx-plan-sigma-ring: conic-gradient(from 20deg, #fca5a5, #f43f5e, #dc2626, #7f1d1d, #f43f5e, #fca5a5);
+  --cx-plan-plus-mark: #f59e0b;
+  --cx-plan-sigma-mark: linear-gradient(135deg, #fca5a5, #ef4444);
+  --cx-plan-mark-text: #150404;
+  --cx-plan-plus-tint: linear-gradient(135deg, #f59e0b24, #f59e0b0a);
+  --cx-plan-plus-line: #f59e0b47;
+  --cx-plan-sigma-tint: linear-gradient(135deg, #f43f5e2e, #f43f5e0d);
+  --cx-plan-sigma-tint-open: linear-gradient(135deg, #f43f5e47, #f43f5e1f);
+  --cx-plan-sigma-line: #fb718559;
+  --cx-plan-sigma-text: linear-gradient(90deg, #be123c, #e11d48);
+  --cx-plan-sigma-chip-bg: #ffe4e6;
+  --cx-plan-sigma-chip-text: #9f1239;
+  --cx-plan-sigma-glow: radial-gradient(90% 38% at 20% 0%, #f43f5e26, transparent 72%);
 }
 
 .dark {
@@ -522,6 +538,11 @@
   --ring: 188 86% 53%;
   --brand: 38 92% 50%;
   --brand-foreground: 30 22% 4%;
+  /* Plan kimliği, koyu tema (13 Kasım 2026, Faz 2 tasarım tahtası). Sigma tonları yalnız plan kimliğinde; hata
+     kırmızısı (--cx-danger) ayrı. */
+  --cx-plan-sigma-text: linear-gradient(90deg, #fda4af, #f87171);
+  --cx-plan-sigma-chip-bg: #3a1519;
+  --cx-plan-sigma-chip-text: #fda4af;
 }
 
 /*

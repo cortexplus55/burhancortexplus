@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Crown } from "lucide-react";
 import {
   FOUNDER_CREDIT_ARIA,
   FOUNDER_CREDIT_LABEL,
@@ -8,7 +7,10 @@ import {
 } from "@/lib/credits/chip-label";
 import "@/styles/founder.css";
 
-/** Üst çubuktaki kurucu çipi. Tıklayınca kredi sayfasının kurucu görünümü açılır. */
+/**
+ * Kurucu çipi (profil paneli). Tıklayınca kredi sayfasının kurucu görünümü açılır. 14 Kasım 2026 (ürün sahibinin kararı):
+ * Kurucu Sigma görünümündedir, altın değil: kırmızı tonlu çip, köşe işareti Σ, mono büyük harf etiket.
+ */
 export function FounderChip({ className }: { className?: string }) {
   return (
     <Link
@@ -17,18 +19,22 @@ export function FounderChip({ className }: { className?: string }) {
       aria-label={FOUNDER_CREDIT_ARIA}
       data-tip={FOUNDER_CREDIT_TIP}
     >
-      <Crown className="cp-founder-chip__icon" aria-hidden />
+      <b className="cp-founder-chip__mark" aria-hidden>
+        Σ
+      </b>
       <span className="cp-founder-chip__full">{FOUNDER_CREDIT_LABEL}</span>
       <span className="cp-founder-chip__short">{FOUNDER_CREDIT_SHORT}</span>
     </Link>
   );
 }
 
-/** Ayarlardaki "Hesap türü" rozeti — çiple aynı görünüm, bağlantı değil. */
+/** Ayarlar ve Abonelik sayfasındaki "Hesap türü" rozeti: çiple aynı görünüm, bağlantı değil. */
 export function FounderBadge() {
   return (
     <span className="cp-founder-chip">
-      <Crown className="cp-founder-chip__icon" aria-hidden />
+      <b className="cp-founder-chip__mark" aria-hidden>
+        Σ
+      </b>
       Kurucu
     </span>
   );

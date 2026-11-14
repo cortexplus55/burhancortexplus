@@ -522,8 +522,7 @@
 }
 /* İskeletin içine giren eski sarmalayıcılar kendi genişlik ve kenar boşluklarını bırakır. */
 .cx-page .cp-set-page,
-.cx-page .cp-solver-page,
-.cx-page .cp-pp {
+.cx-page .cp-solver-page {
   max-width: none;
   margin: 0;
   padding-block: 0;

@@ -1,4 +1,3 @@
-import { Crown } from "lucide-react";
 import { PageShell } from "@/components/parity/page-shell";
 import { formatNumber } from "@/lib/format";
 import {
@@ -35,8 +34,9 @@ export function FounderCreditsView({
     <PageShell width="read" title="Kullanım limitleri">
 
       <section className="pm-card cp-founder-card" aria-labelledby="founder-card-title">
+        {/* 14 Kasım 2026: Kurucu Sigma görünümünde (kırmızı halka + Σ), altın taç değil. */}
         <span className="cp-founder-card__badge" aria-hidden>
-          <Crown className="h-5 w-5" />
+          Σ
         </span>
         <div>
           <h2 id="founder-card-title" className="cp-founder-card__title">
