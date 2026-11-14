@@ -306,3 +306,29 @@ describe("canlı (15 Kasım 2026): bağlanan notun özeti kaynak denetiminde dü
     expect(route).toContain("const linkedEvidence = !useDocuments && Boolean(material) && evidence.length > 0;");
   });
 });
+
+describe("canlı (15 Kasım 2026): 'bu konudan test hazırla' önceki mesajdaki notu sürdürür", () => {
+  const USER = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const OTHER = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+  const tables = {
+    exam_preps: [
+      { id: P1, user_id: USER, title: "Hücre Bölünmesi ve Kalıtım", exam_type: "yazili", exam_date: null, created_at: "2026-11-01", document_id: "doc-1" },
+      { id: OTHER, user_id: USER, title: "Optik ve Işık", exam_type: "yazili", exam_date: null, created_at: "2026-11-02", document_id: null },
+    ],
+    exam_prep_topics: [],
+    documents: [{ id: "doc-1", user_id: USER, file_name: "kalitim.pdf", deleted_at: null, part_of: null }],
+    exam_prep_nodes: [{ id: "n-quiz", exam_prep_id: P1, kind: "quiz", status: "ready", sort_order: 1, session_meta: null }],
+    messages: [{ conversation_id: "conv-1", user_id: USER, role: "user", content: "Hücre bölünmesi notumdan özet çıkar" }],
+  };
+
+  it("mesajda ad yoksa konuşmanın son öğrenci mesajındaki hazırlık; seçili hazırlık geri planda", async () => {
+    const link = await resolveChatMaterial(fakeService(tables), USER, "Şimdi bu konudan bana 5 soruluk tuzaklı bir test hazırla", OTHER, { conversationId: "conv-1" });
+    expect(link?.match.preps.map((item) => item.prep.id)).toEqual([P1]);
+    expect(link?.actions).toEqual([expect.objectContaining({ kind: "quiz", href: `/deneme-sinavlari/${P1}/dugum/n-quiz` })]);
+  });
+
+  it("konuşma yoksa seçili hazırlık", async () => {
+    const link = await resolveChatMaterial(fakeService(tables), USER, "Şimdi bu konudan bana 5 soruluk tuzaklı bir test hazırla", OTHER);
+    expect(link?.match.preps.map((item) => item.prep.id)).toEqual([OTHER]);
+  });
+});

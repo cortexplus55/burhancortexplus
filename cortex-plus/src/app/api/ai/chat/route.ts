@@ -272,7 +272,7 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
     // Öğrencinin kendi materyaline bağlanma (15 Kasım 2026): ana sohbette mesaj hazırlık / konu / belge adı, "N gün
     // sonraki sınav" ya da seçili hazırlıkla eşlenir. Yalnız okuma; düşerse bağlantı yok, sohbet bugünkü gibi sürer.
     const materialEarly: Promise<ChatMaterialLink | null> = !rest.prepId && !rest.imageDocumentId
-      ? resolveChatMaterial(service, userId, message, rest.contextPrepId ?? null).catch((error) => {
+      ? resolveChatMaterial(service, userId, message, rest.contextPrepId ?? null, { conversationId: rest.conversationId }).catch((error) => {
           console.warn("chat_material_link_failed", { operationId, cause: String(error instanceof Error ? error.message : error).slice(0, 120) });
           return null;
         })
