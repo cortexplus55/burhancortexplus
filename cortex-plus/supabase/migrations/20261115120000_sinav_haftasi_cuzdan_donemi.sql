@@ -1,5 +1,5 @@
 -- Sınav Haftası (ve aylık Plus) cüzdan dönemi boşluğu — docs/design-migration/bilinen-sunucu-sapmalari.md #2.
--- ÖNERİ: Burhan onaylamadan birleştirilmez ve canlıya uygulanmaz (kota / plan alanı).
+-- Burhan 15 Kasım 2026'da onayladı; aynı gün SQL ekranında canlıya uygulandı (kayıt satırıyla).
 --
 -- Bugün: ödemede abonelik `ödeme anı + period_days`, cüzdan `UTC gün başı + 7 / 30 gün` biter
 -- (20260923180000). Cüzdan aboneliğin bitişinden en çok 24 saat önce biter; aradaki saatlerde abonelik etkin

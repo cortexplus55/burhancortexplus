@@ -44,7 +44,7 @@ teklif yok; sayaç "önce artır, hata olursa iade" kabul; sohbette 402 sonrası
 | `/ogretmen` canlı stres testi: şerit adları, materyal bağlama, stüdyo düğmeleri, 5 şık, usta hoca | #662 | CI'da |
 | Playwright yalnız CI'da `retries: 1` + kararsız test raporu | #663 | CI'da |
 | CSP "eval" rapor gürültüsü (kök düzenden zod çıktı) | #664 | CI'da |
-| Sınav Haftası (ve aylık Plus) cüzdan dönemi boşluğu: test + önerilen düzeltme | #660 | **taslak, birleştirilmez** (Burhan onayı + göç) |
+| Sınav Haftası (ve aylık Plus) cüzdan dönemi boşluğu: test + önerilen düzeltme | #660 | **birleşti**, göç canlıda (Burhan onayı, 15 Kasım) |
 | Düello 9B üretim istemi ve maliyet önerisi | — | `duello-9b-oneri.md`, Burhan onayı |
 
 ## Sıradaki adımlar (bağlam sıkışırsa buradan)
@@ -76,8 +76,7 @@ teklif yok; sayaç "önce artır, hata olursa iade" kabul; sohbette 402 sonrası
 ## Burhan kararı bekleyenler
 
 0. **15 Kasım 2026 eklenenler:**
-   - Sınav Haftası dönem boşluğu düzeltmesi: PR #660 (taslak) ve göç `20261115120000`. Önce göç SQL ekranında uygulanır,
-     sonra PR birleştirilir.
+   - ~~Sınav Haftası dönem boşluğu düzeltmesi~~: onaylandı, göç `20261115120000` canlıda, PR #660 birleşti.
    - `ui.v2.pay` açma yolu: `pay-bayragi-secenekler.md` A / B / C.
    - Düello 9B: `duello-9b-oneri.md` (istem, ücret, günlük sınır, paylaşım uyarısı, göç).
    - Kararsız test listesini ayrı yapıt olarak saklamak: `ci.yml`'e `upload-artifact` adımı. İş akışı dosyası bu
