@@ -133,3 +133,56 @@ canlı veritabanı, main `492e206e` + bu dal. Genişlikler 768×1024 ve 375×812
   tabanda gizlenmeli (2.6).
 - 40 px'lik öğeler masaüstü kuralını (40) karşılıyor, telefon kuralını (44) karşılamıyor. Hepsi Faz 0'da yalnız kayıt; 2.7'deki
   denetim betiğinin "ratchet" tabanına bugünkü sayılarıyla girecek.
+
+## 12. Hazırlık sayfasının ilk ziyareti "Seviye tespiti" adımını kaldırıyor (yalnız rapor; düzeltilmedi)
+
+**Görülen:** görsel tabanda hazırlık sayfası ilk ziyarette yolun başında bayraklı "Seviye tespiti" adımıyla çizildi,
+ikinci ziyarette adım yoktu (`e2e-sigma`, `e2e-free-fresh`, `e2e-free-exhausted`; 14 Kasım 2026, üretim derlemesi). Hesap
+o arada hiçbir etkinlik açmamıştı.
+
+**Zincir (kodla doğrulandı):**
+1. Hazırlık sayfası açılınca istemci sıradaki düğümü önceden yükler: `src/components/parity/exam-prep-home.tsx:438`
+   (`router.prefetch(examPrepNodeHref(prepId, primaryNodeId))`) ve `:443` (ders önizlemesi farklı düğümdeyse o düğüm).
+2. Next 15.5.29'da `router.prefetch` tür verilmeden çağrılınca **FULL** önceden yükleme yapar
+   (`node_modules/next/dist/client/components/app-router-instance.js:292`, eski önbellek yolu varsayılan). Bu, düğüm
+   sayfasının sunucu bileşenini gerçekten çalıştırır.
+3. Düğüm sayfası tanı bekleyen hazırlıkta `intro_deferred_at`'i yazar:
+   `src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/page.tsx:183-191`. Yorum niyeti açık söylüyor: "öğrenci bir etkinliği
+   açtıysa ölçüm ertelenir".
+4. Hazırlık sayfası `intro_deferred_at` doluysa adımı göstermez: `src/lib/learning/path-level.ts:9-17`
+   (`shouldShowLevelNode`).
+
+**Değerlendirme:** büyük olasılıkla **istenmeyen yan etki**. Yorum, öğrencinin bir etkinliği açmasını şart koşuyor;
+oysa erteleme, öğrenci yalnız hazırlık sayfasına baktığında önceden yüklemeyle oluyor. `next dev` önceden yüklemediği için
+geliştirme sunucusunda görünmüyor; yalnız üretimde. Sonuç: yeni kurulan hazırlıkta "Seviye tespiti" adımını öğrenci büyük
+olasılıkla hiç görmüyor (sayfayı ilk açtığı an ertelenmiş oluyor). Ürün kararı gerektirir (yan etkisiz önceden yükleme
+ya da ertelemeyi gerçek açılışa taşımak).
+
+**Teste etkisi:** tohum betiği hazırlığı doğrudan ertelenmiş hâlde yazar (`intro_deferred_at` dolu; 05-test-hesaplari.md),
+görsel taban ilk ve sonraki ziyarette aynı. Bu davranış düzelirse taban bilinçli güncellenir.
+
+## 13. `/pay` kapat düğmesi testi: düzeltme gevşetme değil (kanıt)
+
+**Test:** `tests/e2e/authenticated.spec.ts:111-133` (canlı duman testinin taşma denetimi; #646). `/pay`'de üst çubuk yok;
+denetlenen öğe fiyat ekranının kapat düğmesi `a.cx-shell-close` (`:111`).
+
+**Neden kırmızıydı:**
+- Düğme 40 px görünür (`--cx-icon-btn-l`), dokunma alanı `::before` ile 44 px (`src/styles/cx-shell.css:355-360`,
+  `inset: calc((40 - 44) / 2)` = -2 px).
+- Bu alan düğmenin kutusundan her yana bilerek 2 px taşar ve düğmenin `scrollWidth`'ine girer. Eski ölçü
+  `scrollWidth - clientWidth` bu yüzden 4 px verdi; testte 1 px'ten büyük fark "taşma" sayıldı.
+- Düğme ekranın içinde. Sayfa taşmıyordu.
+
+**Ne değişti** (yalnız bu öğe için ölçünün tanımı):
+- Eklenen yardımcı `offscreen(el)` (`:121`) öğenin ekranın sağından ya da solundan taşan piksel sayısını ölçer:
+  `max(0, ceil(rect.right - clientWidth), ceil(-rect.left))`.
+- `header` değeri yalnız `a.cx-shell-close` için bu ölçüyle hesaplanır (`:128`); öbür bütün rotalarda üst çubuk için eski
+  `scrollWidth - clientWidth` aynen.
+
+**Değişmeyen:**
+- Sayfa düzeyindeki denetim `page = documentElement.scrollWidth - clientWidth ≤ 1` (`:132`) her rotada, `/pay` dahil.
+  Düğme gerçekten ekran dışına taşsaydı belge genişler ve bu denetim düşerdi.
+- Eşik (`≤ 1`), rota listesi ve beklenen öğenin var olma denetimi (`:112`, `:131`) aynı.
+
+**Sonuç:** kural gevşemedi. Yalnız tasarım gereği (44 px dokunma alanı, 06 §7) olan iç taşma "ekrandan taşma" diye
+sayılmıyor. Ekran dışına taşan bir kapat düğmesi iki denetimden de geçemez.
