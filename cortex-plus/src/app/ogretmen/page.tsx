@@ -27,6 +27,8 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { ContinueLine } from "@/components/parity/continue-line";
 import { HomeCockpit, HomeSelectionProvider, HomeToolsTray } from "@/components/parity/home-cockpit";
 import { loadHomeCockpit, type NodeRow } from "@/lib/learning/home-cockpit";
+import { uiV2 } from "@/lib/ui-v2/flags";
+import "@/styles/ui-v2-ogretmen.css";
 import { firstLessonStatus, freeTopicLocks } from "@/lib/billing/free-topic-gate";
 
 export const metadata = { title: "Sor" };
@@ -228,6 +230,8 @@ export default async function OgretmenPage({
   // hiç görünmüyordu. Dost satırı aynı adımı anıyorsa kartın hemen üstünde kalır, ikisi birlikte okunur.
   const heroLead = continueStep ? <ContinueLine step={continueStep} /> : undefined;
   const avatar = profile?.avatar_url as string | null | undefined;
+  // Yeni görünüm bayrağı (Faz 6A, `ui.v2.ogretmen`): KAPALIYKEN sarmalayıcı yok ve sohbet bugünkü gibi kayar.
+  const uiOgretmen = await uiV2("ogretmen", user.id);
 
   const panel = (
       <ChatPanel
@@ -253,8 +257,10 @@ export default async function OgretmenPage({
         isPremium={isPremium}
         tutorStyleLabel={tutorStyleLabel(style)}
         initialTutorStyle={style}
+        followUser={uiOgretmen}
       />
   );
+  const body = cockpit.length ? <HomeSelectionProvider preps={cockpit}>{panel}</HomeSelectionProvider> : panel;
 
   return (
     <ParitySorShell
@@ -272,7 +278,13 @@ export default async function OgretmenPage({
         updatedAt: row.updated_at,
       }))}
     >
-      {cockpit.length ? <HomeSelectionProvider preps={cockpit}>{panel}</HomeSelectionProvider> : panel}
+      {uiOgretmen ? (
+        <div className="cx-ui-scope" data-ui="ogretmen">
+          {body}
+        </div>
+      ) : (
+        body
+      )}
     </ParitySorShell>
   );
 }
