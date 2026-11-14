@@ -1,8 +1,8 @@
 {
  "_not": "Görsel taban görüntüleri git'te değil; bu dosya onların kaydıdır. Yeniden üretim: docs/design-migration/00-taban.md.",
- "BASELINE_SHA": "151da31f57152f5bfc433a7af09f786e288612d4",
+ "BASELINE_SHA": "6c6e6188d2b1677af54dd39c921e9f1fc6c6394f",
  "workingTreeClean": true,
- "generatedAt": "2026-11-14T12:24:20.900Z",
+ "generatedAt": "2026-11-14T14:52:26.947Z",
  "os": "Windows_NT 10.0.26200 x64",
  "node": "v24.14.1",
  "playwright": "1.62.1",
@@ -19,8 +19,8 @@
  },
  "fixedTime": "2026-11-14T12:00:00+03:00",
  "count": 203,
- "totalBytes": 28467766,
- "totalMB": 27.15,
+ "totalBytes": 28508580,
+ "totalMB": 27.19,
  "images": [
   {
    "file": "masaustu/e2e-free-exhausted-araclar.png",
@@ -64,8 +64,8 @@
    "width": 1280,
    "user": "e2e-free-exhausted",
    "route": "ogretmen",
-   "bytes": 85665,
-   "sha256": "5c74c682947ecfd4a00cd1c439a05ce31fd509b93a4405bd704c71938c6f151b"
+   "bytes": 92468,
+   "sha256": "7f161f061257fbcd5624d672491d394f09bc93b94c73a93692fe0a2a94c6f706"
   },
   {
    "file": "masaustu/e2e-free-exhausted-pay.png",
@@ -82,8 +82,8 @@
    "width": 1280,
    "user": "e2e-free-exhausted",
    "route": "profil-paneli",
-   "bytes": 120329,
-   "sha256": "708960c5ae5583d7c15b073f12a837cfdb47e7efe79793358fb1da4af6e39fbc"
+   "bytes": 125423,
+   "sha256": "b255cb4701d010e7eb94ffb3d2dffbebd2c20306a3a6f32452520e48b2edf840"
   },
   {
    "file": "masaustu/e2e-free-fresh-araclar.png",
@@ -127,8 +127,8 @@
    "width": 1280,
    "user": "e2e-free-fresh",
    "route": "ogretmen",
-   "bytes": 85665,
-   "sha256": "5c74c682947ecfd4a00cd1c439a05ce31fd509b93a4405bd704c71938c6f151b"
+   "bytes": 93900,
+   "sha256": "4ef2b9f3eedd0bf0325fc133dfb03e801c4ed39ef19a6816d7c2a3ed85ff51d8"
   },
   {
    "file": "masaustu/e2e-free-fresh-pay.png",
@@ -145,8 +145,8 @@
    "width": 1280,
    "user": "e2e-free-fresh",
    "route": "profil-paneli",
-   "bytes": 120403,
-   "sha256": "245274812e2e2e79692984ccbaa6e1f1c35b28aa448f4131bd3db704b54228a2"
+   "bytes": 126852,
+   "sha256": "6cd56cf5a05e3949cf7c334ed89cc47cb43fde71c5c14129d7ea31d4a53f9321"
   },
   {
    "file": "masaustu/e2e-plus-ara.png",
@@ -388,8 +388,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "profil-paneli",
-   "bytes": 127519,
-   "sha256": "12549c58373c83d53389a4f8cf5b1a3127e4d78e7d312e254cc444059ad3db3a"
+   "bytes": 126064,
+   "sha256": "a9a20d74c1c31ad0d326ac24a5b57400e2a9cf1131635acb18b34c11bd2a2dd6"
   },
   {
    "file": "masaustu/e2e-plus-profil.png",
@@ -397,8 +397,8 @@
    "width": 1280,
    "user": "e2e-plus",
    "route": "profil",
-   "bytes": 194231,
-   "sha256": "0acb64544c8aef99506988d6dbeaff91ac1b995e2455c5f6cc031979a3a6569e"
+   "bytes": 190780,
+   "sha256": "e297c4a274223d758ae542c900916ca7bf190a2246397d9b86961edf08e598f0"
   },
   {
    "file": "masaustu/e2e-plus-quizler.png",
@@ -595,8 +595,8 @@
    "width": 1280,
    "user": "e2e-sigma",
    "route": "profil-paneli",
-   "bytes": 152611,
-   "sha256": "4a8bd097aa235a045e90360cb6b39d31c6485a9dea8107913fa703319a21dce4"
+   "bytes": 151385,
+   "sha256": "188844d0695bb1fcc3e6211157f7014c3cdab121e994dd7a4700f80a75d5d879"
   },
   {
    "file": "masaustu/kurucu-ayarlar.png",
@@ -622,8 +622,8 @@
    "width": 1280,
    "user": "kurucu (fikstür)",
    "route": "ogretmen",
-   "bytes": 100215,
-   "sha256": "71967110c5d432a87c3fe7352b2976e06f45a331139b580986ec1826cff80074"
+   "bytes": 99875,
+   "sha256": "fdc591f585067a785903875d8c01b530a835ee94e6c7a6b10bd901cd03513291"
   },
   {
    "file": "masaustu/kurucu-pay.png",
@@ -685,8 +685,8 @@
    "width": 768,
    "user": "e2e-free-exhausted",
    "route": "ogretmen",
-   "bytes": 70847,
-   "sha256": "c30568d86dd23181482652077091cbaaf9db3cf189bd7f43d41cfcddd6161f93"
+   "bytes": 76864,
+   "sha256": "c1c0c0f5e7521f150cde656a4a610b623886c529be38771dd9178f673c6fdc65"
   },
   {
    "file": "tablet/e2e-free-exhausted-pay.png",
@@ -703,8 +703,8 @@
    "width": 768,
    "user": "e2e-free-exhausted",
    "route": "profil-paneli",
-   "bytes": 69044,
-   "sha256": "6e3b58e0f8e3a85e3096a28366558f678419d1eced0c8b0433dd75e0162027a4"
+   "bytes": 69117,
+   "sha256": "aa8834ef863056d4560065dfb9c176f144c4747869cd7ba91e8979f28b1fe42b"
   },
   {
    "file": "tablet/e2e-free-fresh-araclar.png",
@@ -748,8 +748,8 @@
    "width": 768,
    "user": "e2e-free-fresh",
    "route": "ogretmen",
-   "bytes": 70847,
-   "sha256": "c30568d86dd23181482652077091cbaaf9db3cf189bd7f43d41cfcddd6161f93"
+   "bytes": 78268,
+   "sha256": "86a4a12ca081547ee167eca9e874dbdceafcd3bb646773f0e16333c8cb3c4a40"
   },
   {
    "file": "tablet/e2e-free-fresh-pay.png",
@@ -766,8 +766,8 @@
    "width": 768,
    "user": "e2e-free-fresh",
    "route": "profil-paneli",
-   "bytes": 69229,
-   "sha256": "3b92f80c176aadeb9ed24afe738ad94ac165b123f35e40a38c01ec9767a30e5c"
+   "bytes": 69263,
+   "sha256": "f679bbf78d34f4b26c3b8b6d90276dbea4fd678deec1ea0ed52fbf7c86e805c2"
   },
   {
    "file": "tablet/e2e-plus-ara.png",
@@ -1009,8 +1009,8 @@
    "width": 768,
    "user": "e2e-plus",
    "route": "profil-paneli",
-   "bytes": 74811,
-   "sha256": "ee3deccdddb6b78f87aa9586049050a5da9d771fa46d927efeae29f5b162587e"
+   "bytes": 76217,
+   "sha256": "157f2e2353c2beabb4935b47bf149f9e2fb996d75490528a6a2e05fc89228840"
   },
   {
    "file": "tablet/e2e-plus-profil.png",
@@ -1018,8 +1018,8 @@
    "width": 768,
    "user": "e2e-plus",
    "route": "profil",
-   "bytes": 153581,
-   "sha256": "03be88f20c8c655d91391391bc843f455fe5386b90d5ef008823b3b00dcf27cc"
+   "bytes": 155009,
+   "sha256": "3d3ab4d386c4fa43d86169934d94c8fb20ea37591fa36606251e5e69f60574f6"
   },
   {
    "file": "tablet/e2e-plus-quizler.png",
@@ -1216,8 +1216,8 @@
    "width": 768,
    "user": "e2e-sigma",
    "route": "profil-paneli",
-   "bytes": 105563,
-   "sha256": "5dddbc417c0bb716dc857903dfbc84de99d18e063468e3bb086b09c3b11f3068"
+   "bytes": 107144,
+   "sha256": "8b84d484d45baa0fc53a296e470cf3e885fc036702c591c231e8a29c3202321b"
   },
   {
    "file": "tablet/kurucu-ayarlar.png",
@@ -1306,8 +1306,8 @@
    "width": 375,
    "user": "e2e-free-exhausted",
    "route": "ogretmen",
-   "bytes": 61727,
-   "sha256": "bbb4cf2ced3d8f75ee52333eab8e64e405ab561733375f6b2cfa0b15258ece08"
+   "bytes": 63045,
+   "sha256": "78f77b09d63e58588c659adc0e838688b0d4505a24af26da3eca37e559b2221c"
   },
   {
    "file": "telefon/e2e-free-exhausted-pay.png",
@@ -1360,8 +1360,8 @@
    "width": 375,
    "user": "e2e-free-fresh",
    "route": "ogretmen",
-   "bytes": 61727,
-   "sha256": "bbb4cf2ced3d8f75ee52333eab8e64e405ab561733375f6b2cfa0b15258ece08"
+   "bytes": 64432,
+   "sha256": "6b3c9fdbfbfbf291eecb0b8e914366680c3b559af6c481fc0ffad6952914cbf5"
   },
   {
    "file": "telefon/e2e-free-fresh-pay.png",
@@ -1612,8 +1612,8 @@
    "width": 375,
    "user": "e2e-plus",
    "route": "profil",
-   "bytes": 95033,
-   "sha256": "daed572c629949a1d0d66f6c092d9f63326688750e13d2898d0ac69df570b9bb"
+   "bytes": 93755,
+   "sha256": "2ce000e6bfbea0b49474d4d944538465351932dc5e1d55f49906b30fcba06204"
   },
   {
    "file": "telefon/e2e-plus-quizler.png",

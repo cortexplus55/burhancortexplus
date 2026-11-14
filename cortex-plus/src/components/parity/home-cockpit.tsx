@@ -20,6 +20,9 @@ import {
   type CockpitPrep,
 } from "@/lib/learning/home-cockpit-model";
 import { MOMENT_MS, easeSettle, startMoment } from "@/lib/ui/moment";
+import { Gate } from "@/components/entitlements/gate";
+import { useGate } from "@/components/entitlements/entitlement-ui";
+import type { Action, GateContext } from "@/lib/entitlements/types";
 import { isRingMemory, readMoment, ringMemoryKey, writeMoment, type RingMemory } from "@/lib/ui/moment-memory";
 import "@/styles/home-cockpit.css";
 
@@ -419,25 +422,61 @@ function TopicRing() {
 
 /* ---------------- Metin bloğu ---------------- */
 
+/**
+ * Kalan haklar (Faz 3B): günlük sınırlı hak varken (ücretsiz hesap) metin bloğunun altında. Sayılar kapıdan; Plus,
+ * Sigma ve Kurucu'da çizilmez. Ad ücretsiz sayaçların bugünkü adlarından ("sohbet mesajı", "fotoğraftan çözüm").
+ */
+function RemainingRights() {
+  const message = useGate("teacher.message");
+  const photo = useGate("photo.solve");
+  const rows = [
+    { gate: message, name: "sohbet mesajı" },
+    { gate: photo, name: "fotoğraftan çözüm" },
+  ].filter(({ gate }) => gate.period === "day" && typeof gate.remaining === "number" && typeof gate.limit === "number");
+  if (!rows.length) return null;
+  return (
+    <section className="cx-rights" aria-label="Kalan haklar">
+      <p className="cx-t-meta-xs cx-rights-title">Kalan haklar</p>
+      <ul className="cx-rights-list">
+        {rows.map(({ gate, name }) => (
+          <li key={name} className="cx-t-label-13" data-low={gate.remaining! <= 1 ? "" : undefined}>
+            <span className="cx-rights-count">
+              {gate.remaining} / {gate.limit}
+            </span>{" "}
+            {name}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 function CockpitText() {
   const { preps, prepIndex, topicIndex } = useSelection();
   const prep = preps[prepIndex]!;
   const topic = prep.topics[topicIndex];
   const heading = topic?.label || prep.next?.heading || prep.title;
   const next = topic ? topic.next : prep.next;
+  // Konu adımı: ücretsizde 1. konunun dışındaki adım kilitli (sunucunun kararı), içindeki adım ilk dersin döngüsü.
+  const context: GateContext = next ? (next.locked ? { otherTopic: true } : { firstLessonCycle: true }) : {};
+  const gate = useGate("lesson.create", context);
   return (
     <div className="cx-cockpit-text">
       <p className="cx-t-meta-l cx-cockpit-subject">{prep.title}</p>
       <h1 className="cx-t-heading-l cx-cockpit-heading">{heading}</h1>
+      {next && gate.reason === "free_first_lesson_available" ? <span className="cx-t-meta-xs cx-free-lesson">Ücretsiz ders</span> : null}
       {next ? (
-        <Link href={next.href} className="cx-t-meta-m cx-cockpit-next">
-          <span>{next.heading}</span>
-          <ArrowRight aria-hidden />
-        </Link>
+        <Gate action="lesson.create" context={context} asChild>
+          <Link href={next.href} className="cx-t-meta-m cx-cockpit-next">
+            <span>{next.heading}</span>
+            <ArrowRight aria-hidden />
+          </Link>
+        </Gate>
       ) : null}
       <Link href={prep.href} className="cx-cockpit-details cx-glass">
         Ayrıntılar
       </Link>
+      <RemainingRights />
     </div>
   );
 }
@@ -463,6 +502,41 @@ export function HomeCockpit() {
 /* ---------------- Çalışma araçları tepsisi ---------------- */
 
 type TrayTool = { id: string; title: string; icon: Icon3DName; href: string; action?: ActionCode; plusOnly?: boolean };
+
+/** Tepsideki aracın hak eylemi (Faz 3B). Ders sayacına düşen araçlar (test, kart, doğru/yanlış) eylem listesinde yok: bugünkü rozet. */
+const TRAY_ACTION: Partial<Record<string, Action>> = {
+  podcast: "podcast.create",
+  video: "video.create",
+  sozlu: "oral.start",
+  yazili: "written.start",
+  cram: "cram.export",
+};
+
+function TrayItem({ tool, freeAccount }: { tool: TrayTool; freeAccount: boolean }) {
+  const action = TRAY_ACTION[tool.id];
+  if (action) {
+    return (
+      <li>
+        <Gate action={action} asChild>
+          <Link href={tool.href} className="cx-tray-item">
+            <Icon3D name={tool.icon} size={32} className="cx-tray-icon" />
+            <span className="cx-t-label-13 cx-tray-label">{tool.title}</span>
+          </Link>
+        </Gate>
+      </li>
+    );
+  }
+  const locked = freeAccount && (tool.plusOnly || (tool.action ? needsPlusOutsideFirstLesson(tool.action) : false));
+  return (
+    <li>
+      <Link href={tool.href} className={cn("cx-tray-item", locked && "is-locked")}>
+        <Icon3D name={tool.icon} size={32} className="cx-tray-icon" />
+        <span className="cx-t-label-13 cx-tray-label">{tool.title}</span>
+        {locked ? <span className="cx-tray-plus">Plus</span> : null}
+      </Link>
+    </li>
+  );
+}
 
 function studio(id: string): TrayTool {
   const found = STUDIOS.find((item) => item.id === id)!;
@@ -510,18 +584,9 @@ export function HomeToolsTray({ freeAccount }: { freeAccount: boolean }) {
   ];
   return (
     <ul className="cx-tray-grid">
-      {tools.map((tool) => {
-        const locked = freeAccount && (tool.plusOnly || (tool.action ? needsPlusOutsideFirstLesson(tool.action) : false));
-        return (
-          <li key={tool.id}>
-            <Link href={tool.href} className={cn("cx-tray-item", locked && "is-locked")}>
-              <Icon3D name={tool.icon} size={32} className="cx-tray-icon" />
-              <span className="cx-t-label-13 cx-tray-label">{tool.title}</span>
-              {locked ? <span className="cx-tray-plus">Plus</span> : null}
-            </Link>
-          </li>
-        );
-      })}
+      {tools.map((tool) => (
+        <TrayItem key={tool.id} tool={tool} freeAccount={freeAccount} />
+      ))}
     </ul>
   );
 }

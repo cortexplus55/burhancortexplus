@@ -1,9 +1,9 @@
 {
- "measuredAt": "2026-11-14T12:44:20.525Z",
+ "measuredAt": "2026-11-14T15:24:25.602Z",
  "base": "yerel güvenli sunucu",
  "totals": {
   "overflowX": 0,
-  "smallTarget": 1036,
+  "smallTarget": 1014,
   "smallFont": 360,
   "multiBrand": 38,
   "unlabeledIcon": 0,
@@ -90,13 +90,7 @@
     "borderedCards": [],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -135,13 +129,7 @@
     "borderedCards": [],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -200,13 +188,7 @@
     "borderedCards": [],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -236,12 +218,7 @@
     "borderedCards": [],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -271,12 +248,7 @@
     "borderedCards": [],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -327,12 +299,7 @@
     "borderedCards": [],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -371,12 +338,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -415,12 +377,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -469,12 +426,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -513,12 +465,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -557,12 +504,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -631,12 +573,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -675,12 +612,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -719,12 +651,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -793,12 +720,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -837,12 +759,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -881,12 +798,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -940,12 +852,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -995,12 +902,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -1050,12 +952,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -1120,12 +1017,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -1916,12 +1808,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -2712,12 +2599,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -3508,12 +3390,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -3557,12 +3434,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -3606,12 +3478,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -3670,12 +3537,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -3765,12 +3627,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -3860,12 +3717,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -3970,12 +3822,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -4045,12 +3892,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -4120,12 +3962,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -4210,12 +4047,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -4280,12 +4112,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -4350,12 +4177,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -4435,12 +4257,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -4515,12 +4332,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -4595,12 +4407,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -4690,12 +4497,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -4760,12 +4562,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -4830,12 +4627,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -4915,12 +4707,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -4990,12 +4777,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -5065,12 +4847,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -5155,12 +4932,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -5205,12 +4977,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -5255,12 +5022,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -5320,12 +5082,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -5368,12 +5125,7 @@
     "outlineNone": [
      "Quiz üret"
     ],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -5416,12 +5168,7 @@
     "outlineNone": [
      "Quiz üret"
     ],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -5469,12 +5216,7 @@
     "outlineNone": [
      "Quiz üret"
     ],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -5522,12 +5264,7 @@
     "outlineNone": [
      "Kart üret"
     ],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -5575,12 +5312,7 @@
     "outlineNone": [
      "Kart üret"
     ],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -5633,12 +5365,7 @@
     "outlineNone": [
      "Kart üret"
     ],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -5672,12 +5399,7 @@
     "outlineNone": [
      "Çöz"
     ],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -5711,12 +5433,7 @@
     "outlineNone": [
      "Çöz"
     ],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -5750,12 +5467,7 @@
     "outlineNone": [
      "Çöz"
     ],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -5789,12 +5501,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -5828,12 +5535,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -5867,12 +5569,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -5906,12 +5603,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -5945,12 +5637,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -5962,7 +5649,7 @@
    "status": 200,
    "counts": {
     "overflowX": 0,
-    "smallTarget": 1,
+    "smallTarget": 3,
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
@@ -5975,6 +5662,16 @@
       "size": 40,
       "label": "Deneme çöz",
       "at": "a.mt-4.inline-flex"
+     },
+     {
+      "size": 40,
+      "label": "Ana Sayfa",
+      "at": "a.cp-sor-bottomnav-link"
+     },
+     {
+      "size": 40,
+      "label": "Sınavlar",
+      "at": "a.cp-sor-bottomnav-link"
      }
     ],
     "smallFont": [],
@@ -5985,16 +5682,11 @@
     "contrast": []
    },
    "info": {
-    "borderedCards": [
-     "div.cs-pay-card.p-6"
-    ],
+    "borderedCards": [],
     "gold": [],
     "outlineNone": [],
     "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
+     "Failed to load resource: net::ERR_NO_BUFFER_SPACE"
     ]
    }
   },
@@ -6042,12 +5734,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -6094,12 +5781,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -6146,12 +5828,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -6191,12 +5868,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -6236,12 +5908,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -6286,12 +5953,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -6346,12 +6008,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -6406,12 +6063,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -6471,12 +6123,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -6522,12 +6169,7 @@
     "borderedCards": [],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -6573,12 +6215,7 @@
     "borderedCards": [],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -6629,12 +6266,7 @@
     "borderedCards": [],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -6666,12 +6298,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -6701,12 +6328,7 @@
     "borderedCards": [],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -6792,12 +6414,7 @@
     "borderedCards": [],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -6829,12 +6446,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -6866,12 +6478,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -6949,12 +6556,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -6984,12 +6586,7 @@
     "borderedCards": [],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -7019,12 +6616,7 @@
     "borderedCards": [],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -7060,12 +6652,7 @@
     "borderedCards": [],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -7095,12 +6682,7 @@
     "borderedCards": [],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -7130,12 +6712,7 @@
     "borderedCards": [],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -7171,12 +6748,7 @@
     "borderedCards": [],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -7241,12 +6813,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -7311,12 +6878,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -7364,8 +6926,8 @@
      },
      {
       "size": 40,
-      "label": "Konu testi, kilitli, 19 Kas",
-      "at": "button.cp-exam-trail-node.cp-exam-trail-node--locked"
+      "label": "Konu testi, sırada, 19 Kas",
+      "at": "button.cp-exam-trail-node.cp-exam-trail-node--ready"
      },
      {
       "size": 36,
@@ -7391,12 +6953,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -7439,12 +6996,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -7487,12 +7039,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -7535,12 +7082,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -7572,12 +7114,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -7609,12 +7146,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -7646,12 +7178,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -7725,12 +7252,7 @@
     "outlineNone": [
      "Kaydet"
     ],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -7804,12 +7326,7 @@
     "outlineNone": [
      "Kaydet"
     ],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -7883,12 +7400,7 @@
     "outlineNone": [
      "Kaydet"
     ],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -7923,12 +7435,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -7963,12 +7470,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -8003,12 +7505,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -8038,12 +7535,7 @@
     "borderedCards": [],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -8073,12 +7565,7 @@
     "borderedCards": [],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -8114,12 +7601,7 @@
     "borderedCards": [],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -8159,12 +7641,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -8204,12 +7681,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -8280,12 +7752,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -8373,13 +7840,7 @@
      "Yakında",
      "Yakında"
     ],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -8467,13 +7928,7 @@
      "Yakında",
      "Yakında"
     ],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -8566,13 +8021,7 @@
      "Yakında",
      "Yakında"
     ],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -8607,12 +8056,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -8647,12 +8091,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -8687,12 +8126,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -8722,12 +8156,7 @@
     "borderedCards": [],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -8757,12 +8186,7 @@
     "borderedCards": [],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -8792,12 +8216,7 @@
     "borderedCards": [],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -8834,12 +8253,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -8876,12 +8290,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -8929,12 +8338,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -8991,12 +8395,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -9053,12 +8452,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -9115,12 +8509,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -9166,12 +8555,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -9217,12 +8601,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -9268,12 +8647,7 @@
     ],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -9312,13 +8686,7 @@
     "borderedCards": [],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -9357,11 +8725,7 @@
     "borderedCards": [],
     "gold": [],
     "outlineNone": [],
-    "consoleErrors": [
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
-     "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
-    ]
+    "consoleErrors": []
    }
   },
   {
@@ -9373,7 +8737,7 @@
    "status": 200,
    "counts": {
     "overflowX": 0,
-    "smallTarget": 2,
+    "smallTarget": 1,
     "smallFont": 0,
     "multiBrand": 1,
     "unlabeledIcon": 0,
@@ -9382,11 +8746,6 @@
    "detail": {
     "overflowPx": 0,
     "smallTarget": [
-     {
-      "size": 36,
-      "label": "Plus planına bak",
-      "at": "a.cx-home-buy"
-     },
      {
       "size": 4,
       "label": "Konular",
@@ -9419,7 +8778,7 @@
    "status": 200,
    "counts": {
     "overflowX": 0,
-    "smallTarget": 2,
+    "smallTarget": 1,
     "smallFont": 0,
     "multiBrand": 1,
     "unlabeledIcon": 0,
@@ -9428,11 +8787,6 @@
    "detail": {
     "overflowPx": 0,
     "smallTarget": [
-     {
-      "size": 36,
-      "label": "Plus planına bak",
-      "at": "a.cx-home-buy"
-     },
      {
       "size": 4,
       "label": "Konular",
@@ -9526,7 +8880,7 @@
    "status": 200,
    "counts": {
     "overflowX": 0,
-    "smallTarget": 1,
+    "smallTarget": 0,
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
@@ -9534,13 +8888,7 @@
    },
    "detail": {
     "overflowPx": 0,
-    "smallTarget": [
-     {
-      "size": 36,
-      "label": "Plus planına bak",
-      "at": "a.cx-home-buy"
-     }
-    ],
+    "smallTarget": [],
     "smallFont": [],
     "brand": [],
     "unlabeledIcon": [],
@@ -9570,7 +8918,7 @@
    "status": 200,
    "counts": {
     "overflowX": 0,
-    "smallTarget": 1,
+    "smallTarget": 0,
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
@@ -9578,13 +8926,7 @@
    },
    "detail": {
     "overflowPx": 0,
-    "smallTarget": [
-     {
-      "size": 36,
-      "label": "Plus planına bak",
-      "at": "a.cx-home-buy"
-     }
-    ],
+    "smallTarget": [],
     "smallFont": [],
     "brand": [],
     "unlabeledIcon": [],
@@ -9673,7 +9015,7 @@
    "status": 200,
    "counts": {
     "overflowX": 0,
-    "smallTarget": 1,
+    "smallTarget": 0,
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
@@ -9681,13 +9023,7 @@
    },
    "detail": {
     "overflowPx": 0,
-    "smallTarget": [
-     {
-      "size": 36,
-      "label": "Plus planına bak",
-      "at": "a.cx-home-buy"
-     }
-    ],
+    "smallTarget": [],
     "smallFont": [],
     "brand": [
      "Deneme çöz"
@@ -9728,7 +9064,7 @@
    "status": 200,
    "counts": {
     "overflowX": 0,
-    "smallTarget": 1,
+    "smallTarget": 0,
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
@@ -9736,13 +9072,7 @@
    },
    "detail": {
     "overflowPx": 0,
-    "smallTarget": [
-     {
-      "size": 36,
-      "label": "Plus planına bak",
-      "at": "a.cx-home-buy"
-     }
-    ],
+    "smallTarget": [],
     "smallFont": [],
     "brand": [
      "Deneme çöz"
@@ -9832,7 +9162,7 @@
    "status": 200,
    "counts": {
     "overflowX": 0,
-    "smallTarget": 7,
+    "smallTarget": 6,
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
@@ -9841,11 +9171,6 @@
    "detail": {
     "overflowPx": 0,
     "smallTarget": [
-     {
-      "size": 36,
-      "label": "Plus planına bak",
-      "at": "a.cx-home-buy"
-     },
      {
       "size": 36,
       "label": "Bu sınav için sor",
@@ -9904,7 +9229,7 @@
    "status": 200,
    "counts": {
     "overflowX": 0,
-    "smallTarget": 7,
+    "smallTarget": 6,
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
@@ -9913,11 +9238,6 @@
    "detail": {
     "overflowPx": 0,
     "smallTarget": [
-     {
-      "size": 36,
-      "label": "Plus planına bak",
-      "at": "a.cx-home-buy"
-     },
      {
       "size": 36,
       "label": "Bu sınav için sor",
@@ -10053,7 +9373,7 @@
    "status": 200,
    "counts": {
     "overflowX": 0,
-    "smallTarget": 1,
+    "smallTarget": 0,
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
@@ -10061,13 +9381,7 @@
    },
    "detail": {
     "overflowPx": 0,
-    "smallTarget": [
-     {
-      "size": 36,
-      "label": "Plus planına bak",
-      "at": "a.cx-home-buy"
-     }
-    ],
+    "smallTarget": [],
     "smallFont": [],
     "brand": [
      "Profili düzenle"
@@ -10101,7 +9415,7 @@
    "status": 200,
    "counts": {
     "overflowX": 0,
-    "smallTarget": 1,
+    "smallTarget": 0,
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
@@ -10109,13 +9423,7 @@
    },
    "detail": {
     "overflowPx": 0,
-    "smallTarget": [
-     {
-      "size": 36,
-      "label": "Plus planına bak",
-      "at": "a.cx-home-buy"
-     }
-    ],
+    "smallTarget": [],
     "smallFont": [],
     "brand": [
      "Profili düzenle"
@@ -10626,7 +9934,7 @@
    "status": 200,
    "counts": {
     "overflowX": 0,
-    "smallTarget": 2,
+    "smallTarget": 1,
     "smallFont": 0,
     "multiBrand": 1,
     "unlabeledIcon": 0,
@@ -10635,11 +9943,6 @@
    "detail": {
     "overflowPx": 0,
     "smallTarget": [
-     {
-      "size": 36,
-      "label": "Plus planına bak",
-      "at": "a.cx-home-buy"
-     },
      {
       "size": 4,
       "label": "Konular",
@@ -10673,7 +9976,7 @@
    "status": 200,
    "counts": {
     "overflowX": 0,
-    "smallTarget": 2,
+    "smallTarget": 1,
     "smallFont": 0,
     "multiBrand": 1,
     "unlabeledIcon": 0,
@@ -10682,11 +9985,6 @@
    "detail": {
     "overflowPx": 0,
     "smallTarget": [
-     {
-      "size": 36,
-      "label": "Plus planına bak",
-      "at": "a.cx-home-buy"
-     },
      {
       "size": 4,
       "label": "Konular",
@@ -10720,7 +10018,7 @@
    "status": 200,
    "counts": {
     "overflowX": 0,
-    "smallTarget": 2,
+    "smallTarget": 1,
     "smallFont": 0,
     "multiBrand": 1,
     "unlabeledIcon": 0,
@@ -10729,11 +10027,6 @@
    "detail": {
     "overflowPx": 0,
     "smallTarget": [
-     {
-      "size": 36,
-      "label": "Plus planına bak",
-      "at": "a.cx-home-buy"
-     },
      {
       "size": 4,
       "label": "Konular",
@@ -10766,7 +10059,7 @@
    "status": 200,
    "counts": {
     "overflowX": 0,
-    "smallTarget": 2,
+    "smallTarget": 1,
     "smallFont": 0,
     "multiBrand": 1,
     "unlabeledIcon": 0,
@@ -10775,11 +10068,6 @@
    "detail": {
     "overflowPx": 0,
     "smallTarget": [
-     {
-      "size": 36,
-      "label": "Plus planına bak",
-      "at": "a.cx-home-buy"
-     },
      {
       "size": 4,
       "label": "Konular",
@@ -10873,7 +10161,7 @@
    "status": 200,
    "counts": {
     "overflowX": 0,
-    "smallTarget": 1,
+    "smallTarget": 0,
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
@@ -10881,13 +10169,7 @@
    },
    "detail": {
     "overflowPx": 0,
-    "smallTarget": [
-     {
-      "size": 36,
-      "label": "Plus planına bak",
-      "at": "a.cx-home-buy"
-     }
-    ],
+    "smallTarget": [],
     "smallFont": [],
     "brand": [],
     "unlabeledIcon": [],
@@ -10917,7 +10199,7 @@
    "status": 200,
    "counts": {
     "overflowX": 0,
-    "smallTarget": 1,
+    "smallTarget": 0,
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
@@ -10925,13 +10207,7 @@
    },
    "detail": {
     "overflowPx": 0,
-    "smallTarget": [
-     {
-      "size": 36,
-      "label": "Plus planına bak",
-      "at": "a.cx-home-buy"
-     }
-    ],
+    "smallTarget": [],
     "smallFont": [],
     "brand": [],
     "unlabeledIcon": [],
@@ -11020,7 +10296,7 @@
    "status": 200,
    "counts": {
     "overflowX": 0,
-    "smallTarget": 1,
+    "smallTarget": 0,
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
@@ -11028,13 +10304,7 @@
    },
    "detail": {
     "overflowPx": 0,
-    "smallTarget": [
-     {
-      "size": 36,
-      "label": "Plus planına bak",
-      "at": "a.cx-home-buy"
-     }
-    ],
+    "smallTarget": [],
     "smallFont": [],
     "brand": [
      "Deneme çöz"
@@ -11075,7 +10345,7 @@
    "status": 200,
    "counts": {
     "overflowX": 0,
-    "smallTarget": 1,
+    "smallTarget": 0,
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
@@ -11083,13 +10353,7 @@
    },
    "detail": {
     "overflowPx": 0,
-    "smallTarget": [
-     {
-      "size": 36,
-      "label": "Plus planına bak",
-      "at": "a.cx-home-buy"
-     }
-    ],
+    "smallTarget": [],
     "smallFont": [],
     "brand": [
      "Deneme çöz"
@@ -11179,7 +10443,7 @@
    "status": 200,
    "counts": {
     "overflowX": 0,
-    "smallTarget": 7,
+    "smallTarget": 6,
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
@@ -11188,11 +10452,6 @@
    "detail": {
     "overflowPx": 0,
     "smallTarget": [
-     {
-      "size": 36,
-      "label": "Plus planına bak",
-      "at": "a.cx-home-buy"
-     },
      {
       "size": 36,
       "label": "Bu sınav için sor",
@@ -11251,7 +10510,7 @@
    "status": 200,
    "counts": {
     "overflowX": 0,
-    "smallTarget": 7,
+    "smallTarget": 6,
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
@@ -11260,11 +10519,6 @@
    "detail": {
     "overflowPx": 0,
     "smallTarget": [
-     {
-      "size": 36,
-      "label": "Plus planına bak",
-      "at": "a.cx-home-buy"
-     },
      {
       "size": 36,
       "label": "Bu sınav için sor",
@@ -11400,7 +10654,7 @@
    "status": 200,
    "counts": {
     "overflowX": 0,
-    "smallTarget": 1,
+    "smallTarget": 0,
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
@@ -11408,13 +10662,7 @@
    },
    "detail": {
     "overflowPx": 0,
-    "smallTarget": [
-     {
-      "size": 36,
-      "label": "Plus planına bak",
-      "at": "a.cx-home-buy"
-     }
-    ],
+    "smallTarget": [],
     "smallFont": [],
     "brand": [
      "Profili düzenle"
@@ -11448,7 +10696,7 @@
    "status": 200,
    "counts": {
     "overflowX": 0,
-    "smallTarget": 1,
+    "smallTarget": 0,
     "smallFont": 0,
     "multiBrand": 0,
     "unlabeledIcon": 0,
@@ -11456,13 +10704,7 @@
    },
    "detail": {
     "overflowPx": 0,
-    "smallTarget": [
-     {
-      "size": 36,
-      "label": "Plus planına bak",
-      "at": "a.cx-home-buy"
-     }
-    ],
+    "smallTarget": [],
     "smallFont": [],
     "brand": [
      "Profili düzenle"
@@ -11973,7 +11215,7 @@
    "status": 200,
    "counts": {
     "overflowX": 0,
-    "smallTarget": 2,
+    "smallTarget": 1,
     "smallFont": 0,
     "multiBrand": 1,
     "unlabeledIcon": 0,
@@ -11982,11 +11224,6 @@
    "detail": {
     "overflowPx": 0,
     "smallTarget": [
-     {
-      "size": 36,
-      "label": "Plus planına bak",
-      "at": "a.cx-home-buy"
-     },
      {
       "size": 4,
       "label": "Konular",
@@ -12020,7 +11257,7 @@
    "status": 200,
    "counts": {
     "overflowX": 0,
-    "smallTarget": 2,
+    "smallTarget": 1,
     "smallFont": 0,
     "multiBrand": 1,
     "unlabeledIcon": 0,
@@ -12029,11 +11266,6 @@
    "detail": {
     "overflowPx": 0,
     "smallTarget": [
-     {
-      "size": 36,
-      "label": "Plus planına bak",
-      "at": "a.cx-home-buy"
-     },
      {
       "size": 4,
       "label": "Konular",

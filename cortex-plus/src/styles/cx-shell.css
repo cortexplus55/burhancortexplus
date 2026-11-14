@@ -238,8 +238,9 @@
   height: var(--cx-space-16);
 }
 /* Ücretsiz hesap: mevcut "Plus'a geç" XS, altın tonlu hap. Plus hesabında yok. */
+/* 14 Kasım 2026 (Faz 3B, ANA-PROMPT §3.1): dokunma hedefi 40 px, telefonda 44 px; görünüm aynı. */
 .cx-home-buy {
-  height: var(--cx-control-xs);
+  height: var(--cx-control-s);
   padding-inline: var(--cx-space-14);
   background: var(--cx-highlight-weak);
   color: var(--cx-text-highlight);
@@ -774,4 +775,11 @@
 }
 :root:not(.dark) .cx-lib-row + .cx-lib-row {
   box-shadow: inset 0 1px 0 #0000000d;
+}
+
+/* Faz 3B: telefonda "Plus'a geç" hapı 44 px dokunma hedefi (görünüm aynı). */
+@media (max-width: 767px) {
+  .cx-home-buy {
+    height: var(--cx-control-m);
+  }
 }

@@ -4,7 +4,13 @@
  * `home-cockpit.ts`). Veriler devam kartının kaynağından (hazırlık, yol adımları, konular); yeni alan yok.
  */
 
-export type CockpitStep = { heading: string; kindLabel: string; href: string };
+export type CockpitStep = {
+  heading: string;
+  kindLabel: string;
+  href: string;
+  /** Ücretsiz hesapta adım 1. konunun dışında (sunucunun `freeTopicLocks` kararı; Faz 3B kapısı okur). */
+  locked?: boolean;
+};
 
 export type CockpitTopic = {
   id: string;

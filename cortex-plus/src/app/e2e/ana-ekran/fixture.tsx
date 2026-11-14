@@ -8,8 +8,18 @@ import type { CockpitPrep, CockpitStep, CockpitTopic } from "@/lib/learning/home
 import type { StudentAccountContext } from "@/lib/student/account-context";
 import type { FixturePlan } from "./plan";
 
+/**
+ * Hak durumu (Faz 3B, `?hak=taze|kullanildi|bitti`, `?kota=90|100`): verilmezse hesap bugünkü fikstürle aynı (sayaçsız),
+ * görünüm değişmez. Sayılar test hesaplarının tohumuyla aynı (05-test-hesaplari.md).
+ */
+export type FixtureRights = "taze" | "kullanildi" | "bitti";
+const MIDNIGHT_ISO = () => {
+  const day = new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  return new Date(Date.parse(`${day}T00:00:00Z`) + 21 * 60 * 60 * 1000).toISOString();
+};
+
 /** Yalnız test fikstürü (E2E_FIXTURE=1): ana ekranın yerleşimini veritabanısız çizer. */
-function account(input: boolean | FixturePlan): StudentAccountContext {
+function account(input: boolean | FixturePlan, rights?: FixtureRights, quota?: number): StudentAccountContext {
   const kind: FixturePlan = typeof input === "boolean" ? (input ? "plus" : "free") : input;
   const plus = kind !== "free";
   const paid = kind === "plus" || kind === "week" || kind === "sigma";
@@ -35,6 +45,23 @@ function account(input: boolean | FixturePlan): StudentAccountContext {
     periodKind: plus ? "monthly" : "weekly",
     usedPercent: 10,
     extraPercent: null,
+    ...(rights && kind === "free"
+      ? {
+          freeMeters: [
+            { meter: "chat", used: rights === "taze" ? 0 : rights === "kullanildi" ? 1 : 3, limit: 3, resetsAtIso: MIDNIGHT_ISO() },
+            { meter: "photo", used: rights === "bitti" ? 1 : 0, limit: 1, resetsAtIso: MIDNIGHT_ISO() },
+          ],
+        }
+      : {}),
+    ...(typeof quota === "number" && paid
+      ? {
+          usedPercent: quota,
+          balance: 0,
+          quotaAllowance: 7200,
+          quotaRemaining: Math.round(7200 * (1 - quota / 100)),
+          resetsAtIso: "2026-12-12T00:00:00.000Z",
+        }
+      : {}),
   } as StudentAccountContext;
 }
 
@@ -73,8 +100,8 @@ const MESSAGES = [
   },
 ];
 
-export function fixtureAccount(plus: boolean | FixturePlan): StudentAccountContext {
-  return account(plus);
+export function fixtureAccount(plus: boolean | FixturePlan, rights?: FixtureRights, quota?: number): StudentAccountContext {
+  return account(plus, rights, quota);
 }
 
 /** Ana ekran göstergesi örneği (13 Kasım 2026): geçmiş, yakın, uzak, tarihsiz; biri geride. Sıra yükleyicinin sırası. */
@@ -91,7 +118,11 @@ function topics(labels: string[], done: number): CockpitTopic[] {
   }));
 }
 
-export function fixtureCockpit({ fresh = false, manyTopics = false }: { fresh?: boolean; manyTopics?: boolean } = {}): CockpitPrep[] {
+export function fixtureCockpit({
+  fresh = false,
+  manyTopics = false,
+  lockAfterFirst = false,
+}: { fresh?: boolean; manyTopics?: boolean; lockAfterFirst?: boolean } = {}): CockpitPrep[] {
   const biology = topics(
     ["Hücre zarı ve madde geçişi", "Mitoz bölünme", "Mayoz bölünme", "Mendel genetiği", "Eşeysiz üreme", "Kalıtım ve çevre"],
     fresh ? 0 : 2,
@@ -155,6 +186,12 @@ export function fixtureCockpit({ fresh = false, manyTopics = false }: { fresh?: 
       createdAt: "2026-11-10T00:00:00Z",
     },
   ];
+  // Ücretsiz hesap ilk dersi bitirdi (`?hak=kullanildi`): 1. konunun dışındaki adımlar kilitli (sunucunun freeTopicLocks kararı).
+  if (lockAfterFirst) {
+    for (const prep of preps) {
+      prep.topics = prep.topics.map((topic, index) => (index > 0 && topic.next ? { ...topic, next: { ...topic.next, locked: true } } : topic));
+    }
+  }
   return preps;
 }
 
@@ -167,7 +204,13 @@ export function AnaEkranFixture({
   freshPrep = false,
   manyTopics = false,
   planKind,
+  rights,
+  quota,
 }: {
+  /** Hak durumu (Faz 3B); verilmezse sayaçsız (bugünkü görünüm). */
+  rights?: FixtureRights;
+  /** Plus kotasının kullanılan yüzdesi (Faz 3B). */
+  quota?: number;
   /** Profil kimliği (`?plan=hafta|sigma|kurucu`); verilmezse `plus` bayrağı. */
   planKind?: FixturePlan;
   /** 12'den fazla konu (`?konu=cok`): halka kesintisiz, seçim yalnız kaydırıcıyla. */
@@ -181,7 +224,7 @@ export function AnaEkranFixture({
   teaching?: boolean;
 }) {
   // 13 Kasım 2026: hazırlığı olanda boş ana ekran beş parça (canlıdaki `/ogretmen` gibi).
-  const cockpit = hasPrep ? fixtureCockpit({ fresh: freshPrep, manyTopics }) : [];
+  const cockpit = hasPrep ? fixtureCockpit({ fresh: freshPrep, manyTopics, lockAfterFirst: rights === "kullanildi" || rights === "bitti" }) : [];
   const heroFooter = conversation || hasPrep ? undefined : (
     <FirstStepLauncher firstName="Öğrenci" gradeLevel="12. sınıf" goalText="YKS hazırlık" />
   );
@@ -215,7 +258,14 @@ export function AnaEkranFixture({
       />
   );
   return (
-    <ParitySorShell home userInitial="Ö" userName="Öğrenci" streak={2} account={account(planKind ?? plus)}>
+    <ParitySorShell
+      home
+      userInitial="Ö"
+      userName="Öğrenci"
+      streak={2}
+      account={account(planKind ?? plus, rights, quota)}
+      entitlements={rights ? { firstLesson: rights === "taze" ? "open" : "done", examDaysLeft: 5 } : undefined}
+    >
       {cockpit.length ? <HomeSelectionProvider preps={cockpit}>{panel}</HomeSelectionProvider> : panel}
     </ParitySorShell>
   );

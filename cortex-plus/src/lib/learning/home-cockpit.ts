@@ -7,9 +7,10 @@ import { applyDisplayDates, pathOriginDay } from "@/lib/learning/path-dates";
 import { PLAN_NODE_META, type PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { nodeOnTopic } from "@/lib/learning/topic-identity";
 import { istanbulDay } from "@/lib/istanbul-day";
+import { examPrepNodeHref } from "@/lib/learning/exam-prep-hrefs";
 import { orderCockpitPreps, type CockpitPrep, type CockpitStep, type CockpitTopic } from "@/lib/learning/home-cockpit-model";
 
-type NodeRow = {
+export type NodeRow = {
   id: string;
   exam_prep_id: string;
   status: string | null;
@@ -39,7 +40,7 @@ function cardNode(row: NodeRow): PrepCardNode {
   };
 }
 
-function step(next: ReturnType<typeof nextPrepStep>): CockpitStep | null {
+function toStep(next: ReturnType<typeof nextPrepStep>): CockpitStep | null {
   return next ? { heading: next.heading, kindLabel: next.kindLabel, href: next.href } : null;
 }
 
@@ -80,6 +81,11 @@ export async function loadHomeCockpit(
   supabase: SupabaseClient,
   userId: string,
   skipKinds: ReadonlySet<string> = new Set(),
+  /**
+   * Ücretsiz hesapta kilitli adımlar (Faz 3B): hazırlık başına `freeTopicLocks` ile aynı karar (adım sayfası ve
+   * başlatma isteğiyle aynı kural). Verilmezse kilit yok; okuma düşerse o hazırlıkta kilit yok (öğrenci aleyhine hata yok).
+   */
+  lockedNodeIds?: (prepId: string, prepTitle: string, rows: readonly NodeRow[]) => Promise<ReadonlySet<string>>,
 ): Promise<CockpitPrep[]> {
   const { data: preps } = await supabase
     .from("exam_preps")
@@ -113,9 +119,24 @@ export async function loadHomeCockpit(
     topicsByPrep.set(key, [...(topicsByPrep.get(key) ?? []), row]);
   }
 
-  const built: CockpitPrep[] = preps.map((prep) => {
+  const lockSets = lockedNodeIds
+    ? await Promise.all(
+        preps.map((prep) =>
+          lockedNodeIds(String(prep.id), String(prep.title ?? prep.exam_type ?? ""), nodesByPrep.get(String(prep.id)) ?? []).catch(
+            () => new Set<string>() as ReadonlySet<string>,
+          ),
+        ),
+      )
+    : null;
+
+  const built: CockpitPrep[] = preps.map((prep, index) => {
     const id = String(prep.id);
     const rows = nodesByPrep.get(id) ?? [];
+    const lockedHrefs = new Set([...(lockSets?.[index] ?? [])].map((nodeId) => examPrepNodeHref(id, nodeId)));
+    const step = (next: ReturnType<typeof nextPrepStep>) => {
+      const value = toStep(next);
+      return value && lockedHrefs.has(value.href) ? { ...value, locked: true } : value;
+    };
     const steps = rows.filter((row) => !skipKinds.has(String(row.kind)));
     const cardNodes = steps.map(cardNode);
     const next = step(nextPrepStep(id, cardNodes, skipKinds));

@@ -26,7 +26,8 @@ import { pathSkipKinds } from "@/lib/billing/node-free-meter";
 import { createServiceClient } from "@/lib/supabase/server";
 import { ContinueLine } from "@/components/parity/continue-line";
 import { HomeCockpit, HomeSelectionProvider, HomeToolsTray } from "@/components/parity/home-cockpit";
-import { loadHomeCockpit } from "@/lib/learning/home-cockpit";
+import { loadHomeCockpit, type NodeRow } from "@/lib/learning/home-cockpit";
+import { firstLessonStatus, freeTopicLocks } from "@/lib/billing/free-topic-gate";
 
 export const metadata = { title: "Sor" };
 
@@ -178,8 +179,35 @@ export default async function OgretmenPage({
     !params.sohbet && (prepCount ?? 0) > 0
       ? await pathSkipKinds(createServiceClient(), user.id).catch(() => new Set<string>())
       : new Set<string>();
+  // Faz 3B: ücretsiz hesapta kilitli adımlar sunucunun kararından (`freeTopicLocks`, hazırlık sayfasıyla aynı girdi).
+  const freeAccount = account?.showsUpgradeChrome === true && !account?.isAdmin;
+  const lockService = freeAccount ? createServiceClient() : null;
+  const lockedNodeIds = lockService
+    ? async (prepId: string, prepTitle: string, rows: readonly NodeRow[]) => {
+        const locks = await freeTopicLocks(lockService, {
+          userId: user.id,
+          prepId,
+          nodes: rows
+            .filter((row) => row.status !== "done")
+            .map((row) => ({
+              id: String(row.id),
+              kind: String(row.kind ?? ""),
+              sessionMeta: row.session_meta ?? null,
+              topicLabel: String((row.session_meta as { topicTitle?: string } | null)?.topicTitle ?? "") || prepTitle || "konu",
+            })),
+        });
+        return new Set(locks?.lockedIds ?? []);
+      }
+    : undefined;
+  // Ücretsiz hesabın ilk dersi (kapı ve "Ücretsiz ders" etiketi; okunamazsa null: kapı açık der, OTONOM §9 karar 3).
+  const firstLessonRead = lockService
+    ? firstLessonStatus(lockService, user.id).then((status) => status?.state ?? null).catch(() => null)
+    : Promise.resolve(null);
   const cockpit =
-    !params.sohbet && (prepCount ?? 0) > 0 ? await loadHomeCockpit(supabase, user.id, skipKinds).catch(() => []) : [];
+    !params.sohbet && (prepCount ?? 0) > 0
+      ? await loadHomeCockpit(supabase, user.id, skipKinds, lockedNodeIds).catch(() => [])
+      : [];
+  const firstLesson = await firstLessonRead;
   const continueStep =
     !params.sohbet && (prepCount ?? 0) > 0 && cockpit.length === 0
       ? await loadContinueStep(supabase, user.id, skipKinds).catch(() => null)
@@ -200,7 +228,6 @@ export default async function OgretmenPage({
   // hiç görünmüyordu. Dost satırı aynı adımı anıyorsa kartın hemen üstünde kalır, ikisi birlikte okunur.
   const heroLead = continueStep ? <ContinueLine step={continueStep} /> : undefined;
   const avatar = profile?.avatar_url as string | null | undefined;
-  const freeAccount = account?.showsUpgradeChrome === true && !account?.isAdmin;
 
   const panel = (
       <ChatPanel
@@ -237,6 +264,7 @@ export default async function OgretmenPage({
       avatarEmoji={avatar && !avatar.startsWith("http") ? avatar : null}
       streak={streak}
       account={account}
+      entitlements={{ firstLesson, examDaysLeft: countdown?.state === "countdown" ? countdown.daysLeft : null }}
       emailUnverified={!account?.isAdmin && emailUnverifiedFromMetadata(user.app_metadata)}
       recentConversations={(conversations ?? []).map((row) => ({
         id: row.id,
