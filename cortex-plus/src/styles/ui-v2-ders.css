@@ -1,0 +1,218 @@
+/*
+ * Ders ekranı yeni görünüm (Faz 4B, bayrak `ui.v2.ders`, desen-türetme: desen-haritasi/ders.md).
+ * Yalnız `[data-ui~="ders"]` sarmalayıcısının altında: bayrak KAPALIYKEN sayfa sarmalayıcıyı çizmez, bu kuralların
+ * hiçbiri eşleşmez (eski görünüm birebir). DOM ve davranış aynı; yalnız --cx-* token'ları; kenarlık yalnız bilgi
+ * kutusunda ve hızlı sınav kartında; tek brand (alt eylem).
+ */
+.cx-ui-scope {
+  display: contents;
+}
+
+[data-ui~="ders"] .als {
+  width: min(48rem, 100%);
+  gap: var(--cx-space-24);
+  color: var(--cx-text-reading);
+}
+
+/* Üst çubuk 56 px: solda tür + "1 / 7", ortada 472 px ilerleme, sağda cam kapat. Bulanıklık yok. */
+[data-ui~="ders"] .als-top {
+  min-height: 56px;
+  margin-bottom: 0;
+  padding-block: var(--cx-space-8);
+  background: var(--cx-bg-0);
+  backdrop-filter: none;
+}
+[data-ui~="ders"] .als-progress {
+  justify-self: center;
+  width: min(472px, 100%);
+}
+[data-ui~="ders"] .als-progress-track {
+  height: 6px;
+  background: var(--cx-bg-1);
+}
+[data-ui~="ders"] .als-progress-fill {
+  background: var(--cx-gradient-signature);
+}
+[data-ui~="ders"] .als-count {
+  font: var(--cx-t-label-13);
+  color: var(--cx-text-secondary);
+}
+[data-ui~="ders"] .als-icon {
+  width: 40px;
+  height: 40px;
+  border: 0;
+  background: var(--cx-glass-background);
+  box-shadow: var(--cx-glass-bevel);
+  color: var(--cx-text-primary);
+  transition: scale var(--cx-dur-scale) var(--cx-ease-out);
+}
+[data-ui~="ders"] .als-icon:hover:not(:disabled),
+[data-ui~="ders"] .als-icon:focus-visible {
+  scale: 1.03;
+}
+
+/* Adım kartı: kenarlıksız, zemin basamağı. */
+[data-ui~="ders"] .als-slide {
+  border: 0;
+  border-radius: var(--cx-radius-l);
+  background: var(--cx-bg-1);
+  box-shadow: none;
+}
+[data-ui~="ders"] .als-heading {
+  color: var(--cx-text-primary);
+  text-wrap: balance;
+}
+[data-ui~="ders"] .als-body {
+  font: var(--cx-t-body-16);
+  line-height: 1.5;
+  color: var(--cx-text-reading);
+}
+[data-ui~="ders"] .als-kicker {
+  font: var(--cx-t-meta-s);
+  color: var(--cx-text-tertiary);
+}
+
+/* Bilgi kutusu: tonun %8'i zemin + 1 px aynı ton kenarlık, köşe 16. */
+[data-ui~="ders"] .als-note {
+  --cx-note-tone: var(--cx-text-secondary);
+  border: 1px solid color-mix(in srgb, var(--cx-note-tone) 40%, transparent);
+  border-radius: var(--cx-radius-m);
+  background: color-mix(in srgb, var(--cx-note-tone) 8%, transparent);
+}
+[data-ui~="ders"] .als-note--exam,
+[data-ui~="ders"] .als-note--warn {
+  --cx-note-tone: var(--cx-warning);
+}
+[data-ui~="ders"] .als-note--remember,
+[data-ui~="ders"] .als-note--mnemonic {
+  --cx-note-tone: var(--cx-cyan);
+}
+[data-ui~="ders"] .als-note--info,
+[data-ui~="ders"] .als-note--unit {
+  --cx-note-tone: var(--cx-brand);
+}
+
+/* Kart tonları: FormulaCard indigo, ExamTrapCard turuncu uyarı, MemoryHookCard camgöbeği. */
+[data-ui~="ders"] .als-formula-card {
+  border: 0;
+  border-radius: var(--cx-radius-m);
+  background: color-mix(in srgb, var(--cx-brand) 10%, var(--cx-bg-1));
+}
+[data-ui~="ders"] .als-visual--trap {
+  border: 0;
+  border-radius: var(--cx-radius-m);
+  background: color-mix(in srgb, var(--cx-warning) 10%, var(--cx-bg-1));
+}
+[data-ui~="ders"] .als-visual--hook {
+  border: 0;
+  border-radius: var(--cx-radius-m);
+  background: color-mix(in srgb, var(--cx-cyan) 10%, var(--cx-bg-1));
+}
+[data-ui~="ders"] .als-kicker--formula {
+  color: var(--cx-text-brand);
+}
+[data-ui~="ders"] .als-kicker--trap {
+  color: var(--cx-warning);
+}
+[data-ui~="ders"] .als-kicker--hook {
+  color: var(--cx-cyan);
+}
+
+/* Hızlı sınav kartı: bg0, köşe 16, 1 px kenarlık; şıklar hap. */
+[data-ui~="ders"] .als-check {
+  border: 1px solid var(--cx-border);
+  border-radius: var(--cx-radius-m);
+  background: var(--cx-bg-0);
+}
+[data-ui~="ders"] .als-option {
+  min-height: 56px;
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-bg-1);
+  color: var(--cx-text-secondary);
+  transition: background-color var(--cx-dur-color) ease, color var(--cx-dur-color) ease;
+}
+[data-ui~="ders"] .als-option:hover:not(:disabled),
+[data-ui~="ders"] .als-option.is-picked {
+  background: var(--cx-bg-2);
+  color: var(--cx-text-primary);
+}
+[data-ui~="ders"] .als-option.is-right {
+  background: var(--cx-success-weak);
+  color: var(--cx-text-primary);
+}
+[data-ui~="ders"] .als-option.is-wrong {
+  background: var(--cx-danger-weak);
+  color: var(--cx-text-primary);
+}
+[data-ui~="ders"] .als-option-num {
+  background: var(--cx-bg-2);
+  color: var(--cx-text-disabled);
+  font: var(--cx-t-meta-s);
+}
+
+/* Alt eylem: tek brand hap (52 px) ve "↵" ipucu (klavyeli cihazda). */
+[data-ui~="ders"] .als-cta:not(.als-cta--inline) {
+  min-height: 52px;
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-gradient-brand);
+  color: var(--cx-text-on-brand);
+  font: var(--cx-t-button-l);
+  transition: scale var(--cx-dur-scale) var(--cx-ease-out);
+}
+[data-ui~="ders"] .als-cta:not(.als-cta--inline):hover:not(:disabled),
+[data-ui~="ders"] .als-cta:not(.als-cta--inline):focus-visible {
+  scale: 1.03;
+}
+@media (hover: hover) and (pointer: fine) {
+  [data-ui~="ders"] .als-cta:not(.als-cta--inline)::after {
+    content: "↵";
+    margin-left: var(--cx-space-8);
+    opacity: 0.7;
+  }
+}
+
+/* "Farklı anlat" ve "İki şık arasında kaldım" HER ZAMAN weak. */
+[data-ui~="ders"] .als-secondary,
+[data-ui~="ders"] .als-reexplain-btn,
+[data-ui~="ders"] .cp-two-chip {
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-bg-2);
+  color: var(--cx-text-secondary);
+  transition: color var(--cx-dur-color) ease;
+}
+[data-ui~="ders"] .als-secondary:hover,
+[data-ui~="ders"] .als-reexplain-btn:hover {
+  color: var(--cx-text-primary);
+}
+
+[data-ui~="ders"] :focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}
+
+@media (max-width: 767px) {
+  [data-ui~="ders"] .als-icon {
+    width: 44px;
+    height: 44px;
+  }
+  [data-ui~="ders"] .als-cta:not(.als-cta--inline) {
+    min-height: 52px;
+    margin-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-ui~="ders"] .als-icon,
+  [data-ui~="ders"] .als-cta:not(.als-cta--inline) {
+    transition: none;
+  }
+  [data-ui~="ders"] .als-icon:hover:not(:disabled),
+  [data-ui~="ders"] .als-icon:focus-visible,
+  [data-ui~="ders"] .als-cta:not(.als-cta--inline):hover:not(:disabled),
+  [data-ui~="ders"] .als-cta:not(.als-cta--inline):focus-visible {
+    scale: none;
+  }
+}
