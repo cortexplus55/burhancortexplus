@@ -286,6 +286,7 @@ function ChatPanelSession({
   isPremium,
   tutorStyleLabel,
   initialTutorStyle,
+  followUser = false,
   quotaHint,
   starterPrompts,
   feedbackEnabled = false,
@@ -332,6 +333,12 @@ function ChatPanelSession({
   tutorStyleLabel?: string;
   /** Profildeki anlatım tarzı; yazı kutusunun üstündeki anahtar buradan başlar. */
   initialTutorStyle?: TutorStyle;
+  /**
+   * Faz 6A (`ui.v2.ogretmen` açıkken): akış sürerken yalnız yeni mesaj eklenince sona inilir; öğrenci yukarı
+   * kaydırdıysa kaydırılmaz ve "Yeni mesaja git" hapı çıkar. Ekran okuyucu parça parça değil, yanıt bitince bir kez
+   * duyar. Kapalıyken bugünkü davranış aynen.
+   */
+  followUser?: boolean;
   quotaHint?: string | null;
   starterPrompts?: { label: string; prompt: string }[];
   /**
@@ -595,6 +602,10 @@ function ChatPanelSession({
   const threadOpen = isParitySor && (messages.length > 0 || loading);
   const stickToEndRef = useRef(true);
   const programmaticScrollRef = useRef(0);
+  const [awayFromEnd, setAwayFromEnd] = useState(false);
+  const lastLengthRef = useRef(0);
+  const [doneNote, setDoneNote] = useState("");
+  const wasLoadingRef = useRef(false);
   useEffect(() => {
     if (!threadOpen) return;
     const box = messagesScrollRef.current;
@@ -603,6 +614,7 @@ function ChatPanelSession({
     const onScroll = () => {
       if (Date.now() < programmaticScrollRef.current) return;
       stickToEndRef.current = box.scrollHeight - box.scrollTop - box.clientHeight < 120;
+      setAwayFromEnd(!stickToEndRef.current);
     };
     const pin = () => {
       if (!stickToEndRef.current || box.scrollHeight <= box.clientHeight + 1) return;
@@ -629,10 +641,23 @@ function ChatPanelSession({
       messagesEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
       return;
     }
+    // Faz 6A: akan yanıt (aynı mesajın büyümesi) öğrenciyi sona çekmez; sona yapışıksa gözlemci zaten indirir.
+    const grew = messages.length !== lastLengthRef.current;
+    lastLengthRef.current = messages.length;
+    if (followUser && !grew) return;
     stickToEndRef.current = true;
+    setAwayFromEnd(false);
     programmaticScrollRef.current = Date.now() + 700;
     scrollThreadToEnd(true);
-  }, [messages, loading, isMinimalSor, isParitySor, scrollThreadToEnd]);
+  }, [messages, loading, isMinimalSor, isParitySor, scrollThreadToEnd, followUser]);
+
+  // Faz 6A: yanıt bitince ekran okuyucuya tek duyuru (akışta parça parça okunmaz).
+  useEffect(() => {
+    if (!followUser) return;
+    if (wasLoadingRef.current && !loading && messages[messages.length - 1]?.role === "assistant") setDoneNote("Öğretmen yanıtladı");
+    if (loading) setDoneNote("");
+    wasLoadingRef.current = loading;
+  }, [followUser, loading, messages]);
 
   useEffect(() => {
     if (!attachMenuOpen) return;
@@ -1662,7 +1687,7 @@ function ChatPanelSession({
               ref={messagesScrollRef}
               className={cn("cp-sor-messages", examChrome && "cp-exam-thread")}
               role="log"
-              aria-live="polite"
+              aria-live={followUser ? "off" : "polite"}
             >
               <div className={examChrome ? "cp-exam-column" : undefined}>
               {messages.map((message, index) => {
@@ -1826,6 +1851,28 @@ function ChatPanelSession({
               ) : null}
               <div ref={messagesEndRef} className="h-px shrink-0" aria-hidden />
             </div>
+          ) : null}
+          {followUser && showParityThread ? (
+            <>
+              <p className="sr-only" aria-live="polite">
+                {doneNote}
+              </p>
+              {awayFromEnd && loading ? (
+                <button
+                  type="button"
+                  className="cx-jump cx-glass"
+                  aria-label="Yeni mesaja git"
+                  onClick={() => {
+                    stickToEndRef.current = true;
+                    setAwayFromEnd(false);
+                    programmaticScrollRef.current = Date.now() + 700;
+                    scrollThreadToEnd(true);
+                  }}
+                >
+                  Yeni mesaja git
+                </button>
+              ) : null}
+            </>
           ) : null}
 
           {examChrome && quickOpen ? (
