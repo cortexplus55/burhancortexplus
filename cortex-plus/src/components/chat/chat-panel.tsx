@@ -89,6 +89,7 @@ import { maskStreamingMarkdown } from "@/lib/chat/stream-markdown-mask";
 import { useScreenAwake } from "@/lib/documents/use-universal-upload";
 import { useOpenFromRefusal, useQuotaNotice } from "@/components/entitlements/entitlement-ui";
 import { MessageQuota } from "@/components/entitlements/message-quota";
+import { Gate } from "@/components/entitlements/gate";
 import { gateFromRefusal } from "@/lib/entitlements/gate";
 import "@/styles/parity-sor.css";
 import "@/styles/parity-shell.css";
@@ -2101,21 +2102,27 @@ function ChatPanelSession({
               />
               <div className="cp-sor-composer-toolbar">
                 <div className="cp-sor-composer-tools relative">
-                  <button
-                    type="button"
-                    className="cp-sor-tool"
-                    aria-label="Görsel ekle"
-                    disabled={loading}
-                    onClick={() => {
-                      if (typeof window !== "undefined") {
-                        openComposerDialog("image_upload");
-                      } else {
-                        setUploadOpen(true);
-                      }
-                    }}
-                  >
-                    <ImageIcon className="h-4 w-4" aria-hidden />
-                  </button>
+                  {(() => {
+                    const imageButton = (
+                      <button
+                        type="button"
+                        className="cp-sor-tool"
+                        aria-label="Görsel ekle"
+                        disabled={loading}
+                        onClick={() => {
+                          if (typeof window !== "undefined") {
+                            openComposerDialog("image_upload");
+                          } else {
+                            setUploadOpen(true);
+                          }
+                        }}
+                      >
+                        <ImageIcon className="h-4 w-4" aria-hidden />
+                      </button>
+                    );
+                    // Faz 6B (`ui.v2.ogretmen`): fotoğraf hakkı bittiyse yükleme penceresi açılmaz, yükseltme penceresi çıkar.
+                    return followUser ? <Gate action="photo.solve">{imageButton}</Gate> : imageButton;
+                  })()}
                   <button
                     type="button"
                     className="cp-sor-tool"
