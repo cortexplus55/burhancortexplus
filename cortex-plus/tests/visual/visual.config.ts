@@ -28,7 +28,8 @@ export default defineConfig({
   globalSetup: "./global-setup.ts",
   snapshotPathTemplate: "{testDir}/__screenshots__/{projectName}/{arg}{ext}",
   fullyParallel: true,
-  workers: process.env.CI ? 2 : 3,
+  // 2 işçi: yoğun paralel koşuda ara sıra geç çizilen ekran yakalanıyordu (14 Kasım 2026, katı karşılaştırma).
+  workers: 2,
   retries: 0,
   timeout: 180_000,
   // Eksik taban sessizce yazılmaz: yalnız `npm run test:visual:update` (--update-snapshots) yazar.

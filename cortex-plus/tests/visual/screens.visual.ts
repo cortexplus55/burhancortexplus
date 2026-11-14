@@ -198,7 +198,8 @@ async function shoot(page: Page, route: Route, url: string, file: string) {
   }
   await page.locator(route.ready ?? H1).first().waitFor({ state: "visible", timeout: 60_000 });
   await streak;
-  await page.locator(".cp-streak-freeze").first().waitFor({ state: "visible", timeout: 10_000 }).catch(() => {});
+  // Yanıttan sonraki çizimi bekle; telefonda öğe gizli olduğu için görünürlük değil DOM'a girişi, en çok 3 sn.
+  await page.locator(".cp-streak-freeze").first().waitFor({ state: "attached", timeout: 3_000 }).catch(() => {});
   if (route.open) await route.open(page);
   await page.evaluate(() => document.fonts.ready);
   await waitForStableLayout(page);
