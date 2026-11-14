@@ -1,0 +1,75 @@
+/*
+ * Öğretmen / sohbet yeni görünüm (Faz 6A, bayrak `ui.v2.ogretmen`, desen-türetme: desen-haritasi/ogretmen.md).
+ * Yalnız `[data-ui~="ogretmen"]` altında; bayrak KAPALIYKEN /ogretmen sarmalayıcıyı çizmez (eski görünüm birebir).
+ * Faz 3'ün ana ekran gövdesine (konu halkası, sınav şeridi, ince çubuk, üst çubuk) dokunulmaz.
+ */
+.cx-ui-scope {
+  display: contents;
+}
+
+/* Mesaj listesi: blok ≤ 768 px ortalı; balonlar kenarlıksız, zemin basamağıyla. */
+[data-ui~="ogretmen"] .cp-sor-messages > div {
+  max-width: 48rem;
+  margin-inline: auto;
+}
+[data-ui~="ogretmen"] .cp-sor-msg-user {
+  border: 0;
+  border-radius: var(--cx-radius-l);
+  background: var(--cx-bg-2);
+  color: var(--cx-text-primary);
+  box-shadow: none;
+}
+[data-ui~="ogretmen"] .cp-sor-msg-assistant {
+  border: 0;
+  box-shadow: none;
+  overflow-wrap: anywhere;
+}
+/* Blok formül ve kod yalnız kendi bloğunda kayar. */
+[data-ui~="ogretmen"] .cp-sor-msg-assistant .katex-display,
+[data-ui~="ogretmen"] .cp-sor-msg-assistant pre {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* Anlatım stili seçici: hap, 40 px (telefonda 44); seçili durum renk + aria-checked + görünür etiket. */
+[data-ui~="ogretmen"] .cp-tutor-mode-pill {
+  min-height: 40px;
+  border: 0;
+  border-radius: var(--cx-radius-max);
+}
+
+/* Gönder: ekranın tek brand düğmesi, yuvarlak, ≥ 44 px. */
+[data-ui~="ogretmen"] .cp-send {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-gradient-brand);
+  color: var(--cx-text-on-brand);
+}
+
+/* "Yeni mesaja git": akış sürerken ve öğrenci yukarıdayken, sağ altta cam hap. */
+[data-ui~="ogretmen"] .cx-jump {
+  position: fixed;
+  right: var(--cx-space-16);
+  bottom: calc(var(--cp-sor-composer-clearance, 140px) + var(--cx-space-12));
+  z-index: 30;
+  min-height: 40px;
+  padding: 0 var(--cx-space-18);
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  font: var(--cx-t-button-s);
+  cursor: pointer;
+}
+
+[data-ui~="ogretmen"] :focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}
+
+@media (max-width: 767px) {
+  [data-ui~="ogretmen"] .cp-tutor-mode-pill,
+  [data-ui~="ogretmen"] .cx-jump {
+    min-height: 44px;
+  }
+}
