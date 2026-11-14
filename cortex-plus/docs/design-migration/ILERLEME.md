@@ -15,7 +15,7 @@ teklif yok; sayaç "önce artır, hata olursa iade" kabul; sohbette 402 sonrası
 
 | PR | Dal | Durum | PR no | Bayrak | Bekleyen Burhan işi | Notlar |
 |---|---|---|---|---|---|---|
-| Faz 0 · Envanter, test hesapları, görsel taban, denetim, performans tabanı | `design/faz0-envanter` | sürüyor: 2.5, 1.3, 2.6 bitti; 2.7, 2.9, 2.10 kaldı | — | — | CI için `E2E_USERS_JSON` sırrı (05) | Görsel taban yerel, manifest commit'li |
+| Faz 0 · Envanter, test hesapları, görsel taban, denetim, performans tabanı | `design/faz0-envanter` | bitti, birleştirme bekliyor (CI) | #647 | — | CI için `E2E_USERS_JSON` sırrı (05) | Görsel taban yerel, manifest commit'li |
 | 3A · `lib/entitlements` | `design/hak-sistemi` | bekliyor | — | — | — | Karakterizasyon önce; fark çıkarsa DUR |
 | 3B · Gate, UpgradeSheet, ana ekran | `design/hak-arayuzu` | bekliyor | — | — | — | |
 | 4A · Heyecan kiti | `design/heyecan-kiti` | bekliyor | — | — | — | Görünür değişiklik yok |

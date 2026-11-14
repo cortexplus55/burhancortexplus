@@ -5,8 +5,8 @@
  *   npm run perf:compare -- docs/design-migration/perf/taban-1288c25.json docs/design-migration/perf/faz0-492e206.json
  *   npm run perf:compare -- eski.json yeni.json --markdown   # rapora girecek tablo
  *
- * Eşik önerisi (gürültü ölçümünden; 06-gozlemler.md): LCP %15, CLS 0,02 mutlak, engelleme %25, JS/CSS bayt %5.
- * Eşik aşılırsa satır "↑ kötüleşti" işaretlenir ve betik 1 koduyla çıkar.
+ * Eşikler ANA-PROMPT §3.6: medyan LCP ≤ +%15, CLS ≤ +0,02 mutlak ve hiçbir rotada 0,1 üstü yok, engelleme süresi ≤ +%20,
+ * JS + CSS bayt toplamı ≤ +%10. Eşik aşılırsa satır "↑" işaretlenir ve betik 1 koduyla çıkar.
  */
 import fs from "node:fs";
 
@@ -19,14 +19,15 @@ if (!oldFile || !newFile) {
 const read = (f) => JSON.parse(fs.readFileSync(f, "utf8"));
 const before = read(oldFile);
 const after = read(newFile);
-const LIMITS = { lcp: { pct: 15 }, cls: { abs: 0.02 }, tbt: { pct: 25, floor: 50 }, js: { pct: 5 }, css: { pct: 5 } };
+const LIMITS = { lcp: { pct: 15 }, cls: { abs: 0.02, max: 0.1 }, tbt: { pct: 20 }, bytes: { pct: 10 } };
 
-const fmt = (k, v) => (v === null || v === undefined ? "—" : k === "cls" ? v.toFixed(3) : k === "js" || k === "css" ? `${Math.round(v / 1024)} KB` : `${Math.round(v)} ms`);
+const kb = (v) => `${Math.round(v / 1024)} KB`;
+const fmt = (k, v) => (v === null || v === undefined ? "—" : k === "cls" ? v.toFixed(3) : k === "js" || k === "css" || k === "bytes" ? kb(v) : `${Math.round(v)} ms`);
 const worse = (k, a, b) => {
-  if (a === null || b === null) return false;
+  if (a === null || b === null || a === undefined || b === undefined) return false;
   const l = LIMITS[k];
-  if (l.abs !== undefined) return b - a > l.abs;
-  if (l.floor !== undefined && b - a <= l.floor) return false;
+  if (!l) return false;
+  if (l.abs !== undefined) return b - a > l.abs || (l.max !== undefined && b > l.max);
   return a > 0 ? ((b - a) / a) * 100 > l.pct : b > 0;
 };
 
@@ -34,9 +35,10 @@ const rows = [];
 let regressions = 0;
 for (const r of after.routes) {
   const o = before.routes.find((x) => x.name === r.name);
-  const cells = ["lcp", "cls", "tbt", "js", "css"].map((k) => {
-    const a = o?.median?.[k] ?? null;
-    const b = r.median?.[k] ?? null;
+  const value = (m, k) => (k === "bytes" ? (m?.js ?? 0) + (m?.css ?? 0) || null : (m?.[k] ?? null));
+  const cells = ["lcp", "cls", "tbt", "js", "css", "bytes"].map((k) => {
+    const a = value(o?.median, k);
+    const b = value(r.median, k);
     const bad = worse(k, a, b);
     if (bad) regressions += 1;
     return `${fmt(k, a)} → ${fmt(k, b)}${bad ? " ↑" : ""}`;
@@ -45,11 +47,11 @@ for (const r of after.routes) {
 }
 
 if (MARKDOWN) {
-  console.log(`| Rota | LCP | CLS | Engelleme | JS | CSS |\n|---|---|---|---|---|---|`);
+  console.log(`| Rota | LCP | CLS | Engelleme | JS | CSS | JS + CSS |\n|---|---|---|---|---|---|---|`);
   for (const row of rows) console.log(`| ${row.join(" | ")} |`);
 } else {
   console.log(`${before.label} → ${after.label}`);
-  for (const row of rows) console.log(row.map((c, i) => (i === 0 ? c.padEnd(11) : c.padEnd(24))).join(""));
+  for (const row of rows) console.log(row.map((c, i) => (i === 0 ? c.padEnd(11) : c.padEnd(22))).join(""));
 }
 console.log(regressions ? `\n${regressions} ölçü eşiği aştı (↑).` : "\nEşiği aşan ölçü yok.");
 process.exit(regressions ? 1 : 0);
