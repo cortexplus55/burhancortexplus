@@ -16,6 +16,8 @@ const WIDTHS = [
 ] as const;
 
 async function open(page: Page, query: string) {
+  // Plus hesabında ilk ziyaretteki seri penceresi tıklamaları örtmesin (ana-ekran-kokpit.spec.ts ile aynı ön ayar).
+  await page.addInitScript(() => window.localStorage.setItem("cortex-gamification-v1", "1"));
   await page.goto(`/e2e/ana-ekran?${query}`);
   await expect(page.locator(".cp-sor-root")).toBeVisible();
 }
