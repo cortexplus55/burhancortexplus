@@ -3,6 +3,9 @@ import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { HomeCockpit, HomeSelectionProvider, HomeToolsTray } from "@/components/parity/home-cockpit";
+import { StudentShellProvider } from "@/lib/student/student-shell-context";
+import { EntitlementUiProvider } from "@/components/entitlements/entitlement-ui";
+import type { StudentAccountContext } from "@/lib/student/account-context";
 import {
   RING_ARC_LIMIT,
   initialCockpitIndex,
@@ -198,12 +201,24 @@ describe("çalışma araçları tepsisi", () => {
   });
 
   it("ücretsiz hesapta Plus'a özel ve ders sayacına düşen araçlar kilit rozetli", () => {
+    // Faz 3B: Plus'a özel beş araç hak kapısıyla (kilit + PLUS, basınca pencere); ders sayacına düşen üçü bugünkü rozetle.
+    const free = { isPremium: false, isAdmin: false, showsUpgradeChrome: true, balance: 0, freeAllowanceRemaining: 0, usedPercent: 0, periodKind: "daily", resetsAtLabel: "" } as StudentAccountContext;
     const { container } = render(
-      <HomeSelectionProvider preps={[prep({ id: "A" })]}>
-        <HomeToolsTray freeAccount />
-      </HomeSelectionProvider>,
+      <StudentShellProvider account={free}>
+        <EntitlementUiProvider prices={{ plusMonthly: 59900, plusWeekly: 34900, sigmaMonthly: 199900 }}>
+          <HomeSelectionProvider preps={[prep({ id: "A" })]}>
+            <HomeToolsTray freeAccount />
+          </HomeSelectionProvider>
+        </EntitlementUiProvider>
+      </StudentShellProvider>,
     );
-    expect(container.querySelectorAll(".cx-tray-plus").length).toBeGreaterThanOrEqual(5);
+    expect(container.querySelectorAll(".cx-tray-plus")).toHaveLength(3);
+    const gated = [...container.querySelectorAll(".cx-tray-item[data-gate='locked']")].map((node) => node.querySelector(".cx-tray-label")?.textContent);
+    expect(gated).toEqual(["Podcast", "1 Dk Çizimli Video", "Sözlü Sınav", "Yazılı Deneme", "Sınav Sabahı Kağıdı"]);
+    for (const item of container.querySelectorAll(".cx-tray-item[data-gate='locked']")) {
+      expect(item.textContent).toContain("PLUS");
+      expect(item.getAttribute("aria-haspopup")).toBe("dialog");
+    }
   });
 });
 

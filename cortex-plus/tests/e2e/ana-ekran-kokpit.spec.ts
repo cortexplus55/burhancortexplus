@@ -138,7 +138,9 @@ test("ücretsiz hesap: Plus'a geç altın hap seri sayacının solunda; tepside 
   const [buyBox, streakBox] = await Promise.all([buy.boundingBox(), page.locator(".cx-home-streak").boundingBox()]);
   expect(streakBox!.x + streakBox!.width).toBeLessThanOrEqual(buyBox!.x);
   await page.getByRole("button", { name: "Çalışma Stüdyosu" }).click();
-  expect(await page.locator("#cx-home-tray .cx-tray-plus").count()).toBeGreaterThanOrEqual(5);
+  // Faz 3B: Plus'a özel beş araç hak kapısıyla (kilit + PLUS); ders sayacına düşen üçü bugünkü "Plus" rozetiyle.
+  expect(await page.locator("#cx-home-tray .cx-tray-plus").count()).toBe(3);
+  expect(await page.locator("#cx-home-tray .cx-tray-item[data-gate='locked']").count()).toBe(5);
 
   // Telefonda logo, seri ve kısa "Plus" hapı tek satıra sığar; üst üste binmez (Faz 2: Kütüphane ve profil alt çubukta).
   for (const width of [375, 360]) {

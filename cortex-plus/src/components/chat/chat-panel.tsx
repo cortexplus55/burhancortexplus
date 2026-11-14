@@ -87,6 +87,9 @@ import { requestSolve, SOLVE_STAGE_LABEL, solvePhaseAfter, type SolveDone, type 
 import { solutionMarkdown } from "@/lib/solve/solution-markdown";
 import { maskStreamingMarkdown } from "@/lib/chat/stream-markdown-mask";
 import { useScreenAwake } from "@/lib/documents/use-universal-upload";
+import { useOpenFromRefusal, useQuotaNotice } from "@/components/entitlements/entitlement-ui";
+import { MessageQuota } from "@/components/entitlements/message-quota";
+import { gateFromRefusal } from "@/lib/entitlements/gate";
 import "@/styles/parity-sor.css";
 import "@/styles/parity-shell.css";
 
@@ -357,6 +360,10 @@ function ChatPanelSession({
   const gatePremium = isPremium ?? shellAccount?.isPremium ?? false;
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState("");
+  // Faz 3B: hak bitmişken gönderilen metin silinmez (402 yolunda yazma alanına geri konur; OTONOM §9 karar 7).
+  const typedRef = useRef<string | null>(null);
+  const openFromRefusal = useOpenFromRefusal();
+  const quotaNotice = useQuotaNotice();
   /** Ana ekranda ince çubuk mu geniş yazma kutusu mu (yalnız `homeCockpit` verildiğinde). */
   const [wideComposer, setWideComposer] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
@@ -848,6 +855,7 @@ function ChatPanelSession({
       setStartHubOpen(true);
       return;
     }
+    typedRef.current = text;
     if (remote) {
       const prompt =
         text || "Yüklediğim dosyayı özetle ve sorularımı yanıtlamaya hazır ol.";
@@ -955,8 +963,12 @@ function ChatPanelSession({
             }
           } else if (phase.kind === "error") {
             if (event.type === "error" && event.status === 402) {
-              setPaywallCode(event.code);
-              setPaywall(true);
+              // Faz 3B: fotoğraf notu silinmez; kapı ret kodundan (akışta gövde yok).
+              if (note) setInput(note);
+              if (!openFromRefusal({ gate: event.code ? gateFromRefusal(event.code) : null }, "photo.solve")) {
+                setPaywallCode(event.code);
+                setPaywall(true);
+              }
             }
             pushAssistantError(new Error(phase.message));
           }
@@ -1009,6 +1021,8 @@ function ChatPanelSession({
     allowWhileLoading = false,
   ) {
     if (!text.trim() || (loading && !allowWhileLoading)) return;
+    const typed = typedRef.current;
+    typedRef.current = null;
     if (imageDocumentId) activeDocumentId.current = imageDocumentId;
     // Belgeyle konuşurken ders etiketi eklenmez: konu belgeden belli.
     const prefixed =
@@ -1054,6 +1068,7 @@ function ChatPanelSession({
 
       if (res.status === 402) {
         setMessages((prev) => prev.slice(0, -1));
+        if (typed) setInput(typed);
         const payload = await res.json().catch(() => ({}));
         if (audience === "parent") {
           toast.error(
@@ -1062,6 +1077,8 @@ function ChatPanelSession({
           );
           return;
         }
+        // Sunucunun kapısı (402 gövdesinde `gate`) yeni pencereyi açar; açmazsa (sağlayıcı yok, teklif yok) bugünkü kapı.
+        if (openFromRefusal(payload, imageDocumentId ? "photo.solve" : "teacher.message")) return;
         setPaywallCode(typeof payload.code === "string" ? payload.code : null);
         setPaywall(true);
         return;
@@ -1179,6 +1196,8 @@ function ChatPanelSession({
       } catch {
         localStorage.setItem("cortex-streak-days", "1");
       }
+      // Kota tüketen iş başarıyla bitti: Plus %90 eşiğindeyse günde bir kez kapatılabilir pencere (Faz 3B).
+      quotaNotice(imageDocumentId ? "photo.solve" : "teacher.message");
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
         // Durdurulan yanıt boş kalmasın: yarım metin varsa duruyor, hiç
@@ -1833,6 +1852,7 @@ function ChatPanelSession({
                  çevirir). Mikrofon simgesi her yerde dikte demektir; "Cortex Plus ile konuş" (sesli öğretmen) ses dalgası
                  simgesiyle yalnız geniş kutuda durur (13 Kasım 2026, ürün sahibinin kararı). */
               <div className="cx-slim">
+                <MessageQuota variant="slim" />
                 {toolsOpen && homeTools ? (
                   <div
                     id="cx-home-tray"
@@ -2279,6 +2299,7 @@ function ChatPanelSession({
                       )}
                     </button>
                   ) : null}
+                  {!examChrome ? <MessageQuota variant="inline" /> : null}
                   {!examChrome && loading ? (
                     /* Üretim sürerken gönder düğmesinin yerini durdur alıyor:
                        yarım kalan yanıt ekranda kalır, kredi bir kez düşer. */

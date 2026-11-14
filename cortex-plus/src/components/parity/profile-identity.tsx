@@ -25,6 +25,7 @@ import { parityFullName } from "@/components/parity/app-utils";
 import type { PlanIdentity } from "@/lib/student/plan-identity";
 import type { ProfileDashboard } from "@/lib/student/profile-dashboard";
 import { useDismiss } from "@/lib/ui/use-dismiss";
+import { UsageRow } from "@/components/entitlements/usage-row";
 import { cn } from "@/lib/utils";
 import "@/styles/cx-profile.css";
 
@@ -233,6 +234,8 @@ export function ProfileCard({
           </>
         )}
       </div>
+
+      {premium ? <UsageRow /> : null}
 
       <nav className="cx-pp-list" aria-label="Hesap">
         {LIST.map((item) => {
