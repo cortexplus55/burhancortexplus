@@ -118,3 +118,29 @@ ve değişmedi.
 
 Bir hesapla en çok 2 cihaz açılabilir: yerel ve CI birlikte sığar. Üçüncü giriş en eskisini düşürür. Betik her koşuda
 cihaz kayıtlarını siler.
+
+### CI'da e2e gerçeği (15 Kasım 2026, #659'un son koşusundan)
+
+| | Sayı |
+|---|---|
+| Listelenen test (`npm run test:e2e`, üç proje) | 292 = chromium 289 + `setup` 1 + `chromium-authenticated` 2 |
+| Gerçekten koşan | **288** (hepsi veritabanısız fikstürlere ya da herkese açık sayfalara karşı) |
+| Atlanan | **4**: `auth.setup.ts` (E2E_USER_* yok), `authenticated.spec.ts`'in 2 testi (oturum ve Supabase anahtarı yok), `hak-arayuzu` "Plus %90" 390 px'te (bilerek: yan panel yalnız masaüstünde) |
+
+**Atlananların kapsamadığı:** gerçek hesapla giriş ve oturumlu ana ekranın yüklenmesi (`/ogretmen`, üst çubuk, 390 px'te
+yana taşma). Bunlar CI'da değil, her canlı yayından sonra `canli-duman.yml`'de (E2E_USER_* sırlarıyla) ve yerelde görsel
+taban + tasarım denetiminde (8 hesap, 203 ekran) koşuyor. Oturumlu ekranların davranışı CI'da fikstürlerle sınanıyor
+(`/e2e/ana-ekran`, `/e2e/studyo`, `/e2e/paketler` …); gerçek veritabanı ve plan verisiyle değil.
+
+**`E2E_USERS_JSON` bugün hiçbir yerde okunmuyor.** Yukarıdaki öneri iş akışına bağlanmadı; sırrı tek başına eklemek CI'da
+hiçbir testi açmaz. Açmak için ikisi birlikte gerekir:
+
+1. **Sır (Burhan, değer yazılmaz):** GitHub → `cortexplus55/burhancortexplus` → Settings → Secrets and variables →
+   Actions → New repository secret → Name: `E2E_USERS_JSON` → Secret: yerel `tests/.auth/e2e-users.local.json`
+   dosyasının içeriği olduğu gibi. Biçim: `{ "version": 1, "users": { "<ad>": { "email": "…", "password": "…" } } }`,
+   adlar `e2e-free-fresh`, `e2e-free-used`, `e2e-free-exhausted`, `e2e-plus`, `e2e-plus-90`, `e2e-plus-100`, `e2e-week`,
+   `e2e-sigma`. Ayrıca CI sunucusunun gerçek Supabase'e bağlanması için `NEXT_PUBLIC_SUPABASE_URL` ve
+   `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (herkese açık anahtarlar) Actions değişkeni ya da sırrı olarak.
+2. **İş akışı adımı (kod, ayrı PR):** `e2e` işinde sırrı `tests/.auth/e2e-users.local.json`'a yazmak, `npm run e2e:login`
+   (CI'ın kendi sunucusuna) ve hesaplı testleri ayrı bir projede koşmak. Hesaplar paylaşılan Supabase'de; testler yalnız
+   salt-okur kalmalı (kredi harcayan ya da veri yazan akış yok). Bu adım sır eklenince yazılır.

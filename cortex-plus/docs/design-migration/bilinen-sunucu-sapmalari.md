@@ -15,6 +15,16 @@ ANA-PROMPT 3A karar tablosu hedeftir; sunucu gerçektir (OTONOM §9). Aşağıda
 | 8 | Ders ve mesaj tek havuz | `price-table.ts:114-119` | Aynı `remaining` / `limit` | `KNOWN_DEVIATION ders ve mesaj tek havuz` | — |
 | 9 | Sınav Haftası'nda bugün şerit ve toast var; tahtada sheet yok | `sor-shell.tsx:415-417`, `plus-limit-banner.tsx:22-28`, `credit-gate.tsx:68-75` | Kapı Sınav Haftası'nda `plus_quota_*` vermez | `hak-sistemi.test.ts` "Sınav Haftası" | 3B'de korunur |
 
+**#2 için önerilen düzeltme (15 Kasım 2026, birleştirilmedi):** PR #660, dal `fix/sinav-haftasi-cuzdan-donemi`.
+Önce hatayı yeniden üreten test (`sinav-haftasi-cuzdan-donemi.test.ts`, bugünkü SQL'de 8 test düşer) yazıldı, sonra
+düzeltme göçü `20261115120000`:
+- ödemede cüzdan dönemi aboneliğin bitişini geçmez;
+- yenilenen dönem de aboneliğin bitişini geçmez;
+- aboneliğin son 24 saatinde yeni hak yazılmaz.
+
+Ölçüm sırasında aynı boşluğun **aylık Plus'ta da** olduğu görüldü (7.200). Abonelik bitince kalan hak sayaçsız işlerde
+harcanabiliyordu. Göç ve birleştirme Burhan'ın onayıyla.
+
 Ayrıca (karar değil, iz): öldürülen podcast, sözlü, video, çizimli video ve sesli tur ayırmaları cron'da otomatik iade
 edilmez (`service.ts:273-285`); ücretsiz sayaç gece yarısını geçen başarısız işte geri dönmez
 (`free_tier_counts.sql:256`). Sayaç "önce artır, hata olursa iade" kabul edildi (OTONOM §9.6).
