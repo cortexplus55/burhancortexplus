@@ -219,7 +219,9 @@ beforeAll(async () => {
   }
   await db.exec(`INSERT INTO credit_rules(action_code, credit_cost) VALUES
       ('AI_CHAT_STANDARD', 1), ('AI_CHAT_ADVANCED', 1), ('STUDY_PLAN_GENERATE', 2), ('QUIZ_GENERATE', 2),
-      ('FLASHCARD_GENERATE', 1), ('DOCUMENT_PAGE_PROCESS', 2), ('IMAGE_SOLUTION', 5);`);
+      ('FLASHCARD_GENERATE', 1), ('DOCUMENT_PAGE_PROCESS', 2), ('IMAGE_SOLUTION', 5),
+      -- Canlıda init göçünden beri var (20260918100000 bedeli koyar); kredi v2/v3 bedeli günceller.
+      ('PRACTICE_EXAM_GENERATE', 2);`);
   for (const row of Object.values(PLAN_ROW)) {
     await db.query("INSERT INTO plans(id, slug, name, monthly_allowance, billing_period, is_premium) VALUES ($1, $2, $2, $3, $4, true)", [row.id, row.slug, row.allowance, row.period]);
   }
