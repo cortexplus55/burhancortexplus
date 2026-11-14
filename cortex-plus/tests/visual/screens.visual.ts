@@ -118,6 +118,26 @@ async function prepareContext(page: Page) {
       /* depolama kapalıysa pencere çıkar; test bunu görür */
     }
   });
+  /*
+    Hız sınırına bağlı istemci istekleri ağ katmanında sabitlenir (14 Kasım 2026, katı karşılaştırmada bulundu). Paralel
+    test kullanıcı başına sınırları (`/api/streak` dakikada 60) aşıyor; yanıt bazen 200, bazen 429, bazen geç geliyordu ve
+    seri öğesindeki 🧊 ile Okulum'daki okul listesi koşudan koşuya değişiyordu. Yanıtlar test hesaplarının gerçek
+    değerleri (seri 0, dondurma hakkı 0) ve uydurma, "E2E" adlı bir okul listesi.
+  */
+  await page.route("**/api/streak", (route) =>
+    route.fulfill({ json: { streak: 0, freezeRemaining: 0, freezeProtected: false, freezeUsed: false } }),
+  );
+  await page.route("**/api/schools/search**", (route) =>
+    route.fulfill({
+      json: {
+        results: [
+          { id: "00000000-0000-4000-8000-0000000e2e01", name: "E2E Anadolu Lisesi", city: "Ankara" },
+          { id: "00000000-0000-4000-8000-0000000e2e02", name: "E2E Fen Lisesi", city: "İzmir" },
+          { id: "00000000-0000-4000-8000-0000000e2e03", name: "E2E Meslek Lisesi", city: "Samsun" },
+        ],
+      },
+    }),
+  );
 }
 
 /*
@@ -154,8 +174,8 @@ async function waitForStableLayout(page: Page) {
 async function shoot(page: Page, route: Route, url: string, file: string) {
   await prepareContext(page);
   await page.clock.setFixedTime(FIXED_NOW);
-  /* Kabuk açılınca `/api/streak` ister; cevapla seri öğesine 🧊 eklenir ve üst çubuk 1 px uzar (alttaki her şey kayar).
-     Cevap gelmeden çekilmez (sayfaya özgü hazır koşulu; genel ağ sakinliği değil). */
+  /* Kabuk açılınca `/api/streak` ister (yukarıda sabitlendi); cevapla seri öğesine 🧊 eklenir ve üst çubuk 1 px uzar
+     (alttaki her şey kayar). Cevap gelmeden ve 🧊 çizilmeden çekilmez (sayfaya özgü hazır koşulu; genel ağ sakinliği değil). */
   let streak = page.waitForResponse((r) => r.url().includes("/api/streak"), { timeout: 30_000 }).catch(() => null);
   let response = await page.goto(url, { timeout: 150_000 });
   /* `next dev` paralel derlemede bazen bir kez 500 verir ("__webpack_modules__[moduleId] is not a function"); yalnız
@@ -178,6 +198,7 @@ async function shoot(page: Page, route: Route, url: string, file: string) {
   }
   await page.locator(route.ready ?? H1).first().waitFor({ state: "visible", timeout: 60_000 });
   await streak;
+  await page.locator(".cp-streak-freeze").first().waitFor({ state: "attached", timeout: 10_000 }).catch(() => {});
   if (route.open) await route.open(page);
   await page.evaluate(() => document.fonts.ready);
   await waitForStableLayout(page);
