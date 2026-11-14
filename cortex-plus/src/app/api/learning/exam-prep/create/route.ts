@@ -51,6 +51,7 @@ import { orderOfficialUnits, type OrderableUnit } from "@/lib/curriculum/officia
 import { officialUnitTopic, verifyPlannedUnits } from "@/lib/curriculum/official-setup";
 import { runPool } from "@/lib/documents/upload-batch";
 import { linkScanResponsesToPrep, SCAN_LINK_MAX_TOKENS } from "@/lib/level-check/link-scan";
+import { gateFromRefusal } from "@/lib/entitlements/gate";
 
 /** Kurulumdaki bağımsız satır güncellemeleri için eşzamanlı istek sınırı. */
 const WRITE_LANES = 16;
@@ -209,7 +210,7 @@ export async function POST(request: Request) {
   // hesap yeni hazırlık kuramıyor).
   if (await freePrepLimitReached(service, userId)) {
     return NextResponse.json(
-      { error: FREE_PREP_LIMIT_MESSAGE, code: FREE_PREP_LIMIT_CODE },
+      { error: FREE_PREP_LIMIT_MESSAGE, code: FREE_PREP_LIMIT_CODE, gate: gateFromRefusal(FREE_PREP_LIMIT_CODE) },
       { status: 402 },
     );
   }

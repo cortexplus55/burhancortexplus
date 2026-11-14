@@ -41,6 +41,7 @@ import { env } from "@/lib/env";
 import { openRewriteLeadStream } from "@/lib/learning/node/rewrite-lead-stream";
 import { servePoolOral, servePoolContent } from "@/lib/learning/node/pool-start";
 import { serveOutcomeLesson } from "@/lib/learning/node/outcome-start";
+import { gateFromRefusal } from "@/lib/entitlements/gate";
 
 /** Öbür sekmenin açtığı kayıt bu kadar yeniyse bu sekme de onu açar (Paket J2 #9). */
 const TWIN_RESUME_MS = 3 * 60_000;
@@ -75,7 +76,7 @@ export async function startAction(context: NodeContext): Promise<NextResponse> {
   if (firstTopicLock) {
     if (prefetch) return NextResponse.json({ ok: true, skipped: "free_topic" });
     return NextResponse.json(
-      { error: "Bu konu Plus'ta.", code: FREE_TOPIC_LIMIT_CODE, firstTopic: firstTopicLock },
+      { error: "Bu konu Plus'ta.", code: FREE_TOPIC_LIMIT_CODE, gate: gateFromRefusal(FREE_TOPIC_LIMIT_CODE), firstTopic: firstTopicLock },
       { status: 402 },
     );
   }

@@ -7,6 +7,7 @@ import {
   freePrepLimitReached,
 } from "@/lib/billing/free-prep-limit";
 import { copyInvitedPrep, findJoinedCopy, loadInviteSource } from "@/lib/learning/prep-invite-store";
+import { gateFromRefusal } from "@/lib/entitlements/gate";
 
 /**
  * Sınıf davetiyle hazırlığa katıl (31 Ekim 2026, Paket J3 #14). Bağlantı imzalı; katılan öğrenci kendi kopyasını
@@ -43,7 +44,10 @@ export async function POST(request: Request) {
   if (existing) return NextResponse.json({ id: existing, alreadyJoined: true });
 
   if (await freePrepLimitReached(service, userId)) {
-    return NextResponse.json({ error: FREE_PREP_LIMIT_MESSAGE, code: FREE_PREP_LIMIT_CODE }, { status: 402 });
+    return NextResponse.json(
+      { error: FREE_PREP_LIMIT_MESSAGE, code: FREE_PREP_LIMIT_CODE, gate: gateFromRefusal(FREE_PREP_LIMIT_CODE) },
+      { status: 402 },
+    );
   }
 
   const copy = await copyInvitedPrep(service, { source, userId });
