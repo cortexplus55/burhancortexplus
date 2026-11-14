@@ -4,7 +4,7 @@
 
 ## 1. Durum: KISMEN
 
-- **Birleşen:** __BIRLESEN__ PR (Faz 0, 3A, 3B, 4A, 4B, 5, 6A, 6B, 7, 8, 9, 11, 12), hepsi production'da; her birleşmeden
+- **Birleşen:** 13 PR (Faz 0, 3A, 3B, 4A, 4B, 5, 6A, 6B, 7, 8, 9, 11, 12), hepsi production'da; her birleşmeden
   sonra production duman testi 11/11.
 - **Bayraklar:** yeni görünümün kodu canlıda, bütün `ui.v2.*` bayrakları **kapalı**. Canlıda bayrak yalnız yönetim
   panelinin Özellik Anahtarları sayfasından açılıyor; sayfa kurucu PIN'i istiyor ve PIN Claude'da yok (OTONOM §3:
@@ -27,7 +27,9 @@
 | #654 6B fotoğraf | `design/ogretmen-foto` | b9e26948 | 14.11 21:25 | duman 11/11 |
 | #655 7 giriş, kurulum, /pay | `design/faz7` | 08df6fdc | 14.11 21:49 | duman 11/11 |
 | #656 8 stüdyo | `design/faz8` | 8c1bf91d | 14.11 22:12 | duman 11/11 |
-__PR_SATIRLARI__
+| #657 9 düello (görünüm, nötr bot, kapı) | `design/faz9` | 13ddb3d0 | 14.11 22:27 | duman 11/11 |
+| #658 11 ayarlar, kütüphane, araçlar, büyüme | `design/faz11` | 50889a28 | 14.11 22:59 | duman 11/11 |
+| #659 12 durumlar, erişilebilirlik, ölçüm, kapanış | `design/faz12` | (birleşince kapanış eki PR'ında) | | |
 
 ## 3. Bayrak tablosu
 
@@ -39,16 +41,35 @@ __PR_SATIRLARI__
 
 ## 4. Ölçümler
 
-- **Testler:** birim __BIRIM__; uçtan uca (chromium projesi) __E2E__ test (taban 220).
+- **Testler:** birim 742 dosya / 7.128 test geçti, 1 atlandı (taban 728 / 6.869); uçtan uca (chromium projesi) 289 (yerel üretim derlemesine karşı 286 geçti, 1 atlandı; 2 düşen mevcut CSP rapor gürültüsünden, CI'da geçiyor: §5) test (taban 220).
 - **Erişilebilirlik (axe, WCAG 2.1 A + AA):** 210 ekran (70 ekran × 1280 / 768 / 375; misafir, ücretsiz, Plus, Sigma,
   kurucu fikstürü). İlk tarama 179 serious / critical düğüm; düzeltmeden sonra **0**, bayraklar açıkken de **0**
   (`audit/axe-faz12-kapali.json`, `audit/axe-faz12-acik.json`).
 - **Hareket azaltma:** 12 rotada boşta sonsuz animasyon 0.
 - **Görsel fark:** bayrak kapalıyken her faz sonunda görsel taban (203 görüntü) sıfır fark; Faz 12'nin bilinçli
-  değişiklikleri (kontrast düzeltmeleri, 404) için taban güncellendi: __GORSEL__.
+  değişiklikleri (kontrast düzeltmeleri, 404) için taban güncellendi: 203/203 tolerans içinde, yeni taban manifesti `BASELINE_SHA de54e951`.
 - **Performans** (yerel üretim derlemesi, telefon kipi, CPU 4×, Hızlı 4G, 5 koşu medyanı; eşikler ANA-PROMPT §3.6):
 
-__PERF__
+| Rota | LCP | CLS | Engelleme | JS + CSS |
+|---|---|---|---|---|
+| ana-sayfa | 1372 → 1352 ms | 0 → 0 | 527 → 369 ms | 537 → 450 KB |
+| giris | 1296 → 1268 ms | 0 → 0 | 270 → 244 ms | 504 → 519 KB |
+| kayit | 1364 → 1328 ms | 0,019 → 0,019 | 274 → 247 ms | 489 → 499 KB |
+| 404 | 508 → 1112 ms ↑ | 0 → 0 | 210 → 186 ms | 393 → 403 KB |
+| ogretmen | 1836 → 1584 ms | 0 → 0 | 458 → 438 ms | 735 → 800 KB |
+| hazirlik | 2220 → 2108 ms | 0 → 0 | 484 → 473 ms | 935 → 941 KB |
+| ders | 1600 → 1608 ms | 0 → 0 | 491 → 538 ms | 946 → 952 KB |
+| konu-testi | 1608 → 1600 ms | 0 → 0 | 515 → 539 ms | 946 → 952 KB |
+| kutuphane | 1584 → 1464 ms | 0 → 0 | 322 → 273 ms | 507 → 528 KB |
+| araclar | 1652 → 1496 ms | 0 → 0 | 324 → 238 ms | 529 → 553 KB |
+| pay | 2292 → 1536 ms | 0 → 0 | 402 → 311 ms | 550 → 551 KB |
+
+  Taban `taban-1288c25` (asıl eski); `taban-b25a922`'ye karşı da yalnız 404 LCP aşıyor. Tek aşım 404 LCP: sayfanın
+  kendi içeriği 320 ms'de çiziliyor (eski 508 ms); ölçüdeki değer ilk ziyaretteki çerez bandının metni (büyük "404"
+  çizimi kalkınca en büyük öğe bant oldu). **Kabul edilen sapma, karar Burhan'da.** Giriş / kayıt engelleme aşımı
+  (dinamik çizim) ve hazırlık CLS'si (0,063) bu fazda düzeltildi (`raporlar/faz12.md` §4).
+- **Tasarım denetimi** (203 ekran, bayraklar kapalı): kontrast 152 → 0, küçük hedef 1014 → 1012; çoklu brand 38, küçük
+  yazı 360 eski görünümün sayıları (bayraklar açılıp eski yollar silinince düşer).
 
 - **Production duman testi:** her birleşmeden sonra 11/11 (ana sayfa, giriş, kayıt, /pay, `/d/ZZZZZZZZ` 404, robots,
   404, kullanım limitleri, ayarlar, profil, stüdyo; e2e hesabıyla).
@@ -63,7 +84,10 @@ __PERF__
 - **Giriş / kayıt** bayrak okumak için dinamik oldu (önce durağan).
 - **Sonraki karar:** podcast ilerleme çubuğunun ARIA slider'a çevrilmesi ve "Şimdiki satıra dön"; sözlüde `TimerRing`;
   /pay'de radyo grubu; Belgelerim eylem menüsü; ayarlarda `role="switch"`; telefonda davet şeridi yeri; düello paylaşım
-  kodunun Crockford base32'ye geçişi; puanlamada "doğru sayısı önce"; sınav sabahı altbilgisi (yazdırma karşılaştırması).
+  kodunun Crockford base32'ye geçişi; puanlamada "doğru sayısı önce"; sınav sabahı altbilgisi (yazdırma karşılaştırması);
+  kök düzendeki `consent-evidence.ts` modül yüklenirken zod şeması kuruyor, zod 4'ün `Function("")` yoklaması rapor
+  kipindeki CSP'den her sayfada `/api/csp-report` isteği doğuruyor (engelleme yok, gürültü; çözüm şemayı ilk kullanımda
+  kurmak ya da zod'u `jitless` yapmak).
 
 ## 6. Burhan-only açık işler
 
@@ -90,7 +114,7 @@ __PERF__
   eski görünüm aynen döner (bayrak kapalıyken DOM eskisiyle aynı).
 - **Kod:** son güvenli commit, her birleşme commit'i production'da duman testinden geçti. Bayrağa bağlı olmayan
   değişiklikler: /pay `?plan=` işareti (Faz 7), 404 ve hata ekranları, erişilebilirlik ve kontrast düzeltmeleri (Faz 12).
-  Bunlar için `git revert <birleşme sha> -m 1` + push (Vercel otomatik yayınlar). Faz 12 öncesi güvenli nokta: __F12_ONCESI__.
+  Bunlar için `git revert <birleşme sha> -m 1` + push (Vercel otomatik yayınlar). Faz 12 öncesi güvenli nokta: 50889a28 (#658).
 
 ## 8. 7 gün sonra tek komut
 
