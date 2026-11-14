@@ -87,8 +87,9 @@ describe("Ücretsiz", () => {
   });
   it("ilk dersin döngüsü 'derse dahil' sayacıyla; 40 dolunca kilit (teklifsiz); başka konu free_topic_limit", () => {
     expect(getGate(free(), "lesson.create", { firstLessonCycle: true }, NOW)).toEqual({ state: "open", reason: "free_first_lesson_available" });
-    // Ders bitti: döngünün öbür adımları yine açık, ama "ilk ders duruyor" denmez.
+    // Ders bitti ya da durum okunamadı: döngünün adımları yine açık, ama "ilk ders duruyor" denmez.
     expect(getGate(free({ firstLesson: "done" }), "lesson.create", { firstLessonCycle: true }, NOW)).toEqual({ state: "open", reason: "open" });
+    expect(getGate(free({ firstLesson: null }), "lesson.create", { firstLessonCycle: true }, NOW)).toEqual({ state: "open", reason: "open" });
     const full = free({ meters: { included: { used: 40, limit: 40, resetsAt: MIDNIGHT } } });
     expect(getGate(full, "lesson.create", { firstLessonCycle: true }, NOW)).toMatchObject({ state: "locked", reason: "free_included_limit" });
     expect(getGate(full, "lesson.create", { firstLessonCycle: true }, NOW).requiredPlan).toBeUndefined();

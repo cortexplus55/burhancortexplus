@@ -118,8 +118,8 @@ function freeGate(snapshot: EntitlementSnapshot, action: Action, context: GateCo
       if (included && included.used >= included.limit) {
         return { state: "locked", reason: "free_included_limit", period: "day", limit: included.limit, remaining: 0, resetAt: included.resetsAt };
       }
-      // İlk dersin adımları ders bittikten sonra da açık (konu testi, kartlar …); "ilk ders duruyor" demek o zaman yanlış.
-      return snapshot.firstLesson === "done" ? OPEN : { state: "open", reason: "free_first_lesson_available" };
+      // İlk dersin adımları ders bittikten sonra da açık (konu testi, kartlar …); "ilk ders duruyor" yalnız kesin bilinince.
+      return snapshot.firstLesson === "open" || snapshot.firstLesson === "none" ? { state: "open", reason: "free_first_lesson_available" } : OPEN;
     }
     // Düğüm bağlamı yoksa: ilk ders kesin bitmediyse açık (karar 3); kilit yalnız sunucu 402'sinde.
     if (snapshot.firstLesson !== "done") {
