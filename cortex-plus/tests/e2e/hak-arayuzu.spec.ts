@@ -34,9 +34,14 @@ for (const size of WIDTHS) {
       await expect(page.getByText("Ücretsiz ders", { exact: true })).toBeVisible();
       await expect(page.getByText("3 mesaj kaldı")).toBeAttached();
       const rights = page.getByRole("region", { name: "Kalan haklar" });
-      await expect(rights).toBeVisible();
-      await expect(rights).toContainText("3 / 3 sohbet mesajı");
-      await expect(rights).toContainText("1 / 1 fotoğraftan çözüm");
+      if (size.width >= 768) {
+        await expect(rights).toBeVisible();
+        await expect(rights).toContainText("3 / 3 sohbet mesajı");
+        await expect(rights).toContainText("1 / 1 fotoğraftan çözüm");
+      } else {
+        // Telefonda ana ekran kaydırmasız; hak bilgisi çubuğun üstünde ("3 mesaj kaldı"), kart gizli.
+        await expect(rights).toBeHidden();
+      }
       await noOverflow(page);
     });
 
