@@ -53,6 +53,15 @@ teklif yok; sayaç "önce artır, hata olursa iade" kabul; sohbette 402 sonrası
    (`E2E_FIXTURE=1 SENTRY_AUTH_TOKEN="" npx next build`), sunucu `preview_start cortex-plus-test-guvenli` (3006),
    `npm run test:visual`, `npm run design:audit -- --skip-login`, yeni e2e `E2E_BASE_URL=http://localhost:3006 npx playwright test <spec> --project=chromium`.
 
+## Faz 7 için not (ölçülmeden yazılmadı)
+
+- `/giris` ve `/kayit` bugün statik; `ui.v2.giris` bayrağını canlıda okumak bölümü dinamik yapar (`force-dynamic` ya da
+  `cookies()`), ilk yükleme süresi değişir. Önce `perf:measure` ile giriş/kayıt ölçülecek; çıta aşılırsa bayrak okuması
+  istemciye taşınır (herkese açık `feature_flags` satırı yok: ayrı bir yol gerekir) ya da Burhan'a sorulacak.
+- Açık yönlendirme koruması var: `src/lib/auth/safe-next-path.ts` (yalnız aynı kökenden göreli yol). DUR koşulu yok.
+- Şifre göster / gizle düğmesi bugün yok (`giris-inner.tsx`): eklemek davranış eki; 7A'da bayrak altında.
+- Ortak sarmalayıcı bileşeni önerisi: `UiScope({ keys })` (4B/5/6A'daki elle yazılan desenin ortak hâli).
+
 ## Park edilenler
 
 (henüz yok)
