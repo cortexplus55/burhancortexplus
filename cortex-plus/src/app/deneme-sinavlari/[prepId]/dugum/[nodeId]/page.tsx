@@ -1,5 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { ParitySorShell } from "@/components/parity/sor-shell";
+import { uiV2 } from "@/lib/ui-v2/flags";
+import "@/styles/ui-v2-ders.css";
 import { ExamNodeSession } from "@/components/parity/exam-node-session";
 import { poolSliceForTopic } from "@/lib/content-pool/serve";
 import { poolLessonPreview, savedLessonPreview } from "@/lib/content-pool/lesson-preview";
@@ -384,9 +386,10 @@ export default async function ExamNodePage({
       : null;
   timer.log("node_page");
   const serverRenderMs = timer.totalMs();
+  // Yeni görünüm bayrağı (Faz 4B, `ui.v2.ders`): KAPALIYKEN sarmalayıcı çizilmez (DOM ve görünüm eskisiyle aynı).
+  const uiKeys = node.kind === "lesson" && (await uiV2("ders", user.id)) ? ["ders"] : [];
 
-  return (
-    <ParitySorShell {...shell} chrome="session">
+  const session = (
       <ExamNodeSession
         prepId={prep.id}
         nodeId={node.id}
@@ -419,6 +422,16 @@ export default async function ExamNodePage({
         activityMinutes={sessionMeta?.activityMinutes ?? null}
         nodeDone={node.status === "done"}
       />
+  );
+  return (
+    <ParitySorShell {...shell} chrome="session">
+      {uiKeys.length ? (
+        <div className="cx-ui-scope" data-ui={uiKeys.join(" ")}>
+          {session}
+        </div>
+      ) : (
+        session
+      )}
     </ParitySorShell>
   );
 }
