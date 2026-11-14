@@ -318,3 +318,11 @@ button.cx-usage-line {
     min-height: 44px;
   }
 }
+
+/* Telefonda ana ekran kaydırmasız: kart yazma çubuğunun arkasında kalırdı. Hak bilgisi orada çubuğun üstündeki
+   "N mesaj kaldı" ile verilir (14 Kasım 2026, 375 px ölçümü). */
+@media (max-width: 767px) {
+  .cx-rights {
+    display: none;
+  }
+}
