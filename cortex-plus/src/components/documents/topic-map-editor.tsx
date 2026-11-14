@@ -382,7 +382,7 @@ export function TopicMapEditor({
         {hidePlanLink ? null : mapReady ? (
           <a
             href={`/deneme-sinavlari/olustur?documentId=${documentId}`}
-            className="rounded-full border border-[color:color-mix(in_srgb,var(--cs-primary)_40%,transparent)] px-4 py-2 text-sm font-medium text-[var(--cs-primary)]"
+            className="rounded-full border border-[color:color-mix(in_srgb,var(--cs-primary)_40%,transparent)] px-4 py-2 text-sm font-medium text-[var(--cx-text-brand)]"
           >
             Sınav hazırlığı kur →
           </a>

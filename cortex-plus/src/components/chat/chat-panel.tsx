@@ -2948,7 +2948,7 @@ function ChatPanelSession({
                 className={cn(
                   "rounded-full p-2",
                   listening
-                    ? "text-[var(--cs-primary)]"
+                    ? "text-[var(--cx-text-brand)]"
                     : "text-[var(--cs-muted)]",
                 )}
                 aria-label={listening ? "Kaydı bitir" : "Mikrofon"}

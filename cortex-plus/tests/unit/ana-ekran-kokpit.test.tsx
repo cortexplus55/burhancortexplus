@@ -111,8 +111,10 @@ describe("sınav şeridi", () => {
     expect(tabs[3]!.getAttribute("aria-label")).toBe("Hazırlık C");
     expect(tabs[2]!.querySelector(".cx-strip-dot")).not.toBeNull();
     expect(tabs[1]!.querySelector(".cx-strip-dot")).toBeNull();
-    // Son kutu yeni hazırlık: mevcut kurulum akışı.
-    expect(within(list).getByRole("link", { name: "Yeni sınav hazırlığı" })!.getAttribute("href")).toBe("/deneme-sinavlari/olustur");
+    // Son kutu yeni hazırlık: mevcut kurulum akışı. Sekme listesinin dışında, aynı kaydırma kabında (Faz 12B axe).
+    expect(within(list).queryByRole("link")).toBeNull();
+    expect(screen.getByRole("link", { name: "Yeni sınav hazırlığı" }).closest(".cx-strip-list")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Yeni sınav hazırlığı" }).getAttribute("href")).toBe("/deneme-sinavlari/olustur");
     expect(container.querySelectorAll(".cx-brand")).toHaveLength(1);
   });
 

@@ -325,7 +325,7 @@ export function SubscriptionCards({
           </div>
           <button
             type="button"
-            className="shrink-0 rounded-full px-3 py-1.5 text-sm text-[var(--cs-primary)] hover:bg-[var(--cs-surface)]"
+            className="shrink-0 rounded-full px-3 py-1.5 text-sm text-[var(--cx-text-brand)] hover:bg-[var(--cs-surface)]"
             onClick={() => {
               setIframeUrl(null);
               setIframeReady(false);

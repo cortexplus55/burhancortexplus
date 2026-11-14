@@ -99,7 +99,7 @@ function LimitBar({
           {formatNumber(value)} / {formatNumber(max)}
         </strong>
       </div>
-      <div className="cp-limit-track" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+      <div className="cp-limit-track" role="progressbar" aria-label={label} aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
         <div className="cp-limit-fill" style={{ width: `${pct}%` }} />
       </div>
       <p>{hint}</p>

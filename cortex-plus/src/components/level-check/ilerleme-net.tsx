@@ -11,7 +11,7 @@ export function IlerlemeNetSection({ prepNet }: { prepNet: { prepId: string; tit
       <div className="lc-box mm" data-testid="ilerleme-net">
         <NetCard net={prepNet.net} />
       </div>
-      <Link href={examPrepHomeHref(prepNet.prepId)} className="mt-4 inline-flex text-sm font-semibold text-[var(--cs-primary)]">
+      <Link href={examPrepHomeHref(prepNet.prepId)} className="mt-4 inline-flex text-sm font-semibold text-[var(--cx-text-brand)]">
         {"Hakimiyet Haritası'na git →"}
       </Link>
     </SectionCard>

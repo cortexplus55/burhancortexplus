@@ -127,14 +127,10 @@ function ExamStrip() {
           <ChevronUp aria-hidden />
         </button>
       ) : null}
-      <div
-        ref={listRef}
-        className="cx-strip-list"
-        role="tablist"
-        aria-orientation="vertical"
-        aria-label="Sınavlar"
-        onScroll={() => setTip(null)}
-      >
+      {/* Kaydırma kabı rolsüz; sekme listesi yalnız sekmeleri taşır, "Yeni sınav hazırlığı" bağlantısı listenin dışında
+          ama aynı kapta (Faz 12B axe: tablist içinde bağlantı "aria-required-children" ihlaliydi). */}
+      <div ref={listRef} className="cx-strip-list" onScroll={() => setTip(null)}>
+        <div className="cx-strip-tabs" role="tablist" aria-orientation="vertical" aria-label="Sınavlar">
         {preps.map((prep, index) => {
           const selected = index === prepIndex;
           const days = prep.daysLeft;
@@ -191,6 +187,7 @@ function ExamStrip() {
             </button>
           );
         })}
+        </div>
         <Link href="/deneme-sinavlari/olustur" className="cx-strip-tab cx-strip-new" aria-label="Yeni sınav hazırlığı">
           <Plus aria-hidden />
         </Link>

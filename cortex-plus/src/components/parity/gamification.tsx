@@ -98,7 +98,7 @@ export function GamificationGate() {
           </Button>
           <Link
             href="/ilerleme"
-            className="text-sm text-[var(--cs-primary)] underline underline-offset-2"
+            className="text-sm text-[var(--cx-text-brand)] underline underline-offset-2"
             onClick={dismiss}
           >
             İlerlemeni gör
