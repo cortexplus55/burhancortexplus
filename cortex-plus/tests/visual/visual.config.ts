@@ -10,7 +10,9 @@ import { loadEnvConfig } from "@next/env";
     verir. Böylece görsel test hiçbir koşulda model ya da e-posta çağırmaz.
   - Sunucu bir üretim derlemesi (aşağıda). Aynı klasörde çalışan bir `next dev` (3005 ya da 3006) `.next`'i paylaşır:
     önce kapatın.
-  - Taban güncelleme yalnız bilinçli: `npm run test:visual:update`. CI'da güncelleme kapalı (`updateSnapshots: "none"`).
+  - Taban görüntüleri git'te değil (ürün sahibinin kararı, 14 Kasım 2026); kaydı `baseline-manifest.json`. Giriş kapısı
+    `npm run test:visual` (scripts/visual-baseline.mjs): görüntüler manifestle aynı değilse çalışmaz. Güncelleme yalnız
+    bilinçli: `npm run test:visual:update`. CI'da koşmaz.
 
   Ön koşul: `npm run e2e:seed` ve `npm run e2e:login` (giriş durumları `tests/.auth/`, gitignore).
 */
@@ -28,7 +30,8 @@ export default defineConfig({
   workers: process.env.CI ? 2 : 3,
   retries: 0,
   timeout: 180_000,
-  updateSnapshots: process.env.CI ? "none" : "missing",
+  // Eksik taban sessizce yazılmaz: yalnız `npm run test:visual:update` (--update-snapshots) yazar.
+  updateSnapshots: "none",
   expect: {
     timeout: 20_000,
     toHaveScreenshot: { maxDiffPixelRatio: 0.002, animations: "disabled", caret: "hide", scale: "css" },
@@ -55,7 +58,8 @@ export default defineConfig({
     hızlı ve kararlı. Derleme yalnız yerel testin: `E2E_FIXTURE=1` (fikstür sayfaları derlemede sabitlenebilir),
     `SENTRY_AUTH_TOKEN` boş (kaynak haritası yüklenmez). Çalışan bir 3006 sunucusu varsa yerelde yeniden kullanılır.
   */
-  webServer: {
+  // CI'da görsel taban yok (görüntüler yalnız yerelde, Windows'ta): sunucu kalkmaz, testler atlanır.
+  webServer: process.env.CI ? undefined : {
     command: `node scripts/copy-pdf-worker.mjs && npx next build && npx next start -p ${PORT}`,
     url: BASE,
     reuseExistingServer: !process.env.CI,

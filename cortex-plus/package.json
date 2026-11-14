@@ -24,8 +24,8 @@
     "e2e:login": "node scripts/e2e-login.mjs",
     "design:measure": "node scripts/design/measure-screens.mjs",
     "design:audit": "node scripts/design-audit.mjs",
-    "test:visual": "playwright test -c tests/visual/visual.config.ts",
-    "test:visual:update": "playwright test -c tests/visual/visual.config.ts --update-snapshots",
+    "test:visual": "node scripts/visual-baseline.mjs run",
+    "test:visual:update": "node scripts/visual-baseline.mjs update",
     "perf:measure": "node scripts/perf-measure.mjs",
     "perf:compare": "node scripts/perf-compare.mjs",
     "perf:baseline": "node scripts/perf-baseline.mjs"

@@ -8,7 +8,7 @@ import path from "node:path";
   Sunucu (`webServer`) bu adımdan önce kalkar. Parolalar yalnız yerel dosyadan (`tests/.auth/e2e-users.local.json`).
 */
 export default async function globalSetup() {
-  if (process.env.VISUAL_SKIP_LOGIN === "1") return;
+  if (process.env.CI || process.env.VISUAL_SKIP_LOGIN === "1") return; // CI'da görsel taban yok (00-taban.md)
   execFileSync(process.execPath, [path.join("scripts", "e2e-login.mjs")], {
     stdio: "inherit",
     env: { ...process.env, E2E_BASE_URL: "http://127.0.0.1:3006" },

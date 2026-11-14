@@ -129,6 +129,9 @@ async function shoot(page: Page, route: Route, url: string, file: string) {
 const authFor = (user: string) => path.join(AUTH, `${user}.json`);
 const missingAuth = (user: string) => !fs.existsSync(authFor(user)) || !STATE.users[user];
 
+// CI'da görsel taban yok: görüntüler Windows'ta, yerelde üretilir (00-taban.md). Dosyadaki her test atlanır.
+test.skip(Boolean(process.env.CI), "atlandı: görsel taban yalnızca Windows'ta, yerelde");
+
 function describeUser(user: string, routes: Route[]) {
   test.describe(user, () => {
     test.skip(missingAuth(user), `${user} giriş durumu yok: npm run e2e:seed && npm run e2e:login`);

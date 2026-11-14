@@ -53,6 +53,9 @@ next-env.d.ts
 /playwright/.auth
 # E2E test hesapları (Faz 0, 2.5): giriş durumları ve yerel parola dosyası depoya girmez
 /tests/.auth/
+# Görsel taban görüntüleri yalnız yerelde (Windows'ta üretildi, Linux CI karşılaştıramaz; yeniden üretilebilir).
+# Kaydı tests/visual/baseline-manifest.json, tarifi docs/design-migration/00-taban.md.
+/tests/visual/__screenshots__/
 
 # typescript
 
