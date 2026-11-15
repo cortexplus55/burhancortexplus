@@ -146,6 +146,12 @@ const KNOWN = [
       "Açıkken kod kontrolünden şüphesiz geçen belge cevaplarının %5'i yanıttan sonra model denetiminden geçer; sonuç yalnız günlüğe (uyuşmazlık oranı), öğrenciye gösterilmez ve öğrenciyi bekletmez. Günde en çok 150 denetim (~0,30 $). Kapatınca en geç 30 sn'de durur.",
   },
   {
+    key: "teacher.v2",
+    label: "Öğretmen hissi · tek hamle (Faz 13A)",
+    description:
+      "Açıkken ana sohbette öğretmen turu kısa ve tek hamle: en çok bir soru ve bir destek kutusu, soru soran mesajda Akılda kalsın yok, öğrenciye iç sistem dili yok, en çok 3 çip; içerik denetimi modelle paralel (ilk metin daha erken). Önce yalnız kurucunun hesabında; genel açma yalnız ÖĞRETMEN V2 onayıyla. Kapatınca en geç 30 sn.",
+  },
+  {
     key: "quiz.option_check",
     label: "Test · şık ayrılabilirliği denetimi (H2)",
     description:

@@ -24,6 +24,8 @@ import { loadNearestExamCountdown } from "@/lib/learning/exam-countdown-load";
 import { loadContinueStep } from "@/lib/learning/prep-cards";
 import { pathSkipKinds } from "@/lib/billing/node-free-meter";
 import { createServiceClient } from "@/lib/supabase/server";
+import { isFeatureEnabled } from "@/lib/admin/feature-flags";
+import { TEACHER_V2_FLAG } from "@/lib/ai/teacher-v2";
 import { ContinueLine } from "@/components/parity/continue-line";
 import { HomeCockpit, HomeSelectionProvider, HomeToolsTray } from "@/components/parity/home-cockpit";
 import { loadHomeCockpit, type NodeRow } from "@/lib/learning/home-cockpit";
@@ -235,6 +237,8 @@ export default async function OgretmenPage({
   const avatar = profile?.avatar_url as string | null | undefined;
   // Yeni görünüm bayrağı (Faz 6A, `ui.v2.ogretmen`): KAPALIYKEN sarmalayıcı yok ve sohbet bugünkü gibi kayar.
   const uiOgretmen = await uiV2("ogretmen", user.id);
+  // Faz 13A (15 Kasım 2026): öğretmen hissi, kişi bazlı bayrak; okuma düşerse kapalı.
+  const teacherV2 = await isFeatureEnabled(createServiceClient(), TEACHER_V2_FLAG, user.id).catch(() => false);
   // Faz 11C (`ui.v2.buyume`): ilk ders tamamlanınca ana ekranda davet şeridi (ücretsizde ilk dersin durumu, ücretlide
   // yolda biten bir adım). Bağlantı /davet ile aynı kaynaktan; bayrak kapalıyken okunmaz.
   const inviteStrip =
@@ -269,6 +273,7 @@ export default async function OgretmenPage({
         tutorStyleLabel={tutorStyleLabel(style)}
         initialTutorStyle={style}
         followUser={uiOgretmen}
+        teacherV2={teacherV2}
       />
   );
   const body = cockpit.length ? <HomeSelectionProvider preps={cockpit}>{panel}</HomeSelectionProvider> : panel;

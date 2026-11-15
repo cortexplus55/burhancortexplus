@@ -1,6 +1,7 @@
 "use client";
 
 import { LIVE_HEADER, splitLiveBody } from "@/lib/ai/chat-live";
+import { ONE_MOVE_MAX_CHIPS } from "@/lib/ai/teacher-v2";
 import { useCallback, useRef, useState, useEffect, type ComponentProps } from "react";
 import { createPortal } from "react-dom";
 import { useLearningTimer } from "@/components/learning/use-learning-timer";
@@ -289,6 +290,7 @@ function ChatPanelSession({
   tutorStyleLabel,
   initialTutorStyle,
   followUser = false,
+  teacherV2 = false,
   quotaHint,
   starterPrompts,
   feedbackEnabled = false,
@@ -341,6 +343,11 @@ function ChatPanelSession({
    * duyar. Kapalıyken bugünkü davranış aynen.
    */
   followUser?: boolean;
+  /**
+   * Faz 13A (`teacher.v2`, 15 Kasım 2026): yanıtın altında en çok 3 çip. Yanıtın kendi çipleri (Sokratik / Adım Adım
+   * hızlı eylemleri) varsa genel devam önerileri gösterilmez. Kapalıyken bugünkü davranış aynen.
+   */
+  teacherV2?: boolean;
   quotaHint?: string | null;
   starterPrompts?: { label: string; prompt: string }[];
   /**
@@ -1741,6 +1748,7 @@ function ChatPanelSession({
                           hideChips={!showSuggestions}
                           tutorStyle={tutorStyle}
                           quickActions={index === messages.length - 1}
+                          maxChips={teacherV2 ? ONE_MOVE_MAX_CHIPS : undefined}
                         />
                         <MessageActions
                           content={message.content}
@@ -1819,7 +1827,7 @@ function ChatPanelSession({
               {/* Yanıt bittikten sonra devam önerileri. Öğrenci "peki şimdi ne
                   sorayım" diye kalmasın; bunlar gerçekten çalışan komutlar,
                   süs değil. Sınav sohbetinde aynı işi hızlı komutlar görür. */}
-              {!examChrome && !loading && lastIsAnswer && showSuggestions ? (
+              {!examChrome && !loading && lastIsAnswer && showSuggestions && !(teacherV2 && tutorStyle !== "direct_solve") ? (
                 <div className="cp-followups" role="group" aria-label="Devam önerileri">
                   {FOLLOW_UPS.map((item) => (
                     <button
