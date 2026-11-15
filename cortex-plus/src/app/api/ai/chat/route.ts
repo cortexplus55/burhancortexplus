@@ -121,7 +121,7 @@ import { settleVoice } from "@/lib/ai/teacher-voice";
 import { loadStudentDossier } from "@/lib/teacher/dossier-load";
 import { classifyIntent, directorTurnLine } from "@/lib/teacher/director";
 import { ensureDocumentMap } from "@/lib/documents/document-map-load";
-import { settlePedagogicalLabels, stripOrphanCitations } from "@/lib/ai/chat-answer-settle";
+import { dropSourceLabels, settlePedagogicalLabels, stripOrphanCitations } from "@/lib/ai/chat-answer-settle";
 import { createChatDraft } from "@/lib/ai/chat-draft";
 import { logOpsEvent } from "@/lib/observability/ops-log";
 import { pickStudyTopics } from "@/lib/learning/diagnostic";
@@ -175,12 +175,69 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
   // Görselli mesajın denetimi görsel adresiyle aşağıda ayrıca yapılır. Karar ve kapı değişmez.
   const textVerdictEarly = rest.imageDocumentId ? null : moderate({ text: message });
   textVerdictEarly?.catch(() => undefined);
+  // İlk metin hızı (15 Kasım 2026, Burhan: TTFT ≤5 sn): işlem kaydından bağımsız okumalar işlem kaydını beklemeden
+  // başlar. Hepsi yalnız okuma ve yalnız bu öğrencinin satırları; kredi ayırma sırası ve kapılar değişmez. Hazırlığa
+  // özel okumalar (bağlam, belge araması) sahiplik denetiminden SONRA başlar (aşağıda).
+  const stage = (name: string) => timings.push([name, Date.now() - routeStartedAt]);
+  const quiet = <T,>(promise: Promise<T>): Promise<T> => {
+    promise.catch(() => undefined);
+    return promise;
+  };
+  const entitlementsEarly = quiet(getUserEntitlements(service, userId));
+  // Faz 13A (15 Kasım 2026): öğretmen hissi `teacher.v2` arkasında; kişi bazlı açılır, 30 sn önbellek. Okuma düşerse kapalı.
+  const teacherV2Early = isFeatureEnabled(service, TEACHER_V2_FLAG, userId).catch(() => false);
+  const priorTurnsEarly = quiet(
+    rest.conversationId
+      ? Promise.resolve(service.from("messages").select("id", { count: "exact", head: true })
+          .eq("conversation_id", rest.conversationId).eq("user_id", userId).eq("role", "user"))
+      : Promise.resolve(null),
+  );
+  const historyEarly = quiet(
+    rest.conversationId
+      ? Promise.resolve(service.from("messages").select("role,content")
+          .eq("conversation_id", rest.conversationId).eq("user_id", userId).order("created_at", { ascending: false }).limit(16))
+      : Promise.resolve(null),
+  );
+  const profileEarly = quiet(Promise.resolve(service.from("profiles").select("tutor_style").eq("id", userId).maybeSingle()));
+  const instructionEarly = quiet(loadActivePrompt(service, PROMPT_KEYS.studentChat));
+  // Öğrencinin kendi materyaline bağlanma (15 Kasım 2026): ana sohbette mesaj hazırlık / konu / belge adı, "N gün
+  // sonraki sınav" ya da seçili hazırlıkla eşlenir. Yalnız okuma; düşerse bağlantı yok, sohbet bugünkü gibi sürer.
+  const materialEarly: Promise<ChatMaterialLink | null> = !rest.prepId && !rest.imageDocumentId
+    ? resolveChatMaterial(service, userId, message, rest.contextPrepId ?? null, { conversationId: rest.conversationId }).catch((error) => {
+        console.warn("chat_material_link_failed", { operationId, cause: String(error instanceof Error ? error.message : error).slice(0, 120) });
+        return null;
+      })
+    : Promise.resolve(null);
+  const optionCountEarly = quiet(!rest.prepId ? studentOptionCount(service, userId) : Promise.resolve(5 as const));
+  // Günün ruh hali (tarayıcı göndermediyse): eskiden model çağrısından hemen önce sırayla bekleniyordu.
+  const moodEarly = rest.mood ? Promise.resolve(null) : loadTodayMood(service, userId).catch(() => null);
+  // Hazırlık sahipliği işlem kaydıyla aynı anda sorulur; sonuç aşağıda, hazırlığa özel okumalardan önce beklenir.
+  const ownedPrepEarly = rest.prepId
+    ? quiet(Promise.resolve(service.from("exam_preps").select("id").eq("id", rest.prepId).eq("user_id", userId).maybeSingle()))
+    : null;
   const operation = await prepareChatOperation(service, {
     userId, operationId, conversationId: rest.conversationId,
     requestHash: chatRequestHash({ message, useDocuments, documentsOnly, ...rest }),
   });
   if (!operation.ok) return NextResponse.json({ error: operation.error }, { status: operation.status });
   if (operation.result) return chatResultResponse(operation.result, documentsOnly);
+  stage("prepared");
+  // Belge araması (gömme + vektör sorgusu) işlem kaydı denetlenince, materyal eşleşmesi gelir
+  // gelmez başlar (girdi denetimi ve kredi ayırmayla aynı anda); eskiden kredi ayırmadan SONRA
+  // sırayla bekleniyordu. Koşullar ve sonuç aynı: yalnız ana sohbette, ekli belge/görsel yokken.
+  const searchEarly: Promise<Awaited<ReturnType<typeof searchDocumentChunks>> | null> = quiet(
+    rest.prepId || rest.imageDocumentId
+      ? Promise.resolve(null)
+      : useDocuments
+        ? searchDocumentChunks(service, userId, message, 6, { minSimilarity: documentsOnly ? 0.32 : undefined })
+        : materialEarly.then((material) =>
+            material && (material.documentIds.length || material.searchAll)
+              ? material.documentIds.length
+                ? searchDocumentChunksAcross(service, userId, message, material.documentIds, { limit: 6, perDocument: 3 })
+                : searchDocumentChunks(service, userId, message, 6)
+              : null,
+          ),
+  );
 
   let reservationId: string | null = null;
   // Settlement and transcript persistence happen together in complete_chat_operation.
@@ -261,50 +318,17 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
     // Hazırlık sahipliği (6 Kasım 2026, 360° denetim P0): bağlam okumaları servis anahtarıyla koşuyor.
     // Sahiplik denetlenmeden başka öğrencinin hazırlık kimliğiyle onun belgeleri modele gidiyordu
     // (kimlik sınıf davet bağlantısında ve okul akışında görünür). Sahip değilse hiçbir şey okunmaz.
-    if (rest.prepId) {
-      const { data: ownedPrep, error: prepError } = await service
-        .from("exam_preps").select("id").eq("id", rest.prepId).eq("user_id", userId).maybeSingle();
+    if (rest.prepId && ownedPrepEarly) {
+      const { data: ownedPrep, error: prepError } = await ownedPrepEarly;
       if (prepError) return errorResponse(503, "Hazırlığına şu an erişilemiyor.");
       if (!ownedPrep) return errorResponse(404, "prep_not_found");
     }
 
-    // Ön okumalar paralel (3 Kasım 2026, t260u): denetim, hak, geçmiş, profil, istem ve hazırlık bağlamı
-    // birbirini beklemiyordu ama sırayla koşuyordu. Hepsi yalnız okuma; kredi ayırma sırası değişmez.
-    const stage = (name: string) => timings.push([name, Date.now() - routeStartedAt]);
-    const quiet = <T,>(promise: Promise<T>): Promise<T> => {
-      promise.catch(() => undefined);
-      return promise;
-    };
-    const entitlementsEarly = quiet(getUserEntitlements(service, userId));
-    // Faz 13A (15 Kasım 2026): öğretmen hissi `teacher.v2` arkasında; kişi bazlı açılır, 30 sn önbellek. Okuma düşerse kapalı.
-    const teacherV2Early = isFeatureEnabled(service, TEACHER_V2_FLAG, userId).catch(() => false);
-    const priorTurnsEarly = quiet(
-      rest.conversationId
-        ? Promise.resolve(service.from("messages").select("id", { count: "exact", head: true })
-            .eq("conversation_id", rest.conversationId).eq("user_id", userId).eq("role", "user"))
-        : Promise.resolve(null),
-    );
-    const historyEarly = quiet(
-      rest.conversationId
-        ? Promise.resolve(service.from("messages").select("role,content")
-            .eq("conversation_id", rest.conversationId).eq("user_id", userId).order("created_at", { ascending: false }).limit(16))
-        : Promise.resolve(null),
-    );
-    const profileEarly = quiet(Promise.resolve(service.from("profiles").select("tutor_style").eq("id", userId).maybeSingle()));
-    const instructionEarly = quiet(loadActivePrompt(service, PROMPT_KEYS.studentChat));
+    // Hazırlığa özel okumalar (bağlam, belge araması, öğrenme hafızası) sahiplik denetiminden sonra, birbirine paralel.
     const examContextEarly = quiet(rest.prepId ? loadExamChatContext(service, userId, rest.prepId) : Promise.resolve(null));
     const groundingEarly = quiet(rest.prepId ? loadPrepChatGrounding(service, userId, rest.prepId, message) : Promise.resolve(null));
     // Öğrenme hafızası (5 Kasım 2026): öğretmen yolunda okunur, öbür okumalara paralel; yoksa null.
     const studentMemoryEarly = quiet(rest.prepId ? loadStudentMemory(service, userId) : Promise.resolve(null));
-    // Öğrencinin kendi materyaline bağlanma (15 Kasım 2026): ana sohbette mesaj hazırlık / konu / belge adı, "N gün
-    // sonraki sınav" ya da seçili hazırlıkla eşlenir. Yalnız okuma; düşerse bağlantı yok, sohbet bugünkü gibi sürer.
-    const materialEarly: Promise<ChatMaterialLink | null> = !rest.prepId && !rest.imageDocumentId
-      ? resolveChatMaterial(service, userId, message, rest.contextPrepId ?? null, { conversationId: rest.conversationId }).catch((error) => {
-          console.warn("chat_material_link_failed", { operationId, cause: String(error instanceof Error ? error.message : error).slice(0, 120) });
-          return null;
-        })
-      : Promise.resolve(null);
-    const optionCountEarly = quiet(!rest.prepId ? studentOptionCount(service, userId) : Promise.resolve(5 as const));
     // Girdi denetimi (3 Kasım 2026): hazırlık sohbetinde model çağrısıyla PARALEL koşar; ilk kelime
     // denetimi beklemez. Kapı açılana kadar token'lar sunucuda tamponlanır (live.gate); ret gelirse
     // model iptal edilir, tampon atılır, kredi iade edilir ve öğrenciye yalnız güvenli mesaj gider.
@@ -381,23 +405,21 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
     const reserved = await reserveCredits(service, userId, reserveAction, `chat:${operationId}`, 1, { freeMeter: imageUrl ? "photo" : "chat" });
     if (!reserved.ok) return errorResponse(reserved.reason === "insufficient_credits" ? 402 : reserved.reason.startsWith("operation_") ? 409 : 503, refusalCode(reserved));
     reservationId = reserved.reservationId;
+    stage("reserved");
     if (!env.OPENAI_API_KEY) { await undoSpend(); return errorResponse(503, "ai_not_configured"); }
 
     // Öğretmen sohbeti hazırlığın kendi belgelerine bakar (prepGrounding); tüm
     // belgelerde arama ve erken "kaynak yok" dönüşü bu yolda gereksiz.
     const teacherPrepChat = Boolean(rest.prepId) && !imageUrl;
     const material = !teacherPrepChat && !imageUrl ? await materialEarly : null;
-    if (useDocuments && !documentAttached && !imageUrl && !teacherPrepChat) {
-      const matches = await searchDocumentChunks(service, userId, message, 6, {
-        minSimilarity: documentsOnly ? 0.32 : undefined,
-      });
-      evidence = matches.map((m, i) => ({ reference: i + 1, documentId: m.documentId, documentName: m.documentName, pageNumber: m.pageNumber, chunkId: m.chunkId, content: m.content }));
-    } else if (material && !documentAttached && !imageUrl && !teacherPrepChat && (material.documentIds.length || material.searchAll)) {
-      // Öğrenci "Genel" moddayken de kendi notundan söz ediyorsa o notta aranır; "yeniden yükle" denmez.
-      const matches = material.documentIds.length
-        ? await searchDocumentChunksAcross(service, userId, message, material.documentIds, { limit: 6, perDocument: 3 })
-        : await searchDocumentChunks(service, userId, message, 6);
-      evidence = matches.map((m, i) => ({ reference: i + 1, documentId: m.documentId, documentName: m.documentName, pageNumber: m.pageNumber, chunkId: m.chunkId, content: m.content }));
+    // Arama yukarıda erken başladı (`searchEarly`); koşulları aynı: "Genel" modda da öğrenci kendi notundan söz ediyorsa
+    // o notta aranır. Arama hatası eskisi gibi fırlar (genel hata yolu).
+    if (!documentAttached && !imageUrl && !teacherPrepChat) {
+      const matches = await searchEarly;
+      if (matches) {
+        evidence = matches.map((m, i) => ({ reference: i + 1, documentId: m.documentId, documentName: m.documentName, pageNumber: m.pageNumber, chunkId: m.chunkId, content: m.content }));
+      }
+      stage("evidence");
     }
     const linkedEvidence = !useDocuments && Boolean(material) && evidence.length > 0;
     const grounded = useDocuments || documentAttached || linkedEvidence;
@@ -510,7 +532,7 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
         : "";
       // Nötr varsayılan: istem uzamasın diye ayrıca yazılmaz.
       // Tarayıcı ruh hali göndermediyse günün kaydı (dersten ya da sohbetten işaretlenmiş olabilir; 8 Kasım 2026).
-      const chatMood = rest.mood ? parseMood(rest.mood) : ((await loadTodayMood(service, userId).catch(() => null)) ?? "neutral");
+      const chatMood = rest.mood ? parseMood(rest.mood) : ((await moodEarly) ?? "neutral");
       // Tur okuması (10 Kasım 2026, güven paketi): mesajdaki duygu o turun ruh halidir (hap işaretlenmese de), takip
       // mesajı konuşmadaki soruya kilitlenir, Adım Adım modu yalnız sıradaki adımı yazar. Satırlar istemin en sonunda.
       const turn = readChatTurn({ message, style: tutorStyle, history, baseMood: chatMood });
@@ -738,7 +760,10 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
           verify: tutorMode !== "general" && grounding.decision === "in",
           // "Yalnızca belgem" modunda denetlenmemiş taslak ekrana düşmez; öbür modlarda canlı akar.
           onDelta: rest.prepId && tutorMode !== "document" ? (text) => {
-            if (!live.enabled) live.enable(strict);
+            if (!live.enabled) {
+              live.enable(strict);
+              stage("first_text");
+            }
             live.write(text);
           } : undefined,
           onUsage: async (usedIn, usedOut) => {
@@ -788,6 +813,7 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
         // ekrana akar. "Yalnızca belgem" modunda denetlenmemiş taslak ekrana düşmez (öğretmen sohbetindeki kural).
         const effort = isReasoningModel(generationModel) ? { reasoning_effort: "low" as const } : {};
         const streamThis = attempt === 0 && !strict && !prepJsonMode;
+        if (attempt === 0) stage("ready");
         const drafted = await createChatDraft(client, {
           model: generationModel,
           messages: requestMessages,
@@ -800,7 +826,10 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
           timeout: 90_000,
           onDelta: streamThis
             ? (text) => {
-                if (!live.enabled) live.enable(strict);
+                if (!live.enabled) {
+                  live.enable(strict);
+                  stage("first_text");
+                }
                 live.write(text);
               }
             : undefined,
@@ -931,6 +960,9 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
       // "Materyal dışı" etiketi yalnız bilgi bölümünde (15 Kasım 2026): benzetme, soru ve yönlendirmeden ibaret bölümün
       // etiketi kalkar; stüdyo yönlendirmesi turunda "kaynakta yok" satırı da. "Yalnızca belgem" modunda dokunulmaz.
       if (!strict && charge) content = settlePedagogicalLabels(content, { redirect: studioRedirect });
+      // "Genel" modda ya da belge bağlanmamış sohbette "Materyal dışı · yüklediğin kaynakta yok" hiç görünmez (15 Kasım
+      // 2026, Burhan). Denetim etiketleri okudu; burada yalnız öğrencinin göreceği ve saklanacak metinden kalkar.
+      if (!useDocuments && !documentAttached) content = dropSourceLabels(content);
       // Faz 13A (teacher.v2): tek hamle kuralının kod katmanı, yalnız siler (soru soran mesajda "Akılda kalsın", fazla
       // destek kutusu, iç sistem dili). Ölçü anonim (PROMPT §9).
       if (teacherV2 && charge && !(rest.prepId && prepGrounding)) {

@@ -21,7 +21,7 @@ const PHYSICS = [
   { pageNumber: 2, text: "2. Dinamik\nNewton'un ikinci yasası: F = m · a. Bu notta yer çekimi ivmesi g = 10 m/s² alınız. Sürtünme kuvveti hareketin tersine etki eder." },
   { pageNumber: 3, text: "Dinamik örnekleri: eğik düzlemde kuvvet bileşenleri, ip gerilmesi, makaralı sistemler ve sürtünmeli yüzeyde hareket ayrıntılı çözülür. Her örnekte serbest cisim diyagramı çizilir ve kuvvetler eksenlere ayrılır." },
   { pageNumber: 4, text: "4. Momentum\nMomentum kütle ile hızın çarpımıdır. p = m · v. Çarpışmalarda toplam momentum korunur ve bu bölümde sık sorulur." },
-  // Çıkmış sorular kendi sayfasında (bilinen sınır: aynı sayfada numaralı sorular bölüm başlığını gölgeliyor; PR notu).
+  // Çıkmış sorular kendi sayfasında. Aynı sayfada bölüm başlığı + numaralı sorular: soru-sayfasinda-bolum-basligi.test.ts.
   { pageNumber: 5, text: "1. Kütlesi 2 kg olan cisme 10 N kuvvet uygulanıyor. İvmesi kaçtır?\nA) 1 B) 2 C) 5 D) 10 E) 20\n2. 3 kg kütleli cisim 4 m/s hızla gidiyor. Momentumu kaçtır?\nA) 3 B) 4 C) 7 D) 12 E) 16" },
 ];
 
@@ -176,10 +176,11 @@ describe("dosyaya bağlantı", () => {
   });
 });
 
-describe("göç: yalnız ekleme, uygulanmadı", () => {
+describe("göç: yalnız ekleme (15 Kasım 2026, Burhan onayıyla uygulandı)", () => {
   it("tek yeni sütun, var olan satırlara dokunmaz", () => {
-    const raw = read("supabase/migrations/20261115170000_document_study_map.sql");
-    expect(raw.split("\n")[0]).toContain("UYGULANMADI");
+    // Windows çalışma kopyası CRLF olabilir; depo ve CI LF.
+    const raw = read("supabase/migrations/20261115170000_document_study_map.sql").replace(/\r\n/g, "\n");
+    expect(raw.split("\n")[0]).toMatch(/^-- UYGULANDI: 15 Kasım 2026, Burhan onayıyla/);
     const sql = raw.replace(/^--.*$/gm, "");
     expect(sql).toContain("ALTER TABLE public.documents ADD COLUMN IF NOT EXISTS study_map jsonb;");
     expect(sql).not.toMatch(/\b(DROP|DELETE|TRUNCATE|UPDATE|INSERT)\b/);

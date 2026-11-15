@@ -181,6 +181,17 @@ export function isPracticePage(text: string): boolean {
   return false;
 }
 
+/** Soru kökü ya da şık satırı (soru sayfasında açık bölüm başlığı bunlardan ÖNCE durur). */
+export function isQuestionOrOptionLine(line: string): boolean {
+  const text = line.replace(/\s+/g, " ").trim();
+  return ANSWER_OPTION.test(text) || looksLikeQuestionStem(text);
+}
+
+/** Alıştırma bölümünün kendi adı ("Çıkmış Sorular", "Test 3", "Alıştırmalar"): konu bölümü değil. */
+export function isPracticeHeadingText(text: string): boolean {
+  return PRACTICE_HEADING.test(text);
+}
+
 function looksLikeQuestionStem(line: string): boolean {
   const text = line.trim();
   if (!text) return false;

@@ -169,7 +169,10 @@ describe("hazırlık sohbeti: öğretmen analizleri tek okumada", () => {
 
   it("sohbet yolu belge başına okuma yapmaz; sahiplik süzgeci (loadPrepDocumentIds + user_id) yerinde", () => {
     const source = readFileSync("src/lib/learning/prep-chat-grounding.ts", "utf8");
-    expect(source).toContain("const analysisRows = await loadAnalysisRows(service, documentIds);");
+    // 15 Kasım 2026: tek okuma erken başlar (öbür bağımsız okumalarla aynı anda), sonuç sırası gelince beklenir.
+    expect(source).toContain("const analysisEarly = loadAnalysisRows(service, documentIds);");
+    expect(source).toContain("const analysisRows = await analysisEarly;");
+    expect(source.match(/loadAnalysisRows\(service, documentIds\)/g)).toHaveLength(1);
     expect(source).not.toContain("await loadTeacherAnalysis(service, documentId)");
     expect(source).not.toMatch(/\.from\("document_teacher_analyses"\)\s*\.select\("analysis"\)/);
     expect(source).toContain("const documentIds = await loadPrepDocumentIds(service, prepId);");

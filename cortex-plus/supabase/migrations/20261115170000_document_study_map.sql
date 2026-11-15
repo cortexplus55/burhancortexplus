@@ -1,4 +1,4 @@
--- YAZILDI, UYGULANMADI: Burhan onayıyla SQL ekranında uygulanır (kayıt satırıyla); docs/operasyon/goc-kayitlari.md.
+-- UYGULANDI: 15 Kasım 2026, Burhan onayıyla SQL ekranında (kayıt satırıyla); docs/operasyon/goc-kayitlari.md.
 --
 -- 15 Kasım 2026 (PROMPT-V2 §4, Faz 13 PR-3): belge haritası belgenin kendi kaydında. Harita modelsiz hesaplanır
 -- (bölüm başlıkları ve sayfa aralıkları, tahmini ağırlık, formüller, notun özel sayısal kuralları, uzlaşımlar;
