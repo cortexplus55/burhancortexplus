@@ -226,8 +226,18 @@ export function fixtureCockpit({
   return preps;
 }
 
+/** teacher.v2 (`?ogretmen=v2`, Faz 13 PR-1): son yanıt bir soruyla biter; soru ayrı kartta, altında ipucu ve cevap çipleri. */
+const V2_MESSAGES = [
+  { role: "user" as const, content: "Üslü sayılarda negatif üssü karıştırıyorum. 2^-3 neden 1/8 oluyor?" },
+  {
+    role: "assistant" as const,
+    content: "2'nin kuvvetlerine sırayla bak: 2² = 4, 2¹ = 2, 2⁰ = 1. Üs bir azaldıkça sayı ne oluyor?",
+  },
+];
+
 export function AnaEkranFixture({
   conversation,
+  teacherV2 = false,
   plus,
   hasPrep,
   unanswered = false,
@@ -240,6 +250,8 @@ export function AnaEkranFixture({
   quota,
   growth = false,
 }: {
+  /** `?ogretmen=v2`: öğretmen hissi bayrağı açık (Rehberli, Nasıl anlatayım?, soru kartı). */
+  teacherV2?: boolean;
   /** Faz 11C (`?buyume=1`): davet şeridi (bağlantı örnek). */
   growth?: boolean;
   /** Hak durumu (Faz 3B); verilmezse sayaçsız (bugünkü görünüm). */
@@ -281,7 +293,9 @@ export function AnaEkranFixture({
         initialConversationId={conversation ? "fixture" : undefined}
         initialMessages={
           conversation
-            ? unanswered
+            ? teacherV2
+              ? V2_MESSAGES
+              : unanswered
               ? [...MESSAGES, { role: "user" as const, content: "Aynı mantıkla benzer bir örnek soru üret ve çöz." }]
               : teaching
                 ? TEACHING_MESSAGES
@@ -294,6 +308,7 @@ export function AnaEkranFixture({
         isPremium={plus}
         tutorStyleLabel="Adım adım"
         initialTutorStyle="step_by_step"
+        teacherV2={teacherV2}
       />
   );
   return (

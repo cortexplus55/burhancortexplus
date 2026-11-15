@@ -75,9 +75,15 @@ import { TutorReplyView } from "@/components/chat/tutor-reply-view";
 import { useSelectedCockpitPrepId } from "@/components/parity/home-selection";
 import { SourceModePill } from "@/components/chat/source-mode-pill";
 import { TutorModeSwitcher } from "@/components/chat/tutor-mode-switcher";
+import { TeachStyleMenu } from "@/components/chat/teach-style-menu";
+import { splitFinalQuestion } from "@/lib/learning/question-bubble";
 import {
   DEFAULT_TUTOR_STYLE,
+  GUIDED_TEACH_STYLE,
+  TEACH_STYLE_STORAGE_KEY,
+  parseTeachStyle,
   parseTutorStyle,
+  type TeachStyle,
   type TutorStyle,
 } from "@/lib/learning/tutor-style";
 import { CHAT_UPLOAD_ACCEPT } from "@/lib/documents/upload-accept";
@@ -388,6 +394,25 @@ function ChatPanelSession({
   const [tutorStyle, setTutorStyle] = useState<TutorStyle>(
     parseTutorStyle(initialTutorStyle) || DEFAULT_TUTOR_STYLE,
   );
+  /**
+   * Faz 13 PR-1 (teacher.v2, yalnız ana sohbet): dört anlatım, varsayılan Rehberli. Seçim tarayıcıda; öbür üç stil
+   * profile de yazılır. Bayrak kapalıyken ya da hazırlık sohbetinde kullanılmaz (bugünkü `tutorStyle`).
+   */
+  const v2Main = teacherV2 && !prepId;
+  const [teachStyle, setTeachStyle] = useState<TeachStyle>(GUIDED_TEACH_STYLE);
+  useEffect(() => {
+    if (!v2Main) return;
+    try {
+      const saved = parseTeachStyle(window.localStorage.getItem(TEACH_STYLE_STORAGE_KEY));
+      if (saved) setTeachStyle(saved);
+    } catch {
+      /* depolama kapalı: Rehberli kalır */
+    }
+  }, [v2Main]);
+  /** Ekrandaki çiplerin ve isteğin stili: bayrak açıkken seçilen anlatım, değilse bugünkü stil. */
+  const activeStyle: TeachStyle = v2Main ? teachStyle : tutorStyle;
+  /** Yanıt görünümü üç stili tanır; Rehberli, cevabı saklayan Sokratik çizimle gösterilir. */
+  const replyStyle: TutorStyle = activeStyle === GUIDED_TEACH_STYLE ? "hints_first" : activeStyle;
   const [loading, setLoading] = useState(false);
   const [paywall, setPaywall] = useState(false);
   /** 402'nin kodu: hangi ücretsiz sayacın dolduğu (mesaj ya da fotoğraf). */
@@ -526,6 +551,16 @@ function ChatPanelSession({
       cancelled = true;
     };
   }, [variant]);
+
+  function persistTeachStyle(next: TeachStyle) {
+    setTeachStyle(next);
+    try {
+      window.localStorage.setItem(TEACH_STYLE_STORAGE_KEY, next);
+    } catch {
+      /* depolama kapalı: seçim bu sekmede geçerli */
+    }
+    if (next !== GUIDED_TEACH_STYLE) persistTutorStyle(next);
+  }
 
   function persistTutorStyle(next: TutorStyle) {
     setTutorStyle(next);
@@ -1099,7 +1134,7 @@ function ChatPanelSession({
           prepId,
           contextPrepId: prepId ? undefined : (contextPrepId ?? undefined),
           mood: chatMood === DEFAULT_MOOD ? undefined : chatMood,
-          tutorStyle,
+          tutorStyle: activeStyle,
         }),
       });
 
@@ -1394,6 +1429,9 @@ function ChatPanelSession({
     !lastMessage.isError &&
     !lastMessage.local &&
     lastMessage.content.trim().length > 0;
+  /** PROMPT-V2 §8: son yanıt bir soruyla bitiyorsa yazma alanı "Cevabını yaz" der (yalnız teacher.v2, ana sohbet). */
+  const answerPlaceholder =
+    v2Main && lastIsAnswer && !loading && splitFinalQuestion(lastMessage.content) ? "Cevabını yaz" : null;
 
   // Jenerik "yükleniyor" yerine ne beklediğini söylüyor — kıyas ürünündeki "Çözüm
   // arıyor" gibi. Ekstra istek yok, yalnızca zaten elimizdeki duruma göre metin.
@@ -1746,9 +1784,10 @@ function ChatPanelSession({
                           disabled={loading}
                           onPrompt={(prompt) => void send(prompt)}
                           hideChips={!showSuggestions}
-                          tutorStyle={tutorStyle}
+                          tutorStyle={replyStyle}
                           quickActions={index === messages.length - 1}
                           maxChips={teacherV2 ? ONE_MOVE_MAX_CHIPS : undefined}
+                          ladderChips={v2Main && (activeStyle === GUIDED_TEACH_STYLE || activeStyle === "hints_first")}
                         />
                         <MessageActions
                           content={message.content}
@@ -1827,7 +1866,7 @@ function ChatPanelSession({
               {/* Yanıt bittikten sonra devam önerileri. Öğrenci "peki şimdi ne
                   sorayım" diye kalmasın; bunlar gerçekten çalışan komutlar,
                   süs değil. Sınav sohbetinde aynı işi hızlı komutlar görür. */}
-              {!examChrome && !loading && lastIsAnswer && showSuggestions && !(teacherV2 && tutorStyle !== "direct_solve") ? (
+              {!examChrome && !loading && lastIsAnswer && showSuggestions && !(teacherV2 && activeStyle !== "direct_solve") ? (
                 <div className="cp-followups" role="group" aria-label="Devam önerileri">
                   {FOLLOW_UPS.map((item) => (
                     <button
@@ -1991,7 +2030,11 @@ function ChatPanelSession({
                     }}
                   />
                 ) : null}
-                <TutorModeSwitcher value={tutorStyle} onChange={persistTutorStyle} disabled={loading} />
+                {v2Main ? (
+                  <TeachStyleMenu value={teachStyle} onChange={persistTeachStyle} disabled={loading} />
+                ) : (
+                  <TutorModeSwitcher value={tutorStyle} onChange={persistTutorStyle} disabled={loading} />
+                )}
                 {showSubjectPicker ? (
                   <button
                     type="button"
@@ -2100,7 +2143,7 @@ function ChatPanelSession({
                 ref={composerRef}
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
-                placeholder={placeholder ?? "Sor, konuş veya dosya gönder"}
+                placeholder={answerPlaceholder ?? placeholder ?? "Sor, konuş veya dosya gönder"}
                 rows={2}
                 aria-label="Mesajın"
                 disabled={loading}
@@ -2950,7 +2993,7 @@ function ChatPanelSession({
               <Textarea
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
-                placeholder={placeholder ?? "Sor, konuş veya dosya gönder"}
+                placeholder={answerPlaceholder ?? placeholder ?? "Sor, konuş veya dosya gönder"}
                 rows={1}
                 aria-label="Mesajın"
                 className="min-h-[44px] flex-1 resize-none border-0 bg-transparent text-sm shadow-none focus-visible:ring-0"

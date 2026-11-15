@@ -106,6 +106,18 @@ import {
 import { CHAT_AUDIT_FLAG, claimChatAuditSlot, shouldSampleChatAudit } from "@/lib/ai/chat-audit-sample";
 import { isFeatureEnabled } from "@/lib/admin/feature-flags";
 import { ONE_MOVE_MARKUP, TEACHER_V2_FLAG, oneMoveMetrics, settleOneMove } from "@/lib/ai/teacher-v2";
+import {
+  GUIDED_STYLE,
+  answerTurnPlan,
+  readTutorSession,
+  repeatsAskedQuestion,
+  resolveTeachStyle,
+  teacherV2SessionLines,
+  v2AnswerFirstLine,
+  v2StyleLine,
+  type TutorSession,
+} from "@/lib/ai/teacher-v2-session";
+import { settleVoice } from "@/lib/ai/teacher-voice";
 import { settlePedagogicalLabels, stripOrphanCitations } from "@/lib/ai/chat-answer-settle";
 import { createChatDraft } from "@/lib/ai/chat-draft";
 import { logOpsEvent } from "@/lib/observability/ops-log";
@@ -132,8 +144,11 @@ const bodySchema = z.object({
   contextPrepId: z.string().uuid().optional(),
   /** "Bugünkü ruh hali" (kıyas ürünü gibi yazı kutusunun ayar düğmesinden). */
   mood: z.string().max(20).optional(),
-  /** Canlı anlatım anahtarı; yoksa profildeki `tutor_style` okunur. */
-  tutorStyle: z.enum(["step_by_step", "hints_first", "direct_solve"]).optional(),
+  /**
+   * Canlı anlatım anahtarı; yoksa profildeki `tutor_style` okunur. "guided" (Rehberli, Faz 13 PR-1) yalnız teacher.v2
+   * açıkken tanınır; bayrak kapalıyken profilin stili geçerli (`resolveTeachStyle`).
+   */
+  tutorStyle: z.enum(["step_by_step", "hints_first", "direct_solve", GUIDED_STYLE]).optional(),
 });
 
 export async function POST(request: Request) {
@@ -418,7 +433,15 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
       charge = false;
     } else {
       const { data: profile } = await profileEarly;
-      const tutorStyle = parseTutorStyle(rest.tutorStyle ?? profile?.tutor_style);
+      // Faz 13 PR-1: Rehberli ve seans durumu yalnız ana sohbette ve yalnız bayrak açıkken. Bayrak kapalıyken bugünkü yol.
+      const v2Chat = teacherV2 && !rest.prepId;
+      const teach = v2Chat
+        ? resolveTeachStyle({ requested: rest.tutorStyle, profile: profile?.tutor_style, teacherV2: true })
+        : null;
+      const tutorStyle = teach
+        ? teach.base
+        : parseTutorStyle(rest.tutorStyle === GUIDED_STYLE ? profile?.tutor_style : rest.tutorStyle ?? profile?.tutor_style);
+      const teachStyle = teach?.style ?? tutorStyle;
       const studentInstruction = await instructionEarly;
       const examContext = await examContextEarly;
       if (rest.prepId) {
@@ -485,6 +508,9 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
       // Tur okuması (10 Kasım 2026, güven paketi): mesajdaki duygu o turun ruh halidir (hap işaretlenmese de), takip
       // mesajı konuşmadaki soruya kilitlenir, Adım Adım modu yalnız sıradaki adımı yazar. Satırlar istemin en sonunda.
       const turn = readChatTurn({ message, style: tutorStyle, history, baseMood: chatMood });
+      // Seans durumu (B): öğretmenin bu konuşmada sorduğu sorular, öğrencinin cevap denemesi ve deneme sırası.
+      const v2Session: TutorSession | null = v2Chat ? readTutorSession(history, message) : null;
+      if (v2Session?.answering) turn.plan = answerTurnPlan(turn.plan);
       const priorSupport = turn.feelingOnly && !turn.crisis ? await recentSupportVerdict(service, userId) : false;
       const turnLines = chatTurnLines(turn, tutorStyle, { priorSupport });
       // Ana sohbetin materyal, özet, araç, usta hoca ve şık satırları (15 Kasım 2026). Kriz ve yalnız duygu turunda yok.
@@ -503,9 +529,14 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
         chatActions = material?.actions ?? buildChatActions({ intent, match: { preps: [], documents: [], reason: "none", materialCue: false }, nodesByPrep: new Map() });
         studioRedirect = Boolean(intent.tool) && !intent.summary;
       }
+      // Faz 13 PR-1 (B, C, D): süreklilik, ipucu merdiveni, Rehberli ilk tur, Adım Adım kavram turu. Son söz olsun diye en
+      // sonda; kriz ve yalnız duygu turunda yok (güvenlik akışı aynen).
+      if (v2Session && !turn.crisis && !turn.feelingOnly) {
+        turnLines.push(...teacherV2SessionLines({ session: v2Session, style: teachStyle, plan: turn.plan, message }));
+      }
       const moodLine = turn.mood === "neutral" ? "" : ` ${moodPrompt(turn.mood)}`;
       const requestMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-        { role: "system", content: `${SYSTEM_GUARDRAIL} ${studentInstruction} ${teacherTurn} ${teacherStyleLine(tutorStyle)} ${CHAT_NATURAL_VOICE}${rest.prepId && prepGrounding ? "" : `\n\n${teacherV2 ? ONE_MOVE_MARKUP : CHAT_TEACHING_MARKUP}\n\n`} ${answerFirstLine(message, tutorStyle)}${moodLine}${examContext?.block ?? ""}${attachedBrief ? `\n${SOURCE_PAGE_FORMULA_RULE}\n${attachedBrief}` : ""}${contextBlock}${tutorAddendum ? `\n\n${tutorAddendum}` : ""}${simplifyLine(message) ? `\n\n${simplifyLine(message)}` : ""}${chatTurnBlock(turnLines)}` },
+        { role: "system", content: `${SYSTEM_GUARDRAIL} ${studentInstruction} ${teacherTurn} ${(v2Session && v2StyleLine(teachStyle)) || teacherStyleLine(tutorStyle)} ${CHAT_NATURAL_VOICE}${rest.prepId && prepGrounding ? "" : `\n\n${teacherV2 ? ONE_MOVE_MARKUP : CHAT_TEACHING_MARKUP}\n\n`} ${v2Session ? v2AnswerFirstLine({ message, style: teachStyle, base: tutorStyle, session: v2Session, plan: turn.plan }) : answerFirstLine(message, tutorStyle)}${moodLine}${examContext?.block ?? ""}${attachedBrief ? `\n${SOURCE_PAGE_FORMULA_RULE}\n${attachedBrief}` : ""}${contextBlock}${tutorAddendum ? `\n\n${tutorAddendum}` : ""}${simplifyLine(message) ? `\n\n${simplifyLine(message)}` : ""}${chatTurnBlock(turnLines)}` },
         ...history,
         { role: "user", content: imageUrl ? [{ type: "text", text: message }, { type: "image_url", image_url: visionImage(imageUrl) }] : message },
       ];
@@ -882,13 +913,27 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
       // destek kutusu, iç sistem dili). Ölçü anonim (PROMPT §9).
       if (teacherV2 && charge && !(rest.prepId && prepGrounding)) {
         const settled = settleOneMove(content);
-        content = settled.text;
+        // PR-1 ses kılavuzu (§7) ve G-1: yasak kalıp, doğrulanamayan istatistik, fazla emoji, başlık/madde işareti,
+        // formül dışı ham üs/alt simge. Yalnız siler ya da simgeye çevirir; cümle yazmaz, model çağrısı yok.
+        const voice = settleVoice(settled.text);
+        content = voice.text;
         console.info("teacher_v2_turn", {
           ...oneMoveMetrics(content),
-          style: tutorStyle,
+          style: teachStyle,
           removedRemember: settled.removedRemember,
           removedBoxes: settled.removedBoxes,
           internalStripped: settled.internalStripped,
+          voice: { banned: voice.banned, stats: voice.stats, emoji: voice.emoji, structure: voice.structure, rawFixed: voice.rawFixed, rawLeft: voice.rawLeft },
+          ...(v2Session
+            ? {
+                session: {
+                  asked: v2Session.asked.length,
+                  answering: v2Session.answering,
+                  attempt: v2Session.attempt,
+                  repeated: repeatsAskedQuestion(content, v2Session.asked),
+                },
+              }
+            : {}),
         });
       }
     }

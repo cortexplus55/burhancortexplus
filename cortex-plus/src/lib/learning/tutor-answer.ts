@@ -57,6 +57,17 @@ export function wantsDirectAnswer(message: string, style?: TutorStyle | null): b
   return style === "direct_solve";
 }
 
+/** Öğrenci cevabı açıkça istiyor mu ("doğrudan söyle", "cevabı ver", "direkt çöz"); teacher.v2 merdiveni bunu atlar. */
+export function asksDirectAnswer(message: string): boolean {
+  return DIRECT_REQUEST.test(message.trim());
+}
+
+/** Mesaj bir soru mu: soru işareti ya da kavram sorusu sözcüğü ("nedir", "neden", "kaçtır" …). */
+export function looksLikeQuestion(message: string): boolean {
+  const text = message.trim();
+  return /\?/.test(text) || CONCEPT_QUESTION.test(text);
+}
+
 export const STUCK_POINT_RULE =
   "'Takıldığın nokta', 'takıldığın yer', 'nerede takıldığın' gibi cümle yazma; öğrenci kendi çözümünü yazmadıysa nerede takıldığını bilemezsin.";
 
