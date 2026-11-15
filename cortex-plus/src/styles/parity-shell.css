@@ -14666,6 +14666,29 @@ a.cp-exam-search {
   font-weight: 600;
 }
 
+/* Sınav sabahı kâğıdı kısa yolu (15 Kasım 2026): destenin yanında ikinci giriş; ekranda tek marka düğme kalsın diye
+   düğmesi zayıf dolgu. */
+.tools-cram {
+  margin-top: 0.75rem;
+}
+
+.tools-cram-icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 999px;
+  background: var(--c-warning-soft, rgba(245, 158, 11, 0.14));
+  color: var(--c-warning, #f59e0b);
+}
+
+.tools-cram .tools-deck-go {
+  background: var(--c-surface-2, rgba(255, 255, 255, 0.08));
+  color: var(--cp-text);
+}
+
 /*
   Yol adımları türünün rengini taşır (8 Kasım 2026): renkler Çalışma Stüdyosu kartlarıyla aynı (lib/parity/studios.ts).
   Açık adımda simge renkli, kilitlide soluk ve köşede küçük kilit; bitmiş adımın onayı ve sıradaki adımın huzmesi aynen.

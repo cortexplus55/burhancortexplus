@@ -16,6 +16,7 @@ import {
   Ruler,
   Sigma,
   Superscript,
+  Zap,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -53,7 +54,16 @@ const ICONS: Record<string, LucideIcon> = {
   "dogru-yanlis": BookOpen,
 };
 
-export function ToolsHub({ deck, gated = false }: { deck?: { dueCount: number; total: number }; gated?: boolean }) {
+export function ToolsHub({
+  deck,
+  gated = false,
+  cram = null,
+}: {
+  deck?: { dueCount: number; total: number };
+  gated?: boolean;
+  /** Son hazırlığın sınav sabahı kâğıdı (15 Kasım 2026); hazırlık yoksa kart yok. */
+  cram?: { href: string; prepTitle: string; locked: boolean } | null;
+}) {
   const shellAccount = useStudentShellAccount();
   const freeAccount = shellAccount ? shellAccount.showsUpgradeChrome : false;
   // Stüdyolar kendi galerisinde (studios.ts); burada yalnız laboratuvar, hesap aracı ve kısayol.
@@ -87,6 +97,24 @@ export function ToolsHub({ deck, gated = false }: { deck?: { dueCount: number; t
             </span>
           </span>
           <span className="tools-deck-go">{deck.dueCount > 0 ? "Başla" : "Aç"}</span>
+        </Link>
+      ) : null}
+
+      {cram ? (
+        // Sınav sabahı kâğıdı (15 Kasım 2026, ürün sahibi): yalnız öğretmen sohbetinin menüsündeydi.
+        <Link
+          href={cram.href}
+          className="tools-deck tools-cram"
+          aria-label={cram.locked ? `Sınav Sabahı Kağıdı, ${cram.prepTitle}, Plus'ta` : `Sınav Sabahı Kağıdı, ${cram.prepTitle}`}
+        >
+          <span className="tools-cram-icon" aria-hidden>
+            <Zap size={24} />
+          </span>
+          <span className="tools-deck-text">
+            <strong>⚡ Sınav Sabahı Kağıdı</strong>
+            <span>{cram.prepTitle} · formüller, tuzaklar ve yanıldığın noktalar tek sayfada</span>
+          </span>
+          <span className="tools-deck-go">{cram.locked ? "Plus" : "Aç"}</span>
         </Link>
       ) : null}
 

@@ -210,6 +210,261 @@
   font: var(--t-label-11);
 }
 
+/* ---- 15 Kasım 2026: süzgeç, formül özeti, hoca uyarıları, koyu / A4 görünüm, paylaşım, imza ---- */
+
+.cp-cram-share {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 18px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--c-surface-2);
+  color: var(--c-text);
+  font: var(--t-button-s);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 160ms ease;
+}
+
+.cp-cram-share:hover {
+  background: var(--c-surface-3);
+}
+
+.cp-cram-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 14px;
+}
+
+.cp-cram-filters,
+.cp-cram-views {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.cp-cram-views {
+  padding: 4px;
+  border-radius: var(--r-pill);
+  background: var(--c-surface-1);
+}
+
+.cp-cram-chip,
+.cp-cram-view {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--c-surface-1);
+  color: var(--c-text-muted);
+  font: var(--t-label-13);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.cp-cram-view {
+  min-height: 36px;
+  background: transparent;
+}
+
+.cp-cram-chip:hover,
+.cp-cram-view:hover {
+  color: var(--c-text);
+}
+
+.cp-cram-chip[aria-pressed="true"] {
+  background: var(--c-action-soft);
+  color: var(--c-text);
+}
+
+.cp-cram-view[aria-pressed="true"] {
+  background: var(--c-surface-3);
+  color: var(--c-text);
+}
+
+.cp-cram-chip-count {
+  font: var(--t-mono-xs);
+  color: var(--c-text-subtle);
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-cram-formulas,
+.cp-cram-rules {
+  box-sizing: border-box;
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border-radius: var(--r-lg);
+  background: var(--c-surface-1);
+}
+
+.cp-cram-formulas h2,
+.cp-cram-rules h2 {
+  margin: 0 0 8px;
+  font: var(--t-title-m);
+  letter-spacing: var(--ls-heading);
+}
+
+.cp-cram-formula-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-cram-formula {
+  box-sizing: border-box;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: var(--c-action-soft);
+  font: var(--t-body-14);
+}
+
+.cp-cram-formula-topic {
+  display: block;
+  margin-top: 2px;
+  color: var(--c-text-muted);
+  font: var(--t-label-11);
+}
+
+.cp-cram-item--teacher .cp-cram-tag {
+  background: var(--c-warning-soft);
+  color: var(--c-warning);
+}
+
+.cp-cram-item--definition .cp-cram-tag {
+  background: var(--c-success-soft);
+  color: var(--c-success);
+}
+
+.cp-cram-filter-empty {
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border-radius: var(--r-lg);
+  background: var(--c-surface-1);
+  color: var(--c-text-muted);
+  font: var(--t-body-14);
+}
+
+.cp-cram-sign {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 16px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--c-border);
+}
+
+.cp-cram-sign-text {
+  min-width: 0;
+}
+
+.cp-cram-sign-brand {
+  margin: 0;
+  font: var(--t-label-13);
+  font-weight: 700;
+  color: var(--c-text);
+}
+
+.cp-cram-sign-note {
+  margin: 2px 0 0;
+  font: var(--t-label-11);
+  color: var(--c-text-muted);
+}
+
+.cp-cram-qr {
+  flex: none;
+  width: 72px;
+  height: 72px;
+  padding: 4px;
+  border-radius: 8px;
+  background: #fff;
+}
+
+/* A4 kâğıt önizlemesi: baskıda göreceği gibi beyaz kâğıt, siyah yazı, iki sütun (geniş ekranda). */
+.cp-cram-sheet[data-view="paper"] .cp-cram-page {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 794px;
+  margin: 0 auto;
+  padding: clamp(14px, 4vw, 48px);
+  border-radius: 4px;
+  background: #fff;
+  color: #111;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.32);
+}
+
+.cp-cram-sheet[data-view="paper"] .cp-cram-page :is(.cp-cram-section, .cp-cram-formulas, .cp-cram-rules, .cp-cram-focus, .cp-cram-filter-empty) {
+  border: 0;
+  border-bottom: 1px solid #ddd;
+  border-radius: 0;
+  background: transparent;
+  color: #111;
+}
+
+.cp-cram-sheet[data-view="paper"] .cp-cram-page :is(.cp-cram-tag, .cp-cram-formula, .cp-cram-weak) {
+  background: #f1f1f1;
+  color: #111;
+}
+
+.cp-cram-sheet[data-view="paper"] .cp-cram-page :is(.cp-cram-formula-topic, .cp-cram-spot-topic, .cp-cram-sign-note) {
+  color: #555;
+}
+
+.cp-cram-sheet[data-view="paper"] .cp-cram-page .cp-cram-sign-brand {
+  color: #111;
+}
+
+.cp-cram-sheet[data-view="paper"] .cp-cram-page .cp-cram-sign {
+  border-top-color: #ddd;
+}
+
+@media (min-width: 700px) {
+  .cp-cram-sheet[data-view="paper"] .cp-cram-body {
+    column-count: 2;
+  }
+}
+
+@media (max-width: 480px) {
+  .cp-cram-share {
+    padding: 10px 14px;
+  }
+
+  .cp-cram-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .cp-cram-filters {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .cp-cram-chip {
+    flex: none;
+  }
+
+  .cp-cram-views {
+    align-self: flex-start;
+  }
+}
+
 /* Hazırlık sayfasındaki iki düğme (sabah kâğıdı, sınıf paylaşımı). Uzun etiket telefonda iki satıra sarar. */
 .cp-prep-extras {
   display: flex;
@@ -419,8 +674,46 @@
   body:has(.cp-cram-sheet) .cp-inapp-banner,
   body:has(.cp-cram-sheet) .cp-plus-limit-banner,
   body:has(.cp-cram-sheet) [data-sonner-toaster],
-  .cp-cram-sheet .cp-cram-actions {
+  .cp-cram-sheet .cp-cram-actions,
+  .cp-cram-sheet .cp-cram-toolbar {
     display: none !important;
+  }
+
+  /* A4 önizlemesinin kâğıt çerçevesi baskıda yok (kâğıdın kendisi zaten A4). */
+  .cp-cram-sheet .cp-cram-page {
+    max-width: none !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+  }
+
+  .cp-cram-sheet .cp-cram-formulas,
+  .cp-cram-sheet .cp-cram-rules {
+    margin: 0 0 3mm;
+    padding: 0 0 2mm;
+    border-bottom: 0.5pt solid #000;
+    border-radius: 0;
+  }
+
+  .cp-cram-sheet .cp-cram-formula-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1mm 4mm;
+  }
+
+  .cp-cram-sheet .cp-cram-formula {
+    padding: 0;
+    font-size: 8.5pt;
+  }
+
+  .cp-cram-sheet .cp-cram-sign {
+    margin-top: 3mm;
+    padding-top: 2mm;
+    border-top: 0.5pt solid #000;
+  }
+
+  .cp-cram-sheet .cp-cram-qr {
+    width: 18mm;
+    height: 18mm;
+    padding: 0;
   }
 
   /* Sayfadaki başka her şey görünmez; yalnız kâğıt basılır. */
