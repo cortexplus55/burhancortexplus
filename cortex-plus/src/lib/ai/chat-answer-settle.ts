@@ -119,3 +119,30 @@ export function settlePedagogicalLabels(text: string, options: { redirect?: bool
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
+
+/** Satırın başındaki yokluk cümlesi; ardından aynı satırda metin gelebilir ("…anlatıyorum: Az önce …"). */
+const ABSENCE_PREFIX =
+  /^\s*(?:\*\*)?(?:Bu,\s*(?:yüklediğin kaynakta yok\s*[—–-]\s*genel bilgiyle anlatıyorum\s*:|belgede yok\.)|This is not in the material\.)(?:\*\*)?\s*/i;
+
+/**
+ * "Genel" modda ya da kaynak belge bağlanmamış sohbette (15 Kasım 2026, Burhan: "asla gösterilmesin") "Materyal dışı /
+ * Genel bilgiden" etiketi ve "Bu, yüklediğin kaynakta yok — genel bilgiyle anlatıyorum" satırı kalkar; altındaki metin
+ * olduğu gibi kalır. Öğrenci kaynak seçmedi: olmayan bir kaynağa göre "yok" demek yanlış bir sinyal. Denetim etiketleri
+ * yine okur (bu süzgeç denetimden SONRA, kayıttan önce çalışır); "Belgeden" ve atıflar dokunulmaz.
+ */
+export function dropSourceLabels(text: string): string {
+  if (!/Materyal dışı|Genel bilgiden|Outside the material|kaynakta yok|belgede yok|not in the material/i.test(text)) return text;
+  const out: string[] = [];
+  for (const line of text.split("\n")) {
+    let next = line;
+    if (ABSENCE_LINE.test(next)) continue;
+    if (IS_OUTSIDE_LABEL.test(next)) {
+      next = next.replace(OUTSIDE_LINE, "");
+      if (!next.trim()) continue;
+    }
+    next = next.replace(ABSENCE_PREFIX, "");
+    if (line.trim() && !next.trim()) continue;
+    out.push(next);
+  }
+  return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}

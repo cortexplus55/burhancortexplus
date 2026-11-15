@@ -1,6 +1,7 @@
 "use client";
 
 import { LIVE_HEADER, splitLiveBody } from "@/lib/ai/chat-live";
+import { dropSourceLabels } from "@/lib/ai/chat-answer-settle";
 import { ONE_MOVE_MAX_CHIPS } from "@/lib/ai/teacher-v2";
 import { useCallback, useRef, useState, useEffect, type ComponentProps } from "react";
 import { createPortal } from "react-dom";
@@ -1205,6 +1206,9 @@ function ChatPanelSession({
       // Canlı akış (3 Kasım 2026): taslak token token gelir, sonda kuyruk kesin metni,
       // mesaj kimliğini ve kaynağı getirir (denetim düzelttiyse taslak değişir).
       const liveStream = res.headers.get(LIVE_HEADER) === "1";
+      // "Genel" modda ve belge bağlanmamış sohbette "Materyal dışı · kaynakta yok" akış sırasında da görünmez (15 Kasım
+      // 2026, Burhan); kesin metin sunucuda zaten süzülmüş gelir.
+      const maskSourceLabels = !useDocuments && !activeDocumentId.current;
       let raw = "";
       let finalId = messageId;
       for (;;) {
@@ -1212,6 +1216,7 @@ function ChatPanelSession({
         if (done) break;
         raw += decoder.decode(value, { stream: true });
         assistant = liveStream ? splitLiveBody(raw).draft : raw;
+        if (maskSourceLabels) assistant = dropSourceLabels(assistant);
         setMessages((prev) => {
           const copy = [...prev];
           copy[copy.length - 1] = {
@@ -1225,6 +1230,7 @@ function ChatPanelSession({
       if (liveStream) {
         const { draft, trailer } = splitLiveBody(raw);
         assistant = trailer?.content ?? draft;
+        if (maskSourceLabels) assistant = dropSourceLabels(assistant);
         if (trailer?.conversationId) conversationId.current = trailer.conversationId;
         finalId = trailer?.messageId || undefined;
         if (trailer && !trailer.error) {

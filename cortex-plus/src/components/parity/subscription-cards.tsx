@@ -864,7 +864,7 @@ export function SubscriptionCards({
 
         {embedded && !guestMode && !isParent && !plusOwned ? (
           <p className="text-center text-xs text-[var(--cs-muted)]">
-            <a href="/ogretmen" className="underline underline-offset-2">
+            <a href="/ogretmen" className="cp-pay-free-continue underline underline-offset-2">
               Ücretsiz planda devam et
             </a>
           </p>

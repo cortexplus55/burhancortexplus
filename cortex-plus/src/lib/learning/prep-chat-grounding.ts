@@ -167,11 +167,54 @@ export async function loadPrepChatGrounding(
       ?? { decision: "unknown", scope: EMPTY_SCOPE, excerpts: "", passages: [], corpus: "" };
   }
 
-  const { data: docs } = await service
-    .from("documents")
-    .select("id, file_name, mime_type")
-    .in("id", documentIds)
-    .eq("user_id", userId);
+  // Hız (15 Kasım 2026, Bulgu 1: hazırlık sohbeti ≤12 sn): belge listesi bilindikten sonra birbirinden bağımsız beş
+  // okuma (belge bilgisi, öğretmen analizleri, kapsam sayfaları, anlam araması, kelime araması) AYNI ANDA başlar;
+  // eskiden sırayla bekleniyordu. Sonuçlar aşağıda eskisiyle aynı sırada işlenir: bağlam ve pasaj sırası değişmez.
+  const docsEarly = Promise.resolve(
+    service.from("documents").select("id, file_name, mime_type").in("id", documentIds).eq("user_id", userId),
+  );
+  const analysisEarly = loadAnalysisRows(service, documentIds);
+  // Erken başlayan okumanın hatası, sırası gelip beklendiği yerde eskisi gibi düşer; o ana kadar "yakalanmamış" sayılmasın.
+  docsEarly.catch(() => undefined);
+  analysisEarly.catch(() => undefined);
+  const scopeEarly = Promise.resolve(
+    service
+      .from("document_pages")
+      .select("document_id, page_number, text_content")
+      .in("document_id", documentIds)
+      .or("text_content.ilike.%kapsam%,text_content.ilike.%ağırlık%,text_content.ilike.%agirlik%")
+      .limit(24),
+  );
+  scopeEarly.catch(() => undefined);
+  // Geniş getir, kelime/sayı örtüşmesiyle yeniden sırala (30 Ekim 2026, Paket I #11). Hata: anlam araması yok sayılır.
+  const wideEarly = searchDocumentChunksAcross(service, userId, message, documentIds, {
+    limit: 16,
+    perDocument: Math.max(4, Math.ceil(16 / documentIds.length)),
+  }).then(
+    (rows) => rows,
+    () => null,
+  );
+  const stems = searchStems(message);
+  const exactPatterns = exactSearchTokens(message).flatMap((token) => token.patterns);
+  const likePatterns = [...new Set([...stems.map((stem) => `%${stem.raw}%`), ...exactPatterns])];
+  // Kalıp başına ayrı sorgu: sık geçen kök sınırı doldurup nadir kökün sayfasını dışarıda bırakmasın. Hata: atlanır.
+  const lexicalEarly = likePatterns.length
+    ? Promise.all(
+        likePatterns.map((pattern) =>
+          service
+            .from("document_pages")
+            .select("document_id, page_number, text_content, clean_text")
+            .in("document_id", documentIds)
+            .ilike("text_content", pattern)
+            .limit(40),
+        ),
+      ).then(
+        (batches) => batches,
+        () => null,
+      )
+    : null;
+
+  const { data: docs } = await docsEarly;
 
   const meta = new Map((docs ?? []).map((doc) => [doc.id as string, doc]));
   const corpusDocs: CorpusDoc[] = [];
@@ -180,7 +223,7 @@ export async function loadPrepChatGrounding(
   // Öğretmen analizleri tek okumayla (6 Kasım 2026, hız paketi): önce her belge için iki ayrı okuma
   // (çözümlenmiş analiz + ham analiz) her sohbet mesajında art arda gidiyordu. Belge kimlikleri
   // `loadPrepDocumentIds`'ten gelir (hazırlığın sahibinin belgeleri); süzgeç orada.
-  const analysisRows = await loadAnalysisRows(service, documentIds);
+  const analysisRows = await analysisEarly;
 
   for (const documentId of documentIds) {
     const row = meta.get(documentId);
@@ -200,12 +243,7 @@ export async function loadPrepChatGrounding(
     scopeInputs.push({ documentName: name, text: flat, analysis: stored?.analysis ?? analysis });
   }
 
-  const { data: scopePages } = await service
-    .from("document_pages")
-    .select("document_id, page_number, text_content")
-    .in("document_id", documentIds)
-    .or("text_content.ilike.%kapsam%,text_content.ilike.%ağırlık%,text_content.ilike.%agirlik%")
-    .limit(24);
+  const { data: scopePages } = await scopeEarly;
 
   for (const page of scopePages ?? []) {
     const documentId = page.document_id as string;
@@ -229,13 +267,9 @@ export async function loadPrepChatGrounding(
 
   let matches: DocumentMatch[] = [];
   try {
-    // Geniş getir, kelime/sayı örtüşmesiyle yeniden sırala, karakter bütçesiyle doldur (30 Ekim 2026, Paket I #11;
-    // önce sabit 4 parça). Eskiden tek belgeli hazırlıkta yalnız 2 pasaj geliyordu.
-    const wide = await searchDocumentChunksAcross(service, userId, message, documentIds, {
-      limit: 16,
-      perDocument: Math.max(4, Math.ceil(16 / documentIds.length)),
-    });
-    matches = takeWithinBudget(rerankByOverlap(message, wide), CHAT_PASSAGE_BUDGET * 0.6);
+    // Karakter bütçesiyle doldur (önce sabit 4 parça). Eskiden tek belgeli hazırlıkta yalnız 2 pasaj geliyordu.
+    const wide = await wideEarly;
+    matches = wide ? takeWithinBudget(rerankByOverlap(message, wide), CHAT_PASSAGE_BUDGET * 0.6) : [];
   } catch {
     matches = [];
   }
@@ -296,23 +330,10 @@ export async function loadPrepChatGrounding(
 
   // Kelime araması: anlam araması kaçırdığında belgedeki kesin cümleyi bul. Kökler ve kesin belirteçler (kısaltma,
   // sayı, sayı dizisi, formül; 30 Ekim 2026, Paket I #11): "belgede yok" demeden önce bütün sayfalara bakılır.
-  const stems = searchStems(message);
-  const exactPatterns = exactSearchTokens(message).flatMap((token) => token.patterns);
-  const likePatterns = [...new Set([...stems.map((stem) => `%${stem.raw}%`), ...exactPatterns])];
-  if (likePatterns.length) {
+  if (lexicalEarly) {
     try {
-      // Kalıp başına ayrı sorgu: sık geçen kök ("kurul") sınırı doldurup nadir
-      // kökün ("sendi") sayfasını dışarıda bırakmasın.
-      const batches = await Promise.all(
-        likePatterns.map((pattern) =>
-          service
-            .from("document_pages")
-            .select("document_id, page_number, text_content, clean_text")
-            .in("document_id", documentIds)
-            .ilike("text_content", pattern)
-            .limit(40),
-        ),
-      );
+      const batches = await lexicalEarly;
+      if (!batches) throw new Error("lexical_search_failed");
       const unique = new Map<string, Record<string, unknown>>();
       for (const batch of batches) {
         for (const row of batch.data ?? []) unique.set(`${row.document_id}:${row.page_number}`, row);

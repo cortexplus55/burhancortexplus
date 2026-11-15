@@ -176,10 +176,11 @@ describe("dosyaya bağlantı", () => {
   });
 });
 
-describe("göç: yalnız ekleme, uygulanmadı", () => {
+describe("göç: yalnız ekleme (15 Kasım 2026, Burhan onayıyla uygulandı)", () => {
   it("tek yeni sütun, var olan satırlara dokunmaz", () => {
-    const raw = read("supabase/migrations/20261115170000_document_study_map.sql");
-    expect(raw.split("\n")[0]).toContain("UYGULANMADI");
+    // Windows çalışma kopyası CRLF olabilir; depo ve CI LF.
+    const raw = read("supabase/migrations/20261115170000_document_study_map.sql").replace(/\r\n/g, "\n");
+    expect(raw.split("\n")[0]).toMatch(/^-- UYGULANDI: 15 Kasım 2026, Burhan onayıyla/);
     const sql = raw.replace(/^--.*$/gm, "");
     expect(sql).toContain("ALTER TABLE public.documents ADD COLUMN IF NOT EXISTS study_map jsonb;");
     expect(sql).not.toMatch(/\b(DROP|DELETE|TRUNCATE|UPDATE|INSERT)\b/);
