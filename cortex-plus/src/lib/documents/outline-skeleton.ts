@@ -23,7 +23,13 @@
  */
 
 import { decodeGlyphIdText } from "@/lib/documents/glyph-id-text";
-import { extractTocEntries, isPracticePage, type OutlineUnitDraft } from "@/lib/documents/outline-clean";
+import {
+  extractTocEntries,
+  isPracticeHeadingText,
+  isPracticePage,
+  isQuestionOrOptionLine,
+  type OutlineUnitDraft,
+} from "@/lib/documents/outline-clean";
 import {
   SWALLOWED_BODY_MIN,
   carriesOwnTeaching,
@@ -336,11 +342,25 @@ export function buildDocumentSkeleton(files: SkeletonFile[]): DocumentSkeleton {
     const order: { page: number; line: number; heading: LineHeading }[] = [];
     const pagesOfKey = new Map<string, Set<number>>();
     for (const page of body) {
-      if (isPracticePage(page.text)) continue;
       const lines = page.text.split(/\n+/).map((line) => line.trim()).filter(Boolean);
+      // Soru sayfası (15 Kasım 2026, Burhan): sayfa eskiden tümüyle atlanıyordu; "3. <Bölüm>" başlığı altında numaralı
+      // sorular duran sayfada bölüm başlığı da kayboluyordu. Şimdi ilk soru kökünden ya da şıktan ÖNCEKİ açık bölüm
+      // başlığı (numaralı ya da Markdown) korunur. Soruların kendisi, alıştırma bölümünün adı ("Çıkmış Sorular",
+      // "Test 3"), kalın/büyük harf satır ve cümle başlık sayılmaz.
+      const practice = isPracticePage(page.text);
+      const lead = practice ? lines.findIndex((line) => isQuestionOrOptionLine(line)) : lines.length;
       lines.forEach((line, index) => {
-        const heading = classifyLine(line, slides && index === 0);
+        if (practice && (lead < 0 || index >= lead)) return;
+        const heading = classifyLine(line, !practice && slides && index === 0);
         if (!heading || !heading.key) return;
+        if (
+          practice &&
+          (!(heading.source === "numbered" || heading.source === "markdown") ||
+            /[.?!]$/.test(heading.label) ||
+            isPracticeHeadingText(heading.label))
+        ) {
+          return;
+        }
         const onPage = accepted.get(page.pageNumber) ?? new Map<string, LineHeading>();
         onPage.set(lineKey(line), heading);
         accepted.set(page.pageNumber, onPage);
