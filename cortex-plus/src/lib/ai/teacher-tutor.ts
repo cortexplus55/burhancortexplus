@@ -160,6 +160,16 @@ const LESSON_IS_SOURCE =
 
 const VERIFY_JSON = 'Hepsi "high". JSON döndür: {"issues":[{"severity":"high","problem":"…","fix":"…"}]}; sorun yoksa issues boş dizi.';
 
+/**
+ * "Belgem + genel bilgi" denetçisinin çıktısı (15 Kasım 2026, Burhan kararı 3): her itiraz kuralını ("rule") ve A
+ * maddesinde bilginin ders kitabına göre doğru olup olmadığını, sayı içerip içermediğini ve cevaptan birebir cümleyi
+ * söyler. Kod yalnız "doğru, sayısız, etiketi eksik genel bilgi" itirazında etiketi kendisi ekler (`tutor-general-label.ts`);
+ * denetim kuralları (A-E) değişmedi.
+ */
+const VERIFY_JSON_MIXED =
+  'Hepsi "high". JSON döndür: {"issues":[{"severity":"high","rule":"A","problem":"…","fix":"…","quote":"…","generalCorrect":true,"hasNumber":false}]}; sorun yoksa issues boş dizi. ' +
+  '"rule" yukarıdaki harf. A maddesinde ayrıca: "quote" cevaptan sorunlu cümle (birebir), "generalCorrect" bu bilgi ders kitabına göre doğru mu (true/false), "hasNumber" sayı, tarih, eşik ya da ölçü içeriyor mu (true/false).';
+
 const VERIFY_SYSTEMS: Record<TutorMode, string> = {
   document:
     "Bir öğretmenin öğrencisine yazdığı cevabı, dayanması gereken BELGE PASAJLARI ile karşılaştırıyorsun. Şunları bul:\n" +
@@ -178,7 +188,7 @@ const VERIFY_SYSTEMS: Record<TutorMode, string> = {
     "C) 'Genel bilgiden:' paragrafında yanlış bilgi.\n" +
     "D) Öğrencinin cevabına yanlış hüküm.\n" +
     "E) Bozuk, anlamsız Türkçe cümle.\n" +
-    VERIFY_JSON,
+    VERIFY_JSON_MIXED,
   curriculum:
     "Bir öğretmenin öğrencisine yazdığı cevabı MÜFREDAT DERSİ pasajlarıyla karşılaştırıyorsun; öğrencinin belgesi yok. Şunları bul:\n" +
     "A) Yanlış olgu, tanım, sayı, tarih ya da kural.\n" +
