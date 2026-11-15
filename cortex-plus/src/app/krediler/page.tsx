@@ -169,6 +169,7 @@ export default async function KredilerPage() {
     isPremium,
     new Date(),
     shell.account?.subscriptionAllowance ?? undefined,
+    preview ? null : shell.account?.subscriptionPeriodEnd,
   );
   const extraPercent = preview ? null : allowanceShare(wallet?.balance ?? 0, quota.allowance);
   // Ücretsiz hesap (önizleme dahil): kredi yüzdesi yok, sayaçlar ve ek hak (24 Ekim 2026).

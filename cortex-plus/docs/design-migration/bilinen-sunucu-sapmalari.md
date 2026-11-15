@@ -15,7 +15,7 @@ ANA-PROMPT 3A karar tablosu hedeftir; sunucu gerçektir (OTONOM §9). Aşağıda
 | 8 | Ders ve mesaj tek havuz | `price-table.ts:114-119` | Aynı `remaining` / `limit` | `KNOWN_DEVIATION ders ve mesaj tek havuz` | — |
 | 9 | Sınav Haftası'nda bugün şerit ve toast var; tahtada sheet yok | `sor-shell.tsx:415-417`, `plus-limit-banner.tsx:22-28`, `credit-gate.tsx:68-75` | Kapı Sınav Haftası'nda `plus_quota_*` vermez | `hak-sistemi.test.ts` "Sınav Haftası" | 3B'de korunur |
 
-**#2 için önerilen düzeltme (15 Kasım 2026, birleştirilmedi):** PR #660, dal `fix/sinav-haftasi-cuzdan-donemi`.
+**#2 kapandı (15 Kasım 2026):** Burhan onayladı; göç `20261115120000` SQL ekranında canlıya uygulandı, PR #660 birleşti.
 Önce hatayı yeniden üreten test (`sinav-haftasi-cuzdan-donemi.test.ts`, bugünkü SQL'de 8 test düşer) yazıldı, sonra
 düzeltme göçü `20261115120000`:
 - ödemede cüzdan dönemi aboneliğin bitişini geçmez;

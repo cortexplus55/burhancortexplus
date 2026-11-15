@@ -309,19 +309,21 @@ describe("KNOWN_DEVIATION: tablo ile sunucu ayrışıyor, kapı sunucuyu izler (
     expect(sql).toMatchObject({ ok: false, error: expect.stringContaining("free_limit:lesson") });
   });
 
-  it("KNOWN_DEVIATION Sınav Haftası resetAt: tabloda paket bitişi, sunucuda cüzdan dönemi (UTC gün başı + 7)", async () => {
-    // Ödeme 10:00 UTC: abonelik +7 gün 10:00'da biter, cüzdan +7 gün 00:00 UTC'de yenilenir (paytr_subscription_tier_only.sql).
+  it("Sınav Haftası resetAt: eski ödemenin kuyruğunda yenileme yok, sıfırlanma = paket bitişi (20261115120000)", async () => {
+    // Eski ödeme 10:00 UTC: abonelik +7 gün 10:00'da biter, cüzdan +7 gün 00:00 UTC'de dolmuştu. Aradaki saatlerde sunucu
+    // artık yeni 2.700 hak yazmaz (sinav-haftasi-cuzdan-donemi.test.ts); kapı da aynısını söyler.
     const paidAt = new Date("2026-11-10T10:00:00Z");
     const subscriptionEnd = new Date(paidAt.getTime() + 7 * 86_400_000);
     const walletEnd = new Date("2026-11-17T00:00:00Z");
     const now = new Date("2026-11-17T05:00:00Z"); // aradaki saatler
-    const quota = quotaView({ free_allowance_remaining: 0, period_allowance: 2700, period_ends_at: walletEnd.toISOString(), period_kind: "weekly" }, true, now, 2700);
-    expect(quota.pendingRefill).toBe(true);
+    const quota = quotaView({ free_allowance_remaining: 0, period_allowance: 2700, period_ends_at: walletEnd.toISOString(), period_kind: "weekly" }, true, now, 2700, subscriptionEnd.toISOString());
+    expect(quota.pendingRefill).toBe(false);
+    expect(quota.remaining).toBe(0);
+    expect(quota.resetsAt.toISOString()).toBe(subscriptionEnd.toISOString());
     const account = { ...accountFor({ name: "week", plan: "week", used: 1 }), subscriptionPeriodEnd: subscriptionEnd.toISOString(), quotaRemaining: quota.remaining, quotaAllowance: quota.allowance, usedPercent: quota.usedPercent, resetsAtIso: quota.resetsAt.toISOString() };
     const gate = getGate(snapshotFromAccount(account, {}, now), "lesson.create", {}, now);
-    // Sunucu bu saatlerde yeni 2.700 hak yazar: kapı açık der (tablodaki "paket bitişinde kilit" değil).
-    expect(gate.state).toBe("limited");
-    expect(gate.resetAt).not.toBe(subscriptionEnd.toISOString());
+    expect(gate.state).toBe("locked");
+    expect(gate.requiredPlan).toBeUndefined();
   });
 
   it("KNOWN_DEVIATION fotoğraf iki yoldan: sohbetteki fotoğraf AI_CHAT_STANDARD + fotoğraf sayacı (3 kredi), çözücü IMAGE_SOLUTION (4)", async () => {
