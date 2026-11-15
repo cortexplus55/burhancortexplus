@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { staleNodeTarget } from "@/lib/learning/stale-node";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { uiV2 } from "@/lib/ui-v2/flags";
 import "@/styles/ui-v2-ders.css";
@@ -101,7 +102,14 @@ export default async function ExamNodePage({
   ]);
   timer.mark("prep_node");
 
-  if (!prep || !node) notFound();
+  if (!prep) notFound();
+  // Silinmiş adım (15 Kasım 2026, H1): plan arkada yeniden dağıtılınca eski bağlantı 404 veriyordu; tıklama anındaki
+  // güncel sıradaki adıma (yoksa hazırlık sayfasına) yönlenir.
+  if (!node) {
+    const target = await staleNodeTarget(service, { prepId, userId: user.id });
+    console.info("stale_node_redirect", { prepId, toHome: !target.includes("/dugum/") });
+    redirect(target);
+  }
   // Gizli düğüm açılmaz. Kilitli düğüm öğrencinin kendi hazırlığındaysa ready olur ve açılır
   // (27 Ekim 2026). Bitirme fonksiyonu kilitli satırı reddeder.
   if (!studentMayStartNode(node.status, node.kind)) redirect(examPrepLockedHref(prepId, nodeId));
