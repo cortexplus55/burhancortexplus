@@ -33,3 +33,25 @@ Kural değişmedi: göç canlıya **yalnız Burhan'ın açık onayıyla** uygula
 yeniden tanımlar; gövdeler göç dosyalarından birebir çıkarıldı. Yalnız Burhan'ın kararıyla, SQL ekranında tek çalıştırma.
 Ardından PR #660'ın kodu (`quotaView`) geri alınmazsa ekran dönemi aboneliğin bitişiyle gösterir; sunucu eski davranışa
 döner. İkisi birlikte geri alınmalı.
+
+## 20261115140000 · duel_generate_credits (PR #673)
+
+| | |
+|---|---|
+| Onaylayan | Burhan (sohbette, 15 Kasım 2026: "DÜELLO GÖÇÜNÜ UYGULA") |
+| Uygulama | 15 Kasım 2026, 10:44 UTC (TR 13:44); Supabase SQL ekranı, tek çalıştırma + kayıt satırı |
+| Uygulayan | Claude, Burhan'ın onayıyla |
+| Değişen | `credit_rules`'a tek satır: `DUEL_GENERATE`, 20 kredi, etkin. Başka satır, tablo ve sütun değişmedi |
+
+**Doğrulama:** `DUEL_GENERATE | 20 | true`, `QUIZ_GENERATE | 10 | true` (değişmedi), kayıt satırı 1. Kod (`duel.v2` bayrağı)
+kapalıyken bu satır hiç kullanılmaz.
+
+**Geri alma:** önce bayrak (panelde Kapat ya da "Benden kaldır"). Kod da geri alınırsa
+`supabase/rollback/20261115_duello_9b_geri_al.sql`: satırı silmez, kapatır.
+
+## İstatistik işlemleri (göç değil)
+
+| Zaman (UTC) | İşlem | Onay | Sonuç |
+|---|---|---|---|
+| 15 Kasım 2026 10:44:56 | `pg_stat_statements_reset()` | Burhan: "İSTATİSTİĞİ SIFIRLA" | 4.920 kayıt silindi. Önce anlık görüntü: `temp_files` 156.714, `temp_bytes` 465.873.273.828 (sıfırlanmadı) |
+| 15 Kasım 2026 ~10:45 | `alter database postgres set log_temp_files = '10MB'` | Burhan kararı 6 | **Reddedildi:** "permission denied to set parameter log_temp_files". Hiçbir şey değişmedi; geri alınacak bir şey yok |

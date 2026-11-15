@@ -1,6 +1,6 @@
 -- Düello 9B (15 Kasım 2026, Burhan onayı: "20 kredi + günlük sınır"): yeni düello kurmak kendi eylem koduyla, 20 kredi.
 -- Bugünkü düello QUIZ_GENERATE (10 kredi) ile ücretleniyordu.
--- YAZILDI, UYGULANMADI: Burhan SQL ekranında uygular (kayıt satırıyla). Yalnız ekleme; var olan satıra ve veriye dokunmaz.
+-- UYGULANDI: 15 Kasım 2026 10:44 UTC, Burhan onayı "DÜELLO GÖÇÜNÜ UYGULA" (docs/operasyon/goc-kayitlari.md). Yalnız ekleme; var olan satıra ve veriye dokunmaz.
 -- Kod göçten önce yayına çıkarsa `reserveCredits` eksik kuralı fiyat tablosundan tohumlar (Paket H); göç gelince açıklama
 -- bu metinle güncellenir. Ücretsiz hesapta Plus'a özel değil: hediye bakiyesi yetiyorsa bakiyeden (DUEL_ACCESS).
 --   insert into supabase_migrations.schema_migrations (version, name)
