@@ -197,7 +197,7 @@ const RETIRED = new Set([
 ]);
 
 /** Panelden yalnız kurucunun hesabında açılabilen anahtarlar (`setSelfFlagPilot` ile aynı liste). */
-const PILOT_SELF = new Set(["duel.v2"]);
+const PILOT_SELF = new Set(["duel.v2", "teacher.v2"]);
 
 function pilotIdsOf(metadata: unknown): string[] {
   const raw =

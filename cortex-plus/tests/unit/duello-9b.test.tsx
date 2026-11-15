@@ -332,9 +332,9 @@ describe("paylaşım uyarısı ve panel", () => {
   it("panelde duel.v2 satırı ve yalnız kurucuya açma; duel.enabled adı kullanılmaz", () => {
     const flags = read("src/app/admin/feature-flags/page.tsx");
     expect(flags).toContain('key: "duel.v2"');
-    expect(flags).toContain('const PILOT_SELF = new Set(["duel.v2"]);');
+    expect(flags).toContain('const PILOT_SELF = new Set(["duel.v2", "teacher.v2"]);');
     const actions = read("src/app/admin/actions.ts");
-    expect(actions).toContain('const SELF_PILOT_FLAGS = ["duel.v2"] as const;');
+    expect(actions).toContain('const SELF_PILOT_FLAGS = ["duel.v2", "teacher.v2"] as const;');
     // Satır yoksa kapalı oluşturulur (arada herkese açılmasın).
     expect(actions).toMatch(/insert\(\{\s*key: parsed\.data\.key,\s*enabled: false,/);
     for (const path of ["src/app/api/learning/exam-prep/duel/route.ts", "src/app/duello/[code]/page.tsx", "src/lib/entitlements/config.ts"]) {

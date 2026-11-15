@@ -169,7 +169,7 @@ export async function toggleFeatureFlag(key: string, enabled: boolean) {
 }
 
 /** Kişi bazlı (pilot) açılabilen anahtarlar. Liste dar tutulur: yalnız buradakiler panelden kurucuya açılır. */
-const SELF_PILOT_FLAGS = ["duel.v2"] as const;
+const SELF_PILOT_FLAGS = ["duel.v2", "teacher.v2"] as const;
 
 /**
  * Anahtarı genel olarak açmadan yalnız kurucunun hesabında açar ya da kaldırır (`metadata.pilot_user_ids`; okuyucu
