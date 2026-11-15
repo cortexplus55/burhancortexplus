@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createLiveChannel, type LiveChannel } from "@/lib/ai/chat-live";
 import { after, NextResponse } from "next/server";
 import { studentOutputText } from "@/lib/learning/student-output-firewall";
-import { samplingParams } from "@/lib/ai/model-params";
+import { isReasoningModel, samplingParams } from "@/lib/ai/model-params";
 import { z } from "zod";
 import OpenAI from "openai";
 import { openaiClient } from "@/lib/ai/openai-client";
@@ -96,11 +96,14 @@ import {
   chatAnswerNeedsReview,
   isClearlyOffDocument,
   isOverviewQuestion,
+  localDocumentCheck,
   outsideMaterialReviewNote,
   paidChatAttempts,
   presentOutsideMaterialAnswer,
   verifyDocumentAnswer,
 } from "@/lib/ai/document-answer-verification";
+import { settlePedagogicalLabels, stripOrphanCitations } from "@/lib/ai/chat-answer-settle";
+import { createChatDraft } from "@/lib/ai/chat-draft";
 import { logOpsEvent } from "@/lib/observability/ops-log";
 import { pickStudyTopics } from "@/lib/learning/diagnostic";
 import { recordLessonTiming } from "@/lib/admin/beta-metrics";
@@ -394,6 +397,8 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
     let gradedForStore: GradedClaim | null = null;
     /** Cevabın altındaki gerçek stüdyo düğmeleri (sunucu ekler; model yazamaz). */
     let chatActions: ChatAction[] = [];
+    /** Tur bir stüdyo yönlendirmesi mi (test, kart, deneme isteği; özet değil). */
+    let studioRedirect = false;
     let prepGrounding: Awaited<ReturnType<typeof loadPrepChatGrounding>> | null = null;
     if (strict && !evidence.length && !imageUrl && !teacherPrepChat) {
       content = NO_SOURCE_MESSAGE + NO_SOURCE_CREDIT_NOTE;
@@ -483,6 +488,7 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
           }),
         );
         chatActions = material?.actions ?? buildChatActions({ intent, match: { preps: [], documents: [], reason: "none", materialCue: false }, nodesByPrep: new Map() });
+        studioRedirect = Boolean(intent.tool) && !intent.summary;
       }
       const moodLine = turn.mood === "neutral" ? "" : ` ${moodPrompt(turn.mood)}`;
       const requestMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
@@ -576,6 +582,52 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
       const documentGrounded = grounded && evidence.length > 0;
       // Denetçi: luna (24 Ekim 2026). Görselli soruda gören model gerekir; gpt-4.1 kalır.
       const reviewModel = imageUrl ? env.OPENAI_ADVANCED_MODEL : contentModel();
+      // Fotoğraf veya şıklı/sayısal çözüm: cevap yazılmadan aritmetik kural ve bağımsız sağlama (25 Ekim 2026). İpucu
+      // modu ve red cevapları dışarıda. Takipte tam çözüm istendiyse ("cevabı ve tüm adımları göster") sağlama
+      // konuşmadaki soruya göre yapılır. Bağımsız çözüm cevaba değil soruya bakar: 15 Kasım 2026'dan beri ana yazımla
+      // AYNI ANDA başlar (eskiden yazım ve iki denetim bittikten sonra başlıyordu).
+      const solveMessage = turn.plan.followUp === "full_solution" && turn.plan.active?.source === "student" ? turn.plan.active.text : message;
+      // Adım Adım turunda yalnız tek adım yazılır: nihai cevap yokken bağımsız çözümle karşılaştırılacak bir şey de yok
+      // (karşılaştırma, adımın yerine tam çözümü koyabiliyordu). Aritmetik kural yine çalışır.
+      const pacedTurn = tutorStyle === "step_by_step" && turn.plan.pacedStep != null;
+      const solveGuard = !turn.crisis && chatSolveNeedsGuard({ tutorStyle, hasImage: Boolean(imageUrl), message: solveMessage });
+      const independentEarly = solveGuard && !pacedTurn
+        ? (async () => {
+            try {
+              const checkModel = imageUrl ? env.OPENAI_ADVANCED_MODEL : contentModel();
+              const prompt = independentSolvePrompt(solveMessage);
+              const checkUser = imageUrl
+                ? [
+                    { type: "text" as const, text: prompt.user },
+                    { type: "image_url" as const, image_url: visionImage(imageUrl) },
+                  ]
+                : prompt.user;
+              const check = await client.chat.completions.create({
+                model: checkModel,
+                ...samplingParams(checkModel, { temperature: 0, maxTokens: 700 }),
+                response_format: { type: "json_object" },
+                messages: [
+                  { role: "system", content: prompt.system },
+                  { role: "user", content: checkUser },
+                ],
+              }, { signal: request.signal, timeout: 25_000, maxRetries: 0 });
+              tokensIn += check.usage?.prompt_tokens ?? 0;
+              tokensOut += check.usage?.completion_tokens ?? 0;
+              await recordUsage(service, {
+                userId,
+                actionCode,
+                model: checkModel,
+                tokensIn: check.usage?.prompt_tokens ?? 0,
+                tokensOut: check.usage?.completion_tokens ?? 0,
+                reservationId,
+              });
+              return parseIndependentSolve(check.choices[0]?.message?.content ?? "");
+            } catch {
+              // Bağımsız çağrı düşerse aritmetiği tutmayan satır zaten çıkarılmış cevap durur.
+              return null;
+            }
+          })()
+        : null;
       if (teacherTutor && prepGrounding) {
         const grounding = prepGrounding;
         const lastLesson = examContext?.lastLesson ?? null;
@@ -666,17 +718,31 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
       for (let attempt = 0; attempt < attemptLimit; attempt++) {
         // İkinci deneme de asıl modelde: eskiden aboneye gpt-4.1'e çıkıyordu.
         const generationModel = model;
-        const response = await client.chat.completions.create({
+        // Öğrenci bekliyor (15 Kasım 2026, ürün sahibi: "60-80 sn kabul edilemez"): düşünme düşük, ilk denemede taslak
+        // ekrana akar. "Yalnızca belgem" modunda denetlenmemiş taslak ekrana düşmez (öğretmen sohbetindeki kural).
+        const effort = isReasoningModel(generationModel) ? { reasoning_effort: "low" as const } : {};
+        const streamThis = attempt === 0 && !strict && !prepJsonMode;
+        const drafted = await createChatDraft(client, {
           model: generationModel,
           messages: requestMessages,
+          ...effort,
           ...(prepJsonMode
             ? { response_format: { type: "json_object" as const }, ...samplingParams(generationModel, { temperature: 0.4 }) }
             : {}),
-        }, { signal: request.signal, timeout: 90_000, maxRetries: 0 });
-        tokensIn += response.usage?.prompt_tokens ?? 0;
-        tokensOut += response.usage?.completion_tokens ?? 0;
-        await recordUsage(service, { userId, actionCode, model: generationModel, tokensIn: response.usage?.prompt_tokens ?? 0, tokensOut: response.usage?.completion_tokens ?? 0, reservationId });
-        const rawDraft = response.choices[0]?.message?.content ?? "";
+        }, {
+          signal: modelAbort.signal,
+          timeout: 90_000,
+          onDelta: streamThis
+            ? (text) => {
+                if (!live.enabled) live.enable(strict);
+                live.write(text);
+              }
+            : undefined,
+        });
+        tokensIn += drafted.tokensIn;
+        tokensOut += drafted.tokensOut;
+        await recordUsage(service, { userId, actionCode, model: generationModel, tokensIn: drafted.tokensIn, tokensOut: drafted.tokensOut, reservationId });
+        const rawDraft = drafted.text;
         // JSON çıktıyı öğrenci metnine çevir; doğrulayıcı serbest metin bekler.
         const structuredEarly = parseTutorStructured(rawDraft);
         const studentFacingRaw = structuredEarly
@@ -686,7 +752,10 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
           : rawDraft;
         // Sohbet cevabı da öğrenci metninin tek süzgecinden geçer (29 Ekim 2026).
         const studentFacing = studentOutputText(studentFacingRaw);
-        const stampOutside = !strict && (!prepGrounding || prepGrounding.decision === "out");
+        // Sistemin bulduğu not (linkedEvidence) ve stüdyo yönlendirmesi turu (chatActions) "Materyal dışı" damgası
+        // almaz (15 Kasım 2026, canlı): soru sözcükleri ("hazırla", "karıştı") notta geçmiyor diye sıcak açılış ve
+        // yönlendirme cümlesi "Bu, belgede yok" damgasıyla çıkıyordu. Etiketi model yazar; yalnız bilgi bölümüne.
+        const stampOutside = !strict && !linkedEvidence && !chatActions.length && (!prepGrounding || prepGrounding.decision === "out");
         const draft = stampOutside
           ? presentOutsideMaterialAnswer({
               question: message,
@@ -706,6 +775,8 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
             reviewerAddendum: outsideMaterialReviewNote(),
             // 24 Ekim 2026 (ürün sahibinin kararı): sohbet denetimi luna ile, hazırlık sohbetindeki gibi.
             model: reviewModel,
+            // 15 Kasım 2026: tek hızlı geçiş (öğrenci bekliyor).
+            reasoningEffort: "low",
             imageUrls: imageUrl ? [imageUrl] : [], failClosedOnUnavailable: true, signal: request.signal,
           });
           await recordUsage(service, { userId, actionCode, model: reviewModel, tokensIn: verified.tokensIn, tokensOut: verified.tokensOut, reservationId });
@@ -727,8 +798,25 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
         } else {
           content = checkedContent;
           if (reviewAnswer && documentGrounded && !imageUrl) {
-            const checked = await verifyDocumentAnswer({ client, question: message, answer: content, evidence, strict, signal: request.signal, model: reviewModel });
-            await recordUsage(service, { userId, actionCode, model: reviewModel, tokensIn: checked.tokensIn, tokensOut: checked.tokensOut, reservationId });
+            // Kaynak denetimi (15 Kasım 2026): "Yalnızca belgem" modunda model denetimi aynen (öğrencinin seçtiği güvence).
+            // Öbür modlarda önce kod: sayılar kaynakta mı, atıf gerçek bir kaynağı mı gösteriyor, genel bilgi belgeye mal
+            // edilmiş mi. Model denetimi yalnız kaynakta olmayan bir sayı görülünce ve düşük düşünmeyle. Canlıda bu
+            // çağrı her cevapta 16-27 sn sürüyordu.
+            const runModelCheck = async (strictCheck: boolean) => {
+              const verdict = await verifyDocumentAnswer({ client, question: message, answer: content, evidence, strict: strictCheck, signal: request.signal, model: reviewModel, reasoningEffort: "low" });
+              await recordUsage(service, { userId, actionCode, model: reviewModel, tokensIn: verdict.tokensIn, tokensOut: verdict.tokensOut, reservationId });
+              return verdict;
+            };
+            let checked: { ok: boolean; citations: ChatCitation[]; reasons: string[] };
+            if (strict) checked = await runModelCheck(true);
+            else {
+              const local = localDocumentCheck({ question: message, answer: content, evidence });
+              if (!local.ok || !local.suspicious) checked = local;
+              else {
+                const verdict = await runModelCheck(false);
+                checked = verdict.ok ? verdict : { ok: false, citations: [], reasons: ["number_not_in_source", ...verdict.reasons] };
+              }
+            }
             if (!checked.ok) {
               logOpsEvent("document_answer_rejected", { operationId, attempt, strict, evidence: evidence.length, reasons: checked.reasons, linked: linkedEvidence });
               if (!strict && offDocument && isAcceptableOutsideAnswer(content)) {
@@ -767,50 +855,15 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
         charge = false;
         citations = [];
       }
-      // Fotoğraf veya şıklı/sayısal çözüm: cevap yazılmadan aritmetik kural ve,
-      // fotoğrafta, bağımsız sağlama (25 Ekim 2026). İpucu modu ve red cevapları dışarıda.
-      // Takipte tam çözüm istendiyse ("cevabı ve tüm adımları göster") sağlama konuşmadaki soruya göre yapılır.
-      const solveMessage = turn.plan.followUp === "full_solution" && turn.plan.active?.source === "student" ? turn.plan.active.text : message;
-      // Adım Adım turunda yalnız tek adım yazılır: nihai cevap yokken bağımsız çözümle karşılaştırılacak bir şey de yok
-      // (karşılaştırma, adımın yerine tam çözümü koyabiliyordu). Aritmetik kural yine çalışır.
-      const pacedTurn = tutorStyle === "step_by_step" && turn.plan.pacedStep != null;
-      if (charge && !turn.crisis && chatSolveNeedsGuard({ tutorStyle, hasImage: Boolean(imageUrl), message: solveMessage })) {
+      if (charge && solveGuard) {
         content = prepareChatSolution(content);
-        if (!pacedTurn) try {
-          const checkModel = imageUrl ? env.OPENAI_ADVANCED_MODEL : contentModel();
-          const prompt = independentSolvePrompt(solveMessage);
-          const checkUser = imageUrl
-            ? [
-                { type: "text" as const, text: prompt.user },
-                { type: "image_url" as const, image_url: visionImage(imageUrl) },
-              ]
-            : prompt.user;
-          const check = await client.chat.completions.create({
-            model: checkModel,
-            ...samplingParams(checkModel, { temperature: 0, maxTokens: 700 }),
-            response_format: { type: "json_object" },
-            messages: [
-              { role: "system", content: prompt.system },
-              { role: "user", content: checkUser },
-            ],
-          }, { signal: request.signal, timeout: 25_000, maxRetries: 0 });
-          tokensIn += check.usage?.prompt_tokens ?? 0;
-          tokensOut += check.usage?.completion_tokens ?? 0;
-          await recordUsage(service, {
-            userId,
-            actionCode,
-            model: checkModel,
-            tokensIn: check.usage?.prompt_tokens ?? 0,
-            tokensOut: check.usage?.completion_tokens ?? 0,
-            reservationId,
-          });
-          const parsed = parseIndependentSolve(check.choices[0]?.message?.content ?? "");
-          // Adım Adım modunda cevap bilerek yazılmamış olabilir; "cevap yoksa bağımsız çözümü yaz" yalnız tam çözümde.
-          if (parsed) content = mergeIndependentSolve(content, parsed, { preferWhenUnclaimed: Boolean(imageUrl) && (tutorStyle !== "step_by_step" || turn.plan.fullSolution) });
-        } catch {
-          // Bağımsız çağrı düşerse aritmetiği tutmayan satır zaten çıkarılmış cevap durur.
-        }
+        const parsed = independentEarly ? await independentEarly : null;
+        // Adım Adım modunda cevap bilerek yazılmamış olabilir; "cevap yoksa bağımsız çözümü yaz" yalnız tam çözümde.
+        if (parsed) content = mergeIndependentSolve(content, parsed, { preferWhenUnclaimed: Boolean(imageUrl) && (tutorStyle !== "step_by_step" || turn.plan.fullSolution) });
       }
+      // "Materyal dışı" etiketi yalnız bilgi bölümünde (15 Kasım 2026): benzetme, soru ve yönlendirmeden ibaret bölümün
+      // etiketi kalkar; stüdyo yönlendirmesi turunda "kaynakta yok" satırı da. "Yalnızca belgem" modunda dokunulmaz.
+      if (!strict && charge) content = settlePedagogicalLabels(content, { redirect: studioRedirect });
     }
     // Türkçe aritmetik sağlama (10 Kasım 2026, güven paketi): "A × B = C" eşitliğinde sonuç yalnız ayırıcı karışıklığının
     // imzasıyla (bin katı) sapıyorsa düzeltilir. Kayıttan ÖNCE ve kaynak işaretlerinden önce: akan taslak bitişte kayıtlı
@@ -822,6 +875,9 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
       content = mathFix.text;
       console.warn("chat_math_separator_fixed", { operationId, fixes: mathFix.fixes });
     }
+    // Sahipsiz atıf (15 Kasım 2026, canlı): metindeki `[n]` ancak n numaralı kaynak aşağıda listelenirse kalır. Kaynak
+    // denetimi bir kaynağı düşürünce öğrenci karşılığı olmayan `[2]` görüyordu. Kod bloğuna dokunulmaz.
+    content = stripOrphanCitations(content, citations.map((item) => item.reference));
     // Only server-verified metadata becomes a navigable source, never model URLs.
     if (rest.prepId && prepGrounding && charge) {
       const markers = citations.length
@@ -841,7 +897,8 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
           : [];
       if (markers.length) content += `\n${markers.join("\n")}`;
     } else if (citations.length) content += "\n\nKaynaklar:\n" + citations.map((c) =>
-      `- [${c.documentName.replace(/[\\[\]()*<>]/g, "")} ${c.pageNumber ? `· s.${c.pageNumber}` : ""}](${citationHref(c)})`).join("\n");
+      // Numara metindeki `[n]` atfıyla aynı: öğrenci hangi atfın hangi sayfa olduğunu görür.
+      `- [${c.reference}] [${c.documentName.replace(/[\\[\]()*<>]/g, "")} ${c.pageNumber ? `· s.${c.pageNumber}` : ""}](${citationHref(c)})`).join("\n");
     if (charge && chatActions.length) content += `\n\n${chatActions.map(actionMarker).join("\n")}`;
     const refused = await settleModeration();
     if (refused) return refused;

@@ -20,6 +20,7 @@ import { MathText } from "@/components/learning/math-text";
 import { formatSourceSections, generalOnlyAnswer } from "@/lib/ai/source-sections";
 import { splitTutorChrome, type ReplyChip, type ReplyQuote } from "@/lib/learning/tutor-reply";
 import { splitActionMarkers, type ChatAction } from "@/lib/ai/chat-material-link";
+import { stripOrphanCitations } from "@/lib/ai/chat-answer-settle";
 import "@/styles/chat-teaching.css";
 import { SOCRATIC_QUICK_CHIPS, stepQuickChips, type TutorStyle } from "@/lib/learning/tutor-style";
 
@@ -117,9 +118,15 @@ export function TutorReplyView({
   const checkRef = useRef<HTMLDivElement | null>(null);
   // Stüdyo düğmeleri cevaptan ayrılır (sunucunun işareti); kalan metin bugünkü gibi çizilir.
   const split = useMemo(() => splitActionMarkers(content), [content]);
-  const view = useMemo(
-    () => splitTutorChrome(formatSourceSections(split.body)),
+  // Kaynak listesi ya da kaynak kartı olmayan cevapta çıplak `[n]` atfının karşılığı yok (15 Kasım 2026): eski
+  // mesajlarda ve akan taslakta da öğrenci boşta kalan `[2]` görmesin.
+  const body = useMemo(
+    () => (/Kaynaklar:|\[\[kaynak:/.test(split.body) ? split.body : stripOrphanCitations(split.body)),
     [split.body],
+  );
+  const view = useMemo(
+    () => splitTutorChrome(formatSourceSections(body)),
+    [body],
   );
   // "Akılda kalsın" kutusu cevaptan ayrılır, düğmeli kartla çizilir (8 Kasım 2026).
   const remember = useMemo(() => splitRememberBlock(view.body), [view.body]);
