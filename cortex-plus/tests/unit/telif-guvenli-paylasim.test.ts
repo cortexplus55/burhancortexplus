@@ -61,7 +61,9 @@ describe("belge uçları sahipliği denetler", () => {
     expect(prep).toContain("if (!prep) notFound();");
     const node = read("src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/page.tsx");
     expect(node).toContain('.eq("user_id", user.id)');
-    expect(node).toContain("if (!prep || !node) notFound();");
+    // Başkasının hazırlığı 404; kendi hazırlığında silinmiş adım güncel sıradaki adıma yönlenir (15 Kasım 2026, H1).
+    expect(node).toContain("if (!prep) notFound();");
+    expect(node.indexOf("if (!prep) notFound();")).toBeLessThan(node.indexOf("staleNodeTarget(service"));
   });
 
   it("tekilleştirme kaynağı asla görünmez: kopya öğrencinin kendi belgesidir, kaynak kimliği yalnız günlükte", () => {
