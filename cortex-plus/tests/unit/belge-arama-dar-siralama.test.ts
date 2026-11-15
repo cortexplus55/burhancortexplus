@@ -261,7 +261,8 @@ describe("match_document_chunks: dar sıralama eski gövdeyle aynı sonucu verir
   });
 
   it("göç eklemeli: aynı imza ve yetkiler, DROP yok, uygulama notu (15 Kasım 2026, Burhan onayıyla uygulandı)", () => {
-    const raw = readFileSync(NEW_FILE, "utf8");
+    // Windows'ta çalışma kopyası CRLF olabilir (core.autocrlf); depo ve CI LF.
+    const raw = readFileSync(NEW_FILE, "utf8").replace(/\r\n/g, "\n");
     expect(raw.split("\n")[0]).toMatch(/^-- UYGULANDI: 15 Kasım 2026, Burhan onayıyla/);
     const sql = raw.replace(/^--.*$/gm, "");
     expect(sql).toContain("CREATE OR REPLACE FUNCTION public.match_document_chunks(");
