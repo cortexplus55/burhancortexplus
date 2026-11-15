@@ -80,8 +80,10 @@ export type TeacherQuizInput = {
   sourceBlock?: string;
   /** Hafif doğrulayıcı (30 Ekim 2026, `quiz-sanity.ts`); varsayılan açık. Yalnız yerel ölçüm betikleri kapatır. */
   sanity?: boolean;
-  /** Şık ayrılabilirliği denetimi (H2, `quiz.option_check` bayrağı; `option-separability.ts`). Kapalıyken bugünkü kapı. */
+  /** Şık ayrılabilirliği denetimi (H2, `quiz.option_check` bayrağı; `option-separability.ts`). Açıkken GÖLGE: yalnız sayılır. */
   optionCheck?: boolean;
+  /** Eleme modu (`quiz.option_check_enforce`): yalnız `optionCheck` ile birlikte; soru elenir. */
+  optionCheckEnforce?: boolean;
   /**
    * Yazılı deneme (26 Ekim 2026): soru kaynak cümlesini aynen taşımak zorunda değildir.
    * Yanlış olgu, bozuk öğe, kopya ve konu dışı yine düşer.

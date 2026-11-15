@@ -21,7 +21,11 @@ import { dropNearDuplicates } from "@/lib/learning/item-dedup";
 import { runTopicTestShards } from "@/lib/learning/quiz-shards";
 import { alignToPublished, playableQuestions, type QuizStageMs } from "@/lib/learning/quiz-delivery";
 import { runQuizSanity } from "@/lib/learning/quiz-sanity";
-import { OPTION_SEPARABILITY_PREFIX, QUIZ_OPTION_CHECK_FLAG } from "@/lib/learning/option-separability";
+import {
+  QUIZ_OPTION_CHECK_FLAG,
+  QUIZ_OPTION_ENFORCE_FLAG,
+  separabilityKinds,
+} from "@/lib/learning/option-separability";
 import { isFeatureEnabled } from "@/lib/admin/feature-flags";
 import { balanceQuizQuestions } from "@/lib/learning/option-balance";
 import { repairBudget } from "@/lib/learning/repair-budget";
@@ -96,8 +100,11 @@ export type TeacherQuizLoopResult = {
   codes: Record<string, number>;
   /** Taslak, ilk denetim ve onarım süreleri. Yönetim günlüğüne yazılır. */
   stages: QuizStageMs;
-  /** H2: şık ayrılabilirliğinden elenen aday soru sayısı (`quiz.option_check` açıkken). */
+  /** H2: şık ayrılabilirliğine takılan aday soru sayısı (gölge modda elenmez, yalnız sayılır). */
   optionFlagged?: number;
+  /** H2 gölge sayımı: denetlenen aday ve kurala göre takılan. */
+  optionChecked?: number;
+  optionKinds?: { reordered: number; neitherNor: number };
 };
 
 export type TeacherQuizLoopHooks = {
@@ -138,6 +145,8 @@ export async function teacherQuizLoop(
   const codes: Record<string, number> = {};
   /** H2 sayacı: şık ayrılabilirliğinden elenen aday soru (bayrak açıkken). */
   let optionFlagged = 0;
+  let optionChecked = 0;
+  const optionKinds = { reordered: 0, neitherNor: 0 };
   const slots: (QuizQuestion | null)[] = [];
   const accepted = (): Slot[] => slots.flatMap((question, index) => (question ? [{ index, question }] : []));
 
@@ -155,11 +164,20 @@ export async function teacherQuizLoop(
   const context = mode === "topic" ? "" : input.sourceBlock?.trim() || input.pages.map((page) => page.text).join("\n");
   const review = async (candidates: Slot[]): Promise<Pending[]> => {
     const kept = accepted();
+    // H2 (Burhan kararı 2): gölge modda kapı değişmez; eleme yalnız iki bayrak birlikte açıkken.
+    const enforce = Boolean(input.optionCheck && input.optionCheckEnforce);
     const structural = candidates.map((slot) =>
-      quizStructureIssues(slot.question, { multi: input.multi, optionCount, context, optionCheck: input.optionCheck }),
+      quizStructureIssues(slot.question, { multi: input.multi, optionCount, context, optionCheck: enforce }),
     );
     if (input.optionCheck) {
-      for (const list of structural) if (list.some((text) => text.startsWith(OPTION_SEPARABILITY_PREFIX))) optionFlagged += 1;
+      for (const slot of candidates) {
+        if (slot.question.multi) continue;
+        optionChecked += 1;
+        const kinds = separabilityKinds(slot.question.options);
+        if (kinds.reordered) optionKinds.reordered += 1;
+        if (kinds.neitherNor) optionKinds.neitherNor += 1;
+        if (kinds.reordered || kinds.neitherNor) optionFlagged += 1;
+      }
     }
     // Tek geçiş (26 Ekim 2026): ikinci denetçi ve kör çözücü yok. Kapı deterministik.
     const factual: QuizIssue[] = [];
@@ -295,6 +313,8 @@ export async function teacherQuizLoop(
     codes,
     stages: { draftMs, reviewMs, repairMs },
     optionFlagged,
+    optionChecked,
+    optionKinds,
   };
 }
 
@@ -391,6 +411,8 @@ async function runShardedTopicQuiz(
   let forced = false;
   let rounds = 0;
   let optionFlagged = 0;
+  let optionChecked = 0;
+  const optionKinds = { reordered: 0, neitherNor: 0 };
   const rejected: Reviewed[] = [];
   const salvaged: string[] = [];
   const stages = { draftMs: 0, reviewMs: 0, repairMs: 0 };
@@ -406,6 +428,9 @@ async function runShardedTopicQuiz(
     stages.repairMs = Math.max(stages.repairMs, part.stages.repairMs);
     for (const [code, count] of Object.entries(part.codes)) codes[code] = (codes[code] ?? 0) + count;
     optionFlagged += part.optionFlagged ?? 0;
+    optionChecked += part.optionChecked ?? 0;
+    optionKinds.reordered += part.optionKinds?.reordered ?? 0;
+    optionKinds.neitherNor += part.optionKinds?.neitherNor ?? 0;
   }
   return {
     // Parçalar arası çakışma (aynı bilgi, aynı cevap en çok iki): her parçanın kendi denetimi tek soruya bakıyordu.
@@ -419,6 +444,8 @@ async function runShardedTopicQuiz(
     codes,
     stages,
     optionFlagged,
+    optionChecked,
+    optionKinds,
   };
 }
 
@@ -500,9 +527,17 @@ async function runTeacherQuizInner(
     : studentOptionCount(service, input.userId, input.prepTitle);
   const tier = fastTier(!free && !held && (await fastAllowedFor(service, input.userId)));
   // H2 (15 Kasım 2026): şık ayrılabilirliği yalnız bayrak açıkken; okuma düşerse kapalı (bugünkü kapı).
-  const optionCheck = await isFeatureEnabled(service, QUIZ_OPTION_CHECK_FLAG, input.userId).catch(() => false);
+  const [optionCheck, optionCheckEnforce] = await Promise.all([
+    isFeatureEnabled(service, QUIZ_OPTION_CHECK_FLAG, input.userId).catch(() => false),
+    isFeatureEnabled(service, QUIZ_OPTION_ENFORCE_FLAG, input.userId).catch(() => false),
+  ]);
   const profile = await profileLoad;
-  input = { ...input, optionCount: await optionCountLoad, ...(optionCheck ? { optionCheck: true } : {}) };
+  input = {
+    ...input,
+    optionCount: await optionCountLoad,
+    ...(optionCheck ? { optionCheck: true } : {}),
+    ...(optionCheck && optionCheckEnforce ? { optionCheckEnforce: true } : {}),
+  };
   const ask: AskJson = async (system, user, role) => {
     calls += 1;
     const response = await openai.chat.completions.create({
@@ -663,7 +698,16 @@ async function runTeacherQuizInner(
       lastResort,
       ...(tableOf ? { tableCapped: tableCapped.length, tableOverflow } : {}),
       urgent: Boolean(input.urgent),
-      ...(input.optionCheck ? { optionCheck: { flagged: loop.optionFlagged } } : {}),
+      ...(input.optionCheck
+        ? {
+            optionCheck: {
+              mode: input.optionCheckEnforce ? "enforce" : "shadow",
+              checked: loop.optionChecked,
+              flagged: loop.optionFlagged,
+              kinds: loop.optionKinds,
+            },
+          }
+        : {}),
       calls,
       ms: Date.now() - started,
       draftMs: stages.draftMs,

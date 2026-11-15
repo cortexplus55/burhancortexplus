@@ -13,8 +13,19 @@
   Burada yalnız kesin, ders-bağımsız iki kural var. Ders ya da konu sözcüğü yok; yalnız Türkçe yapı.
 */
 
-/** Bayrak: açıkken test motorunun kod kapısı bu denetimi de uygular (`teacher-quiz-run.ts`). */
+/**
+ * Bayraklar (Burhan kararı 2, 15 Kasım 2026: önce gölge mod).
+ * - `quiz.option_check`: GÖLGE MOD. Denetim çalışır, elenecek sorular yalnız sayılır; soru elenmez.
+ * - `quiz.option_check_enforce`: ELEME MODU. Yalnız ikisi birlikte açıkken soru elenir. İlk 100 sorunun gölge sayımı
+ *   raporlanıp Burhan onaylamadan açılmaz.
+ */
 export const QUIZ_OPTION_CHECK_FLAG = "quiz.option_check";
+export const QUIZ_OPTION_ENFORCE_FLAG = "quiz.option_check_enforce";
+
+/** Gölge sayımı için sorunun hangi kurala takıldığı (yalnız tür; soru metni günlüğe yazılmaz). */
+export function separabilityKinds(options: readonly string[]): { reordered: boolean; neitherNor: boolean } {
+  return { reordered: Boolean(reorderedOptionPair(options)), neitherNor: options.some(brokenNeitherNor) };
+}
 
 const fold = (text: string) => text.normalize("NFKC").toLocaleLowerCase("tr");
 
