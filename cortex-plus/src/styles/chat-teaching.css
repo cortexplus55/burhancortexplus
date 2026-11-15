@@ -793,3 +793,99 @@ mark.cp-key {
     scale: 0.98;
   }
 }
+
+/* Öğretmen önce konuşur (teacher.v2 PR-4, PROMPT-V2 M2–M6): ilk söz, süre çipleri, gerçek okumaların çipleri, teşhis ve
+   plan. Kenarsız; plan maddeleri bir basamak açık zeminde. Süre ve plan haplarının dokunma alanı 44 px. Ekranın tek
+   marka eylemi "Başlayalım" (marka-zayıf dolgu; yazma çubuğundaki gönder düğmesiyle yarışmaz). */
+.cp-teacher-opening {
+  display: grid;
+  gap: var(--cx-space-12, 12px);
+}
+.cp-teacher-opening .cp-tutor-chips {
+  margin-top: 0;
+  gap: var(--cx-space-8, 8px);
+}
+.cp-teacher-opening .cp-tutor-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding-inline: var(--cx-space-16, 16px);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.cp-teacher-opening .cp-tutor-chip--primary {
+  border-color: transparent;
+  background: var(--cx-brand-weak, color-mix(in srgb, var(--c-action) 18%, transparent));
+  color: var(--cx-text-brand, var(--c-action));
+  font-weight: 600;
+}
+.cp-teacher-opening-flow {
+  display: grid;
+  gap: var(--cx-space-8, 8px);
+}
+.cp-teacher-opening-look {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--cx-text-secondary, var(--cp-muted));
+}
+.cp-teacher-opening-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cx-space-8, 8px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cp-teacher-opening-checks li {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--cx-bg-2, color-mix(in srgb, var(--c-text) 8%, transparent));
+  font: var(--cx-t-meta-s, 500 11px / 1.25 var(--font-mono));
+  letter-spacing: 0.01em;
+  color: var(--cx-text-secondary, var(--cp-muted));
+}
+.cp-teacher-plan {
+  display: grid;
+  gap: var(--cx-space-8, 8px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: cp-plan;
+}
+.cp-teacher-plan li {
+  display: grid;
+  gap: 2px;
+  padding: 10px 14px;
+  border-radius: var(--cx-radius-m, 16px);
+  background: var(--cx-bg-1, color-mix(in srgb, var(--c-text) 5%, transparent));
+}
+.cp-teacher-plan a {
+  font-weight: 600;
+  color: var(--cx-text-primary, var(--c-text));
+  text-decoration: none;
+}
+.cp-teacher-plan a:hover,
+.cp-teacher-plan a:focus-visible {
+  text-decoration: underline;
+}
+.cp-teacher-plan span {
+  font-size: 0.8125rem;
+  color: var(--cx-text-secondary, var(--cp-muted));
+}
+@media (prefers-reduced-motion: no-preference) {
+  .cp-teacher-opening-checks li,
+  .cp-teacher-opening-flow > .cp-teacher-greeting,
+  .cp-teacher-plan {
+    animation: cp-opening-in 160ms ease both;
+  }
+}
+@keyframes cp-opening-in {
+  from {
+    opacity: 0;
+    translate: 0 4px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}

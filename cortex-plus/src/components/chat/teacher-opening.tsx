@@ -1,20 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { PlanItem, TeacherPlanView } from "@/lib/teacher/director";
+import { PLAN_MINUTES, type PlanItem, type TeacherPlanView } from "@/lib/teacher/director";
 
 /**
- * Öğretmen önce konuşur (PROMPT-V2 §6 M2–M6, PR-4; teacher.v2, ana sohbet, boş konuşma). Model çağrısı ve kota yok:
- * veri `/api/teacher/plan`'dan (Öğrenci Dosyası + yönlendirici). Akış: ilk söz ve süre çipleri → "Bir bakayım" ve
- * gerçek okumaların çipleri (en çok 3, ≤2 sn) → veriden teşhis → seçilen süreye eşit plan, "Başlayalım" / "Değiştir".
- * Veri yoksa dürüst yol ("seni daha tanımıyorum"). Okuma düşerse kart çizilmez (bugünkü boş ekran kalır).
+ * Öğretmen önce konuşur (PROMPT-V2 §6 M2–M6, PR-4; teacher.v2, ana sohbet, "Başla" ile açılan boş konuşma). Model
+ * çağrısı ve kota yok: veri `/api/teacher/plan`'dan (Öğrenci Dosyası + yönlendirici). Akış: ilk söz ve süre çipleri →
+ * "Bir bakayım" ve gerçek okumaların çipleri (en çok 3, ≤1,4 sn) → veriden teşhis → seçilen süreye eşit plan,
+ * "Başlayalım" / "Değiştir". Veri yoksa dürüst yol ("seni daha tanımıyorum"). Plan okunamazsa ya da gelene kadar
+ * bugünkü karşılama (`fallback`) görünür: bayrak açıkken bile öğrenci boş bir balonla kalmaz.
  */
 export function TeacherOpening({
-  firstName,
+  fallback,
   onWrite,
   onPrompt,
 }: {
-  firstName?: string | null;
+  /** Bugünkü ilk söz (model çağrısız karşılama); plan gelene kadar ve gelmezse bu yazılır. */
+  fallback: string;
   /** "Kendi cümlenle yaz": yazma alanına odak. */
   onWrite?: () => void;
   /** Veri yokken "Başlayalım": öğretmene kısa tanışma isteği gider (öğrencinin kendi dokunuşuyla, normal mesaj). */
@@ -26,37 +28,41 @@ export function TeacherOpening({
 
   useEffect(() => {
     let cancelled = false;
-    const query = firstName ? `?ad=${encodeURIComponent(firstName)}` : "";
-    fetch(`/api/teacher/plan${query}`, { cache: "no-store" })
+    fetch("/api/teacher/plan", { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : null))
       .then((body: TeacherPlanView | null) => {
-        if (!cancelled && body && typeof body.opening === "string") setView(body);
+        if (!cancelled && body && typeof body.opening === "string" && body.plans) setView(body);
       })
       .catch(() => undefined);
     return () => {
       cancelled = true;
     };
-  }, [firstName]);
+  }, []);
 
-  // Analiz çipleri sırayla belirir (her biri 450 ms; en çok 3 → ≤1,4 sn), sonra teşhis ve plan.
+  // Analiz çipleri sırayla belirir (her biri 450 ms; en çok 3 → ≤1,4 sn), sonra teşhis ve plan. Hareket azaltmada beklemez.
   useEffect(() => {
     if (minutes == null || !view) return;
-    setShown(0);
+    const reduced = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     const total = view.chips.length;
+    if (reduced) {
+      setShown(total + 1);
+      return;
+    }
+    setShown(0);
     const timers = Array.from({ length: total + 1 }, (_, index) => window.setTimeout(() => setShown(index + 1), 450 * (index + 1)));
     return () => timers.forEach((timer) => window.clearTimeout(timer));
   }, [minutes, view]);
 
-  if (!view) return null;
+  if (!view) return <p className="cp-teacher-greeting">{fallback}</p>;
   const plan: PlanItem[] = minutes != null ? (view.plans[String(minutes)] ?? []) : [];
   const analysed = minutes != null && shown > view.chips.length;
 
   return (
-    <section className="cp-teacher-opening" aria-label="Öğretmenin önerisi">
-      <p className="cp-teacher-opening-text">{view.opening}</p>
+    <section className="cp-teacher-opening" aria-label="Öğretmenin önerisi" data-teacher-opening>
+      <p className="cp-teacher-greeting">{view.opening}</p>
       {minutes == null ? (
         <div className="cp-tutor-chips" role="group" aria-label="Bugün ne kadar vaktin var?">
-          {[10, 20, 45].map((value) => (
+          {PLAN_MINUTES.map((value) => (
             <button key={value} type="button" className="cp-tutor-chip" onClick={() => setMinutes(value)}>
               {value} dk
             </button>
@@ -77,7 +83,7 @@ export function TeacherOpening({
           ) : null}
           {analysed ? (
             <>
-              <p className="cp-teacher-opening-text">{view.diagnosis}</p>
+              <p className="cp-teacher-greeting">{view.diagnosis}</p>
               {plan.length ? (
                 <>
                   <ol className="cp-teacher-plan">

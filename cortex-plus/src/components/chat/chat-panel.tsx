@@ -77,6 +77,7 @@ import { SourceModePill } from "@/components/chat/source-mode-pill";
 import { TutorModeSwitcher } from "@/components/chat/tutor-mode-switcher";
 import { TeachStyleMenu } from "@/components/chat/teach-style-menu";
 import { TeacherDossierPanel } from "@/components/chat/teacher-dossier-panel";
+import { TeacherOpening } from "@/components/chat/teacher-opening";
 import { splitFinalQuestion } from "@/lib/learning/question-bubble";
 import {
   DEFAULT_TUTOR_STYLE,
@@ -120,6 +121,11 @@ type Message = {
    * oylanmaz, devam önerisi çıkarmaz; öğrenci yazınca asıl sohbet başlar.
    */
   local?: boolean;
+  /**
+   * teacher.v2 (PR-4): ilk söz öğretmenin açılış akışıyla çizilir (süre çipleri, gerçek okumalar, teşhis, plan).
+   * `content` bugünkü karşılama: plan gelene kadar ve gelmezse o yazılır. Bayrak kapalıyken hiç kurulmaz.
+   */
+  opening?: boolean;
 };
 
 function isImageName(name: string): boolean {
@@ -1410,13 +1416,13 @@ function ChatPanelSession({
       // Dinlendiğini bildirir: kabuk başka sayfaya (ana ekrana) gitmez.
       event.preventDefault();
       if (startGreeting && messages.length === 0) {
-        setMessages([{ role: "assistant", content: startGreeting, local: true }]);
+        setMessages([{ role: "assistant", content: startGreeting, local: true, ...(v2Main ? { opening: true } : {}) }]);
       }
       window.setTimeout(() => composerRef.current?.focus(), 0);
     };
     window.addEventListener(HOME_START_EVENT, onStart);
     return () => window.removeEventListener(HOME_START_EVENT, onStart);
-  }, [examChrome, isParitySor, startGreeting, messages.length]);
+  }, [examChrome, isParitySor, startGreeting, messages.length, v2Main]);
 
   // Öneri çipleri yalnızca dolu, hatasız bir yanıtın ardından çıkıyor:
   // yazarken, hata ekranında ya da kullanıcı sırasındayken görünmüyor.
@@ -1708,7 +1714,7 @@ function ChatPanelSession({
                 disabled={loading}
                 onClick={() => {
                   if (startGreeting) {
-                    setMessages([{ role: "assistant", content: startGreeting, local: true }]);
+                    setMessages([{ role: "assistant", content: startGreeting, local: true, ...(v2Main ? { opening: true } : {}) }]);
                     window.setTimeout(() => composerRef.current?.focus(), 0);
                     return;
                   }
@@ -1747,7 +1753,15 @@ function ChatPanelSession({
                 const assistantBody = message.content ? (
                   <>
                     {message.local ? (
-                      <p className="cp-teacher-greeting">{message.content}</p>
+                      message.opening && v2Main ? (
+                        <TeacherOpening
+                          fallback={message.content}
+                          onWrite={() => composerRef.current?.focus()}
+                          onPrompt={(prompt) => void send(prompt)}
+                        />
+                      ) : (
+                        <p className="cp-teacher-greeting">{message.content}</p>
+                      )
                     ) : message.isError ? (
                       <div role="alert">
                         <TutorReplyView

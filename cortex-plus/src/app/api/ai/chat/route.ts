@@ -119,6 +119,7 @@ import {
 } from "@/lib/ai/teacher-v2-session";
 import { settleVoice } from "@/lib/ai/teacher-voice";
 import { loadStudentDossier } from "@/lib/teacher/dossier-load";
+import { classifyIntent, directorTurnLine } from "@/lib/teacher/director";
 import { ensureDocumentMap } from "@/lib/documents/document-map-load";
 import { settlePedagogicalLabels, stripOrphanCitations } from "@/lib/ai/chat-answer-settle";
 import { createChatDraft } from "@/lib/ai/chat-draft";
@@ -533,6 +534,16 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
         );
         chatActions = material?.actions ?? buildChatActions({ intent, match: { preps: [], documents: [], reason: "none", materialCue: false }, nodesByPrep: new Map() });
         studioRedirect = Boolean(intent.tool) && !intent.summary;
+      }
+      // Faz 13 PR-4 (§5): yönlendirici. Yalnız "zorlanıyorum / ne çalışayım / sınavım yakın" turunda, öğrencinin
+      // dosyasından TEK öneri; dosyada kayıt yoksa dürüst "seni daha tanımıyorum". Niyet modelsiz (kural). Kriz ve yalnız
+      // duygu turunda yok; PR-1 satırları son söz kalsın diye onlardan önce.
+      if (v2Session && dossierEarly && !turn.crisis && !turn.feelingOnly) {
+        const dossier = await dossierEarly;
+        const directorLine = dossier
+          ? directorTurnLine(classifyIntent(message, { hasImage: Boolean(imageUrl), documentAttached }), dossier.signals)
+          : "";
+        if (directorLine) turnLines.push(directorLine);
       }
       // Faz 13 PR-1 (B, C, D): süreklilik, ipucu merdiveni, Rehberli ilk tur, Adım Adım kavram turu. Son söz olsun diye en
       // sonda; kriz ve yalnız duygu turunda yok (güvenlik akışı aynen).
