@@ -100,8 +100,11 @@ import {
   outsideMaterialReviewNote,
   paidChatAttempts,
   presentOutsideMaterialAnswer,
+  splitOutsideMaterial,
   verifyDocumentAnswer,
 } from "@/lib/ai/document-answer-verification";
+import { CHAT_AUDIT_FLAG, claimChatAuditSlot, shouldSampleChatAudit } from "@/lib/ai/chat-audit-sample";
+import { isFeatureEnabled } from "@/lib/admin/feature-flags";
 import { settlePedagogicalLabels, stripOrphanCitations } from "@/lib/ai/chat-answer-settle";
 import { createChatDraft } from "@/lib/ai/chat-draft";
 import { logOpsEvent } from "@/lib/observability/ops-log";
@@ -399,6 +402,11 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
     let chatActions: ChatAction[] = [];
     /** Tur bir stüdyo yönlendirmesi mi (test, kart, deneme isteği; özet değil). */
     let studioRedirect = false;
+    /**
+     * Arka plan örnek denetimi (15 Kasım 2026, ürün sahibi): kod kontrolünden şüphesiz geçen belge cevabının %5'i
+     * yanıttan SONRA model denetiminden geçer; sonuç yalnız günlüğe (uyuşmazlık oranı), öğrenciye gösterilmez.
+     */
+    let auditCandidate: { answer: string; localCitations: number } | null = null;
     let prepGrounding: Awaited<ReturnType<typeof loadPrepChatGrounding>> | null = null;
     if (strict && !evidence.length && !imageUrl && !teacherPrepChat) {
       content = NO_SOURCE_MESSAGE + NO_SOURCE_CREDIT_NOTE;
@@ -811,6 +819,7 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
             if (strict) checked = await runModelCheck(true);
             else {
               const local = localDocumentCheck({ question: message, answer: content, evidence });
+              if (local.ok && !local.suspicious) auditCandidate = { answer: content, localCitations: local.citations.length };
               if (!local.ok || !local.suspicious) checked = local;
               else {
                 const verdict = await runModelCheck(false);
@@ -930,6 +939,42 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
       );
     }
     stage("saved");
+    if (auditCandidate && charge && shouldSampleChatAudit()) {
+      const sample = auditCandidate;
+      const auditEvidence = evidence;
+      const auditModel = contentModel();
+      after(async () => {
+        try {
+          // Kapatma anahtarı ve günlük tavan (Burhan karar 3): ikisi de yanıttan sonra, öğrenciyi bekletmez.
+          if (!(await isFeatureEnabled(service, CHAT_AUDIT_FLAG))) return;
+          if (!(await claimChatAuditSlot())) {
+            console.info("chat_audit_sample_capped");
+            return;
+          }
+          const client = openaiClient({ apiKey: env.OPENAI_API_KEY });
+          const verdict = await verifyDocumentAnswer({
+            client,
+            question: message,
+            // Yalnız belge bölümü: genel bilgi bölümü belgeye karşı ölçülmez.
+            answer: splitOutsideMaterial(sample.answer).documentPart || sample.answer,
+            evidence: auditEvidence,
+            strict: true,
+            model: auditModel,
+            reasoningEffort: "low",
+          });
+          await recordUsage(service, { userId, actionCode, model: auditModel, tokensIn: verdict.tokensIn, tokensOut: verdict.tokensOut });
+          console.info("chat_audit_sample", {
+            agree: verdict.ok,
+            reasons: verdict.reasons.slice(0, 4),
+            linked: linkedEvidence,
+            evidence: auditEvidence.length,
+            localCitations: sample.localCitations,
+          });
+        } catch (error) {
+          console.warn("chat_audit_sample_failed", { cause: error instanceof Error ? error.name : "unknown" });
+        }
+      });
+    }
     if (live.started) {
       const result = saved as SavedChatResult;
       live.finish({
