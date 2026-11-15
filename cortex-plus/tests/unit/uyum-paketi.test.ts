@@ -15,9 +15,15 @@ const read = (path: string) => readFileSync(path, "utf8").replace(/\r\n/g, "\n")
 const fingerprint = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex").slice(0, 16);
 
 describe("metin sürümleri: metin değişince sürüm de değişir", async () => {
-  const { LEGAL_VERSIONS, SALES_DOCS, COOKIE_POLICY_VERSION, REQUIRED_CONSENT_KEY, AGE_DECLARATION } = await import(
-    "@/lib/legal/versions"
-  );
+  const {
+    LEGAL_VERSIONS,
+    SALES_DOCS,
+    COOKIE_POLICY_VERSION,
+    REQUIRED_CONSENT_KEY,
+    AGE_DECLARATION,
+    KVKK_TEXT_DATE,
+    KVKK_NON_MATERIAL_REVISIONS,
+  } = await import("@/lib/legal/versions");
   const { KVKK_SECTIONS, KVKK_SUMMARY } = await import("@/lib/legal/kvkk-text");
   const { TERMS_SECTIONS } = await import("@/lib/legal/terms-text");
   const { COOKIE_ROWS, COOKIE_SECTIONS } = await import("@/lib/legal/cookie-text");
@@ -30,19 +36,31 @@ describe("metin sürümleri: metin değişince sürüm de değişir", async () =
   */
   const FINGERPRINTS = {
     // 8 Kasım 2026: IP'nin hangi kayıtta nasıl tutulduğu düzeltildi (hız sınırı ve ödeme kaydında ham). Eski satır kalır.
-    kvkk: { "2026-11-07": "9446ec8ca66fe40e", "2026-11-08": "a226f4fe8e30a3c2" } as Record<string, string>,
+    // 15 Kasım 2026: kişiye özel anlatım ve eksik analizi amacı açıkça yazıldı; onay sürümü aynı (gerekçe
+    // KVKK_NON_MATERIAL_REVISIONS'ta). Aydınlatma metninin özeti onay sürümüyle değil metin tarihiyle (KVKK_TEXT_DATE) tutulur.
+    kvkk: { "2026-11-07": "9446ec8ca66fe40e", "2026-11-08": "a226f4fe8e30a3c2", "2026-11-15": "00cb53d9f4fb72da" } as Record<string, string>,
     terms: { "2026-11-07": "65eb7f7261e5a0c4" } as Record<string, string>,
     cookie: { "2026-11-07": "6942f7aaf4fcbb7f" } as Record<string, string>,
     sales: { "2026-11-07": "b97ee8662442fa45" } as Record<string, string>,
   };
 
   it("her metnin bugünkü özeti kendi sürümüne kayıtlı", () => {
-    expect(fingerprint({ KVKK_SUMMARY, KVKK_SECTIONS })).toBe(FINGERPRINTS.kvkk[LEGAL_VERSIONS.kvkk_aydinlatma]);
+    expect(fingerprint({ KVKK_SUMMARY, KVKK_SECTIONS })).toBe(FINGERPRINTS.kvkk[KVKK_TEXT_DATE]);
     expect(fingerprint(TERMS_SECTIONS)).toBe(FINGERPRINTS.terms[LEGAL_VERSIONS.kullanim_kosullari]);
     expect(fingerprint({ COOKIE_ROWS, COOKIE_SECTIONS })).toBe(FINGERPRINTS.cookie[COOKIE_POLICY_VERSION]);
     expect(fingerprint({ PRE_INFO_SECTIONS, DISTANCE_SALES_SECTIONS, PERFORMANCE_CONSENT_TEXT })).toBe(
       FINGERPRINTS.sales[SALES_DOCS.version],
     );
+  });
+
+  it("onay sürümünden sonraki her aydınlatma değişikliği gerekçesiyle yazılı (yoksa sürüm değişmeli)", () => {
+    expect(FINGERPRINTS.kvkk[LEGAL_VERSIONS.kvkk_aydinlatma]).toBeTruthy();
+    expect(KVKK_TEXT_DATE >= LEGAL_VERSIONS.kvkk_aydinlatma).toBe(true);
+    const after = Object.keys(FINGERPRINTS.kvkk).filter((date) => date > LEGAL_VERSIONS.kvkk_aydinlatma);
+    if (KVKK_TEXT_DATE !== LEGAL_VERSIONS.kvkk_aydinlatma) expect(after).toContain(KVKK_TEXT_DATE);
+    for (const date of after) expect(KVKK_NON_MATERIAL_REVISIONS[date]?.length ?? 0, date).toBeGreaterThan(40);
+    // Gerekçeli açıklama listesi yalnız onay sürümünden SONRAKİ tarihleri taşır; sürüm yükselince liste temizlenir.
+    for (const date of Object.keys(KVKK_NON_MATERIAL_REVISIONS)) expect(date > LEGAL_VERSIONS.kvkk_aydinlatma, date).toBe(true);
   });
 
   it("onay kapısının kimliği istenen bütün sürümleri taşır", () => {
