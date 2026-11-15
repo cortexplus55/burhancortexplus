@@ -49,6 +49,22 @@ kapalıyken bu satır hiç kullanılmaz.
 **Geri alma:** önce bayrak (panelde Kapat ya da "Benden kaldır"). Kod da geri alınırsa
 `supabase/rollback/20261115_duello_9b_geri_al.sql`: satırı silmez, kapatır.
 
+## 20261115160000 · match_chunks_narrow_sort (PR #683)
+
+| | |
+|---|---|
+| Onaylayan | Burhan (sohbette, 15 Kasım 2026: "#683 … Göçünü uygulamayı ve PR'ı birleştirmeyi ONAYLIYORUM") |
+| Uygulama | 15 Kasım 2026, ~13:15 UTC (TR ~16:15); Supabase SQL ekranı, tek çalıştırma + kayıt satırı |
+| Uygulayan | Claude, Burhan'ın onayıyla |
+| Değişen | Yalnız `public.match_document_chunks(uuid, vector, integer, double precision, uuid)` aynı imzayla yeniden tanımlandı; tablo, sütun ve veri değişmedi |
+
+**Doğrulama:** canlı gövde yeni sıralamayı taşıyor (`ranked` CTE'si), kayıt satırı 1, `authenticated` çalıştıramıyor (yetki
+aynı: yalnız `service_role`). Geçici dosya ölçümü: `pg_stat_statements` 24 saat sonra (`temp_blks_written` bu sorgu için 0
+olmalı; docs/operasyon/disk-io.md).
+
+**Geri alma:** `20261031160000_part_search_parent.sql` dosyasının `CREATE OR REPLACE` bloğunu SQL ekranında yeniden
+çalıştırmak (göç değil; yalnız Burhan'ın kararıyla).
+
 ## İstatistik işlemleri (göç değil)
 
 | Zaman (UTC) | İşlem | Onay | Sonuç |
