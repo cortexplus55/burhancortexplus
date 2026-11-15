@@ -336,7 +336,8 @@ describe("uçlar: Çalışma Stüdyosu üretimi kaynak okumadan ve motordan önc
       expect(source).toContain("return errorResponse(402, FREE_LESSON_CODE);");
     };
     order("src/app/api/learning/exam-prep/challenge/route.ts", 'freeLessonRefused(service, userId, "QUIZ_GENERATE")', ["const outcome = await generateJson({"]);
-    order("src/app/api/learning/exam-prep/duel/route.ts", 'freeLessonRefused(service, userId, "QUIZ_GENERATE")', ["loadSourceContext(service", "const outcome = await generateExamQuiz({"]);
+    // Düello 9B (15 Kasım 2026): düello kendi koduyla (DUEL_GENERATE, 20 kredi); günlük sınır da kapıdan sonra, üretimden önce.
+    order("src/app/api/learning/exam-prep/duel/route.ts", "freeLessonRefused(service, userId, DUEL_ACTION)", ["checkDuelDailyLimit(service, userId)", "loadSourceContext(service", "const outcome = await generateExamQuiz({"]);
     order("src/app/api/learning/quiz/generate/route.ts", 'freeLessonRefused(service, userId, "QUIZ_GENERATE")', ["loadDocumentGenerationContext(service", "const outcome = await generateExamQuiz({"]);
     order("src/app/api/learning/flashcards/generate/route.ts", 'freeLessonRefused(service, userId, "FLASHCARD_GENERATE")', ["studioTeacherSource(service", "runWithTeacherModel(service"]);
     order("src/app/api/learning/true-false/generate/route.ts", 'freeLessonRefused(service, userId, "QUIZ_GENERATE")', ["studioTeacherSource(service", "runWithTeacherModel(service"]);

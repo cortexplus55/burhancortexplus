@@ -44,7 +44,7 @@ export const ACTION_CODE: Record<Action, ActionCode | null> = {
   "oral.start": "ORAL_EXAM_GENERATE",
   "written.start": "PRACTICE_EXAM_GENERATE",
   "cram.export": null,
-  "duel.start": "QUIZ_GENERATE",
+  "duel.start": "DUEL_GENERATE",
 };
 
 /** Ücretsiz hesabın sayacı: hangi eylem hangi günlük sayaçtan düşer (yoksa null). */
@@ -67,17 +67,24 @@ export function plusOnly(action: Action): boolean {
 }
 
 /**
- * Düello: bugünkü davranışın aynısı (ANA-PROMPT §3.11, 3.0 inceleme §4). Kurmak ücretsizde Plus'ta (cüzdan
- * bakiyesi test bedelini karşılıyorsa bakiyeden), ücretli hesapta dönem hakkından; oynamak ve bot herkese açık
- * (misafir dahil). Günlük hak yok, yalnız hız sınırı.
+ * Düello (ANA-PROMPT §3.11, 3.0 inceleme §4). Kurmak ücretsizde Plus'ta (cüzdan bakiyesi düello bedelini karşılıyorsa
+ * bakiyeden), ücretli hesapta dönem hakkından; oynamak, bot ve rövanş herkese açık (misafir dahil) ve yeni üretim yapmaz.
+ * 15 Kasım 2026 (Burhan onayı, düello 9B): kurma bedeli `DUEL_GENERATE` 20 kredi ve günlük kurma sınırı plan başına
+ * (İstanbul günü): ücretsiz 1, Plus / Sınav Haftası 10, Sigma 30; kurucu sınırsız. Oynamanın sınırı yok.
  */
 export const DUEL_ACCESS = {
   create: { free: "gift_balance_or_plus", paid: "quota", founder: "open" },
   play: "everyone",
   bot: "everyone",
-  dailyLimit: null,
+  dailyLimit: { free: 1, plus: 10, sigma: 30 },
   createPerMinute: 6,
 } as const;
+
+/** Bugün kurulabilecek düello sayısı; kurucuda sınır yok (null). */
+export function duelDailyLimit(plan: "free" | "plus" | "sigma", founder: boolean): number | null {
+  if (founder) return null;
+  return DUEL_ACCESS.dailyLimit[plan];
+}
 
 /** Sınav Haftası ikinci seçeneği yalnız sınav bu kadar gün içindeyse (ANA-PROMPT §3.11). */
 export const EXAM_WEEK_OFFER_THRESHOLD_DAYS = 14;

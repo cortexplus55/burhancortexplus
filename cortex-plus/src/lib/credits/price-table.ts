@@ -33,6 +33,8 @@ export const CREDIT_PRICE_TABLE: Record<ActionCode, CreditPrice> = {
   /** Taranmış sayfa: metinli sayfa bedelinin üstüne. */
   DOCUMENT_SCAN_PAGE: { credits: 6, per: "taranmış sayfa" },
   QUIZ_GENERATE: { credits: 10, per: "test" },
+  /** Düello kurma (15 Kasım 2026, Burhan onayı): ~iki konu testi; rövanş ve oynama yeni üretim yapmaz. Göç 20261115140000. */
+  DUEL_GENERATE: { credits: 20, per: "düello" },
   FLASHCARD_GENERATE: { credits: 4, per: "kart seti" },
   /** Üretim + değerlendirme dahil; bitişte ayrı GRADE ücreti yok. */
   PRACTICE_EXAM_GENERATE: { credits: 15, per: "deneme" },

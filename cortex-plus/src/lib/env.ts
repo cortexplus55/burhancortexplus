@@ -193,6 +193,8 @@ export type ActionCode =
   | "IMAGE_SOLUTION"
   | "DOCUMENT_PAGE_PROCESS"
   | "QUIZ_GENERATE"
+  /** Düello kurma (15 Kasım 2026, Burhan onayı): 20 kredi, göç 20261115140000. */
+  | "DUEL_GENERATE"
   | "FLASHCARD_GENERATE"
   | "PRACTICE_EXAM_GENERATE"
   | "PRACTICE_EXAM_GRADE"

@@ -66,7 +66,7 @@ const SQL_ACTION: Record<Exclude<Action, "cram.export">, { code: string; meter: 
   "video.create": { code: "SKETCH_VIDEO_GENERATE", meter: null },
   "oral.start": { code: "ORAL_EXAM_GENERATE", meter: null },
   "written.start": { code: "PRACTICE_EXAM_GENERATE", meter: null },
-  "duel.start": { code: "QUIZ_GENERATE", meter: "lesson" },
+  "duel.start": { code: "DUEL_GENERATE", meter: "lesson" },
 };
 const ACTIONS = Object.keys(SQL_ACTION) as (keyof typeof SQL_ACTION)[];
 
@@ -230,6 +230,8 @@ beforeAll(async () => {
   await db.exec(`${migration("20261024120000_credit_prices_v3")}\n${migration("20261024123000_free_daily_zero")}`);
   await db.exec(migration("20261027193000_sketch_video_credits"));
   await db.exec(migration("20261111180000_free_lesson_trial"));
+  // Düello 9B (15 Kasım 2026): düello kurmak kendi koduyla, 20 kredi.
+  await db.exec(migration("20261115140000_duel_generate_credits"));
 }, 90_000);
 afterAll(() => db.close());
 

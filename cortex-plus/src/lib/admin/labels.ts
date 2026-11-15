@@ -112,6 +112,7 @@ export const ACTION_LABELS: Record<string, string> = {
   CHAT_MESSAGE: "Sohbette bir soru sorma",
   IMAGE_SOLUTION: "Fotoğraftan soru çözme",
   QUIZ_GENERATE: "Konu testi üretme",
+  DUEL_GENERATE: "Düello kurma",
   FLASHCARD_GENERATE: "Kart seti üretme",
   EXAM_GENERATE: "Deneme sınavı üretme",
   STUDY_PLAN_GENERATE: "Ders üretme",

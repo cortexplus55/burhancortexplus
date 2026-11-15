@@ -1,7 +1,9 @@
 # Düello 9B · Üretim istemi önerisi ve maliyet tahmini
 
-15 Kasım 2026. **Öneri; kod ve göç yok, Burhan onayı bekliyor** (ANA-PROMPT B: "yeni model istemi icat etme, ek önerisi
-yaz, uygulamadan önce onayım şart"). 9B'nin üretim kısmı, 9C ve Faz 10 bu kararı bekliyor (`09-duello-tasarim.md` B).
+15 Kasım 2026. **Durum (aynı gün akşam):** ücret ve günlük sınırlar onaylandı; Burhan "20 kredi + günlük sınır + istem
+eki + paylaşım uyarısı birlikte tek PR, göç yazılır uygulanmaz, `duel.enabled` kapalı kalır" dedi. Paket `feat/duello-9b`
+dalında, PR açık, **birleştirilmedi**. Bu sürümün kapsamı ve 2.1 taslağından farkı §8'de. 9C ve Faz 10 hâlâ park
+(`09-duello-tasarim.md` B).
 
 ## 1. Bugün nasıl üretiliyor
 
@@ -115,3 +117,22 @@ Ek önlemler:
 
 Onaydan sonra sıra: saf `lib/duel/` (imza, dağılım, zorluk, puan) birim testleri → istem eki (yazar + denetçi) →
 soru soru uç (depo arayüzü arkasında, bellek içi testler) → göç → 9C bağlama ve gerçek veritabanı e2e.
+
+## 8. Uygulanan paket (15 Kasım 2026, `feat/duello-9b`, birleştirilmedi)
+
+| Parça | Ne yapıldı | Nerede |
+|---|---|---|
+| Ücret | Düello kurmak kendi kodu `DUEL_GENERATE`, 20 kredi (önce `QUIZ_GENERATE` 10). Ücretsizde ders sayacı (bakiye yoksa Plus, hediye bakiyesi yetiyorsa bakiyeden); iade ve model listelerinde | `price-table.ts`, `env.ts`, `free-meters.ts`, `model-router.ts`, `credits/service.ts` |
+| Göç | `credit_rules` satırı, yalnız ekleme. **Yazıldı, uygulanmadı.** Kod göçten önce çıkarsa `reserveCredits` eksik kuralı fiyat tablosundan tohumlar (Paket H) ve `/admin/sistem` "koddan eklenmiş" uyarısı verir | `20261115140000_duel_generate_credits.sql` |
+| Günlük sınır | İstanbul günü, bugün kurulan düello sayısı: ücretsiz 1, Plus / Sınav Haftası 10, Sigma 30, kurucu sınırsız. Kapıdan sonra, kaynak ve üretimden önce; sınırda 429 `duel_daily_limit`. Okuma düşerse engellemez | `entitlements/config.ts` (`DUEL_ACCESS`, `duelDailyLimit`), `duel-daily.ts`, düello ucu |
+| İstem eki | Kolaydan zora sıra, en az iki sınav tuzağı (yanılgı kaynaktan ya da ders kitabından, uydurma yok), kaynakta sayı/formül varsa bir kısa hesap, tekrar yok, aynı cevap en çok iki soruda, 20 sn'lik kök; ardından `SOURCE_NUMBER_PRIORITY` aynen. Test motorunun kendi kuralları (şık sayısı, eşdeğer şık, set kuralı) zaten yazarda ve hafif doğrulayıcıda | `duel-prompt.ts` |
+| Paylaşım uyarısı | Düello kurucunun belgeli hazırlığından yazıldıysa yalnız kurucuya, iki paylaşım alanının altında: "Sorular senin notundan hazırlandı; bağlantıyı alan herkes soruları görür." | `duel-share.ts`, `duello/[code]/page.tsx`, `duel-play.tsx` |
+
+**2.1 taslağından bilerek farklı olanlar:** tür karışımı (doğru/yanlış, boşluk doldur, şema) ve soru başına `type` /
+`level` etiketi bu pakette yok: bugünkü düello ekranı ve `toDuelQuestions` yalnız tek doğrulu çoktan seçmeliyi
+oynatıyor; tür etiketi ekran desteği gelmeden yazılırsa sayılacak bir şey olmaz. Şablon imzası ve son 5 düelloyla
+tekrar önleme (§6) de yok: `prep_duels` eklemeli sütunları (§7.5) 9C ile birlikte. **`duel.enabled` bayrağı kodda yok**
+(9B'nin yeni sunucusu için ayrılmıştı): bu paket birleşince bugünkü düelloyu doğrudan değiştirir (ücret, sınır, istem).
+
+Bekçi: `duello-9b.test.tsx`; güncellenen `hak-sistemi.test.ts`, `hak-sistemi-karakterizasyon.test.ts` (göçü PGlite'ta
+çalıştırır), `ucretsiz-tek-ders.test.ts`.

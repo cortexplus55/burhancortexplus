@@ -2771,3 +2771,17 @@ denetimi tek başına 16-27 sn; toplam 45-58 sn ve öğrenci bu sürede hiçbir 
 | Sahipsiz atıf: metindeki `[n]` ancak n numaralı kaynak listelenirse kalır (sunucuda kayıttan önce; ekranda eski mesajlarda da). Kaynak listesi numaralı (`- [n] belge · s.N`) | `stripOrphanCitations` |
 
 Bekçi: `ogretmen-hiz-etiket.test.tsx`. Canlıda ölçülecek: ilk metnin ekrana düşmesi ve toplam süre (`lesson_timings` kind `chat`).
+
+## Düello 9B (15 Kasım 2026) — kurma bedeli 20 kredi, günlük sınır, set istemi, paylaşım uyarısı
+
+Burhan onayı: "20 kredi ücreti ve günlük sınırı ONAYLIYORUM"; aynı gün "tek PR, göç yazılır uygulanmaz". Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| Düello kurmak kendi kodu `DUEL_GENERATE` (20 kredi; önce `QUIZ_GENERATE` 10). Ücretsizde ders sayacı: bakiye yoksa Plus, hediye bakiyesi 20'yi karşılıyorsa bakiyeden. Oynamak, bot ve rövanş ücretsiz | `price-table.ts`, göç `20261115140000`, `free-meters.ts` |
+| Günlük kurma sınırı (İstanbul günü, bugün kurulan düello): ücretsiz 1, Plus / Sınav Haftası 10, Sigma 30, kurucu sınırsız. Kapıdan sonra, kaynak ve üretimden önce; 429 `duel_daily_limit`; okuma düşerse engellemez | `DUEL_ACCESS.dailyLimit`, `duel-daily.ts` |
+| Set istemi `DUEL_SET_RULE`: kolaydan zora, en az iki sınav tuzağı (uydurma yanılgı yok), kaynakta sayı varsa bir kısa hesap, tekrar yok; sonunda `SOURCE_NUMBER_PRIORITY`. Yalnız tek doğrulu çoktan seçmeli (ekran öbür türleri oynatmıyor) | `duel-prompt.ts` |
+| Kurucunun belgeli hazırlığından yazılan düelloda yalnız kurucuya paylaşım uyarısı (`DUEL_NOTE_SHARE_WARNING`) | `duello/[code]/page.tsx`, `duel-play.tsx` |
+| `duel.enabled` bayrağı kodda yok: bu kurallar bugünkü düelloyu doğrudan değiştirir. Tür karışımı, şablon imzası ve `prep_duels` eklemeli sütunları 9C ile | `docs/design-migration/duello-9b-oneri.md` §8 |
+
+Bekçi: `duello-9b.test.tsx`, `hak-sistemi*.test.ts`, `ucretsiz-tek-ders.test.ts`.

@@ -53,6 +53,7 @@ export function defaultFreeMeter(code: ActionCode): FreeMeter | null {
   switch (code) {
     case "STUDY_PLAN_GENERATE":
     case "QUIZ_GENERATE":
+    case "DUEL_GENERATE":
     case "FLASHCARD_GENERATE":
       return "lesson";
     case "AI_CHAT_STANDARD":
