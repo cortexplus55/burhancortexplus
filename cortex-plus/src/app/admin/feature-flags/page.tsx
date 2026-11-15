@@ -139,6 +139,12 @@ const KNOWN = [
       "Açıkken kod kontrolünden şüphesiz geçen belge cevaplarının %5'i yanıttan sonra model denetiminden geçer; sonuç yalnız günlüğe (uyuşmazlık oranı), öğrenciye gösterilmez ve öğrenciyi bekletmez. Günde en çok 150 denetim (~0,30 $). Kapatınca en geç 30 sn'de durur.",
   },
   {
+    key: "quiz.option_check",
+    label: "Test · şık ayrılabilirliği denetimi (H2)",
+    description:
+      "Açıkken test motorunun kod kapısı iki kusuru da yakalar: 'ne … ne de' yapısında olumsuz fiil (dil bilgisi bozuk şık) ve aynı öğeleri yalnız başka sırayla sayan iki liste şıkkı. Soru metni değişmez; soru elenir, yerine yedek gelir, sayısı test günlüğüne yazılır. Model çağrısı yok. Kapatınca en geç 30 sn'de bugünkü kapı.",
+  },
+  {
     key: "ui.v2.duello",
     label: "Yeni görünüm · Düello",
     description: "Açıkken bu ekran yeni tasarımla görünür; kapatınca anında eski görünüme döner (geri alma). Davranış ve veriler iki durumda da aynı. Düello sunucusu hazır olmadan açma (kapanış raporu: park).",
