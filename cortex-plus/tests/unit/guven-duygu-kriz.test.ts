@@ -320,8 +320,9 @@ describe("7b: kriz yanıtı yalnız açık ifadede", () => {
     const route = read("src/app/api/ai/chat/route.ts");
     expect(route).toContain('if (v.action === "support") void recordAbuse({ signal: "moderation", severity: "high", scope: SUPPORT_SCOPE');
     expect(route).toContain("const priorSupport = turn.feelingOnly && !turn.crisis ? await recentSupportVerdict(service, userId) : false;");
-    // Kriz turunda çözüm sağlaması çalışmaz.
-    expect(route).toContain("if (charge && !turn.crisis && chatSolveNeedsGuard(");
+    // Kriz turunda çözüm sağlaması çalışmaz (15 Kasım 2026'dan beri kapı yazımdan önce hesaplanır, sağlama paralel başlar).
+    expect(route).toContain("const solveGuard = !turn.crisis && chatSolveNeedsGuard(");
+    expect(route).toContain("if (charge && solveGuard) {");
   });
 
   it("duygu sözlüğü ders ya da konu sözcüğü taşımaz", () => {

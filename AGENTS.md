@@ -2736,3 +2736,19 @@ etiketleri, "Plus'a geç"). Ayrıntılı ölçüler skill'in depo kararı 13'te.
 
 Fikstürler: `/e2e/ana-ekran?plan=plus|hafta|sigma|kurucu`, `/e2e/profil?plan=…`. Bekçi: `profil-kutuphane.test.tsx`, e2e
 `kabuk.spec.ts` (5 öğe ≥56 px, logo 76×49, Kütüphane satırları 60 px, kapsül 52 px, panel 480 px, odak dönüşü).
+
+## Öğretmen sohbeti hızı ve etiketleri (15 Kasım 2026)
+
+Canlı kayıt (`ai_usage_events`, kurucu): belgeye bağlanan bir cevapta yazım ~16 sn, eğitim denetimi ~6 sn, belge-kaynak
+denetimi tek başına 16-27 sn; toplam 45-58 sn ve öğrenci bu sürede hiçbir şey görmüyordu (ana yol akışsızdı). Ürün sahibi:
+"60-80 sn kabul edilemez; 8-15 sn". Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| Ana sohbetin cevabı ilk denemede **akışla** yazılır (öğretmen sohbetiyle aynı canlı kanal, `chat-live.ts`); "Yalnızca belgem" modunda denetlenmemiş taslak ekrana düşmez. Yazım `reasoning_effort: "low"` | `chat-draft.ts`, `api/ai/chat/route.ts` |
+| Eğitim denetimi tek ve hızlı geçiş (`reasoningEffort: "low"`). Belge-kaynak denetimi "Yalnızca belgem" dışında **kodla**: belge bölümündeki sayılar kaynakta (ya da soruda) mı, atıf gerçek bir kaynağı mı gösteriyor, genel bilgi belgeye mal edilmiş mi; atıf yoksa en çok örtüşen kaynak seçilir. Model denetimi yalnız kaynakta olmayan bir sayı görülünce (düşük düşünmeyle). "Yalnızca belgem" modunda model denetimi aynen | `localDocumentCheck` (`document-answer-verification.ts`) |
+| Bağımsız sayısal sağlama soruya bakar, cevaba değil: ana yazımla **aynı anda** başlar, sonda beklenir | `independentEarly` |
+| "Materyal dışı / Genel bilgiden" etiketi yalnız BİLGİ içindir. Benzetme kutusu, soru ve yönlendirmeden ibaret bölümün etiketi kalkar; stüdyo yönlendirmesi turunda (test, kart, deneme isteği) "kaynakta yok" satırı da düşer. Sistemin bulduğu not (`linkedEvidence`) ve araç turu otomatik "Bu, belgede yok" damgası almaz. Kaynak bloğu istemi de aynı kuralı söyler | `chat-answer-settle.ts` `settlePedagogicalLabels`, `chat-source-block.ts` |
+| Sahipsiz atıf: metindeki `[n]` ancak n numaralı kaynak listelenirse kalır (sunucuda kayıttan önce; ekranda eski mesajlarda da). Kaynak listesi numaralı (`- [n] belge · s.N`) | `stripOrphanCitations` |
+
+Bekçi: `ogretmen-hiz-etiket.test.tsx`. Canlıda ölçülecek: ilk metnin ekrana düşmesi ve toplam süre (`lesson_timings` kind `chat`).
