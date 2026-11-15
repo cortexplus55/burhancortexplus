@@ -1,6 +1,7 @@
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AdminCard, AdminNote, AdminTableFrame } from "@/components/admin/admin-ui";
 import { FeatureFlagRow } from "@/components/admin/admin-rows";
+import { PilotSelfButton } from "@/components/admin/pilot-self-button";
 import { requireFounderPage } from "@/lib/auth/admin-guard";
 import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
@@ -133,6 +134,12 @@ const KNOWN = [
     description: "Açıkken bu ekran yeni tasarımla görünür; kapatınca anında eski görünüme döner (geri alma). Davranış ve veriler iki durumda da aynı. Günde en çok bir öneri; kapatılınca 30 gün çıkmaz.",
   },
   {
+    key: "duel.v2",
+    label: "Düello · yeni kurma kuralları (9B)",
+    description:
+      "Açıkken düello kurmak 20 kredi (DUEL_GENERATE, göç 20261115140000), günlük kurma sınırı (ücretsiz 1, Plus ve Sınav Haftası 10, Sigma 30, kurucu sınırsız), set istemi ve kendi notundan kurulan düelloda paylaşım uyarısı. Kapalıyken bugünkü düello (10 kredi, günlük sınır yok). Önce yalnız kurucuda aç (pilot); genel açma Burhan'ın kararı. Kapatınca en geç 30 sn'de bugünkü kurallar.",
+  },
+  {
     key: "ui.v2.duello",
     label: "Yeni görünüm · Düello",
     description: "Açıkken bu ekran yeni tasarımla görünür; kapatınca anında eski görünüme döner (geri alma). Davranış ve veriler iki durumda da aynı. Düello sunucusu hazır olmadan açma (kapanış raporu: park).",
@@ -189,13 +196,22 @@ const RETIRED = new Set([
   ...SETTING_ROWS.map((flag) => flag.key),
 ]);
 
+/** Panelden yalnız kurucunun hesabında açılabilen anahtarlar (`setSelfFlagPilot` ile aynı liste). */
+const PILOT_SELF = new Set(["duel.v2"]);
+
+function pilotIdsOf(metadata: unknown): string[] {
+  const raw =
+    metadata && typeof metadata === "object" ? (metadata as { pilot_user_ids?: unknown }).pilot_user_ids : null;
+  return Array.isArray(raw) ? raw.filter((id): id is string => typeof id === "string") : [];
+}
+
 export default async function AdminOzellikAnahtarlariPage() {
-  await requireFounderPage();
+  const { user } = await requireFounderPage();
   const service = createServiceClient();
   const mode = paytrMode();
 
   const [{ data: flags }, pending] = await Promise.all([
-    service.from("feature_flags").select("key, enabled, description"),
+    service.from("feature_flags").select("key, enabled, description, metadata"),
     countPendingApplications(service),
   ]);
 
@@ -253,6 +269,15 @@ export default async function AdminOzellikAnahtarlariPage() {
               label={flag.label}
               description={flag.description}
               enabled={flag.enabled}
+              extra={
+                PILOT_SELF.has(flag.key) ? (
+                  <PilotSelfButton
+                    flagKey={flag.key}
+                    active={pilotIdsOf(stored.get(flag.key)?.metadata).includes(user.id)}
+                    count={pilotIdsOf(stored.get(flag.key)?.metadata).length}
+                  />
+                ) : null
+              }
             />
           ))}
           {SETTING_ROWS.map((flag) => (

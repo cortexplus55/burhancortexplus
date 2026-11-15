@@ -2774,14 +2774,16 @@ Bekçi: `ogretmen-hiz-etiket.test.tsx`. Canlıda ölçülecek: ilk metnin ekrana
 
 ## Düello 9B (15 Kasım 2026) — kurma bedeli 20 kredi, günlük sınır, set istemi, paylaşım uyarısı
 
-Burhan onayı: "20 kredi ücreti ve günlük sınırı ONAYLIYORUM"; aynı gün "tek PR, göç yazılır uygulanmaz". Yeniden açmayın:
+Burhan onayı: "20 kredi ücreti ve günlük sınırı ONAYLIYORUM"; aynı gün "bayrakla birleştir". Hepsi `duel.v2` arkasında
+(varsayılan kapalı, kişi bazlı: panelde "Yalnız bende aç (pilot)", 30 sn önbellek). **Bayrak kapalıyken bugünkü düello
+birebir** (`QUIZ_GENERATE` 10 kredi, günlük sınır yok, istem aynı). Yeniden açmayın:
 
 | Kural | Nerede |
 |---|---|
 | Düello kurmak kendi kodu `DUEL_GENERATE` (20 kredi; önce `QUIZ_GENERATE` 10). Ücretsizde ders sayacı: bakiye yoksa Plus, hediye bakiyesi 20'yi karşılıyorsa bakiyeden. Oynamak, bot ve rövanş ücretsiz | `price-table.ts`, göç `20261115140000`, `free-meters.ts` |
-| Günlük kurma sınırı (İstanbul günü, bugün kurulan düello): ücretsiz 1, Plus / Sınav Haftası 10, Sigma 30, kurucu sınırsız. Kapıdan sonra, kaynak ve üretimden önce; 429 `duel_daily_limit`; okuma düşerse engellemez | `DUEL_ACCESS.dailyLimit`, `duel-daily.ts` |
+| Günlük kurma sınırı (İstanbul günü, bugün kurulan düello): ücretsiz 1, Plus / Sınav Haftası 10, Sigma 30, kurucu sınırsız. Kapıdan sonra, kaynak ve üretimden önce; 429 `duel_daily_limit`; okuma düşerse engellemez | `DUEL_V2_DAILY_LIMIT`, `duel-daily.ts` |
 | Set istemi `DUEL_SET_RULE`: kolaydan zora, en az iki sınav tuzağı (uydurma yanılgı yok), kaynakta sayı varsa bir kısa hesap, tekrar yok; sonunda `SOURCE_NUMBER_PRIORITY`. Yalnız tek doğrulu çoktan seçmeli (ekran öbür türleri oynatmıyor) | `duel-prompt.ts` |
 | Kurucunun belgeli hazırlığından yazılan düelloda yalnız kurucuya paylaşım uyarısı (`DUEL_NOTE_SHARE_WARNING`) | `duello/[code]/page.tsx`, `duel-play.tsx` |
-| `duel.enabled` bayrağı kodda yok: bu kurallar bugünkü düelloyu doğrudan değiştirir. Tür karışımı, şablon imzası ve `prep_duels` eklemeli sütunları 9C ile | `docs/design-migration/duello-9b-oneri.md` §8 |
+| `duel.enabled` adı yeni düello sunucusuna ayrılmış, kullanılmaz. Statik kapı (`ACTION_CODE["duel.start"]`) bayrak kapalı davranışını taşır. Geri alma: önce bayrak; kod da dönerse `supabase/rollback/20261115_duello_9b_geri_al.sql` satırı kapatır (silmez). Tür karışımı, şablon imzası ve `prep_duels` eklemeli sütunları 9C ile | `docs/design-migration/duello-9b-oneri.md` §8 |
 
-Bekçi: `duello-9b.test.tsx`, `hak-sistemi*.test.ts`, `ucretsiz-tek-ders.test.ts`.
+Bekçi: `duello-9b.test.tsx` (bayrak kapalı regresyonu; göç ve geri alma PGlite'ta), `ucretsiz-tek-ders.test.ts`.

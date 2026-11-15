@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { toast } from "sonner";
 import { activatePromptVersion, toggleFeatureFlag, updateCreditRule } from "@/app/admin/actions";
 
@@ -78,6 +78,7 @@ export function FeatureFlagRow({
   enabled,
   locked = false,
   statusLabel,
+  extra,
 }: {
   flagKey: string;
   label: string;
@@ -86,6 +87,8 @@ export function FeatureFlagRow({
   /** Kodun okumadığı eski bayrak: anahtar yanıltmasın. */
   locked?: boolean;
   statusLabel?: string;
+  /** Açıklamanın altında ek denetim (ör. kişi bazlı açma düğmesi). */
+  extra?: ReactNode;
 }) {
   const [checked, setChecked] = useState(enabled);
   const [pending, startTransition] = useTransition();
@@ -95,6 +98,7 @@ export function FeatureFlagRow({
       <td>
         <div className="font-medium">{label}</div>
         <div className="whitespace-normal text-xs text-[var(--adm-muted)]">{description}</div>
+        {extra}
       </td>
       <td>
         {locked ? (

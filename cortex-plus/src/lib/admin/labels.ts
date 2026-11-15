@@ -13,6 +13,7 @@ export const AUDIT_LABELS: Record<string, string> = {
   "credits.granted": "Kullanıcıya kredi verildi",
   "credits.adjusted": "Kullanıcının kredisi değiştirildi",
   "feature_flag.toggled": "Bir özellik açıldı ya da kapatıldı",
+  "feature_flag.pilot_self": "Bir özellik yalnız kurucunun hesabında açıldı ya da kaldırıldı",
   "payment.refunded": "Ödeme iade edildi olarak işaretlendi",
   "plan.updated": "Paket bilgileri güncellendi",
   "promo.created": "Kampanya kodu oluşturuldu",

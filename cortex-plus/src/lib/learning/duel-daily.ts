@@ -7,6 +7,11 @@ import { duelDailyLimit } from "@/lib/entitlements/config";
 
 export type DuelDailyCheck = { allowed: boolean; limit: number | null; used: number };
 
+/** Sınıra gelen öğrencinin gördüğü ileti (429 `duel_daily_limit`): ne olduğunu ve neyin açık kaldığını söyler. */
+export function duelDailyLimitMessage(limit: number): string {
+  return `Bugün en çok ${limit} düello kurabilirsin. Kurduğun düelloları oynamak, botla oynamak ve rövanş açık; yarın yeniden kurabilirsin.`;
+}
+
 /** İstanbul gününün başı (sabit UTC+3). */
 export function istanbulDayStartIso(now: Date = new Date()): string {
   return `${istanbulDay(now)}T00:00:00+03:00`;

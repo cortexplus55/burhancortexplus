@@ -74,12 +74,10 @@ describe("Ücretsiz", () => {
       expect(gate(free(), action), action).toEqual({ state: "locked", reason: "feature_requires_plus", requiredPlan: "plus" });
     }
   });
-  it("düello kurmak: bakiye yoksa Plus, düello bedeli (20) kadar bakiye (hediye) varsa açık (DUEL_ACCESS)", () => {
+  it("düello kurmak: bakiye yoksa Plus, test bedeli kadar bakiye (hediye) varsa açık (DUEL_ACCESS)", () => {
     expect(gate(free(), "duel.start")).toMatchObject({ state: "locked", reason: "feature_requires_plus", requiredPlan: "plus" });
-    // Düello 9B (15 Kasım 2026): bedel 20 kredi; eski test bedeli (10) artık yetmez.
-    expect(gate(free({ balance: 10 }), "duel.start")).toMatchObject({ state: "locked", reason: "feature_requires_plus" });
-    expect(gate(free({ balance: 20 }), "duel.start")).toMatchObject({ state: "limited", reason: "quota_ok", period: "lifetime", remaining: 1 });
-    expect(DUEL_ACCESS).toMatchObject({ play: "everyone", bot: "everyone", dailyLimit: { free: 1, plus: 10, sigma: 30 } });
+    expect(gate(free({ balance: 10 }), "duel.start")).toMatchObject({ state: "limited", reason: "quota_ok", period: "lifetime", remaining: 1 });
+    expect(DUEL_ACCESS).toMatchObject({ play: "everyone", bot: "everyone", dailyLimit: null });
   });
   it("hediye bakiyesi sayaç dolunca işi karşılar; Plus'a özel işi açmaz", () => {
     const gift = free({ balance: 90, firstLesson: "done", meters: { chat: { used: 3, limit: 3, resetsAt: MIDNIGHT } } });

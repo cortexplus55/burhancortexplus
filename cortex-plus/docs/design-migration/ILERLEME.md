@@ -26,7 +26,7 @@ teklif yok; sayaç "önce artır, hata olursa iade" kabul; sohbette 402 sonrası
 | 7A+7B+7C · Giriş + kayıt, kurulum, /pay (tek PR) | `design/faz7` | **birleşti** (08df6fdc), production duman 11/11 | #655 | `ui.v2.giris`, `ui.v2.kurulum`, `ui.v2.pay` | Önizlemede gerçek ödeme denemesi (rapor §10) | `?plan=` kartı açıp işaretliyor (bayraktan bağımsız) |
 | 8A+8B+8C · Stüdyo (tek PR) | `design/faz8` | **birleşti** (8c1bf91d), production duman 11/11 | #656 | `ui.v2.studyo` | — | /araclar Plus kartlarında `<Gate>`; podcast satırı, dikey video |
 | 9 · Düello (9.0 + 9A'nın bugünkü ekranlara uygulanabilen kısmı) | `design/faz9` | **birleşti** (13ddb3d0), production duman 11/11 | #657 | `ui.v2.duello` (kapalı kalır) | Yeni üretim istemi kararı; göçü SQL ekranında uygulamak | Tasarım `09-duello-tasarim.md`; 9B, 9C, Faz 10 park |
-| 9B · Düello sunucusu | `feat/duello-9b` | **PR açık, birleştirilmedi** (ücret 20, günlük sınır, istem eki, paylaşım uyarısı) | — | `duel.enabled` kodda yok | Göç `20261115140000` (SQL ekranı) + birleştirme onayı | `duello-9b-oneri.md` §8 |
+| 9B · Düello kurma kuralları | `feat/duello-9b` | **PR #673 açık** (ücret 20, günlük sınır, istem eki, paylaşım uyarısı; `duel.v2` arkasında) | #673 | `duel.v2` (kapalı; önce pilot) | "DÜELLO GÖÇÜNÜ UYGULA" → birleştir → pilot → "DÜELLO'YU AÇ" | `duello-9b-oneri.md` §8 |
 | 9C · Düello bağlama | — | **park** | — | — | 9B'ye bağlı | |
 | 10A+10B · Paylaşım kartı, `/d/KOD` | — | **park** | — | `ui.v2.paylas` | 9B'ye bağlı | `/d/ZZZZZZZZ` 404 (duman testi) |
 | 11A+11B+11C · Ayarlar, Kütüphane, araçlar, büyüme (tek PR) | `design/faz11` | **birleşti** (50889a28) | #658 | `ui.v2.ayarlar`, `ui.v2.kutuphane`, `ui.v2.araclar2`, `ui.v2.buyume` | Telefonda davet şeridi yeri | Yerleşim 7 kodlandı, öbürleri bekliyor |
@@ -79,9 +79,9 @@ teklif yok; sayaç "önce artır, hata olursa iade" kabul; sohbette 402 sonrası
    - ~~Sınav Haftası dönem boşluğu düzeltmesi~~: onaylandı, göç `20261115120000` canlıda, PR #660 birleşti.
    - `ui.v2.pay`: Burhan 15 Kasım'da güvenli önizlemeyle açmayı onayladı (ödeme kaydı yok; yalnız planlar görülür).
      Açma ve canlı bakış oturum gerektiriyor: `pay-bayragi-secenekler.md` "Karar".
-   - Düello 9B: ücret 20 kredi (`DUEL_GENERATE`), günlük sınırlar, istem eki ve paylaşım uyarısı **tek pakette**
-     (`feat/duello-9b`, PR açık, birleştirilmedi). Göç `20261115140000` yazıldı, uygulanmadı. Tür karışımı ve
-     `prep_duels` eklemeli sütunları 9C ile (`duello-9b-oneri.md` §8).
+   - Düello 9B: ücret 20 kredi (`DUEL_GENERATE`), günlük sınırlar, istem eki ve paylaşım uyarısı **tek pakette**,
+     `duel.v2` bayrağı arkasında (PR #673). Göç `20261115140000` yazıldı, uygulanmadı ("DÜELLO GÖÇÜNÜ UYGULA" bekliyor).
+     Tür karışımı ve `prep_duels` eklemeli sütunları 9C ile (`duello-9b-oneri.md` §8).
    - Kararsız test listesini ayrı yapıt olarak saklamak: `ci.yml`'e `upload-artifact` adımı. İş akışı dosyası bu
      oturumun yetkisiyle push edilemiyor; liste şimdilik iş özetinde.
 

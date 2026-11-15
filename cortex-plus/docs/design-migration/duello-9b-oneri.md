@@ -118,7 +118,13 @@ Ek önlemler:
 Onaydan sonra sıra: saf `lib/duel/` (imza, dağılım, zorluk, puan) birim testleri → istem eki (yazar + denetçi) →
 soru soru uç (depo arayüzü arkasında, bellek içi testler) → göç → 9C bağlama ve gerçek veritabanı e2e.
 
-## 8. Uygulanan paket (15 Kasım 2026, `feat/duello-9b`, birleştirilmedi)
+## 8. Uygulanan paket (15 Kasım 2026, `feat/duello-9b`, PR #673)
+
+**Burhan kararı (aynı gün): bayrakla birleştir.** Yeni kurallar `duel.v2` bayrağı arkasında (varsayılan kapalı, kişi
+bazlı açılır, 30 sn önbellek). Bayrak kapalıyken bugünkü düello birebir: `QUIZ_GENERATE` 10 kredi, günlük sınır yok,
+istem aynı, uyarı yok. Sıra: göç ("DÜELLO GÖÇÜNÜ UYGULA") → birleştir → canlı duman → panelde "Yalnız bende aç (pilot)",
+Burhan hesabında 1 düello kur / oyna / rövanş → "DÜELLO'YU AÇ" yazarsa genel aç. `duel.enabled` adı yeni düello sunucusuna
+ayrılmış, kullanılmadı.
 
 | Parça | Ne yapıldı | Nerede |
 |---|---|---|
@@ -131,8 +137,11 @@ soru soru uç (depo arayüzü arkasında, bellek içi testler) → göç → 9C 
 **2.1 taslağından bilerek farklı olanlar:** tür karışımı (doğru/yanlış, boşluk doldur, şema) ve soru başına `type` /
 `level` etiketi bu pakette yok: bugünkü düello ekranı ve `toDuelQuestions` yalnız tek doğrulu çoktan seçmeliyi
 oynatıyor; tür etiketi ekran desteği gelmeden yazılırsa sayılacak bir şey olmaz. Şablon imzası ve son 5 düelloyla
-tekrar önleme (§6) de yok: `prep_duels` eklemeli sütunları (§7.5) 9C ile birlikte. **`duel.enabled` bayrağı kodda yok**
-(9B'nin yeni sunucusu için ayrılmıştı): bu paket birleşince bugünkü düelloyu doğrudan değiştirir (ücret, sınır, istem).
+tekrar önleme (§6) de yok: `prep_duels` eklemeli sütunları (§7.5) 9C ile birlikte.
 
-Bekçi: `duello-9b.test.tsx`; güncellenen `hak-sistemi.test.ts`, `hak-sistemi-karakterizasyon.test.ts` (göçü PGlite'ta
-çalıştırır), `ucretsiz-tek-ders.test.ts`.
+Geri alma: önce bayrak (panelde Kapat ya da "Benden kaldır", en geç 30 sn). Kod da geri alınırsa
+`supabase/rollback/20261115_duello_9b_geri_al.sql` satırı siler değil kapatır.
+
+Bekçi: `duello-9b.test.tsx` (bayrak kapalı regresyonu, açıkken ücret/sınır/istem, notta g = 10 kaynağı ve İSTEK sırası,
+göç ve geri alma PGlite'ta: var olan satır ve sütun değişmiyor), `ucretsiz-tek-ders.test.ts`. `hak-sistemi*.test.ts`
+değişmedi (bayrak kapalıyken kapı bugünkü gibi).

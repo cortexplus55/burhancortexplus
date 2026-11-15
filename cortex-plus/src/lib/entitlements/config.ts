@@ -44,7 +44,7 @@ export const ACTION_CODE: Record<Action, ActionCode | null> = {
   "oral.start": "ORAL_EXAM_GENERATE",
   "written.start": "PRACTICE_EXAM_GENERATE",
   "cram.export": null,
-  "duel.start": "DUEL_GENERATE",
+  "duel.start": "QUIZ_GENERATE",
 };
 
 /** Ücretsiz hesabın sayacı: hangi eylem hangi günlük sayaçtan düşer (yoksa null). */
@@ -67,23 +67,32 @@ export function plusOnly(action: Action): boolean {
 }
 
 /**
- * Düello (ANA-PROMPT §3.11, 3.0 inceleme §4). Kurmak ücretsizde Plus'ta (cüzdan bakiyesi düello bedelini karşılıyorsa
- * bakiyeden), ücretli hesapta dönem hakkından; oynamak, bot ve rövanş herkese açık (misafir dahil) ve yeni üretim yapmaz.
- * 15 Kasım 2026 (Burhan onayı, düello 9B): kurma bedeli `DUEL_GENERATE` 20 kredi ve günlük kurma sınırı plan başına
- * (İstanbul günü): ücretsiz 1, Plus / Sınav Haftası 10, Sigma 30; kurucu sınırsız. Oynamanın sınırı yok.
+ * Düello: bugünkü davranışın aynısı (ANA-PROMPT §3.11, 3.0 inceleme §4). Kurmak ücretsizde Plus'ta (cüzdan
+ * bakiyesi test bedelini karşılıyorsa bakiyeden), ücretli hesapta dönem hakkından; oynamak ve bot herkese açık
+ * (misafir dahil). Günlük hak yok, yalnız hız sınırı.
  */
 export const DUEL_ACCESS = {
   create: { free: "gift_balance_or_plus", paid: "quota", founder: "open" },
   play: "everyone",
   bot: "everyone",
-  dailyLimit: { free: 1, plus: 10, sigma: 30 },
+  dailyLimit: null,
   createPerMinute: 6,
 } as const;
 
-/** Bugün kurulabilecek düello sayısı; kurucuda sınır yok (null). */
+/**
+ * Düello 9B (15 Kasım 2026, Burhan onayı), `duel.v2` bayrağı arkasında. Bayrak kapalıyken yukarıdaki `DUEL_ACCESS` ve
+ * `QUIZ_GENERATE` (10 kredi) aynen geçerli. Açıkken: kurma bedeli `DUEL_GENERATE` 20 kredi, günlük kurma sınırı plan
+ * başına (İstanbul günü; ücretsiz 1, Plus / Sınav Haftası 10, Sigma 30, kurucu sınırsız), set istemi ve paylaşım uyarısı.
+ * Oynamak, bot ve rövanş iki durumda da serbest. `duel.enabled` adı yeni düello sunucusuna ayrılmış; bu bayrak o değil.
+ */
+export const DUEL_V2_FLAG = "duel.v2";
+export const DUEL_V2_ACTION_CODE = "DUEL_GENERATE" as const;
+export const DUEL_V2_DAILY_LIMIT = { free: 1, plus: 10, sigma: 30 } as const;
+
+/** Bayrak açıkken bugün kurulabilecek düello sayısı; kurucuda sınır yok (null). */
 export function duelDailyLimit(plan: "free" | "plus" | "sigma", founder: boolean): number | null {
   if (founder) return null;
-  return DUEL_ACCESS.dailyLimit[plan];
+  return DUEL_V2_DAILY_LIMIT[plan];
 }
 
 /** Sınav Haftası ikinci seçeneği yalnız sınav bu kadar gün içindeyse (ANA-PROMPT §3.11). */
