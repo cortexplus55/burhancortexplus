@@ -2,6 +2,7 @@ import { applyDisplayDates, pathOriginDay, daysBetween, type DatedPathNode } fro
 import { PLAN_NODE_META, type PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { withoutOutcomeCode } from "@/lib/learning/path-labels";
 import { heaviestSection, type DocumentMap } from "@/lib/documents/document-map";
+import { examPrepNodeHref } from "@/lib/learning/exam-prep-hrefs";
 
 /*
   Öğrenci Dosyası (PROMPT-V2 §3, PR-2), 15 Kasım 2026: öğrencinin KENDİ kayıtlarından ≤300 jetonluk özet. Saf: girdi
@@ -35,6 +36,18 @@ export type Dossier = {
   promptBlock: string;
   /** Son belgenin haritası henüz yok (PR-3): çağıran arka planda hesaplatır. */
   pendingMapDocumentId: string | null;
+  /** Yönlendiricinin (PR-4) okuduğu yapılandırılmış sinyaller; satırlarla aynı kayıtlardan. */
+  signals: DossierSignals;
+};
+
+/** Her sinyal gerçek bir kayda ve onu açan bir yere (`href`) bağlı; yoksa null ya da boş. */
+export type DossierSignals = {
+  reviews: { count: number; href: string } | null;
+  weak: { label: string; count: number; href: string }[];
+  behind: { topic: string; days: number; href: string; minutes: number | null; prepTitle: string; examDaysLeft: number | null }[];
+  exam: { title: string; daysLeft: number; href: string } | null;
+  nextStep: { title: string; href: string; minutes: number | null } | null;
+  heavySection: { title: string; documentName: string; from: number; to: number } | null;
 };
 
 export type DossierPrep = {
@@ -91,7 +104,10 @@ export function weakConcepts(input: Pick<DossierInput, "mistakes" | "openMisconc
 }
 
 /** Yolda günü geçmiş, bitmemiş en erken adım: konu adı ve kaç gün geride. Tarih hazırlık sayfasının kuralından. */
-export function behindStep(prep: DossierPrep, today: string): { topic: string; days: number } | null {
+export function behindStep(
+  prep: DossierPrep,
+  today: string,
+): { topic: string; days: number; nodeId: string; minutes: number | null } | null {
   const dated = prep.nodes
     .filter((node) => node.kind && node.kind in PLAN_NODE_META && node.status !== "hidden")
     .map((node) => ({
@@ -103,14 +119,17 @@ export function behindStep(prep: DossierPrep, today: string): { topic: string; d
       title: node.title,
     }));
   const withDates = applyDisplayDates(dated, { origin: pathOriginDay(prep.createdAt), examDate: prep.examDate });
-  let earliest: { topic: string; days: number } | null = null;
+  let earliest: { topic: string; days: number; nodeId: string; minutes: number | null } | null = null;
   for (const node of withDates) {
     const date = node.sessionMeta?.calendarDate;
     if (node.status === "done" || typeof date !== "string" || date >= today) continue;
     const days = daysBetween(date, today);
     const topic = clean(node.sessionMeta?.topicTitle ?? node.title);
     if (!topic) continue;
-    if (!earliest || days > earliest.days) earliest = { topic, days };
+    const minutes = Number((node.sessionMeta as { durationMinutes?: unknown } | null)?.durationMinutes);
+    if (!earliest || days > earliest.days) {
+      earliest = { topic, days, nodeId: node.id, minutes: Number.isFinite(minutes) && minutes > 0 ? minutes : null };
+    }
   }
   return earliest;
 }
@@ -165,16 +184,26 @@ export function buildDossier(input: DossierInput): Dossier {
   }
 
   let behindCount = 0;
+  const behindSignals: DossierSignals["behind"] = [];
   for (const prep of input.preps) {
     const behind = behindStep(prep, input.today);
     if (!behind) continue;
     behindCount += 1;
+    const href = examPrepNodeHref(prep.id, behind.nodeId);
+    behindSignals.push({
+      topic: behind.topic,
+      days: behind.days,
+      href,
+      minutes: behind.minutes,
+      prepTitle: clean(prep.title),
+      examDaysLeft: daysLeft(prep.examDate, input.today),
+    });
     if (lines.filter((line) => line.source === "plan").length >= 2) continue;
     lines.push({
       key: `behind:${prep.id}`,
       source: "plan",
       text: `${behind.topic} ${behind.days} gün gecikti (${clean(prep.title)})`,
-      href: `/deneme-sinavlari/${prep.id}`,
+      href,
       sourceLabel: "Hazırlık planı",
     });
   }
@@ -227,11 +256,49 @@ export function buildDossier(input: DossierInput): Dossier {
     ? ""
     : `ÖĞRENCİ DOSYASI (yalnız bu satırlar gerçek kayıttır; "daha önce takılmıştın" gibi bir cümleyi YALNIZ burada eşleşen ` +
       `bir kayıt varsa kur; burada olmayan geçmişi uydurma; tanı ve kişilik yorumu yapma):\n${body}`.slice(0, PROMPT_LIMIT);
+  const reviewHref = lines.find((line) => line.key === "reviews")?.href ?? "/tekrar";
+  const heavy = map ? heaviestSection(map) : null;
+  const signals: DossierSignals = {
+    reviews: due > 0 ? { count: due, href: reviewHref } : null,
+    weak: weak.map((entry) => ({ ...entry, href: "/yanlislarim" })),
+    behind: behindSignals.sort((a, b) => urgency(b) - urgency(a)),
+    exam: upcoming && upcoming.left != null
+      ? { title: clean(upcoming.prep.title), daysLeft: upcoming.left, href: `/deneme-sinavlari/${upcoming.prep.id}` }
+      : null,
+    nextStep: nextOpenStep(upcoming?.prep ?? input.preps[0] ?? null),
+    heavySection:
+      heavy && map && map.sections.length > 1 && input.documents[0]
+        ? { title: clean(heavy.title), documentName: clean(input.documents[0].fileName), from: heavy.from, to: heavy.to }
+        : null,
+  };
   return {
     lines,
     checks,
     empty,
     promptBlock,
     pendingMapDocumentId: input.documents.length && !input.documentMap ? input.documents[0]!.id : null,
+    signals,
+  };
+}
+
+/** Geciken adımın aciliyeti: sınava kalan gün azaldıkça ve gecikme büyüdükçe artar (deterministik). */
+export function urgency(entry: { days: number; examDaysLeft: number | null }): number {
+  const exam = entry.examDaysLeft == null ? 0 : Math.max(0, 30 - Math.min(30, entry.examDaysLeft));
+  return entry.days * 2 + exam;
+}
+
+/** Hazırlığın sıradaki açık adımı (kilidi açık, bitmemiş, sıra numarasıyla ilk): "yeni konu" önerisi. */
+function nextOpenStep(prep: DossierPrep | null): DossierSignals["nextStep"] {
+  if (!prep) return null;
+  const open = [...prep.nodes]
+    .filter((node) => node.status === "ready" && node.kind && node.kind in PLAN_NODE_META)
+    .sort((a, b) => Number(a.sortOrder ?? 0) - Number(b.sortOrder ?? 0))[0];
+  if (!open) return null;
+  const meta = (open.sessionMeta ?? {}) as { topicTitle?: string; durationMinutes?: unknown };
+  const minutes = Number(meta.durationMinutes);
+  return {
+    title: clean(meta.topicTitle ?? open.title) || clean(PLAN_NODE_META[open.kind as PlanNodeKind].title),
+    href: examPrepNodeHref(prep.id, open.id),
+    minutes: Number.isFinite(minutes) && minutes > 0 ? minutes : null,
   };
 }
