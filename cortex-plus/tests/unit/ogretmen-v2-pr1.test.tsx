@@ -292,7 +292,7 @@ describe("sohbet ucu: bayrak arkasında, model çağrısı eklenmez", () => {
   it("panel: menü ve Rehberli yalnız bayrak açıkken ve ana sohbette; kapalıyken üç düğmeli anahtar", () => {
     expect(panel).toContain("const v2Main = teacherV2 && !prepId;");
     expect(panel).toContain("const activeStyle: TeachStyle = v2Main ? teachStyle : tutorStyle;");
-    expect(panel).toMatch(/\{v2Main \? \(\s*<TeachStyleMenu/);
+    expect(panel).toMatch(/\{v2Main \? \(\s*(?:<>\s*)?<TeachStyleMenu/);
     expect(panel).toContain("<TutorModeSwitcher value={tutorStyle} onChange={persistTutorStyle} disabled={loading} />");
     expect(panel).toContain("if (next !== GUIDED_TEACH_STYLE) persistTutorStyle(next);");
   });

@@ -76,6 +76,7 @@ import { useSelectedCockpitPrepId } from "@/components/parity/home-selection";
 import { SourceModePill } from "@/components/chat/source-mode-pill";
 import { TutorModeSwitcher } from "@/components/chat/tutor-mode-switcher";
 import { TeachStyleMenu } from "@/components/chat/teach-style-menu";
+import { TeacherDossierPanel } from "@/components/chat/teacher-dossier-panel";
 import { splitFinalQuestion } from "@/lib/learning/question-bubble";
 import {
   DEFAULT_TUTOR_STYLE,
@@ -399,6 +400,8 @@ function ChatPanelSession({
    * profile de yazılır. Bayrak kapalıyken ya da hazırlık sohbetinde kullanılmaz (bugünkü `tutorStyle`).
    */
   const v2Main = teacherV2 && !prepId;
+  /** "Neye baktım" yalnız bayrak açıkken ana sohbette (giriş yapmış öğrenci; misafirde dosya yok). */
+  const dossierPanel = v2Main;
   const [teachStyle, setTeachStyle] = useState<TeachStyle>(GUIDED_TEACH_STYLE);
   useEffect(() => {
     if (!v2Main) return;
@@ -2031,7 +2034,11 @@ function ChatPanelSession({
                   />
                 ) : null}
                 {v2Main ? (
-                  <TeachStyleMenu value={teachStyle} onChange={persistTeachStyle} disabled={loading} />
+                  <>
+                    <TeachStyleMenu value={teachStyle} onChange={persistTeachStyle} disabled={loading} />
+                    {/* PR-2: öğretmenin okuduğu kayıtlar ("Neye baktım"); açılınca okunur. */}
+                    {dossierPanel ? <TeacherDossierPanel /> : null}
+                  </>
                 ) : (
                   <TutorModeSwitcher value={tutorStyle} onChange={persistTutorStyle} disabled={loading} />
                 )}
