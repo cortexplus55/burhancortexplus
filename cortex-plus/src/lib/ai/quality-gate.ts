@@ -4,6 +4,7 @@ import { env } from "@/lib/env";
 import { parseModelJson } from "@/lib/learning/teaching-standards";
 import { withTransientRetry } from "@/lib/ai/transient-retry";
 import { visionImage } from "@/lib/ai/vision";
+import { isReasoningModel } from "@/lib/ai/model-params";
 import {
   partitionVerifierIssues,
   settleRejectedLesson,
@@ -215,6 +216,11 @@ export async function verifyEducationalContent(input: {
    * (ürün sahibinin kararı: belge ekli mesaj gpt-4.1 denetimiyle ~$0,026 tutuyordu, luna ile ~$0,002).
    */
   model?: string;
+  /**
+   * Denetçinin düşünme düzeyi (15 Kasım 2026): sohbette öğrenci cevabı bekliyor, denetim tek ve hızlı geçiş. Yalnız
+   * akıl yürüten modele gider; verilmezse modelin varsayılanı.
+   */
+  reasoningEffort?: "low" | "medium" | "high";
   signal?: AbortSignal;
   /**
    * Üretim fonksiyonunun başlangıcı. Geçici 5xx yeniden denemesi
@@ -312,6 +318,9 @@ export async function verifyEducationalContent(input: {
           return input.client.chat.completions.create(
         {
           model: input.model ?? env.OPENAI_ADVANCED_MODEL,
+          ...(input.reasoningEffort && isReasoningModel(input.model ?? env.OPENAI_ADVANCED_MODEL)
+            ? { reasoning_effort: input.reasoningEffort }
+            : {}),
           response_format: { type: "json_object" },
           messages: [
             {

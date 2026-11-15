@@ -66,9 +66,13 @@ export function chatSourceBlock(
     "• Cevap alıntılarda geçiyorsa: önce \"Belgeden:\" başlığı altında anlat ve [1]/[2] atıfı ver.\n" +
     "• Alıntılarda olmayan kısmı ayrı bir bölümde yaz ve o bölüme tam olarak \"Materyal dışı:\" diye başla. " +
     "\"Genel bilgiden:\" aynı bölümdür. Bu etiketi atlama. Genel bilgiye [1] veya sayfa atıfı UYDURMA.\n" +
-    "• Cevap alıntılarda hiç geçmiyorsa: cevabın İLK SATIRI tam olarak şu olsun → " +
+    "• Sorulan BİLGİ alıntılarda hiç geçmiyorsa: cevabın İLK SATIRI tam olarak şu olsun → " +
     "\"Bu, yüklediğin kaynakta yok — genel bilgiyle anlatıyorum:\" " +
     "Ardından bölüm \"Materyal dışı:\" diye başlasın ve hiçbir belge atıfı verme.\n" +
+    "• Etiket yalnız BİLGİ içindir (tanım, kural, olgu, sayı). Sıcak açılış, öğrenciye hitap, günlük hayattan benzetme, " +
+    "kontrol sorusu, yönlendirme ve araç önerisi bilgi değildir: etiketsiz, cevabın kendi akışında yazılır; onlar için " +
+    "\"Materyal dışı:\" bölümü ya da \"kaynakta yok\" satırı açılmaz. Öğrenci test, kart, deneme ya da özet istiyorsa " +
+    "bu bir istektir, bilgi sorusu değildir.\n" +
     "Sadece ortak terim veya sayı bulunması cevabın belgede bulunduğunu göstermez. " +
     "soruda geçen terim alıntıda yoksa o kısmı genel bilgi say. " +
     "Emin değilsen bilgiyi genel bilgi olarak ayır. Kaynakta olmayan bir bilgiyi asla " +

@@ -267,13 +267,15 @@ describe("5b: Adım Adım ilk turda nihai cevabı yazdırmaz", () => {
   it("adımlı turda bağımsız çözüm karşılaştırması yapılmaz (adımın yerine tam çözüm yazılmasın)", () => {
     const route = read("src/app/api/ai/chat/route.ts");
     expect(route).toContain('const pacedTurn = tutorStyle === "step_by_step" && turn.plan.pacedStep != null;');
-    expect(route).toContain("if (!pacedTurn) try {");
+    // Bağımsız çözüm adımlı turda hiç başlamaz (15 Kasım 2026'dan beri ana yazımla paralel başlar).
+    expect(route).toContain("const independentEarly = solveGuard && !pacedTurn");
     expect(route).toContain('preferWhenUnclaimed: Boolean(imageUrl) && (tutorStyle !== "step_by_step" || turn.plan.fullSolution)');
     // Takipte tam çözüm istenirse sağlama konuşmadaki soruya göre yapılır.
     expect(route).toContain("independentSolvePrompt(solveMessage)");
     // Aritmetik kural (satır düşüren sağlama) adımlı turda da çalışır: kapı aynı.
     expect(chatSolveNeedsGuard({ tutorStyle: "step_by_step", hasImage: false, message: "3x + 5 = 26 ise x kaçtır?" })).toBe(true);
-    expect(route).toMatch(/chatSolveNeedsGuard\(\{ tutorStyle, hasImage: Boolean\(imageUrl\), message: solveMessage \}\)\) \{\s+content = prepareChatSolution\(content\);/);
+    expect(route).toContain("const solveGuard = !turn.crisis && chatSolveNeedsGuard({ tutorStyle, hasImage: Boolean(imageUrl), message: solveMessage });");
+    expect(route).toMatch(/if \(charge && solveGuard\) \{\s+content = prepareChatSolution\(content\);/);
   });
 });
 
