@@ -1,4 +1,4 @@
--- YAZILDI, UYGULANMADI: Burhan onayıyla SQL ekranında uygulanır (kayıt satırıyla); docs/operasyon/goc-kayitlari.md.
+-- UYGULANDI: 15 Kasım 2026, Burhan onayıyla SQL ekranında (kayıt satırıyla); docs/operasyon/goc-kayitlari.md.
 --
 -- 15 Kasım 2026 (disk IO, Burhan kararı 7): belge aramasında geçici dosya yazımını kaldırır.
 --

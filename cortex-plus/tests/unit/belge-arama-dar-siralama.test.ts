@@ -260,9 +260,9 @@ describe("match_document_chunks: dar sıralama eski gövdeyle aynı sonucu verir
     expect(after.filter((line) => /\bcontent\b/.test(line))).toEqual([]);
   });
 
-  it("göç eklemeli: aynı imza ve yetkiler, DROP yok, uygulanmadı notu", () => {
+  it("göç eklemeli: aynı imza ve yetkiler, DROP yok, uygulama notu (15 Kasım 2026, Burhan onayıyla uygulandı)", () => {
     const raw = readFileSync(NEW_FILE, "utf8");
-    expect(raw.split("\n")[0]).toContain("UYGULANMADI");
+    expect(raw.split("\n")[0]).toMatch(/^-- UYGULANDI: 15 Kasım 2026, Burhan onayıyla/);
     const sql = raw.replace(/^--.*$/gm, "");
     expect(sql).toContain("CREATE OR REPLACE FUNCTION public.match_document_chunks(");
     expect(sql).toContain("p_query_embedding vector(1536)");
