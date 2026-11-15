@@ -138,7 +138,8 @@ describe("ekranlar", () => {
 describe("kaynak sözleşmeleri", () => {
   it("öğretim dili iki sohbete de gider; JSON hazırlık yolunda yok", () => {
     const route = read("src/app/api/ai/chat/route.ts");
-    expect(route).toContain("${rest.prepId && prepGrounding ? \"\" : `\\n\\n${CHAT_TEACHING_MARKUP}\\n\\n`}");
+    // Faz 13A (15 Kasım 2026): teacher.v2 açıkken yerine tek hamle dili geçer; kapalıyken bugünkü öğretim dili.
+    expect(route).toContain("${rest.prepId && prepGrounding ? \"\" : `\\n\\n${teacherV2 ? ONE_MOVE_MARKUP : CHAT_TEACHING_MARKUP}\\n\\n`}");
     expect(read("src/lib/ai/teacher-tutor.ts")).toMatch(/CONTENT_STYLE,\n\s*CHAT_TEACHING_MARKUP,/);
     expect(CHAT_TEACHING_MARKUP).toContain("> ✅ Akılda kalsın:");
     expect(CHAT_TEACHING_MARKUP).toContain("asla bütün cümle değil");
