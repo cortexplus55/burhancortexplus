@@ -146,9 +146,15 @@ const KNOWN = [
   },
   {
     key: "quiz.option_check",
-    label: "Test · şık ayrılabilirliği denetimi (H2)",
+    label: "Test · şık ayrılabilirliği denetimi (H2) · gölge mod",
     description:
-      "Açıkken test motorunun kod kapısı iki kusuru da yakalar: 'ne … ne de' yapısında olumsuz fiil (dil bilgisi bozuk şık) ve aynı öğeleri yalnız başka sırayla sayan iki liste şıkkı. Soru metni değişmez; soru elenir, yerine yedek gelir, sayısı test günlüğüne yazılır. Model çağrısı yok. Kapatınca en geç 30 sn'de bugünkü kapı.",
+      "Açıkken test motoru iki kusuru yalnız SAYAR, soru elemez: 'ne … ne de' yapısında olumsuz fiil (dil bilgisi bozuk şık) ve aynı öğeleri yalnız başka sırayla sayan iki liste şıkkı. Sayım test günlüğünde (denetlenen, takılan, kurala göre). Model çağrısı yok. Kapatınca en geç 30 sn.",
+  },
+  {
+    key: "quiz.option_check_enforce",
+    label: "Test · şık ayrılabilirliği (H2) · eleme modu",
+    description:
+      "Yalnız gölge modla birlikte açıkken takılan soru elenir, yerine yedek gelir; soru metni değişmez. İlk 100 sorunun gölge sayımı raporlanıp Burhan onaylamadan açılmaz.",
   },
   {
     key: "ui.v2.duello",

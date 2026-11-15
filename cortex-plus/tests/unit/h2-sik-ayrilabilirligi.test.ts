@@ -83,7 +83,7 @@ describe("test motoruna bağlantı", () => {
     expect(QUIZ_OPTION_CHECK_FLAG).toBe("quiz.option_check");
     const run = read("src/lib/learning/teacher-quiz-run.ts");
     expect(run).toContain("isFeatureEnabled(service, QUIZ_OPTION_CHECK_FLAG, input.userId).catch(() => false)");
-    expect(run).toContain("optionCheck: { flagged: loop.optionFlagged }");
+    expect(run).toContain("flagged: loop.optionFlagged");
     // Model çağrısı eklenmedi: kural salt kod.
     expect(read("src/lib/learning/option-separability.ts")).not.toMatch(/openai|chat\.completions|generateJson/);
   });
