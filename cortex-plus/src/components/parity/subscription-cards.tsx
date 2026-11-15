@@ -858,7 +858,8 @@ export function SubscriptionCards({
                 <TrustStrip />
 
         <p className="text-center text-xs text-[var(--cs-muted)]">
-          Notunda olmayanı uydurmaz. Cevaplayamadığı soruda hakkından düşmez.
+          «Yalnızca belgem» modunda notunda olmayanı uydurmaz; öbür modlarda genel bilgiyi ayrı etiketler. Cevaplayamadığı
+          soruda hakkından düşmez.
         </p>
 
         {embedded && !guestMode && !isParent && !plusOwned ? (
