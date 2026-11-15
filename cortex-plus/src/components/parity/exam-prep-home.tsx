@@ -41,8 +41,10 @@ import {
   Target,
   Timer,
   X,
+  Zap,
 } from "lucide-react";
 import { toast } from "sonner";
+import { CRAM_SHEET_NAME, examPrepCramSheetHref } from "@/lib/learning/cram-sheet";
 import {
   PLAN_NODE_META,
   type NodeStatus,
@@ -759,6 +761,18 @@ export function ExamPrepHome({
             </span>
             Düello
           </Link>
+          {/* 15 Kasım 2026 (ürün sahibi): kâğıt yalnız yolun en altındaydı; üst eylemde de. Ücretsiz hesapta sayfa
+              Plus kapısını gösterir (karar sunucuda). */}
+          <Link
+            href={examPrepCramSheetHref(prepId)}
+            className="cp-prep-hero-action"
+            aria-label={shareTools?.cramSheetLocked ? `${CRAM_SHEET_NAME}, Plus'ta` : CRAM_SHEET_NAME}
+          >
+            <span className="cp-prep-hero-icon cx-glass" aria-hidden>
+              <Zap className="h-4 w-4" />
+            </span>
+            Sabah kâğıdı
+          </Link>
           {canShare ? (
             <button
               type="button"
@@ -1087,6 +1101,13 @@ export function ExamPrepHome({
                     <Link href={`/deneme-sinavlari/${prepId}/zor-sorular`}>
                       <Flame className="h-4 w-4" aria-hidden />
                       {PREP_HOME_COPY.challenge}
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href={examPrepCramSheetHref(prepId)}>
+                      <Zap className="h-4 w-4" aria-hidden />
+                      Sınav Sabahı Kağıdı
+                      {shareTools?.cramSheetLocked ? <span className="cp-prep-extra-plus">Plus</span> : null}
                     </Link>
                   </li>
                   {uiV2 ? (

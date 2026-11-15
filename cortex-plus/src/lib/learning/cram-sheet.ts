@@ -1,5 +1,6 @@
 import type { LessonBlock, LessonV3 } from "@/lib/learning/lesson-v3";
 import { formulaRelationKeys } from "@/lib/text/math-normalize";
+import { unresolvedVisualReference } from "@/lib/learning/answer-consistency";
 
 /**
  * Sınav sabahı kâğıdı (31 Ekim 2026, Paket J3 #14, ürün sahibinin isteği): hazırlığın kayıtlı derslerinden,
@@ -21,23 +22,51 @@ export function examPrepCramSheetHref(prepId: string): string {
   return `/deneme-sinavlari/${prepId}/sinav-sabahi`;
 }
 
-export type CramKind = "formula" | "exam" | "trap" | "mnemonic" | "hook" | "remember" | "warn" | "point" | "procedure";
+export type CramKind =
+  | "formula"
+  | "teacher"
+  | "exam"
+  | "trap"
+  | "mnemonic"
+  | "hook"
+  | "remember"
+  | "warn"
+  | "definition"
+  | "point"
+  | "procedure";
 
 /** Kâğıtta satırın önündeki küçük etiket. */
 export const CRAM_KIND_LABEL: Record<CramKind, string> = {
   formula: "Formül",
+  teacher: "Hoca uyarısı",
   exam: "Sınav ipucu",
   trap: "Sınav tuzağı",
   mnemonic: "Ezber kodu",
   hook: "Hafıza çivisi",
   remember: "Akılda tut",
   warn: "Dikkat",
+  definition: "Tanım",
   point: "Sınavda sorulur",
   procedure: "Adımlar",
 };
 
 /** Konunun payı dolunca önce bunlar kalır: formül ve sınav ipucu, sonra tuzak ve hafıza, en son adım listesi. */
-const KIND_ORDER: readonly CramKind[] = ["formula", "exam", "trap", "mnemonic", "hook", "remember", "warn", "point", "procedure"];
+const KIND_ORDER: readonly CramKind[] = [
+  "formula",
+  "teacher",
+  "exam",
+  "trap",
+  "mnemonic",
+  "hook",
+  "remember",
+  "warn",
+  "definition",
+  "point",
+  "procedure",
+];
+
+/** Filtre çiplerinde "Sınav tuzakları" altında görünen türler (15 Kasım 2026). */
+export const CRAM_TRAP_KINDS: ReadonlySet<CramKind> = new Set<CramKind>(["trap", "warn", "teacher"]);
 
 export const CRAM_LIMITS = {
   /** Bütün konuların toplam satırı (iki sütunlu A4). */
@@ -46,7 +75,14 @@ export const CRAM_LIMITS = {
   perTopicMin: 2,
   weakSpots: 8,
   focusTopics: 3,
-  text: 170,
+  /** Tam cümleyle biten satırın üst sınırı (15 Kasım 2026'dan beri satır cümle ortasında kesilmez). */
+  text: 220,
+  /** Tuzak satırı iki parçalıdır ("Sakın … · Doğrusu …"); ikisi birlikte kalır. */
+  trap: 320,
+  /** Formül özeti en çok bu kadar formül. */
+  formulas: 18,
+  /** Notun kendi kuralları ("Hoca uyarısı"). */
+  teacherRules: 6,
   title: 70,
 } as const;
 
@@ -92,10 +128,17 @@ export function cramSectionBadge(section: Pick<CramSection, "reason" | "percent"
   return null;
 }
 
+/** Formül özetinin satırı: hangi konudan geldiği yazılır. */
+export type CramFormula = { topic: string; title: string | null; text: string };
+
 export type CramSheet = {
   sections: CramSection[];
   weakSpots: CramWeakSpot[];
   focusTopics: CramFocusTopic[];
+  /** Hazırlığın bütün formülleri, kâğıdın başında toplu (15 Kasım 2026). Bölümlerde de geçer. */
+  formulas: CramFormula[];
+  /** Notun kendi kuralları ("… alınız", "… kabul edilir"): kâğıdın başında "Hoca uyarısı" (15 Kasım 2026). */
+  teacherRules: string[];
   itemCount: number;
   empty: boolean;
 };
@@ -106,13 +149,160 @@ export type CramSheetInput = {
   /** Kayıtlı dersler (eskiden yeniye). `topicKey` yoksa ya da hiçbir konuya uymuyorsa dersin adıyla ayrı bölüm. */
   lessons: readonly { topicKey: string | null; lesson: LessonV3 }[];
   examPoints?: readonly { topicKey: string; points: readonly string[] }[];
-  /** Öncelik sırasıyla (en çok yanılınan önce). */
+  /** Öncelik sırasıyla (en çok yanılınan önce). Metin kavramsal derstir (`missLesson`), soru kökü değil. */
   weakSpots?: readonly CramWeakSpot[];
   /** En zayıf konular (tek seçici `rankFinalStepTopics`). */
   focusTopics?: readonly CramFocusTopic[];
+  /** Notun kendi kural satırları (`loadSourceRules`). */
+  teacherRules?: readonly string[];
 };
 
+/** Öğretmen analizinin "Sınavda sorulur" maddesi kayıtta bu uzunlukta kesilir (`teacher-brain.ts` textList). */
+export const EXAM_POINT_STORED_MAX = 220;
+
+const SENTENCE_END = /[.!?](?=\s|$)/g;
+const CLAUSE_END = /\s(?:·|;|–|—)\s|;\s/g;
+const ENDS_WHOLE = /[.!?)\]»"”']$/u;
+const CUT_MARK = /\s*(?:\.\.\.|…)$/u;
+
+/**
+ * `max` içindeki son sınır (`pattern`). Sonuç en az 25 karakter; `minRatio` verilirse sınırın o kadarı da (uzun metnin
+ * ilk birkaç sözcüğü tek başına satır olmasın). Kayıtta kesilmiş metinde oran yok: tam cümle ne kadarsa o kalır.
+ */
+function lastBoundary(text: string, max: number, pattern: RegExp, keepMark: boolean, minRatio = 0.35): string | null {
+  const window = text.slice(0, max);
+  let end = -1;
+  for (const match of window.matchAll(pattern)) {
+    end = keepMark ? match.index! + match[0].length : match.index!;
+  }
+  if (end < 0) return null;
+  const cut = window.slice(0, end).trim();
+  return cut.length >= Math.max(25, Math.min(max, text.length) * minRatio) ? cut : null;
+}
+
+/**
+ * Kâğıt satırı TAM biter (15 Kasım 2026, ürün sahibi: "her madde tam cümle olarak bitsin"). Canlıda satırlar kelime
+ * ortasında kesiliyordu ("…daha büyük olduğ"): öğretmen analizinin maddesi kayıtta 220 karakterde kesilmiş, kâğıt da
+ * 170'te "…" ile kesiyordu. Şimdi:
+ * - kayıtta kesilmiş metin (sonu "…"/"..." ya da `storedMax` uzunluğunda ve cümle sonu yok) son tam cümlesine çekilir;
+ *   tam cümle yoksa satır hiç basılmaz;
+ * - sınırı aşan metin son cümle (yoksa son yan cümle: "·", ";") sınırında biter; o da yoksa satır basılmaz.
+ * Kod cümle yazmaz, yalnız keser ya da atar.
+ */
+export function fitCramText(text: string, options: { max?: number; storedMax?: number } = {}): string | null {
+  const max = options.max ?? CRAM_LIMITS.text;
+  const value = clean(text);
+  if (value.length < 2) return null;
+  const cutInStore =
+    CUT_MARK.test(value) || (options.storedMax != null && value.length >= options.storedMax - 4 && !ENDS_WHOLE.test(value));
+  if (cutInStore) {
+    const body = value.replace(CUT_MARK, "");
+    return lastBoundary(body, Math.min(max, body.length), SENTENCE_END, true, 0);
+  }
+  if (value.length <= max) return value;
+  return lastBoundary(value, max, SENTENCE_END, true) ?? lastBoundary(value, max, CLAUSE_END, false);
+}
+
+const FORMULA_SHAPE = /\$[^$]+\$|[\p{L}\p{N})\]²³]\s*(?:=|≈|∝)\s*[\p{L}\p{N}(√±\-−]/u;
+const WARN_CUE = /(?<![\p{L}])(?:dikkat\p{L}*|karıştır\p{L}*|sanıl\p{L}*|unutma\p{L}*|tuzak\p{L}*|asla|yanılg\p{L}*|hata\p{L}*)(?![\p{L}])/iu;
+const DEFINITION_CUE = /(?<![\p{L}])(?:denir|adı verilir|olarak tanımlanır|tanımlanır)(?![\p{L}])/iu;
+
+/**
+ * "Sınavda sorulur" maddesinin türü (15 Kasım 2026, ürün sahibi: 32 maddenin 29'u aynı etiketi taşıyordu). Kod metne
+ * dokunmaz; yalnız biçiminden okur: eşitlik/formül → Formül, uyarı sözcüğü → Dikkat, tanım kalıbı → Tanım.
+ */
+export function classifyPoint(text: string): CramKind {
+  if (FORMULA_SHAPE.test(text)) return "formula";
+  if (WARN_CUE.test(text)) return "warn";
+  if (DEFINITION_CUE.test(text)) return "definition";
+  return "point";
+}
+
+/** Şekil, tablo ya da şıkka bağlı soru kökü: kâğıtta tek başına anlamsız (15 Kasım 2026). */
+const BOUND_PATTERNS: RegExp[] = [
+  /\?/u,
+  /(?:\.\.\.|…|_{2,})/u,
+  // Öncül numarası: "III numaralı", "I. ve II.", "II ve III"
+  /(?<![\p{L}])(?:I{1,3}|IV|VI{0,3})(?:\s*numaral\p{L}*|\s*nolu|\s+(?:ve|ile)\s+(?:I{1,3}|IV|VI{0,3})(?![\p{L}.]))/u,
+  // Harfle adlandırılmış noktalar: "K, L ve M noktaları", "X noktası"
+  /(?<![\p{L}])\p{Lu}(?:\s*(?:,|ve)\s*\p{Lu})*\s+noktas?\p{L}*/u,
+  // Soru dili ve şık/seçenek gönderimi
+  /(?<![\p{L}])(?:hangisi\p{L}*|hangileri\p{L}*|kaçtır|kaçıncı\p{L}*|buna göre|doğru cevap|yanlış cevap|seçenek\p{L}*|şıkk?\p{L}*)(?![\p{L}])/iu,
+  /(?<![\p{L}])[A-E]\)|(?<![\p{L}])[A-E]\s+şıkk\p{L}*/u,
+];
+
+export function questionBound(text: string): boolean {
+  const value = clean(text);
+  if (!value) return true;
+  if (BOUND_PATTERNS.some((pattern) => pattern.test(value))) return true;
+  return unresolvedVisualReference(value) != null;
+}
+
+function sentencesOf(text: string): string[] {
+  return clean(text)
+    .split(/(?<=[.!?])\s+(?=\p{Lu}|\d)/u)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Yanlıştan çıkan kavramsal ders (15 Kasım 2026, ürün sahibi: "test sorusu köklerini kural yapma"). Kâğıda soru kökü
+ * basılmaz; sorunun açıklamasındaki ilk bağımsız cümle (şekle, öncül numarasına ya da şıkka bağlı olmayan, 25-220
+ * karakter) basılır. Doğru/yanlışta yanlış önermenin doğru hâli zaten bir kuraldır. Kart (ön/arka) kavramdır. Hiçbiri
+ * yoksa satır yok: kod yeni cümle yazmaz.
+ */
+export function missLesson(input: {
+  mode?: unknown;
+  prompt?: unknown;
+  explanation?: unknown;
+  corrected?: unknown;
+  trueFalse?: unknown;
+  front?: unknown;
+  back?: unknown;
+}): string | null {
+  if (input.mode === "recall") {
+    const front = clean(input.front);
+    const back = clean(input.back);
+    if (!front || !back) return null;
+    if (back.length >= 25 && !questionBound(back)) return fitCramText(back);
+    return questionBound(front) ? null : fitCramText(`${front} → ${back}`);
+  }
+  const corrected = clean(input.corrected);
+  if (input.trueFalse === true && corrected && !questionBound(corrected)) return fitCramText(corrected);
+  for (const sentence of sentencesOf(String(input.explanation ?? "")).slice(0, 4)) {
+    if (sentence.length < 25 || sentence.length > CRAM_LIMITS.text) continue;
+    if (!ENDS_WHOLE.test(sentence) || questionBound(sentence)) continue;
+    return sentence;
+  }
+  return null;
+}
+
+/** WhatsApp metni (15 Kasım 2026): bağlantı hazırlığın davetidir; arkadaş aynı konu sırasıyla kendi kopyasını alır. */
+export function cramShareText(title: string | null | undefined): string {
+  const name = clean(title) || "Sınav hazırlığı";
+  return `⚡ “${name}” sınavına Cortex Plus'la hazırlanıyorum; sınav sabahı kâğıdımı da oradan çıkardım. Aynı hazırlığa katıl, aynı konu sırasıyla birlikte çalışalım:`;
+}
+
+export const CRAM_SIGNATURE = "Cortex Plus · cortexplus.app";
+
+/**
+ * Formül satırının çizimi: dersteki formül bloğu TeX olarak saklanır ("A = B \cdot C"); `$…$` içinde değilse kâğıtta ham
+ * görünüyordu (15 Kasım 2026, fikstürde görüldü). Yalnız TeX işareti taşıyan ifade sarılır; düz yazılı madde aynen.
+ */
+export function cramFormulaMarkup(text: string): string {
+  if (text.includes("$")) return text;
+  const [expression, ...rest] = text.split(" — ");
+  if (!/\\[a-zA-Z]+|[\^_]\{/.test(expression ?? "")) return text;
+  return [`$${expression}$`, ...rest].join(" — ");
+}
+
 const clean = (value: unknown): string => (typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "");
+
+/**
+ * Eski "…" ile kırpma sınırı. 15 Kasım 2026'dan beri kâğıt satırları `fitCramText` ile tam cümlede biter; bu iki
+ * yardımcı yalnız başlık kırpmasında ve eski çağıranlarda.
+ */
+const LEGACY_CLIP = 170;
 
 /** Tekrar anahtarı: vurgu ve matematik işaretleri, noktalama ve büyük harf yok sayılır. */
 export function cramKey(text: string): string {
@@ -128,7 +318,7 @@ export function cramKey(text: string): string {
  * Uzun metni kelime sınırında kırpar. Kırpılan yerde açık kalan `$…$` matematiği ve `**`/`==` vurgusu
  * yarım bırakılmaz (yarım işaret ekranda ham karakter olarak görünürdü).
  */
-export function clipCramText(text: string, max: number = CRAM_LIMITS.text): string {
+export function clipCramText(text: string, max: number = LEGACY_CLIP): string {
   const value = clean(text);
   if (value.length <= max) return value;
   let cut = value.slice(0, max);
@@ -145,7 +335,7 @@ export function clipCramText(text: string, max: number = CRAM_LIMITS.text): stri
  * Zayıf nokta satırını kırparken düzeltme kısmı korunur (31 Ekim 2026): uzun soru metni sınırı
  * doldurunca "→ Doğrusu: …" kesilip "→ Doğru" gibi yarım kalıyordu. Kırpılan soru tarafıdır.
  */
-export function clipWeakSpotText(text: string, max: number = CRAM_LIMITS.text): string {
+export function clipWeakSpotText(text: string, max: number = LEGACY_CLIP): string {
   const value = clean(text);
   if (value.length <= max) return value;
   // Düzeltmenin kendisi "a → b → c" zinciri olabilir; ayrım ilk "→ Doğrusu:" (yoksa ilk "→") noktasından yapılır.
@@ -251,10 +441,40 @@ type Bucket = { topic: string; key: string | null; candidates: CramItem[] };
  * yazdırıyordu. Satır birden çok bağıntı taşıyorsa her biri ayrı anahtar; bütün bağıntıları zaten kâğıtta olan
  * formül satırı düşer, yeni bağıntı getiren kalır.
  */
+/** Kök kümesi (4+ harfli sözcüklerin ilk 5 harfi): aynı bilginin başka sözcüklerle yazılışını yakalar. */
+function stemSet(text: string): Set<string> {
+  return new Set(
+    cramKey(text.replace(/(?:Sakın|Doğrusu)\s*:/gu, " "))
+      .split(" ")
+      .filter((word) => word.length >= 4)
+      .map((word) => word.slice(0, 5)),
+  );
+}
+
+/** Ortak kök / bütün kökler (Jaccard). Tek sözcükle ayrılan iki ayrı bilgi ("Birinci …" / "İkinci …") ayrı kalır. */
+function overlap(a: Set<string>, b: Set<string>): number {
+  let shared = 0;
+  for (const word of a) if (b.has(word)) shared += 1;
+  return shared / Math.max(1, a.size + b.size - shared);
+}
+
+/** İki satır aynı bilgiyi mi taşıyor (15 Kasım 2026: aynı tuzak başka sözcüklerle iki kez basılıyordu). */
+const NEAR_SAME = 0.75;
+
 function makeDeduper() {
   const seen = new Set<string>();
   const prefixes = new Set<string>();
   const relations = new Set<string>();
+  const stems: { set: Set<string>; digits: string }[] = [];
+  const near = (text: string): boolean => {
+    const set = stemSet(text);
+    if (set.size < 4) return false;
+    // Sayısı farklı satır ayrı bilgidir ("10 m'de 1 atm" ile "20 m'de 2 atm").
+    const digits = (text.match(/\d+/g) ?? []).join(",");
+    if (stems.some((have) => have.digits === digits && have.set.size >= 4 && overlap(set, have.set) >= NEAR_SAME)) return true;
+    stems.push({ set, digits });
+    return false;
+  };
   return (row: { kind?: CramKind; text: string }): boolean => {
     const base = cramKey(row.text);
     if (!base) return false;
@@ -269,10 +489,17 @@ function makeDeduper() {
     const key = row.kind === "formula" ? `f:${cramKey(row.text.split(" — ")[0] ?? row.text)}` : base;
     const prefix = base.length >= 40 ? base.slice(0, 60) : null;
     if (seen.has(key) || (prefix && prefixes.has(prefix))) return false;
+    if (row.kind !== "formula" && near(row.text)) return false;
     seen.add(key);
     if (prefix) prefixes.add(prefix);
     return true;
   };
+}
+
+/** Türüne göre tam biten satır; sığmıyorsa null. */
+function fitItem(row: CramItem, storedMax?: number): CramItem | null {
+  const text = fitCramText(row.text, { max: row.kind === "trap" ? CRAM_LIMITS.trap : CRAM_LIMITS.text, storedMax });
+  return text ? { ...row, text } : null;
 }
 
 /**
@@ -295,14 +522,19 @@ export function buildCramSheet(input: CramSheetInput): CramSheet {
         extra.set(name.toLocaleLowerCase("tr"), bucket);
       }
     }
-    bucket.candidates.push(...collectLessonCram(lesson));
+    for (const row of collectLessonCram(lesson)) {
+      const fitted = fitItem(row);
+      if (fitted) bucket.candidates.push(fitted);
+    }
   }
   for (const { topicKey, points } of input.examPoints ?? []) {
     const bucket = byKey.get(topicKey);
     if (!bucket) continue;
     for (const point of points) {
-      const row = item("point", null, point);
-      if (row) bucket.candidates.push(row);
+      // Madde kayıtta 220 karakterde kesilmiş olabilir: son tam cümlesine çekilir, yoksa basılmaz.
+      const row = item(classifyPoint(point), null, point);
+      const fitted = row ? fitItem(row, EXAM_POINT_STORED_MAX) : null;
+      if (fitted) bucket.candidates.push(fitted);
     }
   }
 
@@ -359,24 +591,51 @@ export function buildCramSheet(input: CramSheetInput): CramSheet {
         weak: Boolean(focus),
         reason: focus?.reason ?? null,
         openWrongs: focus?.openWrongs ?? 0,
-        items: bucket.candidates
-          .slice(0, taken.get(bucket) ?? 0)
-          .map((row) => ({ ...row, text: clipCramText(row.text) })),
+        items: bucket.candidates.slice(0, taken.get(bucket) ?? 0),
       };
     })
     .filter((section) => section.items.length > 0);
 
+  // Formül özeti (15 Kasım 2026): bölüme sığmayanlar dahil hazırlığın bütün formülleri, yolun sırasıyla.
+  const formulas: CramFormula[] = filled
+    .flatMap((bucket) =>
+      bucket.candidates
+        .filter((row) => row.kind === "formula")
+        .map((row) => ({ topic: bucket.topic, title: row.title, text: row.text })),
+    )
+    .slice(0, CRAM_LIMITS.formulas);
+
+  // Notun kendi kuralları: kâğıdın başında "Hoca uyarısı". Tam cümle değilse basılmaz.
+  const freshRule = makeDeduper();
+  const teacherRules: string[] = [];
+  for (const rule of input.teacherRules ?? []) {
+    if (teacherRules.length >= CRAM_LIMITS.teacherRules) break;
+    const text = fitCramText(rule);
+    if (text && freshRule({ text })) teacherRules.push(text);
+  }
+
+  // Yanıldığın noktalar: kavramsal ders (soru kökü değil). Şekle, öncüle ya da şıkka bağlı satır basılmaz.
   const freshSpot = makeDeduper();
   const weakSpots: CramWeakSpot[] = [];
   for (const spot of input.weakSpots ?? []) {
     if (weakSpots.length >= CRAM_LIMITS.weakSpots) break;
-    const text = clean(spot.text);
-    if (text.length < 4 || /(?:→|Doğrusu:)\s*$/u.test(text) || !freshSpot({ text })) continue;
-    weakSpots.push({ text: clipWeakSpotText(text), topic: clean(spot.topic) || null });
+    const raw = clean(spot.text);
+    if (raw.length < 4 || /(?:→|Doğrusu:)\s*$/u.test(raw) || questionBound(raw)) continue;
+    const text = fitCramText(raw);
+    if (!text || !freshSpot({ text })) continue;
+    weakSpots.push({ text, topic: clean(spot.topic) || null });
   }
 
   const itemCount = sections.reduce((sum, section) => sum + section.items.length, 0);
-  return { sections, weakSpots, focusTopics, itemCount, empty: itemCount === 0 && weakSpots.length === 0 };
+  return {
+    sections,
+    weakSpots,
+    focusTopics,
+    formulas,
+    teacherRules,
+    itemCount,
+    empty: itemCount === 0 && weakSpots.length === 0 && teacherRules.length === 0,
+  };
 }
 
 /** Kayıtlı tekrar öğesinin kâğıt satırı: soru → doğrusu. Doğru/yanlışta yanlış önermenin doğru hâli. */

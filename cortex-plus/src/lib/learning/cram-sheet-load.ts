@@ -8,11 +8,13 @@ import { rankFinalStepTopics } from "@/lib/learning/prep-wide-target";
 import { withOpenMisconceptions } from "@/lib/learning/misconception-store";
 import { readableGap } from "@/lib/learning/prep-progress-view";
 import { createTopicIndex } from "@/lib/learning/topic-identity";
+import { loadSourceRules } from "@/lib/learning/source-rules";
+import { loadPrepDocumentIds } from "@/lib/documents/teacher-analysis-run";
 import {
   buildCramSheet,
+  CRAM_LIMITS,
   CRAM_WEAK_BELOW,
-  mistakeCramText,
-  reviewItemCramText,
+  missLesson,
   type CramSheet,
   type CramWeakSpot,
 } from "@/lib/learning/cram-sheet";
@@ -121,7 +123,7 @@ export async function loadCramSheet(
   const index = createTopicIndex(topics);
   const labels = topics.map((topic) => topic.label);
 
-  const [lessons, analyses, masteryRows, misconceptions, reviewRows, mistakeRows] = await Promise.all([
+  const [lessons, analyses, masteryRows, misconceptions, reviewRows, mistakeRows, teacherRules] = await Promise.all([
     settle(() => loadLessons(service, input.prepId), []),
     settle(() => loadAnalyses(service, input.prepId, topics), []),
     settle(
@@ -166,7 +168,7 @@ export async function loadCramSheet(
             (
               await service
                 .from("mistake_entries")
-                .select("topic_label, question_text, correct_answer, wrong_count")
+                .select("topic_label, question_text, correct_answer, explanation, wrong_count")
                 .eq("user_id", input.userId)
                 .is("mastered_at", null)
                 .order("wrong_count", { ascending: false })
@@ -175,6 +177,11 @@ export async function loadCramSheet(
           [] as Record<string, unknown>[],
         )
       : Promise.resolve([] as Record<string, unknown>[]),
+    // Notun kendi kuralları ("… alınız", "… kabul edilir"): yalnız hazırlık sahibinin belgelerinden (15 Kasım 2026).
+    settle(
+      async () => loadSourceRules(service, await loadPrepDocumentIds(service, input.prepId), CRAM_LIMITS.teacherRules),
+      [] as string[],
+    ),
   ]);
 
   const examPoints = topics.flatMap((topic) => {
@@ -203,15 +210,18 @@ export async function loadCramSheet(
   }).map((row) => ({ label: row.label, percent: row.percent, openWrongs: row.openWrongs }));
 
   const canonical = (label: string | null | undefined) => index.rowForKey(label)?.label ?? (label?.trim() || null);
+  // Yanıldığın noktalar (15 Kasım 2026, ürün sahibi): soru kökü değil, yanlıştan çıkan kavramsal ders (`missLesson`):
+  // açıklamanın bağımsız ilk cümlesi, doğru/yanlışta önermenin doğru hâli, kartta kavram. Şekle bağlı soru basılmaz.
   const weakSpots: CramWeakSpot[] = [];
   for (const row of reviewRows as { topic_label?: unknown; item?: unknown }[]) {
-    const text = reviewItemCramText(row.item);
+    const stored = (row.item && typeof row.item === "object" ? row.item : {}) as Record<string, unknown>;
+    const text = missLesson(stored);
     if (text) weakSpots.push({ text, topic: canonical(typeof row.topic_label === "string" ? row.topic_label : null) });
   }
-  for (const row of mistakeRows as { topic_label?: unknown; question_text?: unknown; correct_answer?: unknown }[]) {
+  for (const row of mistakeRows as { topic_label?: unknown; question_text?: unknown; explanation?: unknown }[]) {
     const topic = index.rowForKey(typeof row.topic_label === "string" ? row.topic_label : null);
     if (!topic) continue;
-    const text = mistakeCramText(row.question_text, row.correct_answer);
+    const text = missLesson({ prompt: row.question_text, explanation: row.explanation });
     if (text) weakSpots.push({ text, topic: topic.label });
   }
   for (const row of misconceptionRows) {
@@ -233,5 +243,6 @@ export async function loadCramSheet(
     examPoints,
     weakSpots,
     focusTopics,
+    teacherRules,
   });
 }

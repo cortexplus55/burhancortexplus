@@ -180,6 +180,41 @@ export type ContinueStep = {
 };
 
 /**
+ * Çalışma Stüdyosu'nun "Sınav Sabahı Kağıdı" kartı (15 Kasım 2026, ürün sahibi): en son çalışılan hazırlık, hiç
+ * çalışılmadıysa en yenisi ("Kaldığın yerden devam" ile aynı seçim). Hedef puan kaydı ve stüdyonun geçici denemesi
+ * hazırlık sayılmaz. Hazırlık yoksa null; okuma düşerse de null (kart görünmez).
+ */
+export async function loadLatestPrep(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<{ id: string; title: string } | null> {
+  try {
+    const { data: lastAttempt } = await supabase
+      .from("exam_prep_node_attempts")
+      .select("exam_prep_id")
+      .eq("user_id", userId)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    let query = supabase
+      .from("exam_preps")
+      .select("id, title, exam_type")
+      .eq("user_id", userId)
+      .neq("exam_type", "hedef")
+      .or(NOT_STUDIO_EXAM_FILTER);
+    query = lastAttempt?.exam_prep_id
+      ? query.eq("id", String(lastAttempt.exam_prep_id))
+      : query.order("created_at", { ascending: false });
+    const { data: prep } = await query.limit(1).maybeSingle();
+    if (!prep?.id) return null;
+    const title = String(prep.title ?? prep.exam_type ?? "").trim() || "Sınav hazırlığı";
+    return { id: String(prep.id), title };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Ana ekranın "Kaldığın yerden devam" satırı (8 Kasım 2026, ürün sahibinin onayı): en son çalışılan hazırlığın
  * sıradaki adımı. Hiç çalışılmadıysa en yeni hazırlık. Sınavı geçmiş ya da açık adımı olmayan hazırlıkta satır yok.
  */

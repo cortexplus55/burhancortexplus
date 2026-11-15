@@ -107,8 +107,8 @@ Ek önlemler:
 ## 7. Karar bekleyenler (Burhan)
 
 1. İstem eki (2.1) ve tür listesi. Şema yorumu ve hesaplamalı türler kaynağa bağlı olarak açılır.
-2. Ücret: `DUEL_GENERATE` 20 kredi mi, bugünkü `QUIZ_GENERATE` 10 mu?
-3. Günlük sınırlar (4).
+2. ~~Ücret~~: **onaylandı (15 Kasım 2026): `DUEL_GENERATE` 20 kredi.**
+3. ~~Günlük sınırlar (4)~~: **onaylandı (15 Kasım 2026), tablo 4'teki gibi.**
 4. Paylaşılan düelloda not alıntısı uyarısı ve kısaltma (5).
 5. Göç: `prep_duels` için eklemeli sütunlar (`seed`, `config`, `status`, `parent_duel_id`, `question_started_at`). SQL
    ekranında Burhan uygular.

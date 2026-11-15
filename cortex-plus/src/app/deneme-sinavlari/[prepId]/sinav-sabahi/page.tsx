@@ -5,10 +5,14 @@ import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { createServiceClient } from "@/lib/supabase/server";
 import { examPrepHomeHref } from "@/lib/learning/exam-prep-hrefs";
 import { formatDayLong } from "@/lib/format";
-import { CramSheetView } from "@/components/parity/cram-sheet-view";
+import { CramSheetView, type CramShare } from "@/components/parity/cram-sheet-view";
 import { PlusOnlyPage } from "@/components/parity/plus-only-gate";
 import { plusOnlyLocked } from "@/lib/billing/node-free-meter";
-import { CRAM_SHEET_NAME, examPrepCramSheetHref } from "@/lib/learning/cram-sheet";
+import { CRAM_SHEET_NAME, cramShareText, examPrepCramSheetHref } from "@/lib/learning/cram-sheet";
+import { createPrepInviteToken, prepInviteUrl } from "@/lib/learning/prep-invite";
+import { isAbsoluteHttpUrl } from "@/lib/learning/prep-share";
+import { whatsappShareHref } from "@/lib/learning/duel-share";
+import { qrDataUri } from "@/lib/qr";
 import { loadCramSheet } from "@/lib/learning/cram-sheet-load";
 
 export const metadata = { title: "Sınav sabahı kâğıdı" };
@@ -53,10 +57,26 @@ export default async function CramSheetPage({ params }: { params: Promise<{ prep
   });
   const prepTitle = (prep.title as string | null) ?? (prep.exam_type as string | null) ?? "Sınav hazırlığı";
   const examDay = formatDayLong((prep.exam_date as string | null) ?? null);
+  const share = await cramShare(prepId, prepTitle);
 
   return (
     <ParitySorShell {...shell} chrome="focus" backHref={examPrepHomeHref(prepId)}>
-      <CramSheetView sheet={sheet} prepTitle={prepTitle} examDay={examDay} homeHref={examPrepHomeHref(prepId)} />
+      <CramSheetView sheet={sheet} prepTitle={prepTitle} examDay={examDay} homeHref={examPrepHomeHref(prepId)} share={share} />
     </ParitySorShell>
   );
+}
+
+/**
+ * Paylaşım (15 Kasım 2026, ürün sahibi: "WhatsApp'ta paylaş, bağlantıyı kopyala, baskıda imza ve QR"). Kâğıdın kendi
+ * adresi yalnız sahibine açık; paylaşılan bağlantı hazırlığın imzalı davetidir (`prep-invite.ts`): arkadaş aynı konu
+ * sırasıyla kendi kopyasını alır, kimse kimsenin sonucunu görmez, belge içeriği gitmez. QR sunucuda üretilir (veri
+ * dışarı çıkmaz). İmza sırrı yoksa paylaşım düğmeleri görünmez.
+ */
+async function cramShare(prepId: string, prepTitle: string): Promise<CramShare | null> {
+  const token = createPrepInviteToken(prepId);
+  if (!token) return null;
+  const url = prepInviteUrl(token);
+  if (!isAbsoluteHttpUrl(url)) return null;
+  const qrSrc = await qrDataUri(url, 160).catch(() => null);
+  return { url, whatsappHref: whatsappShareHref(cramShareText(prepTitle), url), qrSrc };
 }

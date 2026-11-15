@@ -2737,6 +2737,25 @@ etiketleri, "Plus'a geç"). Ayrıntılı ölçüler skill'in depo kararı 13'te.
 Fikstürler: `/e2e/ana-ekran?plan=plus|hafta|sigma|kurucu`, `/e2e/profil?plan=…`. Bekçi: `profil-kutuphane.test.tsx`, e2e
 `kabuk.spec.ts` (5 öğe ≥56 px, logo 76×49, Kütüphane satırları 60 px, kapsül 52 px, panel 480 px, odak dönüşü).
 
+## Sınav sabahı kâğıdı paketi (15 Kasım 2026)
+
+Canlı kâğıtta maddeler kelime ortasında kesiliyordu, şekle bağlı test sorusu kökleri "kural" diye basılıyordu, aynı
+tuzak iki kez geçiyordu, 32 maddenin 29'u "Sınavda sorulur" etiketindeydi; kâğıda yalnız öğretmen sohbetinin menüsünden
+ulaşılıyordu. Model çağrısı yok; kod cümle yazmaz, yalnız seçer, keser, atar. Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| **Her satır tam biter** (`fitCramText`): kayıtta kesilmiş metin (öğretmen analizinin maddesi `textList`'te 220 karakterde kesiliyor; sonu "…/...") son tam cümlesine çekilir, tam cümle yoksa basılmaz; sınırı (220, tuzakta 320) aşan satır cümle ya da yan cümle sınırında biter, yoksa basılmaz. "…" ile kırpma (`clipCramText`) yalnız başlıkta | `cram-sheet.ts` |
+| **Soru kökü kural değildir:** "Yanıldığın noktalar" satırı yanlıştan çıkan kavramsal derstir (`missLesson`): sorunun açıklamasındaki ilk bağımsız cümle, doğru/yanlışta önermenin doğru hâli, kartta kavram. Şekle, öncül numarasına ("III numaralı"), harfli noktaya ("K, L ve M noktaları"), boşluğa ("…") ya da şıkka bağlı satır basılmaz (`questionBound`; şekil gönderimi `unresolvedVisualReference`) | `cram-sheet.ts`, `cram-sheet-load.ts` (`mistake_entries.explanation` okunur) |
+| Aynı bilgi bir kez: birebir anahtar ve formül bağıntısının yanında kök kümesi benzerliği (Jaccard ≥ 0,75, sayılar aynı); tek sözcükle ayrılan iki madde ikisi de kalır | `makeDeduper` |
+| **Etiketler biçimden:** madde eşitlik taşıyorsa Formül, uyarı sözcüğü varsa Dikkat, tanım kalıbıysa Tanım, değilse Sınavda sorulur (`classifyPoint`). Notun kendi kuralları ("… alınız", "… kabul edilir"; `loadSourceRules`, yalnız hazırlık sahibinin belgeleri) kâğıdın başında **Hoca uyarısı** | `cram-sheet.ts`, `cram-sheet-load.ts` |
+| Ekran: süzgeç çipleri (Tümü · Formüller · Sınav Tuzakları · Yanıldığım Noktalar), başta **Formül Özeti** (bütün formüller, TeX `$…$` ile çizilir) ve Hoca Uyarıları, **Koyu Görünüm / A4 Kağıt Önizlemesi**. Yazdırmadan önce süzgeç Tümü'ne döner (`beforeprint`); baskıda süzgeç ve düğmeler gizli, imza basılır | `cram-sheet-view.tsx`, `cram-sheet.css` |
+| **Paylaşım:** "WhatsApp'ta Paylaş" ve "Bağlantıyı Kopyala". Bağlantı kâğıdın adresi değil (yalnız sahibine açık), hazırlığın **imzalı davetidir** (`prep-invite.ts`): arkadaş aynı konu sırasıyla kendi kopyasını alır, belge içeriği ve sonuç gitmez. Alt imza "Cortex Plus · cortexplus.app" ve davetin QR'ı (sunucuda üretilir, `qr.ts`). İmza sırrı yoksa paylaşım yok | `sinav-sabahi/page.tsx` |
+| **Bulunabilirlik:** hazırlık sayfasının üst eylemlerinde "Sabah kâğıdı", "Daha fazla" menüsünde "Sınav Sabahı Kağıdı" (ücretsizde Plus rozeti; kapı sayfada), Çalışma Stüdyosu'nda son hazırlığın kâğıdına kart (`loadLatestPrep`; tek marka düğme kalsın diye kartın düğmesi zayıf dolgu) | `exam-prep-home.tsx`, `tools-hub.tsx`, `araclar/page.tsx`, `prep-cards.ts` |
+
+Fikstür `/e2e/sinav-sabahi`. Bekçi: `sinav-sabahi-kagidi-paketi.test.tsx`, e2e `sinav-sabahi.spec.ts` (375, 360, 1280 px taşma
+0, süzgeç, A4 beyaz kâğıt, dokunma ≥ 40/44 px, baskıda süzgeç gizli).
+
 ## Öğretmen sohbeti hızı ve etiketleri (15 Kasım 2026)
 
 Canlı kayıt (`ai_usage_events`, kurucu): belgeye bağlanan bir cevapta yazım ~16 sn, eğitim denetimi ~6 sn, belge-kaynak

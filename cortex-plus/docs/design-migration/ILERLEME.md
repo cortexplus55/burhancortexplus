@@ -77,8 +77,12 @@ teklif yok; sayaç "önce artır, hata olursa iade" kabul; sohbette 402 sonrası
 
 0. **15 Kasım 2026 eklenenler:**
    - ~~Sınav Haftası dönem boşluğu düzeltmesi~~: onaylandı, göç `20261115120000` canlıda, PR #660 birleşti.
-   - `ui.v2.pay` açma yolu: `pay-bayragi-secenekler.md` A / B / C.
-   - Düello 9B: `duello-9b-oneri.md` (istem, ücret, günlük sınır, paylaşım uyarısı, göç).
+   - `ui.v2.pay`: Burhan 15 Kasım'da güvenli önizlemeyle açmayı onayladı (ödeme kaydı yok; yalnız planlar görülür).
+     Açma ve canlı bakış oturum gerektiriyor: `pay-bayragi-secenekler.md` "Karar".
+   - Düello 9B: **ücret 20 kredi (`DUEL_GENERATE`) ve günlük sınırlar onaylandı** (15 Kasım). Hâlâ karar bekleyen:
+     istem eki ve tür listesi, paylaşılan düelloda not alıntısı uyarısı, eklemeli göç (`duello-9b-oneri.md` §7, 1/4/5).
+     Uygulama bunlar netleşince tek pakette (ücreti yeni üretim gelmeden değiştirmek bugünkü 9 soruluk seti 20 krediye
+     çıkarırdı).
    - Kararsız test listesini ayrı yapıt olarak saklamak: `ci.yml`'e `upload-artifact` adımı. İş akışı dosyası bu
      oturumun yetkisiyle push edilemiyor; liste şimdilik iş özetinde.
 
