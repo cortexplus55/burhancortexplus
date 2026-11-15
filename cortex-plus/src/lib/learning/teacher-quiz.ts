@@ -1,4 +1,5 @@
 import { CONTENT_STYLE } from "@/lib/ai/content-style";
+import { OPTION_SEPARABILITY_PREFIX, optionSeparabilityIssues } from "@/lib/learning/option-separability";
 import { officialOutcomeBlock, type OfficialOutcomeGrounding } from "@/lib/curriculum/grounding";
 import {
   EQUIVALENT_OPTIONS_RULE,
@@ -79,6 +80,8 @@ export type TeacherQuizInput = {
   sourceBlock?: string;
   /** Hafif doğrulayıcı (30 Ekim 2026, `quiz-sanity.ts`); varsayılan açık. Yalnız yerel ölçüm betikleri kapatır. */
   sanity?: boolean;
+  /** Şık ayrılabilirliği denetimi (H2, `quiz.option_check` bayrağı; `option-separability.ts`). Kapalıyken bugünkü kapı. */
+  optionCheck?: boolean;
   /**
    * Yazılı deneme (26 Ekim 2026): soru kaynak cümlesini aynen taşımak zorunda değildir.
    * Yanlış olgu, bozuk öğe, kopya ve konu dışı yine düşer.
@@ -992,6 +995,7 @@ export const UNSALVAGEABLE_PROBLEM = new RegExp(
     "Aynı şık iki kez",
     "İki şık aynı cevap",
     THRESHOLD_TWIN_PREFIX,
+    OPTION_SEPARABILITY_PREFIX,
     "Kök doğru şıkkı içeriyor",
     "Kök doğru şıkkın ifadesini kuruyor",
     "Cevap anahtarı hesapla çelişiyor",
@@ -1312,9 +1316,11 @@ export const INVENTED_SIBLING_PREFIX = "Çeldirici uydurma bir terim";
  */
 export function quizStructureIssues(
   question: QuizQuestion,
-  options: { multi?: boolean; optionCount?: OptionCount; context?: string } = {},
+  options: { multi?: boolean; optionCount?: OptionCount; context?: string; optionCheck?: boolean } = {},
 ): string[] {
   const issues: string[] = [];
+  // H2 (15 Kasım 2026, bayrak `quiz.option_check`): ayrılmayan şık soruyu eler; metin değişmez, yedek gelir.
+  if (options.optionCheck && !question.multi) issues.push(...optionSeparabilityIssues(question.options));
   const countIssue = optionCountIssue(question, options.optionCount);
   if (countIssue) issues.push(countIssue);
   const mismatch = stepsAnswerMismatch(question);
