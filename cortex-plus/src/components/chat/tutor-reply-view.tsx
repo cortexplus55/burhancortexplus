@@ -22,7 +22,8 @@ import { splitTutorChrome, type ReplyChip, type ReplyQuote } from "@/lib/learnin
 import { splitActionMarkers, type ChatAction } from "@/lib/ai/chat-material-link";
 import { stripOrphanCitations } from "@/lib/ai/chat-answer-settle";
 import "@/styles/chat-teaching.css";
-import { SOCRATIC_QUICK_CHIPS, stepQuickChips, type TutorStyle } from "@/lib/learning/tutor-style";
+import { LADDER_CHIPS, SOCRATIC_QUICK_CHIPS, stepQuickChips, type TutorStyle } from "@/lib/learning/tutor-style";
+import { splitFinalQuestion } from "@/lib/learning/question-bubble";
 
 function TutorBody({
   body,
@@ -102,7 +103,13 @@ export function TutorReplyView({
   tutorStyle,
   quickActions = true,
   maxChips,
+  ladderChips = false,
 }: {
+  /**
+   * teacher.v2 (Faz 13 PR-1): Rehberli ve Sokratik yanıtın altında "İpucu ver" ve "Cevabı göster" her zaman; soru
+   * cümlesi ayrı kartta ("Sıra sende"). Verilmezse bugünkü gibi.
+   */
+  ladderChips?: boolean;
   /** teacher.v2 (Faz 13A): yanıtın altındaki çiplerin tavanı (en çok 3). Verilmezse bugünkü gibi hepsi. */
   maxChips?: number;
   /** Adım Adım modunun hızlı eylemleri yalnız sohbetin son yanıtında; çağıran son yanıt değilse false verir. */
@@ -137,12 +144,19 @@ export function TutorReplyView({
   // daveti) ve yalnız son yanıtın altında (eski adımın çipi sıradaki adımı yanlış gösterirdi).
   const quickChips = useMemo(
     () =>
-      tutorStyle === "hints_first"
+      ladderChips
+        ? LADDER_CHIPS
+        : tutorStyle === "hints_first"
         ? SOCRATIC_QUICK_CHIPS
         : tutorStyle === "step_by_step" && quickActions
           ? stepQuickChips(content)
           : [],
-    [content, quickActions, tutorStyle],
+    [content, quickActions, tutorStyle, ladderChips],
+  );
+  // Soru ayrı kartta (PROMPT-V2 §7): yalnız bayrak açıkken ve yanıtın kendi "Sıra sende" kartı yokken.
+  const ask = useMemo(
+    () => (ladderChips && !view.check ? splitFinalQuestion(remember.body) : null),
+    [ladderChips, view.check, remember.body],
   );
   const chips = useMemo(() => {
     const extra = hideChips ? [] : view.chips;
@@ -216,8 +230,16 @@ export function TutorReplyView({
           <Markdown content={view.example} variant={variant} />
         </section>
       ) : null}
-      <TutorBody body={remember.body} quote={view.quote} variant={variant} />
+      {!ask || ask.body || view.quote ? <TutorBody body={ask ? ask.body : remember.body} quote={view.quote} variant={variant} /> : null}
       {remember.items.length ? <RememberCard items={remember.items} /> : null}
+      {ask ? (
+        <div className="cp-tutor-check cp-tutor-ask">
+          <p className="cp-tutor-check-kicker">Sıra sende</p>
+          <div className="cp-tutor-check-q">
+            <MathText text={ask.question} />
+          </div>
+        </div>
+      ) : null}
       {view.check ? (
         <div className="cp-tutor-check" ref={checkRef}>
           <p className="cp-tutor-check-kicker">Sıra sende</p>

@@ -188,7 +188,9 @@ describe("sohbet uç noktası öğretmen yolunu kullanır", () => {
     expect(teacherBlock).not.toContain("polishPrep");
     expect(teacherBlock).toContain("teacherStyleLine");
     expect(teacherBlock).toContain("teacherStyleLine(tutorStyle)");
-    expect(route).toContain('tutorStyle: z.enum(["step_by_step", "hints_first", "direct_solve"])');
+    // PR-1: "guided" (Rehberli) yalnız teacher.v2 açıkken tanınır; hazırlık sohbeti bugünkü üç stille çalışır.
+    expect(route).toContain('tutorStyle: z.enum(["step_by_step", "hints_first", "direct_solve", GUIDED_STYLE])');
+    expect(route).toContain("const v2Chat = teacherV2 && !rest.prepId;");
     expect(teacherBlock).toContain("mode: tutorMode");
     // Kaynak satırı boş kalmasın: öğretmen yolu da citations doldurur.
     // P1-5: en iyi eşleşen sayfa önce (bestSourcePage).

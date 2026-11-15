@@ -170,3 +170,39 @@ export function tutorStyleLabel(style: TutorStyle): string {
     TUTOR_STYLE_OPTIONS.find((o) => o.id === style)?.title ?? "Adım adım anlat"
   );
 }
+
+/*
+  Faz 13 PR-1 (teacher.v2, 15 Kasım 2026): "Rehberli" varsayılan anlatım. Seçim tarayıcıda durur: `profiles.tutor_style`
+  CHECK'i yalnız üç değer kabul ediyor (göç yok). Öbür üç stil seçilince profile de yazılır (bugünkü gibi). Sunucu
+  "guided"ı yalnız bayrak açıkken tanır (`teacher-v2-session.ts`).
+*/
+export type TeachStyle = TutorStyle | "guided";
+export const GUIDED_TEACH_STYLE = "guided" as const;
+export const TEACH_STYLE_STORAGE_KEY = "cp:teach-style:v2";
+
+export const TEACH_STYLE_OPTIONS: { id: TeachStyle; label: string; short: string; emoji: string; description: string }[] = [
+  {
+    id: GUIDED_TEACH_STYLE,
+    label: "Rehberli",
+    short: "Rehberli",
+    emoji: "🧭",
+    description: "Kısa anlatır, tek soruyla bir sonraki adıma götürür; cevabı sen bulursun. Cevabı görmek bir dokunuş uzakta.",
+  },
+  ...LIVE_TUTOR_STYLE_OPTIONS.map((option) => ({
+    id: option.id as TeachStyle,
+    label: option.label,
+    short: option.short,
+    emoji: option.emoji,
+    description: option.description,
+  })),
+];
+
+export function parseTeachStyle(value: unknown): TeachStyle | null {
+  return TEACH_STYLE_OPTIONS.some((option) => option.id === value) ? (value as TeachStyle) : null;
+}
+
+/** Rehberli ve Sokratik yanıtın altında her zaman: ipucu ve cevabı göster (öğrenci tutsak edilmez). */
+export const LADDER_CHIPS: { label: string; prompt: string }[] = [
+  { label: "💡 İpucu ver", prompt: "Bir ipucu ver; cevabı söyleme." },
+  { label: "⚡ Cevabı göster", prompt: "Cevabı göster." },
+];

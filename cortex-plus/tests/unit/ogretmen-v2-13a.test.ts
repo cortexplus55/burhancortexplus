@@ -109,7 +109,9 @@ describe("ekran: en çok 3 çip", () => {
   it("yanıt çipleri tavanlı; yanıtın kendi çipi varken genel devam önerileri gizli", () => {
     const panel = read("src/components/chat/chat-panel.tsx");
     expect(panel).toContain("maxChips={teacherV2 ? ONE_MOVE_MAX_CHIPS : undefined}");
-    expect(panel).toContain('!(teacherV2 && tutorStyle !== "direct_solve")');
+    // PR-1: koşul seçili anlatıma bakar (bayrak kapalıyken ya da hazırlık sohbetinde activeStyle = tutorStyle).
+    expect(panel).toContain('!(teacherV2 && activeStyle !== "direct_solve")');
+    expect(panel).toContain("const activeStyle: TeachStyle = v2Main ? teachStyle : tutorStyle;");
     expect(read("src/components/chat/tutor-reply-view.tsx")).toContain("maxChips != null ? next.slice(0, maxChips) : next");
     expect(read("src/app/ogretmen/page.tsx")).toContain("teacherV2={teacherV2}");
   });
