@@ -5,6 +5,12 @@
  * istemez. Metin öğrencinin adını taşımaz (yalnız düellonun başlığı ve puan).
  */
 
+/**
+ * Paylaşım uyarısı (15 Kasım 2026, Burhan onayı, düello 9B): düello kurucunun kendi notundan yazıldıysa soru metinleri
+ * notun içeriğini taşır. Yalnız düelloyu kuran kişiye, paylaşım düğmelerinin altında gösterilir.
+ */
+export const DUEL_NOTE_SHARE_WARNING = "Sorular senin notundan hazırlandı; bağlantıyı alan herkes soruları görür.";
+
 export function duelInviteText(title: string): string {
   return `“${title.trim()}” düellosuna gel: aynı sorularda, aynı sürede yarışalım. Hesap gerekmiyor.`;
 }

@@ -7,6 +7,10 @@ import { FREE_LESSON_CODE, freeLessonRefused } from "@/lib/billing/free-lesson-g
 import { DUEL_QUESTIONS, duelCode, toDuelQuestions } from "@/lib/learning/duel";
 import { commitCredits, refundCredits } from "@/lib/credits/service";
 import { studentOptionCount } from "@/lib/learning/student-pedagogy";
+import { DUEL_SET_RULE } from "@/lib/learning/duel-prompt";
+import { checkDuelDailyLimit, duelDailyLimitMessage } from "@/lib/learning/duel-daily";
+import { isFeatureEnabled } from "@/lib/admin/feature-flags";
+import { DUEL_V2_ACTION_CODE, DUEL_V2_FLAG } from "@/lib/entitlements/config";
 import { EMPTY_SOURCE_CONTEXT, loadSourceContext } from "@/lib/learning/source-context";
 import {
   resolvePrepSourceMode,
@@ -37,6 +41,8 @@ export const maxDuration = 300;
  * Yeni düello: hazırlığın çalışılan konusundan 7 tek doğrulu soru.
  * Quiz üretimiyle aynı ücret (QUIZ_GENERATE); soruları aynı doğrulayıcılar
  * süzüyor (üs/matematik anahtarı, belirsiz şık).
+ * Düello 9B (15 Kasım 2026, Burhan onayı) `duel.v2` bayrağı arkasında: açıkken ücret DUEL_GENERATE (20 kredi), günlük
+ * kurma sınırı ve set istemi (`DUEL_SET_RULE`). Kapalıyken yukarıdaki davranış birebir (bekçi: duello-9b.test.tsx).
  */
 export async function POST(request: Request) {
   const guard = await withUser(request, { scope: "exam-prep-duel", limit: 6 });
@@ -62,7 +68,20 @@ export async function POST(request: Request) {
   // Ücretsiz hesap = tek ders (11 Kasım 2026 akşamı): bu üretim ders sayacına düşer, ücretsiz hesapta Plus'a yönlenir.
   // Kaynak okuma, kredi ayırma ve model çağrısından ÖNCE; cüzdan bakiyesi (davet hediyesi) yetiyorsa iş onunla yapılır.
   // Paylaşılan düelloyu oynamak ücretsiz kalır; yeni düello kurmak soru üretimidir.
-  if (await freeLessonRefused(service, userId, "QUIZ_GENERATE")) return errorResponse(402, FREE_LESSON_CODE);
+  // Düello 9B (15 Kasım 2026, Burhan onayı) `duel.v2` arkasında: kendi eylem kodu DUEL_GENERATE (20 kredi) ve günlük
+  // kurma sınırı. Bayrak kişi bazlı açılır (pilot), 30 sn önbellek: kapatınca en geç 30 sn'de bugünkü kurallar.
+  const duelV2 = await isFeatureEnabled(service, DUEL_V2_FLAG, userId);
+  const duelAction = duelV2 ? DUEL_V2_ACTION_CODE : "QUIZ_GENERATE";
+  if (await freeLessonRefused(service, userId, duelAction)) return errorResponse(402, FREE_LESSON_CODE);
+  if (duelV2) {
+    const daily = await checkDuelDailyLimit(service, userId);
+    if (!daily.allowed && daily.limit != null) {
+      return NextResponse.json(
+        { error: duelDailyLimitMessage(daily.limit), code: "duel_daily_limit", limit: daily.limit },
+        { status: 429 },
+      );
+    }
+  }
 
   let topicLabel: string | null = null;
   if (prep.active_topic_id) {
@@ -113,6 +132,7 @@ export async function POST(request: Request) {
     isPremium: await isPremiumUser(service, userId),
     maxDraftAttempts: 2,
     deferCommit: true,
+    ...(duelV2 ? { actionCode: DUEL_V2_ACTION_CODE } : {}),
     maxQuestions: DUEL_CANDIDATES,
     // Öğretmen motoru soruları kendisi çözerek eler; 2 yedekle 7 yeter.
     count: DUEL_QUESTIONS + 2,
@@ -129,7 +149,7 @@ Tüm sorularda multi false (tek doğru). correct her zaman options içinde olsun
 Soru kökü kısa olsun; 20 saniyede okunup cevaplanabilsin. Uzun hesap isteyen soru yazma.
 Soruların hepsi "${topic}" konusundan olsun; alıntıda başka konu geçiyorsa onu sorma.
 "Amacı nedir", "hangi özellik dikkate alınır" gibi yoruma açık soru yazma. Her sorunun tek, kesin ve tartışmasız bir doğrusu olsun: bir değer, bir formül, bir tanım ya da kısa bir hesap. Yanlış şıkların hiçbiri savunulabilir biçimde doğru olmasın.
-Her soruyu göndermeden önce bilimsel ve matematiksel doğruluğunu kontrol et. Soru kökü ile doğru seçenek tam olarak uyuşsun.`,
+Her soruyu göndermeden önce bilimsel ve matematiksel doğruluğunu kontrol et. Soru kökü ile doğru seçenek tam olarak uyuşsun.${duelV2 ? `\n${DUEL_SET_RULE}` : ""}`,
   });
   if (!outcome.ok) return errorResponse(outcome.status, outcome.error);
 

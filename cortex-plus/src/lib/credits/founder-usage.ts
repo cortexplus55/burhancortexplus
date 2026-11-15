@@ -18,6 +18,7 @@ export const FOUNDER_ACTION_LABELS: Record<string, string> = {
   IMAGE_SOLUTION: "Fotoğraftan çözüm",
   DOCUMENT_PAGE_PROCESS: "Belge işleme",
   QUIZ_GENERATE: "Quiz",
+  DUEL_GENERATE: "Düello",
   FLASHCARD_GENERATE: "Kartlar",
   PRACTICE_EXAM_GENERATE: "Yazılı deneme",
   PRACTICE_EXAM_GRADE: "Deneme değerlendirme",
