@@ -133,6 +133,12 @@ const KNOWN = [
     description: "Açıkken bu ekran yeni tasarımla görünür; kapatınca anında eski görünüme döner (geri alma). Davranış ve veriler iki durumda da aynı. Günde en çok bir öneri; kapatılınca 30 gün çıkmaz.",
   },
   {
+    key: "chat_audit_sample",
+    label: "Sohbet · arka plan örnek denetimi",
+    description:
+      "Açıkken kod kontrolünden şüphesiz geçen belge cevaplarının %5'i yanıttan sonra model denetiminden geçer; sonuç yalnız günlüğe (uyuşmazlık oranı), öğrenciye gösterilmez ve öğrenciyi bekletmez. Günde en çok 150 denetim (~0,30 $). Kapatınca en geç 30 sn'de durur.",
+  },
+  {
     key: "ui.v2.duello",
     label: "Yeni görünüm · Düello",
     description: "Açıkken bu ekran yeni tasarımla görünür; kapatınca anında eski görünüme döner (geri alma). Davranış ve veriler iki durumda da aynı. Düello sunucusu hazır olmadan açma (kapanış raporu: park).",
