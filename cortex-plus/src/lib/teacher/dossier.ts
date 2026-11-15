@@ -1,6 +1,7 @@
 import { applyDisplayDates, pathOriginDay, daysBetween, type DatedPathNode } from "@/lib/learning/path-dates";
 import { PLAN_NODE_META, type PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { withoutOutcomeCode } from "@/lib/learning/path-labels";
+import { heaviestSection, type DocumentMap } from "@/lib/documents/document-map";
 
 /*
   Öğrenci Dosyası (PROMPT-V2 §3, PR-2), 15 Kasım 2026: öğrencinin KENDİ kayıtlarından ≤300 jetonluk özet. Saf: girdi
@@ -32,6 +33,8 @@ export type Dossier = {
   empty: boolean;
   /** Öğretmen istemine giden blok (en çok ~1.200 karakter ≈ 300 jeton); kayıt yoksa boş. */
   promptBlock: string;
+  /** Son belgenin haritası henüz yok (PR-3): çağıran arka planda hesaplatır. */
+  pendingMapDocumentId: string | null;
 };
 
 export type DossierPrep = {
@@ -59,6 +62,8 @@ export type DossierInput = {
   /** Bugün vadesi gelen tekrar sayıları. */
   dueReviews: { prep: number; general: number; prepId: string | null };
   documents: readonly { id: string; fileName: string; pageCount: number | null }[];
+  /** Son belgenin haritası (PR-3); yoksa null, satır haritasız kurulur. */
+  documentMap?: DocumentMap | null;
   streak: number | null;
 };
 
@@ -192,10 +197,13 @@ export function buildDossier(input: DossierInput): Dossier {
     const first = input.documents[0]!;
     const pages = first.pageCount ? ` (${first.pageCount} sayfa)` : "";
     const more = input.documents.length > 1 ? ` ve ${input.documents.length - 1} belge daha` : "";
+    const heavy = input.documentMap ? heaviestSection(input.documentMap) : null;
+    const weighted =
+      heavy && input.documentMap && input.documentMap.sections.length > 1 ? `; en ağırlıklı bölüm: ${clean(heavy.title)}` : "";
     lines.push({
       key: "documents",
       source: "documents",
-      text: `Son yüklediğin: ${clean(first.fileName)}${pages}${more}`,
+      text: `Son yüklediğin: ${clean(first.fileName)}${pages}${more}${weighted}`,
       href: "/dokumanlar",
       sourceLabel: "Belgelerim",
     });
@@ -206,10 +214,24 @@ export function buildDossier(input: DossierInput): Dossier {
   }
 
   const empty = lines.length === 0;
-  const body = lines.map((line) => `- ${line.text} [${line.sourceLabel}]`).join("\n");
+  // Notun kendi sayısal kuralları ve formülleri (SOURCE_NUMBER_PRIORITY): genel bilgiden önce bunlar geçerli.
+  const map = input.documentMap ?? null;
+  const noteLines = map
+    ? [
+        ...map.rules.slice(0, 3).map((rule) => `- Notun kuralı: ${rule} [Belgelerim]`),
+        ...map.formulas.slice(0, 2).map((formula) => `- Notun formülü: ${formula} [Belgelerim]`),
+      ]
+    : [];
+  const body = [...lines.map((line) => `- ${line.text} [${line.sourceLabel}]`), ...noteLines].join("\n");
   const promptBlock = empty
     ? ""
     : `ÖĞRENCİ DOSYASI (yalnız bu satırlar gerçek kayıttır; "daha önce takılmıştın" gibi bir cümleyi YALNIZ burada eşleşen ` +
       `bir kayıt varsa kur; burada olmayan geçmişi uydurma; tanı ve kişilik yorumu yapma):\n${body}`.slice(0, PROMPT_LIMIT);
-  return { lines, checks, empty, promptBlock };
+  return {
+    lines,
+    checks,
+    empty,
+    promptBlock,
+    pendingMapDocumentId: input.documents.length && !input.documentMap ? input.documents[0]!.id : null,
+  };
 }

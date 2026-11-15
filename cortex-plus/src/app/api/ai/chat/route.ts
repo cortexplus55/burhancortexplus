@@ -119,6 +119,7 @@ import {
 } from "@/lib/ai/teacher-v2-session";
 import { settleVoice } from "@/lib/ai/teacher-voice";
 import { loadStudentDossier } from "@/lib/teacher/dossier-load";
+import { ensureDocumentMap } from "@/lib/documents/document-map-load";
 import { settlePedagogicalLabels, stripOrphanCitations } from "@/lib/ai/chat-answer-settle";
 import { createChatDraft } from "@/lib/ai/chat-draft";
 import { logOpsEvent } from "@/lib/observability/ops-log";
@@ -542,6 +543,9 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
       // Dosya bloğu tur satırlarından önce (son söz turun kuralı); kriz ve yalnız duygu turunda yok.
       const dossierBlock =
         v2Session && dossierEarly && !turn.crisis && !turn.feelingOnly ? ((await dossierEarly)?.promptBlock ?? "") : "";
+      // PR-3: son belgenin haritası yoksa yanıttan sonra bir kez hesaplanır (sohbet turu beklemez).
+      const pendingMap = v2Session && dossierEarly ? ((await dossierEarly)?.pendingMapDocumentId ?? null) : null;
+      if (pendingMap) after(() => ensureDocumentMap(service, userId, pendingMap).then(() => undefined));
       const requestMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
         { role: "system", content: `${SYSTEM_GUARDRAIL} ${studentInstruction} ${teacherTurn} ${(v2Session && v2StyleLine(teachStyle)) || teacherStyleLine(tutorStyle)} ${CHAT_NATURAL_VOICE}${rest.prepId && prepGrounding ? "" : `\n\n${teacherV2 ? ONE_MOVE_MARKUP : CHAT_TEACHING_MARKUP}\n\n`} ${v2Session ? v2AnswerFirstLine({ message, style: teachStyle, base: tutorStyle, session: v2Session, plan: turn.plan }) : answerFirstLine(message, tutorStyle)}${moodLine}${examContext?.block ?? ""}${attachedBrief ? `\n${SOURCE_PAGE_FORMULA_RULE}\n${attachedBrief}` : ""}${contextBlock}${tutorAddendum ? `\n\n${tutorAddendum}` : ""}${simplifyLine(message) ? `\n\n${simplifyLine(message)}` : ""}${dossierBlock ? `\n\n${dossierBlock}` : ""}${chatTurnBlock(turnLines)}` },
         ...history,

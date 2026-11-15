@@ -4,6 +4,7 @@ import { istanbulDay } from "@/lib/istanbul-day";
 import { NOT_STUDIO_EXAM_FILTER } from "@/lib/learning/studio-exam";
 import { loadStudentMemory } from "@/lib/learning/student-memory/store";
 import { getUserStreak } from "@/lib/streak/record-activity";
+import { knownDocumentMap } from "@/lib/documents/document-map-load";
 import { buildDossier, type Dossier, type DossierInput, type DossierPrep } from "@/lib/teacher/dossier";
 
 /*
@@ -132,6 +133,11 @@ export async function readDossierInput(service: SupabaseClient, userId: string, 
       )
     : { data: [], error: null };
   const nodes = nodeRows.error ? [] : (nodeRows.data ?? []);
+  // Son belgenin hazır haritası (PR-3): yalnız okunur (bellek ya da kayıt); hesap sohbet turunu bekletmez.
+  const latestDocument = documents.error ? null : (documents.data?.[0] ?? null);
+  const documentMap = latestDocument
+    ? await settle(knownDocumentMap(service, userId, String(latestDocument.id)), null, "document_map")
+    : null;
 
   const prepList: DossierPrep[] = prepRows.map((row) => ({
     id: String(row.id),
@@ -163,6 +169,7 @@ export async function readDossierInput(service: SupabaseClient, userId: string, 
       general: generalDue.error ? 0 : Number(generalDue.count ?? 0),
       prepId: prepDue.error ? null : (prepDue.data?.[0]?.exam_prep_id ?? null),
     },
+    documentMap,
     documents: (documents.error ? [] : (documents.data ?? [])).map((row) => ({
       id: String(row.id),
       fileName: String(row.file_name ?? "Belge"),
