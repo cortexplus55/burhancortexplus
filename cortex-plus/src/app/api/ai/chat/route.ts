@@ -103,7 +103,8 @@ import {
   splitOutsideMaterial,
   verifyDocumentAnswer,
 } from "@/lib/ai/document-answer-verification";
-import { shouldSampleChatAudit } from "@/lib/ai/chat-audit-sample";
+import { CHAT_AUDIT_FLAG, claimChatAuditSlot, shouldSampleChatAudit } from "@/lib/ai/chat-audit-sample";
+import { isFeatureEnabled } from "@/lib/admin/feature-flags";
 import { settlePedagogicalLabels, stripOrphanCitations } from "@/lib/ai/chat-answer-settle";
 import { createChatDraft } from "@/lib/ai/chat-draft";
 import { logOpsEvent } from "@/lib/observability/ops-log";
@@ -944,6 +945,12 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
       const auditModel = contentModel();
       after(async () => {
         try {
+          // Kapatma anahtarı ve günlük tavan (Burhan karar 3): ikisi de yanıttan sonra, öğrenciyi bekletmez.
+          if (!(await isFeatureEnabled(service, CHAT_AUDIT_FLAG))) return;
+          if (!(await claimChatAuditSlot())) {
+            console.info("chat_audit_sample_capped");
+            return;
+          }
           const client = openaiClient({ apiKey: env.OPENAI_API_KEY });
           const verdict = await verifyDocumentAnswer({
             client,

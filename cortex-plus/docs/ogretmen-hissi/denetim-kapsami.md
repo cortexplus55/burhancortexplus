@@ -32,6 +32,18 @@ bir model çağrısıdır. "Kod", modelsiz kesin kontroldür.
 ## Ürün metinleri
 - Ana sayfa ve SSS'deki "çift kontrol" sözü yalnız ders ve test için. Bu tabloyla uyumlu (yazar + hafif doğrulayıcı + kod);
   değişiklik gerekmedi.
-- Plus sayfasındaki "Notunda olmayanı uydurmaz" cümlesi sohbetin bütün modlarını kapsıyor gibi okunuyordu. Yerine:
-  "«Yalnızca belgem» modunda notunda olmayanı uydurmaz; öbür modlarda genel bilgiyi ayrı etiketler. Cevaplayamadığı soruda
-  hakkından düşmez." Söz katı modda kodla tutuluyor (`no-source-guarantee.test.ts`).
+- Plus sayfasındaki "Notunda olmayanı uydurmaz" cümlesinin daraltılması **ayrı PR**: Burhan "PLUS METNİ OK" yazmadan yayına
+  girmez (karar 3).
+
+## Arka plan örnek denetimi: koşullar (Burhan karar 3)
+
+| Koşul | Nasıl |
+|---|---|
+| Öğrenciyi bloklamaz, göstermez | Örnek kararı (%5) kayıttan sonra; bayrak, tavan ve model çağrısı `after()` içinde. Sonuç yalnız `chat_audit_sample` günlüğü |
+| Kapatma bayrağı | `chat_audit_sample` özellik anahtarı (Özellik Anahtarları'nda "Sohbet · arka plan örnek denetimi"). Satırı yoksa kapalı; kapatınca en geç 30 sn |
+| Günlük maliyet tavanı | İstanbul günü başına en çok 150 denetim (Redis sayacı; dolunca `chat_audit_sample_capped` günlüğü, denetim yapılmaz). Tahmini ~0,002 $/denetim → en çok ~0,30 $/gün |
+| Yazma hacmi | Denetim başına tek `ai_usage_events` satırı (maliyet hesabı için gerekli; ortalama ~120 bayt + dizin). Denetim sonucu veritabanına yazılmaz |
+
+**Ek yazma / gün (ölçüm, 15 Kasım 2026, son 7 gün):** günde en çok 88 sohbet cevabı (`AI_CHAT_STANDARD`), ortalama kullanım
+satırı 118–123 bayt. %5 örnekle günde ~4–5 denetim → **~5 satır, ~0,6 kB + dizin**. Tavanda (150) üst sınır ~18 kB + dizin.
+Disk IO açısından ihmal edilebilir (geçici yazının günlük ~8–11 GB olduğu yerde).
