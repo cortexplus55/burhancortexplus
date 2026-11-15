@@ -160,7 +160,8 @@ for (const width of WIDTHS) {
             return Math.min(...spans);
           }),
         );
-        for (const height of heights) expect(height).toBeGreaterThanOrEqual(44);
+        const name = (await target.textContent())?.trim().slice(0, 40) ?? "?";
+        for (const height of heights) expect(height, `dokunma alanı: ${name}`).toBeGreaterThanOrEqual(44);
       }
       // Dolgu alanına dokunmak sözleşmeyi açar, kutuyu işaretlemez; iki onay kutusu kendi dokunuşunu alır.
       const link = page.locator("#planlar .cp-legal-link");

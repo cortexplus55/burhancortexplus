@@ -89,6 +89,15 @@
   /* Satır parçasının yüksekliği yazı boyunun ~1,17 katı: 13-16 px yazıda parça 44-45 px olur. */
   padding-block: calc(22px - 0.55em);
 }
+/*
+ * Güven şeridinde iki maddenin bağlantıları alt alta gelebilir (yazı tipine ve genişliğe göre "iptal ve iade" bir
+ * maddenin son satırına, telefon bir sonrakinin ilk satırına düşer). Dolgular örtüşürse sonraki bağlantı dokunuşu alır,
+ * öncekinin alanı 44 px'in altına iner (CI'da 40 px ölçüldü). Maddeler arası boşluk iki dolgunun toplamı kadar: örtüşme yok.
+ */
+[data-ui~="pay"] #planlar .cs-trust-strip {
+  display: grid;
+  row-gap: 1.75rem;
+}
 [data-ui~="pay"] #planlar .cp-pay-free-continue {
   display: inline-flex;
   align-items: center;
