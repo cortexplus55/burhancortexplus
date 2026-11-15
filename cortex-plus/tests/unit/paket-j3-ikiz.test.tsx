@@ -205,7 +205,11 @@ describe("#12 ikiz soru", () => {
     expect(token).not.toContain("6\"");
     expect(openTwin(token, secret, 2_000)).toMatchObject({ a: "a1", i: 2, c: ["6"], x: "a = 6" });
     expect(openTwin(token, "başka", 2_000)).toBeNull();
-    const broken = token.slice(0, -2) + (token.endsWith("A") ? "BB" : "AA");
+    // Ortadaki bir karakter değişir: son karakterler yalnız base64 dolgu bitlerini taşıyabildiği için (rastgele IV'ye
+    // göre) eski "son iki karakter" kurcalaması bazen aynı baytları verip testi kararsız yapıyordu (15 Kasım 2026, CI).
+    const middle = Math.floor(token.length / 2);
+    const broken = token.slice(0, middle) + (token[middle] === "A" ? "B" : "A") + token.slice(middle + 1);
+    expect(broken).not.toBe(token);
     expect(openTwin(broken, secret, 2_000)).toBeNull();
     expect(openTwin(token, secret, 1_000 + 7 * 60 * 60 * 1000)).toBeNull();
   });
