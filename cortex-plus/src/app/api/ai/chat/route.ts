@@ -100,8 +100,12 @@ import {
   outsideMaterialReviewNote,
   paidChatAttempts,
   presentOutsideMaterialAnswer,
+  splitOutsideMaterial,
   verifyDocumentAnswer,
 } from "@/lib/ai/document-answer-verification";
+import { CHAT_AUDIT_FLAG, claimChatAuditSlot, shouldSampleChatAudit } from "@/lib/ai/chat-audit-sample";
+import { isFeatureEnabled } from "@/lib/admin/feature-flags";
+import { ONE_MOVE_MARKUP, TEACHER_V2_FLAG, oneMoveMetrics, settleOneMove } from "@/lib/ai/teacher-v2";
 import { settlePedagogicalLabels, stripOrphanCitations } from "@/lib/ai/chat-answer-settle";
 import { createChatDraft } from "@/lib/ai/chat-draft";
 import { logOpsEvent } from "@/lib/observability/ops-log";
@@ -254,6 +258,8 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
       return promise;
     };
     const entitlementsEarly = quiet(getUserEntitlements(service, userId));
+    // Faz 13A (15 Kasım 2026): öğretmen hissi `teacher.v2` arkasında; kişi bazlı açılır, 30 sn önbellek. Okuma düşerse kapalı.
+    const teacherV2Early = isFeatureEnabled(service, TEACHER_V2_FLAG, userId).catch(() => false);
     const priorTurnsEarly = quiet(
       rest.conversationId
         ? Promise.resolve(service.from("messages").select("id", { count: "exact", head: true })
@@ -288,7 +294,9 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
     const verdictEarly = quiet(!imageUrl && textVerdictEarly ? textVerdictEarly : moderate({ text: message, imageUrls: imageUrl ? [imageUrl] : [] }));
     type Verdict = Awaited<typeof verdictEarly>;
     const isBlocked = (v: Verdict): v is Extract<Verdict, { message: string }> => v.action === "block" || v.action === "support";
-    const parallelModeration = Boolean(rest.prepId) && !imageUrl;
+    // teacher.v2 (EK-6): ana sohbette de denetim modelle paralel; ilk metin denetimi beklemez (canlıda 0,6-1,7 sn).
+    const teacherV2 = await teacherV2Early;
+    const parallelModeration = (Boolean(rest.prepId) || teacherV2) && !imageUrl;
     const modelAbort = new AbortController();
     const abortModel = () => modelAbort.abort();
     if (request.signal.aborted) abortModel(); else request.signal.addEventListener("abort", abortModel, { once: true });
@@ -399,6 +407,11 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
     let chatActions: ChatAction[] = [];
     /** Tur bir stüdyo yönlendirmesi mi (test, kart, deneme isteği; özet değil). */
     let studioRedirect = false;
+    /**
+     * Arka plan örnek denetimi (15 Kasım 2026, ürün sahibi): kod kontrolünden şüphesiz geçen belge cevabının %5'i
+     * yanıttan SONRA model denetiminden geçer; sonuç yalnız günlüğe (uyuşmazlık oranı), öğrenciye gösterilmez.
+     */
+    let auditCandidate: { answer: string; localCitations: number } | null = null;
     let prepGrounding: Awaited<ReturnType<typeof loadPrepChatGrounding>> | null = null;
     if (strict && !evidence.length && !imageUrl && !teacherPrepChat) {
       content = NO_SOURCE_MESSAGE + NO_SOURCE_CREDIT_NOTE;
@@ -492,7 +505,7 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
       }
       const moodLine = turn.mood === "neutral" ? "" : ` ${moodPrompt(turn.mood)}`;
       const requestMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-        { role: "system", content: `${SYSTEM_GUARDRAIL} ${studentInstruction} ${teacherTurn} ${teacherStyleLine(tutorStyle)} ${CHAT_NATURAL_VOICE}${rest.prepId && prepGrounding ? "" : `\n\n${CHAT_TEACHING_MARKUP}\n\n`} ${answerFirstLine(message, tutorStyle)}${moodLine}${examContext?.block ?? ""}${attachedBrief ? `\n${SOURCE_PAGE_FORMULA_RULE}\n${attachedBrief}` : ""}${contextBlock}${tutorAddendum ? `\n\n${tutorAddendum}` : ""}${simplifyLine(message) ? `\n\n${simplifyLine(message)}` : ""}${chatTurnBlock(turnLines)}` },
+        { role: "system", content: `${SYSTEM_GUARDRAIL} ${studentInstruction} ${teacherTurn} ${teacherStyleLine(tutorStyle)} ${CHAT_NATURAL_VOICE}${rest.prepId && prepGrounding ? "" : `\n\n${teacherV2 ? ONE_MOVE_MARKUP : CHAT_TEACHING_MARKUP}\n\n`} ${answerFirstLine(message, tutorStyle)}${moodLine}${examContext?.block ?? ""}${attachedBrief ? `\n${SOURCE_PAGE_FORMULA_RULE}\n${attachedBrief}` : ""}${contextBlock}${tutorAddendum ? `\n\n${tutorAddendum}` : ""}${simplifyLine(message) ? `\n\n${simplifyLine(message)}` : ""}${chatTurnBlock(turnLines)}` },
         ...history,
         { role: "user", content: imageUrl ? [{ type: "text", text: message }, { type: "image_url", image_url: visionImage(imageUrl) }] : message },
       ];
@@ -811,6 +824,7 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
             if (strict) checked = await runModelCheck(true);
             else {
               const local = localDocumentCheck({ question: message, answer: content, evidence });
+              if (local.ok && !local.suspicious) auditCandidate = { answer: content, localCitations: local.citations.length };
               if (!local.ok || !local.suspicious) checked = local;
               else {
                 const verdict = await runModelCheck(false);
@@ -864,6 +878,19 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
       // "Materyal dışı" etiketi yalnız bilgi bölümünde (15 Kasım 2026): benzetme, soru ve yönlendirmeden ibaret bölümün
       // etiketi kalkar; stüdyo yönlendirmesi turunda "kaynakta yok" satırı da. "Yalnızca belgem" modunda dokunulmaz.
       if (!strict && charge) content = settlePedagogicalLabels(content, { redirect: studioRedirect });
+      // Faz 13A (teacher.v2): tek hamle kuralının kod katmanı, yalnız siler (soru soran mesajda "Akılda kalsın", fazla
+      // destek kutusu, iç sistem dili). Ölçü anonim (PROMPT §9).
+      if (teacherV2 && charge && !(rest.prepId && prepGrounding)) {
+        const settled = settleOneMove(content);
+        content = settled.text;
+        console.info("teacher_v2_turn", {
+          ...oneMoveMetrics(content),
+          style: tutorStyle,
+          removedRemember: settled.removedRemember,
+          removedBoxes: settled.removedBoxes,
+          internalStripped: settled.internalStripped,
+        });
+      }
     }
     // Türkçe aritmetik sağlama (10 Kasım 2026, güven paketi): "A × B = C" eşitliğinde sonuç yalnız ayırıcı karışıklığının
     // imzasıyla (bin katı) sapıyorsa düzeltilir. Kayıttan ÖNCE ve kaynak işaretlerinden önce: akan taslak bitişte kayıtlı
@@ -930,6 +957,42 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
       );
     }
     stage("saved");
+    if (auditCandidate && charge && shouldSampleChatAudit()) {
+      const sample = auditCandidate;
+      const auditEvidence = evidence;
+      const auditModel = contentModel();
+      after(async () => {
+        try {
+          // Kapatma anahtarı ve günlük tavan (Burhan karar 3): ikisi de yanıttan sonra, öğrenciyi bekletmez.
+          if (!(await isFeatureEnabled(service, CHAT_AUDIT_FLAG))) return;
+          if (!(await claimChatAuditSlot())) {
+            console.info("chat_audit_sample_capped");
+            return;
+          }
+          const client = openaiClient({ apiKey: env.OPENAI_API_KEY });
+          const verdict = await verifyDocumentAnswer({
+            client,
+            question: message,
+            // Yalnız belge bölümü: genel bilgi bölümü belgeye karşı ölçülmez.
+            answer: splitOutsideMaterial(sample.answer).documentPart || sample.answer,
+            evidence: auditEvidence,
+            strict: true,
+            model: auditModel,
+            reasoningEffort: "low",
+          });
+          await recordUsage(service, { userId, actionCode, model: auditModel, tokensIn: verdict.tokensIn, tokensOut: verdict.tokensOut });
+          console.info("chat_audit_sample", {
+            agree: verdict.ok,
+            reasons: verdict.reasons.slice(0, 4),
+            linked: linkedEvidence,
+            evidence: auditEvidence.length,
+            localCitations: sample.localCitations,
+          });
+        } catch (error) {
+          console.warn("chat_audit_sample_failed", { cause: error instanceof Error ? error.name : "unknown" });
+        }
+      });
+    }
     if (live.started) {
       const result = saved as SavedChatResult;
       live.finish({

@@ -4,7 +4,9 @@ import { DuelPlay } from "@/components/duel/duel-play";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { publicQuestions, type DuelQuestion } from "@/lib/learning/duel";
 import { isBotLevel } from "@/lib/learning/duel-bot";
-import { duelSignupHref } from "@/lib/learning/duel-share";
+import { DUEL_NOTE_SHARE_WARNING, duelSignupHref } from "@/lib/learning/duel-share";
+import { isFeatureEnabled } from "@/lib/admin/feature-flags";
+import { DUEL_V2_FLAG } from "@/lib/entitlements/config";
 import { appOrigin } from "@/lib/app-url";
 import "@/styles/duel.css";
 import "@/styles/ui-v2-duello.css";
@@ -39,7 +41,7 @@ export default async function DuelPage({
   const service = createServiceClient();
   const { data: duel } = await service
     .from("prep_duels")
-    .select("id, title, topic_label, questions, creator_id")
+    .select("id, title, topic_label, questions, creator_id, exam_prep_id")
     .eq("share_code", code)
     .maybeSingle();
   if (!duel) notFound();
@@ -66,6 +68,16 @@ export default async function DuelPage({
     signedIn = false;
   }
   const duelloV2 = await uiV2("duello", userId);
+  // Paylaşım uyarısı (15 Kasım 2026, düello 9B, `duel.v2` arkasında): yalnız kurucuya ve düello kendi notundan yazıldıysa.
+  let shareWarning: string | null = null;
+  if (userId && userId === duel.creator_id && duel.exam_prep_id && (await isFeatureEnabled(service, DUEL_V2_FLAG, userId))) {
+    const { data: prep } = await service
+      .from("exam_preps")
+      .select("document_id")
+      .eq("id", duel.exam_prep_id as string)
+      .maybeSingle();
+    if (prep?.document_id) shareWarning = DUEL_NOTE_SHARE_WARNING;
+  }
 
   const creatorName = String(creator?.full_name ?? "").trim().split(/\s+/)[0] || "Bir arkadaşın";
   const questions = (Array.isArray(duel.questions) ? duel.questions : []) as DuelQuestion[];
@@ -94,6 +106,7 @@ export default async function DuelPage({
         shareUrl={`${appOrigin()}/duello/${code}`}
         signupHref={duelSignupHref((creator as { referral_code?: string | null } | null)?.referral_code)}
         neutralBot={duelloV2}
+        shareWarning={shareWarning}
       />
     </main>
     </UiScope>

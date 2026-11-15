@@ -101,7 +101,10 @@ export function TutorReplyView({
   hideChips = false,
   tutorStyle,
   quickActions = true,
+  maxChips,
 }: {
+  /** teacher.v2 (Faz 13A): yanıtın altındaki çiplerin tavanı (en çok 3). Verilmezse bugünkü gibi hepsi. */
+  maxChips?: number;
   /** Adım Adım modunun hızlı eylemleri yalnız sohbetin son yanıtında; çağıran son yanıt değilse false verir. */
   quickActions?: boolean;
   /** Ayarlar > Önerilen sorular kapalıysa devam çipleri çizilmez. */
@@ -151,8 +154,8 @@ export function TutorReplyView({
       seen.add(chip.prompt);
       next.push(chip);
     }
-    return next;
-  }, [hideChips, quickChips, view.chips]);
+    return maxChips != null ? next.slice(0, maxChips) : next;
+  }, [hideChips, quickChips, view.chips, maxChips]);
   const quickLabels = new Set(quickChips.map((chip) => chip.label));
   const quickClass = tutorStyle === "step_by_step" ? "cp-tutor-chip cp-tutor-chip--step" : "cp-tutor-chip cp-tutor-chip--socratic";
 
