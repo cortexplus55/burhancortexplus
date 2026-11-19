@@ -14,6 +14,24 @@ import { podcastCheckAnswered, podcastCheckOf } from "@/lib/learning/podcast-che
 import { PATH_LOOKAHEAD } from "@/lib/learning/study-path-window";
 import { oralItemSufficient } from "@/lib/learning/oral-sufficiency";
 import { contentSpansTopics, createTopicIndex } from "@/lib/learning/topic-identity";
+import { cardAnswerCredit } from "@/lib/learning/flashcard-round";
+import { lessonCheckResults } from "@/lib/learning/lesson-play";
+import { readLessonV2 } from "@/lib/learning/lesson-v3";
+import {
+  BADGE_LABEL,
+  BADGE_TONE,
+  CARD_SOURCES,
+  DEFAULT_TARGET_SCORE,
+  DEVELOPING_MIN_SCORE,
+  MASTERY_EVIDENCE_FLOOR,
+  policyBadge,
+  policySource,
+  readTopicPolicy,
+  type MasteryBadge,
+  type TopicPolicy,
+} from "@/lib/learning/mastery-policy";
+
+export { DEFAULT_TARGET_SCORE, MASTERY_EVIDENCE_FLOOR } from "@/lib/learning/mastery-policy";
 
 export type AnswerEvidenceDraft = {
   topicKey: string;
@@ -40,6 +58,11 @@ export type TopicMasterySnapshot = {
   independentCorrect: number;
   independentTotal: number;
   lastPracticedAt: string | null;
+  /**
+   * Faz 4: akıllı kavrama kararı (`mastery-policy.ts`; kayıtta `exam_prep_topic_mastery.policy`). Varsa yüzde,
+   * ölçüm ve rozet buradan okunur; eski satırda yok (eski sayımdan hesaplanır).
+   */
+  policy?: TopicPolicy | null;
 };
 
 export type LearningIndicators = {
@@ -93,7 +116,9 @@ export function normalizeTopicKey(raw: string | null | undefined): string {
 
 /**
  * Build per-answer evidence from a scored attempt payload.
- * Flashcards never count as mastery evidence (participation only).
+ * Faz 4 (19 Kasım 2026): ders içi kontroller (`lesson_check`) ve kartların öz bildirimi (`card_knew` / `card_hard` /
+ * `card_miss`) de kanıttır. Kartlar tek başına "Öğrendin" açamaz (`mastery-policy.ts`: en az bir nesnel kaynak şart)
+ * ve eski sayımlara (N sorudan X doğru) girmez (`foldTopicMastery`).
  */
 export function extractAnswerEvidence(input: {
   kind: PlanNodeKind;
@@ -279,7 +304,48 @@ export function extractAnswerEvidence(input: {
     });
   }
 
-  // Kartlar, ders ve kontrolsüz podcast: kanıt yok.
+  // Faz 4: ders içi kontroller — yalnız ilk cevap (tekrar sorusu kanıt yazmaz). Ders soruları ipucusuz sorulur.
+  if (data.type === "lesson") {
+    const lesson = readLessonV2(data.lesson);
+    for (const result of lessonCheckResults(lesson ?? { sections: [] }, input.answers)) {
+      out.push({
+        topicKey,
+        learningObjective: input.sessionObjective?.trim() || null,
+        questionIndex: result.index,
+        correct: result.correct,
+        isFirstAttempt: input.isFirstAttempt,
+        hintAssisted: false,
+        independentSuccess: result.correct,
+        wrongType: result.correct ? null : "lesson_check_miss",
+        sourceKind: "lesson_check",
+        questionPreview: result.prompt.slice(0, 160) || null,
+      });
+    }
+  }
+
+  // Faz 4: kartların öz bildirimi (Bildim / Zorlandım / Bilemedim). Kayıtlı desteden tekrar (ikinci açılış) da yazar:
+  // her tur ayrı bir öz bildirimdir; tekrar doğrusu politikada 0,4 ile çarpılır.
+  if (data.type === "cards" && Array.isArray(data.cards)) {
+    (data.cards as { front?: unknown }[]).forEach((card, index) => {
+      const credit = cardAnswerCredit(input.answers[String(index)]);
+      if (credit == null) return;
+      const sourceKind = credit >= 0.8 ? "card_knew" : credit > 0 ? "card_hard" : "card_miss";
+      out.push({
+        topicKey,
+        learningObjective: input.sessionObjective?.trim() || null,
+        questionIndex: index,
+        correct: credit > 0,
+        isFirstAttempt: input.isFirstAttempt,
+        hintAssisted: false,
+        independentSuccess: credit > 0,
+        wrongType: credit > 0 ? null : "card_miss",
+        sourceKind,
+        questionPreview: typeof card?.front === "string" ? card.front.slice(0, 160) : null,
+      });
+    });
+  }
+
+  // Kontrolsüz podcast ve dersin anlatımı: kanıt yok.
   return out.slice(0, 40);
 }
 
@@ -330,6 +396,8 @@ export function foldTopicMastery(
   }
 
   for (const row of evidence) {
+    // Kartların öz bildirimi soru değildir: eski sayımlara (N sorudan X doğru) girmez, yalnız politikaya girer.
+    if (CARD_SOURCES.has(policySource(row.sourceKind))) continue;
     const key = normalizeTopicKey(row.topicKey);
     const cur =
       map.get(key) ??
@@ -369,8 +437,6 @@ export function foldTopicMastery(
   return [...map.values()].map(scoreTopicMastery);
 }
 
-/** Konunun ölçülmüş sayılması ve "Sağlam" olabilmesi için gereken kanıt. Bir soru yetmez. */
-export const MASTERY_EVIDENCE_FLOOR = 3;
 
 /**
  * Konu ölçüldü mü (30 Ekim 2026, Paket I #7): en az 3 kayıtlı cevap. Altında konu "Ölçülmedi" yazar ve
@@ -378,8 +444,13 @@ export const MASTERY_EVIDENCE_FLOOR = 3;
  * çalışılmamış konuya düşen tek kanıt da "%33" görünüyordu — öğrenci için anlamsız bir öncül sayıydı.
  * Kapsam ("x/N konu ölçüldü"), hazırlık ortalaması ve "Sağlam" aynı eşiği okur.
  */
-export function isMeasuredTopic(topic: Pick<TopicMasterySnapshot, "measured" | "evidenceCount"> | null | undefined): boolean {
-  return Boolean(topic && topic.measured !== false && topic.evidenceCount >= MASTERY_EVIDENCE_FLOOR);
+export function isMeasuredTopic(
+  topic: (Pick<TopicMasterySnapshot, "measured" | "evidenceCount"> & { policy?: TopicPolicy | null }) | null | undefined,
+): boolean {
+  if (!topic) return false;
+  // Faz 4: politika kararı varsa ölçüm oradan (kartların öz bildirimi de kanıt sayısına girer).
+  if (topic.policy) return topic.policy.measured;
+  return Boolean(topic.measured !== false && topic.evidenceCount >= MASTERY_EVIDENCE_FLOOR);
 }
 
 /** Bağımsız doğruluk; yoksa ilk deneme. Kayıt yoksa 0. */
@@ -396,12 +467,27 @@ export function topicSuccessRate(topic: TopicMasterySnapshot): number {
  */
 export function topicMasteryPercent(topic: TopicMasterySnapshot): number {
   if (!isMeasuredTopic(topic)) return 0;
+  // Faz 4: ağırlıklı, sönümlü ve son yanlış cezalı yüzde (`mastery-policy.ts`) — bütün ekranlarda aynı sayı.
+  if (topic.policy) return topic.policy.pct;
   return Math.max(0, Math.min(100, Math.round(topicSuccessRate(topic) * 100)));
 }
 
-/** "Sağlam": ölçülmüş (en az 3 kanıt) ve yüzde hedefin üstünde. Tek doğru cevap yetmez. */
+/** Faz 4 rozeti: Öğrendin / Gelişiyor / Zayıf / Ölçülmedi. Politika yoksa eski sayımdan aynı eşiklerle. */
+export function topicBadge(topic: TopicMasterySnapshot, target: number | null | undefined): MasteryBadge {
+  if (topic.policy) return policyBadge(topic.policy, target);
+  if (!isMeasuredTopic(topic)) return "unmeasured";
+  const pct = topicMasteryPercent(topic);
+  // Eski satır (politika yazılmadan önce): ayrı adım bilinmiyor; bağımsız doğru ve yüzde ile.
+  if (topic.independentCorrect >= 4 && pct >= effectiveTarget(target)) return "learned";
+  return pct >= DEVELOPING_MIN_SCORE ? "developing" : "weak";
+}
+
+/**
+ * "Öğrendin" (Faz 4; önce "Sağlam"): `mastery-policy.ts` kuralı — ölçülmüş, en az bir nesnel kaynak, ipucusuz en az 4
+ * doğru, en az 2 ayrı değerlendirme adımı ve yüzde hedefte.
+ */
 export function topicIsSolid(topic: TopicMasterySnapshot, target: number): boolean {
-  return isMeasuredTopic(topic) && topicMasteryPercent(topic) >= target;
+  return topicBadge(topic, target) === "learned";
 }
 
 export type TopicMasteryState = "ready" | "needs_work" | "unmeasured";
@@ -410,7 +496,11 @@ export type TopicMasteryView = {
   /** `topicMasteryPercent`; ölçülmemiş konuda 0 ve ekranda yazılmaz (`text`). */
   percent: number;
   state: TopicMasteryState;
-  /** Ekrandaki rozet: "Sağlam" / "Çalışılacak" / "Ölçülmedi". */
+  /** Faz 4 rozeti (dört durum). `state` eski üç durumlu karar: ready = Öğrendin. */
+  badge: MasteryBadge;
+  /** Rozet rengi: zümrüt / kobalt / mercan / gri. */
+  tone: "emerald" | "cobalt" | "coral" | "gray";
+  /** Ekrandaki rozet: "Öğrendin" / "Gelişiyor" / "Zayıf" / "Ölçülmedi". */
   label: string;
   /** Ekrandaki sayı: "%62" ya da ölçülmemişse "Ölçülmedi". */
   text: string;
@@ -419,9 +509,9 @@ export type TopicMasteryView = {
 };
 
 export const MASTERY_STATE_LABEL: Record<TopicMasteryState, string> = {
-  ready: "Sağlam",
+  ready: BADGE_LABEL.learned,
   needs_work: "Çalışılacak",
-  unmeasured: "Ölçülmedi",
+  unmeasured: BADGE_LABEL.unmeasured,
 };
 
 /**
@@ -431,12 +521,15 @@ export const MASTERY_STATE_LABEL: Record<TopicMasteryState, string> = {
  */
 export function topicMasteryView(topic: TopicMasterySnapshot, target: number | null | undefined): TopicMasteryView {
   const measured = isMeasuredTopic(topic);
-  const state: TopicMasteryState = !measured ? "unmeasured" : topicIsSolid(topic, effectiveTarget(target)) ? "ready" : "needs_work";
+  const badge = topicBadge(topic, effectiveTarget(target));
+  const state: TopicMasteryState = !measured ? "unmeasured" : badge === "learned" ? "ready" : "needs_work";
   const percent = topicMasteryPercent(topic);
   return {
     percent,
     state,
-    label: MASTERY_STATE_LABEL[state],
+    badge,
+    tone: BADGE_TONE[badge],
+    label: BADGE_LABEL[badge],
     text: masteryPercentText(percent, measured),
     solved: topic.evidenceCount,
   };
@@ -444,7 +537,7 @@ export function topicMasteryView(topic: TopicMasterySnapshot, target: number | n
 
 /** `exam_prep_topic_mastery` okuyan her sayfa bu sütunları ister; yüzde kayıtlı `confidence`'tan değil ham sayılardan. */
 export const MASTERY_ROW_COLUMNS =
-  "topic_key, measured_level, confidence, evidence_count, first_attempt_correct, first_attempt_total, independent_correct, independent_total, last_practiced_at";
+  "topic_key, measured_level, confidence, evidence_count, first_attempt_correct, first_attempt_total, independent_correct, independent_total, last_practiced_at, policy";
 
 export function masterySnapshotFromRow(row: Record<string, unknown>): TopicMasterySnapshot {
   const evidenceCount = Number(row.evidence_count ?? 0);
@@ -459,6 +552,7 @@ export function masterySnapshotFromRow(row: Record<string, unknown>): TopicMaste
     independentCorrect: Number(row.independent_correct ?? 0),
     independentTotal: Number(row.independent_total ?? 0),
     lastPracticedAt: (row.last_practiced_at as string | null) ?? null,
+    policy: readTopicPolicy(row.policy),
   };
 }
 
@@ -473,7 +567,10 @@ export function topicPercentsByKey(rows: Record<string, unknown>[] | null | unde
 }
 
 export function scoreTopicMastery(topic: TopicMasterySnapshot): TopicMasterySnapshot {
-  if (!topic.measured || topic.evidenceCount === 0) {
+  if (topic.policy && !topic.policy.measured) {
+    return { ...topic, measured: topic.evidenceCount > 0, level: "unmeasured", confidence: 0 };
+  }
+  if (!topic.policy && (!topic.measured || topic.evidenceCount === 0)) {
     return {
       ...topic,
       measured: false,
@@ -482,13 +579,11 @@ export function scoreTopicMastery(topic: TopicMasterySnapshot): TopicMasterySnap
     };
   }
 
-  const rate = topicSuccessRate(topic);
+  // Faz 4: sabit 85 kalktı — seviye, rozetle aynı kuraldan (`mastery-policy.ts`, varsayılan hedef 70).
   const confidence = topicMasteryPercent({ ...topic, measured: true });
-
-  let level: TopicMasterySnapshot["level"] = "weak";
-  if (topicIsSolid(topic, 85)) level = "solid";
-  else if (rate >= 0.55) level = "emerging";
-  else level = "weak";
+  const badge = topicBadge({ ...topic, measured: true }, DEFAULT_TARGET_SCORE);
+  const level: TopicMasterySnapshot["level"] =
+    badge === "learned" ? "solid" : badge === "developing" ? "emerging" : badge === "weak" ? "weak" : "unmeasured";
 
   return { ...topic, level, confidence };
 }
@@ -516,8 +611,18 @@ export function masteryByPlannedTopic(
     }
     const later =
       (prev.lastPracticedAt ?? "") >= (snapshot.lastPracticedAt ?? "") ? prev.lastPracticedAt : snapshot.lastPracticedAt;
+    // Faz 4: politika kararı konunun bütün kanıtından (planlı ada göre) hesaplanır; birebir anahtarlı satırınki,
+    // yoksa en çok kanıtlısı geçerli.
+    const exact = normalizeTopicKey(snapshot.topicKey) === normalizeTopicKey(row.label);
+    const policy =
+      exact && snapshot.policy
+        ? snapshot.policy
+        : prev.policy && snapshot.policy
+          ? (prev.policy.evidenceCount >= snapshot.policy.evidenceCount ? prev.policy : snapshot.policy)
+          : (prev.policy ?? snapshot.policy ?? null);
     merged.set(row.label, {
       ...prev,
+      policy,
       measured: prev.measured || snapshot.measured,
       evidenceCount: prev.evidenceCount + snapshot.evidenceCount,
       firstAttemptCorrect: prev.firstAttemptCorrect + snapshot.firstAttemptCorrect,
@@ -553,8 +658,6 @@ export function computeProgramProgress(
  * tavanlar yerinde (açık yanılgı, kapsam, ölçülen başarı); iddia yoksa en çok 99. Bütün
  * etkinlikleri yanlışlarla bitirmek yine 100 / "hazır" vermez.
  */
-/** Hedef puan girilmemişse deneme bu hedefe göre ölçülür; ekran da aynı sayıyı söyler. */
-export const DEFAULT_TARGET_SCORE = 70;
 
 /** "Hazırsın" başlığı: karar ekranı, değerlendirme ve yol aynı metni gösterir. */
 export const READY_HEADLINE = "🎉 Sınava Hazırsın! Hedefini Başarıyla Geçtin";
@@ -617,12 +720,16 @@ export function computeExamReadiness(input: {
   let successSum = 0;
   let successN = 0;
   let confidenceSum = 0;
+  let learnedAll = true;
+  const target = effectiveTarget(input.targetScore);
   const plannedKeys = keys.length ? keys : ["genel"];
   for (const key of plannedKeys) {
     const t = byKey.get(key);
     const scored = t ? scoreTopicMastery(t) : null;
     const confidence = scored ? topicMasteryPercent(scored) : 0;
     confidenceSum += confidence;
+    // Faz 4: kutlama ve "Hazırsın" yalnız bütün planlı konular "Öğrendin" olunca.
+    if (!t || topicBadge(t, target) !== "learned") learnedAll = false;
     // Ölçülmüş = en az 3 cevap (`isMeasuredTopic`); kapsam, ortalama ve ekrandaki "Ölçülmedi" aynı eşik.
     if (!t || !isMeasuredTopic(t)) {
       unmeasured += 1;
@@ -635,7 +742,7 @@ export function computeExamReadiness(input: {
         : t.firstAttemptTotal > 0
           ? t.firstAttemptCorrect / t.firstAttemptTotal
           : 0;
-    successSum += rate;
+    successSum += t.policy ? t.policy.pct / 100 : rate;
     successN += 1;
   }
 
@@ -668,8 +775,6 @@ export function computeExamReadiness(input: {
     };
   }
 
-  const target = effectiveTarget(input.targetScore);
-
   let pct = topicMean;
 
   if (openMisconceptions > 0 || !misconceptionsKnown) {
@@ -678,9 +783,10 @@ export function computeExamReadiness(input: {
 
   pct = Math.max(0, Math.min(100, pct));
 
-  // Hazırsın: bütün konular ölçülmüş ve ortalama hedefi geçmiş. Deneme, çalışılmamış konuyu 0'dan çıkarmaz.
+  // Hazırsın: bütün planlı konular "Öğrendin" (Faz 4) ve ortalama hedefi geçmiş. Deneme, çalışılmamış konuyu 0'dan
+  // çıkarmaz.
   const claimFullyReady =
-    unmeasured === 0 && readyForTarget({ mockScorePct: null, overallPct: pct, targetScore: target });
+    unmeasured === 0 && learnedAll && readyForTarget({ mockScorePct: null, overallPct: pct, targetScore: target });
 
   if (!claimFullyReady && pct >= 100) {
     pct = 99;

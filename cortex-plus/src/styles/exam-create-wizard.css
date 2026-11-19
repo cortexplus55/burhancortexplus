@@ -3413,3 +3413,18 @@
     transition: none;
   }
 }
+
+/* Faz 4: yükleme önizleme şeridi (metin sayfası + fotoğraf · tahmini kurulum kredisi). 390px'te sarar, taşmaz. */
+.apw-upload-strip {
+  margin: 0.75rem 0 0;
+  padding: 0.65rem 0.85rem;
+  border-radius: 0.75rem;
+  border: 1px solid #a7f3d0;
+  background: #ecfdf5;
+  color: #065f46;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}

@@ -21,6 +21,7 @@ import {
 import { commitDocumentCredits, refundDocumentCredits } from "@/lib/documents/document-credits";
 import { HEAD_READ_AHEAD_PAGES } from "@/lib/documents/document-windows";
 import { chargeNow } from "@/lib/credits/charge-now";
+import { textPageUnits } from "@/lib/credits/price-table";
 import { freePagesRemaining } from "@/lib/documents/free-pages";
 import { FREE_PAGE_LIMIT_CODE, PHOTO_QUOTA_CODE } from "@/lib/documents/process-errors";
 import { photoPageLimit, planTier } from "@/lib/documents/photo-quota";
@@ -562,9 +563,8 @@ export async function POST(request: Request) {
   }
 
   // Ücretsiz hesapta belge işleme günlük ders hakkından yemez; sınırı
-  // toplam 5 sayfa koyar (3 Ekim 2026). Ücretlide sayfa başına kredi
-  // (8 Ekim 2026): ilk sayfa önden ayrılır, kalanı ve taranmış sayfalar
-  // işlendikten sonra sayılır.
+  // toplam 5 sayfa koyar (3 Ekim 2026). Ücretlide (Faz 4) ilk metin birimi (5 sayfa = 1 kredi) önden ayrılır,
+  // kalanı ve fotoğraf / taranmış sayfalar işlendikten sonra sayılır.
   const freeTier = (await freePagesRemaining(service, userId, doc.id)) !== null;
   const reservation = freeTier
     ? ({ ok: true, reservationId: "", cost: 0 } as const)
@@ -656,8 +656,15 @@ export async function POST(request: Request) {
   }
 
   if (!freeTier) {
-    await commitCredits(service, reservation.reservationId);
-    await chargeNow(service, userId, "DOCUMENT_PAGE_PROCESS", `document_pages_${doc.id}`, (result.pageCount ?? 1) - 1);
+    // Faz 4 (19 Kasım 2026): metin sayfaları ceil(n / 5) kredi (ilk birim önden ayrıldı), fotoğraf / taranmış sayfa
+    // 5 kredi. Yalnız fotoğraftan oluşan belgede (metin sayfası 0) önden ayrılan birim iade edilir.
+    const textUnits = textPageUnits(Math.max(0, (result.pageCount ?? 1) - (result.scannedPages ?? 0)));
+    if (textUnits >= 1) {
+      await commitCredits(service, reservation.reservationId);
+      await chargeNow(service, userId, "DOCUMENT_PAGE_PROCESS", `document_pages_${doc.id}`, textUnits - 1);
+    } else {
+      await refundCredits(service, reservation.reservationId);
+    }
     await chargeNow(service, userId, "DOCUMENT_SCAN_PAGE", `document_scan_${doc.id}`, result.scannedPages ?? 0);
   }
   cleanAfterResponse(service, { userId, documentId: doc.id, startedAt });

@@ -40,6 +40,8 @@ import { maybeRescheduleMissedDays } from "@/lib/learning/missed-day-reschedule"
 import { pathSkipKindsForView } from "@/lib/billing/node-free-meter";
 import {
   buildLearningIndicators,
+  MASTERY_ROW_COLUMNS,
+  masterySnapshotFromRow,
   freePathUnblockIds,
   masteryByPlannedTopic,
   preferNextNodeForTracking,
@@ -263,9 +265,7 @@ export default async function ExamPrepDetailPage({
     trackingV2
       ? supabase
           .from("exam_prep_topic_mastery")
-          .select(
-            "topic_key, measured_level, confidence, evidence_count, first_attempt_correct, first_attempt_total, independent_correct, independent_total, last_practiced_at",
-          )
+          .select(MASTERY_ROW_COLUMNS)
           .eq("exam_prep_id", prepId)
       : Promise.resolve({ data: null }),
     // Yalnız çözülmemiş yanılgılar (20 Ekim 2026); sütun yoksa hepsi açık sayılır.
@@ -439,18 +439,7 @@ export default async function ExamPrepDetailPage({
     openMisconceptions = openCount ?? 0;
     openMisconceptionsKnown = openCount != null;
 
-    masterySnapshots = (masteryRows ?? []).map((row) => ({
-      topicKey: row.topic_key as string,
-      measured: Number(row.evidence_count ?? 0) > 0,
-      level: row.measured_level as TopicMasterySnapshot["level"],
-      confidence: Number(row.confidence ?? 0),
-      evidenceCount: Number(row.evidence_count ?? 0),
-      firstAttemptCorrect: Number(row.first_attempt_correct ?? 0),
-      firstAttemptTotal: Number(row.first_attempt_total ?? 0),
-      independentCorrect: Number(row.independent_correct ?? 0),
-      independentTotal: Number(row.independent_total ?? 0),
-      lastPracticedAt: (row.last_practiced_at as string | null) ?? null,
-    }));
+    masterySnapshots = ((masteryRows ?? []) as Record<string, unknown>[]).map(masterySnapshotFromRow);
     const topics = masterySnapshots;
 
     // Planlanan konular konu listesinden (ayrı exam_prep_topics okuması yok).

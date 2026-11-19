@@ -26,6 +26,8 @@ export const NODE_KIND_ACTION: Record<string, ActionCode> = {
   oral: "ORAL_EXAM_GENERATE",
   flashcards: "FLASHCARD_GENERATE",
   spaced: "FLASHCARD_GENERATE",
+  true_false: "TRUE_FALSE_GENERATE",
+  written_exam: "PRACTICE_EXAM_GENERATE",
 };
 
 export function actionForNodeKind(kind: string): ActionCode {

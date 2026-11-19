@@ -214,4 +214,8 @@ export type ActionCode =
   | "POOL_LESSON_VIEW"
   | "POOL_CARDS"
   | "POOL_QUIZ"
-  | "DOCUMENT_SUPPLEMENT_GENERATE";
+  | "DOCUMENT_SUPPLEMENT_GENERATE"
+  /** Faz 4 (19 Kasım 2026, Burhan'ın kararı): doğru/yanlış testten ayrı fiyatlanır (3 kredi). */
+  | "TRUE_FALSE_GENERATE"
+  /** Faz 4: ders adımını "Farklı anlat" (4 kredi; adım başına önbellek, tek çağrı). */
+  | "STEP_REEXPLAIN";

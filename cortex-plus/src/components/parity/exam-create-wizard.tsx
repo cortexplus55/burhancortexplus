@@ -1,5 +1,6 @@
 "use client";
 
+import { uploadPreviewLine, type UploadPageKinds } from "@/lib/billing/upload-preview";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -367,6 +368,8 @@ export function ExamCreateWizard({
   /** true: tüm konulara eşit. false: focusTopics seçili. */
   const [equalFocus, setEqualFocus] = useState(true);
 
+  // Faz 4: belge başına metin sayfası / fotoğraf sayısı (ön kontrol ya da dosya türü) — yükleme önizleme şeridi.
+  const [pageKinds, setPageKinds] = useState<Record<string, UploadPageKinds>>({});
   const [materials, setMaterialsState] = useState<WizardMaterial[]>(
     initialDocumentId
       ? [{ id: initialDocumentId, fileName: "Seçili materyal", sizeBytes: null, pageCount: null }]
@@ -1307,6 +1310,12 @@ export function ExamCreateWizard({
         openPaywall(preflight.error);
         return "stop";
       }
+      if (typeof preflight.textPages === "number" || typeof preflight.scannedPages === "number") {
+        setPageKinds((current) => ({
+          ...current,
+          [documentId]: { textPages: preflight.textPages ?? 0, photoPages: preflight.scannedPages ?? 0 },
+        }));
+      }
       const free = preflight.freePages;
       // Faz 2 (madde 5): belge sessizce kırpılmaz. Varsayılan aralığa sığmayan PDF'te öğrenci aralığı seçer; yükleme
       // cevabı bekler. Aralık sorulmadıysa ve hak yetmiyorsa eski bilgi satırı çıkar.
@@ -1385,6 +1394,9 @@ export function ExamCreateWizard({
           if (isPdfFile(item.file)) {
             const stop = await preflightPdf(documentId, item.file.name);
             if (stop) return stop;
+          } else if (item.file.type.startsWith("image/")) {
+            // Kamerayla çekilen fotoğraf: sayfa başına fotoğraf ücreti (Faz 4).
+            setPageKinds((current) => ({ ...current, [documentId]: { textPages: 0, photoPages: 1 } }));
           }
           return await processAndRemember(
             { documentId, fileName: item.file.name, sizeBytes: item.file.size },
@@ -1635,6 +1647,15 @@ export function ExamCreateWizard({
     const pages = ready.reduce((sum, material) => sum + (material.ofPages ?? material.pageCount ?? 0), 0);
     const files = `${ready.length} dosya`;
     return { id: "readout", kind: "done", text: pages > 0 ? `${files} · ${pages === 1 ? "1 sayfa" : `${pages} sayfa`}` : files };
+  })();
+
+  /** Faz 4 önizleme şeridi: yalnız sayfa sayısı bilinen belgelerden; ücretli hesapta (ücretsizde belge kredisiz). */
+  const uploadStrip = (() => {
+    if (!paidUploads) return null;
+    const docs = materials
+      .map((material) => pageKinds[material.id] ?? (material.pageCount ? { textPages: material.ofPages ?? material.pageCount, photoPages: 0 } : null))
+      .filter((item): item is UploadPageKinds => Boolean(item));
+    return docs.length ? uploadPreviewLine(docs) : null;
   })();
 
   const showProcessingPanel =
@@ -2032,6 +2053,12 @@ export function ExamCreateWizard({
                 );
               })}
             </ul>
+          ) : null}
+
+          {uploadStrip ? (
+            <p className="apw-upload-strip" role="status">
+              {uploadStrip}
+            </p>
           ) : null}
 
           <p className="apw-or">Ya da</p>

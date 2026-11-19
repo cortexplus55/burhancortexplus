@@ -1,3 +1,4 @@
+import { PLAN_ALLOWANCES } from "@/lib/credits/price-table";
 /**
  * Kota dönemi görünümü.
  *
@@ -39,10 +40,11 @@ export type PeriodKind = "daily" | "weekly" | "monthly";
 
 /**
  * Ücretsiz günlük kredi: 24 Ekim 2026'dan beri 0 (SQL: 20261024123000). Ücretsiz hesap sayaçla çalışır
- * (ilk ders, günde 3 mesaj, günde 1 fotoğraf; `free-meters.ts`).
+ * (ilk ders, günde 3 mesaj, ayda 7 fotoğraf; `free-meters.ts`).
  */
 export const FREE_DAILY_ALLOWANCE = 0;
-const PREMIUM_MONTHLY_ALLOWANCE = 7200;
+/** Faz 4: fiyat tablosundaki aylık Plus hakkı (tek kaynak); plan satırı okunamazsa yedek. */
+const PREMIUM_MONTHLY_ALLOWANCE: number = PLAN_ALLOWANCES.plusMonthly;
 
 /**
  * UTC gün başına `days` ekler. Gün başı Türkiye'de 03:00'dır.

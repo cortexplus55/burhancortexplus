@@ -13,18 +13,29 @@ import { FREE_FIRST_LESSON_CLAUSE } from "@/lib/billing/free-tier-copy";
  *   "included" ile ayrılır (`first-lesson-cycle.ts`). Dersin içindeki yardımcılar (koç, eğitmen, adımı farklı anlat,
  *   geri bildirim) de "included".
  * - Günde 3 sohbet mesajı (yazılı soru çözümü ve Stüdyo'daki "Anlatarak öğren" de mesajdır).
- * - Günde 1 fotoğraftan soru çözümü.
+ * - Ayda 7 fotoğraftan soru çözümü (Faz 4; önce günde 1).
  * Ders sayacına düşen her iş ("lesson": Çalışma Stüdyosu'ndaki test, kart, doğru/yanlış; "Farklı anlat"; verilmiş
  * adımın yeniden yazımı; ilk olmayan hazırlık; düello kurma) ücretsiz hesapta Plus'a yönlenir. Tek istisna cüzdan
  * bakiyesi (davet hediyesi, eski ek paket): yetiyorsa iş onunla yapılır (`free-lesson-gate.ts`).
  * Podcast, sözlü, yazılı deneme, video ve ses zaten Plus'ta. Gün İstanbul saatiyle.
  */
-export type FreeMeter = "lesson" | "chat" | "photo" | "included";
+export type FreeMeter = "lesson" | "chat" | "photo" | "included" | "reexplain";
 
-/** `lesson` 0: sayaç yok, iş Plus'ta (SQL `free_meter_limit('lesson')` ile aynı). */
-export const FREE_LIMITS: Record<FreeMeter, number> = { lesson: 0, chat: 3, photo: 1, included: 40 };
+/**
+ * `lesson` 0: sayaç yok, iş Plus'ta (SQL `free_meter_limit('lesson')` ile aynı).
+ *
+ * Faz 4 (19 Kasım 2026, Burhan'ın kararı): "Farklı anlat" kendi sayacında — günde 40'tan ilk ders döngüsü boyunca
+ * TOPLAM 10 hakka iner (`reexplain`, dönemsiz anahtar `trial`); buton yanında "Ücretsiz deneme: X/10". Sohbet günde 3,
+ * fotoğraftan çözüm ayda 7 (`photo`, aylık anahtar). Sınır SQL'de de zorunlu (`credit_reserve_metered`).
+ */
+export const FREE_LIMITS: Record<FreeMeter, number> = { lesson: 0, chat: 3, photo: 7, included: 40, reexplain: 10 };
 export const FREE_CHAT_PER_DAY = FREE_LIMITS.chat;
-export const FREE_PHOTO_PER_DAY = FREE_LIMITS.photo;
+/** Faz 4: fotoğraftan çözüm ayda 7 (önce günde 1). */
+export const FREE_PHOTO_PER_MONTH = FREE_LIMITS.photo;
+/** Ücretsiz "Farklı anlat": ilk ders döngüsü boyunca toplam. */
+export const FREE_REEXPLAIN_TOTAL = FREE_LIMITS.reexplain;
+/** Dönemsiz sayacın anahtarı (SQL `free_period_key('reexplain', …)` ile aynı). */
+export const TRIAL_PERIOD_KEY = "trial";
 
 /** Ücretsiz hesapta hiç açılmayan işler (SQL `plus_only_action` ile aynı liste). */
 export const PLUS_ONLY_ACTIONS: readonly ActionCode[] = [
@@ -61,6 +72,10 @@ export function defaultFreeMeter(code: ActionCode): FreeMeter | null {
       return "chat";
     case "IMAGE_SOLUTION":
       return "photo";
+    case "TRUE_FALSE_GENERATE":
+      return "lesson";
+    case "STEP_REEXPLAIN":
+      return "reexplain";
     default:
       return null;
   }
@@ -78,15 +93,36 @@ export function needsPlusOutsideFirstLesson(code: ActionCode): boolean {
 /** Dönemi olan sayaçlar: ders sayacının dönemi yok (sınır 0). */
 export type DailyFreeMeter = Exclude<FreeMeter, "lesson">;
 
-/** SQL `free_period_key` ile aynı anahtar (ders sayacının haftalık anahtarı yalnız eski kayıtlar için). */
+/**
+ * SQL `free_period_key` ile aynı anahtar (ders sayacının haftalık anahtarı yalnız eski kayıtlar için). Faz 4: fotoğraf
+ * aylık (`YYYY-MM`, İstanbul), "Farklı anlat" dönemsiz (`trial`); öteki sayaçlar günlük.
+ */
 export function freePeriodKey(meter: FreeMeter, now: Date = new Date()): string {
-  return meter === "lesson" ? isoWeekKey(now) : istanbulDay(now);
+  if (meter === "lesson") return isoWeekKey(now);
+  if (meter === "reexplain") return TRIAL_PERIOD_KEY;
+  if (meter === "photo") return istanbulDay(now).slice(0, 7);
+  return istanbulDay(now);
 }
 
-/** Günlük sayacın yenilendiği an: İstanbul gece yarısı. */
+/** Dönemi aylık olan sayaç mı (fotoğraf). */
+export function isMonthlyFreeMeter(meter: FreeMeter): boolean {
+  return meter === "photo";
+}
+
+/**
+ * Sayacın yenilendiği an: günlük sayaçta İstanbul gece yarısı, aylık sayaçta (fotoğraf) gelecek ayın ilk günü
+ * İstanbul gece yarısı. Dönemsiz sayaç ("Farklı anlat" denemesi) yenilenmez: uzak bir tarih döner, ekran yazmaz.
+ */
 export function freeMeterResetsAt(meter: DailyFreeMeter, now: Date = new Date()): Date {
-  void meter;
-  const day = addDays(istanbulDay(now), 1);
+  const today = istanbulDay(now);
+  if (meter === "reexplain") return new Date(Date.parse("9999-12-31T00:00:00Z"));
+  let day = addDays(today, 1);
+  if (meter === "photo") {
+    const [year, month] = today.split("-").map(Number) as [number, number];
+    const nextYear = month === 12 ? year + 1 : year;
+    const nextMonth = month === 12 ? 1 : month + 1;
+    day = `${nextYear}-${String(nextMonth).padStart(2, "0")}-01`;
+  }
   // İstanbul 00:00 = UTC 21:00 bir önceki gün (UTC+3, yaz saati yok).
   return new Date(Date.parse(`${day}T00:00:00Z`) - 3 * 60 * 60 * 1000);
 }
@@ -105,6 +141,7 @@ const METER_NAME: Record<DailyFreeMeter, string> = {
   chat: "sohbet mesajı",
   photo: "fotoğraftan çözüm",
   included: "çalışma adımı",
+  reexplain: "\"Farklı anlat\"",
 };
 
 /**
@@ -119,13 +156,22 @@ export const FREE_LESSON_REFUSAL_MESSAGE = `${FREE_LESSON_GATE_LINE} Plus'a geç
 /** "Bugünkü 3 ücretsiz sohbet mesajı hakkın bitti." Ders sayacında: ilk ders açık, devamı Plus'ta. */
 export function freeLimitReachedLine(meter: FreeMeter): string {
   if (meter === "lesson") return FREE_LESSON_GATE_LINE;
+  if (meter === "reexplain") return `${FREE_LIMITS.reexplain} ücretsiz ${METER_NAME.reexplain} denemen bitti; devamı Plus'ta.`;
+  if (meter === "photo") return `Bu ayki ${FREE_LIMITS.photo} ücretsiz ${METER_NAME.photo} hakkın bitti.`;
   return `Bugünkü ${FREE_LIMITS[meter]} ücretsiz ${METER_NAME[meter]} hakkın bitti.`;
 }
 
-/** "Hakkın gece yarısı yenilenir." */
+/** "Hakkın gece yarısı yenilenir." / fotoğraf: "Hakkın ay başında yenilenir." */
 export function freeMeterResetLine(meter: DailyFreeMeter): string {
-  void meter;
+  if (meter === "photo") return "Hakkın ay başında yenilenir.";
+  if (meter === "reexplain") return "Plus'ta \"Farklı anlat\" sınırsız açılır.";
   return "Hakkın gece yarısı yenilenir.";
+}
+
+/** "Ücretsiz deneme: X/10" rozeti (Faz 4): X kalan hak. */
+export function freeReexplainBadge(used: number): string {
+  const left = Math.max(0, FREE_LIMITS.reexplain - Math.max(0, Math.floor(used || 0)));
+  return `Ücretsiz deneme: ${left}/${FREE_LIMITS.reexplain}`;
 }
 
 /**
@@ -134,7 +180,7 @@ export function freeMeterResetLine(meter: DailyFreeMeter): string {
  * kararı): haftalık ders hakkı yok; ücretsiz hesap ilk dersi, günlük mesajı ve günlük fotoğrafı kapsar.
  */
 export const FREE_TIER_SENTENCE =
-  `${FREE_FIRST_LESSON_CLAUSE}; ayrıca günde ${FREE_CHAT_PER_DAY} sohbet mesajı ve günde ${FREE_PHOTO_PER_DAY} fotoğraftan soru çözümü`;
+  `${FREE_FIRST_LESSON_CLAUSE}; ayrıca günde ${FREE_CHAT_PER_DAY} sohbet mesajı ve ayda ${FREE_PHOTO_PER_MONTH} fotoğraftan soru çözümü`;
 
 /** Davet: iki tarafa bir kez hediye (SQL `grant_referral_gift`, 90 kredi = 3 ders). */
 export const REFERRAL_GIFT_LESSONS = 3;

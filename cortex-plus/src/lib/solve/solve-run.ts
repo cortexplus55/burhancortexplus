@@ -8,7 +8,7 @@ import { withGenerationSlot } from "@/lib/ai/generation-slots";
 import { visionImage } from "@/lib/ai/vision";
 import { isPremiumUser } from "@/lib/billing/entitlements";
 import { commitCredits, recordUsage, refundCredits, refusalCode, reserveCredits, type ReservationResult } from "@/lib/credits/service";
-import { FREE_CHAT_PER_DAY, FREE_PHOTO_PER_DAY } from "@/lib/billing/free-meters";
+import { FREE_CHAT_PER_DAY, FREE_PHOTO_PER_MONTH } from "@/lib/billing/free-meters";
 import { recordUnreadablePhoto } from "@/lib/billing/photo-abuse-guard";
 import { fastAllowedFor } from "@/lib/learning/fast-access";
 import { studentPedagogyBlock, withStudentProfile } from "@/lib/learning/student-pedagogy";
@@ -88,7 +88,7 @@ function userContent(input: SolveInput, text: string): ChatCompletionContentPart
 function solveRefusalMessage(result: Extract<ReservationResult, { ok: false }>): string {
   const refusal = result.refusal;
   if (refusal?.kind === "free_limit" && refusal.meter === "photo") {
-    return `Ücretsiz hesapta günde ${FREE_PHOTO_PER_DAY} fotoğraftan çözüm var; bugünkü hakkın bitti. Gece yarısı yenilenir; dilersen Plus'a geçip beklemeden devam edebilirsin.`;
+    return `Ücretsiz hesapta ayda ${FREE_PHOTO_PER_MONTH} fotoğraftan çözüm var; bu ayki hakkın bitti. Ay başında yenilenir; dilersen Plus'a geçip beklemeden devam edebilirsin.`;
   }
   if (refusal?.kind === "free_limit" && refusal.meter === "chat") {
     return `Bugünkü ${FREE_CHAT_PER_DAY} ücretsiz mesaj hakkın bitti; yazılı soru da mesaj sayılır. Gece yarısı yenilenir; dilersen Plus'a geçip beklemeden devam edebilirsin.`;

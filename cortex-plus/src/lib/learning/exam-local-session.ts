@@ -16,7 +16,12 @@ import { FINAL_CHECK_LIMIT, finalCardTopics, finalCheckSelection } from "@/lib/l
 import { loadPreviousItems } from "@/lib/learning/previous-items";
 import { buildReadinessScreen } from "@/lib/learning/readiness-screen";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
-import { normalizeTopicKey, type TopicMasterySnapshot } from "@/lib/learning/learning-tracking";
+import {
+  MASTERY_ROW_COLUMNS,
+  masterySnapshotFromRow,
+  normalizeTopicKey,
+  type TopicMasterySnapshot,
+} from "@/lib/learning/learning-tracking";
 import { readLessonV2 } from "@/lib/learning/lesson-v3";
 import { prepLanguage, type StoredReview } from "@/lib/learning/teacher-brain";
 import { countOpenMisconceptions, withOpenMisconceptions } from "@/lib/learning/misconception-store";
@@ -183,22 +188,9 @@ function openMisconceptionRows(service: SupabaseClient, input: { userId: string;
 }
 
 function masterySnapshots(rows: Record<string, unknown>[] | null): TopicMasterySnapshot[] {
-  return (rows ?? []).map((row) => ({
-    topicKey: String(row.topic_key ?? ""),
-    measured: Number(row.evidence_count ?? 0) > 0,
-    level: (row.measured_level as TopicMasterySnapshot["level"]) ?? "unmeasured",
-    confidence: Number(row.confidence ?? 0),
-    evidenceCount: Number(row.evidence_count ?? 0),
-    firstAttemptCorrect: Number(row.first_attempt_correct ?? 0),
-    firstAttemptTotal: Number(row.first_attempt_total ?? 0),
-    independentCorrect: Number(row.independent_correct ?? 0),
-    independentTotal: Number(row.independent_total ?? 0),
-    lastPracticedAt: (row.last_practiced_at as string | null) ?? null,
-  }));
+  return ((rows ?? []) as Record<string, unknown>[]).map(masterySnapshotFromRow);
 }
 
-const MASTERY_COLUMNS =
-  "topic_key, measured_level, confidence, evidence_count, first_attempt_correct, first_attempt_total, independent_correct, independent_total, last_practiced_at";
 
 export type PrepTopicRow = {
   id: string;
@@ -224,7 +216,7 @@ export async function weakTopicsForPrep(
       .order("sort_order"),
     service
       .from("exam_prep_topic_mastery")
-      .select(MASTERY_COLUMNS)
+      .select(MASTERY_ROW_COLUMNS)
       .eq("user_id", input.userId)
       .eq("exam_prep_id", input.prepId),
     openMisconceptionRows(service, input),
@@ -271,9 +263,7 @@ export async function buildLocalSessionPayload(
     service.from("exam_prep_topics").select("id, label").eq("exam_prep_id", input.prepId),
     service
       .from("exam_prep_topic_mastery")
-      .select(
-        "topic_key, measured_level, confidence, evidence_count, first_attempt_correct, first_attempt_total, independent_correct, independent_total, last_practiced_at",
-      )
+      .select(MASTERY_ROW_COLUMNS)
       .eq("user_id", input.userId)
       .eq("exam_prep_id", input.prepId),
     openMisconceptionRows(service, input),
@@ -320,18 +310,7 @@ export async function buildLocalSessionPayload(
   }));
   const nodeById = new Map(nodes.map((node) => [node.id, node]));
 
-  const mastery: TopicMasterySnapshot[] = (masteryRes.data ?? []).map((row) => ({
-    topicKey: String(row.topic_key ?? ""),
-    measured: Number(row.evidence_count ?? 0) > 0,
-    level: (row.measured_level as TopicMasterySnapshot["level"]) ?? "unmeasured",
-    confidence: Number(row.confidence ?? 0),
-    evidenceCount: Number(row.evidence_count ?? 0),
-    firstAttemptCorrect: Number(row.first_attempt_correct ?? 0),
-    firstAttemptTotal: Number(row.first_attempt_total ?? 0),
-    independentCorrect: Number(row.independent_correct ?? 0),
-    independentTotal: Number(row.independent_total ?? 0),
-    lastPracticedAt: (row.last_practiced_at as string | null) ?? null,
-  }));
+  const mastery: TopicMasterySnapshot[] = ((masteryRes.data ?? []) as Record<string, unknown>[]).map(masterySnapshotFromRow);
 
   const misconceptions = (missRes.data ?? []).map((row) => ({
     topicLabel: (row.topic_label as string | null) ?? null,
