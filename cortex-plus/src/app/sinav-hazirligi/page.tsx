@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowRight, Check } from "lucide-react";
 import { ParityMarketingPage } from "@/components/parity/marketing";
 import { Icon3D, type Icon3DName } from "@/components/ui/icon-3d";
-import { PLAN_MARKETING_COPY } from "@/lib/marketing/plan-copy";
+import { PLAN_MARKETING_COPY, WRITTEN_EXAM_AVAILABILITY } from "@/lib/marketing/plan-copy";
 import "@/styles/landing.css";
 
 export const metadata = {
@@ -44,7 +44,7 @@ const FAQ = [
   },
   {
     q: "Yol neden sırayla açılıyor?",
-    a: "Her adım bir öncekinin üstüne kuruluyor: önce ders, sonra podcast, sonra test. İstersen \"Başka birini seç\" ile sırayı atlayıp başka bir etkinliği açabilirsin; yazılı deneme her zaman açık.",
+    a: `Her adım bir öncekinin üstüne kuruluyor: önce ders, sonra podcast, sonra test. İstersen "Başka birini seç" ile sırayı atlayıp başka bir etkinliği açabilirsin. ${WRITTEN_EXAM_AVAILABILITY}`,
   },
   {
     q: "Zorluk bana uymazsa?",
@@ -52,7 +52,7 @@ const FAQ = [
   },
   {
     q: "Birden fazla sınavım var.",
-    a: "Her sınav ayrı bir hazırlık ve kendi yolu olur; belgeler birbirine karışmaz. Ücretsiz planda bir hazırlık, Plus'ta sınırsız.",
+    a: "Her sınav ayrı bir hazırlık ve kendi yolu olur; belgeler birbirine karışmaz. Ücretsiz planda bir hazırlık kurulur; Plus'ta birden çok hazırlık kurabilirsin ve hepsinin içeriği aynı aylık haktan düşer.",
   },
 ];
 

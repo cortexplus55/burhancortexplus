@@ -147,6 +147,8 @@ describe("§4.2 eski kota sayıları hiçbir sayfada kalmadı", () => {
     "src/lib/billing/tier-presentation.ts",
     "src/lib/legal/texts.ts",
     "src/components/parity/subscription-cards.tsx",
+    // 19 Kasım 2026: uygulama içi Sınavlar sayfası da "yazılı deneme her zaman açık" diyordu (ücretsizde kapalı).
+    "src/components/parity/exam-prep.tsx",
   ];
   it.each(pages)("%s", (path) => {
     const text = read(path);
