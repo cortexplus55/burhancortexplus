@@ -40,6 +40,7 @@ export async function teacherTrueFalsePayload(
     charge: input.charge,
     startedAt,
     label: "teacher_true_false",
+    prepTitle: input.prepTitle,
     topic: input.topicLabel,
     work: async (ask, started) => {
       const asked = 8;

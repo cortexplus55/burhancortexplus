@@ -61,7 +61,11 @@ vi.mock("next/server", async (importOriginal) => {
   const actual = await importOriginal<typeof import("next/server")>();
   return { ...actual, after: () => undefined };
 });
-vi.mock("@/lib/legal/record-consent", () => ({ recordSignupConsent: async () => ({ ok: true, inserted: 0 }) }));
+vi.mock("@/lib/legal/record-consent", () => ({
+  recordSignupConsent: async () => ({ ok: true, inserted: 0 }),
+  stampSignupAcceptance: async () => true,
+  consentMoment: (claimed: unknown) => (typeof claimed === "string" ? claimed : new Date().toISOString()),
+}));
 vi.mock("@/lib/email/preferences", () => ({ recordSignupMarketingConsent: async () => undefined }));
 vi.mock("@/lib/auth/email-verification", () => ({ UNVERIFIED_FLAG: "email_unverified", sendVerification: async () => true }));
 vi.mock("@/lib/supabase/server", () => {

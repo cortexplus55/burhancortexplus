@@ -365,7 +365,7 @@ export async function studentPedagogyBlock(
   client: SupabaseClient,
   userId: string,
   surface: PedagogySurface,
-  prep: { prepTitle?: string | null; subject?: string | null } = {},
+  prep: { prepTitle?: string | null; subject?: string | null; calibration?: CalibrationSurface } = {},
 ): Promise<string> {
   try {
     const context = await getStudentPedagogicalContext(userId, client);
@@ -373,7 +373,10 @@ export async function studentPedagogyBlock(
     // Seviye kalibrasyonu (20 Kasım 2026): profil ya da hazırlık bir seviye söylüyorsa eklenir. İkisi de yoksa istem
     // eskisi gibi bayt bayt aynı kalır (önek önbelleği).
     if (!context && !levelFromExam(prep.prepTitle)) return block;
-    const calibration = pedagogicalCalibrationBlock(calibrationProfileFor(context, prep), calibrationSurface(surface));
+    const calibration = pedagogicalCalibrationBlock(
+      calibrationProfileFor(context, prep),
+      prep.calibration ?? calibrationSurface(surface),
+    );
     return block ? `${block}
 ${calibration}` : calibration;
   } catch {

@@ -42,7 +42,7 @@ import {
   stripModelActionMarkers,
   type ChatAction,
 } from "@/lib/ai/chat-material-link";
-import { studentOptionCount } from "@/lib/learning/student-pedagogy";
+import { studentCalibration, studentOptionCount } from "@/lib/learning/student-pedagogy";
 import { NO_SOURCE_CREDIT_NOTE, NO_SOURCE_MESSAGE, saidNoSource, stripNoSourceMarker } from "@/lib/ai/grounding";
 import { chatSourceBlock } from "@/lib/learning/chat-source-block";
 import { loadTeacherBrief } from "@/lib/documents/teacher-analysis-run";
@@ -126,6 +126,8 @@ import { recordLessonTiming } from "@/lib/admin/beta-metrics";
 import { chatRequestHash, chatResultResponse, prepareChatOperation, streamedChatResultResponse, type SavedChatResult } from "@/lib/ai/chat-operation";
 
 export const maxDuration = 300;
+const PARAGRAPH = "\n\n";
+
 const bodySchema = z.object({
   message: z.string().trim().min(1).max(12000),
   operationId: z.string().uuid().optional(),
@@ -323,6 +325,18 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
 
     // Hazırlığa özel okumalar (bağlam, belge araması, öğrenme hafızası) sahiplik denetiminden sonra, birbirine paralel.
     const examContextEarly = quiet(rest.prepId ? loadExamChatContext(service, userId, rest.prepId) : Promise.resolve(null));
+    // Seviye kalibrasyonu (20 Kasım 2026): ton, kelime, örnek ve derinlik öğrencinin seviyesine ve branşına göre.
+    // Hazırlık sohbetinde hazırlığın adı sınavı söyler; ana sohbette kayıttaki sınıf ve hedef. Düşerse satır yok.
+    const calibrationEarly: Promise<string> = (
+      rest.prepId
+        ? examContextEarly.then((context) =>
+            studentCalibration(service, userId, "chat", { prepTitle: context?.prepTitle ?? null }),
+          )
+        : studentCalibration(service, userId, "chat")
+    ).then(
+      (result) => result.block,
+      () => "",
+    );
     const groundingEarly = quiet(rest.prepId ? loadPrepChatGrounding(service, userId, rest.prepId, message) : Promise.resolve(null));
     // Öğrenme hafızası (5 Kasım 2026): öğretmen yolunda okunur, öbür okumalara paralel; yoksa null.
     const studentMemoryEarly = quiet(rest.prepId ? loadStudentMemory(service, userId) : Promise.resolve(null));
@@ -557,8 +571,9 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
         turnLines.push(...teacherV2SessionLines({ session: v2Session, style: teachStyle, plan: turn.plan, message }));
       }
       const moodLine = turn.mood === "neutral" ? "" : ` ${moodPrompt(turn.mood)}`;
+      const calibrationLine = await calibrationEarly.then((block) => (block ? PARAGRAPH + block : ""));
       const requestMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-        { role: "system", content: `${SYSTEM_GUARDRAIL} ${studentInstruction} ${teacherTurn} ${(v2Session && v2StyleLine(teachStyle)) || teacherStyleLine(tutorStyle)} ${CHAT_NATURAL_VOICE}${rest.prepId && prepGrounding ? "" : `\n\n${teacherV2 ? ONE_MOVE_MARKUP : CHAT_TEACHING_MARKUP}\n\n`} ${v2Session ? v2AnswerFirstLine({ message, style: teachStyle, base: tutorStyle, session: v2Session, plan: turn.plan }) : answerFirstLine(message, tutorStyle)} ${misconceptionFirstLine(message)}${moodLine}${examContext?.block ?? ""}${attachedBrief ? `\n${SOURCE_PAGE_FORMULA_RULE}\n${attachedBrief}` : ""}${contextBlock}${tutorAddendum ? `\n\n${tutorAddendum}` : ""}${simplifyLine(message) ? `\n\n${simplifyLine(message)}` : ""}${chatTurnBlock(turnLines)}` },
+        { role: "system", content: `${SYSTEM_GUARDRAIL} ${studentInstruction} ${teacherTurn} ${(v2Session && v2StyleLine(teachStyle)) || teacherStyleLine(tutorStyle)} ${CHAT_NATURAL_VOICE}${rest.prepId && prepGrounding ? "" : `\n\n${teacherV2 ? ONE_MOVE_MARKUP : CHAT_TEACHING_MARKUP}\n\n`} ${v2Session ? v2AnswerFirstLine({ message, style: teachStyle, base: tutorStyle, session: v2Session, plan: turn.plan }) : answerFirstLine(message, tutorStyle)} ${misconceptionFirstLine(message)}${moodLine}${examContext?.block ?? ""}${attachedBrief ? `\n${SOURCE_PAGE_FORMULA_RULE}\n${attachedBrief}` : ""}${contextBlock}${tutorAddendum ? `\n\n${tutorAddendum}` : ""}${calibrationLine}${simplifyLine(message) ? `\n\n${simplifyLine(message)}` : ""}${chatTurnBlock(turnLines)}` },
         ...history,
         { role: "user", content: imageUrl ? [{ type: "text", text: message }, { type: "image_url", image_url: visionImage(imageUrl) }] : message },
       ];
@@ -715,6 +730,7 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
               moodLine.trim(),
               tutorHistoryLine(examContext?.history ?? []),
               ...memoryLines,
+              await calibrationEarly,
             ],
             passages: [
               ...grounding.passages.map((item) => ({

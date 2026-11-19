@@ -19,7 +19,7 @@ import {
 import { UNVERIFIED_FLAG, sendVerification } from "@/lib/auth/email-verification";
 import { safeNextPath } from "@/lib/auth/safe-next-path";
 import { ageDeclarationSchema, ageProblem, consentEvidenceSchema } from "@/lib/legal/consent-evidence";
-import { recordSignupConsent } from "@/lib/legal/record-consent";
+import { consentMoment, recordSignupConsent, stampSignupAcceptance } from "@/lib/legal/record-consent";
 import { recordSignupMarketingConsent } from "@/lib/email/preferences";
 
 export const dynamic = "force-dynamic";
@@ -159,6 +159,8 @@ export async function POST(request: Request) {
   }).catch((error: unknown) => {
     console.error("signup_consent_record_failed", { userId: user.id, error: String(error) });
   });
+  // Üç onayın anı profilde (kanıtı eksik eski sekmede de): sunucu üçünü de zorunlu tuttu ve aldı. Yalnız boş alan.
+  await stampSignupAcceptance(service, user.id, consentMoment(input.consentAcceptedAt));
   // Kampanya e-postası izni (işaretlendiyse): hesapla aynı anda, kanıtıyla. Yazılamazsa kayıt yine biter.
   if (input.marketingEmail) {
     await recordSignupMarketingConsent(service, user.id, request.headers.get("x-forwarded-for")).catch(() => undefined);
