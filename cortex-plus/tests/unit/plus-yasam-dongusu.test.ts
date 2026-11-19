@@ -23,7 +23,8 @@ describe("Plus bitince kendi içeriği açık kalır", () => {
     expect(reopen).toBeGreaterThan(0);
     expect(reopen).toBeLessThan(gate);
     expect(reopen).toBeLessThan(meter);
-    expect(start).toContain("if (parsed.data.review === true || parsed.data.replay === true)");
+    // Faz 4: kayıtlı gövdeli adım açık seçim olmadan da yeniden açılır (`reopensSavedByDefault`, 0 kredi).
+    expect(start).toContain("if (parsed.data.review === true || parsed.data.replay === true || implicitRestudy)");
   });
   // Podcast sesinin ücretsizde önbellekten çalması davranış testinde: plus-yasam-dongusu-davranis.test.ts.
 });

@@ -73,13 +73,6 @@ export const REPORT_CARD_COPY = {
   newExam: "Yeni Deneme Başlat (17 Kredi — Notlandırma Dahil)",
 } as const;
 
-const LEVEL_TR: Record<TopicMasterySnapshot["level"], string> = {
-  unmeasured: "ölçülmedi",
-  weak: "zayıf",
-  emerging: "gelişiyor",
-  solid: "sağlam",
-};
-
 /**
  * Konunun cevap sayımı (30 Ekim 2026, Paket I #7): doğru ve yanlış aynı iki sayıdan, toplamları soru sayısı.
  * Yüzde (`topicMasteryPercent`) de bu iki sayıdan çıkar. Önceden "36 denemeden 15 doğru, 22 açık yanlış"
@@ -105,7 +98,7 @@ function detailFor(topic: TopicMasterySnapshot, openMisses: number): string {
   if (!isMeasuredTopic(topic)) parts.push(`ölçüm için en az ${MASTERY_EVIDENCE_FLOOR} cevap gerekir`);
   // Açık yanılgı ayrı ad: kapanmamış yanılgı satırıdır, yanlış cevap sayısı değil.
   if (openMisses > 0) parts.push(`${openMisses} yanılgı henüz kapanmadı`);
-  if (isMeasuredTopic(topic)) parts.push(`seviye: ${LEVEL_TR[topic.level]}`);
+  // Faz 4: seviye yazılmaz; satırın rozeti `topicMasteryView` etiketidir (eski "seviye: sağlam" rozetle çelişiyordu).
   return parts.join(" · ");
 }
 
