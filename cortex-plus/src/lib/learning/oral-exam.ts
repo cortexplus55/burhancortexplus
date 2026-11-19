@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { hasFalseArithmetic } from "@/lib/learning/answer-key-consistency";
 import {
   unsupportedQuantities,
 } from "@/lib/learning/teacher-brain";
@@ -591,7 +592,8 @@ export function gradeOralAnswer(
   const storedModel = clipAnswerSentences(question.modelAnswer?.trim() ?? "");
   const modelPoints = points
     .map((point) => groundedPoint(point, source))
-    .filter((point): point is string => typeof point === "string" && !isScoreLabel(point) && readable(point))
+    // Kaynakla onarılamayan yanlış işlem gösterilen doğru cevaba giremez; kayıtlı eski soruda da (Faz 1-A §3).
+    .filter((point): point is string => typeof point === "string" && !isScoreLabel(point) && readable(point) && !hasFalseArithmetic(point))
     .slice(0, 2);
   let modelAnswer = "";
   if (storedModel && readable(storedModel) && !textOverlapsPrompt(storedModel, prompt)) {
@@ -601,7 +603,7 @@ export function gradeOralAnswer(
   } else if (claim?.conclusion?.trim() && readable(claim.conclusion) && !textOverlapsPrompt(claim.conclusion, prompt)) {
     modelAnswer = clipAnswerSentences(claim.conclusion.trim());
   }
-  if (!modelAnswer || isScoreLabel(modelAnswer) || textOverlapsPrompt(modelAnswer, prompt)) {
+  if (!modelAnswer || isScoreLabel(modelAnswer) || textOverlapsPrompt(modelAnswer, prompt) || hasFalseArithmetic(modelAnswer)) {
     modelAnswer = modelPoints[0] ?? "";
   }
 

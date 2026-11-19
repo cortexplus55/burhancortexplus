@@ -18,6 +18,8 @@ import { rejoinIntervalCells } from "@/lib/learning/interval-text";
 import { academicDomainSchema, parseVisualScene, visualArchetypeSchema, visualSceneSchema } from "@/lib/learning/visual-scenes/schema";
 import { visualSceneText } from "@/lib/learning/visual-scenes/prompt";
 import { checkSceneRelations } from "@/lib/learning/visual-scenes/relation-check";
+import { explanationAnswerMismatch, mcqAnswerMismatch } from "@/lib/learning/answer-consistency";
+import { unsafeStoredCheck } from "@/lib/learning/answer-key-consistency";
 
 /**
  * LessonV3 — Ders → Ekran → Blok dizisi (16 Ekim 2026, ürün sahibinin kararı).
@@ -367,9 +369,55 @@ export function dropContradictingScenes<T extends Pick<LessonV3Object, "screens"
   return changed ? { ...lesson, screens } : lesson;
 }
 
+type CheckBlockV3 = Extract<LessonV3Object["screens"][number]["blocks"][number], { type: "check" }>;
+
+/** Kontrolün anahtarı açıklama/hesap/gerekçeyle hizalanmış hâli; ikinci soru (tam öğe) de kendi açıklamasıyla. */
+function settledCheck(check: CheckBlockV3["check"]): CheckBlockV3["check"] {
+  let next = check;
+  if (next.type === "mcq") {
+    const mismatch = mcqAnswerMismatch(next);
+    if (mismatch) next = { ...next, answerIndex: mismatch.expectedIndex };
+    const review = next.review;
+    if (review?.options && typeof review.answerIndex === "number") {
+      const reviewMismatch = explanationAnswerMismatch({ options: review.options, keyed: [review.answerIndex], explanation: review.explanation });
+      if (reviewMismatch) next = { ...next, review: { ...review, answerIndex: reviewMismatch.expectedIndex } };
+    }
+  }
+  return next;
+}
+
+/**
+ * Kayıtlı ders okunurken cevap anahtarı kapısı (19 Kasım 2026, Faz 1-A §3): yeni üretimdeki aynı kurallar eski
+ * kayda da uygulanır. Anahtar açıklamanın hesabıyla ya da şık gerekçeleriyle çelişiyorsa desteklenen şıkka alınır
+ * (öğrenci doğru şıkla yanlış sayılmaz); açıklamasındaki işlem yanlış ya da D/Y anahtarı önermedeki işlemle
+ * çelişen soru güvenle puanlanamaz: ekrandan düşer (ekranda başka blok kalıyorsa), gösterilmez ve puanlanmaz.
+ */
+export function settleStoredChecks<T extends Pick<LessonV3Object, "screens">>(lesson: T): T {
+  let changed = false;
+  const screens = lesson.screens.map((screen) => {
+    let screenChanged = false;
+    type Block = (typeof screen.blocks)[number];
+    const blocks = screen.blocks.flatMap((block): Block[] => {
+      if (block.type !== "check") return [block];
+      if (unsafeStoredCheck(block.check) && screen.blocks.length > 1) {
+        screenChanged = true;
+        return [];
+      }
+      const check = settledCheck(block.check);
+      if (check === block.check) return [block];
+      screenChanged = true;
+      return [{ ...block, check } as Block];
+    });
+    if (!screenChanged) return screen;
+    changed = true;
+    return { ...screen, blocks };
+  });
+  return changed ? { ...lesson, screens } : lesson;
+}
+
 type LessonV3Object = z.infer<typeof lessonV3ObjectSchema>;
 
-export const lessonV3Schema = lessonV3ObjectSchema.transform((lesson) => dropContradictingScenes(lesson));
+export const lessonV3Schema = lessonV3ObjectSchema.transform((lesson) => settleStoredChecks(dropContradictingScenes(lesson)));
 
 export type LessonV3 = z.infer<typeof lessonV3Schema>;
 

@@ -1,3 +1,4 @@
+import { KEY_CONSISTENCY_PREFIX, hasFalseArithmetic } from "@/lib/learning/answer-key-consistency";
 import { answerLeakIssue, singleChoiceVerdict } from "@/lib/learning/single-choice-guard";
 import { quizKeyRepeatsSourceError, sourceCorrectionPromptBlock, type SourceCorrectionWarning } from "@/lib/learning/source-correction";
 import { CONTENT_STYLE } from "@/lib/ai/content-style";
@@ -19,6 +20,7 @@ import { inventedKindSiblings, offKindDistractors } from "@/lib/learning/distrac
 import {
   affirmedWrongOptions,
   explanationAnswerMismatch,
+  mismatchEvidence,
   inlineCarriers,
   refutedCorrectOptions,
   unresolvedVisualReference,
@@ -1246,6 +1248,8 @@ function visualReferenceIssue(text: string): string | null {
   return hit ? `Kök '${hit}' diye ekranda olmayan bir görsele gönderme yapıyor; çözmek için gereken veriyi kökün içine yaz.` : null;
 }
 
+const QUIZ_ARITHMETIC_ISSUE = `${KEY_CONSISTENCY_PREFIX}: açıklamadaki, gerekçedeki ya da çözüm adımındaki işlem yanlış; hesabı ve anahtarı birlikte düzelt.`;
+
 function keyMismatchIssue(question: QuizQuestion, keyed: number[]): string | null {
   const mismatch = explanationAnswerMismatch({
     options: question.options,
@@ -1255,7 +1259,8 @@ function keyMismatchIssue(question: QuizQuestion, keyed: number[]): string | nul
     explanation: question.explanation,
   });
   if (!mismatch) return null;
-  return `Açıklama ${formatValue(mismatch.value)} sonucuna varıyor; doğru şık '${mismatch.keyed.join("', '")}' değil '${mismatch.expected}' olmalı ya da açıklama yanlış.`;
+  const evidence = mismatch.reason && mismatch.reason !== "value" ? mismatchEvidence(mismatch) : `Açıklama ${formatValue(mismatch.value)} sonucuna varıyor`;
+  return `${evidence}; doğru şık '${mismatch.keyed.join("', '")}' değil '${mismatch.expected}' olmalı ya da açıklama yanlış.`;
 }
 
 const formatValue = (value: number) => String(Number(value.toFixed(6))).replace(".", ",");
@@ -1355,6 +1360,11 @@ export function quizStructureIssues(
   }
   const said =[question.text, question.explanation ?? "", ...question.options, ...(question.optionWhy ?? []), ...(question.steps ?? [])];
   if (reversedFunctionNotation(said.join("\n")).length) issues.push(FUNCTION_NOTATION_ISSUE);
+  // Faz 1-A §3 güçlendirmesi (19 Kasım 2026): açıklama/gerekçe/adımdaki işlem kodla hesaplanır; yanlış hesaplı soru
+  // anahtarı da şüpheli kılar, düşer ve yedek doldurur.
+  if (hasFalseArithmetic([question.explanation ?? "", ...(question.optionWhy ?? []), ...(question.steps ?? [])].join("\n"))) {
+    issues.push(QUIZ_ARITHMETIC_ISSUE);
+  }
   if (question.multi && options.multi) {
     return [...issues, ...multiQuestionIssues(question)];
   }
