@@ -187,7 +187,9 @@ describe("6 arketip × 2 mod render (Faz 1-B)", () => {
     const { container } = render(<VisualSceneRenderer scene={scene} mode="16:9" />);
     expect(container.querySelectorAll('[data-effect="activate"]').length).toBe(3);
     expect(container.querySelectorAll('[data-barrier="x"]').length).toBe(1);
-    expect(container.textContent).toContain("TUS / KLİNİK SPOTU");
+    // 19 Kasım 2026: rozet disipline bağlı (biyoloji öğrencisi "TUS" görmez); disiplinsiz sahnede "SPOT BİLGİ".
+    expect(container.textContent).toContain("SPOT BİLGİ");
+    expect(container.textContent).not.toContain("TUS");
     expect(container.querySelectorAll("[data-role]").length).toBe(5);
   });
 
@@ -363,5 +365,26 @@ describe("metin sığdırma ve sınıflandırıcı", () => {
     expect(doc.sourceTable?.columns).toEqual(["A", "B", "C"]);
     expect(detectSourceTable([{ text: "düz paragraf metni\nikinci satır" }])).toBeNull();
     for (const archetype of VISUAL_ARCHETYPES) expect(ARCHETYPE_LABEL[archetype].length).toBeGreaterThan(3);
+  });
+});
+
+describe("Faz 1-B denetimi (19 Kasım 2026)", () => {
+  it("spot rozeti disipline bağlı: klinikte KLİNİK SPOTU, biyolojide SPOT BİLGİ", async () => {
+    const { spotKicker } = await import("@/components/learning/visual-scenes/MedicalPathwayScene");
+    expect(spotKicker("medicine")).toBe("KLİNİK SPOTU");
+    expect(spotKicker("pharmacy")).toBe("KLİNİK SPOTU");
+    expect(spotKicker("biology")).toBe("SPOT BİLGİ");
+    expect(spotKicker()).toBe("SPOT BİLGİ");
+  });
+
+  it("azalan üstel e^(−x) eksenin üstünde (y > 0) ve azalır; aşağı açılan parabol y'de aynalanır", async () => {
+    const { CURVE_FAMILY_DEFS, flippedFamily } = await import("@/components/learning/visual-scenes/MathGraphScene");
+    const decay = flippedFamily(CURVE_FAMILY_DEFS.exponential, "exponential");
+    for (const x of [-2, 0, 1, 2]) expect(decay.f(x)).toBeGreaterThan(0);
+    expect(decay.f(-1)).toBeGreaterThan(decay.f(1));
+    expect(decay.x[0]).toBeLessThan(decay.x[1]);
+    expect(decay.y).toEqual(CURVE_FAMILY_DEFS.exponential.y);
+    const down = flippedFamily(CURVE_FAMILY_DEFS.quadratic, "quadratic");
+    expect(down.f(0.5)).toBeCloseTo(-CURVE_FAMILY_DEFS.quadratic.f(0.5));
   });
 });

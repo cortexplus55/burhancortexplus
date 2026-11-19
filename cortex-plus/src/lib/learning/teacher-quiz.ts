@@ -1,5 +1,5 @@
 import { KEY_CONSISTENCY_PREFIX, hasFalseArithmetic } from "@/lib/learning/answer-key-consistency";
-import { answerLeakIssue, singleChoiceVerdict } from "@/lib/learning/single-choice-guard";
+import { ANSWER_LEAK_PREFIX, SINGLE_CHOICE_ISSUE_PREFIX, answerLeakIssue, singleChoiceVerdict } from "@/lib/learning/single-choice-guard";
 import { quizKeyRepeatsSourceError, sourceCorrectionPromptBlock, type SourceCorrectionWarning } from "@/lib/learning/source-correction";
 import { CONTENT_STYLE } from "@/lib/ai/content-style";
 import { OPTION_SEPARABILITY_PREFIX, optionSeparabilityIssues } from "@/lib/learning/option-separability";
@@ -1016,6 +1016,10 @@ export const UNSALVAGEABLE_PROBLEM = new RegExp(
     "Cevap anahtarı hesapla çelişiyor",
     "Hiçbir şık kökteki",
     "sonucuna varıyor; doğru şık",
+    // 19 Kasım 2026 (Faz 1-A denetimi): son kapı (kayıt öncesi) bu iki sorunu taşıyan soruyu atıyor; kurtarma onu geri
+    // koyunca sayı eksik kalıp test düşüyordu. Geri konmaz, ikinci geçiş yenisini yazar.
+    SINGLE_CHOICE_ISSUE_PREFIX,
+    ANSWER_LEAK_PREFIX,
   ].join("|"),
   "u",
 );

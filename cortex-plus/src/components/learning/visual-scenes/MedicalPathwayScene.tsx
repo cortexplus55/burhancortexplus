@@ -122,6 +122,14 @@ function stepTexts(
   return last!;
 }
 
+/**
+ * Spot kutusunun üst satırı disipline göre (19 Kasım 2026, Faz 1-B denetimi): önce her sahnede "TUS / KLİNİK SPOTU"
+ * yazıyordu; LGS / YKS biyoloji öğrencisi de bunu görüyordu. Klinik bilimlerde "KLİNİK SPOTU", öbürlerinde "SPOT BİLGİ".
+ */
+export function spotKicker(domain?: AcademicDomain): string {
+  return domain === "medicine" || domain === "dentistry" || domain === "pharmacy" ? "KLİNİK SPOTU" : "SPOT BİLGİ";
+}
+
 export function layoutMedicalPathway(data: MedicalPathwayData, frame: SceneFrame, domain?: AcademicDomain): MedicalPathwayLayout {
   const { content } = frame;
   const badge = `${domain ? DOMAIN_LABEL[domain] : "Tıp · Biyoloji"} · ${ARCHETYPE_LABEL.MEDICAL_BIOLOGY_PATHWAY}`;
@@ -136,7 +144,7 @@ export function layoutMedicalPathway(data: MedicalPathwayData, frame: SceneFrame
   const spotWidth = frame.portrait ? content.w : Math.round(content.w * 0.3);
   const spotX = frame.portrait ? content.x : content.x + content.w - spotWidth;
   const spotPad = 10;
-  const kicker = placeText("spot-kicker", "TUS / KLİNİK SPOTU", spotX + spotPad + 18, 0, {
+  const kicker = placeText("spot-kicker", spotKicker(domain), spotX + spotPad + 18, 0, {
     maxWidth: spotWidth - spotPad * 2 - 18,
     maxLines: 1,
     fontSize: 10,
