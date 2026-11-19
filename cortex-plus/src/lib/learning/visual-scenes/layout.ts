@@ -332,6 +332,9 @@ export function inflate(rect: Rect, dx: number, dy = dx): Rect {
  * Sahne başlığı + arketip rozeti. Dikeyde rozet kendi satırında, başlık altında (dar genişlikte başlık
  * sıkışmasın); yatayda rozet sağda, başlık solda. `bottom`: başlık bloğunun alt kenarı.
  */
+/** Yatay başlıkta başlık ile rozet arasındaki en az pay (viewBox birimi). */
+export const HEADER_BADGE_GAP = 26;
+
 export function layoutHeader(frame: SceneFrame, title: string, badge: string): { texts: TextBox[]; bottom: number } {
   const { content } = frame;
   const place = textPlacer(frame);
@@ -359,8 +362,10 @@ export function layoutHeader(frame: SceneFrame, title: string, badge: string): {
     });
     return { texts: [ownRow, titleBelow], bottom: titleBelow.rect.y + titleBelow.rect.h };
   }
+  // Başlık ile yanındaki rozet arasındaki pay (20 Kasım 2026): genişlik tahmini Figtree içindir; yazı tipi geç yüklenen ya
+  // da yedek yazı tipine düşen tarayıcıda kalın başlık birkaç piksel geniş çizildi ve rozete bindi (CI, 16:9). 14 → 26.
   const titleBox = place("title", title, content.x, content.y, {
-    maxWidth: content.w - badgeBox.rect.w - 14,
+    maxWidth: content.w - badgeBox.rect.w - HEADER_BADGE_GAP,
     maxLines: 2,
     fontSize: 17,
     minFontSize: 13,
