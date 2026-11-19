@@ -55,3 +55,31 @@ describe("kaynak düzeltme denetimi yazımdan önce sınırlı beklenir", () => 
     await expect(settleWithin(Promise.reject(new Error("düştü")), 50)).resolves.toBeUndefined();
   });
 });
+
+describe("bekçi gösterim farkını ve cümle içindeki formülü yakalar (§2.1)", () => {
+  const sentence = {
+    documentClaim: "Kaldırma kuvveti F = V · d_cisim · g bağıntısıyla hesaplanır.",
+    verifiedTruth: "Kaldırma kuvveti F = V · d_sıvı · g bağıntısıyla hesaplanır.",
+    explanation: "Kaldırma kuvvetindeki yoğunluk sıvının yoğunluğudur.",
+  };
+
+  it("formül cümleden çıkar ve gösterim farkı aynı biçime iner", async () => {
+    const { formulaKeys, correctionKey } = await import("@/lib/learning/source-correction");
+    expect(formulaKeys(sentence.documentClaim)).toEqual([correctionKey("F = V * dcisim * g")]);
+    expect(correctionKey("F = V × d_cisim × g")).toBe(correctionKey("F=V·dcisim·g"));
+    expect(formulaKeys("Formül yok.")).toEqual([]);
+  });
+
+  it("cümle iddiası × ile yazılmış yanlışı yakalar, doğrusunu geçirir", async () => {
+    const { repeatsSourceError, quizKeyRepeatsSourceError, trueFalseKeyRepeatsSourceError } = await import(
+      "@/lib/learning/source-correction"
+    );
+    expect(repeatsSourceError("F = V × d_cisim × g", sentence)).toBe(true);
+    expect(repeatsSourceError("Kuvvet F=V∙d cisim∙g ile bulunur.", sentence)).toBe(true);
+    expect(repeatsSourceError("F = V × d_sıvı × g", sentence)).toBe(false);
+    expect(repeatsSourceError("Batan hacim artınca kuvvet artar.", sentence)).toBe(false);
+    expect(quizKeyRepeatsSourceError({ correct: ["F = V × d_cisim × g"] }, sentence)).not.toBeNull();
+    expect(trueFalseKeyRepeatsSourceError({ text: "Kaldırma kuvveti F = V × d_cisim × g ile bulunur.", correct: true }, sentence)).toBe(true);
+    expect(trueFalseKeyRepeatsSourceError({ text: "Kaldırma kuvveti F = V × d_cisim × g ile bulunur.", correct: false }, sentence)).toBe(false);
+  });
+});
