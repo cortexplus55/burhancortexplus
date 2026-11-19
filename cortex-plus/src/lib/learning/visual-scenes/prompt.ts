@@ -73,6 +73,8 @@ export const ARCHETYPE_SPEC: Record<VisualArchetype, { when: string; draws: stri
 export const VISUAL_SCENE_COMMON_RULE =
   "Sahne yeni bilgi taşımaz: her etiket, sayı, tarih ve kesir yalnız DERS metninde ya da KAYNAK'ta geçenden gelir. " +
   "Koordinat, renk ya da piksel yazma; yerleşimi kod yapar. Etiketler kısa (2-5 kelime), açıklamalar tek cümle. " +
+  "symbol, harf ve sınır alanları kelime değil simgedir (en çok 6 karakter: F_1, ΔT, EN gibi); formül ya da kural " +
+  "cümlesi en çok 80 karakter. Kısaltmak için cümleyi yarıda kesme ve \"…\" koyma; daha kısa, tam bir ifade yaz. " +
   "Düz paragraf yazma: her alan çizimin bir parçasıdır.";
 
 /** Disiplin listesi (istemde seçim için). */
