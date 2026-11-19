@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { parseExamAnalysis } from "@/lib/learning/exam-analysis";
 import { ExamQuestionReviewClient } from "@/components/parity/exam-question-review-client";
@@ -71,6 +71,10 @@ export default async function ExamQuestionReviewPage({
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
+
+  // Faz 2 (madde 7.3): notlanmış kayıt yoksa (sınav sürüyor ya da hiç başlamadı) cevap anahtarı açılmaz; öğrenci
+  // sınavın kendisine döner. Eskiden inceleme adresi etkin sınavda bütün doğru cevapları gösteriyordu.
+  if (!attempt) redirect(`/deneme-sinavlari/${prepId}/deneme/${examId}`);
 
   // Analiz sınav biterken zaten üretilip kaydediliyordu ama hiçbir yerde
   // gösterilmiyordu: öğrenci yalnızca doğru/yanlış listesini görüyordu.

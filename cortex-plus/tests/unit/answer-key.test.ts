@@ -67,7 +67,7 @@ const draft = (patch: Partial<MockExamQuestionDraft>): MockExamQuestionDraft => 
   modelAnswer: "",
   topicId: null,
   topicLabel: "Konu",
-  source: { documentId: null, page: null, label: null } as MockExamQuestionDraft["source"],
+  source: { documentId: null, page: null, label: "Kaynak" } as unknown as MockExamQuestionDraft["source"],
   difficulty: "medium",
   ...patch,
 });
