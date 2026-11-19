@@ -1,7 +1,8 @@
 import { seededOrder } from "@/lib/learning/seeded-order";
 
 /**
- * Faz 4 (19 Kasım 2026): %100 ücretsiz yeniden çalışma. Kayıtlı gövdesi olan ders, test, doğru/yanlış, kart,
+ * Faz 4 (19 Kasım 2026): %100 ücretsiz yeniden çalışma. Kayıtlı gövdesi olan ders, test, doğru/yanlış, kart (aralıklı
+ * tekrar kartları dahil),
  * podcast ve yazılı deneme adımı yeniden açıldığında kayıttan açılır: kredi ayırma yok, kullanım kaydı yok, model ve
  * ses çağrısı yok. Yeni üretim yalnız açık istekle (`regenerate`, dersin "Farklı anlat"ı `rewrite`) ya da başka bir
  * konu seçilince (`?konu=`).
@@ -11,9 +12,16 @@ export const FREE_RESTUDY_KINDS: ReadonlySet<string> = new Set([
   "quiz",
   "true_false",
   "flashcards",
+  "spaced",
   "podcast",
   "written_exam",
 ]);
+
+/**
+ * Kart destesi olan adımlar: konu kartları ve aralıklı tekrar kartları. İkisinin de kayıtlı 8 kartı ücretsiz açılır;
+ * yeni deste yalnız "Yeni 8 Kart Üret (8 Kredi)" ile (`FLASHCARD_GENERATE`).
+ */
+export const CARD_DECK_KINDS: ReadonlySet<string> = new Set(["flashcards", "spaced"]);
 
 export const FREE_RESTUDY_PATH_LABEL = "Yolu Yeniden Çalış (Ücretsiz)";
 export const SAVED_DECK_LABEL = "Kayıtlı Kart Desten (Ücretsiz Tekrar)";

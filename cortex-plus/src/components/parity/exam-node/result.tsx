@@ -15,7 +15,7 @@ import { LessonRatingCard } from "@/components/parity/lesson-rating-card";
 import { LevelSuggestCard } from "@/components/parity/level-suggest-card";
 import { repeatedCardsLine } from "@/lib/learning/flashcard-round";
 import { replayLabel } from "@/lib/learning/feedback-copy";
-import { FREE_RESTUDY_KINDS, NEW_DECK_LABEL, RESTUDY_NEXT_LABEL, RESTUDY_STEP_LABEL } from "@/lib/learning/free-restudy";
+import { CARD_DECK_KINDS, FREE_RESTUDY_KINDS, NEW_DECK_LABEL, RESTUDY_NEXT_LABEL, RESTUDY_STEP_LABEL } from "@/lib/learning/free-restudy";
 import Link from "next/link";
 import type { NodeLifecycle } from "./use-node-lifecycle";
 
@@ -199,7 +199,7 @@ export function ResultScreen({ life }: { life: NodeLifecycle }) {
             }}>
               {freeRestudy ? RESTUDY_STEP_LABEL : replayLabel(kind)}
             </button>
-            {kind === "flashcards" && regenerateHref ? (
+            {CARD_DECK_KINDS.has(kind) && regenerateHref ? (
               <a href={regenerateHref} className="cp-exam-continue">
                 {NEW_DECK_LABEL}
               </a>
