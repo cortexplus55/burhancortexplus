@@ -562,6 +562,7 @@ export default async function ExamPrepDetailPage({
         label,
         confidence: view && view.state !== "unmeasured" ? view.percent : 0,
         state: view?.state ?? "unmeasured",
+        badge: view?.badge ?? "unmeasured",
         // Kanıt yalnız ölçüm açıkken var; kapalı eski yolda "çözüldü" kayıtlardan sayılır.
         ...(trackingV2 ? { solved: view?.solved ?? 0 } : {}),
       };

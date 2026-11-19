@@ -361,6 +361,12 @@ export async function probeSchema(
     ]),
     service.from("referral_gift_days").select("day").limit(1),
   ]);
+  // Faz 4 (19 Kasım 2026): kavrama politikası sütunu ve "Farklı anlat" önbelleği. Salt okuma.
+  const [masteryPolicy, reexplainCache] = await Promise.all([
+    service.from("exam_prep_topic_mastery").select("policy").limit(1),
+    hasTable(service, "exam_prep_step_reexplains"),
+  ]);
+  const faz4Schema = !masteryPolicy.error && reexplainCache;
   const emailNetworkOk = emailNetwork.every((result) => !result.error);
   const examPrice = CREDIT_PRICE_TABLE.PRACTICE_EXAM_GENERATE.credits;
   const chatPrice = CREDIT_PRICE_TABLE.AI_CHAT_STANDARD.credits;
@@ -393,7 +399,7 @@ export async function probeSchema(
       ok: v3,
       critical: true,
       detail: v3
-        ? `Ders ${lessonPrice}, test ${CREDIT_PRICE_TABLE.QUIZ_GENERATE.credits}, mesaj ${chatPrice} kredi; ücretsiz ilk ders, günde ${FREE_LIMITS.chat} mesaj, ${FREE_LIMITS.photo} fotoğraf; günlük kredi 0`
+        ? `Ders ${lessonPrice}, test ${CREDIT_PRICE_TABLE.QUIZ_GENERATE.credits}, mesaj ${chatPrice} kredi; ücretsiz ilk ders, günde ${FREE_LIMITS.chat} mesaj, ayda ${FREE_LIMITS.photo} fotoğraf; günlük kredi 0`
         : `Ders ${lessonRule.data?.credit_cost ?? "?"} kredi${freeUsage ? "" : ", free_usage yok"}${
             dailyZero ? "" : `, günlük ücretsiz kredi ${dailyAllowance ?? "okunamadı"} (0 olmalı: 20261024123000)`
           }. Sıra: 20261024121000 koddan önce; 20261024120000 ve 20261024123000 koddan sonra, tek çalıştırmada.`,
@@ -564,6 +570,14 @@ export async function probeSchema(
       detail: referralDays.error
         ? "referral_gift_days yok — davet hediyesinde günlük tavan ve kapatma anahtarı çalışmaz (20261107150000)."
         : "referral_gift_days yerinde (20261107150000): günlük tavan ve kapatma anahtarı çalışıyor.",
+    },
+    {
+      name: "Faz 4 kavrama politikası ve Farklı anlat önbelleği",
+      ok: faz4Schema,
+      critical: false,
+      detail: faz4Schema
+        ? "exam_prep_topic_mastery.policy ve exam_prep_step_reexplains yerinde (20261119120100)."
+        : "20261119120100 uygulanmamış — rozetler eski hesapla gösterilir, Farklı anlat önbelleği yazılamaz.",
     },
   ];
 }

@@ -23,6 +23,9 @@ import { parseMood, type Familiarity } from "@/lib/learning/session-signals";
 import { moodAskedSince } from "@/lib/learning/lesson-open";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 import { nextRestudyHref, parseRestudyToken } from "@/lib/learning/free-restudy";
+import { LEARNED_SKIP_KINDS, topicReviewStateForNode } from "@/lib/learning/learned-skip";
+import { TARGETED_FIRST_KINDS } from "@/lib/learning/learned-skip-copy";
+import { LearnedSkipBar, TargetedFirstBar } from "@/components/parity/exam-node/learned-skip-bar";
 import { createServiceClient } from "@/lib/supabase/server";
 import { parseSessionMeta } from "@/lib/learning/teaching-standards";
 import {
@@ -91,7 +94,7 @@ export default async function ExamNodePage({
     isFeatureEnabled(service, PDF_LEARNING_V2_FLAG),
     supabase
       .from("exam_preps")
-      .select("id, title, exam_type, active_topic_id, intro_completed_at, intro_deferred_at, document_id, learning_preferences")
+      .select("id, title, exam_type, active_topic_id, intro_completed_at, intro_deferred_at, document_id, learning_preferences, target_score")
       .eq("id", prepId)
       .eq("user_id", user.id)
       .maybeSingle(),
@@ -406,6 +409,19 @@ export default async function ExamNodePage({
         });
       })()
     : null;
+  // Faz 4 madde 3.4: konusu "Öğrendin" olan tekrar adımı 0 kredi ile atlanabilir; Zayıf / Gelişiyor / tuzak konuda
+  // zayıf nokta ve odaklı pratik önce ücretsiz hedefli tekrarı önerir. Açık deneme sürerken gösterilmez.
+  const reviewState =
+    LEARNED_SKIP_KINDS.has(String(node.kind)) && node.status !== "done" && !openAttempt
+      ? await topicReviewStateForNode(service, {
+          userId: user.id,
+          prepId,
+          topicLabel: String(topicLabel ?? ""),
+          targetScore: typeof prep.target_score === "number" ? prep.target_score : null,
+        })
+      : { learned: false, targeted: false };
+  const learnedSkip = reviewState.learned;
+  const targetedFirst = !learnedSkip && reviewState.targeted && TARGETED_FIRST_KINDS.has(String(node.kind));
   const autoOpenLesson = shouldAutoOpenLesson({
     kind: node.kind as string,
     reviewSaved: lessonReviewSaved,
@@ -433,6 +449,9 @@ export default async function ExamNodePage({
   ];
 
   const session = (
+    <>
+      {learnedSkip ? <LearnedSkipBar prepId={prep.id as string} nodeId={node.id as string} /> : null}
+      {targetedFirst ? <TargetedFirstBar prepId={prep.id as string} /> : null}
       <ExamNodeSession
         prepId={prep.id}
         nodeId={node.id}
@@ -468,6 +487,7 @@ export default async function ExamNodePage({
         regenerateHref={node.kind === "flashcards" ? examPrepRegenerateHref(prepId, nodeId) : null}
         restudyNextHref={restudyNextHref}
       />
+    </>
   );
   return (
     <ParitySorShell {...shell} chrome="session">

@@ -15,6 +15,7 @@ import { PremiumPlanHero } from "@/components/marketing/premium-plan-hero";
 import { billingPeriodOf } from "@/lib/payments/subscription";
 import { formatTry, formatTryWhole } from "@/lib/format";
 import { allowanceShare } from "@/lib/credits/period";
+import { FREE_RESTUDY_BAND, PLAN_ALLOWANCES, planWorkLine } from "@/lib/credits/price-table";
 import "@/styles/parity-app.css";
 import "@/styles/cortex-premium.css";
 import { TrustStrip } from "@/components/parity/trust-strip";
@@ -464,6 +465,11 @@ export function SubscriptionCards({
       </div>
 
 
+      {/* Faz 4 güvence bandı: üretilen yolu yeniden çözmek her zaman 0 kredi. */}
+      <p className="cs-pay-restudy-band" role="note" data-testid="restudy-band">
+        {FREE_RESTUDY_BAND}
+      </p>
+
       {/*
         İki sütun ancak iki kart varken. Tek kart iki sütunlu bir ızgarada sol
         yarıya oturup sağ yarıyı boş bırakıyor — sayfa eksik görünüyor.
@@ -499,6 +505,9 @@ export function SubscriptionCards({
               </p>
               <p className="text-xs text-[var(--cs-muted)]">
                 {billingNoteFor(plusPlan)}
+              </p>
+              <p className="cs-pay-work" data-testid="plan-work-plus">
+                {planWorkLine(PLAN_ALLOWANCES.plusMonthly)}
               </p>
               {yearly && plusSaving ? (
                 <p className="cs-pay-save-callout">
@@ -560,6 +569,11 @@ export function SubscriptionCards({
               {plusWeekly && !plusOwned && !isParent ? (
                 <p className="mt-1.5 text-center text-xs text-[var(--cs-muted)]">
                   {WEEKLY_PLUS_PLAN_NAME} için tek ödeme, abonelik açılmaz.
+                </p>
+              ) : null}
+              {plusWeekly && !plusOwned && !isParent ? (
+                <p className="cs-pay-work cs-pay-work--sub" data-testid="plan-work-week">
+                  {WEEKLY_PLUS_PLAN_NAME}: {planWorkLine(PLAN_ALLOWANCES.plusWeekly)}
                 </p>
               ) : null}
               <button
@@ -638,6 +652,9 @@ export function SubscriptionCards({
                 </p>
                 <p className="text-xs text-[var(--cs-muted)]">
                   {billingNoteFor(sigmaPlan)}
+                </p>
+                <p className="cs-pay-work" data-testid="plan-work-sigma">
+                  {planWorkLine(PLAN_ALLOWANCES.sigmaMonthly)}
                 </p>
                 <button
                   type="button"

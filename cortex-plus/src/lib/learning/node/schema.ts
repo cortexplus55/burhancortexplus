@@ -7,7 +7,7 @@ export const bodySchema = z.object({
   prepId: z.string().uuid(),
   nodeId: z.string().uuid(),
   attemptId: z.string().uuid().optional(),
-  action: z.enum(["start", "complete", "save", "resume", "review", "grade-check", "answer-check", "progress", "choose", "warm"]).default("start"),
+  action: z.enum(["start", "complete", "save", "resume", "review", "grade-check", "answer-check", "progress", "choose", "warm", "skip-learned"]).default("start"),
   difficulty: z.enum(["kolay", "orta", "ileri"]).optional(),
   voiceMode: z.boolean().optional(),
   // Ders başında sorulan iki sinyal: konuya aşinalık ve o anki ruh hali.

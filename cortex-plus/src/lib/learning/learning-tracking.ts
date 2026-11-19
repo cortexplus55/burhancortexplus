@@ -1066,6 +1066,8 @@ export function holdMasteryOnSuccess(
 ): TopicMasterySnapshot[] {
   if (!succeeded) return folded;
   return folded.map((topic) => {
+    // Faz 4: politika kararı olan konu tutulmaz — yüzde ve rozet kanıttan; ekranlar aynı sayıyı okur.
+    if (topic.policy) return topic;
     const before = prior.find((row) => normalizeTopicKey(row.topicKey) === normalizeTopicKey(topic.topicKey));
     if (!before?.measured) return topic;
     return {
@@ -1093,7 +1095,15 @@ export function holdTrackingOnSuccess(
   };
 }
 
-export type TopicGain = { label: string; before: number; after: number };
+export type TopicGain = {
+  label: string;
+  before: number;
+  after: number;
+  /** Faz 4: kazanç kartının rozeti, ekranlarla aynı (`topicMasteryView`). */
+  badge?: MasteryBadge;
+  badgeLabel?: string;
+  tone?: "emerald" | "cobalt" | "coral" | "gray";
+};
 
 /**
  * Sonuç ekranından sonraki "+%X kazandın" kartı (19 Ekim 2026, kıyas ürününde test sonrası
@@ -1106,20 +1116,26 @@ export function topicMasteryGain(input: {
   folded: TopicMasterySnapshot[];
   evidenceKeys: string[];
   topicLabel: string | null;
+  /** Rozetin hedefi (hazırlığın hedef puanı; yoksa varsayılan). */
+  targetScore?: number | null;
 }): TopicGain | null {
   const keys = [...new Set(input.evidenceKeys.map(normalizeTopicKey))];
   if (!keys.length) return null;
   const own = input.topicLabel ? normalizeTopicKey(input.topicLabel) : null;
   const key = own && keys.includes(own) ? own : keys[0]!;
-  const before = input.prior.find((topic) => normalizeTopicKey(topic.topicKey) === key)?.confidence ?? 0;
-  const after = input.folded.find((topic) => normalizeTopicKey(topic.topicKey) === key)?.confidence;
-  if (typeof after !== "number") return null;
+  const priorTopic = input.prior.find((topic) => normalizeTopicKey(topic.topicKey) === key);
+  const foldedTopic = input.folded.find((topic) => normalizeTopicKey(topic.topicKey) === key);
+  if (!foldedTopic) return null;
+  // Faz 4: kart, ekranların okuduğu yüzdeyi (`topicMasteryView`) yazar; politikası olmayan eski satırda kayıtlı güven.
+  const before = priorTopic ? (priorTopic.policy ? topicMasteryPercent(priorTopic) : priorTopic.confidence) : 0;
+  const view = topicMasteryView(foldedTopic, input.targetScore ?? null);
+  const after = foldedTopic.policy ? view.percent : foldedTopic.confidence;
   const beforeRounded = Math.round(before);
   const afterRounded = Math.round(after);
   // Kazanç metni kayıtlı yeni değer eksi eski değerdir. Fark 0 ya da eksi ise kart yazılmaz.
   if (afterRounded <= beforeRounded) return null;
   const label = own === key && input.topicLabel ? input.topicLabel.trim() : key;
-  return { label, before: beforeRounded, after: afterRounded };
+  return { label, before: beforeRounded, after: afterRounded, badge: view.badge, badgeLabel: view.label, tone: view.tone };
 }
 
 /**

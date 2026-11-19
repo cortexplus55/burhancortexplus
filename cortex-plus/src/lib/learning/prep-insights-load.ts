@@ -116,7 +116,8 @@ async function loadInsights(
     .map((row) => String(row.label ?? "").trim())
     .filter(Boolean);
   const measuredRows = ((masteryRows ?? []) as Record<string, unknown>[]).filter(
-    (row) => Number(row.evidence_count ?? 0) > 0,
+    // Faz 4: yalnız kart öz bildirimi olan konunun eski sayımı yok ama kararı (`policy`) var.
+    (row) => Number(row.evidence_count ?? 0) > 0 || (row.policy != null && typeof row.policy === "object"),
   );
   // Hâkimiyet konuya tek eşleştiriciyle bağlanır (`masteryByPlannedTopic`, 30 Ekim 2026): hazırlık sayfasıyla aynı sayı.
   // "Sağlam / Çalışılacak" ana sayfadaki özette de aynı kaynaktan (29 Ekim 2026).
@@ -129,6 +130,7 @@ async function loadInsights(
       label,
       confidence: view?.percent ?? 0,
       state: view?.state ?? ("unmeasured" as const),
+      badge: view?.badge ?? ("unmeasured" as const),
       solved: view?.solved ?? 0,
     };
   });

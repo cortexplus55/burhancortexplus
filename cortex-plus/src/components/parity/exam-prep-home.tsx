@@ -79,7 +79,8 @@ import { examDayLabel } from "@/lib/learning/exam-time";
 import { isLevelNode, LEVEL_NODE_ID, levelNodeAria } from "@/lib/learning/path-level";
 import { StudyToolsHub } from "@/components/parity/study-tools-hub";
 import { ExamPrepProgress } from "@/components/parity/exam-prep-progress";
-import { PrepDueReviewCard } from "@/components/parity/prep-review-card";
+import { PrepDueReviewCard, PrepRestudyCard } from "@/components/parity/prep-review-card";
+import { FREE_RESTUDY_KINDS } from "@/lib/learning/free-restudy";
 import {
   buildPrepProgressView,
   type PrepProgressView,
@@ -825,6 +826,12 @@ export function ExamPrepHome({
       ) : null}
 
       {view === "yol" ? <PrepDueReviewCard prepId={prepId} count={dueReviews} /> : null}
+      {view === "yol" ? (
+        <PrepRestudyCard
+          prepId={prepId}
+          doneCount={nodes.filter((node) => node.status === "done" && FREE_RESTUDY_KINDS.has(node.kind)).length}
+        />
+      ) : null}
 
       {view === "ilerleme" ? (
         <ExamPrepProgress

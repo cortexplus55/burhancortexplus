@@ -250,6 +250,7 @@ export async function recordLearningTrackingAfterComplete(
     folded,
     evidenceKeys: evidence.map((row) => row.topicKey),
     topicLabel: gainLabel ? (topicIndex.rowForKey(gainLabel)?.label ?? gainLabel) : gainLabel,
+    targetScore: input.targetScore ?? null,
   });
 
   // Konular tek istekte (6 Kasım 2026, hız paketi): önce konu başına art arda bir upsert gidiyordu.
