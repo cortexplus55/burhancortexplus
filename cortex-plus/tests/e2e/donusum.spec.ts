@@ -122,9 +122,9 @@ test.describe("dönüşüm paketi", { tag: ["@public"] }, () => {
       await app.getByRole("button", { name: /^Devam et/ }).click();
       await app.getByRole("button", { name: /Dersi bitir/ }).click();
 
-      // 4. Konu testi: ürünün soru ekranı; "İki şık arasında kaldım" ipucu sunucuya gitmeden gelir.
+      // 4. Konu testi: ürünün soru ekranı; "İki Şık Arasında Kaldım" ipucu sunucuya gitmeden gelir.
       await expect(tour.locator('.tp-frame[data-screen="question"]')).toBeVisible();
-      await app.getByRole("button", { name: /İki şık arasında kaldım/ }).click();
+      await app.getByRole("button", { name: /İki Şık Arasında Kaldım/ }).click();
       await app.locator(".cp-two-option").nth(0).click();
       await app.locator(".cp-two-option").nth(2).click();
       await expect(app.locator(".cp-two-hint")).toBeVisible();
@@ -300,18 +300,16 @@ test.describe("dönüşüm paketi", { tag: ["@public"] }, () => {
       await expect(page).toHaveURL(/\/kayit\?hedef=lise&kaynak=belge/);
       await expect(page.getByText(/Ana sayfada seçtiğin “Biyoloji_yazili_notu.pdf” bu cihazda bekliyor/)).toBeVisible();
 
-      // Kurulumun materyal adımında dosya öğrencinin dokunuşunu bekler; vazgeçince silinir.
+      // Kuruluma gelene kadar dosya hiçbir yere gönderilmedi.
+      expect(uploads.filter((item) => /documents|uploads?\b|storage/i.test(item))).toEqual([]);
+      // Faz 5 §1.3 (19 Kasım 2026): kurulumun materyal adımında dosya kendiliğinden eklenir; tarayıcıdaki kopya alınır.
       await page.goto("/e2e/sihirbaz?adim=material");
-      const offer = page.getByRole("group", { name: "Ana sayfada seçtiğin dosya" });
-      await expect(offer).toBeVisible();
-      await expect(offer.getByRole("button", { name: "Bu dosyayı ekle" })).toBeVisible();
+      const added = page.locator('[data-guest-document="added"]');
+      await expect(added).toBeVisible({ timeout: 30_000 });
+      await expect(added).toContainText("Biyoloji_yazili_notu.pdf");
       expect(await overflow(page)).toBeLessThanOrEqual(1);
-      await offer.getByRole("button", { name: "Vazgeç" }).click();
-      await expect(offer).toHaveCount(0);
       await page.reload();
       await expect(page.getByRole("group", { name: "Ana sayfada seçtiğin dosya" })).toHaveCount(0);
-      // Sihirbaz kendi taslağını kaydeder; dosya ise öğrenci "ekle" demedikçe hiçbir yere yüklenmez.
-      expect(uploads.filter((item) => /documents|uploads?\b|storage/i.test(item))).toEqual([]);
     });
   }
 

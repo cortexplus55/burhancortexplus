@@ -1,13 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { CheckCircle2, Lock } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ReadGate, type ReadGateChange } from "@/components/legal/read-gate";
 import { PERFORMANCE_CONSENT_TEXT } from "@/lib/legal/texts";
+import { PARENT_PAY_COPY, parentPaidLine } from "@/lib/payments/parent-pay-copy";
+
+const POLL_MS = 3000;
 
 /**
- * Velinin ödeme formu (29 Ekim 2026): e-posta (PayTR makbuzu), ad (isteğe bağlı), sözleşme onayı;
- * ardından PayTR iFrame'i aynı sayfada. Veli hesap açmaz; hak öğrencinin hesabına tanımlanır.
+ * Velinin ödeme formu (29 Ekim 2026; Faz 5 §2 ile yeniden tasarlandı, 19 Kasım 2026): makbuz e-postası, Ön Bilgilendirme
+ * ve Mesafeli Satış onay kutusu (metin açılıp okunmadan işaretlenmez), hizmetin hemen başlaması kutusu; ardından PayTR
+ * iFrame'i aynı sayfada. iFrame açıkken ödeme durumu yoklanır; geri çağrı onaylayınca form onay ekranına döner.
  */
 export function ParentPayForm({ token, studentName, planName, priceLabel }: { token: string; studentName: string; planName: string; priceLabel: string }) {
   const [email, setEmail] = useState("");
@@ -19,6 +24,25 @@ export function ParentPayForm({ token, studentName, planName, priceLabel }: { to
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [iframeUrl, setIframeUrl] = useState<string | null>(null);
+  const [paid, setPaid] = useState(false);
+
+  useEffect(() => {
+    if (!iframeUrl || paid) return;
+    let stopped = false;
+    const timer = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/billing/parent-link/status?token=${encodeURIComponent(token)}`, { cache: "no-store" });
+        const body = (await res.json().catch(() => ({}))) as { paid?: boolean };
+        if (!stopped && body.paid) setPaid(true);
+      } catch {
+        /* sıradaki yoklama dener */
+      }
+    }, POLL_MS);
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+    };
+  }, [iframeUrl, paid, token]);
 
   async function start() {
     if (!accepted) {
@@ -48,7 +72,7 @@ export function ParentPayForm({ token, studentName, planName, priceLabel }: { to
       if (!res.ok || !payload.iframeUrl) {
         setError(
           res.status === 410
-            ? "Bu bağlantının süresi dolmuş. Öğrenciden yeni bağlantı isteyin."
+            ? "Bu ödeme bağlantısının süresi dolmuş, öğrencinizden yeni link isteyebilirsiniz"
             : payload.error === "invalid_input"
               ? "E-posta adresini kontrol edin."
               : payload.error ?? "Ödeme başlatılamadı.",
@@ -63,79 +87,78 @@ export function ParentPayForm({ token, studentName, planName, priceLabel }: { to
     }
   }
 
+  if (paid) {
+    return (
+      <section className="vo-card vo-notice vo-notice--ok" role="status" data-testid="veli-paid">
+        <CheckCircle2 className="vo-confirm-icon" aria-hidden />
+        <h2 className="vo-notice-title">{PARENT_PAY_COPY.paidTitle}</h2>
+        <p className="vo-notice-body">{parentPaidLine(studentName, planName)}</p>
+      </section>
+    );
+  }
+
   if (iframeUrl) {
     return (
-      <div className="mk-card overflow-hidden">
-        <p className="px-5 pt-4 text-sm text-[var(--mk-muted)]">
-          Güvenli ödeme sayfası PayTR tarafından sunulur; kart bilgileri bize gelmez.
+      <section className="vo-card vo-iframe-card" aria-label="PayTR güvenli ödeme">
+        <p className="vo-iframe-note">
+          <Lock className="h-4 w-4" aria-hidden /> Güvenli ödeme sayfası PayTR tarafından sunulur; kart bilgileri bize gelmez.
         </p>
-        <iframe src={iframeUrl} title="Güvenli ödeme" className="h-[640px] w-full border-0" allow="payment" />
-      </div>
+        <iframe src={iframeUrl} title="PayTR güvenli ödeme" className="vo-iframe" allow="payment" />
+      </section>
     );
   }
 
   return (
     <form
-      className="mk-card flex flex-col gap-4 p-5 sm:p-6"
+      className="vo-card vo-form"
+      data-testid="veli-form"
       onSubmit={(event) => {
         event.preventDefault();
         void start();
       }}
     >
-      <div>
-        <p className="text-sm text-[var(--mk-muted)]">Ödeme</p>
-        <p className="text-lg font-semibold text-[var(--mk-text)]">
-          {studentName} için {planName} · {priceLabel}
-        </p>
-        <p className="mt-1 text-sm leading-relaxed text-[var(--mk-muted)]">
-          Paket {studentName} adlı öğrencinin hesabına tanımlanır. Siz hesap açmazsınız; makbuz ve sözleşme örneği e-postanıza gelir. Otomatik yenileme yoktur.
-        </p>
-      </div>
-      <label className="flex flex-col gap-1 text-sm">
-        <span>E-posta (makbuz için)</span>
+      <label className="vo-field">
+        <span>{PARENT_PAY_COPY.emailLabel}</span>
         <input
           type="email"
           required
           value={email}
           onChange={(event) => setEmail(event.target.value)}
-          className="rounded-xl border border-[var(--mk-border)] bg-transparent px-3 py-2.5 text-[var(--mk-text)]"
           autoComplete="email"
+          inputMode="email"
         />
       </label>
-      <label className="flex flex-col gap-1 text-sm">
+      <label className="vo-field">
         <span>Adınız (isteğe bağlı)</span>
-        <input
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          maxLength={60}
-          className="rounded-xl border border-[var(--mk-border)] bg-transparent px-3 py-2.5 text-[var(--mk-text)]"
-          autoComplete="name"
-        />
+        <input value={name} onChange={(event) => setName(event.target.value)} maxLength={60} autoComplete="name" />
       </label>
-      <ReadGate
-        docId="satis_sozlesmeleri"
-        linkText="Ön Bilgilendirme Formu ve Mesafeli Satış Sözleşmesi"
-        after="'ni okudum, kabul ediyorum."
-        ariaLabel="Ön Bilgilendirme Formu'nu ve Mesafeli Satış Sözleşmesi'ni okudum, kabul ediyorum"
-        checked={accepted}
-        onChange={setLegalRead}
-      />
-      <label className="cp-legal-row">
-        <Checkbox
-          aria-label={PERFORMANCE_CONSENT_TEXT}
-          className="mt-0.5 size-5 border-[var(--c-text-subtle)]"
-          checked={performance}
-          onCheckedChange={(value) => setPerformance(value === true)}
+      <div className="vo-consents">
+        <ReadGate
+          docId="satis_sozlesmeleri"
+          linkText="Ön Bilgilendirme Formu ve Mesafeli Satış Sözleşmesi"
+          after="'ni okudum, kabul ediyorum."
+          ariaLabel="Ön Bilgilendirme Formu'nu ve Mesafeli Satış Sözleşmesi'ni okudum, kabul ediyorum"
+          checked={accepted}
+          onChange={setLegalRead}
         />
-        <span className="cp-legal-row-text">{PERFORMANCE_CONSENT_TEXT}</span>
-      </label>
+        <label className="cp-legal-row">
+          <Checkbox
+            aria-label={PERFORMANCE_CONSENT_TEXT}
+            className="mt-0.5 size-5 border-[var(--c-text-subtle)]"
+            checked={performance}
+            onCheckedChange={(value) => setPerformance(value === true)}
+          />
+          <span className="cp-legal-row-text">{PERFORMANCE_CONSENT_TEXT}</span>
+        </label>
+      </div>
       {error ? (
-        <p role="alert" className="text-sm text-[#f87171]">
+        <p role="alert" className="vo-error">
           {error}
         </p>
       ) : null}
-      <button type="submit" disabled={busy} className="mk-btn-primary inline-flex items-center justify-center px-8 py-3 text-sm disabled:opacity-60">
-        {busy ? "Ödeme sayfası açılıyor…" : "Güvenli ödemeye geç"}
+      <button type="submit" disabled={busy} className="vo-pay-btn">
+        <Lock className="h-4 w-4" aria-hidden />
+        {busy ? "Ödeme sayfası açılıyor…" : `${PARENT_PAY_COPY.payCta} · ${priceLabel}`}
       </button>
     </form>
   );

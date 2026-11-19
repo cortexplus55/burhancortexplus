@@ -354,8 +354,8 @@ export function SignupWizard() {
       <div className="signup-wizard flex flex-1 flex-col">
         {guestDocument ? (
           <p className="signup-guest-doc" role="status">
-            <span aria-hidden>📎</span> Ana sayfada seçtiğin {guestDocument} bu cihazda bekliyor; hesabın açılınca kurulumda
-            tek dokunuşla eklenir.
+            <span aria-hidden>📎</span> Ana sayfada seçtiğin {guestDocument} bu cihazda bekliyor; hesabın açılınca kurulum
+            sihirbazına kendiliğinden aktarılır.
           </p>
         ) : null}
         {step === "level" ? (

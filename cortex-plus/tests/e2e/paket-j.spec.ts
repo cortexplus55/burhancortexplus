@@ -132,9 +132,9 @@ test.describe("Paket J akışları", { tag: ["@public"] }, () => {
       await route.fulfill(json({ verdict: "valid", message: "Haklısın, soru düzeltildi. Teşekkürler!" }));
     });
     await page.goto("/e2e/paket-j");
-    await page.getByRole("button", { name: "Soruda hata bildir" }).click();
-    await page.getByRole("radio", { name: "Cevap anahtarı yanlış" }).click();
-    await page.getByRole("button", { name: "Bildir" }).click();
+    await page.getByRole("button", { name: /Soruda Hata Bildir/ }).click();
+    await page.getByRole("radio", { name: "Cevap anahtarı hatalı" }).click();
+    await page.getByTestId("qreport-modal").getByRole("button", { name: "Bildir", exact: true }).click();
     await expect(page.getByText("Haklısın, soru düzeltildi. Teşekkürler!")).toBeVisible();
     expect(sent).toMatchObject({ source: "node", targetId: "e2e-attempt", questionRef: "0", reason: "key" });
   });
@@ -148,7 +148,7 @@ test.describe("Paket J akışları", { tag: ["@public"] }, () => {
       return route.fulfill(json({ correct: body.answer === "İkinci", correctOptions: ["İkinci"], explanation: null, message: "Doğru! +5 ⭐" }));
     });
     await page.goto("/e2e/paket-j");
-    await page.getByRole("button", { name: /Şimdi İkiz Soruyu Çöz/ }).click();
+    await page.getByRole("button", { name: /Yanlışın İkiziyle Anında Telafi Et/ }).click();
     await expect(page.getByText("İkiz madde: doğru seçenek hangisi?")).toBeVisible();
     await page.getByRole("radio", { name: /İkinci/ }).click();
     await page.getByRole("button", { name: "Kontrol et" }).click();

@@ -1,10 +1,12 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
 import { AdvantageComparison, AdvantageShowcase } from "@/components/marketing/advantage-sections";
 import { ParityMarketingPage } from "@/components/parity/marketing";
 import { Icon3D, type Icon3DName } from "@/components/ui/icon-3d";
 import { FREE_PHOTO_PER_MONTH, FREE_TIER_SENTENCE } from "@/lib/billing/free-meters";
 import { FREE_FIRST_LESSON_SENTENCE } from "@/lib/billing/free-tier-copy";
+import { PLAN_MARKETING_COPY } from "@/lib/marketing/plan-copy";
+import { FREE_RESTUDY_BAND } from "@/lib/credits/price-table";
 import "@/styles/landing.css";
 
 export const metadata = {
@@ -132,6 +134,30 @@ export default function OzelliklerPage() {
         {/* 11 Kasım 2026: ana sayfa üç bölüme inince kanıt kartı ve tam karşılaştırma buraya taşındı (#farklar). */}
         <AdvantageShowcase />
         <AdvantageComparison />
+
+        {/* Faz 5 §4 (19 Kasım 2026): planların karşılığı fiyat sayfasıyla aynı tek merkezden (`plan-copy.ts`). */}
+        <section className="lp-section" aria-labelledby="oz-plans" data-testid="oz-plan-copy">
+          <div className="lp-wrap">
+            <p className="lp-kicker">Planlar</p>
+            <h2 id="oz-plans" className="lp-h2">
+              Aylık hakkın ne kadar iş eder
+            </h2>
+            <ul className="lp-trust">
+              {PLAN_MARKETING_COPY.plans.map((plan) => (
+                <li key={plan.id}>
+                  <Check className="lp-trust-icon" aria-hidden />
+                  <div>
+                    <h3 className="lp-h3">{plan.name}</h3>
+                    <p className="lp-muted">{plan.periodLine}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <p className="lp-muted">
+              Sayılar yaklaşıktır ve tek başınadır: hepsi aynı dönem hakkından düşer. {FREE_RESTUDY_BAND}.
+            </p>
+          </div>
+        </section>
 
         <section className="lp-final" aria-labelledby="oz-final">
           <div className="lp-wrap lp-final-inner">

@@ -1,6 +1,7 @@
 import { XCircle } from "lucide-react";
 import { MarketingPage } from "@/components/layout/marketing-page";
 import { ResultCard } from "@/components/marketing/result-card";
+import { PARENT_PAY_PATH } from "@/lib/payments/parent-link";
 
 export const metadata = { title: "Ödeme tamamlanmadı" };
 export const dynamic = "force-dynamic";
@@ -8,7 +9,7 @@ export const dynamic = "force-dynamic";
 /** Ödeme bankadan dönmedi: aynı bağlantıyla yeniden denenir; ücret alınmamıştır. */
 export default async function ParentPayFailedPage({ searchParams }: { searchParams: Promise<{ token?: string }> }) {
   const { token } = await searchParams;
-  const retry = token && /^[A-Za-z0-9._-]{20,600}$/.test(token) ? `/odeme/veli/${token}` : "/";
+  const retry = token && /^[A-Za-z0-9._-]{20,600}$/.test(token) ? `${PARENT_PAY_PATH}/${token}` : "/";
   return (
     <MarketingPage variant="auth" title="Ödeme tamamlanmadı" description="Bankadan onay gelmedi; hesabınızdan ücret alınmadı.">
       <ResultCard

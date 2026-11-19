@@ -46,6 +46,7 @@ import {
   journeyGuideLine,
   journeyScanFindings,
   journeyScore,
+  journeyLoginHref,
   journeySignupHref,
   journeyStepIndex,
   nextJourneyStep,
@@ -195,6 +196,10 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
   const [warningGlow, setWarningGlow] = useState(false);
   const stageRef = useRef<HTMLDivElement>(null);
   const studioRef = useRef<HTMLDivElement>(null);
+  /** Faz 5 §1.2: "Canlı tur · Kayıt olmadan dene" rozeti 1. adımın kapısına kaydırır ve onu kısa süre vurgular. */
+  const doorRef = useRef<HTMLDivElement>(null);
+  const [spotlight, setSpotlight] = useState(false);
+  const spotlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ownInput = useRef<HTMLInputElement>(null);
   const scanMoment = useRef<MomentHandle | null>(null);
   /** Stüdyoyu açan öğe: kapanınca odak ona döner. */
@@ -429,6 +434,36 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
   const signupHref = journeySignupHref(segmentId, { withDocument: Boolean(guest) });
   const shownPreviews = JOURNEY_PLUS_PREVIEWS.filter((item) => item.id === preview);
 
+  /**
+   * "Canlı tur · Kayıt olmadan dene" (Faz 5 §1.2): rozet 7 adımlı demonun 1. adımına yumuşakça kaydırır
+   * (`scrollIntoView({ behavior: "smooth" })`; hareket azaltma açıksa sıçrayarak), odağı oraya taşır ve 1. adımı
+   * (raydaki durak + iki kapı) birkaç saniye vurgular. Tur başka bir adımdaysa önce 1. adıma döner.
+   */
+  function spotlightFirstStep() {
+    if (step !== "upload") goStep("upload");
+    const target = doorRef.current;
+    if (target) {
+      const reduce =
+        typeof window !== "undefined" &&
+        typeof window.matchMedia === "function" &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      target.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "center" });
+      target.focus({ preventScroll: true });
+    }
+    setSpotlight(false);
+    if (spotlightTimer.current) clearTimeout(spotlightTimer.current);
+    // Bir sonraki karede yeniden açılır: art arda dokunuşta parlama baştan oynar.
+    requestAnimationFrame(() => setSpotlight(true));
+    spotlightTimer.current = setTimeout(() => setSpotlight(false), 2800);
+  }
+
+  useEffect(
+    () => () => {
+      if (spotlightTimer.current) clearTimeout(spotlightTimer.current);
+    },
+    [],
+  );
+
   /** İlerleme rayı: logonun şeridi. Her durak tıklanır; dolan kısım geçilen adımlardır. */
   const rail = (
     <ol className="lj-rail" style={{ ["--lj-progress" as string]: index / (JOURNEY_STEPS.length - 1) }}>
@@ -436,7 +471,7 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
         <li key={item.id} className="lj-rail-item">
           <button
             type="button"
-            className={cn("lj-stop", at < index && "is-done", at === index && "is-on")}
+            className={cn("lj-stop", at < index && "is-done", at === index && "is-on", at === 0 && spotlight && "is-spotlight")}
             aria-current={at === index ? "step" : undefined}
             aria-label={`Adım ${at + 1}: ${item.title}`}
             onClick={() => goStep(item.id)}
@@ -843,14 +878,24 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
           }}
         >
           <div className="lj-console-head">
-            <p className="lj-live">
+            {/* Faz 5 §1.2 (19 Kasım 2026): statik etiket değil; dokununca 7 adımlı demoya yumuşakça kayar, 1. adım parlar. */}
+            <button
+              type="button"
+              className="lj-live lj-live--button"
+              onClick={spotlightFirstStep}
+              aria-label={JOURNEY_COPY.liveAction}
+              data-testid="journey-live-badge"
+            >
               <span className="lj-live-dot" aria-hidden />
               {JOURNEY_COPY.live}
               <span className="lj-live-sep" aria-hidden>
                 ·
               </span>
               {JOURNEY_COPY.kicker}
-            </p>
+              <span className="lj-live-arrow" aria-hidden>
+                ↓
+              </span>
+            </button>
             <h2 id="lj-title" className="lj-title">
               {JOURNEY_COPY.title}
             </h2>
@@ -863,7 +908,13 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
           {rail}
 
           {/* Birinci adım ana sayfada: iki kapı. İç kaydırma yok; sayfa tek parça kayar. */}
-          <div className="lj-door" data-step="upload">
+          <div
+            ref={doorRef}
+            className={cn("lj-door", spotlight && "is-spotlight")}
+            data-step="upload"
+            data-spotlight={spotlight ? "" : undefined}
+            tabIndex={-1}
+          >
             <div className="lj-stage-head">
               <h3 className="lj-step-title">{JOURNEY_STEPS[0]!.title}</h3>
               <p className="lj-guide" role="status" aria-live="polite">
@@ -894,6 +945,10 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
                   <ArrowRight className="h-5 w-5" aria-hidden />
                 </Link>
                 <p className="lj-final-fine">{JOURNEY_OWN.fine}</p>
+                {/* Faz 5 §1.3: hesabı olan misafir de dosyasını kaybetmez; girişten sonra kurulum sihirbazına aktarılır. */}
+                <Link href={journeyLoginHref()} className="lj-link lj-ready-login" data-guest-login>
+                  {JOURNEY_OWN.login}
+                </Link>
                 <div className="lj-ready-row">
                   <button type="button" className="lj-ghost" onClick={startScan}>
                     {JOURNEY_OWN.playSample}

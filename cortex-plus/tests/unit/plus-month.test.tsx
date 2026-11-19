@@ -185,8 +185,10 @@ describe("nerede görünür", () => {
     const landing = readFileSync("src/components/landing/landing-page.tsx", "utf8");
     expect(landing).not.toContain("<PlusMonth");
     // Faz 4: plan satırı "~200 ders / 310 test / 4.350 sohbet" (`planWorkEquivalent`).
-    expect(landing).toContain("planWorkEquivalent(PLAN_ALLOWANCES.plusMonthly)");
-    expect(landing).toContain("Ayda ~{fmtCount(plus.lessons)} ders / {fmtCount(plus.tests)} test / {fmtCount(plus.chats)} sohbet");
+    // Faz 5 §4.2: ana sayfa sayıları merkezi metinden okur; orası `planWorkEquivalent` kullanır.
+    expect(landing).toContain("PLAN_MARKETING_COPY");
+    expect(readFileSync("src/lib/marketing/plan-copy.ts", "utf8")).toContain("planWorkEquivalent(allowance)");
+    expect(landing).toContain("{plus.periodLine}");
   });
 
   it("ücretsiz öğrenci: ödeme sayfasında bölüm, kapıda sayılar; ana ekranda (öğretmen sohbeti) yok", () => {

@@ -1062,3 +1062,26 @@
     white-space: normal;
   }
 }
+
+/* Faz 5 §3.1: "Kendini dene" kartının üst satırı — sayaç solda, "🚩 Soruda Hata Bildir" sağ üstte. */
+.dm-quiz-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.dm-quiz-head .dm-quiz-count {
+  margin: 0;
+}
+.dm-quiz .cp-two-chip,
+.dm-quiz .cp-two {
+  margin-top: 0.75rem;
+}
+.dm-quiz-option[data-eliminated="true"] {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+.dm-quiz-explain .cp-twin-entry,
+.dm-quiz-explain .cp-twin {
+  margin-top: 0.75rem;
+}

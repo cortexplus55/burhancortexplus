@@ -8,7 +8,7 @@
  * (UUID ve 20+ karakterlik parçalar) yer tutucuya çevrilir.
  */
 
-const TOKEN_ROUTES = ["odeme/veli", "yukle", "hazirlik-davet", "api/uploads/phone", "email-dogrula"];
+const TOKEN_ROUTES = ["odeme/veli", "veli-odeme", "yukle", "hazirlik-davet", "api/uploads/phone", "email-dogrula"];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const LONG_TOKEN = /^[A-Za-z0-9._~-]{20,}$/;
 

@@ -150,3 +150,63 @@
   font-size: var(--t-sm, 0.875rem);
   line-height: 1.5;
 }
+
+/* Faz 5 §3.1: elenen çeldirici şık. */
+[data-eliminated="true"] {
+  opacity: 0.45;
+  text-decoration: line-through;
+  cursor: not-allowed;
+}
+
+/* Faz 5 §3.1: bildirim modalı (sağ üstteki düğmeden açılır). */
+.cp-qreport-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 1rem;
+  background: rgb(2 6 23 / 0.6);
+  backdrop-filter: blur(2px);
+}
+@media (min-width: 640px) {
+  .cp-qreport-backdrop {
+    align-items: center;
+  }
+}
+.cp-qreport--modal {
+  width: 100%;
+  max-width: 26rem;
+  background: var(--cp-surface, #111827);
+  color: var(--cp-text, #f8fafc);
+  border: 1px solid var(--cp-border, rgb(148 163 184 / 0.3));
+  border-radius: 1.1rem;
+  box-shadow: 0 20px 60px rgb(0 0 0 / 0.45);
+  padding: 1rem;
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+}
+.cp-qreport-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.cp-qreport-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  border: 1px solid var(--cp-border, rgb(148 163 184 / 0.3));
+  background: transparent;
+  color: inherit;
+}
+.cp-qreport-trigger.is-sent {
+  opacity: 0.75;
+}
+.cp-quiz-report-slot {
+  display: inline-flex;
+}

@@ -6,9 +6,14 @@ import { env } from "@/lib/env";
  * plan için imzalı bir bağlantı üretir; veli hesap açmadan bağlantıyı açar, sözleşmeyi onaylar ve PayTR
  * iFrame'inde öder; hak öğrencinin hesabına tanımlanır (`payments.user_id` = öğrenci; geri çağrı
  * aynı yoldan). Bağlantı durum taşımaz: öğrenci, plan, son geçerlilik ve tek kullanımlık ek HMAC ile
- * imzalıdır; imza bozulursa ya da süre geçerse açılmaz. 3 gün geçerli.
+ * imzalıdır (HMAC-SHA256); imza bozulursa ya da süre geçerse açılmaz.
+ *
+ * Faz 5 §2 (19 Kasım 2026, Burhan'ın kararı): bağlantı 48 saat geçerli; adres `/veli-odeme/<belirteç>`; WhatsApp
+ * metni öğrencinin ağzından, harfiyen `parentShareText`te.
  */
-export const PARENT_LINK_TTL_MS = 3 * 24 * 60 * 60 * 1000;
+export const PARENT_LINK_TTL_MS = 48 * 60 * 60 * 1000;
+/** Velinin herkese açık ödeme sayfası. Eski `/odeme/veli/<belirteç>` adresi buraya yönlenir. */
+export const PARENT_PAY_PATH = "/veli-odeme";
 const PREFIX = "veli";
 
 /**
@@ -64,20 +69,49 @@ export function verifyParentPayToken(
   return { ok: true, claims: { studentId, planId, expiresAt, nonce } };
 }
 
-/** Velinin WhatsApp'ta göreceği metin; bağlantı en sonda. */
-export function parentShareText(input: { studentName: string; planName: string; priceLabel: string; url: string }): string {
-  return (
-    `Merhaba, ${input.studentName} için Cortex Plus ${input.planName} (${input.priceLabel}) almak istiyorum. ` +
-    `Bu bağlantıdan hesap açmadan güvenli ödeme yapabilirsin; paket benim hesabıma tanımlanır: ${input.url}`
-  );
+/** Belirtecin üretildiği an (bitişten geriye 48 saat): ödeme durumunu bu andan sonraki satırlarda ararız. */
+export function parentLinkIssuedAt(claims: Pick<ParentPayClaims, "expiresAt">): number {
+  return claims.expiresAt - PARENT_LINK_TTL_MS;
+}
+
+/** Velinin açacağı tam adres: `https://cortexplus.app/veli-odeme/<belirteç>`. */
+export function parentPayUrl(token: string, origin: string): string {
+  return `${origin.replace(/\/$/, "")}${PARENT_PAY_PATH}/${token}`;
+}
+
+/**
+ * Velinin WhatsApp'ta göreceği metin (Faz 5 §2, harfiyen): öğrencinin ağzından, paket adı ve bağlantı yerinde.
+ */
+export function parentShareText(input: { planName: string; url: string }): string {
+  return `Anne/Baba, sınav hazırlığım için kullandığım Cortex Plus ${input.planName} paketini bu güvenli PayTR bağlantısından şifre girmeden onaylayabilir misin? ${input.url}`;
+}
+
+/**
+ * Velinin sayfasında öğrencinin e-postası maskeli (Faz 5 §2): yerel kısmın ilk iki harfi ve alan adının ilk harfi,
+ * gerisi yıldız; uzantı açık. "ornek.ogrenci@site.com" → "or***@s***.com".
+ */
+export function maskEmail(email: string | null | undefined): string | null {
+  const value = String(email ?? "").trim();
+  const at = value.lastIndexOf("@");
+  if (at < 1) return null;
+  const local = value.slice(0, at);
+  const domain = value.slice(at + 1);
+  const dot = domain.lastIndexOf(".");
+  if (dot < 1) return null;
+  const host = domain.slice(0, dot);
+  const tld = domain.slice(dot);
+  return `${local.slice(0, Math.min(2, local.length))}***@${host.slice(0, 1)}***${tld}`;
 }
 
 export function whatsappShareUrl(text: string): string {
   return `https://wa.me/?text=${encodeURIComponent(text)}`;
 }
 
-/** Bağlantının bitişini öğrenciye söyleyen satır ("3 gün geçerli"). */
+/** Bağlantının bitişini söyleyen satır ("Bağlantı 48 saat geçerli."). */
 export function parentLinkValidityLine(expiresAt: number, now = Date.now()): string {
-  const days = Math.max(1, Math.ceil((expiresAt - now) / (24 * 60 * 60 * 1000)));
-  return days === 1 ? "Bağlantı bugün geçerli." : `Bağlantı ${days} gün geçerli.`;
+  const hours = Math.max(1, Math.ceil((expiresAt - now) / (60 * 60 * 1000)));
+  return `Bağlantı ${hours} saat geçerli.`;
 }
+
+/** Süresi geçmiş bağlantıda velinin gördüğü cümle (Faz 5 §2, harfiyen). */
+export const PARENT_LINK_EXPIRED_TEXT = "Bu ödeme bağlantısının süresi dolmuş, öğrencinizden yeni link isteyebilirsiniz";

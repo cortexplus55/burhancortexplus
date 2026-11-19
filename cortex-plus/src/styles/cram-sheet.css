@@ -816,3 +816,24 @@
   }
 }
 
+
+/* Faz 5 §1.1 (19 Kasım 2026): yazı tipinden bağımsız Unicode formül. Sistem matematik/serif yazı tipleri; harfler eğik,
+   üst simgeler Unicode karakteri (²ⁿ). KaTeX yazı tipi inmese de değişken kaybolmaz. */
+.cp-uni-math {
+  font-family: "Cambria Math", "STIX Two Math", "Latin Modern Math", "Times New Roman", Times, serif;
+  font-size: 1.12em;
+  line-height: 1.3;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  font-variant-numeric: lining-nums;
+}
+.cp-uni-math .cp-uni-var {
+  font-style: italic;
+  padding-right: 0.04em;
+}
+.cp-uni-math .cp-uni-script {
+  font-style: normal;
+}
+.cp-uni-math .cp-uni-fallback {
+  font-size: 0.7em;
+}

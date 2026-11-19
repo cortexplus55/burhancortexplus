@@ -1939,8 +1939,9 @@ export function ExamCreateWizard({
             </div>
           ) : null}
 
-          {/* Misafirken ana sayfaya bırakılan dosya: tarayıcıda bekliyor, öğrencinin dokunuşuyla bildiğimiz yoldan yüklenir. */}
-          <GuestDocumentOffer variant="offer" disabled={uploading} onTake={(files) => takeFiles(files)} />
+          {/* Misafirken ana sayfaya bırakılan dosya (Faz 5 §1.3): tarayıcıda bekliyor; bu adıma gelince kendiliğinden,
+              bildiğimiz yükleme yoluyla eklenir (hak, sayfa sınırı ve okuma her dosyayla aynı). */}
+          <GuestDocumentOffer variant="offer" auto disabled={uploading} onTake={(files) => takeFiles(files)} />
 
           <div
             className={dragOver ? "apw-drop apw-drop--over" : "apw-drop"}

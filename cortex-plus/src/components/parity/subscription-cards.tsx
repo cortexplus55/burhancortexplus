@@ -15,11 +15,12 @@ import { PremiumPlanHero } from "@/components/marketing/premium-plan-hero";
 import { billingPeriodOf } from "@/lib/payments/subscription";
 import { formatTry, formatTryWhole } from "@/lib/format";
 import { allowanceShare } from "@/lib/credits/period";
-import { FREE_RESTUDY_BAND, PLAN_ALLOWANCES, planWorkLine } from "@/lib/credits/price-table";
+import { FREE_RESTUDY_BAND } from "@/lib/credits/price-table";
+import { PLAN_MARKETING_COPY } from "@/lib/marketing/plan-copy";
 import "@/styles/parity-app.css";
 import "@/styles/cortex-premium.css";
 import { TrustStrip } from "@/components/parity/trust-strip";
-import { ParentPayLinkButton } from "@/components/billing/parent-pay-link-button";
+import { ParentWhatsAppLink, type ParentLinkChoice } from "@/components/billing/parent-whatsapp-link";
 import {
   BENEFITS_LEAD,
   GUEST_PREVIEW_COLUMN,
@@ -215,6 +216,12 @@ export function SubscriptionCards({
     göndermediği için paketler orada da görünmüyor.
   */
   const showCreditPacks = rest.length > 0 && plusOwned;
+  /** Veli bağlantısının paketleri: sahip olunmayan abonelikler (Plus aylık, Sınav Haftası, Sigma aylık). */
+  const parentLinkChoices: ParentLinkChoice[] = [
+    !plusOwned && plusTier.monthly ? { key: "plus" as const, planId: plusTier.monthly.id, name: `${PLAN_MARKETING_COPY.plus.name} (aylık)`, priceKurus: plusTier.monthly.price_try } : null,
+    !plusOwned && plusWeekly ? { key: "week" as const, planId: plusWeekly.id, name: "Sınav Haftası", priceKurus: plusWeekly.price_try } : null,
+    !sigmaOwned && sigmaTier.monthly ? { key: "sigma" as const, planId: sigmaTier.monthly.id, name: `${PLAN_MARKETING_COPY.sigma.name} (aylık)`, priceKurus: sigmaTier.monthly.price_try } : null,
+  ].filter((choice): choice is ParentLinkChoice => choice !== null);
   const plusBenefits = isParent ? parentPlusBenefitLines() : plusBenefitLines();
   const sigmaBenefits = isParent ? parentSigmaBenefitLines() : sigmaBenefitLines();
   const comparison = tierComparisonRows();
@@ -507,7 +514,7 @@ export function SubscriptionCards({
                 {billingNoteFor(plusPlan)}
               </p>
               <p className="cs-pay-work" data-testid="plan-work-plus">
-                {planWorkLine(PLAN_ALLOWANCES.plusMonthly)}
+                {PLAN_MARKETING_COPY.plus.line}
               </p>
               {yearly && plusSaving ? (
                 <p className="cs-pay-save-callout">
@@ -545,10 +552,6 @@ export function SubscriptionCards({
                   planName={plusPlan.name}
                 />
               ) : null}
-              {/* Velime ödeme linki (29 Ekim 2026): kartı yanında olmayan öğrenci; veli hesap açmadan öder. */}
-              {checkoutEnabled && plusPlan && !plusOwned && !guestMode && !isParent ? (
-                <ParentPayLinkButton planId={plusPlan.id} planName={plusPlan.name} />
-              ) : null}
               {checkoutEnabled && plusWeekly && !plusOwned && !isParent ? (
                 <button
                   type="button"
@@ -573,7 +576,7 @@ export function SubscriptionCards({
               ) : null}
               {plusWeekly && !plusOwned && !isParent ? (
                 <p className="cs-pay-work cs-pay-work--sub" data-testid="plan-work-week">
-                  {WEEKLY_PLUS_PLAN_NAME}: {planWorkLine(PLAN_ALLOWANCES.plusWeekly)}
+                  {WEEKLY_PLUS_PLAN_NAME}: {PLAN_MARKETING_COPY.week.line}
                 </p>
               ) : null}
               <button
@@ -654,7 +657,7 @@ export function SubscriptionCards({
                   {billingNoteFor(sigmaPlan)}
                 </p>
                 <p className="cs-pay-work" data-testid="plan-work-sigma">
-                  {planWorkLine(PLAN_ALLOWANCES.sigmaMonthly)}
+                  {PLAN_MARKETING_COPY.sigma.line}
                 </p>
                 <button
                   type="button"
@@ -705,6 +708,16 @@ export function SubscriptionCards({
         ) : null}
 
       </div>
+
+      {/* Faz 5 §2: "Velime WhatsApp'tan Ödeme Linki Gönder" — paket kartlarının altında (/pay ve /fiyatlandirma). */}
+      {checkoutEnabled && !isParent && parentLinkChoices.length ? (
+        <ParentWhatsAppLink
+          choices={parentLinkChoices}
+          initialKey={pickedPlan}
+          guestMode={guestMode}
+          autoOpen={searchParams.get("veli") === "1"}
+        />
+      ) : null}
 
       {/*
         Fiyat ve satın alma önce (6 Kasım 2026, 360° denetim): karşılaştırma tablosu yaklaşık 20 karttı ve

@@ -6,7 +6,7 @@
  *
  * Kokpit (gece, canlı denetimden altı kusur): tur artık kahramanın altında ayrı bir bölüm değil, ilk ekranın
  * kendisi. Birinci adım iki kapılıdır: hazır örnek notla turu başlat ya da KENDİ dosyanı bırak. Kendi dosya
- * sunucuya gitmez; tarayıcıda bekler ve kayıttan sonra kurulumda tek dokunuşla eklenir (`guest-handoff.ts`).
+ * sunucuya gitmez; tarayıcıda bekler ve giriş ya da kayıttan sonra kurulum sihirbazına kendiliğinden aktarılır (`guest-handoff.ts`).
  * Plus adımı kuru liste değil: podcast, çizimli video ve sınav sabahı kâğıdının canlı önizlemeleri.
  *
  * Bu dosya kokpitin kendi sözlerini tutar: adımlar, yönlendirme, iki kapı, yol haritası, Plus önizlemeleri, sonuç.
@@ -17,6 +17,7 @@
  */
 
 import { FREE_PAGE_TOTAL } from "@/lib/billing/free-tier-copy";
+import { GUEST_DOCUMENT_NEXT } from "@/lib/documents/guest-handoff";
 import { SAME_NOTE_CASE } from "@/lib/marketing/advantage-content";
 import type { AudienceSegmentId } from "@/lib/marketing/landing-showcase";
 
@@ -55,6 +56,8 @@ export const JOURNEY_COPY = {
   /** Konsolun köşesindeki canlı etiketi. */
   live: "Canlı tur",
   kicker: "Kayıt olmadan dene",
+  /** Rozetin ekran okuyucu adı (Faz 5 §1.2): dokununca demonun 1. adımına götürür. */
+  liveAction: "Canlı tur · Kayıt olmadan dene: 7 adımlı demonun 1. adımına git",
   title: "Bir not, yedi adımda derse dönüşsün",
   restart: "Turu baştan oyna",
   /** Tam ekran stüdyonun kapatma düğmesi (ekran okuyucu adı; görünen ✕). */
@@ -123,13 +126,15 @@ export const JOURNEY_OWN = {
   title: "Kendi notun mu var?",
   hint: "PDF, Word, slayt ya da fotoğrafını bırak; dosyan cihazından çıkmaz.",
   pick: "Kendi notunu seç",
-  kept: "Dosyan bu cihazda bekliyor; hiçbir yere gönderilmedi. Hesabını açınca kurulumda tek dokunuşla eklenir.",
+  kept: "Dosyan bu cihazda bekliyor; hiçbir yere gönderilmedi. Hesabını açınca ya da giriş yapınca kurulum sihirbazına kendiliğinden aktarılır.",
   notKept: "Dosyan seçildi ama tarayıcın saklamaya izin vermedi; hesabını açınca aynı dosyayı bir kez daha seçeceksin.",
   body: `Bu belgeden ilk dersin, akıllı kartların ve konu testin yazılsın. İlk dersin süre sınırı olmadan ücretsiz; ücretsiz hesapta toplam ${FREE_PAGE_TOTAL} sayfa belge işlenir.`,
   cta: "Ücretsiz hesabımı aç, bu belgeyle başla",
   playSample: "Önce örnek turu oyna",
   remove: "Dosyayı kaldır",
   fine: "Kart istemiyoruz",
+  /** Hesabı olan misafir (Faz 5 §1.3): girişten sonra da dosya kurulum sihirbazına aktarılır. */
+  login: "Hesabın var mı? Giriş yap, dosyan kurulumda seni beklesin",
   /** Dosya bekliyorken adım satırı: ekranda artık örnek not ve çekirdek yok, onları anlatan cümle yanıltır. */
   guide: "Dosyan hazır; hesabını aç ya da önce örnek turu oyna",
 } as const;
@@ -284,13 +289,18 @@ export function journeyScore(input: { questionCorrect: boolean | null; truth: { 
   return { correct, answered, pct: Math.round((correct / answered) * 100), line: `${answered} sorudan ${correct} doğru` };
 }
 
-/** Misafirin dosyasıyla kayıt olan öğrenci kayıt bitince buraya gelir; dosya kurulumun materyal adımında bekler. */
-export const GUEST_DOCUMENT_NEXT = "/deneme-sinavlari/olustur";
+/** Misafirin dosyasıyla kayıt olan öğrenci kayıt bitince buraya gelir; dosya kurulumun materyal adımında kendiliğinden eklenir. */
+export { GUEST_DOCUMENT_NEXT };
 
 /**
  * Kayıt bağlantısı. Misafir kendi dosyasını bıraktıysa (`withDocument`) bağlantı `kaynak=belge` taşır ve kayıt
  * bitince kuruluma götürür.
  */
+/** Dosyası bekleyen misafirin giriş bağlantısı (Faz 5 §1.3): giriş bitince kurulum sihirbazına. */
+export function journeyLoginHref(): string {
+  return `/giris?kaynak=belge&next=${encodeURIComponent(GUEST_DOCUMENT_NEXT)}`;
+}
+
 export function journeySignupHref(segment: AudienceSegmentId, options: { withDocument?: boolean } = {}): string {
   if (!options.withDocument) return `/kayit?hedef=${segment}`;
   return `/kayit?hedef=${segment}&kaynak=belge&next=${encodeURIComponent(GUEST_DOCUMENT_NEXT)}`;

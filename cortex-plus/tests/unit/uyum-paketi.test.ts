@@ -33,7 +33,8 @@ describe("metin sürümleri: metin değişince sürüm de değişir", async () =
     kvkk: { "2026-11-07": "9446ec8ca66fe40e", "2026-11-08": "a226f4fe8e30a3c2" } as Record<string, string>,
     terms: { "2026-11-07": "65eb7f7261e5a0c4" } as Record<string, string>,
     cookie: { "2026-11-07": "6942f7aaf4fcbb7f" } as Record<string, string>,
-    sales: { "2026-11-07": "b97ee8662442fa45" } as Record<string, string>,
+    // 19 Kasım 2026 (Faz 5 §4): "Hizmetin konusu" kota cümlesi merkezi plan metninden.
+    sales: { "2026-11-07": "b97ee8662442fa45", "2026-11-19": "a4c379a5e9b68c38" } as Record<string, string>,
   };
 
   it("her metnin bugünkü özeti kendi sürümüne kayıtlı", () => {

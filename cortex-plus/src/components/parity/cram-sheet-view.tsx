@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Copy, FileText, Moon, Share2 } from "lucide-react";
 import { CramPrintButton } from "@/components/parity/cram-print-button";
 import { RichBody } from "@/components/parity/lesson-rich-text";
+import { UnicodeFormulaText } from "@/components/parity/unicode-formula";
 import { ExternalAnchor } from "@/components/ui/external-anchor";
 import {
   CRAM_EMPTY_TEXT,
@@ -211,7 +212,8 @@ export function CramSheetView({
                   {formulas.map((formula, index) => (
                     <li key={`formula-${index}`} className="cp-cram-formula">
                       {formula.title ? <span className="cp-cram-item-title">{formula.title}: </span> : null}
-                      <RichBody text={cramFormulaMarkup(formula.text)} topicHint={formula.topic} />
+                      {/* Faz 5 §1.1: yazı tipinden bağımsız Unicode formül (²ⁿ√(a²ⁿ) = |a|); çevrilemeyen KaTeX ile. */}
+                      <UnicodeFormulaText text={cramFormulaMarkup(formula.text)} topicHint={formula.topic} />
                       <span className="cp-cram-formula-topic">{formula.topic}</span>
                     </li>
                   ))}

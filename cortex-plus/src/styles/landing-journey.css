@@ -1860,3 +1860,90 @@
     margin-top: 0;
   }
 }
+
+/* ---------- Faz 5 §1.2 (19 Kasım 2026): tıklanır "Canlı tur · Kayıt olmadan dene" rozeti ---------- */
+
+.lj-live--button {
+  justify-self: start;
+  width: fit-content;
+  min-height: 2.75rem;
+  padding: 0.35rem 0.85rem 0.35rem 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--lj-ok) 45%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--lj-ok) 10%, transparent);
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s var(--lj-ease);
+}
+
+.lj-live--button:hover {
+  background: color-mix(in srgb, var(--lj-ok) 18%, transparent);
+  border-color: var(--lj-ok);
+}
+
+.lj-live--button:active {
+  transform: scale(0.97);
+}
+
+.lj-live--button:focus-visible {
+  outline: 2px solid var(--lj-ok);
+  outline-offset: 3px;
+}
+
+.lj-live-arrow {
+  font-size: 0.85rem;
+  animation: lj-live-arrow 1.6s ease-in-out infinite;
+}
+
+@keyframes lj-live-arrow {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(0.18rem);
+  }
+}
+
+/* Rozetten gelen vurgu: 1. adımın durağı ve iki kapısı kısa süre parlar. */
+.lj-stop.is-spotlight .lj-stop-dot {
+  border-color: var(--lj-ok);
+  box-shadow:
+    0 0 0 0.3rem color-mix(in srgb, var(--lj-ok) 28%, transparent),
+    0 0 1.4rem color-mix(in srgb, var(--lj-ok) 55%, transparent);
+  transform: scale(1.08);
+}
+
+.lj-door.is-spotlight {
+  border-radius: 1.25rem;
+  animation: lj-spotlight 1.4s var(--lj-ease) 2;
+}
+
+.lj-door:focus {
+  outline: none;
+}
+
+@keyframes lj-spotlight {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--lj-ok) 55%, transparent);
+  }
+  60% {
+    box-shadow: 0 0 0 0.55rem color-mix(in srgb, var(--lj-ok) 0%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--lj-ok) 0%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lj-live-arrow,
+  .lj-door.is-spotlight {
+    animation: none;
+  }
+
+  .lj-door.is-spotlight {
+    box-shadow: 0 0 0 0.25rem color-mix(in srgb, var(--lj-ok) 40%, transparent);
+  }
+}

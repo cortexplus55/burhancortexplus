@@ -1,6 +1,5 @@
 import { FREE_TIER_SENTENCE } from "@/lib/billing/free-meters";
-import { allowanceWorkLine } from "@/lib/billing/tier-presentation";
-import { PLAN_ALLOWANCES } from "@/lib/credits/price-table";
+import { PLAN_MARKETING_COPY } from "@/lib/marketing/plan-copy";
 import Link from "next/link";
 import { LifeBuoy, Mail } from "lucide-react";
 import { MarketingPage } from "@/components/layout/marketing-page";
@@ -36,7 +35,12 @@ const faqs = [
   {
     question: "Plus ile ücretsiz arasındaki fark nedir?",
     answer:
-      `Plus hacim ve hız satar: ${allowanceWorkLine(PLAN_ALLOWANCES.plusMonthly).replace(/^A/, "a")}, belgenin tamamı ve bütün konular, sınırsız hazırlık, podcast, video ders, sözlü ve yazılı deneme, sınav sabahı kâğıdı ve hazır içerik yokken daha hızlı yazım. Abonelik kendiliğinden yenilenmez.`,
+      `Plus hacim ve hız satar: ${PLAN_MARKETING_COPY.plus.periodLine.replace(/^A/, "a")}, belgenin tamamı ve bütün konular, sınırsız hazırlık, podcast, video ders, sözlü ve yazılı deneme, sınav sabahı kâğıdı ve hazır içerik yokken daha hızlı yazım. Abonelik kendiliğinden yenilenmez.`,
+  },
+  {
+    // Faz 5 §4 (19 Kasım 2026): üç planın karşılığı tek merkezden; Sigma da burada.
+    question: "Plus, Sınav Haftası ve Sigma arasındaki fark nedir?",
+    answer: `${PLAN_MARKETING_COPY.helpPlansAnswer} Sigma, Plus'taki her şeyi en yüksek aylık hak ve en yüksek yükleme limitiyle verir.`,
   },
   {
     question: "Destek ne kadar sürede döner?",
