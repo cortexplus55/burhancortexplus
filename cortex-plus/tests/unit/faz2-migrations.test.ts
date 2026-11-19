@@ -182,6 +182,27 @@ describe("madde 4: profiles.canonical_email", () => {
     expect(row.rows[0]!.canonical_email).toBe("yeni.ogrenci@okul.edu.tr");
   });
 
+  it("eski kopya hesap kendi profilini upsert ile güncelleyebilir (kayıt tamamlama yolu); kanonik adres değişmez", async () => {
+    await as(
+      "authenticated",
+      U2,
+      "INSERT INTO public.profiles (id, full_name) VALUES ($1, 'İki (güncel)') ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name",
+      [U2],
+    );
+    await db.query(
+      "INSERT INTO public.profiles (id, full_name) VALUES ($1, 'Bir') ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name",
+      [U1],
+    );
+    const rows = await db.query<{ id: string; canonical_email: string | null; full_name: string }>(
+      "SELECT id, canonical_email, full_name FROM public.profiles WHERE id = ANY($1) ORDER BY id",
+      [[U1, U2]],
+    );
+    expect(rows.rows).toEqual([
+      { id: U1, canonical_email: "ogrencibir@gmail.com", full_name: "Bir" },
+      { id: U2, canonical_email: null, full_name: "İki (güncel)" },
+    ]);
+  });
+
   it("tarayıcı kanonik adresini değiştiremez; sunucu anahtarı değiştirebilir", async () => {
     await as("authenticated", U1, "UPDATE public.profiles SET canonical_email = NULL, full_name = 'Bir (yeni ad)' WHERE id = $1", [U1]);
     const after = await db.query<{ canonical_email: string | null; full_name: string }>(

@@ -58,6 +58,12 @@ DECLARE
   v_canonical text;
 BEGIN
   IF TG_OP = 'INSERT' THEN
+    -- Upsert'in (INSERT … ON CONFLICT (id) DO UPDATE) INSERT denemesi: satır zaten var, işlem güncellemeye döner.
+    -- Var olan hesabın kanonik adresi korunur; eski kopya hesap (NULL) kendi profilini yine güncelleyebilir.
+    IF EXISTS (SELECT 1 FROM public.profiles q WHERE q.id = NEW.id) THEN
+      SELECT q.canonical_email INTO NEW.canonical_email FROM public.profiles q WHERE q.id = NEW.id;
+      RETURN NEW;
+    END IF;
     SELECT u.email INTO v_email FROM auth.users u WHERE u.id = NEW.id;
     IF v_email IS NULL OR btrim(v_email) = '' THEN
       NEW.canonical_email := NULL;
