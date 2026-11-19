@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isPremiumUser } from "@/lib/billing/entitlements";
+import { getSessionUserContext } from "@/lib/auth/session-context";
 import { addDays, isoWeekday } from "@/lib/istanbul-day";
 import {
   FREE_FREEZES_PER_WEEK,
@@ -114,7 +115,7 @@ async function readUserStreakState(
       .eq("user_id", userId)
       .maybeSingle(),
     countFreezesThisWeek(service, userId, today),
-    weeklyAllowance(service, userId),
+    shellWeeklyAllowance(service, userId),
   ]);
 
   const current = data?.current_streak ?? 0;
@@ -156,6 +157,20 @@ export function liveStreak(
   const yesterday = istanbulDateString(addJsDays(now, -1));
   const last = String(row.last_activity_date).slice(0, 10);
   return last === today || last === yesterday ? (row.current_streak ?? 0) : 0;
+}
+
+/**
+ * Seri görünümünün haftalık dondurma hakkı (Faz 2, madde 2): plan oturum bağlamından gelir (istekte tek okuma, 45 sn
+ * önbellek; ödeme ve abonelik değişikliği önbelleği siler). Kabuk ve sayfa aynı istekte planı ikinci kez okumaz.
+ * Bağlam okunamazsa eski taze okuma. Etkinlik kaydı (`recordUserActivity`) her zaman taze okur.
+ */
+async function shellWeeklyAllowance(service: SupabaseClient, userId: string): Promise<number> {
+  try {
+    const context = await getSessionUserContext(userId, { client: service });
+    return freezeAllowance(context.entitlements.isPremium);
+  } catch {
+    return weeklyAllowance(service, userId);
+  }
 }
 
 async function weeklyAllowance(service: SupabaseClient, userId: string): Promise<number> {

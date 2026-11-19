@@ -22,7 +22,7 @@ import { getUserStreak } from "@/lib/streak/record-activity";
 import { FirstStepLauncher } from "@/components/parity/first-step-launcher";
 import { loadNearestExamCountdown } from "@/lib/learning/exam-countdown-load";
 import { loadContinueStep } from "@/lib/learning/prep-cards";
-import { pathSkipKinds } from "@/lib/billing/node-free-meter";
+import { pathSkipKindsForView } from "@/lib/billing/node-free-meter";
 import { createServiceClient } from "@/lib/supabase/server";
 import { isFeatureEnabled } from "@/lib/admin/feature-flags";
 import { TEACHER_V2_FLAG } from "@/lib/ai/teacher-v2";
@@ -153,7 +153,7 @@ export default async function OgretmenPage({
     // satır yok. 13 Kasım 2026 (ürün sahibinin kararı): hazırlığı olan öğrencinin boş ana ekranı beş parça (sınav
     // şeridi, konu halkası, metin bloğu, ince yazma çubuğu, üst çubuk). Veri devam kartının kaynağından; okuma düşerse
     // eski devam kartına dönülür.
-    withPreps ? pathSkipKinds(createServiceClient(), user.id).catch(() => new Set<string>()) : Promise.resolve(new Set<string>()),
+    withPreps ? pathSkipKindsForView(createServiceClient(), user.id, supabase).catch(() => new Set<string>()) : Promise.resolve(new Set<string>()),
     // Ücretsiz hesabın ilk dersi (kapı ve "Ücretsiz ders" etiketi; okunamazsa null: kapı açık der, OTONOM §9 karar 3).
     lockService
       ? firstLessonStatus(lockService, user.id).then((status) => status?.state ?? null).catch(() => null)
