@@ -22,7 +22,7 @@ import {
 import { parseMood, type Familiarity } from "@/lib/learning/session-signals";
 import { moodAskedSince } from "@/lib/learning/lesson-open";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
-import { nextRestudyHref, parseRestudyToken } from "@/lib/learning/free-restudy";
+import { CARD_DECK_KINDS, nextRestudyHref, parseRestudyToken } from "@/lib/learning/free-restudy";
 import { LEARNED_SKIP_KINDS, topicReviewStateForNode } from "@/lib/learning/learned-skip";
 import { TARGETED_FIRST_KINDS } from "@/lib/learning/learned-skip-copy";
 import { LearnedSkipBar, TargetedFirstBar } from "@/components/parity/learned-skip-bar";
@@ -484,7 +484,7 @@ export default async function ExamNodePage({
         activityMinutes={sessionMeta?.activityMinutes ?? null}
         nodeDone={node.status === "done"}
         regenerate={yeni === "1" && node.status === "done"}
-        regenerateHref={node.kind === "flashcards" ? examPrepRegenerateHref(prepId, nodeId) : null}
+        regenerateHref={CARD_DECK_KINDS.has(node.kind as string) ? examPrepRegenerateHref(prepId, nodeId) : null}
         restudyNextHref={restudyNextHref}
       />
     </>

@@ -31,7 +31,7 @@ import {
 import { buildReadinessScreen } from "@/lib/learning/readiness-screen";
 import { buildPrepProgressView } from "@/lib/learning/prep-progress-view";
 import { reopenSavedAttempt } from "@/lib/learning/node/replay";
-import { reopensSavedByDefault } from "@/lib/learning/free-restudy";
+import { CARD_DECK_KINDS, reopensSavedByDefault } from "@/lib/learning/free-restudy";
 import { CREDIT_PRICE_TABLE, documentUploadCredits } from "@/lib/credits/price-table";
 import type { NodeContext } from "@/lib/learning/node/context";
 
@@ -251,10 +251,18 @@ describe("Faz 4 — 3) 5 kez baştan çözme (0 kredi)", () => {
   });
 
   it("bitmiş test/D-Y/kart/ders/podcast/yazılı deneme varsayılan olarak kayıttan açılır; yeni üretim yalnız açık seçimle", () => {
-    for (const kind of ["lesson", "quiz", "true_false", "flashcards", "podcast", "written_exam"]) {
+    for (const kind of ["lesson", "quiz", "true_false", "flashcards", "spaced", "podcast", "written_exam"]) {
       expect(reopensSavedByDefault({ kind, nodeStatus: "done" })).toBe(true);
       expect(reopensSavedByDefault({ kind, nodeStatus: "done", regenerate: true })).toBe(false);
       expect(reopensSavedByDefault({ kind, nodeStatus: "ready" })).toBe(false);
+    }
+  });
+
+  it("aralıklı tekrar kartları da kart destesidir: kayıtlı deste ücretsiz, yeni deste yalnız açık seçimle", () => {
+    expect([...CARD_DECK_KINDS].sort()).toEqual(["flashcards", "spaced"]);
+    for (const kind of CARD_DECK_KINDS) {
+      expect(reopensSavedByDefault({ kind, nodeStatus: "done" })).toBe(true);
+      expect(reopensSavedByDefault({ kind, nodeStatus: "done", regenerate: true })).toBe(false);
     }
   });
 });
