@@ -43,6 +43,14 @@ export const MEDICAL_COLORS = {
 
 const NODE_R = 15;
 
+/**
+ * Üst üste dizilen rol, etiket ve açıklama arasındaki boşluk yazı boyuyla büyür (20 Kasım 2026). Sabit 2 birimde rol
+ * rozetinin alt satırı ile etiketin üstü arasında 1,6 px kalıyordu; CI tarayıcısında birkaç piksel uzun çizilen yazı
+ * ikisini çakıştırdı ("İKİNCİL HABERCİ" / "İkincil haberci", 16:9). Dikeyde satır yüksekliği basamağın ihtiyacına göre
+ * paylaşıldığı için boşluk dar tutulur (uzun açıklama kesilmesin).
+ */
+const stackGap = (box: TextBox, ratio: number, min: number) => Math.max(min, Math.round(box.fontSize * ratio));
+
 export type MedicalStepLayout = {
   cx: number;
   cy: number;
@@ -95,7 +103,7 @@ function stepTexts(
       weight: 700,
       anchor,
     });
-    const label = place(`step${index}-label`, step.label, x, role.rect.y + role.rect.h + 2, {
+    const label = place(`step${index}-label`, step.label, x, role.rect.y + role.rect.h + (portrait ? 3 : stackGap(role, 0.45, 5)), {
       maxWidth,
       maxLines: labelLines,
       fontSize: portrait ? 14 : 12.5,
@@ -105,7 +113,7 @@ function stepTexts(
     });
     const detail =
       step.detail && detailLines > 0
-        ? place(`step${index}-detail`, step.detail, x, label.rect.y + label.rect.h + 2, {
+        ? place(`step${index}-detail`, step.detail, x, label.rect.y + label.rect.h + (portrait ? 2 : stackGap(label, 0.3, 4)), {
             maxWidth,
             maxLines: detailLines,
             fontSize: portrait ? 11 : 10,
