@@ -123,7 +123,7 @@ export const ADVANTAGE_ROWS: AdvantageRow[] = [
     },
     evidence: [
       "src/lib/payments/parent-link.ts",
-      "src/components/billing/parent-pay-link-button.tsx",
+      "src/components/billing/parent-whatsapp-link.tsx",
       "src/lib/learning/prep-invite.ts",
       "src/components/parity/prep-share-tools.tsx",
     ],

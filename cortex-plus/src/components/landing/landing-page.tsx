@@ -5,7 +5,7 @@ import { AudienceHero } from "@/components/landing/audience-hero";
 import { LandingDuel } from "@/components/landing/landing-duel";
 import { FAQ, FREE_PLAN_POINTS, HOME_COPY, PLUS_PLAN_POINTS, TRUST_FACTS, WEEK_PLAN_POINTS } from "@/lib/marketing/landing-content";
 import { WEEKLY_PLUS_PLAN_NAME } from "@/lib/billing/tier-presentation";
-import { PLAN_ALLOWANCES, planWorkEquivalent } from "@/lib/credits/price-table";
+import { PLAN_MARKETING_COPY } from "@/lib/marketing/plan-copy";
 import { formatTryWhole } from "@/lib/format";
 import type { PlusPrices } from "@/lib/billing/plan-prices";
 import "@/styles/landing.css";
@@ -13,7 +13,6 @@ import "@/styles/home-cinema.css";
 
 export type LandingPrices = PlusPrices;
 
-const fmtCount = (n: number) => new Intl.NumberFormat("tr-TR").format(n);
 
 /**
  * Ana sayfa. 11 Kasım 2026'da üç tur:
@@ -34,10 +33,8 @@ const fmtCount = (n: number) => new Intl.NumberFormat("tr-TR").format(n);
  * ile ve `prefers-reduced-motion`da durur.
  */
 export function LandingPage({ prices }: { prices: LandingPrices }) {
-  // Faz 4: plan kartlarıyla aynı karşılık (`planWorkLine`: ~ders / test / sohbet).
-  const plus = planWorkEquivalent(PLAN_ALLOWANCES.plusMonthly);
-  const week = planWorkEquivalent(PLAN_ALLOWANCES.plusWeekly);
-  const sigma = planWorkEquivalent(PLAN_ALLOWANCES.sigmaMonthly);
+  // Faz 5 §4: kota metni tek merkezden (`plan-copy.ts`); fiyat sayfasıyla birebir aynı karşılık.
+  const { plus, week, sigma } = PLAN_MARKETING_COPY;
   const copy = HOME_COPY.plans;
 
   return (
@@ -87,7 +84,7 @@ export function LandingPage({ prices }: { prices: LandingPrices }) {
                 </p>
               </div>
               <p className="lp-duo-lede">
-                Ayda ~{fmtCount(plus.lessons)} ders / {fmtCount(plus.tests)} test / {fmtCount(plus.chats)} sohbet; bütün konular açık.
+                {plus.periodLine}; bütün konular açık.
               </p>
               <ul className="lp-duo-list">
                 {PLUS_PLAN_POINTS.map((point) => (
@@ -113,7 +110,7 @@ export function LandingPage({ prices }: { prices: LandingPrices }) {
                 </p>
               </div>
               <p className="lp-duo-lede">
-                {copy.weekLede} ~{fmtCount(week.lessons)} ders / {fmtCount(week.tests)} test / {fmtCount(week.chats)} sohbet.
+                {copy.weekLede} {week.line}.
               </p>
               <ul className="lp-duo-list">
                 {WEEK_PLAN_POINTS.map((point) => (
@@ -140,8 +137,7 @@ export function LandingPage({ prices }: { prices: LandingPrices }) {
 
           <Link href="/fiyatlandirma" className="lp-sigma-strip">
             <span>
-              🔥 Çok yoğun çalışanlar için: Sigma Paketi (Ayda ~{fmtCount(sigma.lessons)} ders /{" "}
-              {fmtCount(sigma.tests)} test / {fmtCount(sigma.chats)} sohbet)
+              🔥 Çok yoğun çalışanlar için: Sigma Paketi ({sigma.periodLine})
             </span>
             <span>Tüm planları karşılaştır →</span>
           </Link>

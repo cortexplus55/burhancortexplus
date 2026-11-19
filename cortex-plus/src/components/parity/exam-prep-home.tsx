@@ -1,5 +1,6 @@
 "use client";
 
+import { TWIN_EXAM_LABEL, TWIN_EXAM_QUESTION_COUNT } from "@/lib/learning/mock-exam/past-questions";
 import { markNodeClick } from "@/lib/learning/node-open-click";
 import { primeInstantLesson, type LessonPreview } from "@/lib/learning/instant-lesson";
 import { gradeOfLabel, topicOnlyLabel } from "@/lib/learning/path-labels";
@@ -809,6 +810,12 @@ export function ExamPrepHome({
             Daha fazla
           </button>
         </div>
+        {/* Faz 5 §3.2: "Hocanın İkiz Sınavı (20 Soru)" modu hazırlığın başlangıç ekranında; kurulum çıkmış soru yoksa
+            yükleme yolunu gösterir. */}
+        <Link href={examPrepTwinExamHref(prepId)} className="cp-prep-twin-entry" data-testid="prep-twin-entry">
+          <span className="cp-prep-twin-entry-title">{TWIN_EXAM_LABEL}</span>
+          <span className="cp-prep-twin-entry-sub">Hocanın çıkmış sorularının tarzında ve konu ağırlığında tam {TWIN_EXAM_QUESTION_COUNT} soru</span>
+        </Link>
       </header>
       </aside>
 
@@ -1774,4 +1781,9 @@ function MaterialsList({ materials }: { materials: PrepMaterial[] }) {
       ))}
     </ul>
   );
+}
+
+/** Faz 5 §3.2: ikiz sınav modu açık gelen deneme kurulumu. */
+export function examPrepTwinExamHref(prepId: string): string {
+  return `/deneme-sinavlari/${prepId}/deneme/kurulum?mod=ikiz`;
 }

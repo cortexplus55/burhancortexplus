@@ -74,6 +74,8 @@ describe("paket adları tutarlı", () => {
     const sigma = allowanceInWork(PLAN_ALLOWANCES.sigmaMonthly);
     // Faz 4: Sigma 14.500 kredi (ders 22, mesaj 1); şerit plan kartıyla aynı karşılığı yazar (`planWorkEquivalent`).
     expect(sigma).toEqual({ lessons: 659, messages: 14500 });
-    expect(landing).toContain("planWorkEquivalent(PLAN_ALLOWANCES.sigmaMonthly)");
+    // Faz 5 §4.2: şerit merkezi metinden okur (`PLAN_MARKETING_COPY`); orası `planWorkEquivalent` kullanır.
+    expect(landing).toContain("PLAN_MARKETING_COPY");
+    expect(read("src/lib/marketing/plan-copy.ts")).toContain("planWorkEquivalent(allowance)");
   });
 });

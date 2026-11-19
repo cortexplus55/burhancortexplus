@@ -11,9 +11,10 @@ import { signInWithGoogle } from "@/lib/auth/google-oauth";
 import { authErrorMessage } from "@/lib/auth/messages";
 import { OTHER_DEVICE_NOTE, OTHER_DEVICE_PARAM } from "@/lib/auth/device-limit";
 import { safeNextPath } from "@/lib/auth/safe-next-path";
+import { guestHandoffTarget, readGuestMarker } from "@/lib/documents/guest-handoff";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function GirisPage() {
   const router = useRouter();
@@ -36,6 +37,12 @@ export default function GirisPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [unconfirmed, setUnconfirmed] = useState(false);
+  // Faz 5 §1.3: ana sayfada seçilen dosya bu sekmede bekliyorsa adı (giriş sonrası kurulum sihirbazına aktarılır).
+  const [guestDocument, setGuestDocument] = useState<string | null>(null);
+  useEffect(() => {
+    const marker = readGuestMarker();
+    if (marker) setGuestDocument(marker.names.length === 1 ? `“${marker.names[0]}”` : `${marker.names.length} dosya`);
+  }, []);
   // Hesap Google ile açılmış ve şifresi yoksa (8 Kasım 2026): "Giriş başarısız" yerine nedeni söyleyen not.
   const [googleHint, setGoogleHint] = useState<string | null>(null);
   // Instagram / Facebook / TikTok tarayıcısında Google girişi reddediliyor (beta duyurusu, 20 Ekim 2026).
@@ -73,7 +80,8 @@ export default function GirisPage() {
       }
       return;
     }
-    router.push(next);
+    // Faz 5 §1.3: ana sayfada dosya bırakan misafir girişten sonra kurulum sihirbazına gider (dosya orada eklenir).
+    router.push(guestHandoffTarget(next, { explicitNext: Boolean(params.get("next")) }));
     router.refresh();
   }
 
@@ -82,7 +90,7 @@ export default function GirisPage() {
     const origin = window.location.origin;
     const { error } = await signInWithGoogle(
       supabase,
-      `${origin}/auth/callback?next=${encodeURIComponent(next)}`,
+      `${origin}/auth/callback?next=${encodeURIComponent(guestHandoffTarget(next, { explicitNext: Boolean(params.get("next")) }))}`,
     );
     if (error) toast.error("Google ile giriş başlatılamadı.");
   }
@@ -107,6 +115,16 @@ export default function GirisPage() {
               cortexplus@cortexplus.app
             </a>
             {" "}adresine yaz.
+          </p>
+        ) : null}
+        {guestDocument && !suspended ? (
+          <p
+            role="status"
+            data-guest-document="login"
+            className="rounded-xl border border-[var(--cpx-border)] px-4 py-3 text-sm text-[var(--cpx-muted)]"
+          >
+            <span aria-hidden>📎</span> Ana sayfada seçtiğin {guestDocument} bu cihazda bekliyor; giriş yapınca kurulum
+            sihirbazına kendiliğinden aktarılır.
           </p>
         ) : null}
         {otherDevice && !suspended ? (

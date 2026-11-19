@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FileText } from "lucide-react";
 import {
   clearGuestDocuments,
@@ -23,23 +23,52 @@ import {
  *
  * Tarayıcı dosyayı saklayamadıysa (gizli sekme, kota) kart bunu söyler: dosya aşağıdan yeniden seçilir. Bekleyen
  * dosya yoksa bileşen hiçbir şey çizmez.
+ *
+ * `auto` (Faz 5 §1.3, 19 Kasım 2026): misafir ana sayfada dosyasını seçip giriş/kayıt yaptıysa dosya materyal adımına
+ * gelince KENDİLİĞİNDEN eklenir; öğrenci ikinci kez aramaz. Ortak bilgisayar kaygısı işaretin yalnız bu sekmenin
+ * oturumunda (`sessionStorage`) ve iki saat yaşamasıyla karşılanır: başka sekme ya da sonraki kullanıcı görmez.
+ * Eklenince kart kısa bir onay satırına döner.
  */
 export function GuestDocumentOffer({
   variant,
   onTake,
   disabled = false,
+  auto = false,
 }: {
   variant: "hint" | "offer";
   onTake?: (files: File[]) => void | Promise<void>;
   disabled?: boolean;
+  auto?: boolean;
 }) {
   const [marker, setMarker] = useState<GuestMarker | null>(null);
   const [busy, setBusy] = useState(false);
   const [lost, setLost] = useState(false);
+  /** Kendiliğinden eklenen dosyanın adı: kart onay satırına döner. */
+  const [added, setAdded] = useState<string | null>(null);
+  const autoTried = useRef(false);
 
   useEffect(() => {
     setMarker(readGuestMarker());
   }, []);
+
+  useEffect(() => {
+    if (!auto || variant !== "offer" || !marker || !marker.stored || disabled || autoTried.current) return;
+    autoTried.current = true;
+    void add(true);
+    // `add` her çizimde yeni; tek seferlik tetik `autoTried` ile korunur.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auto, variant, marker, disabled]);
+
+  if (added) {
+    return (
+      <p className="apw-guest-hint" role="status" data-guest-document="added">
+        <FileText className="h-4 w-4" aria-hidden />
+        <span>
+          Ana sayfada seçtiğin {added} kuruluma aktarıldı; aşağıda yükleniyor ve okunuyor.
+        </span>
+      </p>
+    );
+  }
 
   if (!marker) return null;
 
@@ -50,7 +79,7 @@ export function GuestDocumentOffer({
       <p className="apw-guest-hint" role="status" data-guest-document="hint">
         <FileText className="h-4 w-4" aria-hidden />
         <span>
-          Ana sayfada seçtiğin {label} kaybolmadı: <strong>materyal adımında</strong> seni bekliyor.
+          Ana sayfada seçtiğin {label} kaybolmadı: <strong>materyal adımında</strong> kendiliğinden eklenecek.
         </span>
       </p>
     );
@@ -61,7 +90,7 @@ export function GuestDocumentOffer({
     void clearGuestDocuments();
   }
 
-  async function add() {
+  async function add(automatic = false) {
     if (busy) return;
     setBusy(true);
     try {
@@ -72,6 +101,7 @@ export function GuestDocumentOffer({
       }
       // Tek kullanımlık: dosya sihirbaza verildi, tarayıcıdaki kopya silinir.
       await clearGuestDocuments();
+      if (automatic && marker) setAdded(marker.names.length === 1 ? `“${marker.names[0]}”` : `${marker.names.length} dosya`);
       setMarker(null);
       await onTake?.(files);
     } finally {

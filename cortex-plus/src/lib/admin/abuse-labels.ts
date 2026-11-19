@@ -84,6 +84,8 @@ export const ABUSE_SCOPE_LABELS: Record<string, string> = {
   "paytr-token": "Ödeme sayfası",
   "parent-pay-link": "Veli ödeme bağlantısı",
   "parent-pay-checkout": "Veli ödemesi",
+  "parent-pay-status": "Veli ödeme durumu",
+  "question-report-demo": "Tanıtım turunda hata bildirme",
 };
 
 /** Ön ek → bölüm (bilinmeyen uç için). Sıra önemli: uzun ön ek önce. */

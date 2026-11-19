@@ -4,7 +4,8 @@ import { formatDate } from "@/lib/format";
 
 import { FIRST_LESSON_STEPS, FREE_PAGE_TOTAL, FREE_PREP_LIMIT } from "@/lib/billing/free-tier-copy";
 import { FREE_CHAT_PER_DAY, FREE_PHOTO_PER_MONTH } from "@/lib/billing/free-meters";
-import { PLAN_ALLOWANCES, allowanceInWork, planWorkLine } from "@/lib/credits/price-table";
+import { allowanceInWork, planWorkLine } from "@/lib/credits/price-table";
+import { PLAN_MARKETING_COPY, WEEKLY_PLAN_NAME } from "@/lib/marketing/plan-copy";
 
 /**
  * Fiyat, profil ve kabuk aynı cümleleri buradan okur.
@@ -14,7 +15,7 @@ import { PLAN_ALLOWANCES, allowanceInWork, planWorkLine } from "@/lib/credits/pr
 export const BENEFITS_LEAD = "Ücretsiz plandaki her şey ve:";
 
 /** Haftalık Plus — ana sayfa ve /fiyatlandirma aynı adı kullanır. */
-export const WEEKLY_PLUS_PLAN_NAME = "Sınav Haftası (7 Günlük Plus)";
+export const WEEKLY_PLUS_PLAN_NAME = WEEKLY_PLAN_NAME;
 
 /** Kayıtsız sütunun görünen adı. Eski "Misafir" yanıltıyordu: gidecek yer yoktu. */
 export const GUEST_PREVIEW_COLUMN = "Ön İzleme (Kayıtsız)";
@@ -33,7 +34,7 @@ export function allowanceWorkLine(allowance: number, per: "ay" | "hafta" = "ay")
 
 export function plusBenefitLines(): string[] {
   return [
-    allowanceWorkLine(PLAN_ALLOWANCES.plusMonthly),
+    PLAN_MARKETING_COPY.plus.periodLine,
     "Sınırsız sınav hazırlığı ve belgenin tamamı işlenir",
     `Daha yüksek fotoğraf ve PDF limiti (${PHOTO_PAGE_LIMITS.plus} sayfa)`,
     "Hakkın bitince ek paket alabilme",
@@ -43,7 +44,7 @@ export function plusBenefitLines(): string[] {
 export function sigmaBenefitLines(): string[] {
   return [
     "Plus’taki her şey",
-    allowanceWorkLine(PLAN_ALLOWANCES.sigmaMonthly),
+    PLAN_MARKETING_COPY.sigma.periodLine,
     `Daha yüksek fotoğraf ve PDF limiti (${PHOTO_PAGE_LIMITS.sigma} sayfa)`,
     "Ek paket",
   ];
@@ -52,7 +53,7 @@ export function sigmaBenefitLines(): string[] {
 export function parentPlusBenefitLines(): string[] {
   return [
     "Kota çocuğunun hesabına tanımlanır",
-    allowanceWorkLine(PLAN_ALLOWANCES.plusMonthly),
+    PLAN_MARKETING_COPY.plus.periodLine,
     `Daha yüksek fotoğraf ve PDF limiti (${PHOTO_PAGE_LIMITS.plus} sayfa)`,
     "Hakkı bitince ek paket",
   ];
@@ -114,8 +115,8 @@ export function tierComparisonRows(): TierComparisonRow[] {
       guest: "Yok",
       // Sayıya dayalı ücretsiz katman (24 Ekim 2026); ders sayacı yok (11 Kasım 2026 akşamı).
       free: `İlk ders, günde ${FREE_CHAT_PER_DAY} mesaj, ayda ${FREE_PHOTO_PER_MONTH} fotoğraftan çözüm`,
-      plus: allowanceWorkLine(PLAN_ALLOWANCES.plusMonthly),
-      sigma: allowanceWorkLine(PLAN_ALLOWANCES.sigmaMonthly),
+      plus: PLAN_MARKETING_COPY.plus.periodLine,
+      sigma: PLAN_MARKETING_COPY.sigma.periodLine,
     },
     {
       label: "Podcast, sözlü ve yazılı deneme",

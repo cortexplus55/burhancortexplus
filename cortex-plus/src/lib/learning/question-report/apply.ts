@@ -9,6 +9,7 @@ import {
 } from "@/lib/learning/exam-quiz";
 import { reviewPromptKey, type StoredReviewItem } from "@/lib/learning/review-items";
 import type { ReportDecision, ReportedQuestion } from "@/lib/learning/question-report/decision";
+import { lockedKeys } from "@/lib/learning/answer-lock";
 
 /**
  * Bildirilen sorunun kaynağı ve düzeltmesi (31 Ekim 2026, Paket J2 #10). Soru her zaman SUNUCUDAKİ kayıttan okunur;
@@ -23,6 +24,11 @@ export type ReportTarget = {
   question: ReportedQuestion;
   prepId: string | null;
   alreadyVoided: boolean;
+  /**
+   * Öğrenci bu sorunun cevabını gördü mü (Faz 5 §3.1): bildirim düğmesi artık cevaptan önce de açık. Görmediyse sunucu
+   * cevabında anahtar, açıklama ve denetçinin gerekçesi gönderilmez (cevabı ele vermesin).
+   */
+  answerShown: boolean;
   apply: (decision: ReportDecision) => Promise<AppliedFix>;
 };
 
@@ -70,6 +76,9 @@ async function loadNodeTarget(
   return {
     prepId,
     alreadyVoided: question.voided === true,
+    answerShown:
+      attempt.status === "completed" ||
+      lockedKeys((attempt.answers ?? {}) as Record<string, unknown>).includes(String(index)),
     question: {
       type: "choice",
       text: question.text,
@@ -197,6 +206,8 @@ async function loadMockTarget(
   return {
     prepId: (exam.exam_prep_id as string | null) ?? null,
     alreadyVoided,
+    // Yazılı deneme yalnız notlandıktan sonra bildirilir: cevaplar zaten açık.
+    answerShown: true,
     question: {
       type: choice ? "choice" : "open",
       text: String(row.question_text ?? ""),

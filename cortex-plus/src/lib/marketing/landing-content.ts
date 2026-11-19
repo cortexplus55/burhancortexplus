@@ -1,7 +1,6 @@
 import { FREE_LIMITS, FREE_TIER_SENTENCE } from "@/lib/billing/free-meters";
 import { FREE_PAGE_TOTAL } from "@/lib/billing/free-tier-copy";
-import { allowanceWorkLine } from "@/lib/billing/tier-presentation";
-import { PLAN_ALLOWANCES } from "@/lib/credits/price-table";
+import { PLAN_MARKETING_COPY } from "@/lib/marketing/plan-copy";
 
 /**
  * Ana sayfanın bütün cümleleri (19 Ekim 2026, ürün sahibi: "misafire sistemimizde olmayan bir şey
@@ -100,7 +99,7 @@ export const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "Plus'ta ne değişiyor?",
-    a: `${allowanceWorkLine(PLAN_ALLOWANCES.plusMonthly)}; bütün konular, podcast, video ders, sözlü ve yazılı deneme, sınav sabahı kâğıdı; belgenin tamamı, sınırsız hazırlık ve hazır içerik yokken daha hızlı yazım. Yapay zekâ modeli aynı; fark neyin açık olduğunda, ne kadar ve ne kadar hızlı çalışabildiğinde.`,
+    a: `${PLAN_MARKETING_COPY.plus.periodLine}; bütün konular, podcast, video ders, sözlü ve yazılı deneme, sınav sabahı kâğıdı; belgenin tamamı, sınırsız hazırlık ve hazır içerik yokken daha hızlı yazım. Yapay zekâ modeli aynı; fark neyin açık olduğunda, ne kadar ve ne kadar hızlı çalışabildiğinde.`,
   },
   {
     q: "Notumda olmayan bir şeyi sorarsam?",

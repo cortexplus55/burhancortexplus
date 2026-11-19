@@ -307,7 +307,8 @@ export const REPORT_VERDICT_LABEL: Record<string, string> = {
 
 export type ReportRow = {
   id: string;
-  source: "node" | "mock";
+  /** "demo": tanıtım turundan (Faz 5 §3.1), çoğu misafir. */
+  source: "node" | "mock" | "demo";
   targetId: string;
   questionRef: string;
   prepId: string | null;
@@ -325,7 +326,7 @@ export type ReportRow = {
 
 export function reportRow(raw: Record<string, unknown>): ReportRow | null {
   const id = str(raw.id);
-  const source = raw.source === "mock" ? "mock" : raw.source === "node" ? "node" : null;
+  const source = raw.source === "mock" ? "mock" : raw.source === "node" ? "node" : raw.source === "demo" ? "demo" : null;
   if (!id || !source) return null;
   const snapshot = (raw.question_snapshot ?? null) as Record<string, unknown> | null;
   const text = snapshot ? str(snapshot.text) : "";

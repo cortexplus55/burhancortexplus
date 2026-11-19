@@ -30,6 +30,7 @@ export function ExamQuizPlay({
   mood = null,
   serverCheck = false,
   checkError = null,
+  eliminated,
 }: {
   questions: PublicQuizQuestion[];
   index: number;
@@ -42,7 +43,10 @@ export function ExamQuizPlay({
   examMode?: boolean;
   /** "Kontrol et": cevap kilitlendi (20 Ekim 2026). Bundan sonraki eğitmen yardımı ipucu sayılmaz. */
   onReveal?: () => void;
-  /** "🚩 Soruda hata bildir" (Paket J2 #10): cevap açıklamasının altında, sorunun sırasıyla. */
+  /**
+   * "🚩 Soruda Hata Bildir" (Paket J2 #10). Faz 5 §3.1 (19 Kasım 2026): her soru kartının SAĞ ÜSTÜNDE, cevaptan önce
+   * de; dokununca modal açılır.
+   */
   report?: (index: number) => ReactNode;
   /** "🔥 İkiz soru" (Paket J3 #12): yanlış cevabın açıklamasının altında. */
   twin?: (index: number) => ReactNode;
@@ -65,6 +69,8 @@ export function ExamQuizPlay({
   serverCheck?: boolean;
   /** Sunucu kontrolü düştüyse öğrenciye kısa cümle. */
   checkError?: string | null;
+  /** "İki Şık Arasında Kaldım" ile elenen çeldiriciler (Faz 5 §3.1): üstü çizili, seçilemez. */
+  eliminated?: readonly string[];
 }) {
   const [revealed, setRevealed] = useState(locked);
   const [acting, setActing] = useState(false);
@@ -147,7 +153,10 @@ export function ExamQuizPlay({
         <span className="px-3 py-1 rounded-full border border-[var(--cp-border)] bg-[var(--cp-surface)] text-xs font-semibold text-[var(--cp-text)]">
           Soru {index + 1} / {Math.max(questions.length, plannedTotal ?? 0)}
         </span>
-        {showFeedback ? <StreakBadge streak={streakNow} /> : null}
+        <div className="flex items-center gap-2">
+          {showFeedback ? <StreakBadge streak={streakNow} /> : null}
+          {report && !examMode ? <div className="cp-quiz-report-slot">{report(index)}</div> : null}
+        </div>
       </div>
       <div
         className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--cp-surface-2)]"
@@ -178,12 +187,16 @@ export function ExamQuizPlay({
           const showGreen = showFeedback && isThisCorrect && (selectedThis || !question.multi);
           const showRed = showFeedback && selectedThis && !isThisCorrect;
           const letter = String.fromCharCode(65 + optionIndex);
+          // Faz 5 §3.1: ipucuyla elenen çeldirici cevap açılana kadar seçilemez (açılınca normal görünür).
+          const struck = !revealed && !selectedThis && Boolean(eliminated?.includes(option));
 
           return (
             <button
               key={option}
               type="button"
-              disabled={!examMode && revealed}
+              disabled={(!examMode && revealed) || struck}
+              aria-label={struck ? `${letter} şıkkı elendi` : undefined}
+              data-eliminated={struck ? "true" : undefined}
               onClick={() => pick(option)}
               // Faz 5A: yeni görünümün kancası (`ui.v2.tekrar`); görünümü değiştirmez.
               data-cx-option={showGreen ? "right" : showRed ? "wrong" : missedCorrect ? "missed" : selectedThis ? "selected" : "idle"}
@@ -242,7 +255,8 @@ export function ExamQuizPlay({
         })}
       </div>
 
-      {twoOption && !examMode && hasCorrect && !revealed ? <div ref={twoSlotRef}>{twoOption(index)}</div> : null}
+      {/* Faz 5 §3.1: cevap vermeden önce her zaman açık; anahtar sunucuda kalan (mühürlü) testte de. */}
+      {twoOption && !examMode && (hasCorrect || serverCheck) && !revealed ? <div ref={twoSlotRef}>{twoOption(index)}</div> : null}
 
       {awaitingKey ? (
         <p className="mt-3 text-sm text-[var(--cp-muted)]" role="status" aria-live="polite">
@@ -318,7 +332,6 @@ export function ExamQuizPlay({
             </ul>
           ) : null}
           {twin && !isCorrect && !question.voided ? twin(index) : null}
-          {report ? <div className="flex justify-end">{report(index)}</div> : null}
         </div>
       ) : null}
 

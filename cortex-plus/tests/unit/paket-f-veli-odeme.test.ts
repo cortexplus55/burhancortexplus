@@ -28,7 +28,8 @@ describe("Paket F · velime ödeme linki: imzalı, süreli, kurcalanamaz", () =>
     expect(token).toMatch(/^veli\.[0-9a-f-]{36}\.[0-9a-f-]{36}\.\d+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
     const verified = verifyParentPayToken(token, 2_000_000);
     expect(verified).toEqual({ ok: true, claims: { studentId: STUDENT, planId: PLAN, expiresAt: 1_000_000 + PARENT_LINK_TTL_MS, nonce: "nonce1" } });
-    expect(PARENT_LINK_TTL_MS).toBe(3 * 24 * 60 * 60 * 1000);
+    // Faz 5 §2: 48 saat.
+    expect(PARENT_LINK_TTL_MS).toBe(48 * 60 * 60 * 1000);
   });
 
   it("süre dolunca 'expired'; tek karakter değişince 'invalid'; başka planla imza tutmaz", () => {
@@ -42,14 +43,14 @@ describe("Paket F · velime ödeme linki: imzalı, süreli, kurcalanamaz", () =>
     expect(verifyParentPayToken(null, 2_000_000)).toEqual({ ok: false, reason: "invalid" });
   });
 
-  it("paylaşım metni öğrenciyi, planı ve fiyatı söyler; WhatsApp adresi kodlanır", () => {
-    const text = parentShareText({ studentName: "Ayşe", planName: "Plus aylık", priceLabel: "₺399", url: "https://cortexplus.app/odeme/veli/x" });
-    expect(text).toContain("Ayşe için Cortex Plus Plus aylık (₺399)");
-    expect(text).toContain("hesap açmadan");
-    expect(text.endsWith("https://cortexplus.app/odeme/veli/x")).toBe(true);
+  it("paylaşım metni öğrencinin ağzından, harfiyen; WhatsApp adresi kodlanır", () => {
+    const text = parentShareText({ planName: "Örnek Paket", url: "https://example.test/veli-odeme/x" });
+    expect(text).toBe(
+      "Anne/Baba, sınav hazırlığım için kullandığım Cortex Plus Örnek Paket paketini bu güvenli PayTR bağlantısından şifre girmeden onaylayabilir misin? https://example.test/veli-odeme/x",
+    );
     expect(whatsappShareUrl("a b&c")).toBe("https://wa.me/?text=a%20b%26c");
-    expect(parentLinkValidityLine(Date.now() + PARENT_LINK_TTL_MS)).toBe("Bağlantı 3 gün geçerli.");
-    expect(parentLinkValidityLine(Date.now() + 1_000)).toBe("Bağlantı bugün geçerli.");
+    expect(parentLinkValidityLine(Date.now() + PARENT_LINK_TTL_MS)).toBe("Bağlantı 48 saat geçerli.");
+    expect(parentLinkValidityLine(Date.now() + 1_000)).toBe("Bağlantı 1 saat geçerli.");
   });
 
   it("veli ödemesi öğrencinin adına açılır, geri çağrı aynı yoldan; veli yıldız ya da hesap almaz", () => {
@@ -60,7 +61,7 @@ describe("Paket F · velime ödeme linki: imzalı, süreli, kurcalanamaz", () =>
     expect(checkout).toContain("beneficiaryId: verified.claims.studentId");
     expect(checkout).toContain('via: "parent_link"');
     expect(checkout).not.toMatch(/awardStars|signUp|createUser/);
-    const link = read("src/app/api/payments/parent-link/route.ts");
+    const link = read("src/app/api/billing/parent-link/route.ts");
     expect(link).toMatch(/scope: "parent-pay-link", limit: 5, dailyLimit: 20/);
     expect(link).toContain('.from("parent_payment_requests")');
     // Ortak kabuk: sözleşme onayının denetim kaydı tek yerde, iki çağıran da buradan geçer.
@@ -72,9 +73,8 @@ describe("Paket F · velime ödeme linki: imzalı, süreli, kurcalanamaz", () =>
 
   it("öğrenci tarafında düğme, veli tarafında herkese açık sayfa ve sözleşme cümlesi", () => {
     const cards = read("src/components/parity/subscription-cards.tsx");
-    expect(cards).toContain("<ParentPayLinkButton planId={plusPlan.id} planName={plusPlan.name} />");
-    expect(read("src/components/billing/parent-pay-link-button.tsx")).toContain("Kartım yanımda değil — velime ödeme linki gönder");
-    const page = read("src/app/odeme/veli/[token]/page.tsx");
+    expect(cards).toContain("<ParentWhatsAppLink");
+    const page = read("src/app/veli-odeme/[token]/page.tsx");
     expect(page).toContain("verifyParentPayToken(token)");
     expect(page).not.toMatch(/requireUser|requireStudentArea/);
     expect(read("src/components/billing/parent-pay-form.tsx")).toContain("Mesafeli Satış Sözleşmesi");

@@ -832,3 +832,31 @@
     animation: none;
   }
 }
+
+/* Faz 5 §3.2: "🎯 Çıkmış Sorulardan Hocanın İkiz Sınavı (20 Soru)" girişi (hazırlık başlangıç ekranı). */
+.cp-prep-twin-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-top: 0.85rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in srgb, var(--cp-action, #3b82f6) 45%, transparent);
+  background: color-mix(in srgb, var(--cp-action, #3b82f6) 9%, transparent);
+  color: var(--cp-text, inherit);
+  text-decoration: none;
+  min-height: 44px;
+}
+.cp-prep-twin-entry:hover,
+.cp-prep-twin-entry:focus-visible {
+  border-color: var(--cp-action, #3b82f6);
+}
+.cp-prep-twin-entry-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.cp-prep-twin-entry-sub {
+  font-size: 0.78rem;
+  color: var(--cp-muted, inherit);
+}

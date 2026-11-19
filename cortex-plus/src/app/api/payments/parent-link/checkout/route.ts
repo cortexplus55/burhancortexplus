@@ -5,7 +5,7 @@ import { errorResponse, guestLimit } from "@/lib/api/guards";
 import { createServiceClient } from "@/lib/supabase/server";
 import { isPaytrConfigured } from "@/lib/payments/paytr";
 import { createPaytrCheckout, requestUserIp } from "@/lib/payments/checkout";
-import { verifyParentPayToken } from "@/lib/payments/parent-link";
+import { PARENT_PAY_PATH, verifyParentPayToken } from "@/lib/payments/parent-link";
 import { readEvidenceSchema } from "@/lib/legal/consent-evidence";
 
 const bodySchema = z.object({
@@ -60,7 +60,8 @@ export async function POST(request: Request) {
     userName: `${parentName} (veli)`,
     // PayTR sepet adi ASCII: Turkce karakter kaldirmiyor.
     productName: `${plan.name} (veli odemesi)`,
-    okUrl: `${origin}/odeme/veli/tesekkurler`,
+    // Faz 5 §2: veli onay ekranı ödemenin geri çağrıyla kesinleşmesini yoklar.
+    okUrl: `${origin}${PARENT_PAY_PATH}/${parsed.data.token}/tamam`,
     failUrl: `${origin}/odeme/veli/basarisiz?token=${encodeURIComponent(parsed.data.token)}`,
     actorId: verified.claims.studentId,
     via: "parent_link",

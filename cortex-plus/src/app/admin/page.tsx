@@ -203,7 +203,7 @@ export default async function AdminPage() {
             {reports.map((row) => (
               <tr key={row.id}>
                 <td className="adm-num">{formatDate(row.createdAt)}</td>
-                <td>{row.source === "mock" ? "Yazılı deneme" : "Yol testi"}</td>
+                <td>{row.source === "mock" ? "Yazılı deneme" : row.source === "demo" ? "Tanıtım turu" : "Yol testi"}</td>
                 <td>
                   {reportReasonLabel(row.reason as ReportReason)}
                   {row.note ? <span className="block text-xs text-[var(--adm-muted)]">{row.note}</span> : null}
