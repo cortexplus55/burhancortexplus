@@ -48,6 +48,7 @@ import {
   type TeacherQuizInput,
 } from "@/lib/learning/teacher-quiz";
 import { capSameTable, coreFirst, questionTableOf } from "@/lib/learning/topic-test-shape";
+import { enforceSingleChoice, repairSingleChoice } from "@/lib/learning/single-choice-guard";
 
 /** `role`: taslak ve düzeltme düşük düşünmeyle, denetim varsayılanla (19 Ekim 2026). */
 export type AskJson = (system: string, user: string, role?: "draft" | "verify" | "fix") => Promise<unknown | null>;
@@ -254,6 +255,10 @@ export async function teacherQuizLoop(
     });
   }
 
+  // Tek doğru şık onarımı (Faz 1-A §3.1): çok cevaplı soru istenmiyorsa kodun güvenle onarabildiği anahtar hatası
+  // (yinelenen anahtar, tek doğruyken çok cevaplı bayrağı, şık metninden yazım farkı) burada düzelir; birden fazla farklı
+  // doğru işaretli soru yapı kapısında elenir ve yerine yenisi yazılır (sınırlı geçiş).
+  if (!multi) draft = draft.map((question) => repairSingleChoice(question) ?? question);
   slots.push(...draft.map(() => null));
   let bad: Pending[] = [];
   const settle = (rows: Pending[]) => {
@@ -725,6 +730,20 @@ async function runTeacherQuizInner(
           }
         : {}),
     });
+    // Kayıt öncesi son kapı (Faz 1-A §3.1–3.2): tek doğru şık ve cevap sızıntısı. Yapı kapısı aynı ölçüyü taslakta
+    // uyguladığı için burada elenen soru beklenmez; elenirse sayı eksilir ve iade kuralı aşağıda işler.
+    if (!input.multi) {
+      const gate = enforceSingleChoice(questions);
+      if (gate.rejected.length || gate.repaired) {
+        console.warn("teacher_quiz_single_choice_gate", {
+          topic: logTopic(input.topicLabel),
+          rejected: gate.rejected.length,
+          repaired: gate.repaired,
+          reasons: gate.rejected.flatMap((row) => row.issues).slice(0, 4),
+        });
+      }
+      questions = gate.kept;
+    }
     if (questions.length < input.count) {
       await refund();
       return {

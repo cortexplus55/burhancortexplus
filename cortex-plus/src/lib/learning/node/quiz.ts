@@ -93,8 +93,9 @@ export async function teacherQuizPayload(
     runningHeaders: edges,
     officialOutcome: await loadOfficialOutcome(input.service, input.prepId, input.topicLabel),
     difficulty: quizDifficulty(input.requestedDifficulty),
-    // Konu testinde bir soru çok cevaplı (17 Ekim 2026, kıyas ürünündeki gibi); tuzak testi tek cevaplı.
-    multi: input.kind === "quiz" && count >= 5,
+    // Tek doğru şık garantisi (19 Kasım 2026, Faz 1-A §3.1): konu testinin bütün soruları tek seçimli; çok cevaplı
+    // soru kipi kapalı (17 Ekim 2026'daki "son soru çok cevaplı" kuralı kalktı). Kayıt öncesi kapı `enforceSingleChoice`.
+    multi: false,
     // Yoldaki konu testinin kuralları ve dersi (20 Ekim 2026); tuzak testi (gaps) bugünkü gibi.
     scope: input.kind === "quiz" ? "topic_test" : undefined,
     lesson: input.kind === "quiz" ? (input.lessonQuiz ?? undefined) : undefined,

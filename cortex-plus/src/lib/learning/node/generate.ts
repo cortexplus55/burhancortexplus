@@ -25,6 +25,7 @@ import { teacherPodcastEpisode } from "./podcast";
 import { readSharedMedia, sharedMediaUnit } from "@/lib/content-pool/shared-media";
 import { teacherCardsPayload } from "./cards";
 import { teacherTrueFalsePayload } from "./true-false";
+import { SINGLE_CHOICE_PROMPT_LINE } from "@/lib/learning/single-choice-guard";
 
 /** Türe göre üretimin girdisi; rota hazırlar, tür modülleri okur. */
 export type NodePayloadInput = {
@@ -180,8 +181,8 @@ export async function generateNodePayload(input: NodePayloadInput) {
       charge: input.charge,
       urgent: input.charge !== false,
       userPrompt: input.teachingV2
-        ? `${QA_TEACHER_PROMPT} ${ctx} ${quizCount} alıştırma sorusu. Tek kavramdan başla; her explanation ilk cümlede doğru cevabı söylesin. multi=true yalnızca gerçekten birden fazla bağımsız doğru varken.`
-        : `${ctx} ${quizCount} çoktan seçmeli alıştırma sorusu. Şıklar A/B/C/D gibi net olsun. En az 1 soruda birden fazla doğru şık olsun (multi true, correct dizi).`,
+        ? `${QA_TEACHER_PROMPT} ${ctx} ${quizCount} alıştırma sorusu. Tek kavramdan başla; her explanation ilk cümlede doğru cevabı söylesin. ${SINGLE_CHOICE_PROMPT_LINE}`
+        : `${ctx} ${quizCount} çoktan seçmeli alıştırma sorusu. Şıklar A/B/C/D gibi net olsun. ${SINGLE_CHOICE_PROMPT_LINE}`,
     });
     if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error);
     return { type: "quiz", questions: outcome.questions, teachingStandard: activity };
@@ -328,8 +329,8 @@ export async function generateNodePayload(input: NodePayloadInput) {
         : undefined,
     userPrompt: `${ctx} ${input.kind === "final_check" ? Math.min(4, quizCount) : input.kind === "focused" ? Math.min(5, quizCount) : quizCount} çoktan seçmeli soru. ${
       input.teachingV2
-        ? "multi=true yalnızca gerçekten birden fazla bağımsız doğru varken; aksi halde multi false. Her soruda learningObjective ve explanation yaz."
-        : "En az 1 soruda birden fazla doğru şık olsun (multi true, correct dizi)."
+        ? `${SINGLE_CHOICE_PROMPT_LINE} Her soruda learningObjective ve explanation yaz.`
+        : SINGLE_CHOICE_PROMPT_LINE
     } ${input.kind === "written_exam" ? "Sınav disiplini: ipucu yok, her soruda explanation yaz, doğru cevabı soru metnine koyma." : ""} ${input.kind === "gaps" ? "Zayıf nokta / tuzak sorular. Öğretmen notunda yanılgı varsa onu ölç." : ""} ${
       input.practiceTopics?.length
         ? `Yalnızca şu zayıf konular: ${input.practiceTopics.join(", ")}. Listede olmayan konu yazma.`

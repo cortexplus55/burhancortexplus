@@ -1,3 +1,4 @@
+import { answerLeakIssue, singleChoiceVerdict } from "@/lib/learning/single-choice-guard";
 import { CONTENT_STYLE } from "@/lib/ai/content-style";
 import { OPTION_SEPARABILITY_PREFIX, optionSeparabilityIssues } from "@/lib/learning/option-separability";
 import { officialOutcomeBlock, type OfficialOutcomeGrounding } from "@/lib/curriculum/grounding";
@@ -1341,6 +1342,11 @@ export function quizStructureIssues(
     return [...issues, ...multiQuestionIssues(question)];
   }
   if (question.multi || question.correct.length !== 1) issues.push("Tek doğru şık olmalı (multi false).");
+  else {
+    // Faz 1-A §3.1: işaretli doğru şıklardan birine birebir denk gelmeli, şıklar birbirinden ayrı olmalı.
+    const verdict = singleChoiceVerdict(question);
+    if (!verdict.ok) issues.push(verdict.issue);
+  }
   if (!question.explanation?.trim()) issues.push("explanation yok.");
   if ((question.optionWhy?.length ?? 0) !== question.options.length) {
     issues.push("optionWhy her şık için bir cümle olmalı, şık sayısı kadar ve aynı sırada.");
@@ -1354,7 +1360,10 @@ export function quizStructureIssues(
     issues.push("Açıklama şıklara sırasıyla gönderme yapıyor; şıklar karışık gösteriliyor, her şıkkı içeriğiyle an.");
   }
   const answer = question.correct[0] ?? "";
-  if (answer.length >= 6 && question.text.toLocaleLowerCase("tr").includes(answer.toLocaleLowerCase("tr"))) {
+  // AnswerLeakGuard (Faz 1-A §3.2): kök doğru şıkkı parantez içinde ya da açıkça veriyorsa soru reddedilir, yerine yenisi yazılır.
+  const leak = answerLeakIssue(question);
+  if (leak) issues.push(leak);
+  else if (answer.length >= 6 && question.text.toLocaleLowerCase("tr").includes(answer.toLocaleLowerCase("tr"))) {
     issues.push("Kök doğru şıkkı içeriyor; cevabı veriyor.");
   } else {
     const giveaway = answerOnlyWordInStem(question.text, answer, question.options);
