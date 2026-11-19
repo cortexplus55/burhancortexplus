@@ -90,7 +90,9 @@ export type Payload = {
     voided?: boolean;
     keyFixed?: boolean;
   }[];
-  items?: { text: string; correct: boolean; explanation: string; correctedStatement?: string }[];
+  /** Faz 2 (madde 7.3): items/questions anahtarsız geldi; "Kontrol et" sunucuda (`answer-check`). */
+  answerCheck?: "server";
+  items?: { text: string; correct?: boolean; explanation?: string; correctedStatement?: string }[];
   cards?: { front: string; back: string }[];
   practice?: string;
   reused?: boolean;
@@ -916,6 +918,15 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     }
     refreshUnsaved(nextAnswers);
     revealedRef.current = new Set(lockedKeys(nextAnswers));
+    // Faz 2 (madde 7.3): paket anahtarsız gelir; yenilenen sayfada kilitli (D/Y'de cevaplanmış) soruların anahtarı
+    // sunucudan geri alınır.
+    if (data.attemptId && data.payload?.answerCheck === "server") {
+      const reveal =
+        data.payload.type === "true_false"
+          ? Object.keys(nextAnswers).filter((key) => /^\d+$/.test(key) && typeof nextAnswers[key] === "boolean")
+          : lockedKeys(nextAnswers);
+      if (reveal.length) void revealCheckedAnswers(data.attemptId, reveal.map(Number));
+    }
     if (typeof data.cursorIndex === "number" || nextAnswers !== serverAnswers || cursorFromDraft) {
       setIndex((current) => Math.max(current, nextCursor));
     }
@@ -1332,7 +1343,8 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     }
     if (payload.type === "true_false") {
       const items = payload.items ?? [];
-      if (!items.length) return null;
+      // Anahtarı henüz gelmemiş önerme varsa tahmini sayım yok (not sunucudan gelir).
+      if (!items.length || items.some((item) => typeof item.correct !== "boolean")) return null;
       return tallyScore(activityTally(payload, base));
     }
     return null;
@@ -1537,6 +1549,88 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     if (revealedRef.current.has(key)) return;
     revealedRef.current.add(key);
     updateAnswer(ANSWER_LOCK_KEY, [...revealedRef.current]);
+    // Faz 2 (madde 7.3): anahtar pakette yok; cevap sunucuda kilitlenir ve bu sorunun anahtarı o an gelir.
+    if (payload.answerCheck === "server" && !isTimedExam) void checkAnswerOnServer(Number(key), answersRef.current[key] ?? "");
+  }
+
+  const [answerCheckError, setAnswerCheckError] = useState<string | null>(null);
+
+  async function postAnswerCheck(body: Record<string, unknown>) {
+    const res = await fetch("/api/learning/exam-prep/node", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prepId, nodeId, attemptId: attemptIdRef.current, action: "answer-check", ...body }),
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      question?: Record<string, unknown>;
+      item?: Record<string, unknown>;
+      answer?: unknown;
+      revealed?: Record<string, Record<string, unknown>>;
+      error?: string;
+    };
+    if (!res.ok || !data.ok) throw new Error(data.error ?? "answer_check_failed");
+    return data;
+  }
+
+  /** Sunucunun döndürdüğü anahtarı pakette o soruya ekler (ekran geri bildirimi bununla açılır). */
+  function mergeAnswerKeys(byIndex: Record<string, Record<string, unknown>>) {
+    setPayload((current) => {
+      if (current.type === "quiz" && current.questions) {
+        return {
+          ...current,
+          questions: current.questions.map((row, i) => (byIndex[String(i)] ? { ...row, ...byIndex[String(i)] } : row)),
+        };
+      }
+      if (current.type === "true_false" && current.items) {
+        return {
+          ...current,
+          items: current.items.map((row, i) => (byIndex[String(i)] ? { ...row, ...byIndex[String(i)] } : row)),
+        };
+      }
+      return current;
+    });
+  }
+
+  async function checkAnswerOnServer(index: number, answer: unknown): Promise<boolean> {
+    setAnswerCheckError(null);
+    try {
+      const data = await postAnswerCheck({ questionIndex: index, answer });
+      const key = data.question ?? data.item;
+      if (key) mergeAnswerKeys({ [String(index)]: key });
+      // Sunucu kilitli cevabı döner: ekrandaki cevap kayıttakiyle aynı olsun.
+      if (data.answer !== undefined && data.answer !== answersRef.current[String(index)]) updateAnswer(String(index), data.answer);
+      return true;
+    } catch {
+      setAnswerCheckError("Cevabın kontrol edilemedi. Bağlantını kontrol edip tekrar dene.");
+      return false;
+    }
+  }
+
+  async function revealCheckedAnswers(forAttempt: string, indexes: number[]) {
+    try {
+      const data = await postAnswerCheck({ attemptId: forAttempt, revealIndexes: indexes.slice(0, 60) });
+      if (data.revealed && Object.keys(data.revealed).length) mergeAnswerKeys(data.revealed);
+    } catch {
+      // Açıklamalar gelmezse soru yine çözülür; not sunucuda.
+    }
+  }
+
+  /** D/Y: önerme seçilince cevap sunucuda kilitlenir, doğrusu gelince kart açılır. */
+  async function pickTrueFalse(index: number, value: boolean) {
+    updateAnswer(String(index), value);
+    if (payload.answerCheck !== "server") {
+      setTfRevealed(true);
+      return;
+    }
+    const ok = await checkAnswerOnServer(index, value);
+    if (ok) setTfRevealed(true);
+    else {
+      const next = { ...answersRef.current };
+      delete next[String(index)];
+      answersRef.current = next;
+      setAnswers(next);
+    }
   }
 
   function updateAnswer(key: string, value: unknown, options?: { typing?: boolean }) {
@@ -2046,6 +2140,8 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     feedbackLoading,
     tfRevealed,
     setTfRevealed,
+    pickTrueFalse,
+    answerCheckError,
     podcastLoading,
     podcastCheckOpen,
     setPodcastCheckOpen,

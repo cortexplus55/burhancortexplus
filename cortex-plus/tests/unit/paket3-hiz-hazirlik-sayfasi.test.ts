@@ -47,7 +47,7 @@ vi.mock("@/lib/admin/feature-flags", () => ({
   PDF_LEARNING_V2_FLAG: "pdf_learning_v2",
 }));
 vi.mock("@/lib/supabase/server", () => ({ createServiceClient: () => state.service }));
-vi.mock("@/lib/billing/node-free-meter", () => ({ pathSkipKinds: async () => new Set<string>() }));
+vi.mock("@/lib/billing/node-free-meter", () => ({ pathSkipKinds: async () => new Set<string>(), pathSkipKindsForView: async () => new Set<string>() }));
 vi.mock("@/lib/billing/free-topic-gate", () => ({ freeTopicLocks: async () => null }));
 vi.mock("@/lib/content-pool/lesson-preview", () => ({ poolLessonPreview: async () => null }));
 vi.mock("@/lib/billing/entitlements", () => ({ getUserEntitlements: async () => ({ showsUpgradeChrome: false }) }));
@@ -215,7 +215,10 @@ describe("hazırlık sayfası veritabanı gidiş-dönüşleri", () => {
     expect(count("exam_prep_topic_mastery")).toBe(1);
     // 10 Kasım 2026: notlanmış denemeler kendi kaydından (aynı paralel dalgada tek okuma; deneme yoksa ek okuma yok).
     expect(count("practice_exams")).toBe(1);
-    expect(userCalls.length).toBeLessThanOrEqual(12);
+    // Faz 2: okul bilgisi oturum bağlamından (kabukla aynı istek içi okuma; göçten sonra tek RPC). Göç öncesi yedek
+    // yolda bağlam kredi özetini de okur: o tek okuma kabukla paylaşılır, sayfaya ayrıca eklenmez.
+    expect(count("credit_wallets")).toBeLessThanOrEqual(1);
+    expect(userCalls.filter((call) => call.table !== "credit_wallets").length).toBeLessThanOrEqual(12);
 
     expect(home).not.toBeNull();
     expect(home!.activeTopicLabel).toBe(" Kalıtım ");

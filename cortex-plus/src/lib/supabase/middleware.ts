@@ -3,6 +3,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { homePathForRole } from "@/lib/parity/signup";
 import { onboardingPathForRole } from "@/lib/auth/onboarding-path";
 import { accountActiveOrUnknown } from "@/lib/auth/active-account";
+import { sharedCacheGet, sharedCacheSet } from "@/lib/cache/shared-ttl-cache";
+import { gateFromProfile, SESSION_CONTEXT_TTL_SECONDS, sessionGateKey, type SessionGate } from "@/lib/auth/session-keys";
 import {
   applyDeviceCookie,
   checkSignedInDevice,
@@ -198,7 +200,21 @@ export async function updateSession(request: NextRequest) {
   // Durum iki okumada da gelmezse 503 yerine geçir (29 Ekim 2026): canlıda tek RPC hatası `_rsc`
   // isteğini düşürüp sayfayı boş bırakıyordu. Askı ve silinme `false` ile kesindir, aynen engellenir;
   // okunamayan durum sayfa kapısında (`requireUser`) ve RLS'te bir kez daha denetlenir.
-  const active = await accountActiveOrUnknown(supabase);
+  // Faz 2 (madde 2.2): hesap durumu + profil 45 sn paylaşımlı önbellekten (yalnız etkin ve kurulumu bitmiş hesap
+  // yazılır; askı, silinme ve profil güncellemesi kaydı siler). Önbellek boşsa iki okuma tek turda (eskiden sıralıydı:
+  // durum → cihaz → profil).
+  const cachedGate = await sharedCacheGet<SessionGate>(sessionGateKey(user.id));
+  const gateHit = cachedGate?.active === true && typeof cachedGate.onboarding_completed_at === "string" ? cachedGate : null;
+  const [active, profileRead] = gateHit
+    ? [true as const, { data: gateHit, error: null }]
+    : await Promise.all([
+        accountActiveOrUnknown(supabase),
+        supabase
+          .from("profiles")
+          .select("primary_role, onboarding_completed_at, deleted_at")
+          .eq("id", user.id)
+          .maybeSingle(),
+      ]);
   const accountCheckSkipped = active === null;
   if (accountCheckSkipped) {
     console.warn("account_status_unavailable", { path, rsc: request.nextUrl.searchParams.has("_rsc") });
@@ -234,11 +250,11 @@ export async function updateSession(request: NextRequest) {
     device = gate.cookie;
   }
 
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("primary_role, onboarding_completed_at, deleted_at")
-    .eq("id", user.id)
-    .maybeSingle();
+  const { data: profile, error: profileError } = profileRead;
+  if (!gateHit && !profileError) {
+    const gate = gateFromProfile(active, profile);
+    if (gate) await sharedCacheSet(sessionGateKey(user.id), gate, SESSION_CONTEXT_TTL_SECONDS);
+  }
 
   // Profil okunamadıysa "profil yok" değildir: kuruluma göndermek yerine geçirilir (aynı gerekçe).
   if (profileError) {

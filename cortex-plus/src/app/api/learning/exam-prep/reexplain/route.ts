@@ -4,7 +4,12 @@ import { errorResponse, withUser } from "@/lib/api/guards";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
 import { teacherPersona } from "@/lib/learning/teacher-brain";
 import { SOURCE_NUMBER_PRIORITY } from "@/lib/learning/teaching-rubric";
-import { REEXPLAIN_REPLY_MAX, REEXPLAIN_TEXT_MAX, reexplainUserPrompt } from "@/lib/learning/step-reexplain";
+import {
+  REEXPLAIN_REPLY_MAX,
+  REEXPLAIN_TEXT_MAX,
+  introducedNumbers,
+  reexplainUserPrompt,
+} from "@/lib/learning/step-reexplain";
 import { studentOutputText } from "@/lib/learning/student-output-firewall";
 
 const bodySchema = z.object({
@@ -49,6 +54,7 @@ export async function POST(request: Request) {
   const topicTitle = (node.session_meta as { topicTitle?: unknown } | null)?.topicTitle;
   const topicLabel = typeof topicTitle === "string" && topicTitle.trim() ? topicTitle.trim() : String(prep.title);
 
+  let lastIntroduced: string[] = [];
   const outcome = await generateJson({
     service,
     userId,
@@ -67,7 +73,21 @@ export async function POST(request: Request) {
       text: parsed.data.text,
       previous: parsed.data.previous,
     })}`,
-    parse: (raw) => replySchema.safeParse(raw).data ?? null,
+    // Faz 2 (madde 7.1): adımda olmayan sayı (yeni olgu) gelirse taslak reddedilir ve aynı rezervasyonla yeniden
+    // yazılır; tutmazsa öğrenciye kayan bir anlatım gösterilmez (hak iade edilir).
+    parse: (raw) => {
+      const reply = replySchema.safeParse(raw).data ?? null;
+      if (!reply) return null;
+      lastIntroduced = introducedNumbers(reply.reply, parsed.data.text);
+      return lastIntroduced.length ? null : reply;
+    },
+    describeParseFailure: () =>
+      lastIntroduced.length
+        ? [
+            `Şu sayılar adımın ilk anlatımında yok: ${lastIntroduced.join(", ")}. Yeni sayı/olgu ekleme; yalnız ` +
+              "DEĞİŞMEZ OLGULAR listesindeki sayıları aynen kullan.",
+          ]
+        : [],
   });
   if (!outcome.ok) return errorResponse(outcome.status, outcome.error);
 

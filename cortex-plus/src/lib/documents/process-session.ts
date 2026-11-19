@@ -129,6 +129,8 @@ export type ProcessPost = (body: {
   retryMap?: boolean;
   /** Kurulumda büyük PDF: ilk sayfaların baş kopyası hemen döner (document-head.ts). */
   fastStart?: boolean;
+  /** Faz 2 (madde 5): yükleme penceresinde seçilen sayfa aralığı. */
+  pageRange?: { start: number; end: number } | null;
 }) => Promise<{ status: number; body: Record<string, unknown> }>;
 
 export const postDocumentProcess: ProcessPost = async ({
@@ -140,6 +142,7 @@ export const postDocumentProcess: ProcessPost = async ({
   prepId,
   retryMap,
   fastStart,
+  pageRange,
 }) => {
   const response = await fetch("/api/documents/process", {
     method: "POST",
@@ -153,6 +156,7 @@ export const postDocumentProcess: ProcessPost = async ({
       ...(prepId ? { prepId } : {}),
       ...(retryMap ? { retryMap: true } : {}),
       ...(fastStart ? { fastStart: true } : {}),
+      ...(pageRange ? { pageRange } : {}),
     }),
   });
   const raw = await response.json().catch(() => ({}));

@@ -28,6 +28,8 @@ export function ExamQuizPlay({
   streakBefore = 0,
   usedHint = false,
   mood = null,
+  serverCheck = false,
+  checkError = null,
 }: {
   questions: PublicQuizQuestion[];
   index: number;
@@ -56,6 +58,13 @@ export function ExamQuizPlay({
   usedHint?: boolean;
   /** Bugünkü ruh hali: yanlış cevaptaki koç cümlesi buna göre (8 Kasım 2026). */
   mood?: Mood | null;
+  /**
+   * Faz 2 (madde 7.3): sorular anahtarsız geldi; "Kontrol et" sunucuda (`answer-check`) çözülür, anahtar o soru için
+   * sonradan eklenir. O arada "Kontrol ediliyor…" görünür.
+   */
+  serverCheck?: boolean;
+  /** Sunucu kontrolü düştüyse öğrenciye kısa cümle. */
+  checkError?: string | null;
 }) {
   const [revealed, setRevealed] = useState(locked);
   const [acting, setActing] = useState(false);
@@ -113,7 +122,7 @@ export function ExamQuizPlay({
   const finishing = index + 1 >= questions.length && (examMode || revealed);
   function handleAction() {
     if (disabled || acting) return;
-    if (!examMode && hasCorrect && !revealed) {
+    if (!examMode && (hasCorrect || serverCheck) && !revealed) {
       setRevealed(true);
       onReveal?.();
       return;
@@ -123,6 +132,7 @@ export function ExamQuizPlay({
   }
 
   const showFeedback = !examMode && revealed && hasCorrect;
+  const awaitingKey = !examMode && revealed && !hasCorrect && serverCheck;
   const progress = ((index + (revealed ? 1 : 0)) / Math.max(1, questions.length)) * 100;
   const finishLabel =
     continueLabel.toLocaleLowerCase("tr-TR").includes("bitir") || index + 1 >= questions.length
@@ -234,6 +244,11 @@ export function ExamQuizPlay({
 
       {twoOption && !examMode && hasCorrect && !revealed ? <div ref={twoSlotRef}>{twoOption(index)}</div> : null}
 
+      {awaitingKey ? (
+        <p className="mt-3 text-sm text-[var(--cp-muted)]" role="status" aria-live="polite">
+          {checkError ?? "Kontrol ediliyor…"}
+        </p>
+      ) : null}
       {showFeedback ? (
         <div
           className="p-5 rounded-2xl border border-[var(--cp-border)] bg-[var(--cp-surface)] space-y-3"

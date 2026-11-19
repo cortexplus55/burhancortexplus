@@ -140,7 +140,8 @@ export async function POST(request: Request) {
 
   const service = createServiceClient();
   if (wrongDrafts.length) {
-    await recordMistakes(service, userId, wrongDrafts);
+    const saved = await recordMistakes(service, userId, wrongDrafts);
+    if (!saved.ok) console.error("quiz_grade_mistakes_failed", { savedCount: saved.savedCount, error: saved.error });
     if (topicLabel) {
       await service.from("weak_topics").insert({
         user_id: userId,

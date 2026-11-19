@@ -11,6 +11,7 @@ import { foldTr } from "@/lib/documents/page-analysis";
 import { MEASURE } from "@/lib/learning/lesson-claims";
 import { normalizeNumberText } from "@/lib/learning/result-values";
 import { parseModelOutput } from "@/lib/ai/json-repair";
+import { isInsideSymbolicMath } from "@/lib/text/symbolic-math";
 
 const SUB: Record<string, string> = {
   "₀": "0", "₁": "1", "₂": "2", "₃": "3", "₄": "4",
@@ -521,6 +522,12 @@ function arithmeticIssues(text: string, thousandsDots = false): QuantIssue[] {
   const locate = (span: string) => spanForRepair(text, expanded, span);
   for (const match of expanded.matchAll(arithRegex())) {
     const start = match.index ?? 0;
+    // Faz 2 (madde 1): değişkenli / LaTeX / kimyasal oklu / eşitsizlikli ifadenin sayısal parçası denetlenmez ve
+    // onarılmaz. Bölge kapsandı sayılır; aşağıdaki yüzde, çevrim ve tek eşitlik taramaları da aynı parçaya girmez.
+    if (isInsideSymbolicMath(expanded, start, start + match[0].length)) {
+      covered.push({ start, end: start + match[0].length });
+      continue;
+    }
     const leftValue = evalArith(match[1]);
     const rightValue = evalArith(match[3]);
     const stated = rightValue ?? readAuditedNumber(match[3]);
@@ -554,6 +561,7 @@ function arithmeticIssues(text: string, thousandsDots = false): QuantIssue[] {
     const start = match.index ?? 0;
     const end = start + match[0].length;
     if (overlaps(start, end, covered)) continue;
+    if (isInsideSymbolicMath(expanded, start, end)) continue;
     const left = parseNumber(match[1]);
     const right = parseNumber(match[3]);
     const bothPercent = Boolean(match[4]);
@@ -579,6 +587,7 @@ function arithmeticIssues(text: string, thousandsDots = false): QuantIssue[] {
     const start = match.index ?? 0;
     const end = start + match[0].length;
     if (overlaps(start, end, covered)) continue;
+    if (isInsideSymbolicMath(expanded, start, end)) continue;
     const left = parseNumber(match[1]);
     const right = parseNumber(match[4]);
     covered.push({ start, end });
@@ -611,6 +620,7 @@ function arithmeticIssues(text: string, thousandsDots = false): QuantIssue[] {
     const start = match.index ?? 0;
     const end = start + match[0].length;
     if (overlaps(start, end, covered)) continue;
+    if (isInsideSymbolicMath(expanded, start, end)) continue;
     if (/%/.test(match[0])) continue;
     const leftUnit = match[1].match(new RegExp(`${MEASURE}(?![A-Za-zÇĞİÖŞÜçğıöşü])`, "i"))?.[0] ?? "";
     const rightUnit = match[3].match(new RegExp(`${MEASURE}(?![A-Za-zÇĞİÖŞÜçğıöşü])`, "i"))?.[0] ?? "";

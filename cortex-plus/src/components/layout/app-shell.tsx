@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { createClient } from "@/lib/supabase/server";
+import { getRequestUser } from "@/lib/auth/session";
 import { PageShell, type PageShellWidth } from "@/components/parity/page-shell";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
@@ -34,10 +34,8 @@ export async function AppShell({
   /** Sayfa iskeleti genişliği (13 Kasım 2026): liste 816, okuma/form 768. Başlık varsa varsayılan liste. */
   width?: PageShellWidth;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Faz 2: sayfanın `requireUser`ı ile aynı istek içi okuma (Auth'a bir kez).
+  const { supabase, user } = await getRequestUser();
 
   if (!user) {
     return <div className="cs-app min-h-dvh p-4">{children}</div>;

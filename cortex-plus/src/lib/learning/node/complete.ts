@@ -438,7 +438,11 @@ export async function completeAction(context: NodeContext): Promise<NextResponse
         mergedAnswers,
         doneTopicLabel ?? topicLabel,
       );
-      if (drafts.length) await recordMistakes(service, userId, drafts);
+      if (drafts.length) {
+        // Faz 2 (madde 3): sonuç okunur; düşen yazım günlüğe iner (recordMistakes kendi adımını da yazar).
+        const saved = await recordMistakes(service, userId, drafts);
+        if (!saved.ok) logNodeFailure("node_complete_mistakes_failed", { nodeId, savedCount: saved.savedCount }, new Error(saved.error ?? "mistakes_failed"));
+      }
       await recordUserActivity(service, userId, `exam_prep_${kind}`);
     } catch (error) {
       // Notebook / streak must not roll back a completed node. Hata yutulmaz, günlüğe iner (6 Kasım 2026).

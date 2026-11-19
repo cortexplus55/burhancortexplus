@@ -44,6 +44,11 @@ const payloadSchema = z.object({
   consentEvidence: consentEvidenceSchema.optional(),
   ageDeclaration: ageDeclarationSchema.optional(),
   marketingEmail: z.boolean().optional(),
+  // Faz 2 (madde 6): onay alanları gelirse yalnız `true` olabilir. Gelmezse (bağlantı başka tarayıcıda açıldı, yük
+  // yok) kayıt tamamlanır ve onay ekranı (`/onay`, onay kapısı) metinleri ister: öğrenci kilitlenmez.
+  termsAccepted: z.literal(true).optional(),
+  kvkkAccepted: z.literal(true).optional(),
+  ageConfirmed: z.literal(true).optional(),
 });
 
 /** Kayıtta hesaba yazılan okuma kanıtı ve yaş beyanı (bağlantı başka tarayıcıda açılınca yük yoktur). */

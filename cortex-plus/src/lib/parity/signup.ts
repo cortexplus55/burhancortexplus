@@ -36,6 +36,10 @@ export type SignupPayload = {
   ageDeclaration?: AgeDeclaration;
   /** Duyuru ve kampanya e-postası izni (isteğe bağlı, işaretli gelmez). 7 Kasım 2026. */
   marketingEmail?: boolean;
+  /** Faz 2 (madde 6): sunucu doğrular (`z.literal(true)`); yalnız işaretlendiyse `true` gönderilir. */
+  termsAccepted?: true;
+  kvkkAccepted?: true;
+  ageConfirmed?: true;
 };
 
 export const SIGNUP_STORAGE_KEY = "cortex-signup-payload";

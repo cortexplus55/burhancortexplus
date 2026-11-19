@@ -99,6 +99,8 @@ import {
 } from "@/lib/learning/session-signals";
 import { DOCUMENT_UPLOAD_ACCEPT, uploadSizeProblem } from "@/lib/documents/upload-accept";
 import { isPdfSplitTail } from "@/lib/documents/pdf-split-client";
+import { defaultPageRange, shouldAskPageRange, type PageRange } from "@/lib/documents/page-coverage";
+import { PdfPageRangePrompt, type PageRangeRequest } from "@/components/parity/pdf-page-range-prompt";
 import { PasteTextPanel } from "@/components/parity/paste-text-panel";
 import { UrlImportPanel } from "@/components/parity/url-import-panel";
 import { officialExamsForTrack } from "@/lib/curriculum/calendar";
@@ -1113,6 +1115,9 @@ export function ExamCreateWizard({
     }
     const processExamType = clampExamLabel(subject);
     const processExamDate = examDate.trim() || undefined;
+    // Faz 2 (madde 5): seçilen sayfa aralığı. Aralık 1'den başlamıyorsa hızlı başlatma (baş kopyası) kapalı.
+    const pageRange = pageRangeByDocRef.current.get(input.documentId) ?? null;
+    const fastStart = options.fastStart === true && (!pageRange || pageRange.start === 1);
     const result = await requestDocumentProcessing({
       documentId: input.documentId,
       post: (body) =>
@@ -1122,7 +1127,8 @@ export function ExamCreateWizard({
           examDate: processExamDate,
           // Extract now; the one course outline runs when topics are requested.
           deferMap: true,
-          ...(options.fastStart ? { fastStart: true } : {}),
+          ...(fastStart ? { fastStart: true } : {}),
+          ...(pageRange ? { pageRange } : {}),
         }),
       // Baş kopyası çıktı ve okuma pencere işçisine devredildi: yoklama burada biter.
       stopWhen: (progress) => progress.windowed === true,
@@ -1265,8 +1271,20 @@ export function ExamCreateWizard({
     });
   }
 
+  /** Faz 2 (madde 5): belge başına seçilen sayfa aralığı ve bekleyen aralık sorusu (sırayla, birer birer). */
+  const pageRangeByDocRef = useRef(new Map<string, PageRange>());
+  const [rangeAsk, setRangeAsk] = useState<(PageRangeRequest & { resolve: (range: PageRange) => void }) | null>(null);
+  const rangeQueueRef = useRef<Promise<unknown>>(Promise.resolve());
+  function askPageRange(request: PageRangeRequest): Promise<PageRange> {
+    const next = rangeQueueRef.current.then(
+      () => new Promise<PageRange>((resolve) => setRangeAsk({ ...request, resolve })),
+    );
+    rangeQueueRef.current = next.catch(() => undefined);
+    return next;
+  }
+
   /** Sunucunun sayfa/hak ön kontrolü (yalnız bilgi verir); ücretsiz sayfa hakkı dolduysa "stop". */
-  async function preflightPdf(documentId: string): Promise<PoolOutcome | null> {
+  async function preflightPdf(documentId: string, fileName?: string): Promise<PoolOutcome | null> {
     try {
       const preflightRes = await fetch("/api/documents/preflight", {
         method: "POST",
@@ -1290,7 +1308,18 @@ export function ExamCreateWizard({
         return "stop";
       }
       const free = preflight.freePages;
-      if (free && typeof preflight.pageCount === "number" && preflight.pageCount > free.remaining) {
+      // Faz 2 (madde 5): belge sessizce kırpılmaz. Varsayılan aralığa sığmayan PDF'te öğrenci aralığı seçer; yükleme
+      // cevabı bekler. Aralık sorulmadıysa ve hak yetmiyorsa eski bilgi satırı çıkar.
+      const affordable = free?.remaining ?? preflight.creditUse?.pagesAffordable ?? null;
+      if (typeof preflight.pageCount === "number" && shouldAskPageRange(preflight.pageCount, affordable)) {
+        const range = await askPageRange({
+          fileName: fileName ?? "Belge",
+          total: preflight.pageCount,
+          initial: defaultPageRange(preflight.pageCount, affordable),
+          affordable,
+        });
+        pageRangeByDocRef.current.set(documentId, range);
+      } else if (free && typeof preflight.pageCount === "number" && preflight.pageCount > free.remaining) {
         toast.message(freePageCapLine(preflight.pageCount, free.remaining));
       }
       // Ücretlide belge sayfa başına haktan düşer (kredi sistemi v2): önceden söyle.
@@ -1354,7 +1383,7 @@ export function ExamCreateWizard({
       process: async ({ documentId, item, onPages }) => {
         try {
           if (isPdfFile(item.file)) {
-            const stop = await preflightPdf(documentId);
+            const stop = await preflightPdf(documentId, item.file.name);
             if (stop) return stop;
           }
           return await processAndRemember(
@@ -1920,6 +1949,14 @@ export function ExamCreateWizard({
               </>
             )}
             <PhotoQualityPrompt request={upload.photoQuality} onAnswer={upload.answerPhotoQuality} />
+            <PdfPageRangePrompt
+              request={rangeAsk}
+              onConfirm={(range) => {
+                const pending = rangeAsk;
+                setRangeAsk(null);
+                pending?.resolve(range);
+              }}
+            />
             {/* An bitince (ya da atlanınca) bugünkü ilerleme satırları ve bu seçimin okunan dosya / sayfa sayısı. */}
             {scan.playing ? null : (
               <>

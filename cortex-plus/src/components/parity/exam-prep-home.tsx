@@ -234,6 +234,8 @@ export type PrepMaterial = {
   name: string;
   kindLabel: string;
   href: string;
+  /** Faz 2 (madde 5): "İşlenen kapsam: Sayfa 1–N / Toplam T sayfa. …" (dosyanın tamamı işlendiyse yok). */
+  coverageNote?: string | null;
 };
 
 export type LearningTrackingView = {
@@ -1739,6 +1741,11 @@ function MaterialsList({ materials }: { materials: PrepMaterial[] }) {
           <Link href={material.href} className="cp-exam-material">
             <strong>{material.name}</strong>
             <span>{material.kindLabel}</span>
+            {material.coverageNote ? (
+              <span className="cp-exam-material-coverage" data-coverage-badge>
+                {material.coverageNote}
+              </span>
+            ) : null}
           </Link>
         </li>
       ))}

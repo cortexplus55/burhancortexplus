@@ -28,6 +28,12 @@ export function providerFailurePath(params: URLSearchParams): string | null {
   if (EMAIL_LINK_CODES.test(code) || /email link|otp/i.test(description)) {
     return "/auth/auth-code-error";
   }
+  // Faz 2 (madde 4): Google ile ilk girişte aynı kutunun başka yazımıyla açılmış bir hesap varsa veritabanının kanonik
+  // e-posta kalkanı yeni hesabı açtırmaz; Supabase bunu "Database error saving new user" diye döndürür. Öğrenci
+  // kilitlenmez: var olan hesabına giriş yapması söylenir.
+  if (/database error (saving|creating) new user/i.test(description)) {
+    return "/auth/auth-code-error?neden=hesap-var";
+  }
   return "/auth/auth-code-error?neden=saglayici";
 }
 

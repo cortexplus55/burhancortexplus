@@ -13,6 +13,7 @@ import { loadMapInputs } from "@/lib/mastery-map/load";
 import { prepNetEstimate } from "@/lib/mastery-map/net-load";
 import { ExamPrepHome, type LearningTrackingView } from "@/components/parity/exam-prep-home";
 import { requireStudentArea } from "@/lib/auth/session";
+import { getSessionUserContext } from "@/lib/auth/session-context";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { loadOrBackfillTopics } from "@/lib/learning/exam-prep-topics";
 import { topicProgress } from "@/lib/learning/exam-prep-progress";
@@ -34,8 +35,9 @@ import {
   PDF_LEARNING_V2_FLAG,
 } from "@/lib/admin/feature-flags";
 import { createServiceClient } from "@/lib/supabase/server";
+import { resumeStalePrepSetup } from "@/lib/learning/prep-setup-finish";
 import { maybeRescheduleMissedDays } from "@/lib/learning/missed-day-reschedule";
-import { pathSkipKinds } from "@/lib/billing/node-free-meter";
+import { pathSkipKindsForView } from "@/lib/billing/node-free-meter";
 import {
   buildLearningIndicators,
   freePathUnblockIds,
@@ -62,6 +64,7 @@ import { retentionFromTopics } from "@/lib/learning/prep-radar";
 // Günü gelen tekrar (20 Ekim 2026): "Bugün N tekrar"; anahtar kapalıysa ya da tablo yoksa 0.
 import { dueReviewCountForPrep } from "@/lib/learning/review-items-store";
 import { countPendingMaterials } from "@/lib/learning/pending-materials";
+import { coverageBadgeText, processedCoverage } from "@/lib/documents/page-coverage";
 import { createPrepInviteToken, prepInviteUrl } from "@/lib/learning/prep-invite";
 import { prepInviteWhatsappHref } from "@/lib/learning/prep-share";
 import { examDatePassed, examResultDue } from "@/lib/learning/exam-result";
@@ -69,7 +72,6 @@ import { loadExamBaseline } from "@/lib/learning/exam-result-load";
 import { appOrigin } from "@/lib/app-url";
 import { freeTopicLocks } from "@/lib/billing/free-topic-gate";
 import { poolLessonPreview } from "@/lib/content-pool/lesson-preview";
-import { getUserEntitlements } from "@/lib/billing/entitlements";
 import { loadPlusPrices } from "@/lib/billing/plan-prices";
 import { campOffer } from "@/lib/camp/offer";
 import { CampCard } from "@/components/camp/camp-card";
@@ -133,6 +135,8 @@ export default async function ExamPrepDetailPage({
   // (visibility, view_count, forked_from) sütunları canlıda var. Birleşik okuma hata verirse
   // (sütun yok: göçten önceki veritabanı) eski üç okumaya düşülür: önce ana select, sonra kaynak
   // (yoksa yalnız document_id) ve paylaşım ayrı ayrı; eksik sütun sayfayı 404'e düşürmez.
+  // Faz 2 (madde 2): oturum bağlamı bu istekte bir kez okunur; profil, plan ve kampanya aynı sözden.
+  const sessionContext = getSessionUserContext(user.id, { client: supabase });
   const [shell, trackingV2, mergedPrep, { data: profile }] = await Promise.all([
     loadParityShellProps(supabase, user.id, user.email),
     isFeatureEnabled(service, PDF_LEARNING_V2_FLAG),
@@ -144,7 +148,8 @@ export default async function ExamPrepDetailPage({
       .eq("id", prepId)
       .eq("user_id", user.id)
       .maybeSingle(),
-    supabase.from("profiles").select("school_id, school_name").eq("id", user.id).maybeSingle(),
+    // Faz 2: okul bilgisi oturum bağlamının profilinden (kabukla aynı istek içi okuma).
+    sessionContext.then((context) => ({ data: context.profile })),
   ]);
 
   let prepRead = mergedPrep.data;
@@ -190,6 +195,9 @@ export default async function ExamPrepDetailPage({
     const proto = head.get("x-forwarded-proto") ?? "https";
     if (host) after(() => requestPrepPrefetch(service, { origin: `${proto}://${host}`, userId: user.id, prepId }));
   }
+  // Faz 2 (madde 7.4): kurulumun arka plan yarısı yarıda kesildiyse (fonksiyonun ömrü bitti) burada kaldığı yerden
+  // sürer. Yanıttan sonra; iş yoksa tek satır okuma.
+  after(() => resumeStalePrepSetup(service, { prepId, userId: user.id }).catch(() => "failed" as const));
   // Soğuk bellek (5 Kasım 2026): bu hazırlığın gömmeleri tahliye edildiyse arka planda yeniden indekslenir (yalnız gömme çağrısı).
   after(() => reindexEvictedForPrep(service, prepId, embedTexts).catch(() => 0));
   // Kaçırılan günler (8 Kasım 2026): bitmemiş adımın günü geçtiyse kalan plan bugünden sınava yeniden dağıtılır.
@@ -251,7 +259,7 @@ export default async function ExamPrepDetailPage({
         .eq("exam_prep_id", prepId)
         .order("sort_order");
     })(),
-    pathSkipKinds(service, user.id),
+    pathSkipKindsForView(service, user.id, supabase),
     trackingV2
       ? supabase
           .from("exam_prep_topic_mastery")
@@ -323,6 +331,8 @@ export default async function ExamPrepDetailPage({
           pageCount: parent ? pagesByParent.get(parent) ?? null : typeof row.page_count === "number" ? row.page_count : null,
         }),
         href: `/dokumanlar/${parent ?? id}`,
+        // Faz 2 (madde 5): kısmen işlenen belge kaynak kartında rozetle görünür (baş kopyası ana belgenin parçasıdır).
+        coverageNote: parent ? null : materialCoverageNote(row),
       },
     ];
   });
@@ -665,14 +675,19 @@ export default async function ExamPrepDetailPage({
 
   // Dalga 4: kilit + havuz önizlemesi, sınav sonrası başlangıç, ünite kontrolü, hakimiyet haritası ve kamp kartı
   // birbirini beklemez (kilit, dalga 3'teki yol açma yazımından sonra okunur).
-  const [{ firstTopicLocks, lockedIds, previewNode, lessonPreview }, lateBaseline, unitCheck, { mapUnits, prepNet }, camp] =
+  // Faz 2: bekleyen materyal ve tekrar sayıları da bu turda (eskiden sayfanın sonunda iki ayrı sıralı turdu).
+  const [{ firstTopicLocks, lockedIds, previewNode, lessonPreview }, lateBaseline, unitCheck, { mapUnits, prepNet }, camp, pendingMaterials, dueReviews] =
     await Promise.all([
       (async () => {
         // Beklemesiz kilit (Paket J takip #1): ücretsiz hesapta kilitli adım yolda 🔒 rozeti taşır, tıklayınca kart anında
         // açılır. Karar adım sayfası ve başlatma isteğiyle aynı kuraldan (`freeTopicLocks`); okuma düşerse kilit yok.
+        const plan = await sessionContext
+          .then((context) => ({ unlimited: context.entitlements.isPremium || context.account.isAdmin }))
+          .catch(() => undefined);
         const firstTopicLocks = await freeTopicLocks(service, {
           userId: user.id,
           prepId,
+          plan,
           nodes: nodes
             .filter((node) => node.status !== "done")
             .map((node) => ({
@@ -714,7 +729,11 @@ export default async function ExamPrepDetailPage({
       })(),
       // Paket 5: sınava ≤ 7 gün — ücretsiz hesapta mevcut Plus Haftalık'a sakin yönlendirme (Plus'ta gizli).
       prep.exam_date && !examPassed
-        ? Promise.all([getUserEntitlements(service, user.id), loadPlusPrices(service)])
+        ? Promise.all([
+            // Faz 2 (madde 2): yalnız gösterim (kampanya şeridi): plan oturum bağlamından, ayrı okuma yok.
+            sessionContext.then((context) => context.entitlements),
+            loadPlusPrices(service),
+          ])
             .then(([ent, prices]) =>
               // Hesap bağlamının bayrağı da şart (8 Kasım 2026): yetkiler kurucuyu ücretsiz sayıyordu, kurucuya Plus satılıyordu.
               campOffer({
@@ -726,6 +745,12 @@ export default async function ExamPrepDetailPage({
             )
             .catch(() => null)
         : Promise.resolve(null),
+      countPendingMaterials(service, { prepId, userId: user.id }),
+      dueReviewCountForPrep(service, {
+        userId: user.id,
+        prepId,
+        examDate: (prep.exam_date as string | null) ?? null,
+      }),
     ]);
   const pathNodes = lockedIds.size
     ? homeNodes.map((node) => (lockedIds.has(node.id) ? { ...node, planLocked: true } : node))
@@ -834,13 +859,18 @@ export default async function ExamPrepDetailPage({
         nodeScores={nodeScores}
         topicPercents={topicPercents}
         lockedPickId={typeof kilitli === "string" ? kilitli : null}
-        pendingMaterials={await countPendingMaterials(service, { prepId, userId: user.id })}
-        dueReviews={await dueReviewCountForPrep(service, {
-          userId: user.id,
-          prepId,
-          examDate: (prep.exam_date as string | null) ?? null,
-        })}
+        pendingMaterials={pendingMaterials}
+        dueReviews={dueReviews}
       />
     </ParitySorShell>
   );
+}
+
+function materialCoverageNote(row: Record<string, unknown>): string | null {
+  const coverage = processedCoverage({
+    pageCount: row.page_count,
+    sourcePageCount: row.source_page_count,
+    rangeStart: row.page_range_start,
+  });
+  return coverage ? coverageBadgeText(coverage) : null;
 }

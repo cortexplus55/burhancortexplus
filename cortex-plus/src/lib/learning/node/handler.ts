@@ -8,6 +8,7 @@ import { loadNodeContext, type NodeCaller, type NodeRequestOptions } from "./con
 import { warmAction } from "./actions/warm";
 import { reviewAction } from "./actions/review";
 import { gradeCheckAction } from "./actions/grade-check";
+import { answerCheckAction } from "./actions/answer-check";
 import { progressAction } from "./actions/progress";
 import { resumeAction } from "./actions/resume";
 import { saveAction } from "./actions/save";
@@ -28,6 +29,8 @@ export async function handleNodeRequest(
       return reviewAction(loaded);
     case "grade-check":
       return gradeCheckAction(loaded);
+    case "answer-check":
+      return answerCheckAction(loaded);
     case "progress":
       return progressAction(loaded);
     case "resume":

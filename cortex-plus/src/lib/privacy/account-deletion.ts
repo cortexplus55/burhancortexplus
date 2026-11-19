@@ -1,4 +1,5 @@
 import "server-only";
+import { invalidateSessionUserContext } from "@/lib/auth/session-context";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isOwnedDocumentStoragePath } from "@/lib/documents/storage-path";
 import { missingRelation } from "@/lib/learning/missing-column";
@@ -120,6 +121,8 @@ export async function purgeUserData(service: SupabaseClient, userId: string): Pr
     const { error: disableError } = await service.from("profiles")
       .update({ deleted_at: new Date().toISOString() }).eq("id", userId);
     if (disableError) return { ok: false, error: step };
+    // Faz 2: silinen hesap önbellekteki "etkin" kaydıyla bir an bile geçmesin.
+    await invalidateSessionUserContext(userId);
 
     step = "subscription_cancel";
     const { error: subscriptionError } = await service.from("subscriptions")

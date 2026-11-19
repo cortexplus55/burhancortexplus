@@ -64,7 +64,7 @@ vi.mock("openai", () => ({
     };
   },
 }));
-vi.mock("@/lib/learning/mistake-notebook", () => ({ recordMistakes: async () => undefined }));
+vi.mock("@/lib/learning/mistake-notebook", () => ({ recordMistakes: async () => ({ ok: true, savedCount: 0, error: null }) }));
 vi.mock("@/lib/learning/missed-day-reschedule", () => ({ maybeRescheduleMissedDays: async () => undefined }));
 vi.mock("@/lib/streak/record-activity", () => ({ recordUserActivity: async () => undefined }));
 // Öğretmen sözlü motoru: denetlenmiş açık uçlu soru, beklenen noktalar ve örnek cevap.

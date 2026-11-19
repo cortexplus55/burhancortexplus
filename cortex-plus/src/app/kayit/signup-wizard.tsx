@@ -138,6 +138,10 @@ export function SignupWizard() {
       consentEvidence: consentEvidence(),
       ageDeclaration: ageDeclarationOf(age) ?? undefined,
       marketingEmail: marketing || undefined,
+      // Faz 2 (madde 6): Google ile kayıtta da aynı üç onay sunucuya gider (yük `/kayit/tamamla`da okunur).
+      ...(kvkkRead.checked && kvkkRead.evidence ? { kvkkAccepted: true as const } : {}),
+      ...(termsRead.checked && termsRead.evidence ? { termsAccepted: true as const } : {}),
+      ...(!ageProblem(ageDeclarationOf(age)) ? { ageConfirmed: true as const } : {}),
     };
   }
 
@@ -269,6 +273,10 @@ export function SignupWizard() {
             marketingEmail: payload.marketingEmail,
             next: safeNextPath(searchParams.get("next"), ""),
             referralCode: payload.referralCode,
+            // Faz 2 (madde 6): sunucu üç onayı da `true` olarak ister; buraya yalnız consentIssue() geçince gelinir.
+            termsAccepted: termsRead.checked === true,
+            kvkkAccepted: kvkkRead.checked === true,
+            ageConfirmed: !ageProblem(ageDeclarationOf(age)),
           }),
         });
         const body = (await response.json().catch(() => ({}))) as { error?: string; fallback?: boolean };

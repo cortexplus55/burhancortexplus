@@ -5,6 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { studentSafePayload } from "@/lib/learning/student-safe-text";
 import type { OralQuestionDraft } from "@/lib/learning/oral-exam";
+import { stripAnswerKeyForActiveExam } from "@/lib/learning/active-exam-seal";
 import { normalizeQuizQuestion, publicQuizQuestion, sealedQuizQuestion, type QuizQuestion } from "@/lib/learning/exam-quiz";
 import { cardsAsShown, type LessonReviewCard } from "@/lib/learning/teaching-standards";
 import { sealStoredLesson } from "@/lib/learning/lesson-play-v3";
@@ -30,9 +31,10 @@ export async function publicPayloadForUser(
 ) {
   const isLesson = payload.type === "lesson";
   const isAdmin = isLesson ? await isAdminUser(service, userId) : false;
-  return studentSafePayload(publicNodePayload(payload, reviewCards, nodeKind, { isAdmin, language, lessonFormat }), {
-    keepQualityReport: isAdmin,
-  });
+  // Faz 2 (madde 7.3): bu yardımcı yalnız ETKİN oturumu açan yanıtlarda çağrılır (başlat, sürdür, ilerleme): test ve
+  // D/Y anahtarı gitmez; "Kontrol et" sunucuda (`answer-check`).
+  const sealed = stripAnswerKeyForActiveExam(publicNodePayload(payload, reviewCards, nodeKind, { isAdmin, language, lessonFormat }));
+  return studentSafePayload(sealed, { keepQualityReport: isAdmin });
 }
 
 export function publicNodePayload(

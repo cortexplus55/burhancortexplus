@@ -73,6 +73,14 @@ const bodySchema = z.object({
    * sürmez). Pencere işçisi bir sonraki pencereyi böyle okutur.
    */
   untilPage: z.number().int().positive().optional(),
+  /**
+   * Faz 2 (madde 5): öğrencinin yükleme penceresinde seçtiği sayfa aralığı. Yalnız okuma başlamadan yazılır
+   * (sonraki çağrılar imleçten sürer); bitiş başlangıçtan küçük olamaz.
+   */
+  pageRange: z
+    .object({ start: z.number().int().min(1), end: z.number().int().min(1) })
+    .refine((range) => range.end >= range.start, { message: "invalid_range" })
+    .optional(),
 });
 export const maxDuration = 300;
 /** Arka plan temizliği yeni parti başlatmayı bu süreden sonra bırakır (son parti en fazla ~90 sn). */
@@ -201,6 +209,10 @@ export async function POST(request: Request) {
   if (doc.user_id !== userId) return errorResponse(403, "forbidden");
   if (doc.status === "pending") {
     return NextResponse.json({ error: "Dosya yüklemesi henüz tamamlanmadı." }, { status: 409 });
+  }
+
+  if (parsed.data.pageRange && targetId === parsed.data.documentId && doc.mime_type === "application/pdf") {
+    await savePageRange(service, { documentId: doc.id as string, userId, range: parsed.data.pageRange });
   }
 
   const learningV2 = await isFeatureEnabled(service, PDF_LEARNING_V2_FLAG);
@@ -699,4 +711,27 @@ function processFailureMessage(error?: string): string {
     default:
       return userMessageForProcessError(error);
   }
+}
+
+/**
+ * Seçilen aralık yalnız okuma başlamadan (ingestion `initialized` değilken) yazılır; okunmaya başlamış belgenin aralığı
+ * değişmez (sayfalar yarım kalmasın). Sütunlar göçten önce yoksa sessizce atlanır: belge eskisi gibi baştan okunur ve
+ * kapsam rozeti kalan sayfaları yine gösterir.
+ */
+async function savePageRange(
+  service: Parameters<typeof processPdfDocumentStep>[0],
+  input: { documentId: string; userId: string; range: { start: number; end: number } },
+) {
+  const { data: state } = await service
+    .from("document_ingestion_state")
+    .select("initialized")
+    .eq("document_id", input.documentId)
+    .maybeSingle();
+  if (state?.initialized) return;
+  const { error } = await service
+    .from("documents")
+    .update({ page_range_start: input.range.start, page_range_end: input.range.end })
+    .eq("id", input.documentId)
+    .eq("user_id", input.userId);
+  if (error) console.warn("document_page_range_save_failed", { documentId: input.documentId, code: error.code ?? null });
 }

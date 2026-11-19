@@ -1223,7 +1223,8 @@ exports[`yol etkinliği rotası: eylem sözleşmesi > complete: test notlanır, 
         ],
         "question_text": "Mayozun sonunda kaç hücre oluşur?",
         "source": "quiz",
-        "source_question_id": "00000000-0000-4000-8000-0000000000d1:q:1",
+        "source_question_id": null,
+        "source_ref": "00000000-0000-4000-8000-0000000000d1:q:1",
         "topic_label": "Hücre Bölünmesi",
         "user_id": "00000000-0000-4000-8000-00000000aaaa",
       },
@@ -1275,8 +1276,8 @@ exports[`yol etkinliği rotası: eylem sözleşmesi > complete: test notlanır, 
     "db select exam_preps [learning_tracking] eq(id,"00000000-0000-4000-8000-0000000000a1") eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
     "db update exam_preps eq(id,"00000000-0000-4000-8000-0000000000a1") eq(user_id,"00000000-0000-4000-8000-00000000aaaa") payload={"learning_tracking":{"version":1,"updatedAt":"2026-10-30T09:00:00.000Z","programProgressPct":0,"topicMasteryPct":null,"examReadinessPct":0,"claimFullyReady":false,"measuredTopicCount":0,"unmeasuredTopicCount":1,"openMisconceptions":0},"readiness_score":0}",
     "db upsert exam_prep_generation_jobs payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","attempt_id":"00000000-0000-4000-8000-0000000000d1","client_request_id":"00000000-0000-4000-8000-0000000000f1","generation_id":"00000000-0000-4000-8000-0000000000e1","credit_idempotency_key":"exam_node_start_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_00000000-0000-4000-8000-0000000000f1","status":"completed","error_code":null,"updated_at":"2026-10-30T09:00:00.000Z"}",
-    "db select mistake_entries [id, source_question_id, wrong_count] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") in(source_question_id,["00000000-0000-4000-8000-0000000000d1:q:1"])",
-    "db insert mistake_entries payload=[{"user_id":"00000000-0000-4000-8000-00000000aaaa","source":"quiz","source_question_id":"00000000-0000-4000-8000-0000000000d1:q:1","topic_label":"Hücre Bölünmesi","question_text":"Mayozun sonunda kaç hücre oluşur?","options":["1","2","3","4","8"],"correct_answer":"4","first_wrong_answer":"2","explanation":"Mayoz dört hücre verir."}]",
+    "db select mistake_entries [id, source, source_question_id, source_ref, wrong_count] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") in(source_ref,["00000000-0000-4000-8000-0000000000d1:q:1"])",
+    "db insert mistake_entries payload=[{"user_id":"00000000-0000-4000-8000-00000000aaaa","source":"quiz","source_question_id":null,"source_ref":"00000000-0000-4000-8000-0000000000d1:q:1","topic_label":"Hücre Bölünmesi","question_text":"Mayozun sonunda kaç hücre oluşur?","options":["1","2","3","4","8"],"correct_answer":"4","first_wrong_answer":"2","explanation":"Mayoz dört hücre verir."}]",
     "db upsert user_activity_days payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","activity_date":"2026-10-30","source":"exam_prep_quiz"}",
     "db select user_streaks [current_streak, longest_streak, last_activity_date] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
     "db select user_activity_days [activity_date] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(source,"streak_freeze") gte(activity_date,"2026-10-26") lte(activity_date,"2026-11-01")",
@@ -2141,6 +2142,7 @@ exports[`yol etkinliği rotası: eylem sözleşmesi > progress: süren ders ve b
     "building": false,
     "ok": true,
     "payload": {
+      "answerCheck": "server",
       "generationFailed": true,
       "questions": [],
       "type": "quiz",
@@ -2284,7 +2286,7 @@ exports[`yol etkinliği rotası: eylem sözleşmesi > progress: süren ders ve b
     "db select document_topic_nodes [document_id] eq(id,"dtn1") maybe",
     "db select exam_prep_node_attempts [id, payload, generation_id, client_request_id] eq(id,"00000000-0000-4000-8000-0000000000d1") eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") eq(node_id,"00000000-0000-4000-8000-0000000000b1") maybe",
     "db update exam_prep_node_attempts eq(id,"00000000-0000-4000-8000-0000000000d1") eq(generation_id,"00000000-0000-4000-8000-0000000000e1") payload={"payload":{"type":"quiz","questions":[],"generationFailed":true}}",
-    "response 200 {"ok":true,"building":false,"payload":{"type":"quiz","questions":[],"generationFailed":true}}",
+    "response 200 {"ok":true,"building":false,"payload":{"type":"quiz","questions":[],"generationFailed":true,"answerCheck":"server"}}",
   ],
 }
 `;
@@ -2552,12 +2554,9 @@ exports[`yol etkinliği rotası: eylem sözleşmesi > resume: açık kayıt, bit
     "kind": "quiz",
     "ok": true,
     "payload": {
+      "answerCheck": "server",
       "questions": [
         {
-          "correct": [
-            "Değişmez",
-          ],
-          "explanation": "Mitozda kromozom sayısı korunur.",
           "multi": false,
           "options": [
             "Yarıya iner",
@@ -2569,10 +2568,6 @@ exports[`yol etkinliği rotası: eylem sözleşmesi > resume: açık kayıt, bit
           "text": "Mitozda kromozom sayısı nasıl değişir?",
         },
         {
-          "correct": [
-            "4",
-          ],
-          "explanation": "Mayoz dört hücre verir.",
           "multi": false,
           "options": [
             "1",
@@ -2765,7 +2760,7 @@ exports[`yol etkinliği rotası: eylem sözleşmesi > resume: açık kayıt, bit
     "db select document_topic_nodes [document_id] eq(id,"dtn1") maybe",
     "db select exam_prep_node_attempts [id, status, payload, answers, answer_meta, score, total, generation_id, client_request_id, complete_request_id, content_version, updated_at, difficulty, voice_mode, started_at, expires_at] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") eq(node_id,"00000000-0000-4000-8000-0000000000b1") eq(status,"active") order(updated_at,desc) limit(1) maybe",
     "db select credit_wallets [balance] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
-    "response 200 {"ok":true,"attemptId":"00000000-0000-4000-8000-0000000000d1","generationId":"00000000-0000-4000-8000-0000000000e1","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"quiz","title":"Testler","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false,"correct":["Değişmez"],"explanation":"Mitozda kromozom sayısı korunur."},{"text":"Mayozun sonunda kaç hücre oluşur?","options":["1","2","3","4","8"],"multi":false,"correct":["4"],"explanation":"Mayoz dört hücre verir."}]},"answers":{},"cursorIndex":0,"score":null,"total":2,"resumed":true,"startedAt":"2026-10-30T09:00:00.000Z","expiresAt":null,"timeLeftSec":900,"updatedAt":"2026-10-30T09:00:00.000Z","balance":500}",
+    "response 200 {"ok":true,"attemptId":"00000000-0000-4000-8000-0000000000d1","generationId":"00000000-0000-4000-8000-0000000000e1","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"quiz","title":"Testler","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false},{"text":"Mayozun sonunda kaç hücre oluşur?","options":["1","2","3","4","8"],"multi":false}],"answerCheck":"server"},"answers":{},"cursorIndex":0,"score":null,"total":2,"resumed":true,"startedAt":"2026-10-30T09:00:00.000Z","expiresAt":null,"timeLeftSec":900,"updatedAt":"2026-10-30T09:00:00.000Z","balance":500}",
   ],
 }
 `;
@@ -4056,12 +4051,9 @@ exports[`yol etkinliği rotası: start × tür > aynı istek kimliği: hazır ka
     "kind": "quiz",
     "ok": true,
     "payload": {
+      "answerCheck": "server",
       "questions": [
         {
-          "correct": [
-            "Değişmez",
-          ],
-          "explanation": "Mitozda kromozom sayısı korunur.",
           "multi": false,
           "options": [
             "Yarıya iner",
@@ -4241,7 +4233,7 @@ exports[`yol etkinliği rotası: start × tür > aynı istek kimliği: hazır ka
     "after:scheduled",
     "db select exam_prep_node_attempts [id, status, payload, answers, answer_meta, score, total, generation_id, client_request_id, complete_request_id, content_version, updated_at, difficulty, voice_mode, started_at, expires_at] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(node_id,"00000000-0000-4000-8000-0000000000b1") eq(client_request_id,"00000000-0000-4000-8000-0000000000f1") maybe",
     "db select credit_wallets [balance] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
-    "response 200 {"ok":true,"attemptId":"00000000-0000-4000-8000-0000000000d1","generationId":"00000000-0000-4000-8000-0000000000e1","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"quiz","title":"Testler","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false,"correct":["Değişmez"],"explanation":"Mitozda kromozom sayısı korunur."}]},"answers":{},"cursorIndex":0,"score":null,"total":2,"resumed":true,"startedAt":"2026-10-30T09:00:00.000Z","expiresAt":null,"timeLeftSec":900,"balance":500}",
+    "response 200 {"ok":true,"attemptId":"00000000-0000-4000-8000-0000000000d1","generationId":"00000000-0000-4000-8000-0000000000e1","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"quiz","title":"Testler","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false}],"answerCheck":"server"},"answers":{},"cursorIndex":0,"score":null,"total":2,"resumed":true,"startedAt":"2026-10-30T09:00:00.000Z","expiresAt":null,"timeLeftSec":900,"balance":500}",
     "after:run",
     "db select subscriptions [status, current_period_end, cancel_at_period_end, plans(is_premium, tier, name, slug, monthly_allowance)] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(status,"active") or(current_period_end.is.null,current_period_end.gt.2026-10-30T09:00:00.000Z) maybe",
     "db select admin_free_preview [user_id] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
@@ -4267,12 +4259,9 @@ exports[`yol etkinliği rotası: start × tür > aynı istek kimliği: hazır ka
     "kind": "quiz",
     "ok": true,
     "payload": {
+      "answerCheck": "server",
       "questions": [
         {
-          "correct": [
-            "Değişmez",
-          ],
-          "explanation": "Mitozda kromozom sayısı korunur.",
           "multi": false,
           "options": [
             "Yarıya iner",
@@ -4452,7 +4441,7 @@ exports[`yol etkinliği rotası: start × tür > aynı istek kimliği: hazır ka
     "after:scheduled",
     "db select exam_prep_node_attempts [id, status, payload, answers, answer_meta, score, total, generation_id, client_request_id, complete_request_id, content_version, updated_at, difficulty, voice_mode, started_at, expires_at] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") eq(node_id,"00000000-0000-4000-8000-0000000000b1") eq(status,"active") order(updated_at,desc) limit(1) maybe",
     "db select credit_wallets [balance] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
-    "response 200 {"ok":true,"attemptId":"00000000-0000-4000-8000-0000000000d1","generationId":"00000000-0000-4000-8000-0000000000e1","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"quiz","title":"Testler","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false,"correct":["Değişmez"],"explanation":"Mitozda kromozom sayısı korunur."}]},"answers":{},"cursorIndex":0,"score":null,"total":2,"resumed":true,"startedAt":"2026-10-30T09:00:00.000Z","expiresAt":null,"timeLeftSec":900,"balance":500}",
+    "response 200 {"ok":true,"attemptId":"00000000-0000-4000-8000-0000000000d1","generationId":"00000000-0000-4000-8000-0000000000e1","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"quiz","title":"Testler","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false}],"answerCheck":"server"},"answers":{},"cursorIndex":0,"score":null,"total":2,"resumed":true,"startedAt":"2026-10-30T09:00:00.000Z","expiresAt":null,"timeLeftSec":900,"balance":500}",
     "after:run",
     "db select subscriptions [status, current_period_end, cancel_at_period_end, plans(is_premium, tier, name, slug, monthly_allowance)] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(status,"active") or(current_period_end.is.null,current_period_end.gt.2026-10-30T09:00:00.000Z) maybe",
     "db select admin_free_preview [user_id] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
@@ -6227,12 +6216,9 @@ exports[`yol etkinliği rotası: start × tür > dersi tekrarla ve tekrar incele
     "kind": "quiz",
     "ok": true,
     "payload": {
+      "answerCheck": "server",
       "questions": [
         {
-          "correct": [
-            "Değişmez",
-          ],
-          "explanation": "Mitozda kromozom sayısı korunur.",
           "multi": false,
           "options": [
             "Yarıya iner",
@@ -6479,7 +6465,7 @@ exports[`yol etkinliği rotası: start × tür > dersi tekrarla ve tekrar incele
     "db insert study_session_moods payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","mood":"neutral"}",
     "log.info ["lesson_replayed",{"nodeId":"00000000-0000-4000-8000-0000000000b1"}]",
     "db select credit_wallets [balance] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
-    "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","generationId":"00000000-0000-4000-8000-900000000004","clientRequestId":"00000000-0000-4000-8000-900000000003","contentVersion":1,"state":"ready","kind":"quiz","title":"Testler","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false,"correct":["Değişmez"],"explanation":"Mitozda kromozom sayısı korunur."}],"reviewed":true},"answers":{},"cursorIndex":0,"total":1,"resumed":false,"startedAt":null,"expiresAt":null,"timeLeftSec":900,"balance":500}",
+    "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","generationId":"00000000-0000-4000-8000-900000000004","clientRequestId":"00000000-0000-4000-8000-900000000003","contentVersion":1,"state":"ready","kind":"quiz","title":"Testler","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false}],"reviewed":true,"answerCheck":"server"},"answers":{},"cursorIndex":0,"total":1,"resumed":false,"startedAt":null,"expiresAt":null,"timeLeftSec":900,"balance":500}",
     "after:run",
     "db select subscriptions [status, current_period_end, cancel_at_period_end, plans(is_premium, tier, name, slug, monthly_allowance)] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(status,"active") or(current_period_end.is.null,current_period_end.gt.2026-10-30T09:00:00.000Z) maybe",
     "db select admin_free_preview [user_id] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
@@ -6909,17 +6895,13 @@ exports[`yol etkinliği rotası: start × tür > kartlar, doğru/yanlış, sözl
     "kind": "true_false",
     "ok": true,
     "payload": {
+      "answerCheck": "server",
       "engine": "teacher",
       "items": [
         {
-          "correct": false,
-          "correctedStatement": "Mitozda kromozom sayısı korunur.",
-          "explanation": "Korunur.",
           "text": "Mitozda kromozom sayısı yarıya iner.",
         },
         {
-          "correct": true,
-          "explanation": "Dört hücre.",
           "text": "Mayoz dört hücre verir.",
         },
       ],
@@ -7159,7 +7141,7 @@ exports[`yol etkinliği rotası: start × tür > kartlar, doğru/yanlış, sözl
     "db insert study_session_moods payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","mood":"neutral"}",
     "db update exam_prep_nodes eq(id,"00000000-0000-4000-8000-0000000000b1") payload={"status":"ready"}",
     "db select credit_wallets [balance] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
-    "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","generationId":"00000000-0000-4000-8000-900000000002","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"true_false","title":"Doğru/Yanlış","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"true_false","items":[{"text":"Mitozda kromozom sayısı yarıya iner.","correct":false,"explanation":"Korunur.","correctedStatement":"Mitozda kromozom sayısı korunur."},{"text":"Mayoz dört hücre verir.","correct":true,"explanation":"Dört hücre."}],"teachingStandard":"true_false","engine":"teacher"},"answers":{},"cursorIndex":0,"total":2,"resumed":false,"startedAt":null,"expiresAt":null,"timeLeftSec":900,"balance":500}",
+    "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","generationId":"00000000-0000-4000-8000-900000000002","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"true_false","title":"Doğru/Yanlış","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"true_false","items":[{"text":"Mitozda kromozom sayısı yarıya iner."},{"text":"Mayoz dört hücre verir."}],"teachingStandard":"true_false","engine":"teacher","answerCheck":"server"},"answers":{},"cursorIndex":0,"total":2,"resumed":false,"startedAt":null,"expiresAt":null,"timeLeftSec":900,"balance":500}",
     "after:run",
     "db select subscriptions [status, current_period_end, cancel_at_period_end, plans(is_premium, tier, name, slug, monthly_allowance)] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(status,"active") or(current_period_end.is.null,current_period_end.gt.2026-10-30T09:00:00.000Z) maybe",
     "db select admin_free_preview [user_id] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
@@ -7467,16 +7449,13 @@ exports[`yol etkinliği rotası: start × tür > konu testi soğuk yazılır, il
     "kind": "quiz",
     "ok": true,
     "payload": {
+      "answerCheck": "server",
       "building": true,
       "builtAt": "2026-10-30T09:00:00.000Z",
       "engine": "teacher",
       "promised": 5,
       "questions": [
         {
-          "correct": [
-            "Değişmez",
-          ],
-          "explanation": "Mitozda kromozom sayısı korunur.",
           "multi": false,
           "options": [
             "Yarıya iner",
@@ -7763,7 +7742,7 @@ exports[`yol etkinliği rotası: start × tür > konu testi soğuk yazılır, il
     "after:scheduled",
     "after:scheduled",
     "db select credit_wallets [balance] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
-    "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","generationId":"00000000-0000-4000-8000-900000000001","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"quiz","title":"Testler","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false,"correct":["Değişmez"],"explanation":"Mitozda kromozom sayısı korunur."}],"promised":5,"teachingStandard":"quiz","engine":"teacher","building":true,"builtAt":"2026-10-30T09:00:00.000Z"},"answers":{},"cursorIndex":0,"total":1,"resumed":false,"startedAt":null,"expiresAt":null,"timeLeftSec":900,"balance":500}",
+    "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","generationId":"00000000-0000-4000-8000-900000000001","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"quiz","title":"Testler","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false}],"promised":5,"teachingStandard":"quiz","engine":"teacher","building":true,"builtAt":"2026-10-30T09:00:00.000Z","answerCheck":"server"},"answers":{},"cursorIndex":0,"total":1,"resumed":false,"startedAt":null,"expiresAt":null,"timeLeftSec":900,"balance":500}",
     "after:run",
     "db select subscriptions [status, current_period_end, cancel_at_period_end, plans(is_premium, tier, name, slug, monthly_allowance)] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(status,"active") or(current_period_end.is.null,current_period_end.gt.2026-10-30T09:00:00.000Z) maybe",
     "db select admin_free_preview [user_id] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
@@ -7794,12 +7773,9 @@ exports[`yol etkinliği rotası: start × tür > odaklı pratik ve hazır olma y
     "kind": "focused",
     "ok": true,
     "payload": {
+      "answerCheck": "server",
       "questions": [
         {
-          "correct": [
-            "Değişmez",
-          ],
-          "explanation": "Mitozda kromozom sayısı korunur.",
           "multi": false,
           "options": [
             "Yarıya iner",
@@ -7971,7 +7947,7 @@ exports[`yol etkinliği rotası: start × tür > odaklı pratik ve hazır olma y
     "db insert exam_prep_node_attempts payload={"node_id":"00000000-0000-4000-8000-0000000000b1","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","user_id":"00000000-0000-4000-8000-00000000aaaa","topic_id":"00000000-0000-4000-8000-0000000000c1","difficulty":"orta","voice_mode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"correct":["Değişmez"],"multi":false,"explanation":"Mitozda kromozom sayısı korunur."}],"testedTopic":"Hücre Bölünmesi"},"total":1,"status":"active","familiarity":"basics","mood":"neutral","client_request_id":"00000000-0000-4000-8000-0000000000f1"} one",
     "db update exam_prep_nodes eq(id,"00000000-0000-4000-8000-0000000000b1") payload={"status":"ready","title":"Hücre Bölünmesi · Odaklı pratik","session_meta":{"topicId":"dtn1","topicTitle":"Hücre Bölünmesi","sourcePages":[1,2]}}",
     "db select credit_wallets [balance] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
-    "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","kind":"focused","title":"Hücre Bölünmesi · Odaklı pratik","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false,"correct":["Değişmez"],"explanation":"Mitozda kromozom sayısı korunur."}],"testedTopic":"Hücre Bölünmesi"},"balance":500}",
+    "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","kind":"focused","title":"Hücre Bölünmesi · Odaklı pratik","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false}],"testedTopic":"Hücre Bölünmesi","answerCheck":"server"},"balance":500}",
     "after:run",
     "db select subscriptions [status, current_period_end, cancel_at_period_end, plans(is_premium, tier, name, slug, monthly_allowance)] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(status,"active") or(current_period_end.is.null,current_period_end.gt.2026-10-30T09:00:00.000Z) maybe",
     "db select admin_free_preview [user_id] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
@@ -8818,12 +8794,9 @@ exports[`yol etkinliği rotası: start × tür > son kontrol konu başına doldu
     "kind": "final_check",
     "ok": true,
     "payload": {
+      "answerCheck": "server",
       "questions": [
         {
-          "correct": [
-            "Değişmez",
-          ],
-          "explanation": "Mitozda kromozom sayısı korunur.",
           "multi": false,
           "options": [
             "Yarıya iner",
@@ -9076,7 +9049,7 @@ exports[`yol etkinliği rotası: start × tür > son kontrol konu başına doldu
     "db insert study_session_moods payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","mood":"neutral"}",
     "db update exam_prep_nodes eq(id,"00000000-0000-4000-8000-0000000000b1") payload={"status":"ready"}",
     "db select credit_wallets [balance] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
-    "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","generationId":"00000000-0000-4000-8000-900000000001","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"final_check","title":"Son kontrol","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false,"correct":["Değişmez"],"explanation":"Mitozda kromozom sayısı korunur."}],"teachingStandard":"quiz","uncoveredTopics":[]},"answers":{},"cursorIndex":0,"total":1,"resumed":false,"startedAt":null,"expiresAt":null,"timeLeftSec":900,"balance":500}",
+    "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","generationId":"00000000-0000-4000-8000-900000000001","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"final_check","title":"Son kontrol","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false}],"teachingStandard":"quiz","uncoveredTopics":[],"answerCheck":"server"},"answers":{},"cursorIndex":0,"total":1,"resumed":false,"startedAt":null,"expiresAt":null,"timeLeftSec":900,"balance":500}",
     "after:run",
     "db select subscriptions [status, current_period_end, cancel_at_period_end, plans(is_premium, tier, name, slug, monthly_allowance)] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(status,"active") or(current_period_end.is.null,current_period_end.gt.2026-10-30T09:00:00.000Z) maybe",
     "db select admin_free_preview [user_id] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
@@ -9102,6 +9075,7 @@ exports[`yol etkinliği rotası: start × tür > son kontrol konu başına doldu
     "kind": "written_exam",
     "ok": true,
     "payload": {
+      "answerCheck": "server",
       "questions": [
         {
           "multi": false,
@@ -9454,7 +9428,7 @@ exports[`yol etkinliği rotası: start × tür > son kontrol konu başına doldu
     "db insert study_session_moods payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","mood":"neutral"}",
     "db update exam_prep_nodes eq(id,"00000000-0000-4000-8000-0000000000b1") payload={"status":"ready"}",
     "db select credit_wallets [balance] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
-    "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","generationId":"00000000-0000-4000-8000-900000000002","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"written_exam","title":"Yazılı deneme","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir? (1)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false},{"text":"Mayozun sonunda kaç hücre oluşur? (2)","options":["1","2","3","4","8"],"multi":false},{"text":"Mitozda kromozom sayısı nasıl değişir? (3)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false},{"text":"Mayozun sonunda kaç hücre oluşur? (4)","options":["1","2","3","4","8"],"multi":false},{"text":"Mitozda kromozom sayısı nasıl değişir? (5)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false}],"teachingStandard":"written"},"answers":{},"cursorIndex":0,"total":5,"resumed":false,"startedAt":"2026-10-30T09:00:00.000Z","expiresAt":"2026-10-30T09:15:00.000Z","timeLeftSec":900,"balance":500}",
+    "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","generationId":"00000000-0000-4000-8000-900000000002","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"written_exam","title":"Yazılı deneme","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir? (1)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false},{"text":"Mayozun sonunda kaç hücre oluşur? (2)","options":["1","2","3","4","8"],"multi":false},{"text":"Mitozda kromozom sayısı nasıl değişir? (3)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false},{"text":"Mayozun sonunda kaç hücre oluşur? (4)","options":["1","2","3","4","8"],"multi":false},{"text":"Mitozda kromozom sayısı nasıl değişir? (5)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false}],"teachingStandard":"written","answerCheck":"server"},"answers":{},"cursorIndex":0,"total":5,"resumed":false,"startedAt":"2026-10-30T09:00:00.000Z","expiresAt":"2026-10-30T09:15:00.000Z","timeLeftSec":900,"balance":500}",
     "after:run",
     "db select subscriptions [status, current_period_end, cancel_at_period_end, plans(is_premium, tier, name, slug, monthly_allowance)] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(status,"active") or(current_period_end.is.null,current_period_end.gt.2026-10-30T09:00:00.000Z) maybe",
     "db select admin_free_preview [user_id] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
@@ -9480,12 +9454,9 @@ exports[`yol etkinliği rotası: start × tür > son kontrol konu başına doldu
     "kind": "qa",
     "ok": true,
     "payload": {
+      "answerCheck": "server",
       "questions": [
         {
-          "correct": [
-            "Değişmez",
-          ],
-          "explanation": "Mitozda kromozom sayısı korunur.",
           "multi": false,
           "options": [
             "Yarıya iner",
@@ -9497,10 +9468,6 @@ exports[`yol etkinliği rotası: start × tür > son kontrol konu başına doldu
           "text": "Mitozda kromozom sayısı nasıl değişir? (1)",
         },
         {
-          "correct": [
-            "4",
-          ],
-          "explanation": "Mayoz dört hücre verir.",
           "multi": false,
           "options": [
             "1",
@@ -9512,10 +9479,6 @@ exports[`yol etkinliği rotası: start × tür > son kontrol konu başına doldu
           "text": "Mayozun sonunda kaç hücre oluşur? (2)",
         },
         {
-          "correct": [
-            "Değişmez",
-          ],
-          "explanation": "Mitozda kromozom sayısı korunur.",
           "multi": false,
           "options": [
             "Yarıya iner",
@@ -9527,10 +9490,6 @@ exports[`yol etkinliği rotası: start × tür > son kontrol konu başına doldu
           "text": "Mitozda kromozom sayısı nasıl değişir? (3)",
         },
         {
-          "correct": [
-            "4",
-          ],
-          "explanation": "Mayoz dört hücre verir.",
           "multi": false,
           "options": [
             "1",
@@ -9542,10 +9501,6 @@ exports[`yol etkinliği rotası: start × tür > son kontrol konu başına doldu
           "text": "Mayozun sonunda kaç hücre oluşur? (4)",
         },
         {
-          "correct": [
-            "Değişmez",
-          ],
-          "explanation": "Mitozda kromozom sayısı korunur.",
           "multi": false,
           "options": [
             "Yarıya iner",
@@ -9852,7 +9807,7 @@ exports[`yol etkinliği rotası: start × tür > son kontrol konu başına doldu
     "db insert study_session_moods payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","mood":"neutral"}",
     "db update exam_prep_nodes eq(id,"00000000-0000-4000-8000-0000000000b1") payload={"status":"ready"}",
     "db select credit_wallets [balance] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
-    "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","generationId":"00000000-0000-4000-8000-900000000003","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"qa","title":"Soru-Cevap","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir? (1)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false,"correct":["Değişmez"],"explanation":"Mitozda kromozom sayısı korunur."},{"text":"Mayozun sonunda kaç hücre oluşur? (2)","options":["1","2","3","4","8"],"multi":false,"correct":["4"],"explanation":"Mayoz dört hücre verir."},{"text":"Mitozda kromozom sayısı nasıl değişir? (3)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false,"correct":["Değişmez"],"explanation":"Mitozda kromozom sayısı korunur."},{"text":"Mayozun sonunda kaç hücre oluşur? (4)","options":["1","2","3","4","8"],"multi":false,"correct":["4"],"explanation":"Mayoz dört hücre verir."},{"text":"Mitozda kromozom sayısı nasıl değişir? (5)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false,"correct":["Değişmez"],"explanation":"Mitozda kromozom sayısı korunur."}],"teachingStandard":"intro_qa"},"answers":{},"cursorIndex":0,"total":5,"resumed":false,"startedAt":null,"expiresAt":null,"timeLeftSec":900,"balance":500}",
+    "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","generationId":"00000000-0000-4000-8000-900000000003","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"qa","title":"Soru-Cevap","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir? (1)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false},{"text":"Mayozun sonunda kaç hücre oluşur? (2)","options":["1","2","3","4","8"],"multi":false},{"text":"Mitozda kromozom sayısı nasıl değişir? (3)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false},{"text":"Mayozun sonunda kaç hücre oluşur? (4)","options":["1","2","3","4","8"],"multi":false},{"text":"Mitozda kromozom sayısı nasıl değişir? (5)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false}],"teachingStandard":"intro_qa","answerCheck":"server"},"answers":{},"cursorIndex":0,"total":5,"resumed":false,"startedAt":null,"expiresAt":null,"timeLeftSec":900,"balance":500}",
     "after:run",
     "db select subscriptions [status, current_period_end, cancel_at_period_end, plans(is_premium, tier, name, slug, monthly_allowance)] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(status,"active") or(current_period_end.is.null,current_period_end.gt.2026-10-30T09:00:00.000Z) maybe",
     "db select admin_free_preview [user_id] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
@@ -10246,12 +10201,9 @@ exports[`yol etkinliği rotası: start × tür > önceden yazılmış test hazı
     "kind": "quiz",
     "ok": true,
     "payload": {
+      "answerCheck": "server",
       "questions": [
         {
-          "correct": [
-            "Değişmez",
-          ],
-          "explanation": "Mitozda kromozom sayısı korunur.",
           "multi": false,
           "options": [
             "Yarıya iner",
@@ -10263,10 +10215,6 @@ exports[`yol etkinliği rotası: start × tür > önceden yazılmış test hazı
           "text": "Mitozda kromozom sayısı nasıl değişir?",
         },
         {
-          "correct": [
-            "4",
-          ],
-          "explanation": "Mayoz dört hücre verir.",
           "multi": false,
           "options": [
             "1",
@@ -10521,7 +10469,7 @@ exports[`yol etkinliği rotası: start × tür > önceden yazılmış test hazı
     "after:scheduled",
     "after:scheduled",
     "db select credit_wallets [balance] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
-    "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","generationId":"00000000-0000-4000-8000-900000000001","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"quiz","title":"Testler","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false,"correct":["Değişmez"],"explanation":"Mitozda kromozom sayısı korunur."},{"text":"Mayozun sonunda kaç hücre oluşur?","options":["1","2","3","4","8"],"multi":false,"correct":["4"],"explanation":"Mayoz dört hücre verir."}]},"answers":{},"cursorIndex":0,"total":2,"resumed":false,"startedAt":null,"expiresAt":null,"timeLeftSec":900,"balance":500}",
+    "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","generationId":"00000000-0000-4000-8000-900000000001","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"quiz","title":"Testler","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false},{"text":"Mayozun sonunda kaç hücre oluşur?","options":["1","2","3","4","8"],"multi":false}],"answerCheck":"server"},"answers":{},"cursorIndex":0,"total":2,"resumed":false,"startedAt":null,"expiresAt":null,"timeLeftSec":900,"balance":500}",
     "after:run",
     "db select subscriptions [status, current_period_end, cancel_at_period_end, plans(is_premium, tier, name, slug, monthly_allowance)] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(status,"active") or(current_period_end.is.null,current_period_end.gt.2026-10-30T09:00:00.000Z) maybe",
     "db select admin_free_preview [user_id] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
@@ -10883,12 +10831,9 @@ exports[`yol etkinliği rotası: start × tür > özellik kapalı (v1): soru-cev
     "kind": "qa",
     "ok": true,
     "payload": {
+      "answerCheck": "server",
       "questions": [
         {
-          "correct": [
-            "Değişmez",
-          ],
-          "explanation": "Mitozda kromozom sayısı korunur.",
           "multi": false,
           "options": [
             "Yarıya iner",
@@ -10900,10 +10845,6 @@ exports[`yol etkinliği rotası: start × tür > özellik kapalı (v1): soru-cev
           "text": "Mitozda kromozom sayısı nasıl değişir? (1)",
         },
         {
-          "correct": [
-            "4",
-          ],
-          "explanation": "Mayoz dört hücre verir.",
           "multi": false,
           "options": [
             "1",
@@ -10915,10 +10856,6 @@ exports[`yol etkinliği rotası: start × tür > özellik kapalı (v1): soru-cev
           "text": "Mayozun sonunda kaç hücre oluşur? (2)",
         },
         {
-          "correct": [
-            "Değişmez",
-          ],
-          "explanation": "Mitozda kromozom sayısı korunur.",
           "multi": false,
           "options": [
             "Yarıya iner",
@@ -10930,10 +10867,6 @@ exports[`yol etkinliği rotası: start × tür > özellik kapalı (v1): soru-cev
           "text": "Mitozda kromozom sayısı nasıl değişir? (3)",
         },
         {
-          "correct": [
-            "4",
-          ],
-          "explanation": "Mayoz dört hücre verir.",
           "multi": false,
           "options": [
             "1",
@@ -10945,10 +10878,6 @@ exports[`yol etkinliği rotası: start × tür > özellik kapalı (v1): soru-cev
           "text": "Mayozun sonunda kaç hücre oluşur? (4)",
         },
         {
-          "correct": [
-            "Değişmez",
-          ],
-          "explanation": "Mitozda kromozom sayısı korunur.",
           "multi": false,
           "options": [
             "Yarıya iner",
@@ -11210,7 +11139,7 @@ exports[`yol etkinliği rotası: start × tür > özellik kapalı (v1): soru-cev
     "db insert study_session_moods payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","mood":"neutral"}",
     "db update exam_prep_nodes eq(id,"00000000-0000-4000-8000-0000000000b1") payload={"status":"ready"}",
     "db select credit_wallets [balance] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
-    "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","kind":"qa","title":"Soru-Cevap","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir? (1)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false,"correct":["Değişmez"],"explanation":"Mitozda kromozom sayısı korunur."},{"text":"Mayozun sonunda kaç hücre oluşur? (2)","options":["1","2","3","4","8"],"multi":false,"correct":["4"],"explanation":"Mayoz dört hücre verir."},{"text":"Mitozda kromozom sayısı nasıl değişir? (3)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false,"correct":["Değişmez"],"explanation":"Mitozda kromozom sayısı korunur."},{"text":"Mayozun sonunda kaç hücre oluşur? (4)","options":["1","2","3","4","8"],"multi":false,"correct":["4"],"explanation":"Mayoz dört hücre verir."},{"text":"Mitozda kromozom sayısı nasıl değişir? (5)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false,"correct":["Değişmez"],"explanation":"Mitozda kromozom sayısı korunur."}],"teachingStandard":"intro_qa"},"balance":500}",
+    "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","kind":"qa","title":"Soru-Cevap","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir? (1)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false},{"text":"Mayozun sonunda kaç hücre oluşur? (2)","options":["1","2","3","4","8"],"multi":false},{"text":"Mitozda kromozom sayısı nasıl değişir? (3)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false},{"text":"Mayozun sonunda kaç hücre oluşur? (4)","options":["1","2","3","4","8"],"multi":false},{"text":"Mitozda kromozom sayısı nasıl değişir? (5)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false}],"teachingStandard":"intro_qa","answerCheck":"server"},"balance":500}",
     "after:run",
     "db select subscriptions [status, current_period_end, cancel_at_period_end, plans(is_premium, tier, name, slug, monthly_allowance)] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(status,"active") or(current_period_end.is.null,current_period_end.gt.2026-10-30T09:00:00.000Z) maybe",
     "db select admin_free_preview [user_id] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",

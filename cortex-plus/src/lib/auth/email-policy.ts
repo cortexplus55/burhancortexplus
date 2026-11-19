@@ -1,3 +1,5 @@
+import { normalizeCanonicalEmail } from "@/lib/auth/canonical-email";
+
 /**
  * Kayıt e-postası kuralları.
  *
@@ -16,22 +18,8 @@
  * demek, tek kutuyla sınırsız hesap açılmasına izin vermek olur.
  */
 export function normalizeEmail(raw: string): string {
-  const email = raw.trim().toLowerCase();
-  const at = email.lastIndexOf("@");
-  if (at < 1) return email;
-
-  let local = email.slice(0, at);
-  const domain = email.slice(at + 1);
-
-  const plus = local.indexOf("+");
-  if (plus > -1) local = local.slice(0, plus);
-
-  if (domain === "gmail.com" || domain === "googlemail.com") {
-    local = local.replace(/\./g, "");
-    return `${local}@gmail.com`;
-  }
-
-  return `${local}@${domain}`;
+  // Faz 2 (madde 4): tek kural, tek yer — `canonical-email.ts`.
+  return normalizeCanonicalEmail(raw);
 }
 
 export function emailDomain(raw: string): string {

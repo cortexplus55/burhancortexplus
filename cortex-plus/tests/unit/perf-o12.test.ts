@@ -10,6 +10,7 @@ describe("O12 cheap perf wins", () => {
   it("ayarlar reads run in parallel", () => {
     const src = readFileSync("src/app/ayarlar/page.tsx", "utf8");
     expect(src.match(/await supabase/g)).toBeNull();
-    expect(src).toContain('select("study_reminder_email")');
+    // Faz 2: profilin iki okuması tek select'te birleşti (hatırlatma tercihi aynı satırdan).
+    expect(src).toMatch(/select\("[^"]*study_reminder_email[^"]*"\)/);
   });
 });
