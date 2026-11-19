@@ -38,13 +38,43 @@ export const sourceCorrectionWarningSchema = z.object({
 /** Öğrencinin gördüğü kartın başlığı (iç kod adı değil). */
 export const SOURCE_CORRECTION_TITLE = "Kaynağında düzeltilmesi gereken bir bilgi var";
 
-/** Karşılaştırma biçimi: harf, rakam ve matematik işaretleri; boşluk ve noktalama düşer. */
+/**
+ * Karşılaştırma biçimi: harf, rakam ve matematik işaretleri; boşluk ve noktalama düşer. Gösterim farkları tek biçime
+ * iner (Faz 1-A §2.1): çarpma işaretleri (· × ∙ ⋅ * ve sayılar/harfler arası "x" değil) "*", bölme (÷ ∕) "/", eksi
+ * türleri "-", alt çizgi ve süslü alt simge ayraçları düşer, Unicode alt/üst simge rakamları düz rakama iner.
+ */
 export function correctionKey(value: string): string {
   return value
     .normalize("NFKC")
     .replace(/[−–—]/g, "-")
+    .replace(/[·×∙⋅•*]/g, "*")
+    .replace(/[÷∕]/g, "/")
     .toLocaleLowerCase("tr-TR")
-    .replace(/[\s.,;:!?'"’‘“”«»()[\]{}]+/gu, "");
+    .replace(/[\s.,;:!?'"’‘“”«»()[\]{}_]+/gu, "");
+}
+
+/** Eşittir işaretinin iki yanı: sol terim ve işlem işaretleriyle bağlı sağ taraf (cümledeki ilk boşluklu sözcükte biter). */
+const FORMULA_PATTERN =
+  /[\p{L}\p{N}_]+(?:\s*[=]\s*[(\p{L}\p{N}_][\p{L}\p{N}_()^]*(?:\s*[·×∙⋅•*/÷∕+\-−^]\s*[(\p{L}\p{N}_][\p{L}\p{N}_()^]*)*)/gu;
+
+/**
+ * Metindeki formüller (`F = V · d_cisim · g` gibi), karşılaştırma biçiminde. İddia ya da doğru cümle içinde geçse de
+ * formül ayrıca çıkar; bekçi cümlenin tamamını değil formülü arar. Eşittir yoksa boş.
+ */
+export function formulaKeys(value: string): string[] {
+  const out: string[] = [];
+  for (const match of value.normalize("NFKC").matchAll(FORMULA_PATTERN)) {
+    if (!match[0].includes("=")) continue;
+    const key = correctionKey(match[0]);
+    if (key.length >= SOURCE_CORRECTION_LIMITS.minClaim && !out.includes(key)) out.push(key);
+  }
+  return out;
+}
+
+/** Bir iddianın aranacak biçimleri: bütün cümle ve içindeki formüller. */
+function claimKeys(value: string): string[] {
+  const whole = correctionKey(value);
+  return [...new Set([whole, ...formulaKeys(value)])].filter((key) => key.length >= SOURCE_CORRECTION_LIMITS.minClaim);
 }
 
 function clean(value: unknown, max: number): string {
@@ -113,13 +143,17 @@ export function correctionAsNoteWarning(warning: SourceCorrectionWarning): Formu
   return { id: "source_correction", found: warning.documentClaim, standard: warning.verifiedTruth };
 }
 
-/** Metin kaynağın yanlış iddiasını taşıyor ve doğrusunu taşımıyor mu (anahtar bekçisi). */
+/**
+ * Metin kaynağın yanlış iddiasını taşıyor ve doğrusunu taşımıyor mu (anahtar bekçisi). İddia ve doğru, bütün cümle
+ * ya da içlerindeki formül olarak aranır; gösterim farkı (· / ×, alt çizgi, boşluk) sonucu değiştirmez.
+ */
 export function repeatsSourceError(text: string, warning: SourceCorrectionWarning | null | undefined): boolean {
   if (!warning || !text.trim()) return false;
   const key = correctionKey(text);
-  const claim = correctionKey(warning.documentClaim);
-  if (claim.length < SOURCE_CORRECTION_LIMITS.minClaim || !key.includes(claim)) return false;
-  return !key.includes(correctionKey(warning.verifiedTruth));
+  const truths = claimKeys(warning.verifiedTruth);
+  const claims = claimKeys(warning.documentClaim).filter((claim) => !truths.includes(claim));
+  if (!claims.some((claim) => key.includes(claim))) return false;
+  return !truths.some((truth) => key.includes(truth));
 }
 
 export const SOURCE_CORRECTION_ISSUE = "Kaynak düzeltmesi: doğru cevap kaynağın yanlış bilgisini taşıyor";
