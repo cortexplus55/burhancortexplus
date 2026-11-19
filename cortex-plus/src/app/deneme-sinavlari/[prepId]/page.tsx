@@ -13,6 +13,7 @@ import { loadMapInputs } from "@/lib/mastery-map/load";
 import { prepNetEstimate } from "@/lib/mastery-map/net-load";
 import { ExamPrepHome, type LearningTrackingView } from "@/components/parity/exam-prep-home";
 import { requireStudentArea } from "@/lib/auth/session";
+import { getSessionUserContext } from "@/lib/auth/session-context";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { loadOrBackfillTopics } from "@/lib/learning/exam-prep-topics";
 import { topicProgress } from "@/lib/learning/exam-prep-progress";
@@ -144,7 +145,8 @@ export default async function ExamPrepDetailPage({
       .eq("id", prepId)
       .eq("user_id", user.id)
       .maybeSingle(),
-    supabase.from("profiles").select("school_id, school_name").eq("id", user.id).maybeSingle(),
+    // Faz 2: okul bilgisi oturum bağlamının profilinden (kabukla aynı istek içi okuma).
+    getSessionUserContext(user.id, { client: supabase }).then((context) => ({ data: context.profile })),
   ]);
 
   let prepRead = mergedPrep.data;
@@ -665,7 +667,8 @@ export default async function ExamPrepDetailPage({
 
   // Dalga 4: kilit + havuz önizlemesi, sınav sonrası başlangıç, ünite kontrolü, hakimiyet haritası ve kamp kartı
   // birbirini beklemez (kilit, dalga 3'teki yol açma yazımından sonra okunur).
-  const [{ firstTopicLocks, lockedIds, previewNode, lessonPreview }, lateBaseline, unitCheck, { mapUnits, prepNet }, camp] =
+  // Faz 2: bekleyen materyal ve tekrar sayıları da bu turda (eskiden sayfanın sonunda iki ayrı sıralı turdu).
+  const [{ firstTopicLocks, lockedIds, previewNode, lessonPreview }, lateBaseline, unitCheck, { mapUnits, prepNet }, camp, pendingMaterials, dueReviews] =
     await Promise.all([
       (async () => {
         // Beklemesiz kilit (Paket J takip #1): ücretsiz hesapta kilitli adım yolda 🔒 rozeti taşır, tıklayınca kart anında
@@ -726,6 +729,12 @@ export default async function ExamPrepDetailPage({
             )
             .catch(() => null)
         : Promise.resolve(null),
+      countPendingMaterials(service, { prepId, userId: user.id }),
+      dueReviewCountForPrep(service, {
+        userId: user.id,
+        prepId,
+        examDate: (prep.exam_date as string | null) ?? null,
+      }),
     ]);
   const pathNodes = lockedIds.size
     ? homeNodes.map((node) => (lockedIds.has(node.id) ? { ...node, planLocked: true } : node))
@@ -834,12 +843,8 @@ export default async function ExamPrepDetailPage({
         nodeScores={nodeScores}
         topicPercents={topicPercents}
         lockedPickId={typeof kilitli === "string" ? kilitli : null}
-        pendingMaterials={await countPendingMaterials(service, { prepId, userId: user.id })}
-        dueReviews={await dueReviewCountForPrep(service, {
-          userId: user.id,
-          prepId,
-          examDate: (prep.exam_date as string | null) ?? null,
-        })}
+        pendingMaterials={pendingMaterials}
+        dueReviews={dueReviews}
       />
     </ParitySorShell>
   );

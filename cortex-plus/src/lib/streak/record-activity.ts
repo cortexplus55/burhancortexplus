@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isPremiumUser } from "@/lib/billing/entitlements";
 import { addDays, isoWeekday } from "@/lib/istanbul-day";
@@ -72,28 +73,52 @@ export async function recordUserActivity(
 export async function getUserStreak(
   service: SupabaseClient,
   userId: string,
-  now = new Date(),
+  now?: Date,
 ): Promise<number> {
   const state = await getUserStreakState(service, userId, now);
   return state.streak;
 }
 
-export async function getUserStreakState(
+/** İstek kapsamı (Faz 2): kabuk ve sayfa aynı istekte seriyi bir kez okur. */
+const streakScope = cache((): Map<string, Promise<StreakFreezeView>> => new Map());
+
+export function getUserStreakState(
   service: SupabaseClient,
   userId: string,
-  now = new Date(),
+  now?: Date,
+): Promise<StreakFreezeView> {
+  // Belirli bir an istendiyse (testler, geçmiş hesap) paylaşılmaz.
+  if (now) return readUserStreakState(service, userId, now);
+  const scope = streakScope();
+  const hit = scope.get(userId);
+  if (hit) return hit;
+  const pending = readUserStreakState(service, userId, new Date());
+  scope.set(userId, pending);
+  pending.catch(() => {
+    if (scope.get(userId) === pending) scope.delete(userId);
+  });
+  return pending;
+}
+
+async function readUserStreakState(
+  service: SupabaseClient,
+  userId: string,
+  now: Date,
 ): Promise<StreakFreezeView> {
   const today = istanbulDateString(now);
-  const { data } = await service
-    .from("user_streaks")
-    .select("current_streak, last_activity_date")
-    .eq("user_id", userId)
-    .maybeSingle();
+  // Faz 2 (madde 2.3): üç okuma birbirine bağlı değil; sıralı şelale yerine tek tur.
+  const [{ data }, usedThisWeek, allowance] = await Promise.all([
+    service
+      .from("user_streaks")
+      .select("current_streak, last_activity_date")
+      .eq("user_id", userId)
+      .maybeSingle(),
+    countFreezesThisWeek(service, userId, today),
+    weeklyAllowance(service, userId),
+  ]);
 
   const current = data?.current_streak ?? 0;
   const last = data?.last_activity_date ? String(data.last_activity_date).slice(0, 10) : null;
-  const usedThisWeek = await countFreezesThisWeek(service, userId, today);
-  const allowance = await weeklyAllowance(service, userId);
   let remaining = Math.max(0, allowance - usedThisWeek);
 
   const missed = missedDayIfOneGap(last, today);

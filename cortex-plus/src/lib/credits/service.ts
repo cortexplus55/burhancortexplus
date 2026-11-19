@@ -1,4 +1,5 @@
 import "server-only";
+import { invalidateSessionUserContext } from "@/lib/auth/session-context";
 import { priceForModel, usageCostUsd, type ModelPrice } from "@/lib/billing/model-price";
 import { randomUUID } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -217,6 +218,8 @@ export async function reserveCredits(
     p_token: randomUUID(),
   });
   if (claimError) return { ok: false, reason: "error" };
+  // Faz 2: kredi/sayaç düştü; gösterim önbelleği (oturum bağlamı) anında temizlenir. Karar SQL'de verildi.
+  await invalidateSessionUserContext(userId);
   if (claim?.state !== "claimed") return {
     ok: false,
     reason: claim?.state === "busy" ? "operation_in_progress" : claim?.state === "committed" ? "operation_completed" : "error",

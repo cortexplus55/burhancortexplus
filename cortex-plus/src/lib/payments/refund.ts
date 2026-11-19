@@ -1,4 +1,5 @@
 import "server-only";
+import { invalidateSessionUserContext } from "@/lib/auth/session-context";
 
 import crypto from "crypto";
 import { revalidatePath } from "next/cache";
@@ -585,6 +586,8 @@ async function tryApplyPaymentRefundRpc(
       errorStep: "rpc",
     };
   }
+  // Faz 2: iade bakiyeyi ve aboneliği değiştirir; gösterim önbelleği anında düşer.
+  await invalidateSessionUserContext(input.context.beneficiaryId);
 
   const payload =
     data && typeof data === "object" ? (data as Record<string, unknown>) : {};
@@ -836,6 +839,7 @@ async function applyPaymentRefundTs(
       p_entry_type: "adjustment",
       p_reason: `payment_refund:${ctx.merchantOid}`,
     });
+    if (!creditError) await invalidateSessionUserContext(ctx.beneficiaryId);
     if (creditError) {
       const msg = String(creditError.message ?? "");
       await writeRefundReason(

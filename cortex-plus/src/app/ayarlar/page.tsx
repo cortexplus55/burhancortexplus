@@ -74,8 +74,9 @@ function Group({ title, description, children, tone }: { title: string; descript
 export default async function AyarlarPage() {
   const { supabase, user } = await requireUser();
 
-  // Okumalar paralel (2 Kasım 2026, O12).
-  const [{ data: deletionRequest }, account, { data: reminderPref }, { data: profile }] = await Promise.all([
+  // Okumalar paralel (2 Kasım 2026, O12). Faz 2: plan ve kredi özeti oturum bağlamından (kabukla aynı istek içi
+  // okuma); profilin iki ayrı okuması tek sorgu; kampanya izni de aynı turda (eskiden ayrı, sonraki turdaydı).
+  const [{ data: deletionRequest }, account, profileRead, { data: marketingPref }] = await Promise.all([
     supabase
       .from("data_deletion_requests")
       .select("id, status, requested_at")
@@ -84,16 +85,27 @@ export default async function AyarlarPage() {
       .limit(1)
       .maybeSingle(),
     getStudentAccountContext(supabase, user.id),
-    // Kolon yoksa sorgu hata verir ve tercih "açık" varsayılır.
-    supabase.from("profiles").select("study_reminder_email").eq("id", user.id).maybeSingle(),
-    supabase.from("profiles").select("full_name, avatar_url, school_name, grade_level").eq("id", user.id).maybeSingle(),
+    supabase
+      .from("profiles")
+      .select("full_name, avatar_url, school_name, grade_level, study_reminder_email")
+      .eq("id", user.id)
+      .maybeSingle(),
+    // Kampanya izni yalnız sunucu anahtarıyla okunur (satır güvenliği tarayıcıya kapalı). 7 Kasım 2026.
+    createServiceClient()
+      .from("email_preferences")
+      .select("marketing")
+      .eq("user_id", user.id)
+      .maybeSingle(),
   ]);
-  // Kampanya izni yalnız sunucu anahtarıyla okunur (satır güvenliği tarayıcıya kapalı). 7 Kasım 2026.
-  const { data: marketingPref } = await createServiceClient()
-    .from("email_preferences")
-    .select("marketing")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  // Hatırlatma kolonu canlı şemada var (20260911160000 göçü); okuma düşerse ad "Öğrenci", tercih "açık" varsayılır.
+  const profile = (profileRead.error ? null : profileRead.data) as {
+    full_name?: string | null;
+    avatar_url?: string | null;
+    school_name?: string | null;
+    grade_level?: string | null;
+    study_reminder_email?: boolean | null;
+  } | null;
+  const reminderPref = profile;
 
   const name = (profile?.full_name as string | null)?.trim() || "Öğrenci";
   const avatarRaw = (profile?.avatar_url as string | null) ?? null;

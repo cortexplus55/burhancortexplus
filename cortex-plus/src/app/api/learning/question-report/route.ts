@@ -1,3 +1,4 @@
+import { invalidateSessionUserContext } from "@/lib/auth/session-context";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { withUser } from "@/lib/api/guards";
@@ -135,7 +136,7 @@ export async function POST(request: Request) {
         p_meta: { reason: "question_report", report_id: report.id, source },
       })
       .then(
-        () => undefined,
+        () => invalidateSessionUserContext(userId),
         () => undefined,
       );
     await awardStars(service, { userId, source: "prep", ref: `report:${report.id}`, amount: REPORT_STARS });

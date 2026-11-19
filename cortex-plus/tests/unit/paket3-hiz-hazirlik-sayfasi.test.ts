@@ -215,7 +215,10 @@ describe("hazırlık sayfası veritabanı gidiş-dönüşleri", () => {
     expect(count("exam_prep_topic_mastery")).toBe(1);
     // 10 Kasım 2026: notlanmış denemeler kendi kaydından (aynı paralel dalgada tek okuma; deneme yoksa ek okuma yok).
     expect(count("practice_exams")).toBe(1);
-    expect(userCalls.length).toBeLessThanOrEqual(12);
+    // Faz 2: okul bilgisi oturum bağlamından (kabukla aynı istek içi okuma; göçten sonra tek RPC). Göç öncesi yedek
+    // yolda bağlam kredi özetini de okur: o tek okuma kabukla paylaşılır, sayfaya ayrıca eklenmez.
+    expect(count("credit_wallets")).toBeLessThanOrEqual(1);
+    expect(userCalls.filter((call) => call.table !== "credit_wallets").length).toBeLessThanOrEqual(12);
 
     expect(home).not.toBeNull();
     expect(home!.activeTopicLabel).toBe(" Kalıtım ");

@@ -1,3 +1,4 @@
+import { invalidateSessionUserContext } from "@/lib/auth/session-context";
 import crypto from "crypto";
 import { after } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -71,6 +72,13 @@ export async function POST(request: Request) {
   }
 
   if (result.result === "completed" && result.payer_id) {
+    // Faz 2: ödeme onaylandı; plan ve kredi gösterimi bir sonraki açılışta taze (45 sn önbellek düşer).
+    await Promise.all([
+      invalidateSessionUserContext(result.payer_id),
+      result.beneficiary_id && result.beneficiary_id !== result.payer_id
+        ? invalidateSessionUserContext(result.beneficiary_id)
+        : Promise.resolve(),
+    ]);
     try {
       await auditLog(service, {
         actorId: result.payer_id,

@@ -3,6 +3,7 @@
  * başarısız, iade), önceden yazımın saklanması ya da devralınan kayda yazılması, kaydın açılması.
  */
 import "server-only";
+import { invalidateSessionUserContext } from "@/lib/auth/session-context";
 import { NextResponse, after } from "next/server";
 import { recordLessonTiming, recordOpenTiming } from "@/lib/admin/beta-metrics";
 import { adoptedPrefetchAttempt, dropPrefetch, publishPrefetchPartial, storePrefetchedLesson } from "@/lib/learning/lesson-prefetch";
@@ -114,6 +115,7 @@ export async function refundUnsavedGeneration(
           p_key: `unsaved_refund:${id}`,
           p_meta: { reason: "unsaved_generation", cause: input.reason, reservation_id: id, action_code: row.action_code ?? null },
         });
+        if (!giftError) await invalidateSessionUserContext(input.userId);
         if (giftError) {
           await service.from("credit_reservations").update({ status: "committed" }).eq("id", id).eq("status", "refunded");
           console.error("unsaved_generation_refund_failed", { reason: input.reason, reservationId: id });
