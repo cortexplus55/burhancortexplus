@@ -29,6 +29,7 @@ import { ALL_TOPICS_LABEL } from "@/lib/learning/prep-wide-target";
 import { narrowPagesToTopic } from "@/lib/learning/topic-section";
 import { APPROVED_FACTS_CHARS } from "@/lib/learning/teacher-lesson";
 import { NodeGenerationError, actionForKind, awaitLoggedWrite } from "./shared";
+import { guardLessonForCorrection } from "@/lib/learning/lesson-correction-guard";
 import { saveTopicLesson } from "./lesson-store";
 import { withSupport, type LessonCore } from "./teacher-pages";
 import type { NodePayloadInput } from "./generate";
@@ -267,8 +268,13 @@ export async function teacherLessonPayload(
   }
   const checked = await modelCheck.then(warnedNow);
   // Ünite şeması (Faz 1-A §2.1): uyarı dersin kendisinde de durur; kayıt (content_json) onu taşır.
+  // Geç gelen düzeltme (yazım bittikten sonra) de bekçiden geçer; ekranlar yayımlandığı için ekran sayısı değişmez.
   const lesson = checked.sourceCorrectionWarning
-    ? { ...outcome.lesson, sourceCorrectionWarning: checked.sourceCorrectionWarning }
+    ? guardLessonForCorrection(
+        { ...outcome.lesson, sourceCorrectionWarning: checked.sourceCorrectionWarning },
+        checked.sourceCorrectionWarning,
+        { keepScreens: true },
+      ).lesson
     : outcome.lesson;
   // Ders kalitesi örneği (23 Ekim 2026): denetçinin öğretim puanları, ek model çağrısı olmadan. Yanıtı beklemez;
   // yazım düşerse ders sürer (6 Kasım 2026'dan beri hata günlüğe iner).

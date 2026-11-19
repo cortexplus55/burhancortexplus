@@ -20,6 +20,7 @@ import { visualSceneText } from "@/lib/learning/visual-scenes/prompt";
 import { checkSceneRelations } from "@/lib/learning/visual-scenes/relation-check";
 import { explanationAnswerMismatch, mcqAnswerMismatch } from "@/lib/learning/answer-consistency";
 import { unsafeStoredCheck } from "@/lib/learning/answer-key-consistency";
+import { guardLessonForCorrection } from "@/lib/learning/lesson-correction-guard";
 
 /**
  * LessonV3 — Ders → Ekran → Blok dizisi (16 Ekim 2026, ürün sahibinin kararı).
@@ -417,7 +418,18 @@ export function settleStoredChecks<T extends Pick<LessonV3Object, "screens">>(le
 
 type LessonV3Object = z.infer<typeof lessonV3ObjectSchema>;
 
-export const lessonV3Schema = lessonV3ObjectSchema.transform((lesson) => settleStoredChecks(dropContradictingScenes(lesson)));
+/**
+ * Kayıtlı ders okunurken de kaynak düzeltme bekçisi (20 Kasım 2026): dersin kendi uyarısı varsa yanlışı öğreten cümle,
+ * kutu ve soru gösterilmez. Ekran sayısı değişmez (cevaplar ekran sırasına bağlı).
+ */
+function guardStoredCorrection<T extends LessonV3Object>(lesson: T): T {
+  if (!lesson.sourceCorrectionWarning) return lesson;
+  return guardLessonForCorrection(lesson, lesson.sourceCorrectionWarning, { keepScreens: true }).lesson;
+}
+
+export const lessonV3Schema = lessonV3ObjectSchema.transform((lesson) =>
+  settleStoredChecks(guardStoredCorrection(dropContradictingScenes(lesson))),
+);
 
 export type LessonV3 = z.infer<typeof lessonV3Schema>;
 

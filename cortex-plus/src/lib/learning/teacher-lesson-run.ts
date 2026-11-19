@@ -14,6 +14,7 @@ import { parseModelJson } from "@/lib/learning/teaching-standards";
 import { LESSON_V3_FORMAT, screenConcept, type LessonScreen, type LessonV3 } from "@/lib/learning/lesson-v3";
 import { LessonStreamReader } from "@/lib/learning/lesson-stream";
 import { runLessonSanity } from "@/lib/learning/lesson-sanity";
+import { guardLessonForCorrection, guardScreensForCorrection } from "@/lib/learning/lesson-correction-guard";
 import {
   COVERAGE_COMPLETION_SCREENS,
   DIAGRAM_COMPLETION_SYSTEM,
@@ -30,6 +31,7 @@ import {
   dropRepeatedScreens,
   fourPartGaps,
   isCoverageIssue,
+  lessonCorrectionNow,
   lessonCoverageGaps,
   lessonLevelStructureIssues,
   lessonTeachingFlags,
@@ -397,6 +399,21 @@ export async function teacherLessonPipeline(
 ): Promise<PipelineResult> {
   const started = options.started ?? Date.now();
   const mode = input.mode ?? "document";
+  // Her yayım (ön yayım, nabız, kavram yayımı) kaynak düzeltme bekçisinden geçer: başlıktaki hedef ve genel bakış da.
+  // Ekranlar kavram yayımında zaten süzülüyor; burada ekran sayısı değişmez.
+  const rawPublish = options.onPublish;
+  if (rawPublish) {
+    options = {
+      ...options,
+      onPublish: (item) =>
+        rawPublish({
+          ...item,
+          lesson: guardLessonForCorrection(item.lesson, mode === "topic" ? null : lessonCorrectionNow(input), {
+            keepScreens: true,
+          }).lesson,
+        }),
+    };
+  }
   const fixTriggers: TeacherIssue[][] = [];
   const dropped: string[] = [];
   const teachingScores: number[] = [];
@@ -437,7 +454,9 @@ export async function teacherLessonPipeline(
     let preview: { screen: LessonScreen; sent: Promise<void> } | null = null;
     const sendPreview = (screen: LessonScreen) => {
       if (!options.onPublish || input.streamFirst === false || preview) return;
-      const shown = previewScreen(screen);
+      // Ön yayım da kaynak düzeltme bekçisinden geçer: denetlenmemiş ekran yanlış bağıntıyı bir an bile göstermesin.
+      const guarded = guardScreensForCorrection([screen], mode === "topic" ? null : lessonCorrectionNow(input)).screens[0];
+      const shown = guarded ? previewScreen(guarded) : null;
       if (!shown) return;
       const lesson = stripLessonIssueTags({
         format: LESSON_V3_FORMAT,
@@ -598,8 +617,14 @@ export async function teacherLessonPipeline(
         // Ders içi soru tekrarı yayımdan önce deterministik olarak düşer (25 Ekim 2026); anahtar açıklamasıyla
         // hizalanır, görsele gönderen soru çıkar (29 Ekim 2026) — karıştırmadan önce.
         // Ekran içi tekrar süzgeci (30 Ekim 2026): üçüncü kez geçen örnek ya da cümle süs kutusundan silinir.
+        // Kaynak düzeltme bekçisi (20 Kasım 2026): notun bilimsel olarak yanlış bağıntısını öğreten cümle, kutu ya da
+        // soru yayımdan önce düşer (yalnız siler). Düzeltme o anda bilinen (baştan ya da paralel denetimden gelen).
+        const corrected = guardScreensForCorrection(outcome.screens, mode === "topic" ? null : lessonCorrectionNow(input));
+        if (corrected.dropped) {
+          console.info("teacher_lesson_correction_guard", { concept: parts[index]?.concept?.slice(0, 60) ?? null, dropped: corrected.dropped });
+        }
         const deduped = dedupScreens(
-          settleCheckKeys(dropRepeatedScreens(published, dropRepeatedChecks(published, outcome.screens)), {
+          settleCheckKeys(dropRepeatedScreens(published, dropRepeatedChecks(published, corrected.screens)), {
             concept: parts[index]?.concept,
           }),
         );
@@ -759,6 +784,14 @@ export async function teacherLessonPipeline(
       academicDomain: scene?.verdict === "added" ? scene.domain : domain.academicDomain,
       visualArchetype: scene?.verdict === "added" ? scene.archetype : domain.visualArchetype,
     };
+    // Kapanış alanları ve sonradan eklenen ekranlar da (onarım, kapsam, şema) aynı bekçiden geçer.
+    if (mode !== "topic") {
+      const closing = guardLessonForCorrection(delivered, lessonCorrectionNow(input));
+      if (closing.dropped) {
+        console.info("teacher_lesson_correction_guard", { stage: "closing", dropped: closing.dropped });
+        delivered = closing.lesson;
+      }
+    }
     const done = !lessonLevelStructureIssues(delivered, input).some(isCoverageIssue);
     return {
       lesson: stripLessonIssueTags(delivered),
