@@ -10,6 +10,8 @@ export const TWIN_UNAVAILABLE = "İkiz soru şu an hazırlanamadı. Birazdan yen
 /** Faz 5 §3.1 (harfiyen): cevap vermeden önce, şıkların altında. */
 export const TWO_OPTION_CHIP = "🤔 İki Şık Arasında Kaldım";
 export const TWO_OPTION_PICK = "Arasında kaldığın iki şıkka dokun.";
+/** Soru başına bir ipucu (20 Kasım 2026): kullanıldıktan sonra düğme bu yazıyla kapalı kalır. */
+export const TWO_OPTION_USED = "İpucu kullanıldı";
 /** İpucu üretilemezse ekranın söylediği sabit cümle (cevap içermez). */
 export const TWO_OPTION_FALLBACK = "İki şıkkı tanımlarıyla karşılaştır: soru kökündeki anahtar ifade hangisinin tanımına uyuyor?";
 

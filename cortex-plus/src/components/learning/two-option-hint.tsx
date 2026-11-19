@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { RichBody } from "@/components/parity/lesson-rich-text";
-import { TWO_OPTION_CHIP, TWO_OPTION_FALLBACK, TWO_OPTION_PICK, twoOptionEliminatedLine } from "@/lib/learning/twin-question-copy";
+import { TWO_OPTION_CHIP, TWO_OPTION_FALLBACK, TWO_OPTION_PICK, TWO_OPTION_USED, twoOptionEliminatedLine } from "@/lib/learning/twin-question-copy";
 import "@/styles/twin-question.css";
 
 /**
@@ -35,6 +35,8 @@ export function TwoOptionHint({
   resolve?: (pair: string[]) => TwoOptionResolved | Promise<TwoOptionResolved>;
 }) {
   const [open, setOpen] = useState(false);
+  // Soru başına bir ipucu (20 Kasım 2026): ipucu alındıktan sonra çip kapanır; sunucu da aynı soruda ikinci şık elemez.
+  const [used, setUsed] = useState(false);
   const [pair, setPair] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
@@ -65,9 +67,10 @@ export function TwoOptionHint({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ attemptId, index, options: next }),
       });
-      const data = (await response.json().catch(() => ({}))) as { hint?: string; eliminated?: string | null };
+      const data = (await response.json().catch(() => ({}))) as { hint?: string; eliminated?: string | null; used?: boolean };
       setHint(response.ok && data.hint ? data.hint : TWO_OPTION_FALLBACK);
       if (response.ok) eliminate(data.eliminated);
+      if (response.ok && data.used) setUsed(true);
     } catch {
       setHint(TWO_OPTION_FALLBACK);
     } finally {
@@ -84,8 +87,15 @@ export function TwoOptionHint({
 
   if (!open) {
     return (
-      <button type="button" className="cp-two-chip" data-testid="two-option-chip" onClick={() => setOpen(true)}>
-        {TWO_OPTION_CHIP}
+      <button
+        type="button"
+        className="cp-two-chip"
+        data-testid="two-option-chip"
+        onClick={() => setOpen(true)}
+        disabled={used}
+        aria-disabled={used}
+      >
+        {used ? TWO_OPTION_USED : TWO_OPTION_CHIP}
       </button>
     );
   }
@@ -93,7 +103,7 @@ export function TwoOptionHint({
   return (
     <div className="cp-two" role="group" aria-label={TWO_OPTION_CHIP}>
       {hint ? (
-        <div role="status" aria-live="polite">
+        <div role="status" aria-live="polite" data-used={used ? "true" : undefined}>
           <p className="cp-two-hint">
             💡 <RichBody text={hint} />
           </p>

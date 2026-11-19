@@ -5,6 +5,7 @@ import { answerKey } from "@/lib/learning/exam-quiz";
 import { TWO_OPTION_FALLBACK } from "@/lib/learning/twin-question-copy";
 import { loadAttemptQuizQuestion, writeTwoOptionHint } from "@/lib/learning/twin-question-run";
 import { eliminateDistractor } from "@/lib/learning/two-option-eliminate";
+import { claimTwoOptionAnswer, readTwoOptionAnswer, twoOptionKey } from "@/lib/learning/two-option-once";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -32,6 +33,10 @@ export async function POST(request: Request) {
   const { attemptId, index } = parsed.data;
   const question = await loadAttemptQuizQuestion(service, { userId, attemptId, index });
   if (!question) return NextResponse.json({ error: "Bu soru bulunamadı." }, { status: 404 });
+  // Soru başına bir kez (20 Kasım 2026): bu soruda daha önce ipucu alındıysa aynı cevap döner, yeni şık elenmez.
+  const onceKey = twoOptionKey(userId, attemptId, index);
+  const earlier = await readTwoOptionAnswer(onceKey);
+  if (earlier) return NextResponse.json({ ok: true, ...earlier, used: true });
   // Şıklar sorunun kendi şıklarından olmalı (tarayıcı metni yalnız seçimi taşır).
   const pick = (value: string) => question.options.find((option) => answerKey(option) === answerKey(value)) ?? null;
   const a = pick(parsed.data.options[0]);
@@ -40,5 +45,6 @@ export async function POST(request: Request) {
   const hint = await writeTwoOptionHint(service, userId, question, [a, b]);
   console.info("two_option_hint", JSON.stringify({ fallback: !hint }));
   const eliminated = eliminateDistractor({ text: question.text, options: question.options, correct: question.correct, pair: [a, b], multi: question.multi });
-  return NextResponse.json({ ok: true, hint: hint ?? TWO_OPTION_FALLBACK, fallback: !hint, eliminated });
+  const answer = await claimTwoOptionAnswer(onceKey, { hint: hint ?? TWO_OPTION_FALLBACK, fallback: !hint, eliminated: eliminated ?? null });
+  return NextResponse.json({ ok: true, ...answer, used: true });
 }
