@@ -151,7 +151,8 @@ export function SignupWizard() {
       // Satın almaya basan misafir /kayit?next=/pay'e geliyor; kayıt
       // bitince oraya dönmeli, dashboard'a değil. Doğrulama bağlantısı
       // aynı tarayıcıda açılınca tamamla sayfası bunu okuyor.
-      const target = searchParams.get("next");
+      // Yalnız güvenli iç yol saklanır (okuyan yer de süzer; iki kat koruma).
+      const target = safeNextPath(searchParams.get("next"), "");
       if (target) localStorage.setItem(SIGNUP_NEXT_KEY, target);
       else localStorage.removeItem(SIGNUP_NEXT_KEY);
     } catch {

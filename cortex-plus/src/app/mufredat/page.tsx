@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { MarketingPage } from "@/components/layout/marketing-page";
 import { CURRICULUM, listProgramSummaries } from "@/lib/curriculum/registry";
+import { programGroupLabel } from "@/lib/curriculum/program-group";
 
 export const metadata = {
   title: "Resmî Müfredat",
@@ -8,7 +9,6 @@ export const metadata = {
 };
 
 const EXAM_LABEL: Record<string, string> = { d1y1: "1. Yazılı", d1y2: "2. Yazılı" };
-const KIND_GROUP: Record<string, string> = { yks: "YKS (TYT / AYT)", lgs: "LGS", kpss: "KPSS" };
 
 function topicLine(counts: Record<string, number>): string {
   if ("all" in counts) return `${counts.all} konu`;
@@ -25,7 +25,7 @@ export default function MufredatPage() {
   const programs = listProgramSummaries();
   const groups = new Map<string, typeof programs>();
   for (const p of programs) {
-    const key = KIND_GROUP[p.kind] ?? `${p.grade}. sınıf`;
+    const key = programGroupLabel(p);
     groups.set(key, [...(groups.get(key) ?? []), p]);
   }
   const outcomeTotal = programs.reduce((n, p) => n + p.outcomeCount, 0);
