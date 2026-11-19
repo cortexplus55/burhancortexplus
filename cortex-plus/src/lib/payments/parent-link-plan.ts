@@ -17,3 +17,14 @@ export function parentLinkPlanName(plan: { name?: string | null; billing_period?
 export function isParentLinkPlan(plan: { billing_period?: string | null }): boolean {
   return plan.billing_period === "weekly" || plan.billing_period === "monthly" || plan.billing_period === "yearly";
 }
+
+/**
+ * Markayla birlikte paket etiketi (19 Kasım 2026, Faz 5 denetimi): paket adı "Plus" olduğu için "Cortex Plus Plus" diye
+ * okunuyordu. Marka ile paket bir tire ile ayrılır, paket adının sonunda "Paketi" bir kez yazılır:
+ * "Plus" → "Cortex Plus — Plus Paketi", "Sınav Haftası" → "Cortex Plus — Sınav Haftası Paketi".
+ */
+export function parentPackageLabel(planName: string): string {
+  const name = planName.trim().replace(/^cortex\s+plus\s*[—–-]?\s*/i, "") || PLAN_MARKETING_COPY.plus.name;
+  const packaged = /\bpaket(i)?$/i.test(name) ? name.replace(/\bpaket$/i, "Paketi") : `${name} Paketi`;
+  return `Cortex Plus — ${packaged}`;
+}

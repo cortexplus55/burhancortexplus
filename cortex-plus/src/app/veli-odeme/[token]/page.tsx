@@ -3,7 +3,7 @@ import { ParentPayForm } from "@/components/billing/parent-pay-form";
 import { formatTryWhole } from "@/lib/format";
 import { isPaytrConfigured } from "@/lib/payments/paytr";
 import { maskEmail, PARENT_LINK_EXPIRED_TEXT, verifyParentPayToken } from "@/lib/payments/parent-link";
-import { parentLinkPlanName } from "@/lib/payments/parent-link-plan";
+import { parentPackageLabel, parentLinkPlanName } from "@/lib/payments/parent-link-plan";
 import { PARENT_PAY_COPY } from "@/lib/payments/parent-pay-copy";
 import { createServiceClient } from "@/lib/supabase/server";
 
@@ -78,7 +78,7 @@ export default async function VeliOdemePage({ params }: { params: Promise<{ toke
           <div>
             <p className="vo-label">Paket</p>
             <p className="vo-plan-name" data-testid="veli-plan">
-              Cortex Plus {planName}
+              {parentPackageLabel(planName)}
             </p>
           </div>
           <div className="vo-price">

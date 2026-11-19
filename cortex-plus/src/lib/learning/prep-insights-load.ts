@@ -11,6 +11,7 @@ import {
 } from "@/lib/learning/learning-tracking";
 import { attemptTopicFields, buildPrepProgressView, solvedQuestions } from "@/lib/learning/prep-progress-view";
 import { loadPrepMockResults } from "@/lib/learning/prep-mock-results";
+import { createServiceClient } from "@/lib/supabase/server";
 import {
   buildPrepRadarView,
   tempoFromProgress,
@@ -86,10 +87,12 @@ async function loadInsights(
       .select("id, kind, title, status, session_meta")
       .eq("exam_prep_id", prep.id)
       .order("sort_order"),
-    supabase
+    // `payload` cevap anahtarı taşır: yalnız sunucu anahtarıyla okunur (göç 20261119150000), sahiplik süzgeciyle.
+    createServiceClient()
       .from("exam_prep_node_attempts")
       .select("node_id, score, total, created_at, payload, topic_id")
       .eq("exam_prep_id", prep.id)
+      .eq("user_id", userId)
       .eq("status", "completed")
       .order("created_at", { ascending: false })
       .limit(500),

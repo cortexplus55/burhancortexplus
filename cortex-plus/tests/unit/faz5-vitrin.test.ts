@@ -93,7 +93,7 @@ describe("§2 velime WhatsApp'tan ödeme linki", () => {
     expect(PARENT_PAY_PATH).toBe("/veli-odeme");
     expect(url).toBe("https://example.test/veli-odeme/ornek-belirtec");
     expect(parentShareText({ planName: "Örnek Paket", url })).toBe(
-      "Anne/Baba, sınav hazırlığım için kullandığım Cortex Plus Örnek Paket paketini bu güvenli PayTR bağlantısından şifre girmeden onaylayabilir misin? https://example.test/veli-odeme/ornek-belirtec",
+      "Anne/Baba, sınav hazırlığım için kullandığım paketi (Cortex Plus — Örnek Paketi) bu güvenli PayTR bağlantısından şifre girmeden onaylayabilir misin? https://example.test/veli-odeme/ornek-belirtec",
     );
     expect(PARENT_LINK_EXPIRED_TEXT).toBe("Bu ödeme bağlantısının süresi dolmuş, öğrencinizden yeni link isteyebilirsiniz");
     expect(parentLinkValidityLine(48 * 3_600_000, 0)).toBe("Bağlantı 48 saat geçerli.");

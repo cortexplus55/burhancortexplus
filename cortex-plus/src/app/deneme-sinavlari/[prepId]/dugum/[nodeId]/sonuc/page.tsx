@@ -17,6 +17,7 @@ import { MASTERY_ROW_COLUMNS, masterySnapshotFromRow, scoreTopicMastery, topicMa
 import { countOpenMisconceptions } from "@/lib/learning/misconception-store";
 import { getUserStreak } from "@/lib/streak/record-activity";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
+import { createServiceClient } from "@/lib/supabase/server";
 import "@/styles/node-result.css";
 
 export const metadata = { title: "Sonuç" };
@@ -42,7 +43,8 @@ export default async function NodeResultPage({ params }: { params: Promise<{ pre
       .eq("id", nodeId)
       .eq("exam_prep_id", prepId)
       .maybeSingle(),
-    supabase
+    // `payload` cevap anahtarı taşır: yalnız sunucu anahtarıyla okunur (göç 20261119150000), sahiplik süzgeciyle.
+    createServiceClient()
       .from("exam_prep_node_attempts")
       .select("id, score, total, created_at, started_at, updated_at, payload")
       .eq("node_id", nodeId)

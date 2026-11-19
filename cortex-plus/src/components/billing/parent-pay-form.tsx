@@ -4,8 +4,7 @@ import { useEffect, useState } from "react";
 import { CheckCircle2, Lock } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ReadGate, type ReadGateChange } from "@/components/legal/read-gate";
-import { PERFORMANCE_CONSENT_TEXT } from "@/lib/legal/texts";
-import { PARENT_PAY_COPY, parentPaidLine } from "@/lib/payments/parent-pay-copy";
+import { PARENT_PAY_COPY, PARENT_PERFORMANCE_CONSENT_TEXT, parentPaidLine } from "@/lib/payments/parent-pay-copy";
 
 const POLL_MS = 3000;
 
@@ -50,7 +49,7 @@ export function ParentPayForm({ token, studentName, planName, priceLabel }: { to
       return;
     }
     if (!performance) {
-      setError("Ödemeye geçmek için hizmetin hemen başlamasını istediğinizi onaylamanız gerekiyor.");
+      setError("Ödemeye geçmek için dijital hizmetin hemen başlamasını ve cayma hakkı olmadığını onaylamanız gerekiyor.");
       return;
     }
     setBusy(true);
@@ -136,19 +135,19 @@ export function ParentPayForm({ token, studentName, planName, priceLabel }: { to
         <ReadGate
           docId="satis_sozlesmeleri"
           linkText="Ön Bilgilendirme Formu ve Mesafeli Satış Sözleşmesi"
-          after="'ni okudum, kabul ediyorum."
-          ariaLabel="Ön Bilgilendirme Formu'nu ve Mesafeli Satış Sözleşmesi'ni okudum, kabul ediyorum"
+          after="'ni okudum, onaylıyorum."
+          ariaLabel="Ön Bilgilendirme Formu'nu ve Mesafeli Satış Sözleşmesi'ni okudum, onaylıyorum"
           checked={accepted}
           onChange={setLegalRead}
         />
         <label className="cp-legal-row">
           <Checkbox
-            aria-label={PERFORMANCE_CONSENT_TEXT}
+            aria-label={PARENT_PERFORMANCE_CONSENT_TEXT}
             className="mt-0.5 size-5 border-[var(--c-text-subtle)]"
             checked={performance}
             onCheckedChange={(value) => setPerformance(value === true)}
           />
-          <span className="cp-legal-row-text">{PERFORMANCE_CONSENT_TEXT}</span>
+          <span className="cp-legal-row-text">{PARENT_PERFORMANCE_CONSENT_TEXT}</span>
         </label>
       </div>
       {error ? (

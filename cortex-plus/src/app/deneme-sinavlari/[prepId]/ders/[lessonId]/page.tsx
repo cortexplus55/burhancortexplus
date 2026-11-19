@@ -9,6 +9,7 @@ import { ParitySorShell } from "@/components/parity/sor-shell";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { prepLanguage } from "@/lib/learning/teacher-brain";
+import { createServiceClient } from "@/lib/supabase/server";
 
 export const metadata = { title: "Ders" };
 
@@ -28,10 +29,13 @@ export default async function ExamPrepLessonPage({
       .eq("id", prepId)
       .eq("user_id", user.id)
       .maybeSingle(),
-    supabase
+    // Ders içeriği soru anahtarlarını taşır: yalnız sunucu anahtarıyla okunur (göç 20261119150000). Sahiplik: ders bu
+    // hazırlığa ait olmalı, hazırlık da (yukarıdaki sorgu) bu öğrencinin.
+    createServiceClient()
       .from("exam_prep_lessons")
       .select("id, title, content_md, content_json, liked, exam_prep_id, created_at, topic_id")
       .eq("id", lessonId)
+      .eq("exam_prep_id", prepId)
       .maybeSingle(),
   ]);
 

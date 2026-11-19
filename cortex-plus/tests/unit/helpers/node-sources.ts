@@ -48,12 +48,16 @@ export function nodeRouteFiles(root = process.cwd()): string[] {
   return sourceGroupFiles(NODE_ROUTE_FILE, root);
 }
 
-/** `readFileSync(file, "utf8")` gibi; yol etkinliği dosyalarında bütün grup birlikte okunur. */
+/**
+ * `readFileSync(file, "utf8")` gibi; yol etkinliği dosyalarında bütün grup birlikte okunur. Satır sonları LF'ye çevrilir:
+ * Windows çalışma kopyası CRLF olabilir (core.autocrlf), depo ve CI LF; çok satırlı eşleşmeler ikisinde de tutsun.
+ */
 export function readSource(file: string, _encoding: BufferEncoding = "utf8"): string {
   const root = process.cwd();
   const key = groupKey(file, root);
-  if (!key) return readFileSync(file, _encoding);
+  const lf = (text: string) => text.replace(/\r\n/g, "\n");
+  if (!key) return lf(readFileSync(file, _encoding));
   return sourceGroupFiles(key, root)
-    .map((item) => readFileSync(path.join(root, item), _encoding))
+    .map((item) => lf(readFileSync(path.join(root, item), _encoding)))
     .join("\n");
 }

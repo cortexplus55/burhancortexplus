@@ -9,6 +9,7 @@ import { mockElapsedLabel } from "@/lib/learning/mock-exam/time-limit";
 import { scoringKeyTerms } from "@/lib/learning/mock-exam/key-terms";
 import { rowVerdictCounts } from "@/lib/learning/mock-exam/verdict-counts";
 import { parseStoredFirstError, parseStoredSteps, type WorkStepKind, type WorkStepVerdict } from "@/lib/learning/mock-exam/work-steps";
+import { createServiceClient } from "@/lib/supabase/server";
 
 export const metadata = { title: "Soru inceleme" };
 
@@ -81,7 +82,9 @@ export default async function ExamQuestionReviewPage({
   const analysis = parseExamAnalysis(attempt?.analysis as string | null);
 
   const [{ data: questions }, { data: reviews }] = await Promise.all([
-    supabase
+    // Cevap anahtarı sütunları yalnız sunucu anahtarıyla okunur (göç 20261119150000). Buraya yalnız sınavın sahibi ve
+    // yalnız NOTLANMIŞ kayıtla gelinir (yukarıdaki iki kontrol); süren sınavda anahtar hiçbir yoldan açılmaz.
+    createServiceClient()
       .from("practice_exam_questions")
       .select("id, question_text, question_type, options, correct_answer, correct_answers, sort_order, rubric, model_answer")
       .eq("exam_id", examId)
