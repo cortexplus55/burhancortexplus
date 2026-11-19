@@ -4,6 +4,7 @@ import {
   blockAlias,
   conceptGroups,
   diagramCardBlockSchema,
+  lessonFactText,
   lessonScreenSchema,
   readLessonV3,
   screenCheck,
@@ -74,6 +75,7 @@ import { noteWarningsPromptLine, type FormulaTypo } from "@/lib/learning/formula
 import { backboneWithoutSiblings, prepTopicScopeLine } from "@/lib/learning/topic-section";
 import { excludedSiblingBoundaryBlock, siblingsOutsideBoundary } from "@/lib/learning/sibling-topics";
 import { repeatsSourceError, sourceCorrectionPromptBlock, type SourceCorrectionWarning } from "@/lib/learning/source-correction";
+import { checkSceneRelations } from "@/lib/learning/visual-scenes/relation-check";
 
 /**
  * Öğretmen ders motoru (2 Ekim 2026, ürün sahibinin kararı).
@@ -2564,7 +2566,7 @@ export const VISUAL_SCENE_CONFIDENT = 0.25;
 
 export function visualSceneUserPrompt(
   lesson: LessonV3,
-  input: Pick<TeacherLessonInput, "pages" | "mode" | "topicLabel" | "prepTitle">,
+  input: Pick<TeacherLessonInput, "pages" | "mode" | "topicLabel" | "prepTitle"> & CorrectionCarrier,
   classification: DomainClassification,
 ): string {
   const groups = conceptGroups(lesson.screens);
@@ -2586,6 +2588,7 @@ export function visualSceneUserPrompt(
     `DİSİPLİN (kod): ${classification.academicDomain} → ${classification.visualArchetype}`,
     `KAVRAMLAR:\n${concepts.join("\n")}`,
     `EKRANLAR:\n${screens.join("\n")}`,
+    input.mode === "topic" ? "" : sourceCorrectionPromptBlock(lessonCorrectionNow(input) ?? lesson.sourceCorrectionWarning ?? null),
     source,
     table,
   ]
@@ -2593,7 +2596,7 @@ export function visualSceneUserPrompt(
     .join("\n\n");
 }
 
-export type VisualSceneVerdict = "added" | "ungrounded" | "unparsed" | "timeout" | "error" | "exists";
+export type VisualSceneVerdict = "added" | "ungrounded" | "contradicts" | "unparsed" | "timeout" | "error" | "exists";
 
 export type VisualSceneCompletion =
   | { verdict: "added"; lesson: LessonV3; archetype: VisualArchetype; domain: AcademicDomain; concept: string }
@@ -2632,7 +2635,7 @@ export function visualSceneGrounded(scene: VisualScene, corpus: string): boolean
 export function parseVisualSceneCompletion(
   raw: unknown,
   lesson: LessonV3,
-  input: Pick<TeacherLessonInput, "pages" | "mode">,
+  input: Pick<TeacherLessonInput, "pages" | "mode"> & CorrectionCarrier,
   classification: Pick<DomainClassification, "academicDomain" | "visualArchetype">,
 ): VisualSceneCompletion {
   const row = raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : null;
@@ -2657,6 +2660,16 @@ export function parseVisualSceneCompletion(
     input.mode === "topic" ? "" : input.pages.map((page) => page.text).join("\n"),
   ].join("\n");
   if (!visualSceneGrounded(scene, corpus)) return { verdict: "ungrounded", lesson: null, archetype: scene.archetype, domain };
+  // Kaynağın hatasını ya da uydurulmuş bir ilişkiyi öğretmesin: dersin doğrulanmış içeriği (kaynak değil) ve kaynak
+  // düzeltmesiyle çapraz denetim; çelişkide sahne yayımlanmaz (`relation-check.ts`).
+  const relation = checkSceneRelations(scene, {
+    lessonText: lessonFactText(lesson),
+    sourceCorrection: lessonCorrectionNow(input) ?? lesson.sourceCorrectionWarning ?? null,
+  });
+  if (!relation.ok) {
+    console.info("teacher_lesson_visual_scene_rejected", { archetype: scene.archetype, reason: relation.reason });
+    return { verdict: "contradicts", lesson: null, archetype: scene.archetype, domain };
+  }
   const block: Extract<LessonBlock, { type: "visual_scene" }> = { type: "visual_scene", academicDomain: domain, visualArchetype: scene.archetype, scene };
   const afterConceptRaw = typeof row.afterConcept === "string" ? row.afterConcept : typeof candidate.afterConcept === "string" ? candidate.afterConcept : "";
   const groups = conceptGroups(lesson.screens);
