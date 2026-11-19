@@ -114,7 +114,7 @@ export async function resolveStartSource(context: NodeContext, state: Pick<Start
   // konunun kayıtlı dersinden (lesson_context), yoksa ünite özetinden (unit_summary) yazılır.
   let sourceFallback: SourceFallbackKind | null = null;
   const fallbackWanted = teachingV2 && !voiceSession && sourceFallbackAllowed(kind, difficulty);
-  const useFallback = async (reason: SourceUnavailableReason): Promise<boolean> => {
+  const applyLessonFallback = async (reason: SourceUnavailableReason): Promise<boolean> => {
     if (!fallbackWanted || !topic?.id) return false;
     const lesson = await loadTopicLesson(service, topic.id).catch(() => null);
     const fallback = lessonSourceFallback(lesson);
@@ -293,7 +293,7 @@ export async function resolveStartSource(context: NodeContext, state: Pick<Start
     }
   } catch (error) {
     const reason: SourceUnavailableReason = "search_error";
-    if (await useFallback(reason)) {
+    if (await applyLessonFallback(reason)) {
       console.warn("node_source_search_failed_fallback", {
         cause: error instanceof Error ? error.message.slice(0, 120) : "unknown",
       });
@@ -405,7 +405,7 @@ export async function resolveStartSource(context: NodeContext, state: Pick<Start
     !voiceSession &&
     prepSource.document_id &&
     !source.block.trim() &&
-    !(await useFallback("search_no_match"))
+    !(await applyLessonFallback("search_no_match"))
   ) {
     const reason: SourceUnavailableReason = "search_no_match";
     console.error("node_source_unavailable", {

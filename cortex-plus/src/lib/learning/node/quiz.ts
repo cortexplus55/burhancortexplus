@@ -31,10 +31,14 @@ export async function teacherQuizPayload(
   input: NodePayloadInput,
   activity: ReturnType<typeof teachingActivityForKind>,
   /** null: belgesiz hazırlık; sorular konunun yerleşik bilgisinden. */
-  core: LessonCore | null,
+  coreIn: LessonCore | null,
   count: number,
 ) {
   const startedAt = input.requestStartedAt ?? Date.now();
+  // Kaynak araması yedeği (Faz 1-A §3.3): arama boş/düşmüş ve konunun sayfası da bulunamamışsa (belge var, sayfa yok)
+  // çekirdek boştur; test o zaman konunun kayıtlı dersinden / ünite özetinden yazılır. Sayfası bulunan konu yedeğe düşmez.
+  const fallbackBlock = input.sourceFallback && (!coreIn || !coreIn.pages.length) ? input.sourceBlock.trim() : "";
+  const core = fallbackBlock ? null : coreIn;
   // Konu yalıtımı (6 Kasım 2026): yalnız tek konulu konu testi; tuzak testi (gaps) hazırlık geneli olabilir.
   const siblingsEarly =
     core && input.kind === "quiz" && input.prepId && input.topicLabel !== ALL_TOPICS_LABEL
@@ -82,9 +86,7 @@ export async function teacherQuizPayload(
     input.kind === "quiz"
       ? practiceCoverage(variant, lessonBackbone(ownPages, { topicLabel: input.topicLabel, runningHeaders: edges }))
       : undefined;
-  // Kaynak araması yedeği (Faz 1-A §3.3): çekirdek sayfa yoksa test konunun kayıtlı dersinden / ünite özetinden yazılır
-  // (belgeli kip; genel bilgiyle doldurma yok).
-  const fallbackBlock = !core && input.sourceFallback ? input.sourceBlock.trim() : "";
+  // Yedek kaynaklı test belgeli kipte yazılır (genel bilgiyle doldurma yok).
   const outcome = await runTeacherQuiz(input.service, {
     mode: core || fallbackBlock ? "document" : "topic",
     ...(fallbackBlock ? { sourceBlock: fallbackBlock } : {}),
