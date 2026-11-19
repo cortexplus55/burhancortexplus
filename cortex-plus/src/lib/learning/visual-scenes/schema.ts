@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isProgression, phraseDirection, trendOf } from "./direction-semantics";
 import {
   ACADEMIC_DOMAINS,
   VISUAL_ARCHETYPES,
@@ -86,13 +87,16 @@ export type VectorDirection = (typeof VECTOR_DIRECTIONS)[number];
 export const mechanicsSchema = z.object({
   archetype: z.literal("ENGINEERING_PHYSICS_MECHANICS"),
   title: clampText(90, 2),
-  setting: z.enum(["free_body", "fluid", "circuit"]).catch("free_body"),
-  body: z.object({ label: clampText(28) }),
+  /** `trend`: kuvvet olmayan içerik (eğilim, değişim yönü): aynı bileşen, kuvvet/serbest cisim dili kullanılmaz. */
+  setting: z.enum(["free_body", "fluid", "circuit", "trend"]).catch("free_body"),
+  body: z.object({ label: clampText(40) }),
   vectors: looseArray(
     z.object({
       symbol: clampText(8),
-      label: clampText(32),
+      label: clampText(56),
       direction: z.enum(VECTOR_DIRECTIONS).catch("up"),
+      /** Ok yönünde ilerledikçe gösterilen nicelik artar mı azalır mı (eğilim sahnesi). */
+      trend: z.enum(["increase", "decrease"]).optional().catch(undefined),
       /** Göreli büyüklük 1-5: ok bu sırayla uzar ve kalınlaşır. */
       magnitude: z.coerce.number().catch(3).transform((value) => Math.max(1, Math.min(5, Math.round(value)))),
     }),
@@ -104,7 +108,7 @@ export const mechanicsSchema = z.object({
     drivers: looseArray(
       z.object({
         symbol: clampText(8),
-        label: clampText(36),
+        label: clampText(56),
         /** Değişken artınca sonuç artar (up) ya da azalır (down). */
         effect: z.enum(["up", "down"]).catch("up"),
       }),
@@ -112,10 +116,25 @@ export const mechanicsSchema = z.object({
       4,
     ),
     /** Formülde yer almayan çeldirici değişkenler: üstü çizili kırmızı rozet. */
-    distractors: looseArray(z.object({ symbol: clampText(8), label: clampText(36) }), 0, 2).catch([]),
+    distractors: looseArray(z.object({ symbol: clampText(8), label: clampText(56) }), 0, 2).catch([]),
   }),
 });
 export type MechanicsData = z.infer<typeof mechanicsSchema>;
+
+/**
+ * Yön/eğilim onarımı: etiketteki ilerleme yönü ("soldan sağa" …) okun yönüyle çelişirse ok etikete uyar; etiketteki
+ * "artar/azalır" `trend` alanını belirler. Bütün oklar eğilim anlatıyorsa (kuvvet değil) sahne `trend` olur.
+ */
+export function repairMechanics(data: MechanicsData): MechanicsData {
+  const vectors = data.vectors.map((vector) => {
+    const said = phraseDirection(vector.label);
+    const trend = trendOf(vector.label) ?? vector.trend;
+    return { ...vector, direction: said ?? vector.direction, ...(trend ? { trend } : {}) };
+  });
+  const trendLike = (vector: (typeof vectors)[number]) => Boolean(vector.trend) || isProgression(vector.label);
+  const setting = data.setting === "free_body" && vectors.every(trendLike) ? "trend" : data.setting;
+  return { ...data, setting, vectors };
+}
 
 /* ───────── 3) Mimarlık teknik pafta ───────── */
 
@@ -247,7 +266,7 @@ export type DocumentSpotlightData = z.infer<typeof documentSpotlightSchema>;
 
 /* ───────── Birleşik sahne ───────── */
 
-export const visualSceneSchema = z.discriminatedUnion("archetype", [
+const visualSceneUnion = z.discriminatedUnion("archetype", [
   medicalPathwaySchema,
   mechanicsSchema,
   blueprintSchema,
@@ -255,6 +274,10 @@ export const visualSceneSchema = z.discriminatedUnion("archetype", [
   mathGraphSchema,
   documentSpotlightSchema,
 ]);
+/** Ayrıştırılan her sahne anlam onarımından geçer (yeni üretim ve kayıttaki eski veri aynı kuralla). */
+export const visualSceneSchema = visualSceneUnion.transform((scene) =>
+  scene.archetype === "ENGINEERING_PHYSICS_MECHANICS" ? repairMechanics(scene) : scene,
+);
 export type VisualScene = z.infer<typeof visualSceneSchema>;
 
 const ARCHETYPE_ALIASES: Record<string, VisualArchetype> = {

@@ -66,23 +66,26 @@ function stepTexts(
   budget: number,
   portrait: boolean,
 ): { role: TextBox; label: TextBox; detail: TextBox | null; height: number } {
+  // Önce hiçbir yazının kesilmediği (ve açıklamanın düşmediği) en sıkı biçim aranır; bütçe yetmezse eski sıkıştırma sırası.
   const variants: [number, number][] = [
     [2, 2],
+    [2, 3],
+    [3, 3],
+    [2, 4],
+    [3, 4],
     [2, 1],
     [1, 1],
     [2, 0],
     [1, 0],
   ];
-  let last: { role: TextBox; label: TextBox; detail: TextBox | null; height: number } | null = null;
-  for (const [labelLines, detailLines] of variants) {
+  const build = (labelLines: number, detailLines: number) => {
     const role = placeText(`step${index}-role`, PATHWAY_ROLE_LABEL[step.role].toLocaleUpperCase("tr"), x, y, {
       maxWidth,
-      maxLines: 1,
+      maxLines: 2,
       fontSize: 9.5,
       minFontSize: 8,
       weight: 700,
       anchor,
-      single: true,
     });
     const label = placeText(`step${index}-label`, step.label, x, role.rect.y + role.rect.h + 2, {
       maxWidth,
@@ -103,7 +106,17 @@ function stepTexts(
           })
         : null;
     const bottom = (detail ?? label).rect.y + (detail ?? label).rect.h;
-    last = { role, label, detail, height: bottom - y };
+    return { role, label, detail, height: bottom - y };
+  };
+  const whole = (built: ReturnType<typeof build>) =>
+    !built.role.truncated && !built.label.truncated && (!step.detail || (built.detail !== null && !built.detail.truncated));
+  for (const [labelLines, detailLines] of variants) {
+    const built = build(labelLines, detailLines);
+    if (built.height <= budget && whole(built)) return built;
+  }
+  let last: ReturnType<typeof build> | null = null;
+  for (const [labelLines, detailLines] of variants) {
+    last = build(labelLines, detailLines);
     if (last.height <= budget) return last;
   }
   return last!;

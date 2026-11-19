@@ -135,6 +135,28 @@ const REEL: Record<string, unknown> = {
 };
 
 
+/** Eğilim sahnesi (kuvvet olmayan içerik): ok etiketle çelişik gelir, ayrıştırma onarır. */
+const TREND_RAW = {
+  archetype: "ENGINEERING_PHYSICS_MECHANICS",
+  title: "Tabloda ilerledikçe iki niceliğin değişimi",
+  setting: "free_body",
+  body: { label: "Örnek tablo" },
+  vectors: [
+    { symbol: "a", label: "Birinci nicelik soldan sağa", direction: "left", magnitude: 2, trend: "decrease" },
+    { symbol: "a", label: "Birinci nicelik yukarıdan aşağıya", direction: "up", magnitude: 2, trend: "increase" },
+    { symbol: "b", label: "İkinci nicelik soldan sağa ilerledikçe azalır", direction: "right", magnitude: 2 },
+    { symbol: "b", label: "İkinci nicelik yukarıdan aşağıya ilerledikçe artar", direction: "down", magnitude: 2 },
+  ],
+  logic: {
+    formula: "İki nicelik aynı yönde değişir.",
+    drivers: [
+      { symbol: "→", label: "Soldan sağa ilerleme", effect: "down" },
+      { symbol: "↓", label: "Yukarıdan aşağıya ilerleme", effect: "up" },
+    ],
+    distractors: [],
+  },
+};
+
 const NARRATION: Record<ReelBeat, string> = {
   hook: "Bu soruyu bir düşün; cevabı sahnenin sonunda birlikte kuracağız.",
   main_diagram: "Şimdi ana çizime bak: her basamak bir sonrakini tetikliyor ve sınav sorusu tam buradan çıkıyor.",
@@ -187,6 +209,9 @@ export function GorselSahneFixture({ mod, sahne, arketip }: { mod: string; sahne
           <LessonVisualScene id={`sahne-${item}`} block={{ scene: RAW[item], visualArchetype: item, academicDomain: ARCHETYPE_DOMAIN[item] }} />
         </section>
       ))}
+      <section data-fixture-trend="1">
+        <LessonVisualScene id="sahne-egilim" block={{ scene: TREND_RAW, visualArchetype: "ENGINEERING_PHYSICS_MECHANICS", academicDomain: "chemistry" }} />
+      </section>
     </main>
   );
 }

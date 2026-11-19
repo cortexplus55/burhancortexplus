@@ -113,6 +113,14 @@ export const ARCHETYPE_LABEL: Record<VisualArchetype, string> = {
   DOCUMENT_FIGURE_SPOTLIGHT: "Belgendeki Şekil",
 };
 
+/** Mekanik arketipinin kuvvet olmayan (eğilim/yön) sahnesi: aynı bileşen, kuvvet dili yerine bu ad. */
+export const MECHANICS_TREND_LABEL = "Eğilim ve Yön Diyagramı";
+
+/** Sahnenin rozet/erişilebilirlik adı (mekanikte `setting: "trend"` ise eğilim adı). */
+export function sceneArchetypeLabel(scene: { archetype: VisualArchetype; setting?: string }): string {
+  return scene.archetype === "ENGINEERING_PHYSICS_MECHANICS" && scene.setting === "trend" ? MECHANICS_TREND_LABEL : ARCHETYPE_LABEL[scene.archetype];
+}
+
 export function isVisualArchetype(value: unknown): value is VisualArchetype {
   return typeof value === "string" && (VISUAL_ARCHETYPES as readonly string[]).includes(value);
 }
