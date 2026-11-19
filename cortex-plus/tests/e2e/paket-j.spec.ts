@@ -134,7 +134,7 @@ test.describe("Paket J akışları", { tag: ["@public"] }, () => {
     await page.goto("/e2e/paket-j");
     await page.getByRole("button", { name: /Soruda Hata Bildir/ }).click();
     await page.getByRole("radio", { name: "Cevap anahtarı hatalı" }).click();
-    await page.getByRole("button", { name: "Bildir" }).click();
+    await page.getByTestId("qreport-modal").getByRole("button", { name: "Bildir", exact: true }).click();
     await expect(page.getByText("Haklısın, soru düzeltildi. Teşekkürler!")).toBeVisible();
     expect(sent).toMatchObject({ source: "node", targetId: "e2e-attempt", questionRef: "0", reason: "key" });
   });
