@@ -19,6 +19,7 @@ import { layoutBlueprint } from "@/components/learning/visual-scenes/Architectur
 import { layoutLawDecision } from "@/components/learning/visual-scenes/LawDecisionScene";
 import { layoutMathGraph } from "@/components/learning/visual-scenes/MathGraphScene";
 import { layoutDocumentSpotlight } from "@/components/learning/visual-scenes/DocumentSpotlightScene";
+import { layoutConceptStructure } from "@/components/learning/visual-scenes/ConceptStructureScene";
 import { layoutReelHook } from "@/components/learning/visual-scenes/ReelHookScene";
 import { layoutComparison } from "@/components/learning/visual-scenes/ComparisonMatrixScene";
 import { layoutExamTrap } from "@/components/learning/visual-scenes/ExamTrapScene";
@@ -125,6 +126,18 @@ const RAW: Record<VisualArchetype, unknown> = {
       { row: 2, col: 2, label: "İkinci vurgu", note: LONG },
     ],
   },
+  CONCEPT_STRUCTURE_VISUALIZER: {
+    archetype: "CONCEPT_STRUCTURE_VISUALIZER",
+    title: "Başlangıç koşulundan sonuca dört aşamalı süreç",
+    structure: "process",
+    items: [
+      { id: "a", label: "Birinci aşama", detail: "Sürecin başladığı koşul" },
+      { id: "b", label: "İkinci aşama", detail: LONG },
+      { id: "c", label: "Üçüncü aşama", detail: "Ara sonuç belirginleşir" },
+      { id: "d", label: "Sonuç", detail: "Sınavda en çok sorulan nokta" },
+    ],
+    takeaway: "Aşamaların sırası sorulur; ikinci aşama atlanırsa sonuç değişir.",
+  },
 };
 
 const ARCHETYPE_LAYOUTS: Record<VisualArchetype, (scene: VisualScene, mode: SceneMode, chrome: SceneChrome) => SceneLayout> = {
@@ -134,6 +147,7 @@ const ARCHETYPE_LAYOUTS: Record<VisualArchetype, (scene: VisualScene, mode: Scen
   LAW_SOCIAL_FLOWCHART: (s, m, c) => layoutLawDecision(s as never, sceneFrame(m, c)),
   MATH_ALGORITHMIC_GRAPH: (s, m, c) => layoutMathGraph(s as never, sceneFrame(m, c)),
   DOCUMENT_FIGURE_SPOTLIGHT: (s, m, c) => layoutDocumentSpotlight(s as never, sceneFrame(m, c)),
+  CONCEPT_STRUCTURE_VISUALIZER: (s, m, c) => layoutConceptStructure(s as never, sceneFrame(m, c)),
 };
 
 const MODES: SceneMode[] = ["9:16", "16:9"];
@@ -146,7 +160,7 @@ function dump(name: string, html: string) {
   writeFileSync(`${DUMP}/${name}.svg`, html);
 }
 
-describe("6 arketip × 2 mod render (Faz 1-B)", () => {
+describe("7 arketip × 2 mod render (Faz 1-B, 20 Kasım 2026'dan beri kavram yapısıyla)", () => {
   for (const archetype of VISUAL_ARCHETYPES) {
     const scene = parseVisualScene(RAW[archetype]);
     for (const mode of MODES) {

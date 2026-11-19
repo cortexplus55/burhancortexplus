@@ -1,10 +1,14 @@
 /**
  * Görsel şölen motoru (19 Kasım 2026, Faz 1-B): branş arketipleri ve disiplin sınıflandırıcısı.
  *
- * Ders (`LessonV3`) ve 1 dk çizimli video (`sketch_reel`) aynı altı arketipten birini çizer. Disiplin
- * kodla, model çağrısı olmadan sınıflandırılır (hazırlık adı + konu adı + kaynaktan kısa örnek); yazar
- * istemine "bu konunun arketipi şu" diye verilir, model o arketipin verisini yazar. Sınıflandırma ders
- * adına bağlı değildir: anahtar kelime aileleri disiplinin kendisini tarif eder.
+ * Ders (`LessonV3`) ve 1 dk çizimli video (`sketch_reel`) aynı arketiplerden birini çizer. Disiplin kodla, model
+ * çağrısı olmadan sınıflandırılır (hazırlık adı + konu adı + kaynaktan kısa örnek); yazar istemine "bu konunun
+ * arketipi şu" diye verilir, model o arketipin verisini yazar. Sınıflandırma ders adına bağlı değildir: anahtar
+ * kelime aileleri disiplinin kendisini tarif eder.
+ *
+ * 20 Kasım 2026: tarih, edebiyat, felsefe, iktisat, psikoloji, coğrafya, yabancı dil ve genel dersler karar ağacına
+ * değil kavram yapısı sahnesine (`CONCEPT_STRUCTURE_VISUALIZER`) gider; hukuk/sosyal karar ağacı istisna uydurmaya
+ * itilmez.
  */
 
 export const VISUAL_ARCHETYPES = [
@@ -14,8 +18,21 @@ export const VISUAL_ARCHETYPES = [
   "LAW_SOCIAL_FLOWCHART",
   "MATH_ALGORITHMIC_GRAPH",
   "DOCUMENT_FIGURE_SPOTLIGHT",
+  "CONCEPT_STRUCTURE_VISUALIZER",
 ] as const;
 export type VisualArchetype = (typeof VISUAL_ARCHETYPES)[number];
+
+/** Kavram yapısı sahnesinin altı biçimi. */
+export const CONCEPT_STRUCTURES = ["process", "matrix", "pyramid", "timeline", "cause_effect", "supply_demand"] as const;
+export type ConceptStructure = (typeof CONCEPT_STRUCTURES)[number];
+export const CONCEPT_STRUCTURE_LABEL: Record<ConceptStructure, string> = {
+  process: "Süreç Akışı",
+  matrix: "Karşılaştırma Matrisi",
+  pyramid: "Katmanlı Piramit",
+  timeline: "Zaman Çizelgesi",
+  cause_effect: "Neden-Sonuç Ağı",
+  supply_demand: "Arz-Talep Grafiği",
+};
 
 export const ACADEMIC_DOMAINS = [
   "medicine",
@@ -35,7 +52,10 @@ export const ACADEMIC_DOMAINS = [
   "history",
   "philosophy",
   "social_science",
+  "psychology",
+  "geography",
   "literature",
+  "language",
   "mathematics",
   "geometry",
   "algorithm",
@@ -62,17 +82,20 @@ export const DOMAIN_ARCHETYPE: Record<AcademicDomain, VisualArchetype> = {
   law: "LAW_SOCIAL_FLOWCHART",
   kpss: "LAW_SOCIAL_FLOWCHART",
   constitution: "LAW_SOCIAL_FLOWCHART",
-  history: "LAW_SOCIAL_FLOWCHART",
-  philosophy: "LAW_SOCIAL_FLOWCHART",
   social_science: "LAW_SOCIAL_FLOWCHART",
-  literature: "LAW_SOCIAL_FLOWCHART",
+  history: "CONCEPT_STRUCTURE_VISUALIZER",
+  philosophy: "CONCEPT_STRUCTURE_VISUALIZER",
+  psychology: "CONCEPT_STRUCTURE_VISUALIZER",
+  geography: "CONCEPT_STRUCTURE_VISUALIZER",
+  literature: "CONCEPT_STRUCTURE_VISUALIZER",
+  language: "CONCEPT_STRUCTURE_VISUALIZER",
+  economics: "CONCEPT_STRUCTURE_VISUALIZER",
   mathematics: "MATH_ALGORITHMIC_GRAPH",
   geometry: "MATH_ALGORITHMIC_GRAPH",
   algorithm: "MATH_ALGORITHMIC_GRAPH",
   statistics: "MATH_ALGORITHMIC_GRAPH",
-  economics: "MATH_ALGORITHMIC_GRAPH",
   document_figure: "DOCUMENT_FIGURE_SPOTLIGHT",
-  general: "LAW_SOCIAL_FLOWCHART",
+  general: "CONCEPT_STRUCTURE_VISUALIZER",
 };
 
 /** Öğrenciye görünen kısa disiplin adı (sahne rozetinde). */
@@ -94,7 +117,10 @@ export const DOMAIN_LABEL: Record<AcademicDomain, string> = {
   history: "Tarih",
   philosophy: "Felsefe",
   social_science: "Sosyal Bilimler",
+  psychology: "Psikoloji",
+  geography: "Coğrafya",
   literature: "Edebiyat",
+  language: "Yabancı Dil",
   mathematics: "Matematik",
   geometry: "Geometri",
   algorithm: "Algoritma",
@@ -111,14 +137,22 @@ export const ARCHETYPE_LABEL: Record<VisualArchetype, string> = {
   LAW_SOCIAL_FLOWCHART: "Karar Akışı",
   MATH_ALGORITHMIC_GRAPH: "Grafik ve Dönüşüm",
   DOCUMENT_FIGURE_SPOTLIGHT: "Belgendeki Şekil",
+  CONCEPT_STRUCTURE_VISUALIZER: "Kavram Yapısı",
 };
 
 /** Mekanik arketipinin kuvvet olmayan (eğilim/yön) sahnesi: aynı bileşen, kuvvet dili yerine bu ad. */
 export const MECHANICS_TREND_LABEL = "Eğilim ve Yön Diyagramı";
 
-/** Sahnenin rozet/erişilebilirlik adı (mekanikte `setting: "trend"` ise eğilim adı). */
-export function sceneArchetypeLabel(scene: { archetype: VisualArchetype; setting?: string }): string {
-  return scene.archetype === "ENGINEERING_PHYSICS_MECHANICS" && scene.setting === "trend" ? MECHANICS_TREND_LABEL : ARCHETYPE_LABEL[scene.archetype];
+/**
+ * Sahnenin rozet/erişilebilirlik adı: mekanikte `setting: "trend"` ise eğilim adı, kavram yapısında yapının adı
+ * (süreç, matris, piramit …).
+ */
+export function sceneArchetypeLabel(scene: { archetype: VisualArchetype; setting?: string; structure?: string }): string {
+  if (scene.archetype === "ENGINEERING_PHYSICS_MECHANICS" && scene.setting === "trend") return MECHANICS_TREND_LABEL;
+  if (scene.archetype === "CONCEPT_STRUCTURE_VISUALIZER" && scene.structure && scene.structure in CONCEPT_STRUCTURE_LABEL) {
+    return CONCEPT_STRUCTURE_LABEL[scene.structure as ConceptStructure];
+  }
+  return ARCHETYPE_LABEL[scene.archetype];
 }
 
 export function isVisualArchetype(value: unknown): value is VisualArchetype {
@@ -146,34 +180,183 @@ export function foldTr(text: string): string {
 
 type Cue = { domain: AcademicDomain; exam?: RegExp; words: RegExp };
 
+/**
+ * Sözcük başında eşleşen kök ailesi (20 Kasım 2026): kökün önünde harf ya da rakam olamaz, arkasına Türkçe ek
+ * gelebilir. Eskiden kökler alt dize olarak aranıyordu: "arz" "tarz"da, "iyon" "versiyon"da, "etik" "genetik"te
+ * eşleşiyordu. Ek alamayan kök `(?![a-z])` ile, ekle başka sözcüğe dönen kök negatif ileri bakışla yazılır
+ * ("doku" ≠ "dokuz", "organ" ≠ "organizasyon", "hiz" ≠ "hizmet", "tani" ≠ "tanım").
+ */
+function cueWords(...roots: string[]): RegExp {
+  return new RegExp(`(?<![a-z0-9])(?:${roots.join("|")})`);
+}
+
+/** "x" tam sözcük: arkasına harf gelmez. */
+const whole = (root: string) => `${root}(?![a-z])`;
+
 /*
-  Anahtar aileleri katlanmış metinde aranır (\b yerine harf olmayan sınır: Türkçe ekler kökün arkasına gelir).
-  `exam`: hazırlık adında sınav kodu (güçlü sinyal). `words`: disiplinin terimleri.
+  Anahtar aileleri katlanmış metinde aranır. `exam`: hazırlık adında sınav kodu (güçlü sinyal). `words`: disiplinin
+  terimleri. Aynı yazılan iki anlam (ör. "gelir" isim/fiil, "temel" yapı/sıfat, "tarih" bilim/gün) yalnız ayırt edici
+  bileşikle sayılır.
 */
 const CUES: Cue[] = [
-  { domain: "medicine", exam: /(^|[^a-z])(tus|tip fakultesi|usmle)([^a-z]|$)/, words: /(patofizyoloji|klinik|hasta|tani|tedavi|sendrom|semptom|enfeksiyon|kardiy|nefro|hepat|onkoloji|farmakoloji|patoloji|fizyoloji|anatomi|histoloji|biyokimya|mikrobiyoloji|immun|hormon|reseptor|enzim|inhibit|kinaz|sitokin|ilac|doz|kan basinci|bobrek|karaciger|kalp|akciger|noron|nobet|dahiliye|pediatri|cerrahi)/ },
-  { domain: "dentistry", exam: /(^|[^a-z])(dus|dis hekimligi)([^a-z]|$)/, words: /(dis |dislerin|periodont|endodont|ortodont|protez|pulpa|mine |dentin|cürük|curuk|gingiva|okluzyon)/ },
-  { domain: "pharmacy", exam: /(^|[^a-z])(eus|eczacilik)([^a-z]|$)/, words: /(farmakokinetik|farmakodinamik|eczaci|recete|etken madde|biyoyararlanim)/ },
-  { domain: "biology", words: /(hucre|mitoz|mayoz|dna|rna|protein sentez|fotosentez|solunum|ekosistem|kalitim|gen |genetik|organel|zar |doku|organ|sindirim|dolasim|sinir sistemi|bitki|hayvan|canli|evrim|biyoloji)/ },
-  { domain: "physics", words: /(kuvvet|hiz|ivme|momentum|enerji|is ve guc|basinc|kaldirma|akiskan|elektrik|akim|direnc|gerilim|manyetik|dalga|optik|isik|ses |newton|tork|denge|surtunme|yercekimi|kutle|agirlik|fizik|vektor|elektrostatik|termodinamik|isi ve sicaklik)/ },
-  { domain: "engineering", exam: /(^|[^a-z])(muhendislik|kpss a.*teknik)([^a-z]|$)/, words: /(mukavemet|statik|dinamik|devre|transistor|sinyal|kontrol sistem|malzeme|gerilme|kiris|makine|termodinamik|akiskanlar mekanigi|elektronik)/ },
-  { domain: "chemistry", words: /(mol |molekul|atom|iyon|bag |kimyasal|tepkime|asit|baz|ph |cozelti|derisim|gaz yasa|periyodik|elektron|organik|kimya|redoks|tuz |karisim)/ },
-  { domain: "architecture", exam: /(^|[^a-z])(mimarlik|mimari)([^a-z]|$)/, words: /(mimar|cephe|kesit|plan |pafta|aks |tasiyici|kolon|doseme|yapi elemani|aciklik|kubbe|kemer|tonoz|revak|avlu|iç mekan|ic mekan|gotik|barok|romanesk|selcuklu mimari|osmanli mimari)/ },
-  { domain: "interior_architecture", words: /(ic mimar|mobilya|mekan tasarim|aydinlatma tasarim|ergonomi)/ },
-  { domain: "civil_engineering", words: /(insaat|betonarme|temel |zemin|yuk aktarimi|deprem yonetmeli|celik yapi|perde duvar)/ },
-  { domain: "art_history", words: /(sanat tarihi|ressam|heykel|uslup|ronesans|empresyon|minyatur|cini|hat sanati)/ },
-  { domain: "constitution", words: /(anayasa|tbmm|meclis|milletvekili|cumhurbaskani|nitelikli cogunluk|salt cogunluk|uye tamsayisi|referandum|kanun teklifi|anayasa mahkemesi|yasama|yurutme|yargi)/ },
-  { domain: "law", exam: /(^|[^a-z])(hukuk|hakimlik|avukatlik|adli)([^a-z]|$)/, words: /(hukuk|dava|mahkeme|kanun|yonetmelik|sozlesme|borclar|ceza|idari|zaman asimi|hak dusurucu|istisna|tazminat|temyiz|itiraz|hukum|mulkiyet|miras|tuzel kisi|gercek kisi|ehliyet)/ },
-  { domain: "kpss", exam: /(^|[^a-z])(kpss)([^a-z]|$)/, words: /(vatandaslik|guncel bilgiler|kamu personeli|devlet memurlari)/ },
-  { domain: "history", words: /(tarih|osmanli|selcuklu|savas|antlasma|padisah|inkilap|cumhuriyet donemi|kurtulus savasi|devlet|imparatorluk|beylik|islahat|meşrutiyet|mesrutiyet|kronoloji)/ },
-  { domain: "philosophy", words: /(felsefe|filozof|epistemoloji|ontoloji|etik|ahlak felsefesi|mantik|varlik|bilgi felsefesi|sokrates|platon|aristoteles|kant)/ },
-  { domain: "social_science", words: /(sosyoloji|psikoloji|cografya|iklim|nufus|toplum|kultur|egitim bilimleri|rehberlik|ogrenme psikolojisi|gelisim)/ },
-  { domain: "literature", words: /(edebiyat|siir|roman|hikaye|divan|tanzimat|servet-i funun|yazar|sair|nazim|nesir|dil bilgisi|paragraf|anlatim bozuklugu)/ },
-  { domain: "statistics", words: /(istatistik|olasilik|ortalama|medyan|standart sapma|varyans|dagilim|histogram|regresyon|korelasyon|hipotez testi|orneklem)/ },
-  { domain: "algorithm", words: /(algoritma|veri yapisi|dizi |siralama algoritma|ozyineleme|karmasiklik|graf |agac yapisi|programlama|kod |dongu|fonksiyon cagrisi)/ },
-  { domain: "geometry", words: /(geometri|ucgen|aci |acilar|kenar|cember|daire|dortgen|cokgen|alan |cevre|benzerlik|pisagor|teget|kiris |prizma|kure|koni)/ },
-  { domain: "economics", words: /(iktisat|ekonomi|arz|talep|fiyat|enflasyon|faiz|piyasa|maliyet|gelir|gsyh|para politikasi|esneklik|marjinal)/ },
-  { domain: "mathematics", exam: /(^|[^a-z])(ales|dgs|tyt mat|ayt mat|matematik)([^a-z]|$)/, words: /(fonksiyon|denklem|esitsizlik|turev|integral|limit|logaritma|polinom|matris|sayi|kume|oran oranti|problem|us |koklu|mutlak deger|dizi|seri|parabol|grafik|egim)/ },
+  {
+    domain: "medicine",
+    exam: /(^|[^a-z])(tus|tip fakultesi|usmle)([^a-z]|$)/,
+    words: cueWords(
+      "patofizyoloji", "klinik", "hasta", "tani(?!m|t|yor|yan|yabil|yacak|nir|nma|nan|nab|nd)", "tedavi", "sendrom", "semptom",
+      "enfeksiyon", "kardiy", "nefro", "hepat", "onkoloji", "farmakoloji", "patoloji", "fizyoloji", "anatomi", "histoloji",
+      "biyokimya", "mikrobiyoloji", "immun", "otoimmun", "hormon", "reseptor", "enzim", "inhibit", "kinaz", "sitokin", "ilac",
+      "doz(?!er)", "kan basinci", "bobrek", "karaciger", "kalp", "akciger", "noron", "nobet", "dahiliye", "pediatri", "cerrahi",
+    ),
+  },
+  {
+    domain: "dentistry",
+    exam: /(^|[^a-z])(dus|dis hekimligi)([^a-z]|$)/,
+    words: cueWords("dislerin", "dis hekim", "dis eti", "periodont", "endodont", "ortodont", "protez", "pulpa", whole("mine"), "dentin", "curuk", "gingiva", "okluzyon"),
+  },
+  {
+    domain: "pharmacy",
+    exam: /(^|[^a-z])(eus|eczacilik)([^a-z]|$)/,
+    words: cueWords("farmakokinetik", "farmakodinamik", "eczaci", "recete", "etken madde", "biyoyararlanim"),
+  },
+  {
+    domain: "biology",
+    words: cueWords(
+      "hucre", "mitoz", "mayoz", whole("dna"), whole("rna"), "protein sentez", "fotosentez", "solunum", "ekosistem", "kalitim",
+      whole("gen"), "genetik", "organel", whole("zar"), "doku(?!z|nm|nur|nul|nab|nd)", "organ(?!iz|ik)", "sindirim", "dolasim",
+      "sinir sistemi", "bitki", "hayvan", "canli", "evrim", "biyoloji",
+    ),
+  },
+  {
+    domain: "physics",
+    words: cueWords(
+      "kuvvet", "hiz(?!met|a)", "ivme", "momentum", "enerji", "is ve guc", "basinc", "kaldirma", "akiskan", "elektrik",
+      "(?<!(?:edebi|sanat|dusunce|felsefi|fikir) )akim", "direnc", "gerilim", "manyetik", "dalga", "optik", "isik",
+      whole("ses"), "ses(?:in|i|ler)(?![a-z])", "newton", "tork", "denge", "surtunme", "yercekimi", "kutle",
+      "(?<!(?:puan|sinav|soru) )agirlik", "fizik", "vektor", "elektrostatik", "termodinamik", "isi ve sicaklik",
+    ),
+  },
+  {
+    domain: "engineering",
+    exam: /(^|[^a-z])(muhendislik|kpss a.*teknik)([^a-z]|$)/,
+    words: cueWords("mukavemet", "statik", "dinamik", "devre", "transistor", "sinyal", "kontrol sistem", "malzeme", "gerilme", "kiris", "makine", "termodinamik", "akiskanlar mekanigi", "elektronik"),
+  },
+  {
+    domain: "chemistry",
+    words: cueWords(
+      whole("mol"), "molekul", "atom", "iyon", whole("bag"), "kimyasal", "tepkime", "asit", whole("baz"), "bazlar", "bazik", whole("ph"),
+      "cozelti", "derisim", "gaz yasa", "periyodik", "elektron(?!ik)", "organik", "kimya", "redoks", whole("tuz"), "karisim",
+    ),
+  },
+  {
+    domain: "architecture",
+    exam: /(^|[^a-z])(mimarlik|mimari)([^a-z]|$)/,
+    words: cueWords(
+      "mimar", "(?<!(?:dogu|bati|guney|kuzey|savas|kafkas|canakkale|irak|suriye|filistin|sark|garp) )cephe", "kesit",
+      "(?<!(?:calisma|ders|is|egitim|eylem|tatil|gezi|tedavi|bakim|bireysel|yillik|gunluk|haftalik|aylik|kalkinma|yillik) )plan(?!la|c|li)",
+      "pafta", whole("aks"), "tasiyici", "kolon(?!i|y)", "doseme", "yapi elemani", "aciklik", "kubbe", "kemer", "tonoz", "revak",
+      "avlu", "ic mekan", "gotik", "barok", "romanesk", "selcuklu mimari", "osmanli mimari",
+    ),
+  },
+  { domain: "interior_architecture", words: cueWords("ic mimar", "mobilya", "mekan tasarim", "aydinlatma tasarim", "ergonomi") },
+  {
+    domain: "civil_engineering",
+    words: cueWords(
+      "insaat", "betonarme", "temel (?:kazi|sistem|tip|tasarim|zemin|hesab|eleman)", "(?:radye|tekil|surekli|kazikli|yuzeysel|derin|munferit) temel",
+      "zemin (?:etud|sinif|iyilestir|mekanig)", "yuk aktarimi", "deprem yonetmeli", "celik yapi", "perde duvar",
+    ),
+  },
+  { domain: "art_history", words: cueWords("sanat tarihi", "ressam", "heykel", "uslup", "ronesans", "empresyon", "minyatur", "cini", "hat sanati") },
+  {
+    domain: "constitution",
+    words: cueWords("anayasa", "tbmm", "meclis", "milletvekili", "cumhurbaskani", "nitelikli cogunluk", "salt cogunluk", "uye tamsayisi", "referandum", "kanun teklifi", "anayasa mahkemesi", "yasama", "yurutme", "yargi"),
+  },
+  {
+    domain: "law",
+    exam: /(^|[^a-z])(hukuk|hakimlik|avukatlik|adli)([^a-z]|$)/,
+    words: cueWords(
+      "hukuk", "dava", "mahkeme", "kanun", "yonetmelik", "sozlesme", "borclar", "ceza(?!yir)", "idari", "zaman asimi", "hak dusurucu",
+      "istisna", "tazminat", "temyiz", "itiraz", "hukum(?!et)", "mulkiyet", "miras", "tuzel kisi", "gercek kisi", "ehliyet",
+    ),
+  },
+  { domain: "kpss", exam: /(^|[^a-z])(kpss)([^a-z]|$)/, words: cueWords("vatandaslik", "guncel bilgiler", "kamu personeli", "devlet memurlari") },
+  {
+    domain: "history",
+    words: cueWords(
+      "(?<!(?:sinav|teslim|son|basvuru|odev|dogum|bitis|baslangic|vize|final|kayit|randevu|hedef|cikis|yayin|sanat) )tarih(?!li|siz|lendir)",
+      "osmanli", "selcuklu", "savas", "antlasma", "padisah", "inkilap", "cumhuriyet donemi", "kurtulus savasi", "devlet", "imparatorluk",
+      "beylik", "islahat", "mesrutiyet", "kronoloji", "divan-?i humayun",
+    ),
+  },
+  {
+    domain: "philosophy",
+    words: cueWords("felsefe", "filozof", "epistemoloji", "ontoloji", "etik(?!et)", "ahlak felsefesi", "mantik", "varlik", "bilgi felsefesi", "sokrates", "platon", "aristoteles", whole("kant")),
+  },
+  { domain: "social_science", words: cueWords("sosyoloji", "toplum", "kultur", "egitim bilimleri", "sosyal bilim", "sosyal yapi") },
+  {
+    domain: "psychology",
+    words: cueWords(
+      "psikoloji", "psikolog", "rehberlik", "gelisim (?:donem|kuram|evre|psikoloji)", "bilissel", "davranisci", "kosullanma", "pekistir",
+      "bellek", "motivasyon", "kisilik", "freud", "piaget", "maslow", "erikson", "bilincalti", whole("algi"), "algilar",
+    ),
+  },
+  {
+    domain: "geography",
+    words: cueWords(
+      "cografya", "iklim", "nufus", "harita", "enlem", "boylam", "yer sekil", "akarsu", "ruzgar", "yagis", "bitki ortusu", "toprak tur",
+      "tektonik", "volkan", "levha", "goc(?![a-z])", "gocler",
+    ),
+  },
+  {
+    domain: "literature",
+    words: cueWords(
+      "edebiyat", "edebi", "siir", "roman(?!esk|ya)", "hikaye", "divan(?!-?i humayun)", "tanzimat", "servet-i funun", "yazar(?!ak|ken|sa)",
+      "sair", "nazim", "nesir", "dil bilgisi", "paragraf", "anlatim bozuklugu",
+    ),
+  },
+  {
+    domain: "language",
+    exam: /(^|[^a-z])(yds|yokdil|ydt|toefl|ielts|ingilizce|almanca|fransizca)([^a-z]|$)/,
+    words: cueWords(
+      "ingilizce", "almanca", "fransizca", "arapca", "ispanyolca", "italyanca", "rusca", "yabanci dil", whole("yds"), "yokdil", whole("ydt"),
+      "grammar", "vocabulary", whole("tense"), "present perfect", "past simple", "phrasal verb", "preposition", "conditional", "kelime bilgisi",
+    ),
+  },
+  {
+    domain: "statistics",
+    words: cueWords("istatistik", "olasilik", "ortalama", "medyan", "standart sapma", "varyans", "(?<!(?:gelir|nufus|servet) )dagilim", "histogram", "regresyon", "korelasyon", "hipotez testi", "orneklem"),
+  },
+  {
+    domain: "algorithm",
+    words: cueWords("algoritma", "veri yapisi", whole("dizi"), "siralama algoritma", "ozyineleme", "karmasiklik", whole("graf"), "agac yapisi", "programlama", whole("kod"), "dongu", "fonksiyon cagrisi"),
+  },
+  {
+    domain: "geometry",
+    words: cueWords(
+      "geometri", "ucgen", whole("aci"), "acilar", "kenar", "cember", "daire(?!si|nin| baskan)", "dortgen", "cokgen",
+      "(?<!(?:calisma|is|yasam|uzmanlik|ilgi|bilgi) )alan(?:i|in)?(?![a-z])", "cevre(?![a-z])(?! (?:kirlil|sorun|koru|bilim|duzenle))",
+      "benzerlik", "pisagor", "teget", whole("kiris"), "prizma", "kure(?!sel)", "koni",
+    ),
+  },
+  {
+    domain: "economics",
+    words: cueWords(
+      "iktisat", "ekonomi", "arz(?!u)", "talep", "fiyat", "enflasyon", "faiz", "piyasa", "maliyet",
+      "(?:milli|ulusal|kisi basina|toplam|kamu|vergi|faiz|marjinal|reel|nominal|kisisel|harcanabilir) gelir",
+      "gelir (?:dagilim|vergi|esneklig|etkisi|grub|duzey|seviye|artis|azalis|politika|dengesizlig|tablosu|elastik)",
+      whole("gsyh"), "para politikasi", "esneklik", "marjinal", "resesyon", "issizlik", "ithalat", "ihracat", "doviz",
+    ),
+  },
+  {
+    domain: "mathematics",
+    exam: /(^|[^a-z])(ales|dgs|tyt mat|ayt mat|matematik)([^a-z]|$)/,
+    words: cueWords(
+      "fonksiyon", "denklem", "esitsizlik", "turev", "integral", "limit", "logaritma", "polinom", "matris",
+      "(?:tam|dogal|rasyonel|irrasyonel|reel|asal|karmasik|tek|cift) sayi", "sayi dogrusu", "sayilar(?![a-z])", "kume(?:si|ler|leri)?(?![a-z])",
+      "diziler(?![a-z])",
+      "oran oranti", "problem(?:ler|leri)?(?![a-z])", whole("us"), "koklu", "mutlak deger", whole("seri"), "parabol", "grafik", "egim",
+    ),
+  },
 ];
 
 /** Kaynakta okunabilir tablo var mı: en az üç satır, satır başına en az iki ayraç (| ya da sekme ya da çoklu boşluk). */

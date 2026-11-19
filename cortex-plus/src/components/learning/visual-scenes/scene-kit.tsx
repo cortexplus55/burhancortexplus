@@ -192,7 +192,7 @@ export function SceneBadge({ box, color, textColor }: { box: TextBox; color: str
         y={box.rect.y}
         width={box.rect.w}
         height={box.rect.h}
-        rx={box.rect.h / 2}
+        rx={Math.min(box.rect.h / 2, 13)}
         fill={color}
         fillOpacity={0.18}
         stroke={color}

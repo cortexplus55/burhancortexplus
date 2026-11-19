@@ -3,7 +3,9 @@
 import { ARCHETYPE_LABEL } from "@/lib/learning/visual-scenes/archetype";
 import {
   layoutHeader,
-  placeText,
+  SCENE_FONT_FLOOR,
+  labelBudget,
+  textPlacer,
   segment,
   type Rect,
   type SceneFrame,
@@ -12,6 +14,7 @@ import {
   type TextBox,
 } from "@/lib/learning/visual-scenes/layout";
 import type { DocumentSpotlightData } from "@/lib/learning/visual-scenes/schema";
+import { measureText } from "@/lib/learning/visual-scenes/text-fit";
 import { ArrowDefs, SceneBadge, SceneSvg, SceneText, delay, useSceneIds, type SceneCommonProps } from "./scene-kit";
 
 /**
@@ -88,7 +91,11 @@ export function layoutDocumentSpotlight(data: DocumentSpotlightData, frame: Scen
   return documentPass(data, frame, { offset, listTop: paperBottom + offset + 18, areaH });
 }
 
-function documentPass(data: DocumentSpotlightData, frame: SceneFrame, pass: DocumentPass): DocumentLayout {
+function documentPass(raw: DocumentSpotlightData, frame: SceneFrame, pass: DocumentPass): DocumentLayout {
+  const place = textPlacer(frame);
+  // Etiket bütçesi (seviye): en az bir spot kalır.
+  const [spotN] = labelBudget(frame.text.maxLabels, [{ count: raw.spots.length, keep: 1 }]);
+  const data: DocumentSpotlightData = { ...raw, spots: raw.spots.slice(0, spotN) };
   const { content } = frame;
   const header = layoutHeader(frame, data.title, `${ARCHETYPE_LABEL.DOCUMENT_FIGURE_SPOTLIGHT}${data.page ? ` · s. ${data.page}` : ""}`);
   const texts: TextBox[] = [...header.texts];
@@ -104,8 +111,8 @@ function documentPass(data: DocumentSpotlightData, frame: SceneFrame, pass: Docu
   const measure = (noteLines: number, baseY: number) => {
     let y = baseY;
     return data.spots.map((spot, index) => {
-      const label = placeText(`callout${index}-label`, spot.label, listX + PIN_R * 2 + 8, y, { maxWidth: listW - PIN_R * 2 - 8, maxLines: 1, fontSize: 12, minFontSize: 9.5, weight: 800, single: true });
-      const note = placeText(`callout${index}-note`, spot.note, listX + PIN_R * 2 + 8, y + label.rect.h + 1, { maxWidth: listW - PIN_R * 2 - 8, maxLines: noteLines, fontSize: 10.5, minFontSize: 9 });
+      const label = place(`callout${index}-label`, spot.label, listX + PIN_R * 2 + 8, y, { maxWidth: listW - PIN_R * 2 - 8, maxLines: 1, fontSize: 12, minFontSize: 9.5, weight: 800, single: true });
+      const note = place(`callout${index}-note`, spot.note, listX + PIN_R * 2 + 8, y + label.rect.h + 1, { maxWidth: listW - PIN_R * 2 - 8, maxLines: noteLines, fontSize: 10.5, minFontSize: 9 });
       const h = Math.max(PIN_R * 2, label.rect.h + note.rect.h + 1);
       const out = { label, note, y, h };
       y += h + 10;
@@ -133,10 +140,10 @@ function documentPass(data: DocumentSpotlightData, frame: SceneFrame, pass: Docu
     : { x: content.x, y: top, w: listX - content.x - leaderGap, h: pass.areaH ?? bottom - top };
   const pagePad = 12;
   const pageLabel = data.page
-    ? placeText("page-label", `s. ${data.page}`, area.x + area.w - pagePad - 10, area.y + 6, { maxWidth: 60, maxLines: 1, fontSize: 9.5, weight: 700, anchor: "end", single: true })
+    ? place("page-label", `s. ${data.page}`, area.x + area.w - pagePad - 10, area.y + 6, { maxWidth: 60, maxLines: 1, fontSize: 9.5, weight: 700, anchor: "end", single: true })
     : null;
   if (pageLabel) texts.push(pageLabel);
-  const captionProbe = placeText("caption", data.figure.caption, area.x + pagePad, 0, { maxWidth: area.w - pagePad * 2, maxLines: 2, fontSize: 10.5, minFontSize: 9 });
+  const captionProbe = place("caption", data.figure.caption, area.x + pagePad, 0, { maxWidth: area.w - pagePad * 2, maxLines: 2, fontSize: 10.5, minFontSize: 9 });
   const figTop = area.y + pagePad + (pageLabel ? pageLabel.rect.h + 4 : 0);
   const figMaxH = area.h - pagePad * 2 - captionProbe.rect.h - 8 - (pageLabel ? pageLabel.rect.h + 4 : 0);
 
@@ -148,25 +155,42 @@ function documentPass(data: DocumentSpotlightData, frame: SceneFrame, pass: Docu
   if (data.figure.kind === "table") {
     const cols = data.figure.columns.length;
     const tableW = area.w - pagePad * 2;
-    const colW = Array.from({ length: cols }, () => tableW / cols);
     const rowsData = [data.figure.columns, ...data.figure.rows.map((row) => Array.from({ length: cols }, (_, c) => row[c] ?? ""))];
-    const rowLines = (figMaxH / rowsData.length) > 30 ? 2 : 1;
-    const cells: TextBox[] = [];
-    const rowH: number[] = [];
-    let y = figTop;
-    rowsData.forEach((row, r) => {
-      const boxes = row.map((cell, c) =>
+    // Sütun genişliği içeriğe göre (uzun hücreli sütun daha geniş, her sütun en az %18); satır başına satır sayısı
+    // hücreler kesilmeyene kadar artar, toplam yükseklik sığmıyorsa eşit sınıra döner.
+    const longest = Array.from({ length: cols }, (_, c) => Math.max(1, ...rowsData.map((row) => measureText(row[c] ?? "", frame.text.floor, 500))));
+    const weights = longest.map((width) => Math.sqrt(width));
+    const weightSum = weights.reduce((a, b) => a + b, 0);
+    const minShare = Math.min(0.18, 1 / cols);
+    const shares = weights.map((weight) => Math.max(minShare, weight / weightSum));
+    const shareSum = shares.reduce((a, b) => a + b, 0);
+    const colW = shares.map((share) => (tableW * share) / shareSum);
+    const buildRow = (row: string[], r: number, y: number, lines: number) =>
+      row.map((cell, c) =>
         cell
-          ? placeText(`cell-${r}-${c}`, cell, area.x + pagePad + colW.slice(0, c).reduce((a, b) => a + b, 0) + 6, y + 5, {
+          ? place(`cell-${r}-${c}`, cell, area.x + pagePad + colW.slice(0, c).reduce((a, b) => a + b, 0) + 6, y + 5, {
               maxWidth: colW[c]! - 12,
-              maxLines: rowLines,
-              fontSize: r === 0 ? 10.5 : 10.5,
+              maxLines: lines,
+              fontSize: 10.5,
               minFontSize: 8.5,
               weight: r === 0 ? 800 : 500,
             })
           : null,
       );
-      const h = Math.max(18, ...boxes.map((box) => (box ? box.rect.h : 0))) + 10;
+    const rowHeight = (boxes: (TextBox | null)[]) => Math.max(18, ...boxes.map((box) => (box ? box.rect.h : 0))) + 10;
+    const needLines = rowsData.map((row, r) => {
+      for (let lines = 1; lines <= 6; lines += 1) if (buildRow(row, r, 0, lines).every((box) => !box || !box.truncated)) return lines;
+      return 6;
+    });
+    const natural = rowsData.reduce((sum, row, r) => sum + rowHeight(buildRow(row, r, 0, needLines[r]!)), 0);
+    const uniform = figMaxH / rowsData.length > 30 ? 2 : 1;
+    const rowLines = natural <= figMaxH ? needLines : needLines.map((lines) => Math.min(lines, uniform));
+    const cells: TextBox[] = [];
+    const rowH: number[] = [];
+    let y = figTop;
+    rowsData.forEach((row, r) => {
+      const boxes = buildRow(row, r, y, rowLines[r]!);
+      const h = rowHeight(boxes);
       rowH.push(h);
       boxes.forEach((box) => box && cells.push(box));
       y += h;
@@ -212,7 +236,7 @@ function documentPass(data: DocumentSpotlightData, frame: SceneFrame, pass: Docu
     });
   }
 
-  const caption = placeText("caption", data.figure.caption, area.x + pagePad, figBottom + 8, { maxWidth: area.w - pagePad * 2, maxLines: 2, fontSize: 10.5, minFontSize: 9 });
+  const caption = place("caption", data.figure.caption, area.x + pagePad, figBottom + 8, { maxWidth: area.w - pagePad * 2, maxLines: 2, fontSize: 10.5, minFontSize: 9 });
   texts.push(caption);
   const paper: Rect = { x: area.x, y: area.y, w: area.w, h: Math.min(area.h, caption.rect.y + caption.rect.h + pagePad - area.y) };
 
@@ -333,13 +357,13 @@ export function DocumentSpotlightScene({ data, ...common }: SceneCommonProps & {
             />
             <g className="cp-vs-fade" style={delay(at + 0.3)}>
               <circle cx={spot.pin.x} cy={spot.pin.y} r={SPOT_PIN_R} fill={DOCUMENT_COLORS.spot} stroke={DOCUMENT_COLORS.bg} strokeWidth={1.5} />
-              <text x={spot.pin.x} y={spot.pin.y + 3} fontSize={8.5} fontWeight={800} textAnchor="middle" fill={DOCUMENT_COLORS.bg}>
+              <text x={spot.pin.x} y={spot.pin.y + SCENE_FONT_FLOOR * 0.36} fontSize={SCENE_FONT_FLOOR} fontWeight={800} textAnchor="middle" fill={DOCUMENT_COLORS.bg}>
                 {spot.n}
               </text>
             </g>
             <g className="cp-vs-fade" style={delay(at + 0.8)}>
               <circle cx={spot.callout.pinX} cy={spot.callout.pinY} r={PIN_R} fill={DOCUMENT_COLORS.spot} />
-              <text x={spot.callout.pinX} y={spot.callout.pinY + 3.5} fontSize={10} fontWeight={800} textAnchor="middle" fill={DOCUMENT_COLORS.bg}>
+              <text x={spot.callout.pinX} y={spot.callout.pinY + SCENE_FONT_FLOOR * 0.36} fontSize={SCENE_FONT_FLOOR} fontWeight={800} textAnchor="middle" fill={DOCUMENT_COLORS.bg}>
                 {spot.n}
               </text>
               <SceneText box={spot.callout.label} fill={DOCUMENT_COLORS.text} />

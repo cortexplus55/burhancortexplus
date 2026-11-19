@@ -3,7 +3,9 @@
 import { ARCHETYPE_LABEL, DOMAIN_LABEL, type AcademicDomain } from "@/lib/learning/visual-scenes/archetype";
 import {
   layoutHeader,
-  placeText,
+  SCENE_FONT_FLOOR,
+  labelBudget,
+  textPlacer,
   rectsOverlap,
   segment,
   segmentHitsRect,
@@ -12,6 +14,7 @@ import {
   type SceneLayout,
   type Segment,
   type TextBox,
+  type TextPlacer,
 } from "@/lib/learning/visual-scenes/layout";
 import type { CurveFamily, CurvePointKind, MathGraphData } from "@/lib/learning/visual-scenes/schema";
 import { ArrowDefs, SceneBadge, SceneSvg, SceneText, delay, useSceneIds, type SceneCommonProps } from "./scene-kit";
@@ -115,6 +118,7 @@ const PLACE_GAP = 6;
 
 /** Etiketi noktanın çevresindeki adaylardan çakışmasız ilkine koyar. */
 function placeNear(
+  place: TextPlacer,
   id: string,
   text: string,
   px: number,
@@ -123,7 +127,7 @@ function placeNear(
   avoid: { segments: Segment[]; boxes: Rect[] },
   options: { fontSize: number; weight?: 400 | 600 | 700 | 800; maxWidth?: number },
 ): TextBox {
-  const probe = placeText(id, text, 0, 0, { maxWidth: options.maxWidth ?? 120, maxLines: 1, fontSize: options.fontSize, minFontSize: 8.5, weight: options.weight ?? 700, single: true });
+  const probe = place(id, text, 0, 0, { maxWidth: options.maxWidth ?? 120, maxLines: 1, fontSize: options.fontSize, minFontSize: 8.5, weight: options.weight ?? 700, single: true });
   const w = probe.rect.w;
   const h = probe.rect.h;
   const candidates: [number, number][] = [
@@ -166,14 +170,14 @@ function placeNear(
   return nearest ?? best!;
 }
 
-function layoutSteps(data: MathGraphData, area: Rect, portrait: boolean): { steps: MathLayout["steps"]; arrows: Segment[]; height: number } {
+function layoutSteps(place: TextPlacer, data: MathGraphData, area: Rect, portrait: boolean): { steps: MathLayout["steps"]; arrows: Segment[]; height: number } {
   if (!data.steps.length) return { steps: [], arrows: [], height: 0 };
   const gap = 16;
   const steps: MathLayout["steps"] = [];
   const arrows: Segment[] = [];
   let y = area.y;
   data.steps.forEach((step, index) => {
-    const text = placeText(`step${index}`, step, area.x + 30, y + 7, { maxWidth: area.w - 40, maxLines: portrait ? 1 : 2, fontSize: 12, minFontSize: 9.5, weight: 700 });
+    const text = place(`step${index}`, step, area.x + 30, y + 7, { maxWidth: area.w - 40, maxLines: portrait ? 1 : 2, fontSize: 12, minFontSize: 9.5, weight: 700 });
     const chip: Rect = { x: area.x, y, w: area.w, h: text.rect.h + 14 };
     steps.push({ chip, text });
     if (index > 0) {
@@ -185,7 +189,14 @@ function layoutSteps(data: MathGraphData, area: Rect, portrait: boolean): { step
   return { steps, arrows, height: y - gap - area.y };
 }
 
-export function layoutMathGraph(data: MathGraphData, frame: SceneFrame, domain?: AcademicDomain): MathLayout {
+export function layoutMathGraph(raw: MathGraphData, frame: SceneFrame, domain?: AcademicDomain): MathLayout {
+  const place = textPlacer(frame);
+  // Etiket bütçesi (seviye): eğrinin ve şeklin etiketleri kalır; fazlası dönüşüm adımlarından düşer.
+  const [, stepN] = labelBudget(frame.text.maxLabels, [
+    { count: (raw.curve?.points.length ?? 0) + (raw.integral ? 1 : 0) + 1, keep: Number.POSITIVE_INFINITY },
+    { count: raw.steps.length, keep: 0 },
+  ]);
+  const data: MathGraphData = { ...raw, steps: raw.steps.slice(0, stepN) };
   const { content } = frame;
   const badge = `${domain ? DOMAIN_LABEL[domain] : "Matematik"} · ${ARCHETYPE_LABEL.MATH_ALGORITHMIC_GRAPH}`;
   const header = layoutHeader(frame, data.title, badge);
@@ -198,15 +209,15 @@ export function layoutMathGraph(data: MathGraphData, frame: SceneFrame, domain?:
   let graph: Rect;
   let stepsOut: ReturnType<typeof layoutSteps>;
   if (frame.portrait) {
-    const probe = layoutSteps(data, { x: content.x, y: 0, w: content.w, h: 0 }, true);
+    const probe = layoutSteps(place, data, { x: content.x, y: 0, w: content.w, h: 0 }, true);
     const stepsTop = bottom - probe.height;
-    stepsOut = layoutSteps(data, { x: content.x, y: stepsTop, w: content.w, h: probe.height }, true);
+    stepsOut = layoutSteps(place, data, { x: content.x, y: stepsTop, w: content.w, h: probe.height }, true);
     graph = { x: content.x, y: top, w: content.w, h: (data.steps.length ? stepsTop - 14 : bottom) - top };
   } else {
     const colW = data.steps.length ? Math.round(content.w * 0.36) : 0;
     const colX = content.x + content.w - colW;
-    const probe = layoutSteps(data, { x: colX, y: 0, w: colW, h: 0 }, false);
-    stepsOut = layoutSteps(data, { x: colX, y: top + Math.max(0, (bottom - top - probe.height) / 2), w: colW, h: probe.height }, false);
+    const probe = layoutSteps(place, data, { x: colX, y: 0, w: colW, h: 0 }, false);
+    stepsOut = layoutSteps(place, data, { x: colX, y: top + Math.max(0, (bottom - top - probe.height) / 2), w: colW, h: probe.height }, false);
     graph = { x: content.x, y: top, w: (data.steps.length ? colX - 16 : content.x + content.w) - content.x, h: bottom - top };
   }
   for (const step of stepsOut.steps) texts.push(step.text);
@@ -261,7 +272,7 @@ export function layoutMathGraph(data: MathGraphData, frame: SceneFrame, domain?:
       const r = 18 + index * 2;
       const lx = v.x + Math.cos(mid) * (r + 18);
       const ly = v.y + Math.sin(mid) * (r + 18);
-      const label = placeNear(`angle${index}`, angle.label, lx, ly, inner, { segments, boxes: placedBoxes }, { fontSize: 11.5, maxWidth: 60 });
+      const label = placeNear(place, `angle${index}`, angle.label, lx, ly, inner, { segments, boxes: placedBoxes }, { fontSize: 11.5, maxWidth: 60 });
       placedBoxes.push(label.rect);
       return { at: v, from: a1, to: a1 + diff, r, group: angle.group, label };
     });
@@ -281,7 +292,7 @@ export function layoutMathGraph(data: MathGraphData, frame: SceneFrame, domain?:
         nx = -nx;
         ny = -ny;
       }
-      const label = placeNear(`side${index}`, side.label, mx + nx * 16, my + ny * 16, inner, { segments, boxes: placedBoxes }, { fontSize: 11.5, maxWidth: 70 });
+      const label = placeNear(place, `side${index}`, side.label, mx + nx * 16, my + ny * 16, inner, { segments, boxes: placedBoxes }, { fontSize: 11.5, maxWidth: 70 });
       placedBoxes.push(label.rect);
       return { a, b, group: side.group, label };
     });
@@ -326,7 +337,7 @@ export function layoutMathGraph(data: MathGraphData, frame: SceneFrame, domain?:
       const integral = data.integral ?? { from: "a", to: "b", label: "Alan" };
       // Sınır etiketleri: önce eksenin altı, eğriye/ekseni değerse dışa doğru kaydırılır ya da üste alınır.
       const bound = (x: number, id: string, text: string, outward: -1 | 1): TextBox => {
-        const probe = placeText(id, text, 0, 0, { maxWidth: 40, maxLines: 1, fontSize: 11.5, weight: 800, single: true });
+        const probe = place(id, text, 0, 0, { maxWidth: 40, maxLines: 1, fontSize: 11.5, weight: 800, single: true });
         const { w, h } = probe.rect;
         let first: TextBox | null = null;
         for (const side of [1, -1] as const) {
@@ -341,7 +352,7 @@ export function layoutMathGraph(data: MathGraphData, frame: SceneFrame, domain?:
             if (!clash) return box;
           }
         }
-        return first ?? placeNear(id, text, x, axisY, inner, { segments, boxes: placedBoxes }, { fontSize: 11.5, weight: 800, maxWidth: 40 });
+        return first ?? placeNear(place, id, text, x, axisY, inner, { segments, boxes: placedBoxes }, { fontSize: 11.5, weight: 800, maxWidth: 40 });
       };
       const la = bound(areaX[0], "integral-a", integral.from, -1);
       placedBoxes.push(la.rect);
@@ -349,7 +360,7 @@ export function layoutMathGraph(data: MathGraphData, frame: SceneFrame, domain?:
       placedBoxes.push(lb.rect);
       const midX = (areaX[0] + areaX[1]) / 2;
       const midY = sy(def.f((a + b) / 2));
-      const label = placeNear("integral-label", integral.label, midX, (midY + axisY) / 2, inner, { segments, boxes: placedBoxes }, { fontSize: 12, maxWidth: inner.w * 0.5 });
+      const label = placeNear(place, "integral-label", integral.label, midX, (midY + axisY) / 2, inner, { segments, boxes: placedBoxes }, { fontSize: 12, maxWidth: inner.w * 0.5 });
       placedBoxes.push(label.rect);
       integralLabels = { a: la, b: lb, label };
       texts.push(la, lb, label);
@@ -361,7 +372,7 @@ export function layoutMathGraph(data: MathGraphData, frame: SceneFrame, domain?:
       const px = sx(x);
       const py = sy(def.f(x));
       if (py < inner.y || py > inner.y + inner.h) continue;
-      const label = placeNear(`point-${point.kind}`, point.label, px, py, inner, { segments, boxes: placedBoxes }, { fontSize: 11 });
+      const label = placeNear(place, `point-${point.kind}`, point.label, px, py, inner, { segments, boxes: placedBoxes }, { fontSize: 11 });
       placedBoxes.push(label.rect, { x: px - 4, y: py - 4, w: 8, h: 8 });
       points.push({ x: px, y: py, label });
       texts.push(label);
@@ -374,7 +385,7 @@ export function layoutMathGraph(data: MathGraphData, frame: SceneFrame, domain?:
       [inner.x + inner.w - 4, inner.y + inner.h - 4],
     ];
     for (const [cx, cy] of corners) {
-      const box = placeNear("expression", curve.expression, cx, cy, inner, { segments, boxes: placedBoxes }, { fontSize: 13, weight: 800, maxWidth: inner.w * 0.6 });
+      const box = placeNear(place, "expression", curve.expression, cx, cy, inner, { segments, boxes: placedBoxes }, { fontSize: 13, weight: 800, maxWidth: inner.w * 0.6 });
       const clash = segments.some((seg) => segmentHitsRect(seg, box.rect)) || placedBoxes.some((rect) => rectsOverlap(rect, box.rect, 2));
       if (!clash || cx === corners[corners.length - 1]![0] && cy === corners[corners.length - 1]![1]) {
         expression = box;
@@ -540,7 +551,7 @@ export function MathGraphScene({ data, domain, ...common }: SceneCommonProps & {
         <g key={`step${index}`} className="cp-vs-fade" style={delay(2.2 + index * 0.35)}>
           <rect x={step.chip.x} y={step.chip.y} width={step.chip.w} height={step.chip.h} rx={10} fill={MATH_COLORS.step} fillOpacity={0.14} stroke={MATH_COLORS.step} strokeWidth={1.2} />
           <circle cx={step.chip.x + 14} cy={step.chip.y + step.chip.h / 2} r={8} fill={MATH_COLORS.step} />
-          <text x={step.chip.x + 14} y={step.chip.y + step.chip.h / 2 + 3.5} fontSize={10} fontWeight={800} textAnchor="middle" fill={MATH_COLORS.bg}>
+          <text x={step.chip.x + 14} y={step.chip.y + step.chip.h / 2 + SCENE_FONT_FLOOR * 0.36} fontSize={SCENE_FONT_FLOOR} fontWeight={800} textAnchor="middle" fill={MATH_COLORS.bg}>
             {index + 1}
           </text>
           <SceneText box={step.text} fill={MATH_COLORS.text} rich />

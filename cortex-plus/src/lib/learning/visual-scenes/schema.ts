@@ -1,9 +1,13 @@
 import { z } from "zod";
+import type { PedagogicalLevel } from "@/lib/learning/pedagogical-profile";
 import { isProgression, phraseDirection, trendOf } from "./direction-semantics";
 import {
   ACADEMIC_DOMAINS,
+  CONCEPT_STRUCTURES,
   VISUAL_ARCHETYPES,
+  foldTr,
   type AcademicDomain,
+  type ConceptStructure,
   type VisualArchetype,
 } from "@/lib/learning/visual-scenes/archetype";
 
@@ -11,7 +15,26 @@ import {
  * Görsel sahne verisi (Faz 1-B). Model yalnız anlamı yazar (etiket, rol, yön, büyüklük sırası);
  * koordinatı ekran kurar. Uzun metin düşürülmez, kırpılır; geçersiz alan atılır, sahne ancak zorunlu
  * iskelet yoksa düşer.
+ *
+ * 20 Kasım 2026: her sahne isteğe bağlı `pedagogicalLevel` (1-4) taşır; yoğunluk ve yazı boyu buna göre ayarlanır.
+ * Yeni alanların hepsi isteğe bağlıdır: kayıttaki eski sahne JSON'ları aynen ayrışır ve çizilir.
  */
+
+/** Seviye: 1 ortaokul, 2 lise, 3 üniversite, 4 uzmanlık. Geçersizse yok sayılır (sahne düşmez). */
+export const pedagogicalLevelField = z.coerce
+  .number()
+  .int()
+  .min(1)
+  .max(4)
+  .transform((value) => value as PedagogicalLevel)
+  .optional()
+  .catch(undefined);
+
+/** Düğüm/öğe kimliği: kısa metin ya da sayı (model "1" ya da 1 yazabilir). */
+const idField = z
+  .union([z.string(), z.number().finite()])
+  .transform((value) => String(value).replace(/\s+/g, " ").trim().slice(0, 36))
+  .pipe(z.string().min(1));
 
 const squash = (value: string) => value.replace(/\s+/g, " ").trim();
 
@@ -83,6 +106,7 @@ export const PATHWAY_ROLE_LABEL: Record<PathwayRole, string> = {
 export const medicalPathwaySchema = z.object({
   archetype: z.literal("MEDICAL_BIOLOGY_PATHWAY"),
   title: clampText(90, 2),
+  pedagogicalLevel: pedagogicalLevelField,
   layer: z.enum(["cell", "tissue", "organ"]).catch("cell"),
   steps: looseArray(
     z.object({
@@ -107,6 +131,7 @@ export type VectorDirection = (typeof VECTOR_DIRECTIONS)[number];
 export const mechanicsSchema = z.object({
   archetype: z.literal("ENGINEERING_PHYSICS_MECHANICS"),
   title: clampText(90, 2),
+  pedagogicalLevel: pedagogicalLevelField,
   /** `trend`: kuvvet olmayan içerik (eğilim, değişim yönü): aynı bileşen, kuvvet/serbest cisim dili kullanılmaz. */
   setting: z.enum(["free_body", "fluid", "circuit", "trend"]).catch("free_body"),
   body: z.object({ label: clampText(40) }),
@@ -158,17 +183,153 @@ export function repairMechanics(data: MechanicsData): MechanicsData {
 
 /* ───────── 3) Mimarlık teknik pafta ───────── */
 
+export const BLUEPRINT_VIEWS = ["elevation", "section", "plan", "schematic"] as const;
+export type BlueprintView = (typeof BLUEPRINT_VIEWS)[number];
+
+/** Yapı elemanı türü: çizimin geometrisi bu türlerden kurulur. */
+export const BLUEPRINT_KINDS = ["column", "beam", "slab", "wall", "opening", "arch", "dome", "vault", "roof", "foundation", "stair", "facade"] as const;
+export type BlueprintKind = (typeof BLUEPRINT_KINDS)[number];
+export const BLUEPRINT_KIND_LABEL: Record<BlueprintKind, string> = {
+  column: "Kolon",
+  beam: "Kiriş",
+  slab: "Döşeme",
+  wall: "Duvar",
+  opening: "Açıklık",
+  arch: "Kemer",
+  dome: "Kubbe",
+  vault: "Tonoz",
+  roof: "Çatı",
+  foundation: "Temel",
+  stair: "Merdiven",
+  facade: "Cephe",
+};
+
+/** Tür adı (Türkçe ya da İngilizce) ya da etiketteki kök → tür. Sıra önemli: özel (kubbe, kemer) genelden (duvar) önce. */
+const BLUEPRINT_KIND_WORDS: [BlueprintKind, RegExp][] = [
+  ["dome", /(?<![a-z])(kubbe|dome|kasnak)/],
+  ["vault", /(?<![a-z])(tonoz|vault|besik ortu)/],
+  ["arch", /(?<![a-z])(kemer|arch|revak)/],
+  ["stair", /(?<![a-z])(merdiven|stair|basamak)/],
+  ["foundation", /(?<![a-z])(temel|foundation|footing|radye)/],
+  ["roof", /(?<![a-z])(cati|roof|mahya|sacak)/],
+  ["opening", /(?<![a-z])(aciklik|opening|pencere|window|kapi|door|bosluk)/],
+  ["facade", /(?<![a-z])(cephe|facade|kaplama|dis kabuk|giydirme)/],
+  ["beam", /(?<![a-z])(kiris|beam|lento|hatil)/],
+  ["slab", /(?<![a-z])(doseme|slab|plak|kat dosemesi)/],
+  ["column", /(?<![a-z])(kolon|column|sutun|pillar|ayak|tasiyici aks|aks(?![a-z]))/],
+  ["wall", /(?<![a-z])(duvar|wall|perde)/],
+];
+
+export function blueprintKindOf(raw: unknown, label?: string): BlueprintKind | undefined {
+  for (const text of [raw, label]) {
+    if (typeof text !== "string" || !text.trim()) continue;
+    const folded = foldTr(text);
+    if ((BLUEPRINT_KINDS as readonly string[]).includes(folded.trim())) return folded.trim() as BlueprintKind;
+    for (const [kind, pattern] of BLUEPRINT_KIND_WORDS) if (pattern.test(folded)) return kind;
+  }
+  return undefined;
+}
+
+export const BLUEPRINT_MATERIALS = ["concrete", "masonry", "insulation", "wood", "steel", "glass", "plaster", "stone", "soil", "air", "membrane"] as const;
+export type BlueprintMaterial = (typeof BLUEPRINT_MATERIALS)[number];
+const MATERIAL_WORDS: [BlueprintMaterial, RegExp][] = [
+  ["insulation", /(yalitim|izolasyon|isi yalit|eps|xps|tasyunu|camyunu|strafor|insulation)/],
+  ["membrane", /(membran|su yalit|bitum|membrane)/],
+  ["concrete", /(beton|concrete|sap(?![a-z])|samot)/],
+  ["masonry", /(tugla|briket|gazbeton|kagir|masonry|brick|blok)/],
+  ["wood", /(ahsap|kereste|wood|timber|parke)/],
+  ["steel", /(celik|metal|steel|aluminyum|demir)/],
+  ["glass", /(cam(?![a-z]*yunu)|glass|vitray)/],
+  ["plaster", /(siva|alci|plaster|boya)/],
+  ["stone", /(tas(?![a-z]*yunu)|mermer|granit|stone|kesme tas)/],
+  ["soil", /(toprak|zemin|soil|dolgu)/],
+  ["air", /(hava bosl|hava katman|air gap|bosluk)/],
+];
+
+export function blueprintMaterialOf(...texts: (string | undefined)[]): BlueprintMaterial | undefined {
+  for (const text of texts) {
+    if (!text) continue;
+    const folded = foldTr(text);
+    for (const [material, pattern] of MATERIAL_WORDS) if (pattern.test(folded)) return material;
+  }
+  return undefined;
+}
+
+const blueprintElementSchema = z
+  .object({
+    id: idField.optional().catch(undefined),
+    label: clampText(36),
+    role: clampText(80),
+    kind: z.string().optional().catch(undefined),
+    /** Aynı elemandan kaç tane (kolon aks sayısı, kat sayısı, açıklık sayısı); 1-6. */
+    count: z.coerce.number().int().min(1).max(6).optional().catch(undefined),
+    /** Biçim: çatıda gable | flat | shed, açıklıkta window | door, kemerde round | pointed. */
+    variant: z.enum(["gable", "flat", "shed", "window", "door", "round", "pointed"]).optional().catch(undefined),
+    /** Kesitte kesilen eleman (taranır); verilmezse türünden. */
+    cut: z.boolean().optional().catch(undefined),
+  })
+  .transform(({ kind, ...rest }) => {
+    const resolved = blueprintKindOf(kind, rest.label);
+    return { ...rest, ...(resolved ? { kind: resolved } : {}) };
+  });
+export type BlueprintElement = z.output<typeof blueprintElementSchema>;
+
+const blueprintLayerSchema = z
+  .object({
+    name: clampText(32),
+    /** Kalınlık metni (kaynaktaki gibi, ör. birimli sayı); bantlar bu sayılarla orantılı. */
+    thickness: optionalText(16),
+    material: optionalText(28),
+    order: z.coerce.number().int().optional().catch(undefined),
+  })
+  .transform((layer) => {
+    const material = blueprintMaterialOf(layer.material, layer.name);
+    return { ...layer, ...(material ? { materialKind: material } : {}) };
+  });
+export type BlueprintLayer = z.output<typeof blueprintLayerSchema>;
+
+const calloutPinSchema = z.object({
+  n: z.coerce.number().int().min(1).max(9).optional().catch(undefined),
+  /** Hedef öğe: eleman kimliği, etiketi, türü ya da katman adı. */
+  target: idField.optional().catch(undefined),
+  /** Hedef yoksa çizim alanında göreli konum (0-1). */
+  x: z.coerce.number().min(0).max(1).optional().catch(undefined),
+  y: z.coerce.number().min(0).max(1).optional().catch(undefined),
+  label: optionalText(36),
+  note: optionalText(80),
+});
+export type CalloutPin = z.output<typeof calloutPinSchema>;
+
 export const blueprintSchema = z.object({
   archetype: z.literal("ARCHITECTURE_SPATIAL_BLUEPRINT"),
   title: clampText(90, 2),
+  pedagogicalLevel: pedagogicalLevelField,
+  /** Eski kayıtların görünüş alanı; `viewType` yoksa bu geçerli. */
   view: z.enum(["section", "elevation"]).catch("section"),
+  viewType: z.enum(BLUEPRINT_VIEWS).optional().catch(undefined),
   theme: z.enum(["night", "paper"]).catch("night"),
-  /** Numaralı callout pinleri (1-4): taşıyıcı aks, cephe katmanı, açıklık, kesit sırasıyla yerleşir. */
-  elements: looseArray(z.object({ label: clampText(36), role: clampText(80) }), 2, 4),
+  /** Yapı elemanları (2-6): tür, sayı ve biçimden çizim kurulur; pin verilmezse her eleman kendi pinini alır. */
+  elements: looseArray(blueprintElementSchema, 2, 6),
+  /** Katman dizilimi (duvar/döşeme/çatı kesiti): ad, kalınlık, malzeme, sıra. */
+  layers: looseArray(blueprintLayerSchema, 0, 6)
+    .catch([])
+    .transform((layers) =>
+      layers
+        .map((layer, index) => ({ layer, index }))
+        .sort((a, b) => (a.layer.order ?? a.index) - (b.layer.order ?? b.index) || a.index - b.index)
+        .map(({ layer }) => layer),
+    ),
+  /** Numaralı açıklama pinleri: hedef öğenin üstüne oturur. */
+  calloutPins: looseArray(calloutPinSchema, 0, 6).catch([]),
   dimension: z.object({ label: clampText(24) }).optional().catch(undefined),
   flow: z.enum(["light", "load", "both"]).catch("load"),
 });
 export type BlueprintData = z.infer<typeof blueprintSchema>;
+
+/** Sahnenin görünüş türü: yeni `viewType`, yoksa eski `view`. */
+export function blueprintView(data: Pick<BlueprintData, "view" | "viewType">): BlueprintView {
+  return data.viewType ?? data.view;
+}
 
 /* ───────── 4) Hukuk / sosyal karar akışı ───────── */
 
@@ -181,15 +342,35 @@ export function parseFraction(text: string): { num: number; den: number } | null
   return den > 0 && num > 0 && num <= den ? { num, den } : null;
 }
 
+const lawNodeSchema = z.object({
+  id: idField,
+  /** Soru düğümünde koşul, yaprakta sonuç. */
+  text: clampText(80, 2),
+  /** Evet / Hayır dalı: başka düğümün kimliği ya da doğrudan sonuç metni. */
+  yes: idField.optional().catch(undefined),
+  no: idField.optional().catch(undefined),
+  /** İkiden çok dal (ya da adlı dallar): etiket + hedef. */
+  branches: looseArray(z.object({ label: clampText(24), to: idField }), 0, 3).catch([]),
+  tone: z.enum(["positive", "negative", "neutral"]).optional().catch(undefined),
+});
+export type LawNode = z.output<typeof lawNodeSchema>;
+
 export const lawDecisionSchema = z.object({
   archetype: z.literal("LAW_SOCIAL_FLOWCHART"),
   title: clampText(90, 2),
-  decision: z.object({
-    question: clampText(80, 3),
-    yes: clampText(60),
-    no: clampText(60),
-  }),
-  /** Çoğunluk barometresi (ör. 3/5 = 360, 2/3 = 400): kesir + isteğe bağlı sayı ve toplam. */
+  pedagogicalLevel: pedagogicalLevelField,
+  /** Tek kademeli eski karar (kayıttaki sahneler); `nodes` varsa ağaç ondan kurulur. */
+  decision: z
+    .object({
+      question: clampText(80, 3),
+      yes: clampText(60),
+      no: clampText(60),
+    })
+    .optional()
+    .catch(undefined),
+  /** Çok kademeli karar ağacı (derinlik en çok 3): ilk düğüm köktür. */
+  nodes: looseArray(lawNodeSchema, 0, 10).catch([]),
+  /** Çoğunluk barometresi (ör. 3/5 = 360, 2/3 = 400): eşik kesri, eşiğin sayısı, toplam ve gerçekleşen. */
   majority: looseArray(
     z
       .object({
@@ -197,18 +378,169 @@ export const lawDecisionSchema = z.object({
         fraction: clampText(7),
         count: z.coerce.number().int().positive().optional().catch(undefined),
         total: z.coerce.number().int().positive().optional().catch(undefined),
+        /** Gerçekleşen sayı (oy, imza …): eşiği geçip geçmediği renkle gösterilir. */
+        actual: z.coerce.number().int().nonnegative().optional().catch(undefined),
       })
       .refine((row) => parseFraction(row.fraction) !== null),
     0,
     3,
   ).catch([]),
   timeline: looseArray(z.object({ date: clampText(16), label: clampText(40) }), 0, 5).catch([]),
-  ruleVsException: z.object({
-    rule: looseArray(clampText(70), 1, 3),
-    exception: looseArray(clampText(70), 1, 3),
-  }),
+  /** İsteğe bağlı: kaynak bir istisna söylemiyorsa yazılmaz (istisna listesi boş kalabilir). */
+  ruleVsException: z
+    .object({
+      rule: looseArray(clampText(70), 1, 3),
+      exception: looseArray(clampText(70), 0, 3).catch([]),
+    })
+    .optional()
+    .catch(undefined),
 });
 export type LawDecisionData = z.infer<typeof lawDecisionSchema>;
+
+/** Ağaç düğümü: soru (çocuklu) ya da sonuç (yaprak). */
+export type LawTreeNode = {
+  key: string;
+  text: string;
+  depth: number;
+  tone: "positive" | "negative" | "neutral";
+  children: { label: string; tone: "positive" | "negative" | "neutral"; node: LawTreeNode }[];
+};
+
+/** Karar ağacının en çok kaç soru kademesi çizilir (daha derindeki soru sonuç olarak kalır). */
+export const LAW_TREE_MAX_DEPTH = 3;
+
+/**
+ * Düğüm listesinden ağaç: kök ilk düğüm; `yes`/`no`/`branches` hedefi bir düğümün kimliğiyse ona bağlanır, değilse
+ * doğrudan sonuç metnidir. Döngü ve derinlik sınırı kesilir. Düğüm yoksa eski `decision`'dan tek kademeli ağaç.
+ */
+export function lawTreeOf(data: Pick<LawDecisionData, "nodes" | "decision">): LawTreeNode | null {
+  if (data.nodes.length) {
+    const byId = new Map(data.nodes.map((node) => [foldTr(node.id), node]));
+    let serial = 0;
+    const leaf = (text: string, depth: number, tone: LawTreeNode["tone"]): LawTreeNode => ({ key: `leaf${serial++}`, text: cutAtWord(text, 80), depth, tone, children: [] });
+    const build = (node: LawNode, depth: number, seen: Set<string>, tone: LawTreeNode["tone"]): LawTreeNode => {
+      const own = node.tone ?? tone;
+      const edges: { label: string; tone: LawTreeNode["tone"]; to: string }[] = [
+        ...(node.yes ? [{ label: "EVET", tone: "positive" as const, to: node.yes }] : []),
+        ...(node.no ? [{ label: "HAYIR", tone: "negative" as const, to: node.no }] : []),
+        ...node.branches.map((branch) => ({ label: branch.label.toLocaleUpperCase("tr"), tone: "neutral" as const, to: branch.to })),
+      ].slice(0, 3);
+      if (!edges.length || depth >= LAW_TREE_MAX_DEPTH) return { key: node.id, text: node.text, depth, tone: own, children: [] };
+      const next = new Set(seen).add(foldTr(node.id));
+      return {
+        key: node.id,
+        text: node.text,
+        depth,
+        tone: "neutral",
+        children: edges.map((edge) => {
+          const target = byId.get(foldTr(edge.to));
+          const child = target && !next.has(foldTr(target.id)) ? build(target, depth + 1, next, edge.tone) : leaf(edge.to, depth + 1, edge.tone);
+          return { label: edge.label, tone: edge.tone, node: child };
+        }),
+      };
+    };
+    const root = build(data.nodes[0]!, 0, new Set(), "neutral");
+    if (root.children.length) return root;
+  }
+  if (!data.decision) return null;
+  return {
+    key: "root",
+    text: data.decision.question,
+    depth: 0,
+    tone: "neutral",
+    children: [
+      { label: "EVET", tone: "positive", node: { key: "yes", text: data.decision.yes, depth: 1, tone: "positive", children: [] } },
+      { label: "HAYIR", tone: "negative", node: { key: "no", text: data.decision.no, depth: 1, tone: "negative", children: [] } },
+    ],
+  };
+}
+
+/** Ağacın bütün düğümleri (önce derinlik). */
+export function lawTreeNodes(root: LawTreeNode | null): LawTreeNode[] {
+  if (!root) return [];
+  return [root, ...root.children.flatMap((child) => lawTreeNodes(child.node))];
+}
+
+/** Ağaçtaki soru kademesi sayısı (tek kararda 1). */
+export function lawTreeDepth(root: LawTreeNode | null): number {
+  if (!root || !root.children.length) return 0;
+  return 1 + Math.max(...root.children.map((child) => lawTreeDepth(child.node)));
+}
+
+/* ───────── 7) Kavram yapısı (ekonomi, tarih, psikoloji, coğrafya, edebiyat, felsefe, dil, genel) ───────── */
+
+const conceptItemSchema = z.object({
+  id: idField.optional().catch(undefined),
+  label: clampText(44),
+  detail: optionalText(90),
+  /** Zaman çizelgesinde tarih / dönem. */
+  date: optionalText(18),
+});
+export type ConceptItem = z.output<typeof conceptItemSchema>;
+
+export const conceptStructureSchema = z
+  .object({
+    archetype: z.literal("CONCEPT_STRUCTURE_VISUALIZER"),
+    title: clampText(90, 2),
+    pedagogicalLevel: pedagogicalLevelField,
+    /** Yapı: süreç, matris, piramit, zaman çizelgesi, neden-sonuç, arz-talep. Yoksa veriden çıkarılır. */
+    structure: z.enum(CONCEPT_STRUCTURES).optional().catch(undefined),
+    /** Süreç adımları, piramit katmanları (tepeden tabana), zaman durakları ya da neden-sonuç düğümleri. */
+    items: looseArray(conceptItemSchema, 0, 7).catch([]),
+    /** Neden-sonuç bağları: kimlik, etiket ya da 1'den sıra numarası; etkisi artırır / azaltır. */
+    links: looseArray(
+      z.object({ from: idField, to: idField, label: optionalText(24), effect: z.enum(["increase", "decrease"]).optional().catch(undefined) }),
+      0,
+      10,
+    ).catch([]),
+    /** Karşılaştırma matrisi: sütun başlıkları ve satırlar. */
+    columns: looseArray(clampText(24), 0, 4).catch([]),
+    comparisonRows: looseArray(
+      z.object({ label: clampText(28), values: looseArray(clampText(64), 1, 4), highlight: z.coerce.number().int().min(0).max(3).optional().catch(undefined) }),
+      0,
+      6,
+    ).catch([]),
+    /** Arz-talep grafiği: eksen ve eğri adları, denge, kayma. */
+    market: z
+      .object({
+        priceLabel: optionalText(20),
+        quantityLabel: optionalText(20),
+        supplyLabel: optionalText(20),
+        demandLabel: optionalText(20),
+        equilibrium: optionalText(32),
+        shift: z
+          .object({ curve: z.enum(["supply", "demand"]).catch("demand"), direction: z.enum(["right", "left"]).catch("right"), label: optionalText(40) })
+          .optional()
+          .catch(undefined),
+      })
+      .optional()
+      .catch(undefined),
+    /** Sınavda sorulan tek cümle. */
+    takeaway: optionalText(120),
+  })
+  .transform((data) => ({ ...data, structure: data.structure ?? inferConceptStructure(data) }));
+export type ConceptStructureData = z.output<typeof conceptStructureSchema>;
+
+/** Yapı yazılmadıysa veriden: matris satırı → matrix, piyasa → arz-talep, tarihli öğe → zaman, bağ → neden-sonuç. */
+export function inferConceptStructure(data: {
+  comparisonRows: unknown[];
+  market?: unknown;
+  items: { date?: string }[];
+  links: unknown[];
+}): ConceptStructure {
+  if (data.comparisonRows.length >= 2) return "matrix";
+  if (data.market) return "supply_demand";
+  if (data.items.length >= 2 && data.items.filter((item) => item.date).length >= Math.ceil(data.items.length / 2)) return "timeline";
+  if (data.links.length) return "cause_effect";
+  return "process";
+}
+
+/** Bu yapının zorunlu iskeleti yoksa sorun metni (sahne düşer); varsa null. */
+export function conceptSkeletonProblem(data: Pick<ConceptStructureData, "structure" | "items" | "comparisonRows">): string | null {
+  if (data.structure === "matrix") return data.comparisonRows.length >= 2 ? null : "Matris en az iki satır ister.";
+  if (data.structure === "supply_demand") return null;
+  return data.items.length >= 2 ? null : "Yapı en az iki öğe ister.";
+}
 
 /* ───────── 5) Matematik / algoritma grafiği ───────── */
 
@@ -221,6 +553,7 @@ export const SHAPE_KINDS = ["triangle", "right_triangle", "rectangle", "parallel
 export const mathGraphSchema = z.object({
   archetype: z.literal("MATH_ALGORITHMIC_GRAPH"),
   title: clampText(90, 2),
+  pedagogicalLevel: pedagogicalLevelField,
   mode: z.enum(["function", "integral", "geometry"]).catch("function"),
   curve: z
     .object({
@@ -251,6 +584,7 @@ export type MathGraphData = z.infer<typeof mathGraphSchema>;
 export const documentSpotlightSchema = z.object({
   archetype: z.literal("DOCUMENT_FIGURE_SPOTLIGHT"),
   title: clampText(90, 2),
+  pedagogicalLevel: pedagogicalLevelField,
   page: z.coerce.number().int().positive().optional().catch(undefined),
   figure: z.discriminatedUnion("kind", [
     z.object({
@@ -293,11 +627,23 @@ const visualSceneUnion = z.discriminatedUnion("archetype", [
   lawDecisionSchema,
   mathGraphSchema,
   documentSpotlightSchema,
+  conceptStructureSchema,
 ]);
+
+/** Arketipin zorunlu iskeleti (alan alan doğrulamanın ötesinde): karar ağacı ya da kavram yapısının öğeleri. */
+function sceneSkeletonProblem(scene: z.output<typeof visualSceneUnion>): string | null {
+  if (scene.archetype === "LAW_SOCIAL_FLOWCHART") return lawTreeOf(scene) ? null : "Karar ağacı yok.";
+  if (scene.archetype === "CONCEPT_STRUCTURE_VISUALIZER") return conceptSkeletonProblem(scene);
+  return null;
+}
+
 /** Ayrıştırılan her sahne anlam onarımından geçer (yeni üretim ve kayıttaki eski veri aynı kuralla). */
-export const visualSceneSchema = visualSceneUnion.transform((scene) =>
-  scene.archetype === "ENGINEERING_PHYSICS_MECHANICS" ? repairMechanics(scene) : scene,
-);
+export const visualSceneSchema = visualSceneUnion
+  .superRefine((scene, ctx) => {
+    const problem = sceneSkeletonProblem(scene);
+    if (problem) ctx.addIssue({ code: "custom", message: problem });
+  })
+  .transform((scene) => (scene.archetype === "ENGINEERING_PHYSICS_MECHANICS" ? repairMechanics(scene) : scene));
 export type VisualScene = z.infer<typeof visualSceneSchema>;
 
 const ARCHETYPE_ALIASES: Record<string, VisualArchetype> = {
@@ -313,6 +659,9 @@ const ARCHETYPE_ALIASES: Record<string, VisualArchetype> = {
   graph: "MATH_ALGORITHMIC_GRAPH",
   document: "DOCUMENT_FIGURE_SPOTLIGHT",
   spotlight: "DOCUMENT_FIGURE_SPOTLIGHT",
+  concept: "CONCEPT_STRUCTURE_VISUALIZER",
+  structure: "CONCEPT_STRUCTURE_VISUALIZER",
+  kavram: "CONCEPT_STRUCTURE_VISUALIZER",
 };
 
 function normalizeArchetype(raw: unknown): VisualArchetype | null {

@@ -1,3 +1,4 @@
+import { resolvePedagogicalProfile, type PedagogicalLevel, type VisualDensity } from "@/lib/learning/pedagogical-profile";
 import { fitSingleLine, fitText, type FitOptions, type FontWeight } from "@/lib/learning/visual-scenes/text-fit";
 
 /**
@@ -14,6 +15,56 @@ export type SceneChrome = "video" | "lesson";
 
 export type Rect = { x: number; y: number; w: number; h: number };
 
+/* ───────── Yazı tabanı ve seviye yoğunluğu (20 Kasım 2026) ───────── */
+
+/** Ekranda en küçük yazı (CSS px). */
+export const MIN_SCREEN_TEXT_PX = 11;
+
+/**
+ * Sahnenin en dar gösterim genişliği (CSS px): 9:16 kart 375 px telefonda iki yanı 16 px boşlukla 343 px, 16:9 kart
+ * ders ekranının yatay sahneye geçtiği 640 px kırılımında 608 px. viewBox bu genişliğe küçülür; taban buna göre.
+ */
+export const REFERENCE_DISPLAY_WIDTH: Record<SceneMode, number> = { "9:16": 343, "16:9": 608 };
+
+/** viewBox biriminde yazı tabanı: en dar gösterimde de ekranda `MIN_SCREEN_TEXT_PX`'e denk gelir (0,1'e yukarı). */
+export function sceneFontFloor(mode: SceneMode): number {
+  const width = mode === "9:16" ? 360 : 640;
+  return Math.ceil(((MIN_SCREEN_TEXT_PX * width) / REFERENCE_DISPLAY_WIDTH[mode]) * 10) / 10;
+}
+
+/** İki oranın tabanından büyüğü: her `placeText` çağrısı bunun altına inmez (çerçevesiz sahneler dahil). */
+export const SCENE_FONT_FLOOR = Math.max(sceneFontFloor("9:16"), sceneFontFloor("16:9"));
+
+export type SceneTextProfile = {
+  level?: PedagogicalLevel;
+  density: VisualDensity;
+  /** Sahnede en çok bu kadar etiketli öğe; seviye yoksa sınır yok (eski sahneler aynen). */
+  maxLabels: number;
+  /** Yazı ölçeği: seviye 1'de büyük, 3-4'te biraz küçük (taban yine geçerli). */
+  fontScale: number;
+  floor: number;
+};
+
+/** Seviyeyi tek kaynaktan (`pedagogical-profile.ts`) okumak için temsilî sınıf / sınav metni. */
+const LEVEL_PROBE: Record<PedagogicalLevel, [string | null, string | null]> = {
+  1: ["8", null],
+  2: ["10", null],
+  3: ["Üniversite", null],
+  4: [null, "KPSS"],
+};
+
+export function sceneTextProfile(mode: SceneMode, level?: PedagogicalLevel | null): SceneTextProfile {
+  const floor = Math.max(SCENE_FONT_FLOOR, sceneFontFloor(mode));
+  if (!level) return { density: "standard", maxLabels: Number.POSITIVE_INFINITY, fontScale: 1, floor };
+  const visual = resolvePedagogicalProfile(...LEVEL_PROBE[level]).visual;
+  return { level, density: visual.density, maxLabels: visual.maxLabels, fontScale: visual.fontScale, floor };
+}
+
+/** Teknik ayrıntı (kot, katman kalınlığı, ölçü çentikleri) yalnız üniversite ve uzmanlık düzeyinde. */
+export function isTechnical(frame: Pick<SceneFrame, "text">): boolean {
+  return frame.text.density === "technical" || frame.text.density === "dense";
+}
+
 export type SceneFrame = {
   mode: SceneMode;
   chrome: SceneChrome;
@@ -25,6 +76,8 @@ export type SceneFrame = {
   /** Çizim ve yazının kalabileceği alan. */
   content: Rect;
   portrait: boolean;
+  /** Seviyeye göre yazı ölçeği, etiket bütçesi ve yazı tabanı. */
+  text: SceneTextProfile;
 };
 
 export const SAFE_BOTTOM_MARGIN: Record<SceneChrome, Record<SceneMode, number>> = {
@@ -32,7 +85,7 @@ export const SAFE_BOTTOM_MARGIN: Record<SceneChrome, Record<SceneMode, number>> 
   lesson: { "9:16": 16, "16:9": 14 },
 };
 
-export function sceneFrame(mode: SceneMode, chrome: SceneChrome = "lesson"): SceneFrame {
+export function sceneFrame(mode: SceneMode, chrome: SceneChrome = "lesson", level?: PedagogicalLevel | null): SceneFrame {
   const portrait = mode === "9:16";
   const width = portrait ? 360 : 640;
   const height = portrait ? 640 : 360;
@@ -49,6 +102,7 @@ export function sceneFrame(mode: SceneMode, chrome: SceneChrome = "lesson"): Sce
     pad,
     portrait,
     content: { x: pad, y: safeTop, w: width - pad * 2, h: height - safeTop - safeBottomMargin },
+    text: sceneTextProfile(mode, level),
   };
 }
 
@@ -85,10 +139,15 @@ export type PlaceOptions = Omit<FitOptions, "maxWidth"> & {
   anchor?: TextAnchor;
   /** true: tek satır, sığmazsa küçül ve kes. */
   single?: boolean;
+  /** Yazı tabanı (viewBox birimi); verilmezse `SCENE_FONT_FLOOR`. */
+  floor?: number;
 };
 
-/** Metni yerleştirir: x çapa, y üst kenar. */
-export function placeText(id: string, text: string, x: number, y: number, options: PlaceOptions): TextBox {
+/** Metni yerleştirir: x çapa, y üst kenar. Yazı ve en küçük boy tabanın altına inmez. */
+export function placeText(id: string, text: string, x: number, y: number, raw: PlaceOptions): TextBox {
+  const floor = raw.floor ?? SCENE_FONT_FLOOR;
+  const start = Math.max(floor, raw.fontSize);
+  const options = { ...raw, fontSize: start, minFontSize: Math.max(floor, Math.min(start, raw.minFontSize ?? 9)) };
   const anchor = options.anchor ?? "start";
   const weight = options.weight ?? 400;
   let lines: string[];
@@ -124,6 +183,34 @@ export function placeText(id: string, text: string, x: number, y: number, option
     rect: { x: left, y, w: width, h: lines.length * lineHeightPx },
     truncated,
   };
+}
+
+export type TextPlacer = (id: string, text: string, x: number, y: number, options: PlaceOptions) => TextBox;
+
+/**
+ * Çerçeveye bağlı yerleştirici: seviyenin yazı ölçeği istenen boya uygulanır, taban çerçeveden gelir. En küçük boy
+ * ölçeklenmez (büyük yazı sığmazsa yine tabana kadar küçülür); her arketip sahnesi yazılarını bununla koyar.
+ */
+export function textPlacer(frame: Pick<SceneFrame, "text">): TextPlacer {
+  const { fontScale, floor } = frame.text;
+  return (id, text, x, y, options) =>
+    placeText(id, text, x, y, { ...options, fontSize: Math.round(options.fontSize * fontScale * 10) / 10, floor: Math.max(floor, options.floor ?? 0) });
+}
+
+/**
+ * Etiket bütçesi: öncelik sırasıyla verilen grupların toplamı `maxLabels`'ı aşarsa sondaki gruptan başlayarak öğe
+ * düşer; her grup en az `keep` öğeyle kalır. Dönen dizi her grubun gösterilecek öğe sayısı.
+ */
+export function labelBudget(maxLabels: number, groups: { count: number; keep?: number }[]): number[] {
+  const counts = groups.map((group) => group.count);
+  let total = counts.reduce((sum, n) => sum + n, 0);
+  for (let index = groups.length - 1; index >= 0 && total > maxLabels; index -= 1) {
+    const keep = Math.min(groups[index]!.count, groups[index]!.keep ?? 0);
+    const drop = Math.min(counts[index]! - keep, total - maxLabels);
+    counts[index] = counts[index]! - drop;
+    total -= drop;
+  }
+  return counts;
 }
 
 /** Yazının yüksekliği (yerleştirmeden önce dikey bütçe için). */
@@ -220,16 +307,12 @@ export const BADGE_PAD = { x: 9, y: 4 } as const;
  * Rozet: `right` sağ kenar, `top` üst kenar. Dönen kutunun `rect`'i dolguyu da kapsar (rozet zemini bu
  * kutuya çizilir), metin çapası dolgunun içindedir.
  */
-export function placeBadge(id: string, text: string, right: number, top: number, maxWidth: number, fontSize = 10): TextBox {
-  const inner = placeText(id, text.toLocaleUpperCase("tr"), right - BADGE_PAD.x, top + BADGE_PAD.y, {
-    maxWidth: maxWidth - BADGE_PAD.x * 2,
-    maxLines: 1,
-    fontSize,
-    minFontSize: 8,
-    weight: 700,
-    anchor: "end",
-    single: true,
-  });
+export function placeBadge(id: string, text: string, right: number, top: number, maxWidth: number, fontSize = 10, maxLines = 1): TextBox {
+  const upper = text.toLocaleUpperCase("tr");
+  const options = { maxWidth: maxWidth - BADGE_PAD.x * 2, fontSize, minFontSize: 8, weight: 700 as const, anchor: "end" as const };
+  let inner = placeText(id, upper, right - BADGE_PAD.x, top + BADGE_PAD.y, { ...options, maxLines: 1, single: true });
+  // Yazı tabanında tek satıra sığmayan rozet (dar dikey kart) kesilmez, iki satıra sarılır.
+  if (inner.truncated && maxLines > 1) inner = placeText(id, upper, right - BADGE_PAD.x, top + BADGE_PAD.y, { ...options, maxLines });
   const rect = {
     x: inner.rect.x - BADGE_PAD.x,
     y: top,
@@ -251,9 +334,10 @@ export function inflate(rect: Rect, dx: number, dy = dx): Rect {
  */
 export function layoutHeader(frame: SceneFrame, title: string, badge: string): { texts: TextBox[]; bottom: number } {
   const { content } = frame;
+  const place = textPlacer(frame);
   if (frame.portrait) {
-    const badgeBox = placeBadge("badge", badge, content.x + content.w, content.y, content.w);
-    const titleBox = placeText("title", title, content.x, badgeBox.rect.y + badgeBox.rect.h + 8, {
+    const badgeBox = placeBadge("badge", badge, content.x + content.w, content.y, content.w, 10, 2);
+    const titleBox = place("title", title, content.x, badgeBox.rect.y + badgeBox.rect.h + 8, {
       maxWidth: content.w,
       maxLines: 2,
       fontSize: 19,
@@ -265,8 +349,8 @@ export function layoutHeader(frame: SceneFrame, title: string, badge: string): {
   const badgeBox = placeBadge("badge", badge, content.x + content.w, content.y, Math.min(260, content.w * 0.44));
   if (badgeBox.truncated) {
     // Rozet yan yuvaya sığmıyorsa kesilmez: kendi satırına (sağa yaslı) iner, başlık altında tam genişlik alır.
-    const ownRow = placeBadge("badge", badge, content.x + content.w, content.y, content.w);
-    const titleBelow = placeText("title", title, content.x, ownRow.rect.y + ownRow.rect.h + 6, {
+    const ownRow = placeBadge("badge", badge, content.x + content.w, content.y, content.w, 10, 2);
+    const titleBelow = place("title", title, content.x, ownRow.rect.y + ownRow.rect.h + 6, {
       maxWidth: content.w,
       maxLines: 2,
       fontSize: 17,
@@ -275,7 +359,7 @@ export function layoutHeader(frame: SceneFrame, title: string, badge: string): {
     });
     return { texts: [ownRow, titleBelow], bottom: titleBelow.rect.y + titleBelow.rect.h };
   }
-  const titleBox = placeText("title", title, content.x, content.y, {
+  const titleBox = place("title", title, content.x, content.y, {
     maxWidth: content.w - badgeBox.rect.w - 14,
     maxLines: 2,
     fontSize: 17,
