@@ -35,6 +35,71 @@ export function plainStepText(text: string): string {
     .slice(0, REEXPLAIN_TEXT_MAX);
 }
 
+/** Kilitli olgu listesinin tavanı (madde). */
+export const IMMUTABLE_FACTS_MAX = 24;
+/** Önceki farklı anlatımdan modele giden kısım: yalnız açılışı (tekrar etmesin diye), olgu kaynağı değil. */
+export const PREVIOUS_OPENING_MAX = 220;
+
+/**
+ * Faz 2 (madde 7.1): adımın DEĞİŞMEZ olguları. Kök neden: 2. ve 3. "Farklı anlat" çağrısında önceki farklı anlatımlar
+ * modele olduğu gibi gidiyordu; bir anlatımda kayan sayı/eşik bir sonrakine "bilgi" olarak taşınıyordu. Kilit her
+ * zaman ADIMIN İLK ANLATIMINDAN çıkarılır (önceki cevaplardan asla): sayı + birim, yüzde, formül/eşitlik ve adımın
+ * vurguladığı terimler. Sırası korunur, tekrarlar düşer.
+ */
+export function extractImmutableFacts(text: string): string[] {
+  const facts: string[] = [];
+  const seen = new Set<string>();
+  const push = (raw: string) => {
+    const fact = raw.replace(/\s+/g, " ").trim().replace(/[.,;:]+$/, "");
+    const key = fact.toLocaleLowerCase("tr-TR");
+    if (fact.length < 1 || fact.length > 160 || seen.has(key)) return;
+    seen.add(key);
+    facts.push(fact);
+  };
+  // Vurgulanan terimler (ders biçimi: **kalın**, ==işaret==).
+  for (const match of text.matchAll(/\*\*([^*\n]{1,80})\*\*|==([^=\n]{1,80})==/g)) push(match[1] ?? match[2] ?? "");
+  const plain = plainStepText(text);
+  // LaTeX ve eşitlik/eşitsizlik içeren ifadeler (formül olduğu gibi).
+  for (const match of plain.matchAll(/\$[^$\n]{1,140}\$/g)) push(match[0]);
+  for (const line of plain.split(/\n|(?<=[.!?])\s+/)) {
+    if (/[=≈≤≥<>→⇌]/.test(line) && /[0-9A-Za-zÇĞİÖŞÜçğıöşü]/.test(line)) push(line);
+  }
+  // Sayılar, varsa hemen ardından gelen birim/sözcükle (yüzde, ondalık, aralık, tarih).
+  for (const match of plain.matchAll(
+    /(?:%\s?\d+(?:[.,]\d+)?|\d+(?:[.,]\d+)*(?:\s?[-–]\s?\d+(?:[.,]\d+)*)?(?:\s?(?:%|[A-Za-zÇĞİÖŞÜçğıöşü°µ/²³]{1,12}))?)/g,
+  )) {
+    if (/\d/.test(match[0])) push(match[0]);
+  }
+  return facts.slice(0, IMMUTABLE_FACTS_MAX);
+}
+
+/** Metindeki sayılar, karşılaştırılabilir biçimde (virgül ondalık = nokta; binlik ayırıcı düşer). */
+export function numberTokens(text: string): string[] {
+  const out: string[] = [];
+  for (const match of plainStepText(text).matchAll(/\d+(?:[.,]\d+)*/g)) {
+    const raw = match[0];
+    // "1.250.000" binlik; "3,5" / "3.5" ondalık.
+    const normalized = /^\d{1,3}(?:\.\d{3})+$/.test(raw) ? raw.replace(/\./g, "") : raw.replace(",", ".");
+    out.push(String(Number(normalized)));
+  }
+  return out;
+}
+
+/**
+ * Cevapta adımda OLMAYAN sayılar (yeni olgu). Küçük sayma sayıları (0–10: "iki adımda", "1." madde) benzetmenin
+ * doğal parçasıdır, sayılmaz.
+ */
+export function introducedNumbers(reply: string, stepText: string): string[] {
+  const allowed = new Set(numberTokens(stepText));
+  const introduced = new Set<string>();
+  for (const token of numberTokens(reply)) {
+    const value = Number(token);
+    if (Number.isInteger(value) && value >= 0 && value <= 10) continue;
+    if (!allowed.has(token)) introduced.add(token);
+  }
+  return [...introduced];
+}
+
 export function reexplainUserPrompt(input: {
   prepTitle: string;
   topicLabel: string;
@@ -44,14 +109,22 @@ export function reexplainUserPrompt(input: {
   previous?: readonly string[];
 }): string {
   const previous = (input.previous ?? []).map((item) => item.trim()).filter(Boolean).slice(-2);
+  const facts = extractImmutableFacts(input.text);
   return [
     REEXPLAIN_RULE,
     EXAMPLE_CLASSIFICATION_RULE,
     `Sınav: ${input.prepTitle}. Konu: ${input.topicLabel}.`,
     `ADIMIN BAŞLIĞI: ${input.heading.trim()}`,
     `ADIMIN İLK ANLATIMI:\n${plainStepText(input.text)}`,
+    facts.length
+      ? `DEĞİŞMEZ OLGULAR (kilitli; ilk anlatımdan çıkarıldı. Aynen kullan, değiştirme, yuvarlama, yenisini ekleme):\n${facts.map((fact) => `- ${fact}`).join("\n")}`
+      : "",
     previous.length
-      ? `DAHA ÖNCE VERİLEN FARKLI ANLATIMLAR (bunları tekrar etme, başka bir yol bul):\n${previous.map((item) => `- ${item.slice(0, 400)}`).join("\n")}`
+      ? `Bu, aynı adımın ${previous.length + 1}. farklı anlatımı. Aşağıdaki önceki anlatımların yalnız AÇILIŞLARI ` +
+        "verildi; yalnız TEKRAR ETMEMEN içindir ve OLGU KAYNAĞI DEĞİLDİR. Olgular yalnız ilk anlatımdan ve kilitli " +
+        `listeden gelir.\nÖNCEKİ AÇILIŞLAR (bunlarla başlama, başka bir yol bul):\n${previous
+          .map((item) => `- ${item.slice(0, PREVIOUS_OPENING_MAX)}`)
+          .join("\n")}`
       : "",
   ]
     .filter(Boolean)

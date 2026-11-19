@@ -94,7 +94,7 @@ describe("adımı farklı anlat", () => {
       previous: ["Bir düzine yumurta gibi düşün."],
     });
     expect(prompt).toContain("ADIMIN İLK ANLATIMI:\nMol kütlesi gram cinsinden ölçülür.");
-    expect(prompt).toContain("DAHA ÖNCE VERİLEN FARKLI ANLATIMLAR");
+    expect(prompt).toContain("ÖNCEKİ AÇILIŞLAR");
     expect(plainStepText("a".repeat(5000)).length).toBe(2400);
   });
 
