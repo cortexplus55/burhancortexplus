@@ -195,6 +195,7 @@ const TABLE_LABELS: Record<string, string> = {
   exam_prep_nodes: "Çalışma yolu adımları",
   exam_prep_lessons: "Kayıtlı dersler",
   exam_prep_podcasts: "Kayıtlı podcast'ler",
+  podcast_generation_status: "Podcast hazırlık adımları",
   messages: "Sohbet mesajları",
   audit_logs: "İşlem kayıtları",
   item_responses: "Soru cevapları",

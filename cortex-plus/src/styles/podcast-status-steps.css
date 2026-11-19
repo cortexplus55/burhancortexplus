@@ -1,0 +1,130 @@
+/* Podcast hazırlık adımları (Faz 1-A §4.2). Renkler tasarım tokenlarından; 390 px'te taşmaz. */
+
+.pss {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  width: min(20rem, 100%);
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.pss-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+
+.pss-step {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+  color: var(--c-text-muted);
+  font-size: 0.9375rem;
+  line-height: 1.35;
+}
+
+.pss-step.is-done,
+.pss-step.is-active {
+  color: var(--c-text);
+}
+
+.pss-step.is-active .pss-label {
+  font-weight: 600;
+}
+
+.pss-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.pss-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 9999px;
+  border: 1.5px solid var(--c-border-strong);
+  color: var(--c-text);
+}
+
+.pss-step.is-done .pss-dot {
+  border-color: transparent;
+  background: var(--c-action);
+  color: var(--c-on-action, #fff);
+}
+
+.pss-step.is-active .pss-dot {
+  border-color: var(--c-text);
+}
+
+.pss-icon {
+  width: 0.8rem;
+  height: 0.8rem;
+}
+
+.pss-spin {
+  animation: pss-rotate 0.9s linear infinite;
+}
+
+@keyframes pss-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.pss-note {
+  margin: 0;
+  color: var(--c-text-muted);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+/* Ekran okuyucu için adım durumu. */
+.pss-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.pss--compact {
+  gap: 0.45rem;
+  margin-top: 0.5rem;
+}
+
+.pss--compact .pss-list {
+  gap: 0.4rem;
+}
+
+.pss--compact .pss-step {
+  font-size: 0.875rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pss-spin {
+    animation: none;
+  }
+}
+
+/* Hazırlık podcast'i sayfasında oynatıcının üstü. */
+.pss-session {
+  display: flex;
+  justify-content: center;
+  padding: 0.75rem 1rem 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}

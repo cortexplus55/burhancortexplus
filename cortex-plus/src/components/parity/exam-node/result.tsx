@@ -5,6 +5,8 @@ import { dedupePathLabels } from "@/lib/learning/path-labels";
 import { Star, Swords } from "lucide-react";
 import { ExamFinishButton } from "@/components/parity/exam-finish-button";
 import { ExamPodcastPlayer } from "@/components/parity/exam-podcast-player";
+import { PodcastStatusSteps, reportPodcastReady, usePodcastServerStatus } from "@/components/parity/podcast-status-steps";
+import { furtherPodcastStatus } from "@/lib/learning/podcast-status";
 import { TopicGainCard } from "@/components/parity/topic-gain-card";
 import { pathChangeLine } from "@/lib/learning/path-change";
 import { reviewScheduledLine } from "@/lib/learning/review-copy";
@@ -56,7 +58,13 @@ export function WrittenExamResult({ life }: { life: NodeLifecycle }) {
 }
 
 export function ResultScreen({ life }: { life: NodeLifecycle }) {
-  const { prepId, kind, topicId, rewriteHref, beginRewrite, resumeEnabled, isOral, stage, setStage, payload, attemptId, setIndex, setAnswers, setCardOffer, setCardRepeat, cardSummary, setCardSummary, score, spentMinutes, oralGrade, nextHref, levelHint, topicGain, pathChange, reviewScheduled, gainOpen, setGainOpen, feedback, setFeedback, feedbackLoading, podcastLoading, setPodcastCheckOpen, lessonPodcast, setLessonPodcast, isTimedExam, start, loadLessonPodcast, loadFeedback, structuredLesson, unscored, heroScore, heroTotal, mood } = life;
+  const { prepId, kind, topicId, rewriteHref, beginRewrite, resumeEnabled, isOral, stage, setStage, payload, attemptId, setIndex, setAnswers, setCardOffer, setCardRepeat, cardSummary, setCardSummary, score, spentMinutes, oralGrade, nextHref, levelHint, topicGain, pathChange, reviewScheduled, gainOpen, setGainOpen, feedback, setFeedback, feedbackLoading, podcastLoading, setPodcastCheckOpen, lessonPodcast, setLessonPodcast, lessonPodcastStatusId, lessonPodcastAudioReady, setLessonPodcastAudioReady, isTimedExam, start, loadLessonPodcast, loadFeedback, structuredLesson, unscored, heroScore, heroTotal, mood } = life;
+  // Ders sonu "Şimdi dinle" adımları (Faz 1-A §4.2): sunucu adımı + oynatıcının bildiği aşama; geri gitmez.
+  const lessonPodcastServerStatus = usePodcastServerStatus(lessonPodcastStatusId, podcastLoading && !lessonPodcast);
+  const lessonPodcastStage = furtherPodcastStatus(
+    lessonPodcastServerStatus,
+    lessonPodcastAudioReady ? "ready" : lessonPodcast ? "synthesizing_audio" : null,
+  );
   const { rewritePending, regenerateHref, restudyNextHref } = life;
   // Faz 4: kayıtlı adım kayıttan, ücretsiz yeniden çözülür (sunucu kredi ayırmaz, model çağırmaz).
   const freeRestudy = FREE_RESTUDY_KINDS.has(kind) && kind !== "lesson";
@@ -251,17 +259,28 @@ export function ResultScreen({ life }: { life: NodeLifecycle }) {
               </button>
             ) : null}
           </div>
-          {/* Uzun üretimde ne olduğunu söyle (30 Ekim 2026, Paket I #9): konunun podcast'i hazırsa anında gelir. */}
-          {podcastLoading && !lessonPodcast ? (
-            <p className="cp-exam-card-hint" role="status">
-              Sesli tekrar konunun sayfalarından yazılıyor ve seslendiriliyor; ilk kez hazırlanıyorsa bir iki dakika sürebilir.
-            </p>
+          {/* Uzun üretimde ne olduğunu söyle (30 Ekim 2026, Paket I #9): konunun podcast'i hazırsa anında gelir.
+              19 Kasım 2026 (Faz 1-A §4.2): sunucudaki gerçek adım (sıraya alındı → senaryo → ses → hazır). */}
+          {(podcastLoading && !lessonPodcast) || (lessonPodcast && !lessonPodcastAudioReady) ? (
+            <PodcastStatusSteps
+              compact
+              status={lessonPodcastStage}
+              note={
+                lessonPodcast
+                  ? null
+                  : "Sesli tekrar konunun sayfalarından yazılıyor ve seslendiriliyor; ilk kez hazırlanıyorsa bir iki dakika sürebilir."
+              }
+            />
           ) : null}
           {lessonPodcast ? (
             <ExamPodcastPlayer
               title={lessonPodcast.title}
               chapters={lessonPodcast.chapters}
               embed
+              onAudioReady={() => {
+                setLessonPodcastAudioReady(true);
+                reportPodcastReady(lessonPodcastStatusId);
+              }}
               onClose={() => setLessonPodcast(null)}
               onFinish={() => setLessonPodcast(null)}
             />

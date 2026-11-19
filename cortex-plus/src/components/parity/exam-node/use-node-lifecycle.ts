@@ -462,6 +462,12 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     chapters: unknown[];
   } | null>(null);
   /**
+   * Ders sonu "Şimdi dinle" durum adımları (19 Kasım 2026, Faz 1-A §4.2): istek kimliği sunucudaki adımı okur
+   * (sıraya alındı → senaryo → ses); ilk bölümün sesi hazır olunca "Dinlemeye hazır".
+   */
+  const [lessonPodcastStatusId, setLessonPodcastStatusId] = useState<string | null>(null);
+  const [lessonPodcastAudioReady, setLessonPodcastAudioReady] = useState(false);
+  /**
    * Stage 6: cevaplanmadan önce eğitmenden yardım alınan sorular. 20 Ekim 2026'ya kadar her
    * çizimde boş bir nesneydi ve hiç doldurulmuyordu: eğitmenle çözülen soru bağımsız doğru
    * sayılıyordu. Yalnız bellekte; sayfa yenilenirse kaybolur (eski davranış).
@@ -1697,12 +1703,16 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
   async function loadLessonPodcast() {
     if (!topicId) return;
     setPodcastLoading(true);
+    // Bir dinleme isteği, bir durum kimliği: kendiliğinden yeniden denemede de aynı satır ilerler.
+    const statusId = crypto.randomUUID();
+    setLessonPodcastStatusId(statusId);
+    setLessonPodcastAudioReady(false);
     try {
       // 30 Ekim 2026 (Paket I #9): hazırlık podcast'iyle aynı hat; düşerse bir kez kendiliğinden, her denemede yeni
       // istek kimliğiyle (aynı kimlik "işlem tamamlandı" döner).
       const { res, data } = await postJsonWithRetry<{ code?: string; title?: string; chapters?: unknown }>(
         "/api/learning/exam-prep/lesson-podcast",
-        () => ({ prepId, topicId, clientRequestId: crypto.randomUUID() }),
+        () => ({ prepId, topicId, clientRequestId: crypto.randomUUID(), statusId }),
       );
       if (res.status === 402) {
         // Ücretsiz hesapta sesli tekrar Plus'ta: kapı "doldu" demez, Pazartesi'ye geri saymaz.
@@ -2190,6 +2200,9 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     setPodcastCheckOpen,
     lessonPodcast,
     setLessonPodcast,
+    lessonPodcastStatusId,
+    lessonPodcastAudioReady,
+    setLessonPodcastAudioReady,
     revealedRef,
     lockAnswer,
     saveCursorRef,
