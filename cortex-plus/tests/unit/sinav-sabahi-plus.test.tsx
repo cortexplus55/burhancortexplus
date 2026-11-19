@@ -217,7 +217,7 @@ describe("metinler gerçek davranışı söyler", () => {
     expect(FREE_LIMITS.lesson).toBe(0);
     expect(FREE_TIER_SENTENCE).not.toMatch(/hafta|Stüdyo|Farklı anlat/);
     expect(FREE_TIER_SENTENCE).toContain(`günde ${FREE_LIMITS.chat} sohbet mesajı`);
-    expect(FREE_TIER_SENTENCE).toContain(`günde ${FREE_LIMITS.photo} fotoğraftan soru çözümü`);
+    expect(FREE_TIER_SENTENCE).toContain(`ayda ${FREE_LIMITS.photo} fotoğraftan soru çözümü`);
     expect(beyondFreeMessage(CRAM_SHEET_NAME)).toBe(
       `${CRAM_SHEET_NAME} Plus'ta. Ücretsiz hesapta ${lower(FREE_TIER_SENTENCE.charAt(0))}${FREE_TIER_SENTENCE.slice(1)} açık.`,
     );
@@ -232,7 +232,7 @@ describe("metinler gerçek davranışı söyler", () => {
     expect(rows.find((row) => row.label === "Sınav sabahı kâğıdı")).toMatchObject({ free: "Plus'ta", plus: "Açık", sigma: "Açık" });
     expect(rows.find((row) => row.label === "Podcast, sözlü ve yazılı deneme")?.free).toBe("Plus'ta");
     expect(rows.find((row) => row.label === "AI kullanımı")?.free).toBe(
-      `İlk ders, günde ${FREE_LIMITS.chat} mesaj, günde ${FREE_LIMITS.photo} fotoğraftan çözüm`,
+      `İlk ders, günde ${FREE_LIMITS.chat} mesaj, ayda ${FREE_LIMITS.photo} fotoğraftan çözüm`,
     );
     // Ücretsiz hesap = tek ders: dersin devamı ve Stüdyo üretimleri tabloda "Plus'ta".
     expect(rows.find((row) => row.label.startsWith("Öbür konular ve yeni anlatım"))).toMatchObject({ free: "Plus'ta", plus: "Açık" });
@@ -284,7 +284,7 @@ describe("metinler gerçek davranışı söyler", () => {
     expect(mail.text).toContain(FREE_FIRST_LESSON_SENTENCE.replace(/\.$/, ""));
     expect(mail.text).toContain(PLUS_ONLY_SENTENCE);
     expect(mail.text).not.toMatch(/Haftada|haftalık ders/);
-    expect(mail.text).toContain(`Günde ${FREE_LIMITS.chat} öğretmen mesajı ve günde ${FREE_LIMITS.photo} fotoğraftan çözüm`);
+    expect(mail.text).toContain(`Günde ${FREE_LIMITS.chat} öğretmen mesajı ve ayda ${FREE_LIMITS.photo} fotoğraftan çözüm`);
     expect(mail.text).not.toContain("1. konusu tamamen açık");
   });
 

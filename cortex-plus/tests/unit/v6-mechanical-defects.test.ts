@@ -103,10 +103,13 @@ describe("Kusur 1 — tek yüzde, kanıt alt sınırı, çözüldü sayacı", ()
     expect(read("src/lib/learning/prep-insights-load.ts")).toContain("masteryByPlannedTopic(");
     expect(read("src/app/deneme-sinavlari/[prepId]/page.tsx")).toContain("masteryByPlannedTopic(topicLabels, masterySnapshots)");
     expect(read("src/app/deneme-sinavlari/[prepId]/page.tsx")).toContain("topicMasteryView(snapshot, targetScore)");
-    expect(read("src/lib/learning/readiness-screen.ts")).toContain("pct: readinessTopicPercent(snapshot)");
+    // Faz 4: Hazırsın satırı da yüzdeyi ve rozeti `topicMasteryView`'den alır.
+    const readiness = read("src/lib/learning/readiness-screen.ts");
+    expect(readiness).toContain("const view = topicMasteryView(snapshot, target);");
+    expect(readiness).toContain("pct: view.percent,");
   });
 
-  it("tek soruluk konu Sağlam değildir; üç kanıtla olur", () => {
+  it("tek soruluk konu Öğrendin değildir; ölçüm üç kanıtla, Öğrendin dört ipucusuz doğruyla", () => {
     const one = snapshot({ evidenceCount: 1, firstAttemptCorrect: 1, firstAttemptTotal: 1 });
     // Paket I #7 (30 Ekim 2026): 1-2 cevaplı konu ölçülmemiş sayılır, sayı göstermez ("%33" öncülü kalktı).
     expect(topicMasteryPercent(one)).toBe(0);
@@ -125,7 +128,10 @@ describe("Kusur 1 — tek yüzde, kanıt alt sınırı, çözüldü sayacı", ()
 
     const three = snapshot({ evidenceCount: 3, firstAttemptCorrect: 3, firstAttemptTotal: 3 });
     expect(topicMasteryPercent(three)).toBe(100);
-    expect(topicState(three, 70)).toBe("ready");
+    // Faz 4 (`LEARNED_MIN_INDEPENDENT_CORRECT` 4): üç doğru ölçülür ama henüz "Öğrendin" değildir.
+    expect(topicState(three, 70)).toBe("needs_work");
+    const four = snapshot({ evidenceCount: 4, firstAttemptCorrect: 4, firstAttemptTotal: 4, independentCorrect: 4, independentTotal: 4 });
+    expect(topicState(four, 70)).toBe("ready");
   });
 
   it("çözüldü sayacı aynı soruyu bir kez sayar, 100'lük paydayı soru saymaz", () => {
