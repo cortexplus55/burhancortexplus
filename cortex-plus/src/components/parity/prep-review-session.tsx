@@ -42,7 +42,8 @@ type Feedback = ReviewAnswerOutcome & { picks: string[] };
  * Günü gelen tekrarın oynatıcısı (20 Ekim 2026). Her seferde bir soru; not sunucuda (doğru cevap ve
  * açıklama cevaptan önce sayfada yok). Seçmeli soruda şık(lar) seçilip kontrol edilir; kart ve sözlü
  * cevapta önce hatırlanır, cevap açılır, "Hatırladın mı?" ile öğrenci kendini değerlendirir.
- * Ağ düşerse soru geçilmez: "yeniden dene". Tek çıkış ×.
+ * Ağ düşerse soru geçilmez: "yeniden dene". Tek çıkış ×. Kabuk zaten main öğesini veriyor; burası div
+ * (20 Kasım 2026, iç içe main yok).
  */
 export function PrepReviewSession({
   prepId,
@@ -85,7 +86,7 @@ export function PrepReviewSession({
     // Hedefli turda takvim değişmez: yenileme aynı soruları getirir, "kalan" yok.
     const left = practice ? 0 : (remaining ?? Math.max(0, total - items.length));
     return (
-      <main className="cp-review">
+      <div className="cp-review">
         {close}
         <section className="cp-review-done" aria-live="polite">
           <h1>{items.length ? (left > 0 ? copy.roundDone : copy.done) : copy.title}</h1>
@@ -101,7 +102,7 @@ export function PrepReviewSession({
             </Link>
           </div>
         </section>
-      </main>
+      </div>
     );
   }
 
@@ -165,7 +166,7 @@ export function PrepReviewSession({
   const pct = Math.round(((index + (settled ? 1 : 0)) / items.length) * 100);
 
   return (
-    <main className="cp-review">
+    <div className="cp-review">
       {close}
       <header className="cp-review-head">
         <h1 className="cp-review-kicker">{copy.title}</h1>
@@ -305,6 +306,6 @@ export function PrepReviewSession({
           />
         )}
       </div>
-    </main>
+    </div>
   );
 }

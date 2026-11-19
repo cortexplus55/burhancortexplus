@@ -1,0 +1,199 @@
+/*
+  Liste sayfalarının arama ve süzgeç çubuğu (20 Kasım 2026, Faz 3; `components/ui/list-filter.tsx`). Renkler yalnız
+  `--cx-*` token'larından: açık ve koyu temada okunur. Kartlarda olduğu gibi kenarlık yok, katman zemin basamağıyla
+  ayrılır. Dokunma hedefi 40 px, telefonda 44 px (depo kararı 5). Telefonda (390 px) yana taşmaz: her şey sarar,
+  arama kutusu `min-width: 0`.
+*/
+
+/* Ortalanmış ızgarada (Sınav hazırlıklarım) da satırı doldurur. */
+.cx-list-filter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cx-space-12);
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+
+.cx-list-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--cx-space-8);
+  min-width: 0;
+  min-height: var(--cx-control-m);
+  padding: 0 var(--cx-space-4) 0 var(--cx-space-16);
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-bg-1);
+  color: var(--cx-text-primary);
+  transition: background-color var(--cx-dur-color) ease;
+}
+
+/* Odak kutunun kendisinde: içteki alanın çerçevesi kalkar, yerine kutunun halkası gelir. */
+.cx-list-search:focus-within {
+  outline: 2px solid var(--cx-focus);
+  outline-offset: 2px;
+}
+
+.cx-list-search input,
+.cx-list-search input:focus-visible {
+  outline: none;
+}
+
+.cx-list-search input {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--cx-control-s);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: var(--cx-t-label-15);
+  letter-spacing: var(--cx-ls-label);
+}
+
+.cx-list-search input::placeholder {
+  color: var(--cx-text-tertiary);
+  opacity: 1;
+}
+
+/* Tarayıcının kendi temizle simgesi yerine bizim düğmemiz (44 px, Türkçe adlı). */
+.cx-list-search input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.cx-list-search-icon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  color: var(--cx-text-tertiary);
+}
+
+.cx-list-search-clear {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--cx-icon-btn-l);
+  height: var(--cx-icon-btn-l);
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  background: transparent;
+  color: var(--cx-text-secondary);
+  cursor: pointer;
+  transition: background-color var(--cx-dur-color) ease, color var(--cx-dur-color) ease;
+}
+
+.cx-list-search-clear:hover {
+  background: var(--cx-bg-2);
+  color: var(--cx-text-primary);
+}
+
+.cx-list-search-clear svg {
+  width: 18px;
+  height: 18px;
+}
+
+.cx-list-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cx-space-8);
+  min-width: 0;
+}
+
+.cx-list-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--cx-control-s);
+  padding: 0 var(--cx-space-14);
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-bg-1);
+  color: var(--cx-text-secondary);
+  font: var(--cx-t-button-s);
+  cursor: pointer;
+  transition: background-color var(--cx-dur-color) ease, color var(--cx-dur-color) ease;
+}
+
+.cx-list-chip:hover {
+  background: var(--cx-bg-2);
+  color: var(--cx-text-primary);
+}
+
+.cx-list-chip.is-on {
+  background: var(--cx-bg-3);
+  color: var(--cx-text-primary);
+}
+
+.cx-list-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--cx-space-12);
+  padding: var(--cx-space-32) var(--cx-space-24);
+  border-radius: var(--cx-radius-l);
+  background: var(--cx-bg-1);
+  text-align: center;
+}
+
+.cx-list-empty-icon {
+  width: 24px;
+  height: 24px;
+  color: var(--cx-text-tertiary);
+}
+
+.cx-list-empty-title {
+  margin: 0;
+  font: var(--cx-t-title-m);
+  letter-spacing: var(--cx-ls-heading);
+  color: var(--cx-text-primary);
+  text-wrap: balance;
+}
+
+.cx-list-empty-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--cx-control-m);
+  padding: 0 var(--cx-space-18);
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-bg-2);
+  color: var(--cx-text-secondary);
+  font: var(--cx-t-button-s);
+  cursor: pointer;
+  transition: background-color var(--cx-dur-color) ease, color var(--cx-dur-color) ease;
+}
+
+.cx-list-empty-clear:hover {
+  background: var(--cx-bg-3);
+  color: var(--cx-text-primary);
+}
+
+/* Telefonda dokunma hedefi 44 px. */
+@media (max-width: 767px) {
+  .cx-list-chip,
+  .cx-list-search-clear {
+    min-height: var(--cx-tap-min);
+  }
+
+  .cx-list-search-clear {
+    width: var(--cx-tap-min);
+    height: var(--cx-tap-min);
+  }
+
+  .cx-list-search {
+    min-height: var(--cx-tap-min);
+  }
+}
+
+.cx-list-count {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

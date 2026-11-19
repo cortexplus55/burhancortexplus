@@ -428,6 +428,7 @@ export function AdaptiveStudySession({
                       value={answer}
                       onChange={(e) => setAnswer(e.target.value)}
                       placeholder="Cevabını yaz"
+                      aria-label="Sorunun cevabı"
                       className="w-full rounded-xl border border-white/15 bg-transparent px-3 py-2 text-sm text-[var(--cs-text)]"
                     />
                   )}

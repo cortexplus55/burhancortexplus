@@ -8,6 +8,7 @@ import { ADMIN_ROLE_BADGE } from "@/lib/auth/admin-role";
 import { countPendingApplications } from "@/lib/admin/pending";
 import { createServiceClient } from "@/lib/supabase/server";
 import "@/styles/admin-panel.css";
+import { MAIN_CONTENT_ID } from "@/lib/ui/main-content";
 
 /*
   Yönetim panelinin ortak düzeni (6 Kasım 2026): üst çubuk ("🛡️ Yönetim Paneli" + rol rozeti), PIN kapısı
@@ -64,7 +65,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           </p>
         ) : null}
 
-        <main className="adm-main">{children}</main>
+        <main id={MAIN_CONTENT_ID} className="adm-main">{children}</main>
       </div>
     </div>
   );

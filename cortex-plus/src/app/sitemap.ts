@@ -1,7 +1,8 @@
 import type { MetadataRoute } from "next";
 import { curriculumSitemapPaths } from "@/lib/curriculum/seo";
+import { SITE_URL } from "@/lib/seo/page-metadata";
 
-const base = "https://cortexplus.app";
+const base = SITE_URL;
 
 const marketingPaths = [
   "",
@@ -9,6 +10,9 @@ const marketingPaths = [
   "/ozellikler",
   "/fiyatlandirma",
   "/yardim",
+  // 20 Kasım 2026 (Faz 3): giriş istemeyen örnek çalışma ve resmî takvim / sınav yapıları sayfası.
+  "/ornek",
+  "/resmi",
   "/mobil-uygulama",
   // "/ogretmenler-ve-profesorler-icin" bilerek yok: o sayfa 29 Ağustos'ta
   // emekli edildi ve artık /kayit'e yönlendiriyor. Yönlendirmeye düşen bir

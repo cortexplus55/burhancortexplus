@@ -33,6 +33,7 @@ import { ExamCountdownBadge } from "@/components/parity/exam-countdown-badge";
 import type { ExamCountdown } from "@/lib/learning/exam-countdown";
 import type { RecentConversation } from "@/lib/student/conversation-time";
 import "@/styles/parity-shell.css";
+import { MAIN_CONTENT_ID } from "@/lib/ui/main-content";
 import "@/styles/cx-shell.css";
 import "@/styles/cx-pages.css";
 import "@/styles/home-cockpit.css";
@@ -430,7 +431,7 @@ export function ParitySorShell({
       {promo && showBuy && !examChrome ? <PromoBanner campaign={promo} /> : null}
 
       {/* cx-app-main: girişli sayfa kuralları (cx-pages.css, 13 Kasım 2026); odak görünümleri (ders, test, fiyat) almaz. */}
-      <main className={cn("cp-sor-main", chrome === "app" && !closeHref && "cx-app-main")}>{children}</main>
+      <main id={MAIN_CONTENT_ID} className={cn("cp-sor-main", chrome === "app" && !closeHref && "cx-app-main")}>{children}</main>
 
       {/* Telefon alt çubuğu (13 Kasım 2026, Faz 2): Ana Sayfa, Sınavlar, Stüdyo, Kütüphane, Profil. Profil sekmesinde
           planlı 28 px halka; Kütüphane paneli açar. */}

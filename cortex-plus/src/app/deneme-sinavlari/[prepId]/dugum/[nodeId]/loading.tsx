@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { markNodeClickIfMissing } from "@/lib/learning/node-open-click";
 import { InstantLessonView } from "@/components/parity/instant-lesson-view";
 import { peekInstantLesson, type InstantLesson } from "@/lib/learning/instant-lesson";
+import { MAIN_CONTENT_ID } from "@/lib/ui/main-content";
 
 /**
  * Anında ilk ekran (3 Kasım 2026): yoldan bir adıma tıklanınca oturum kabuğu sunucu çizimini beklemeden çizilir.
@@ -26,7 +27,7 @@ export default function ExamNodeLoading() {
   }, []);
   return (
     <div className="cp-sor-root cp-sor-root--session">
-      <main className="cp-sor-main">
+      <main id={MAIN_CONTENT_ID} className="cp-sor-main">
         <div className="cp-exam-page mx-auto w-full max-w-2xl px-4 py-6" aria-busy="true" aria-label="Ders yükleniyor">
           {lesson ? (
             <InstantLessonView lesson={lesson} />

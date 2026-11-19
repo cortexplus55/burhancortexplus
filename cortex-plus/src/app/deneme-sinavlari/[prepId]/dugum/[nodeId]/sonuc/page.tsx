@@ -123,7 +123,8 @@ export default async function NodeResultPage({ params }: { params: Promise<{ pre
 
   return (
     <ParitySorShell {...shell} chrome="session">
-      <main className={view.pct != null && view.pct < 50 ? "cp-node-result is-low" : "cp-node-result"}>
+      {/* Kabuğun kendi main öğesi var; sonuç kartı div (20 Kasım 2026, iç içe main yok). */}
+      <div className={view.pct != null && view.pct < 50 ? "cp-node-result is-low" : "cp-node-result"}>
         <Link href={back} className="cp-node-result-close" aria-label="Kapat">
           <X className="h-5 w-5" aria-hidden />
         </Link>
@@ -214,7 +215,7 @@ export default async function NodeResultPage({ params }: { params: Promise<{ pre
         <Link href={back} className="cp-node-result-go">
           Devam et
         </Link>
-      </main>
+      </div>
     </ParitySorShell>
   );
 }
