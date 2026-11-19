@@ -73,6 +73,7 @@ export async function checkNoteRulesAndCorrection(service: SupabaseClient, userI
       formulas,
       correctionWanted,
       correction: Boolean(correction),
+      corrections: correction ? 1 + (correction.others?.length ?? 0) : 0,
       tokensIn: response.usage?.prompt_tokens ?? 0,
       tokensOut: response.usage?.completion_tokens ?? 0,
     });

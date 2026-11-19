@@ -74,7 +74,7 @@ import {
 import { noteWarningsPromptLine, type FormulaTypo } from "@/lib/learning/formula-typos";
 import { backboneWithoutSiblings, prepTopicScopeLine } from "@/lib/learning/topic-section";
 import { excludedSiblingBoundaryBlock, siblingsOutsideBoundary } from "@/lib/learning/sibling-topics";
-import { repeatsSourceError, sourceCorrectionPromptBlock, type SourceCorrectionWarning } from "@/lib/learning/source-correction";
+import { allCorrections, combineCorrections, presentsTruthAsMistake, repeatsSourceError, sourceCorrectionPromptBlock, type SourceCorrectionWarning } from "@/lib/learning/source-correction";
 import { checkSceneRelations } from "@/lib/learning/visual-scenes/relation-check";
 
 /**
@@ -600,15 +600,16 @@ export function lessonCorrectionNow(
   input: CorrectionCarrier,
 ): SourceCorrectionWarning | null {
   if (input.sourceCorrection) return input.sourceCorrection;
-  const late = input.lateNoteWarnings?.().find((warning) => warning.id === "source_correction");
-  return late ? { documentClaim: late.found, verifiedTruth: late.standard, explanation: "" } : null;
+  const late = (input.lateNoteWarnings?.() ?? []).filter((warning) => warning.id === "source_correction");
+  return combineCorrections(late.map((warning) => ({ documentClaim: warning.found, verifiedTruth: warning.standard, explanation: "" })));
 }
 
 /** Ders denetçisinin satırı: doğrusunu anlatmak kaynakla çelişki sayılmaz. Uyarı yoksa boş. */
 export function lessonCorrectionVerifyLine(warning: SourceCorrectionWarning | null): string {
-  if (!warning) return "";
+  const items = allCorrections(warning);
+  if (!items.length) return "";
   return (
-    `KAYNAK DÜZELTMESİ: Kaynaktaki «${warning.documentClaim}» bilimsel olarak yanlış; doğrusu «${warning.verifiedTruth}». ` +
+    `KAYNAK DÜZELTMESİ: ${items.map((item) => `Kaynaktaki «${item.documentClaim}» bilimsel olarak yanlış; doğrusu «${item.verifiedTruth}».`).join(" ")} ` +
     "Derste doğrusunun anlatılması kaynakla çelişki SAYILMAZ; yanlışın doğru bilgi gibi anlatılması ya da cevap " +
     "anahtarı yapılması 'high' sorundur."
   );
@@ -1282,7 +1283,52 @@ function givesAway(text: string, prompt: string, corrected: string): boolean {
 }
 
 type StructureInput = Pick<TeacherLessonInput, "runningHeaders"> &
-  Partial<Pick<TeacherLessonInput, "pages" | "topicLabel" | "mode" | "optionCount" | "noteWarnings" | "siblingTopics">>;
+  Partial<Pick<TeacherLessonInput, "pages" | "topicLabel" | "mode" | "optionCount" | "noteWarnings" | "siblingTopics" | "sourceCorrection" | "lateNoteWarnings">>;
+
+/**
+ * Ekranın öğrettiği önermeler (Faz 1-A §2.1 ek düzeltmesi): metin, formül, şema ve karşılaştırma kartları, kartlar,
+ * notlar, örnek, sorunun doğru cevabı ve açıklaması. Tuzak kartı (yanlış inanç bilerek yazılır) ve görsel sahne
+ * (kendi denetimi var) girmez.
+ */
+function screenTaughtStatements(screen: LessonScreen): string[] {
+  const out: string[] = [];
+  const checkStatements = (check: Record<string, unknown> | undefined) => {
+    if (!check) return;
+    const options = Array.isArray(check.options) ? (check.options as unknown[]).map(String) : [];
+    const answer = typeof check.answerIndex === "number" ? check.answerIndex : -1;
+    const prompt = typeof check.prompt === "string" ? check.prompt : "";
+    if (check.type === "trueFalse" && /^do[gğ]ru$/i.test(options[answer]?.trim() ?? "")) out.push(prompt);
+    else if (options[answer]) out.push(`${prompt} ${options[answer]}`);
+    for (const key of ["explanation", "whyRight"]) if (typeof check[key] === "string") out.push(check[key] as string);
+    if (check.review && typeof check.review === "object") checkStatements(check.review as Record<string, unknown>);
+  };
+  for (const block of screen.blocks) {
+    if (block.type === "text") out.push(block.text);
+    else if (block.type === "formula") out.push(`${block.formula.title}: ${block.formula.expression}`);
+    else if (block.type === "cards") out.push(...block.cards.map((card) => `${card.title}: ${card.body}`));
+    else if (block.type === "note") out.push(`${block.note.title}: ${block.note.body}`);
+    else if (block.type === "example") out.push(`${block.example.prompt} ${block.example.result ?? ""}`);
+    else if (block.type === "check") checkStatements(block.check as unknown as Record<string, unknown>);
+    else if (block.type !== "exam_trap_card" && block.type !== "visual_scene") {
+      const visual = visualBlockText(block);
+      if (visual) out.push(visual);
+    }
+  }
+  return out.map((item) => item.replace(/==|\*\*/g, "")).filter((item) => item.trim());
+}
+
+/** Kaynak düzeltmesinin yanlışını (aynı ya da başka sözcüklerle) öğreten önerme varsa sorun metni; yoksa null. */
+function correctionRepeatIssue(statements: readonly string[], input: StructureInput): string | null {
+  if (input.mode === "topic") return null;
+  const correction = lessonCorrectionNow(input);
+  if (!correction) return null;
+  const hit = statements.find((statement) => repeatsSourceError(statement, correction));
+  if (!hit) return null;
+  const truths = allCorrections(correction).map((item) => `«${item.verifiedTruth}»`).join(", ");
+  return `${SOURCE_CORRECTION_ISSUE_LESSON} «${hit.slice(0, 160)}». Kaynaktaki yanlış yerine doğrusunu öğret: ${truths}. Şema, karşılaştırma, soru anahtarı ve açıklamalar da doğrusunu söylesin.`;
+}
+
+const SOURCE_CORRECTION_ISSUE_LESSON = "Kaynak düzeltmesi: ekran kaynağın bilimsel olarak yanlış bilgisini öğretiyor:";
 
 function collector() {
   const issues: TeacherIssue[] = [];
@@ -1344,6 +1390,8 @@ export function screenStructureIssues(screen: LessonV3["screens"][number], index
   if (headers.some((line) => sameKey(line, screen.heading))) add(`${where}.heading`, "Başlık sayfa üst bilgisi; kavramın adını yaz.");
   const text = screenText(screen);
   if (!text) add(`${where}.blocks`, "Ekranda en az bir 'text' bloğu olmalı.");
+  const correctionIssue = correctionRepeatIssue(screenTaughtStatements(screen), input);
+  if (correctionIssue) add(`${where}.blocks`, correctionIssue);
   // 16 Ekim 2026 Beslenme dersi: "Tabloda bulguyu … oku" dedi, tablo bir sonraki ekrandaydı.
   if (POINTS_TO_TABLE.test(text) && !/periyodik\s+tablo/i.test(text) && !screen.blocks.some((block) => block.type === "table")) {
     add(`${where}.blocks`, "Metin bir tabloya gönderiyor ama bu ekranda tablo yok; tabloyu bu ekrana taşı ya da cümleyi çıkar.");
@@ -2241,6 +2289,15 @@ export function lessonLevelStructureIssues(lesson: LessonV3, input: StructureInp
   */
   const documentPages = input.mode === "topic" ? [] : (input.pages ?? []);
   const facts = lessonFacts(documentPages, input.noteWarnings, lessonCorrectionNow(input as CorrectionCarrier));
+  // Kapanış alanları da doğrusunu öğretsin: sık yapılan hatanın düzeltmesi, özet, genel bakış ve hedef.
+  const closingIssue = correctionRepeatIssue(
+    [lesson.commonMistake?.correction ?? "", ...(lesson.summary ?? []), lesson.overview ?? "", lesson.objective ?? ""].filter(Boolean),
+    input,
+  );
+  if (closingIssue) add("commonMistake", closingIssue);
+  if (input.mode !== "topic" && presentsTruthAsMistake(lesson.commonMistake?.claim ?? "", lessonCorrectionNow(input as CorrectionCarrier))) {
+    add("commonMistake", "Kaynak düzeltmesi: sık yapılan hata alanı bilimsel olarak DOĞRU olan bilgiyi yanılgı diye gösteriyor; hata olarak kaynağın yanlışını, düzeltme olarak doğrusunu yaz.");
+  }
   const cap = lessonScreenCap(facts.length);
   if (screens.length > cap) {
     low("screens", cap === 12 ? "En fazla on iki ekran; kavramı daha az ekrana sığdır." : `En fazla ${cap} ekran; kavramı daha az ekrana sığdır.`);

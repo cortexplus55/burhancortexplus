@@ -27,7 +27,7 @@ export const NOTE_RULE_SYSTEM =
 
 /** Kaynak düzeltme görevi eklenince yanıt biçimi (Faz 1-A §2.1): iki alan tek JSON nesnesinde. */
 export const NOTE_RULE_JSON_WITH_CORRECTION =
-  'Tek JSON nesnesi döndür: {"items": [...], "correction": {...} | null}. Eşitlik hatası yoksa "items": [].';
+  'Tek JSON nesnesi döndür: {"items": [...], "corrections": [...]}. Eşitlik hatası yoksa "items": []; bilimsel hata yoksa "corrections": [].';
 
 /** Modele giden not metni sınırı (karakter). */
 export const NOTE_RULE_TEXT_CAP = 12_000;
