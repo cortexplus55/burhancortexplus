@@ -516,7 +516,8 @@ export function MechanicsVectorScene({ data, domain, ...common }: SceneCommonPro
               style={delay(at, 0.55)}
             />
             <SceneText box={vector.symbol} fill={vector.color} className="cp-vs-fade" style={delay(at + 0.4)} rich />
-            <SceneText box={vector.label} fill={MECHANICS_COLORS.muted} className="cp-vs-fade" style={delay(at + 0.45)} rich />
+            {/* Etiket okun rengini taşır: yan yana iki okta hangi etiketin hangi simgeye ait olduğu renkten okunur. */}
+            <SceneText box={vector.label} fill={vector.color} className="cp-vs-fade" style={delay(at + 0.45)} rich />
           </g>
         );
       })}

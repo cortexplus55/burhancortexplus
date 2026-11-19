@@ -149,4 +149,28 @@ describe("yön ve eğilim anlamı", () => {
     const { container } = render(<VisualSceneRenderer scene={medical!} mode="16:9" chrome="video" animate="none" />);
     expect(container.querySelector("text")?.getAttribute("text-anchor")).toBe("middle");
   });
+
+  it("ok etiketi okun rengini taşır (yan yana oklarda etiket–simge eşleşmesi renkten okunur)", () => {
+    const scene = parseVisualScene({
+      archetype: "ENGINEERING_PHYSICS_MECHANICS",
+      title: "Jenerik iki eğilim",
+      setting: "trend",
+      body: { label: "Örnek" },
+      vectors: [
+        { symbol: "A", label: "Birinci nicelik", direction: "right", magnitude: 2, trend: "increase" },
+        { symbol: "B", label: "İkinci nicelik", direction: "right", magnitude: 2, trend: "increase" },
+      ],
+      logic: { formula: "Jenerik kural cümlesi.", drivers: [{ symbol: "A", label: "Birinci nicelik", effect: "up" }], distractors: [] },
+    });
+    for (const mode of MODES) {
+      const { container } = render(<VisualSceneRenderer scene={scene!} mode={mode} chrome="lesson" animate="none" />);
+      for (const index of [0, 1]) {
+        const symbolFill = container.querySelector(`text[data-text-id='vector${index}-symbol']`)?.getAttribute("fill");
+        const labelFill = container.querySelector(`text[data-text-id='vector${index}-label']`)?.getAttribute("fill");
+        expect(symbolFill).toBeTruthy();
+        expect(labelFill).toBe(symbolFill);
+      }
+      cleanup();
+    }
+  });
 });
