@@ -40,7 +40,7 @@ import { RichBody } from "@/components/parity/lesson-rich-text";
 import { rejoinIntervalCells } from "@/lib/learning/interval-text";
 import { sanitizeStudentContent } from "@/lib/learning/student-safe-text";
 import { NOTE_WARNING_TITLE, formulaTypoBody, type FormulaTypo } from "@/lib/learning/formula-typos";
-import { SOURCE_CORRECTION_TITLE, correctionKey, type SourceCorrectionWarning } from "@/lib/learning/source-correction";
+import { SOURCE_CORRECTION_TITLE, allCorrections, correctionKey, type SourceCorrectionWarning } from "@/lib/learning/source-correction";
 import type {
   CheckGradeVariant,
   GradeCheckResult,
@@ -731,20 +731,26 @@ function NoteWarnings({ warnings }: { warnings: readonly FormulaTypo[] }) {
  */
 function SourceCorrectionCard({ warning }: { warning: SourceCorrectionWarning }) {
   const titleId = useId();
+  // Aynı belgedeki bütün bariz hatalar tek kartta, sırayla (Faz 1-A §2.1 ek düzeltmesi).
+  const items = allCorrections(warning);
   return (
     <aside className="als-note als-note--correction" role="note" aria-labelledby={titleId}>
       <p id={titleId} className="als-note-correction-title">
         {SOURCE_CORRECTION_TITLE}
       </p>
-      <p className="als-note-body">
-        <span className="als-note-correction-label">Kaynağında yazan: </span>
-        <span className="als-note-correction-claim">{warning.documentClaim}</span>
-      </p>
-      <p className="als-note-body">
-        <span className="als-note-correction-label">Doğrusu: </span>
-        <strong>{warning.verifiedTruth}</strong>
-      </p>
-      {warning.explanation ? <p className="als-note-body">{warning.explanation}</p> : null}
+      {items.map((item, index) => (
+        <div key={`${index}:${item.documentClaim}`} className="als-note-correction-item" data-correction-index={index}>
+          <p className="als-note-body">
+            <span className="als-note-correction-label">{items.length > 1 ? `${index + 1}. Kaynağında yazan: ` : "Kaynağında yazan: "}</span>
+            <span className="als-note-correction-claim">{item.documentClaim}</span>
+          </p>
+          <p className="als-note-body">
+            <span className="als-note-correction-label">Doğrusu: </span>
+            <strong>{item.verifiedTruth}</strong>
+          </p>
+          {item.explanation ? <p className="als-note-body">{item.explanation}</p> : null}
+        </div>
+      ))}
     </aside>
   );
 }
@@ -834,7 +840,7 @@ export function ExamLessonSteps({
 }) {
   // Kaynak düzeltme kartı formül kutusundaki aynı satırı ikinci kez göstermesin.
   const shownNoteWarnings = sourceCorrection
-    ? noteWarnings.filter((warning) => correctionKey(warning.found) !== correctionKey(sourceCorrection.documentClaim))
+    ? noteWarnings.filter((warning) => !allCorrections(sourceCorrection).some((item) => correctionKey(warning.found) === correctionKey(item.documentClaim)))
     : noteWarnings;
   const play = useMemo(() => toPlayV3(lesson), [lesson]);
   /** V2 görünümü: tekrar soruları, okuma süresi ve eski yardımcılar bunu okur (ekran i = bölüm i). */

@@ -7,8 +7,8 @@ import {
   checkSceneRelations,
   equationRelation,
   equationSigns,
-  sentenceRelation,
 } from "@/lib/learning/visual-scenes/relation-check";
+import { sentenceRelation } from "@/lib/learning/relation-text";
 import { VISUAL_SCENE_COMMON_RULE } from "@/lib/learning/visual-scenes/prompt";
 
 /*

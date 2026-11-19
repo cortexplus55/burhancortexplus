@@ -17,7 +17,7 @@ import { findFormulaTypos } from "@/lib/learning/formula-typos";
 import { mergeNoteWarnings } from "@/lib/learning/note-rule-check";
 import { checkNoteRulesAndCorrection } from "@/lib/learning/note-rule-check-run";
 import {
-  correctionAsNoteWarning,
+  correctionsAsNoteWarnings,
   settleWithin,
   SOURCE_CORRECTION_WAIT_MS,
   type SourceCorrectionWarning,
@@ -185,7 +185,7 @@ export async function teacherLessonPayload(
     // Modelli denetim yazımdan sonra bitse de kavram denetimi standart kurala çevirir.
     lateNoteWarnings: () => [
       ...mergeNoteWarnings(noteWarnings, modelWarnings),
-      ...(sourceCorrection ? [correctionAsNoteWarning(sourceCorrection)] : []),
+      ...correctionsAsNoteWarnings(sourceCorrection),
     ],
     startedAt,
     charge: input.charge,

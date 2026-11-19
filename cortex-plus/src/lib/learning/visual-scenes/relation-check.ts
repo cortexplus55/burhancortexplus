@@ -10,11 +10,11 @@
  * 3. Ders metni: dersin bir cümlesi aynı iki büyüklük için ters ilişkiyi söylüyorsa red.
  * Çelişkide sahne yayımlanmaz (ders sahnesiz kalır); kayıttaki eski sahne de okunurken düşer.
  */
-import { correctionKey, repeatsSourceError, type SourceCorrectionWarning } from "@/lib/learning/source-correction";
+import { allCorrections, correctionKey, repeatsSourceError, type SourceCorrectionWarning } from "@/lib/learning/source-correction";
 import type { VisualScene } from "./schema";
 import { visualSceneStrings } from "./prompt";
+import { sentenceRelation, sentences, type Quantity, type Relation } from "@/lib/learning/relation-text";
 
-export type Relation = "direct" | "inverse";
 type Change = "increase" | "decrease";
 
 /* ───────────── Denklemler ───────────── */
@@ -68,6 +68,8 @@ export function equationsIn(text: string): string[] {
 }
 
 /** Denklemlerden iki değişkenin ilişkisi (öbürleri sabit). Denklemler birbiriyle çelişirse ya da yoksa null. */
+export type { Relation };
+
 export function equationRelation(equations: readonly string[], a: string, b: string): Relation | null {
   const found = new Set<Relation>();
   for (const equation of equations) {
@@ -78,71 +80,6 @@ export function equationRelation(equations: readonly string[], a: string, b: str
     found.add(Math.sign(sa) === Math.sign(sb) ? "inverse" : "direct");
   }
   return found.size === 1 ? [...found][0]! : null;
-}
-
-/* ───────────── Cümledeki ilişki ───────────── */
-
-const INCREASE_STEM = /(?<![\p{L}])(?:art(?:ar|arsa|ınca|tıkça|tığında|ış|an|ıyor|ırılırsa|ırılınca)|(?:iki|üç|dört|\p{N}+) katına çık|katına çık|büyü|yüksel|çoğal)/giu;
-const DECREASE_STEM = /(?<![\p{L}])(?:azal|yarıya|küçül|düş(?:er|erse|ünce|tükçe|tüğünde)|üçte bir|dörtte bir)/giu;
-const DIRECT_PHRASE = /doğru orantı/iu;
-const INVERSE_PHRASE = /ters orantı/iu;
-
-export type Quantity = { key: string; names: string[] };
-
-function fold(text: string): string {
-  return text.normalize("NFKC").toLocaleLowerCase("tr-TR");
-}
-
-/** Adın Türkçe çekimleri de eşleşsin diye kökü ("hacim" → "hac", "basınç" → "bası"). */
-function nameStem(name: string): string {
-  const word = fold(name).trim().split(/\s+/)[0] ?? "";
-  return word.length <= 4 ? word : word.slice(0, Math.max(3, word.length - 2));
-}
-
-function firstMention(text: string, quantity: Quantity): number {
-  let best = -1;
-  for (const name of quantity.names) {
-    if (!name.trim()) continue;
-    // Simge (ör. "X") büyük/küçük harf duyarlı, tek başına; ad ise kökten, çekimli halleriyle.
-    const symbolLike = name.length <= 3 && !/\s/.test(name);
-    const pattern = symbolLike
-      ? new RegExp(`(?<![\\p{L}\\p{N}_])${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}\\p{N}_])`, "u")
-      : new RegExp(`(?<![\\p{L}])${nameStem(name).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "iu");
-    const source = symbolLike ? text : fold(text);
-    const index = source.search(pattern);
-    if (index >= 0 && (best < 0 || index < best)) best = index;
-  }
-  return best;
-}
-
-function changeIn(segment: string): Change | null {
-  const inc = [...segment.matchAll(INCREASE_STEM)].map((m) => m.index ?? 0);
-  const dec = [...segment.matchAll(DECREASE_STEM)].map((m) => m.index ?? 0);
-  if (!inc.length && !dec.length) return null;
-  if (!dec.length) return "increase";
-  if (!inc.length) return "decrease";
-  return Math.min(...inc) < Math.min(...dec) ? "increase" : "decrease";
-}
-
-/** Cümle iki büyüklük arasında hangi ilişkiyi söylüyor ("X artarsa Y azalır", "X ile Y ters orantılı"). */
-export function sentenceRelation(sentence: string, a: Quantity, b: Quantity): Relation | null {
-  const pa = firstMention(sentence, a);
-  const pb = firstMention(sentence, b);
-  if (pa < 0 || pb < 0 || pa === pb) return null;
-  if (INVERSE_PHRASE.test(sentence) && !DIRECT_PHRASE.test(sentence)) return "inverse";
-  if (DIRECT_PHRASE.test(sentence) && !INVERSE_PHRASE.test(sentence)) return "direct";
-  const [first, second] = pa < pb ? [pa, pb] : [pb, pa];
-  const c1 = changeIn(sentence.slice(first, second));
-  const c2 = changeIn(sentence.slice(second));
-  if (!c1 || !c2) return null;
-  return c1 === c2 ? "direct" : "inverse";
-}
-
-function sentences(text: string): string[] {
-  return text
-    .split(/(?<=[.!?;])\s+|\n+/u)
-    .map((item) => item.trim())
-    .filter((item) => item.length > 0);
 }
 
 /* ───────────── Sahne ───────────── */
@@ -191,8 +128,9 @@ export function checkSceneRelations(scene: VisualScene, context: RelationContext
   if (correction && repeatsSourceError(sceneText, correction)) return { ok: false, reason: "kaynağın düzeltilen hatasını taşıyor" };
 
   // Kaynağın yanlış denklemi doğrulanmış metinde alıntı olarak geçse bile ölçüt olmaz; doğrusu eklenir.
-  const wrong = new Set(correction ? equationsIn(correction.documentClaim).map(correctionKey) : []);
-  const equations = [...equationsIn(context.lessonText), ...(correction ? equationsIn(correction.verifiedTruth) : [])].filter(
+  const items = allCorrections(correction);
+  const wrong = new Set(items.flatMap((item) => equationsIn(item.documentClaim).map(correctionKey)));
+  const equations = [...equationsIn(context.lessonText), ...items.flatMap((item) => equationsIn(item.verifiedTruth))].filter(
     (equation) => !wrong.has(correctionKey(equation)),
   );
   const lessonSentences = sentences(context.lessonText);
