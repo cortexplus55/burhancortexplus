@@ -191,6 +191,13 @@
 .vo-consents p {
   color: var(--vo-text);
 }
+/* Sözleşme adı açık zeminde okunur (koyu temanın açık renkli bağlantısı beyaz kartta kayboluyordu, canlı 19 Kasım). */
+.vo-consents .cp-legal-link {
+  color: var(--vo-accent);
+}
+.vo-consents .cp-legal-hint {
+  color: var(--vo-muted);
+}
 .vo-error {
   font-size: 0.86rem;
   color: #b42318;
