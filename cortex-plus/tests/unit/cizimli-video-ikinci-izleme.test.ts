@@ -4,7 +4,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const runVideoLesson = vi.fn(async () => ({ ok: true as const, videoId: "yeni-video" }));
+const runVideoLesson = vi.fn(async (..._args: unknown[]) => ({ ok: true as const, videoId: "yeni-video" }));
 const stored: { id: string; style: string; scenes: unknown[] }[] = [];
 
 function fakeService() {
