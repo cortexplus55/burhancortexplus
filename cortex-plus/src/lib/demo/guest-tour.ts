@@ -255,7 +255,7 @@ export const TOUR_PODCAST_SAMPLE = {
  * kuralı. Tahtayı ürünün kendi çizim tahtası çizer; önizleme sessizdir (anlatım alt yazı olarak akar), sahne süresi
  * bu yüzden sabittir. Formül adımları ok işaretinden bölünür ve sırayla belirir.
  */
-export const TOUR_SKETCH: { title: string; sceneMs: number; scenes: SketchScene[] } = {
+export const TOUR_SKETCH: { title: string; sceneMs: number; scenes: (SketchScene & { diagram: NonNullable<SketchScene["diagram"]> })[] } = {
   title: "Kök dışına çıkarma",
   sceneMs: 7000,
   scenes: [

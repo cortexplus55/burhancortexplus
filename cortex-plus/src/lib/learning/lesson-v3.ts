@@ -15,6 +15,8 @@ import {
   type SectionCheck,
 } from "@/lib/learning/teaching-standards";
 import { rejoinIntervalCells } from "@/lib/learning/interval-text";
+import { academicDomainSchema, parseVisualScene, visualArchetypeSchema, visualSceneSchema } from "@/lib/learning/visual-scenes/schema";
+import { visualSceneText } from "@/lib/learning/visual-scenes/prompt";
 
 /**
  * LessonV3 — Ders → Ekran → Blok dizisi (16 Ekim 2026, ürün sahibinin kararı).
@@ -107,6 +109,17 @@ export const diagramCardBlockSchema = z.object({
   items: z.array(diagramCardItemSchema).min(2).max(8),
 });
 
+/**
+ * Branşa özel görsel sahne (19 Kasım 2026, Faz 1-B): disiplinin arketipine göre çizilen SVG sahnesi
+ * (`components/learning/visual-scenes`). Model yalnız yapı verisini yazar; yerleşim koddadır.
+ */
+export const visualSceneBlockSchema = z.object({
+  type: z.literal("visual_scene"),
+  academicDomain: academicDomainSchema.optional().catch(undefined),
+  visualArchetype: visualArchetypeSchema,
+  scene: visualSceneSchema,
+});
+
 export const lessonBlockSchema = z.discriminatedUnion("type", [
   textBlockSchema,
   formulaBlockSchema,
@@ -121,6 +134,7 @@ export const lessonBlockSchema = z.discriminatedUnion("type", [
   memoryHookBlockSchema,
   comparisonCarouselBlockSchema,
   diagramCardBlockSchema,
+  visualSceneBlockSchema,
 ]);
 
 export type LessonBlock = z.infer<typeof lessonBlockSchema>;
@@ -130,7 +144,7 @@ export type LessonHook = z.infer<typeof lessonHookSchema>;
 export type LessonCarousel = z.infer<typeof lessonCarouselSchema>;
 
 /** Görsel kartların türleri: oynatma paketi ve ekran bunları tanır. */
-export const VISUAL_BLOCK_TYPES = ["exam_trap_card", "memory_hook_card", "comparison_carousel"] as const;
+export const VISUAL_BLOCK_TYPES = ["exam_trap_card", "memory_hook_card", "comparison_carousel", "visual_scene"] as const;
 
 const STRUCTURED_LAYOUTS = new Set(["flow", "cycle", "matrix", "tree", "free"]);
 
@@ -219,6 +233,10 @@ export function blockAlias(item: unknown): unknown {
   if (row.type === "diagram_card") {
     return parametricFromDiagramCard(row) ?? { type: "diagram", diagram: row.diagram ?? row.card };
   }
+  if (row.type === "visual_scene") {
+    const scene = parseVisualScene(row.scene ?? row.visual, typeof row.visualArchetype === "string" ? (row.visualArchetype as never) : undefined);
+    return scene ? { ...row, visualArchetype: scene.archetype, scene } : row;
+  }
   if (row.type === "general_knowledge_box") {
     const note = row.note ?? row.box;
     return { type: "note", note: note && typeof note === "object" ? { ...(note as object), tone: "general" } : note };
@@ -252,6 +270,7 @@ export function visualBlockText(block: LessonBlock): string {
     }
     if (diagram.layout === "tree") return `${diagram.caption}: ${diagram.root.label}`;
   }
+  if (block.type === "visual_scene") return visualSceneText(block.scene);
   if (block.type === "diagram_card") {
     const bits = block.items.map((item) => [item.label, item.value, item.detail].filter((part) => part != null && part !== "").join(" "));
     return [block.title, block.caption, bits.join(" → ")].filter(Boolean).join(": ");
@@ -304,6 +323,9 @@ export const lessonV3Schema = z.object({
   summary: v2.summary,
   nextFocus: v2.nextFocus,
   sourceCorrectionWarning: v2.sourceCorrectionWarning,
+  /** Faz 1-B: dersin disiplini ve görsel arketipi (üretimde otomatik sınıflandırılır; eski derslerde yok). */
+  academicDomain: academicDomainSchema.optional().catch(undefined),
+  visualArchetype: visualArchetypeSchema.optional().catch(undefined),
 });
 
 export type LessonV3 = z.infer<typeof lessonV3Schema>;

@@ -47,28 +47,27 @@ function scene(kind: SketchDiagramKind, index: number) {
 }
 
 describe("paket 2 çizimli video", () => {
-  it("sketch_reel şema ve formül üretir, resim modeli istemez", () => {
+  it("sketch_reel 5 sahneli çizim akışı üretir, resim modeli istemez; eski şemalı kayıt okunur", () => {
     const system = sketchSystem("document");
-    expect(system).toContain("number_line");
-    expect(system).toContain("balance_scale");
-    expect(system).toContain("function_curve");
-    expect(system).toContain("timeline");
-    expect(system).toContain("process_network");
+    // Faz 1-B: sabit 5 sahne (kanca → ana çizim → karşılaştırma → tuzak → hafıza çivisi).
+    for (const beat of ["hook", "main_diagram", "comparison", "exam_trap", "memory_nail"]) expect(system).toContain(beat);
+    expect(system).toContain("Sakın Buna Düşme!");
     expect(system).not.toContain("gpt-image");
     expect(system).not.toContain("images.generate");
 
-    const script = parseSketchScript(
+    // Eski biçim (parametrik şema) kayıtta durur ve okunur; yeni üretimde 5 sahneli akış istenir.
+    const legacy = parseSketchScript(
       {
         title: "Moment",
         scenes: (["balance_scale", "number_line", "function_curve", "process_network"] as const).map((kind, index) => scene(kind, index)),
       },
       "Moment",
     );
-    expect(script?.scenes).toHaveLength(4);
-    expect(script?.scenes[0]?.diagram.diagramKind).toBe("balance_scale");
-    expect(script?.scenes[0]?.formula).toContain("F_1");
-    expect(script?.scenes.map((item) => item.voice)).toEqual(["ada", "kerem", "ada", "kerem"]);
-    expect(sketchStructureIssues(script!)).toEqual([]);
+    expect(legacy?.scenes).toHaveLength(4);
+    expect(legacy?.scenes[0]?.diagram?.diagramKind).toBe("balance_scale");
+    expect(legacy?.scenes[0]?.formula).toContain("F_1");
+    expect(legacy?.scenes.map((item) => item.voice)).toEqual(["ada", "kerem", "ada", "kerem"]);
+    expect(sketchStructureIssues(legacy!).some((issue) => issue.severity === "high")).toBe(true);
     expect(parseSketchScript({ scenes: [{ narration: "Kısa cümle yeter.", sceneTitle: "Boş", visual: "a photo" }] }, "Konu")).toBeNull();
 
     const source = read("src/lib/learning/video-run.ts");

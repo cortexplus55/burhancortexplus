@@ -6,6 +6,7 @@ import { getUserEntitlements, requireFeature } from "@/lib/billing/entitlements"
 import { billingExempt } from "@/lib/billing/free-preview";
 import { AUDIO_BUCKET } from "@/lib/learning/audio-cache";
 import { isSketchStored, readSketchDiagram, videoStyleLabel } from "@/lib/learning/video-lesson";
+import { isReelBeat, parseReelVisual, readAcademicDomain, readVisualArchetype } from "@/lib/learning/visual-scenes/schema";
 import type { StoredVideoScene } from "@/lib/learning/video-run";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -66,6 +67,10 @@ export default async function PrepVideoPage({
           completed={Boolean(video.completed_at)}
           scenes={scenes.map((scene) => {
             const diagram = readSketchDiagram(scene.diagram ?? scene.visualSchema);
+            // Faz 1-B: branşa özel SVG sahnesi; bozuk kayıt eski tahtaya (şema) düşer.
+            const beat = isReelBeat(scene.beat) ? scene.beat : undefined;
+            const reel = beat ? parseReelVisual(scene.reel, beat, readVisualArchetype(scene.visualArchetype)) : null;
+            const domain = readAcademicDomain(scene.academicDomain);
             return {
               narration: scene.narration,
               durationMs: scene.durationMs,
@@ -75,6 +80,8 @@ export default async function PrepVideoPage({
               ...(scene.sceneTitle ? { sceneTitle: scene.sceneTitle } : {}),
               ...(scene.formula ? { formula: scene.formula } : {}),
               ...(diagram ? { diagram } : {}),
+              ...(beat && reel ? { beat, reel } : {}),
+              ...(domain ? { academicDomain: domain } : {}),
             };
           })}
         />

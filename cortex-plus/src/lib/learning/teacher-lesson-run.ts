@@ -21,6 +21,11 @@ import {
   coverageGapCount,
   dedupScreens,
   diagramCompletionUserPrompt,
+  hasVisualScene,
+  parseVisualSceneCompletion,
+  visualSceneSystem,
+  visualSceneUserPrompt,
+  type VisualSceneCompletion,
   dropRepeatedChecks,
   dropRepeatedScreens,
   fourPartGaps,
@@ -42,6 +47,7 @@ import {
   type TeacherIssue,
   type TeacherLessonInput,
 } from "@/lib/learning/teacher-lesson";
+import { classifyAcademicDomain, type DomainClassification } from "@/lib/learning/visual-scenes/archetype";
 
 /*
   Öğretmen ders motoru, akışlı (18 Ekim 2026, ürün sahibinin kararı: "ders ~10 sn'de açılsın,
@@ -59,6 +65,9 @@ import {
     çağrı (30 Ekim 2026, 30 sn tavan); açık azalmazsa ders aynen yayımlanır.
   - diagram_card yoksa yalnız kartı isteyen tek küçük çağrı (29 Ekim 2026, 25 sn tavan); kart derste ya da
     kaynakta geçen etiket ve sayılarla temellenmezse ders aynen yayımlanır.
+  - Branşa özel görsel sahne (19 Kasım 2026, Faz 1-B): disiplin kodla sınıflandırılır (model çağrısız), şema
+    tamamlamasıyla paralel tek küçük çağrı arketipin sahnesini ister (25 sn tavan); temellenmezse ders aynen yayımlanır,
+    disiplin ve arketip yine derse yazılır.
   - Yayımdan önce anahtar kapısı (29 Ekim 2026, model çağrısız): açıklamanın şıkkıyla çelişen answerIndex hizalanır,
     ekranda olmayan görsele gönderen soru çıkar (`settleCheckKeys`).
   - Öğrenci beklerken hızlı işlem (ürün sahibinin kararı: önce yalnız Plus, aynı gün herkese).
@@ -105,6 +114,48 @@ export async function completeLessonDiagram(io: LessonIo, lesson: LessonV3, inpu
     verdict: verdict.verdict,
     kind: verdict.kind ?? null,
     concept: verdict.concept?.slice(0, 60) ?? null,
+    ms: Date.now() - started,
+  });
+  return verdict;
+}
+
+/** Görsel sahne çağrısının tavanı (şema tamamlamasıyla paralel koşar). */
+const VISUAL_SCENE_MS = 25_000;
+
+/** Dersin disiplini ve arketipi: hazırlık adı, konu ve kaynak örneğinden (model çağrısız). */
+export function lessonDomain(input: TeacherLessonInput): DomainClassification {
+  return classifyAcademicDomain({ prepTitle: input.prepTitle, topicLabel: input.topicLabel, pages: input.pages, mode: input.mode ?? "document" });
+}
+
+/**
+ * Branşa özel görsel sahne: tek küçük çağrı (aynı LessonIo). Ayrıştırma, temellendirme ve yerleşim koddadır;
+ * düşerse ya da zaman aşarsa ders aynen kalır.
+ */
+export async function completeLessonVisualScene(
+  io: LessonIo,
+  lesson: LessonV3,
+  input: TeacherLessonInput,
+  classification: DomainClassification,
+): Promise<VisualSceneCompletion> {
+  const started = Date.now();
+  let verdict: VisualSceneCompletion;
+  if (hasVisualScene(lesson)) verdict = { verdict: "exists", lesson: null };
+  else {
+    try {
+      const answer = await withDeadline(
+        io.write(visualSceneSystem(classification), visualSceneUserPrompt(lesson, input, classification), () => undefined),
+        VISUAL_SCENE_MS,
+      );
+      verdict = answer ? parseVisualSceneCompletion(parseModelJson(answer.text), lesson, input, classification) : { verdict: "timeout", lesson: null };
+    } catch {
+      verdict = { verdict: "error", lesson: null };
+    }
+  }
+  console.info("teacher_lesson_visual_scene", {
+    verdict: verdict.verdict,
+    domain: classification.academicDomain,
+    archetype: verdict.archetype ?? classification.visualArchetype,
+    confidence: Number(classification.confidence.toFixed(2)),
     ms: Date.now() - started,
   });
   return verdict;
@@ -677,10 +728,37 @@ export async function teacherLessonPipeline(
       });
     }
     // (3) diagram_card yoksa yalnız kartı isteyen tek küçük çağrı (29 Ekim 2026); düşerse ders aynen yayımlanır.
-    if (parametricDiagramIssue(delivered)) {
-      const completion = await completeLessonDiagram(io, delivered, input);
-      if (completion.lesson) delivered = completion.lesson;
+    // (4) Faz 1-B: branşa özel görsel sahne; (3) ile paralel, sahne (3)'ün sonucuna eklenir.
+    const domain = lessonDomain(input);
+    const base = delivered;
+    const [diagram, scene] = await Promise.all([
+      parametricDiagramIssue(base) ? completeLessonDiagram(io, base, input) : Promise.resolve(null),
+      input.visualScene === false ? Promise.resolve(null) : completeLessonVisualScene(io, base, input, domain),
+    ]);
+    if (diagram?.lesson) delivered = diagram.lesson;
+    if (scene?.verdict === "added") {
+      const block = scene.lesson.screens.flatMap((screen) => screen.blocks).find((item) => item.type === "visual_scene");
+      const target = scene.lesson.screens.findIndex((screen) => screen.blocks.some((item) => item.type === "visual_scene"));
+      if (block && target >= 0) {
+        // Ekran sırası (3) ile değişmez (kart yalnız ekranın bloklarına girer): aynı ekrana aynı kurala göre eklenir.
+        delivered = {
+          ...delivered,
+          screens: delivered.screens.map((screen, index) => {
+            if (index !== target) return screen;
+            const blocks = [...screen.blocks];
+            const last = blocks[blocks.length - 1];
+            if (last && last.type === "check" && blocks.length > 1) blocks.splice(blocks.length - 1, 0, block);
+            else blocks.push(block);
+            return { ...screen, blocks: blocks.slice(0, 12) };
+          }),
+        };
+      }
     }
+    delivered = {
+      ...delivered,
+      academicDomain: scene?.verdict === "added" ? scene.domain : domain.academicDomain,
+      visualArchetype: scene?.verdict === "added" ? scene.archetype : domain.visualArchetype,
+    };
     const done = !lessonLevelStructureIssues(delivered, input).some(isCoverageIssue);
     return {
       lesson: stripLessonIssueTags(delivered),
