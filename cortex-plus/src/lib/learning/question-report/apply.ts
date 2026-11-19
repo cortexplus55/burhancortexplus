@@ -106,6 +106,23 @@ async function loadNodeTarget(
       const { error } = await service.from("exam_prep_node_attempts").update(update).eq("id", attempt.id);
       if (error) throw new Error(error.message);
       if (prepId) await retireReviewItem(service, input.userId, prepId, question);
+      // 19 Kasım 2026 (Faz 2 denetimi): yol testinin yanlışı defterde `source_ref = "<deneme>:q:<sıra>"` ile durur;
+      // bildirim onu güncellemiyordu, bozuk soru defterde eski anahtarla kalıyordu. Deneme sorusuyla aynı kural.
+      const { error: notebookError } = await service
+        .from("mistake_entries")
+        .update(
+          decision.action === "fix" && decision.correctedKey?.length
+            ? {
+                correct_answer: decision.correctedKey.join(" | "),
+                ...(decision.explanation ? { explanation: decision.explanation } : {}),
+              }
+            : { mastered_at: new Date().toISOString() },
+        )
+        .eq("user_id", input.userId)
+        .eq("source_ref", `${attempt.id}:q:${index}`);
+      if (notebookError) {
+        console.error("question_report_notebook_failed", { kind: "node", code: notebookError.code ?? null });
+      }
       const shown = normalizeQuizQuestion(fixed as Parameters<typeof normalizeQuizQuestion>[0]);
       return {
         question: shown ? publicQuizQuestion(shown) : undefined,
