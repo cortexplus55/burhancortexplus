@@ -32,6 +32,26 @@ export function clampText(max: number, min = 1) {
     .pipe(z.string().min(min));
 }
 
+/**
+ * Simge alanı (F_1, ΔT …): model kelime yazarsa üç noktayla kesilmez; kelimelerin baş harflerinden kısaltma olur
+ * (tek kelimede baş harf). Anlamın tamamı etiket alanında durur.
+ */
+export function shortSymbol(text: string, max: number): string {
+  // Eski kayıtlarda kesilmiş simge ("Kelim…") de kısaltmaya döner.
+  const value = squash(text).replace(/…$/, "");
+  if (value.length <= max && value === squash(text)) return value;
+  const words = value.split(" ").filter((word) => /\p{L}/u.test(word));
+  const initials = words.map((word) => (word.match(/\p{L}/u)?.[0] ?? "").toLocaleUpperCase("tr")).join("");
+  return (words.length > 1 ? initials : initials.slice(0, 1)).slice(0, max) || value.slice(0, max);
+}
+
+export function symbolText(max: number) {
+  return z
+    .union([z.string(), z.number().finite()])
+    .transform((value) => shortSymbol(String(value), max))
+    .pipe(z.string().min(1));
+}
+
 const optionalText = (max: number) => clampText(max).optional().catch(undefined);
 
 /** Diziyi kırpar; bozuk öğeyi atar (tek öğe sahneyi düşürmesin). */
@@ -92,7 +112,7 @@ export const mechanicsSchema = z.object({
   body: z.object({ label: clampText(40) }),
   vectors: looseArray(
     z.object({
-      symbol: clampText(8),
+      symbol: symbolText(8),
       label: clampText(56),
       direction: z.enum(VECTOR_DIRECTIONS).catch("up"),
       /** Ok yönünde ilerledikçe gösterilen nicelik artar mı azalır mı (eğilim sahnesi). */
@@ -104,10 +124,10 @@ export const mechanicsSchema = z.object({
     6,
   ),
   logic: z.object({
-    formula: clampText(60, 2),
+    formula: clampText(100, 2),
     drivers: looseArray(
       z.object({
-        symbol: clampText(8),
+        symbol: symbolText(8),
         label: clampText(56),
         /** Değişken artınca sonuç artar (up) ya da azalır (down). */
         effect: z.enum(["up", "down"]).catch("up"),
@@ -116,7 +136,7 @@ export const mechanicsSchema = z.object({
       4,
     ),
     /** Formülde yer almayan çeldirici değişkenler: üstü çizili kırmızı rozet. */
-    distractors: looseArray(z.object({ symbol: clampText(8), label: clampText(56) }), 0, 2).catch([]),
+    distractors: looseArray(z.object({ symbol: symbolText(8), label: clampText(56) }), 0, 2).catch([]),
   }),
 });
 export type MechanicsData = z.infer<typeof mechanicsSchema>;
@@ -212,7 +232,7 @@ export const mathGraphSchema = z.object({
     })
     .optional()
     .catch(undefined),
-  integral: z.object({ from: clampText(8), to: clampText(8), label: clampText(40) }).optional().catch(undefined),
+  integral: z.object({ from: symbolText(8), to: symbolText(8), label: clampText(40) }).optional().catch(undefined),
   shape: z
     .object({
       kind: z.enum(SHAPE_KINDS).catch("triangle"),
@@ -378,7 +398,7 @@ export const reelTrapSchema = z.object({
 export const reelMemorySchema = z.object({
   kind: z.literal("memory_nail"),
   mnemonic: clampText(60, 2),
-  keys: looseArray(z.object({ letter: clampText(3), meaning: clampText(28) }), 0, 5).catch([]),
+  keys: looseArray(z.object({ letter: symbolText(3), meaning: clampText(28) }), 0, 5).catch([]),
   summary: clampText(120, 4),
 });
 

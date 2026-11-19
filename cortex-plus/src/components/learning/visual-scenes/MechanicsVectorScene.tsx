@@ -2,6 +2,7 @@
 
 import { DOMAIN_LABEL, sceneArchetypeLabel, type AcademicDomain } from "@/lib/learning/visual-scenes/archetype";
 import { withTrend } from "@/lib/learning/visual-scenes/direction-semantics";
+import { measureText } from "@/lib/learning/visual-scenes/text-fit";
 import {
   inflate,
   layoutHeader,
@@ -119,14 +120,16 @@ function layoutPanel(data: MechanicsData, rect: Rect, labelLines: number): { kic
   const kicker = placeText("logic-kicker", data.setting === "trend" ? "EĞİLİMİN MANTIĞI" : "FORMÜLÜN MANTIĞI", x0, rect.y + pad, { maxWidth: w, maxLines: 1, fontSize: 10, weight: 800, single: true });
   const formula = placeText("logic-formula", data.logic.formula, x0, kicker.rect.y + kicker.rect.h + 4, {
     maxWidth: w,
-    maxLines: 2,
+    maxLines: 3,
     fontSize: 17,
-    minFontSize: 12,
+    minFontSize: 11,
     weight: 800,
   });
   let y = formula.rect.y + formula.rect.h + 8;
   const rows: LogicRow[] = [];
-  const chipW = 38;
+  // Simge çipi en geniş simgeye göre (8 karaktere kadar simge kesilmeden sığsın).
+  const symbols = [...data.logic.drivers.map((driver) => driver.symbol), ...data.logic.distractors.map((item) => item.symbol)];
+  const chipW = Math.max(38, Math.min(76, Math.max(0, ...symbols.map((symbol) => measureText(symbol, 11, 800))) + 12));
   const labelX = x0 + chipW + 30;
   const miniW = 44;
   const labelW = w - chipW - 30 - miniW - 8;
@@ -137,7 +140,7 @@ function layoutPanel(data: MechanicsData, rect: Rect, labelLines: number): { kic
       maxWidth: chipW - 6,
       maxLines: 1,
       fontSize: 13,
-      minFontSize: 9,
+      minFontSize: 8,
       weight: 800,
       anchor: "middle",
       single: true,
@@ -159,7 +162,7 @@ function layoutPanel(data: MechanicsData, rect: Rect, labelLines: number): { kic
       maxWidth: chipW - 6,
       maxLines: 1,
       fontSize: 13,
-      minFontSize: 9,
+      minFontSize: 8,
       weight: 800,
       anchor: "middle",
       single: true,
@@ -272,7 +275,7 @@ export function layoutMechanics(data: MechanicsData, frame: SceneFrame, domain?:
     const ey = sy + dy * len;
     const width = 1.6 + vector.magnitude * 0.9;
     const color = MECHANICS_COLORS.vectors[index % MECHANICS_COLORS.vectors.length]!;
-    const symbolRaw = placeText(`vector${index}-symbol`, vector.symbol, 0, 0, { maxWidth: 60, maxLines: 1, fontSize: 15, minFontSize: 11, weight: 800, single: true });
+    const symbolRaw = placeText(`vector${index}-symbol`, vector.symbol, 0, 0, { maxWidth: 84, maxLines: 1, fontSize: 15, minFontSize: 10, weight: 800, single: true });
     const caption = vectorCaption(vector);
     const labelW = Math.round(Math.max(92, Math.min(124, bounds.w * 0.36)));
     const labelRaw = placeText(`vector${index}-label`, caption, 0, 0, { maxWidth: labelW, maxLines: 3, fontSize: 9.5, minFontSize: 8 });
@@ -287,7 +290,7 @@ export function layoutMechanics(data: MechanicsData, frame: SceneFrame, domain?:
     bx = Math.max(bounds.x, Math.min(bounds.x + bounds.w - blockW, bx));
     by = Math.max(bounds.y, Math.min(bounds.y + bounds.h - blockH, by));
     const anchorX = bx + blockW / 2;
-    const symbol = placeText(`vector${index}-symbol`, vector.symbol, anchorX, by, { maxWidth: 60, maxLines: 1, fontSize: 15, minFontSize: 11, weight: 800, anchor: "middle", single: true });
+    const symbol = placeText(`vector${index}-symbol`, vector.symbol, anchorX, by, { maxWidth: 84, maxLines: 1, fontSize: 15, minFontSize: 10, weight: 800, anchor: "middle", single: true });
     symbol.rect = { ...symbol.rect, h: symbol.rect.h + shiftPad };
     const label = placeText(`vector${index}-label`, caption, anchorX, by + symbol.rect.h, { maxWidth: labelW, maxLines: 3, fontSize: 9.5, minFontSize: 8, anchor: "middle" });
     vectors.push({ x1: sx, y1: sy, x2: ex, y2: ey, width, color, symbol, label });

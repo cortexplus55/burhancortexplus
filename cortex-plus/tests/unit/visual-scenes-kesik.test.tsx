@@ -195,3 +195,39 @@ describe("kesik yazı yok (orta uzunlukta metin)", () => {
     });
   }
 });
+
+describe("simge ve formül kesilmez", () => {
+  it("kelime yazılan simge kısaltmaya döner (üç nokta yok), uzun formül ve 8 karakterlik simgeler sığar", () => {
+    const scene = parseVisualScene({
+      archetype: "ENGINEERING_PHYSICS_MECHANICS",
+      title: "Jenerik eğilim sahnesi",
+      setting: "trend",
+      body: { label: "Jenerik yapı" },
+      vectors: [
+        { symbol: "Birinci nicelik yoğunluğu", label: "Birinci niceliğe doğru kayma", direction: "right", magnitude: 2 },
+        { symbol: "ABCDEFGH", label: "İkinci nicelik aşağı doğru", direction: "down", magnitude: 3 },
+        { symbol: "Kelime…", label: "Eski kayıttan gelen kesik simge", direction: "left", magnitude: 1 },
+      ],
+      logic: {
+        formula: "Birinci nicelik farklıysa paylaşım eşit olmaz ve yoğunluk daha büyük değerli tarafa doğru kayar",
+        drivers: [{ symbol: "Tekuzunkelime", label: "Birinci nicelik farkı arttıkça kayma artar", effect: "up" }],
+        distractors: [{ symbol: "ABCDEFGH", label: "Eğilimle ilgisi olmayan değişken" }],
+      },
+    }) as never as { vectors: { symbol: string }[]; logic: { formula: string; drivers: { symbol: string }[] } };
+    expect(scene.vectors[0]!.symbol).toBe("BNY");
+    expect(scene.logic.drivers[0]!.symbol).toBe("T");
+    expect(scene.vectors[1]!.symbol).toBe("ABCDEFGH");
+    expect(scene.vectors[2]!.symbol).toBe("K");
+    expect(scene.logic.formula).not.toContain("…");
+    const problems: string[] = [];
+    for (const mode of ["9:16", "16:9"] as SceneMode[]) {
+      for (const chrome of ["video", "lesson"] as SceneChrome[]) {
+        const layout = layoutMechanics(scene as never, sceneFrame(mode, chrome), "chemistry");
+        const cut = layout.texts.filter((box) => box.truncated).map((box) => box.id);
+        const issues = layoutIssues(layout).map((issue) => issue.detail);
+        if (cut.length || issues.length) problems.push(`${mode} ${chrome}: ${[...cut, ...issues].join(", ")}`);
+      }
+    }
+    expect(problems).toEqual([]);
+  });
+});
