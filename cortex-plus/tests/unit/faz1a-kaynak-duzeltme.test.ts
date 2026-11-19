@@ -45,3 +45,13 @@ describe("/ogretmen: yanılgı ilk cümlede düzeltilir", () => {
     expect(misconceptionFirstLine(message)).toContain("ilk cümle düzeltmedir");
   });
 });
+
+describe("kaynak düzeltme denetimi yazımdan önce sınırlı beklenir", () => {
+  it("süre içinde gelen uyarı döner, gelmeyen ya da düşen denetim yazımı durdurmaz", async () => {
+    const { settleWithin, SOURCE_CORRECTION_WAIT_MS } = await import("@/lib/learning/source-correction");
+    expect(SOURCE_CORRECTION_WAIT_MS).toBeGreaterThan(0);
+    await expect(settleWithin(Promise.resolve(raw.correction), 50)).resolves.toEqual(raw.correction);
+    await expect(settleWithin(new Promise(() => undefined), 10)).resolves.toBeUndefined();
+    await expect(settleWithin(Promise.reject(new Error("düştü")), 50)).resolves.toBeUndefined();
+  });
+});

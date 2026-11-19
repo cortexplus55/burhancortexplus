@@ -147,3 +147,26 @@ export function cardRepeatsSourceError(
 ): boolean {
   return repeatsSourceError(card.back, warning);
 }
+
+/**
+ * Ders yazımı başlamadan önce kaynak düzeltme denetimini bekleme tavanı (19 Kasım 2026, Faz 1-A §2.1 canlı bulgu).
+ * Paralel denetim ~6 sn'de döndü ama yazar uyarısız başladığı için ders ekranları kaynağın yanlış bağıntısını
+ * öğretti. Denetim bu süre içinde biterse yazar, düzeltici ve denetçi doğrusunu baştan okur; bitmezse ders bugünkü
+ * gibi sürer ve geç gelen uyarı kavram denetimine gider.
+ */
+export const SOURCE_CORRECTION_WAIT_MS = 12_000;
+
+/** Söz verilen değer süre içinde gelirse o, gelmezse `undefined`; hata da `undefined` (ders hiçbir zaman düşmez). */
+export async function settleWithin<T>(promise: Promise<T>, ms: number): Promise<T | undefined> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise.catch(() => undefined),
+      new Promise<undefined>((resolve) => {
+        timer = setTimeout(() => resolve(undefined), ms);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
