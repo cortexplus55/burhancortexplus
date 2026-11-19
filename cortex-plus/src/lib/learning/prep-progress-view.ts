@@ -17,6 +17,7 @@ import {
   type ReadinessForecastSeries,
 } from "@/lib/learning/prep-radar";
 import type { TopicMasteryState } from "@/lib/learning/learning-tracking";
+import type { MasteryBadge } from "@/lib/learning/mastery-policy";
 import { istanbulDay } from "@/lib/istanbul-day";
 import type { PrepMockResult } from "@/lib/learning/prep-mock-results";
 import { contentSpansTopics, contentTestedTopic, createTopicIndex } from "@/lib/learning/topic-identity";
@@ -169,7 +170,7 @@ export type PrepProgressView = {
   /** En az bir etkinlik puanlandı: "eksik yok" artık bir ölçüm sonucudur, boşluk değil. */
   gapsMeasured: boolean;
   gaps: ProgressGap[];
-  topics: { label: string; pct: number; solved: number; lessons: number; state?: TopicMasteryState }[];
+  topics: { label: string; pct: number; solved: number; lessons: number; state?: TopicMasteryState; badge?: MasteryBadge }[];
   weeks: {
     labels: string[];
     rows: { label: string; counts: number[]; pct: number }[];
@@ -338,7 +339,8 @@ export function buildPrepProgressView(input: {
   /** Konu hâkimiyeti (0–100). Varsa çubuk tamamlanan adımdan değil buradan gelir; listede olmayan konu 0. */
   /** `confidence`: `topicMasteryPercent` (sönümlü yüzde); `state`: aynı kaynaktan "Sağlam / Çalışılacak" (29 Ekim 2026). */
   /** `solved`: konunun kanıt sayısı (`topicMasteryView.solved`); varsa "N çözüldü" bundan (30 Ekim 2026). */
-  topicMastery?: { label: string; confidence: number; state?: TopicMasteryState; solved?: number }[];
+  /** `badge`: Faz 4 rozeti (`topicMasteryView.badge`) — Öğrendin / Gelişiyor / Zayıf / Ölçülmedi. */
+  topicMastery?: { label: string; confidence: number; state?: TopicMasteryState; solved?: number; badge?: MasteryBadge }[];
   /**
    * Konular kimlikleriyle (30 Ekim 2026): düğüm ve kayıt konuya tek eşleştiriciyle bağlanır (`topic-identity.ts`).
    * Yoksa yalnız ad.
@@ -431,6 +433,7 @@ export function buildPrepProgressView(input: {
       // Biten ders (30 Ekim 2026): planlanan ders düğümü değil, tamamlanan.
       lessons: topicNodes.filter((node) => LESSON_KINDS.has(node.kind) && node.status === "done").length,
       ...(mastery?.state ? { state: mastery.state } : {}),
+      ...(mastery?.badge ? { badge: mastery.badge } : {}),
     };
   });
   const measuredTopics = input.topicMastery

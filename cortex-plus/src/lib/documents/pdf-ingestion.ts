@@ -13,6 +13,7 @@ import { billingExempt } from "@/lib/billing/free-preview";
 import { getActionCost, reserveCredits, refundCredits, recordUsage } from "@/lib/credits/service";
 import { chargeNow } from "@/lib/credits/charge-now";
 import { spendableCredits } from "@/lib/credits/spendable-server";
+import { TEXT_PAGES_PER_CREDIT, textPageUnits } from "@/lib/credits/price-table";
 import { chunkText, embedTexts, type EmbeddingUsage } from "@/lib/rag/pipeline";
 import { logOpsEvent } from "@/lib/observability/ops-log";
 import { isRetryableIngestionCode } from "@/lib/documents/ingestion-errors";
@@ -160,8 +161,9 @@ async function ensureReservation(
   if (lease.reservationId) return lease.reservationId;
   // Duraklayıp kaldığı yerden süren okuma (pencereli işleme) kalan sayfalar için kendi anahtarıyla ayırır.
   const key = documentReservationKey(documentId, firstPage);
-  // Sayfa başına kredi (8 Ekim 2026): işlenecek sayfa sayısı kadar.
-  const reservation = await reserveCredits(service, userId, "DOCUMENT_PAGE_PROCESS", key, pages);
+  // Faz 4 (19 Kasım 2026): metin sayfası 5'te 1 kredi — işlenecek sayfalar için ceil(sayfa / 5) birim. Okuma bitince
+  // fotoğraf / taranmış (OCR) sayfalar metin biriminden düşülür ve kesin bedel yazılır (`commitDocumentCredits`).
+  const reservation = await reserveCredits(service, userId, "DOCUMENT_PAGE_PROCESS", key, textPageUnits(pages));
   let id: string | null = reservation.ok ? reservation.reservationId : null;
   if (!reservation.ok && (reservation.reason === "operation_in_progress" ||
       reservation.reason === "operation_completed")) {
@@ -773,14 +775,17 @@ export async function processPdfDocumentStep(
       await stampDocumentSha(service, documentId, sha256);
       const duplicate = await findDuplicateSource(service, { sha256, excludeId: documentId, userId });
       if (duplicate && duplicate.pageCount > 0 && (remaining === null || remaining >= duplicate.pageCount)) {
+        // Faz 4: belge ücreti yalnız İLK yüklemede bir kez — öğrencinin kendi daha önce işlenmiş belgesinin aynısı
+        // yeniden yüklenirse kopya 0 kredi.
+        const ownCopy = duplicate.userId === userId;
         let affordable = duplicate.pageCount;
-        if (remaining === null) {
-          const pageCost = Math.max(1, (await getActionCost(service, "DOCUMENT_PAGE_PROCESS")) ?? 2);
+        if (remaining === null && !ownCopy) {
+          const pageCost = Math.max(1, (await getActionCost(service, "DOCUMENT_PAGE_PROCESS")) ?? 1);
           const spendable = await spendableCredits(service, userId);
-          affordable = Number.isFinite(spendable) ? Math.floor(spendable / pageCost) : duplicate.pageCount;
+          affordable = Number.isFinite(spendable) ? Math.floor(spendable / pageCost) * TEXT_PAGES_PER_CREDIT : duplicate.pageCount;
         }
         if (affordable >= duplicate.pageCount) {
-          if (remaining === null) reservationId = await ensureReservation(service, userId, documentId, lease, duplicate.pageCount, 1);
+          if (remaining === null && !ownCopy) reservationId = await ensureReservation(service, userId, documentId, lease, duplicate.pageCount, 1);
           const cloned = await cloneDocumentContent(service, { sourceId: duplicate.id, targetId: documentId });
           if (cloned && cloned.pages > 0) {
             await service.from("document_topic_nodes").delete().eq("document_id", documentId);
@@ -824,8 +829,12 @@ export async function processPdfDocumentStep(
         const known = range.end != null ? Math.min(knownAll, range.end) : knownAll;
         const toRead = Math.max(1, known - firstPage + 1);
         const spendable = await spendableCredits(service, userId);
-        const pageCost = Math.max(1, (await getActionCost(service, "DOCUMENT_PAGE_PROCESS")) ?? 2);
-        const affordable = Math.min(toRead, Number.isFinite(spendable) ? Math.floor(spendable / pageCost) : toRead);
+        const pageCost = Math.max(1, (await getActionCost(service, "DOCUMENT_PAGE_PROCESS")) ?? 1);
+        // Faz 4: bir birim (kredi) 5 metin sayfası okutur.
+        const affordable = Math.min(
+          toRead,
+          Number.isFinite(spendable) ? Math.floor(spendable / pageCost) * TEXT_PAGES_PER_CREDIT : toRead,
+        );
         if (affordable < 1) throw new Error("insufficient_credits");
         reservationId = await ensureReservation(service, userId, documentId, lease, affordable, firstPage);
         paidCap = firstPage - 1 + affordable;
@@ -833,10 +842,10 @@ export async function processPdfDocumentStep(
       } else {
         paidCap = lease.totalPages ?? null;
       }
-      // Taranmış sayfa ayrıca 6 kredi: hakkın yettiğinden fazlası okunmaz, atlanır.
+      // Faz 4: fotoğraf / taranmış sayfa 5 kredi (toplam bedel): hakkın yettiğinden fazlası okunmaz, atlanır.
       const spendable = await spendableCredits(service, userId);
       if (Number.isFinite(spendable)) {
-        const scanCost = Math.max(1, (await getActionCost(service, "DOCUMENT_SCAN_PAGE")) ?? 6);
+        const scanCost = Math.max(1, (await getActionCost(service, "DOCUMENT_SCAN_PAGE")) ?? 5);
         const { count } = await service.from("document_ocr_claims")
           .select("page_number", { count: "exact", head: true })
           .eq("document_id", documentId);

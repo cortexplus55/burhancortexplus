@@ -19,6 +19,7 @@ import { kindListFilter, pathSkipKinds } from "@/lib/billing/node-free-meter";
 import { cardsAsShown, extractMisconceptions, freezeShownCards } from "@/lib/learning/teaching-standards";
 import { prepLanguage } from "@/lib/learning/teacher-brain";
 import { recordLearningTrackingAfterComplete, stripAnswerMeta } from "@/lib/learning/learning-tracking-persist";
+import { recordNodeCardReviews } from "@/lib/learning/node-card-reviews";
 import { recordMistakes } from "@/lib/learning/mistake-notebook";
 import { scheduleReviewsAfterComplete } from "@/lib/learning/review-items-store";
 import { recordUserActivity } from "@/lib/streak/record-activity";
@@ -347,6 +348,17 @@ export async function completeAction(context: NodeContext): Promise<NextResponse
             question_preview: d.questionPreview,
           })),
         );
+      }
+
+      // Faz 4: kart düğümünün öz bildirimleri SM-2 ile kart tekrar kaydına (hata günlüğe iner, tamamlama sürer).
+      if (kind === "flashcards") {
+        await recordNodeCardReviews(service, {
+          userId,
+          prepId,
+          topicLabel: doneTopicLabel ?? topicLabel,
+          payload: payloadForEvidence,
+          answers: mergedAnswers,
+        });
       }
 
       try {

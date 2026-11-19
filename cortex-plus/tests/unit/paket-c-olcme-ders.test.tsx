@@ -263,16 +263,19 @@ const snapshot = (over: Partial<TopicMasterySnapshot>): TopicMasterySnapshot => 
 
 describe("Paket C · dört ekranda tek sayı", () => {
   it("yüzde, durum ve çözülen sayı tek fonksiyondan; Hazırsın ekranı aynı durumu verir", () => {
-    const strong = snapshot({});
+    // Faz 4: "Öğrendin" en az 4 ipucusuz doğru ister (`mastery-policy.ts`); 3 doğruyla %75 "Gelişiyor".
+    const developing = topicMasteryView(snapshot({}), 70);
+    expect(developing).toEqual({ percent: 75, state: "needs_work", badge: "developing", tone: "cobalt", label: "Gelişiyor", text: "%75", solved: 4 });
+    const strong = snapshot({ evidenceCount: 5, firstAttemptCorrect: 4, firstAttemptTotal: 5, independentCorrect: 4, independentTotal: 5 });
     const view = topicMasteryView(strong, 70);
-    expect(view).toEqual({ percent: 75, state: "ready", label: "Sağlam", text: "%75", solved: 4 });
+    expect(view).toEqual({ percent: 80, state: "ready", badge: "learned", tone: "emerald", label: "Öğrendin", text: "%80", solved: 5 });
     expect(topicState(strong, 70)).toBe(view.state);
     // Kayıtlı confidence 90 olsa da ekran ham sayılardan okur. Tek doğru cevap (Paket I #7, 30 Ekim 2026)
     // artık "%33" değil "Ölçülmedi": sönümlü öncül sayı öğrenciye anlamsızdı, ölçüm 3 cevapla başlar.
     const one = snapshot({ evidenceCount: 1, firstAttemptCorrect: 1, firstAttemptTotal: 1, independentCorrect: 1, independentTotal: 1 });
     expect(topicMasteryView(one, 70)).toMatchObject({ percent: 0, state: "unmeasured", label: "Ölçülmedi", text: "Ölçülmedi" });
     expect(topicMasteryView(snapshot({ measured: false, evidenceCount: 0 }), 70).state).toBe("unmeasured");
-    expect(MASTERY_STATE_LABEL.ready).toBe("Sağlam");
+    expect(MASTERY_STATE_LABEL.ready).toBe("Öğrendin");
   });
 
   it("İlerleme satırı durumu taşır; değerlendirme sayfası ayrı eşik kullanmaz", () => {

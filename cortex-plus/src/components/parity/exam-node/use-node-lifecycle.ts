@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { LESSON_PROGRESS_POLL_MS, LESSON_PROGRESS_FAST_POLL_MS, LESSON_PROGRESS_FAST_POLLS, lessonProgressDelay } from "@/components/parity/lesson-wait";
 import { takeNodeClick } from "@/lib/learning/node-open-click";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { freeLimitReachedLine, freeReexplainBadge } from "@/lib/billing/free-meters";
 import { toast } from "sonner";
 import { COMPLETE_TIMEOUT_MS, SAVE_RETRY_DELAYS_MS, SAVE_TIMEOUT_MS, fetchWithRetry, isTransportFailure } from "@/lib/learning/retry-fetch";
 import { answerSaveSummary, clearAttemptDraft, countAnswerKeys, diffAnswerKeys, markAttemptDraftSaved, mergeDraftIntoServer, readAttemptDraft, writeAttemptDraft } from "@/lib/learning/attempt-draft";
@@ -187,6 +188,12 @@ export type ExamNodeSessionProps = {
   unitTitle?: string | null;
   /** Düğüm daha önce bitirildiyse hazırlık ekranı kendiliğinden yeniden kaydedilmez. */
   nodeDone?: boolean;
+  /** Faz 4: bitmiş adımda açık yeni üretim (`?yeni=1`, "Yeni 8 Kart Üret (8 Kredi)"). */
+  regenerate?: boolean;
+  /** Faz 4: bitmiş adımın yeni üretim adresi (kart destesinde "Yeni 8 Kart Üret (8 Kredi)"). */
+  regenerateHref?: string | null;
+  /** Faz 4 "Yolu Yeniden Çalış (Ücretsiz)": sıradaki bitmiş adımın kayıtlı açılışı; yol bittiyse karne. */
+  restudyNextHref?: string | null;
   /** Yol kartındaki süre. Kapı ve ders çubuğu aynı sayıyı gösterir. */
   activityMinutes?: number | null;
   prepId: string;
@@ -278,6 +285,9 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     unitTitle = null,
     nodeDone = false,
     activityMinutes = null,
+    regenerate = false,
+    regenerateHref = null,
+    restudyNextHref = null,
   } = props;
   const router = useRouter();
   const isAdmin = useIsFounder();
@@ -1208,6 +1218,8 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
           ...(kind === "lesson" && (overrides?.rewrite ?? rewriteMode) && !overrides?.replay && !overrides?.review ? { rewrite: true } : {}),
           ...((overrides?.sharedTries ?? 0) > 0 ? { twin: true } : {}),
           ...(overrides?.review ? { review: true } : {}),
+          // Faz 4: bitmiş adımda yeni üretim yalnız açık istekle; yoksa sunucu kaydı ücretsiz açar.
+          ...(regenerate && !overrides?.review && !overrides?.replay ? { regenerate: true } : {}),
           difficulty: overrides?.difficulty ?? difficulty,
           voiceMode: overrides?.voiceMode ?? voiceMode,
           familiarity,
@@ -1967,8 +1979,25 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
 
   /**
    * Ders adımını farklı anlat (10 Kasım 2026): ders içi yardım ucu. Hata öğrenciye kısa bir cümleyle döner;
-   * ders akışı etkilenmez.
+   * ders akışı etkilenmez. Faz 4: ücretsiz hesapta toplam 10 deneme; rozet "Ücretsiz deneme: X/10" sunucunun
+   * sayacından (`freeTrial`) okunur, abonede rozet yok.
    */
+  const [reexplainTrial, setReexplainTrial] = useState<{ used: number; limit: number } | null>(null);
+  const lessonOnScreen = stage === "play" && payload.type === "lesson";
+  useEffect(() => {
+    if (!lessonOnScreen) return;
+    let stopped = false;
+    void fetch("/api/learning/exam-prep/reexplain", { method: "GET" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { freeTrial?: { used: number; limit: number } | null } | null) => {
+        if (!stopped && data) setReexplainTrial(data.freeTrial ?? null);
+      })
+      .catch(() => {});
+    return () => {
+      stopped = true;
+    };
+  }, [lessonOnScreen]);
+
   async function reexplainStep(input: { heading: string; text: string; previous: string[] }): Promise<{ reply: string } | { error: string }> {
     try {
       const res = await fetch("/api/learning/exam-prep/reexplain", {
@@ -1976,8 +2005,16 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prepId, nodeId, heading: input.heading, text: input.text, previous: input.previous.slice(-4) }),
       });
-      const data = (await res.json().catch(() => ({}))) as { reply?: string };
-      if (res.status === 402) return { error: "Bugünkü ders içi yardım hakkın doldu; yarın yenilenir." };
+      const data = (await res.json().catch(() => ({}))) as {
+        reply?: string;
+        error?: string;
+        freeTrial?: { used: number; limit: number } | null;
+      };
+      if (data && "freeTrial" in data) setReexplainTrial(data.freeTrial ?? null);
+      if (res.status === 402) {
+        if (data.error === "free_reexplain_limit") return { error: freeLimitReachedLine("reexplain") };
+        return { error: "Bu iş için hakkın yetmiyor." };
+      }
       if (res.status === 429) return { error: "Biraz hızlı gittik; birkaç saniye sonra tekrar dene." };
       if (!res.ok || !data.reply) return { error: "Bu sefer anlatılamadı. Tekrar dene." };
       return { reply: data.reply };
@@ -1985,6 +2022,7 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
       return { error: "Şu an ulaşılamadı. İnternetini kontrol edip tekrar dene." };
     }
   }
+  const reexplainBadge = reexplainTrial ? freeReexplainBadge(reexplainTrial.used) : null;
 
   // Sözlü sıradaki soru henüz yazılmadıysa (t260u): kayıttan yoklanır; 90 sn'de gelmezse sınav eldeki
   // sorularla biter (öğrenci takılmaz).
@@ -2036,6 +2074,9 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
   return {
     gradeLessonCheck,
     reexplainStep,
+    reexplainBadge,
+    regenerateHref,
+    restudyNextHref,
     finishPodcast,
     prepId,
     nodeId,

@@ -45,7 +45,7 @@ const FREE_METER_ROW: Record<string, { label: string; note?: string }> = {
     label: "Bugünkü sohbet mesajı",
     note: `Yazılı soru çözümü ve Araçlar'daki "Anlatarak öğren" de mesaj sayılır.`,
   },
-  photo: { label: "Bugünkü fotoğraftan çözüm", note: "Okunmayan fotoğraf haktan düşmez." },
+  photo: { label: "Bu ayki fotoğraftan çözüm", note: "Okunmayan fotoğraf haktan düşmez." },
 };
 
 /** `loadUsageLimits`'in ücretsiz sayaç satırları: ana kartta durdukları için aşağıda tekrar edilmez. */

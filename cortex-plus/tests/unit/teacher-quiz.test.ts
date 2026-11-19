@@ -186,7 +186,8 @@ describe("öğretmen test motoru: döngü", () => {
 describe("şık karıştırma ve eski çağıranlar", () => {
   it("şıklar gerekçeleriyle birlikte sabit sırayla karışır; doğru cevap farklı konumlara düşer", () => {
     const questions = Array.from({ length: 12 }, (_, i) => parseTeacherQuiz({ questions: [raw(`Soru ${i}: nikâh memuru olmadan yapılan evlilik hangi durumdadır?`)] })![0]);
-    const shuffled = questions.map(shuffleOptions);
+    // Faz 4: ikinci bağımsız değişken karıştırma tuzu (`attemptId`); `.map` dizini tuza geçmesin.
+    const shuffled = questions.map((question) => shuffleOptions(question));
     for (const [index, question] of shuffled.entries()) {
       // Her şık kendi gerekçesiyle kalır.
       for (const option of question.options) {

@@ -3,7 +3,7 @@ import { ArrowRight } from "lucide-react";
 import { AdvantageComparison, AdvantageShowcase } from "@/components/marketing/advantage-sections";
 import { ParityMarketingPage } from "@/components/parity/marketing";
 import { Icon3D, type Icon3DName } from "@/components/ui/icon-3d";
-import { FREE_PHOTO_PER_DAY, FREE_TIER_SENTENCE } from "@/lib/billing/free-meters";
+import { FREE_PHOTO_PER_MONTH, FREE_TIER_SENTENCE } from "@/lib/billing/free-meters";
 import { FREE_FIRST_LESSON_SENTENCE } from "@/lib/billing/free-tier-copy";
 import "@/styles/landing.css";
 
@@ -17,7 +17,7 @@ export const metadata = {
   19 Ekim 2026: sayfa "gelişmiş model", "çalışma planı ve günlük görevler", "her işlem öncesi kredi
   gösterilir" diyordu; üçü de yoktu. Her kart bugün çalışan bir araca karşılık gelir.
 
-  24 Ekim 2026 (kredi v3): ücretsiz hesap sayaçla — günde 3 mesaj, günde 1 fotoğraf
+  24 Ekim 2026 (kredi v3): ücretsiz hesap sayaçla — günde 3 mesaj, fotoğraf (Faz 4: ayda 7)
   (`free-meters.ts`). "Plus" etiketliler ücretsiz hesapta hiç açılmayan işler (`PLUS_ONLY_ACTIONS`:
   podcast, sözlü, yazılı deneme, video, ses); sayılar koddan okunur, sayfaya elle yazılmaz.
 
@@ -50,7 +50,7 @@ const GROUPS: { title: string; lead: string; items: Feature[] }[] = [
       { icon: "konu-testi", title: "Konu testi", body: "Her şıkkın neden doğru ya da yanlış olduğu ayrı ayrı açıklanır." },
       { icon: "dogru-yanlis", title: "Doğru / Yanlış", body: "Hızlı kontrol; yanlış cümlenin doğrusu yanında." },
       { icon: "tekrar", title: "Yanlışlar defteri", body: "Testlerde yanlış yaptığın soru konusuyla deftere yazılır; her gün defterinden 10 soruluk tur, üst üste iki doğruyla çıkar." },
-      { icon: "denklem", title: "Fotoğraftan çözüm", body: `Sorunun fotoğrafını çek ya da yaz; adım adım çözüm ve her şıkkın açıklaması. Ücretsiz hesapta günde ${FREE_PHOTO_PER_DAY}.` },
+      { icon: "denklem", title: "Fotoğraftan çözüm", body: `Sorunun fotoğrafını çek ya da yaz; adım adım çözüm ve her şıkkın açıklaması. Ücretsiz hesapta ayda ${FREE_PHOTO_PER_MONTH}.` },
     ],
   },
   {

@@ -72,6 +72,8 @@ describe("paket adları tutarlı", () => {
     expect(landing).toContain('href="/fiyatlandirma"');
     expect(landing).toContain("Sigma Paketi");
     const sigma = allowanceInWork(PLAN_ALLOWANCES.sigmaMonthly);
-    expect(sigma).toEqual({ lessons: 2000, messages: 20000 });
+    // Faz 4: Sigma 14.500 kredi (ders 22, mesaj 1); şerit plan kartıyla aynı karşılığı yazar (`planWorkEquivalent`).
+    expect(sigma).toEqual({ lessons: 659, messages: 14500 });
+    expect(landing).toContain("planWorkEquivalent(PLAN_ALLOWANCES.sigmaMonthly)");
   });
 });

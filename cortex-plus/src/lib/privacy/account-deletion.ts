@@ -52,6 +52,8 @@ const USER_CONTENT_TABLES = [
   "email_campaign_recipients",
   // 8 Kasım 2026: genel tekrar destesi (sohbetin "Akılda kalsın" kartları). Göç canlıda yoksa atlanır.
   "general_review_cards",
+  // 19 Kasım 2026 (Faz 4): "Farklı anlat" adım önbelleği. Hazırlık silinince CASCADE; tablo yoksa atlanır.
+  "exam_prep_step_reexplains",
 ] as const;
 
 const OPTIONAL_PURGE_TABLES = new Set([
@@ -64,6 +66,7 @@ const OPTIONAL_PURGE_TABLES = new Set([
   "email_preferences",
   "email_campaign_recipients",
   "general_review_cards",
+  "exam_prep_step_reexplains",
 ]);
 
 /**

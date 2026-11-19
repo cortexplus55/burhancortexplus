@@ -102,10 +102,10 @@ describe("adımı farklı anlat", () => {
     const route = read("src/app/api/learning/exam-prep/reexplain/route.ts");
     expect(route).toContain('.eq("user_id", userId)');
     expect(route).toContain('.eq("exam_prep_id", parsed.data.prepId)');
-    expect(route).toContain('freeMeter: "included"');
+    expect(route).toContain('freeMeter: "reexplain"');
     expect(route).toContain("studentOutputText(outcome.data.reply)");
-    // Rota dosyası yalnız HTTP metodunu dışa aktarır.
-    expect(route.match(/^export /gm)).toHaveLength(1);
+    // Rota dosyası yalnız HTTP metotlarını dışa aktarır (Faz 4: GET ücretsiz deneme sayacını "X/10" okur).
+    expect(route.match(/^export /gm)).toHaveLength(route.match(/^export async function (GET|POST)\(/gm)?.length ?? -1);
     const hook = read("src/components/parity/exam-node/use-node-lifecycle.ts");
     expect(hook).toContain('fetch("/api/learning/exam-prep/reexplain"');
     expect(read("src/components/parity/exam-node/lesson.tsx")).toContain("onReexplain={reexplainStep}");

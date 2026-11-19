@@ -458,3 +458,11 @@
 :root:not(.dark) .cp-review-chip--exam {
   color: #92400e;
 }
+
+/* Faz 4 — "Yolu Yeniden Çalış (Ücretsiz)" kartı: zümrüt vurgu, 390 px'te düğmeler alt alta. */
+.cp-prep-restudy { border-color: #a7f3d0; }
+.cp-prep-restudy .cp-prep-badge { color: #065f46; background: #dcfce7; }
+.cp-prep-restudy-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.cp-prep-restudy-actions .cp-prep-due-go { flex: 1 1 14rem; text-align: center; overflow-wrap: anywhere; }
+.cp-prep-due-go--quiet { background: transparent; color: inherit; border: 1px solid #86efac; }
+.cp-prep-due-go--quiet:hover { background: rgba(16, 185, 129, 0.12); }

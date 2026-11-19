@@ -80,7 +80,8 @@ export async function writtenReviewForPayload(
     const outcome = await generateJson({
       service,
       userId: input.userId,
-      actionCode: "AI_CHAT_STANDARD",
+      // Faz 4: denemenin notlandırması ve karnesi başlangıçtaki 17 krediye dahil; açıklama tamamlaması 0 kredi.
+      actionCode: "PRACTICE_EXAM_GRADE",
       freeMeter: "included",
       isPremium: await isPremiumUser(service, input.userId),
       schemaHint: 'JSON: {"explanations":[{"index":number,"text":string}]}',

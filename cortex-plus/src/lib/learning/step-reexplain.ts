@@ -22,7 +22,33 @@ export const REEXPLAIN_RULE =
   "formül aynen kalır; benzetme yalnız anlamayı kolaylaştırır, kuralı değiştirmez. Adımda olmayan bir şeyi " +
   "bilgi diye sunma.\n" +
   "BİÇİM: 4-8 cümle. Terimi ilk geçtiği yerde tek cümleyle açıkla, anahtar terim **kalın**. Varsa formülü olduğu " +
-  "gibi bir kez yaz. Son satır 'Kısaca:' ile başlayan tek cümlelik özet. Soru sorma, test yazma, selam verme.";
+  "gibi bir kez yaz. Son satır 'Kısaca:' ile başlayan tek cümlelik özet. Soru sorma, test yazma, selam verme.\n" +
+  // Faz 4 (19 Kasım 2026): ikinci denetçi çağrısı kalktı; denetçinin kuralları bu tek isteme gömülü. Ardından kod
+  // deterministik olarak yeni sayı arar (`introducedNumbers`): adımda olmayan sayı gelen taslak reddedilir.
+  "ÖZ DENETİM (göndermeden önce): (1) Yazdığın her sayı, birim, yüzde, eşik ve formül DEĞİŞMEZ OLGULAR listesinde ya " +
+  "da adımın ilk anlatımında AYNEN geçiyor mu? Geçmiyorsa sil. (2) Benzetme kuralı, tanımı ya da sınıflandırmayı " +
+  "değiştiriyor mu? Değiştiriyorsa benzetmeyi değiştir. (3) Adımda olmayan bir olguyu bilgi diye sundun mu? Sunduysan " +
+  "çıkar. (4) Kaynak sayısı ile genel bilgin çelişirse kaynağın sayısı geçerlidir; düzeltme yapma.";
+
+/**
+ * Faz 4: adımın önbellek anahtarı (adım başına). Başlık + ilk anlatımın düz metni; aynı adımın aynı sıradaki farklı
+ * anlatımı yeniden istendiğinde kayıttan döner (kredi ve model çağrısı yok).
+ */
+export function reexplainStepKey(heading: string, text: string): string {
+  const source = `${heading.trim()}\n${plainStepText(text)}`;
+  let a = 2166136261;
+  let b = 5381;
+  for (let index = 0; index < source.length; index += 1) {
+    const code = source.charCodeAt(index);
+    a ^= code;
+    a = Math.imul(a, 16777619);
+    b = (Math.imul(b, 33) + code) | 0;
+  }
+  return `${(a >>> 0).toString(16).padStart(8, "0")}${(b >>> 0).toString(16).padStart(8, "0")}`;
+}
+
+/** Aynı adım için en çok kaç farklı anlatım saklanır (istemcinin gönderdiği önceki anlatım tavanı + 1). */
+export const REEXPLAIN_VARIANTS_MAX = 5;
 
 /** Ders metnindeki biçim işaretlerini düz yazıya indirir (modele giden adım metni). */
 export function plainStepText(text: string): string {

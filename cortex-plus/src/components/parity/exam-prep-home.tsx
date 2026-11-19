@@ -79,7 +79,8 @@ import { examDayLabel } from "@/lib/learning/exam-time";
 import { isLevelNode, LEVEL_NODE_ID, levelNodeAria } from "@/lib/learning/path-level";
 import { StudyToolsHub } from "@/components/parity/study-tools-hub";
 import { ExamPrepProgress } from "@/components/parity/exam-prep-progress";
-import { PrepDueReviewCard } from "@/components/parity/prep-review-card";
+import { PrepDueReviewCard, PrepRestudyCard } from "@/components/parity/prep-review-card";
+import { FREE_RESTUDY_KINDS } from "@/lib/learning/free-restudy";
 import {
   buildPrepProgressView,
   type PrepProgressView,
@@ -105,6 +106,8 @@ import { PendingMaterialsBanner } from "@/components/parity/pending-materials-ba
 import { PrepShareTools } from "@/components/parity/prep-share-tools";
 import { ExamResultCard, type ExamResultCardProps } from "@/components/parity/exam-result-card";
 import "@/styles/prep-home-cx.css";
+import "@/styles/report-card.css";
+import { BADGE_LABEL, BADGE_TONE, type MasteryBadge } from "@/lib/learning/mastery-policy";
 import {
   ExamPrepSettingsPanel,
   type PrepSettingsInitial,
@@ -293,6 +296,7 @@ export function ExamPrepHome({
   lastResult = null,
   nodeScores = {},
   topicPercents = {},
+  topicBadges = {},
   lockedPickId = null,
   dueReviews = 0,
   pendingMaterials = 0,
@@ -375,6 +379,8 @@ export function ExamPrepHome({
   nodeScores?: Record<string, number>;
   /** Konu başlığı (küçük harf) → topicMasteryPercent. Yol bölümü bu sayıyı gösterir. */
   topicPercents?: Record<string, number>;
+  /** Faz 4: konu başlığı (küçük harf) → rozet (`topicMasteryView`); ekranlarla aynı etiket. */
+  topicBadges?: Record<string, MasteryBadge>;
   /** Kilitli adımın adresi açıldıysa o adım seçili gelir. */
   lockedPickId?: string | null;
   /** Bu hazırlıkta bugün sorulacak tekrar (20 Ekim 2026); yolu kilitlemez. */
@@ -825,6 +831,12 @@ export function ExamPrepHome({
       ) : null}
 
       {view === "yol" ? <PrepDueReviewCard prepId={prepId} count={dueReviews} /> : null}
+      {view === "yol" ? (
+        <PrepRestudyCard
+          prepId={prepId}
+          doneCount={nodes.filter((node) => node.status === "done" && FREE_RESTUDY_KINDS.has(node.kind)).length}
+        />
+      ) : null}
 
       {view === "ilerleme" ? (
         <ExamPrepProgress
@@ -866,6 +878,7 @@ export function ExamPrepHome({
             pickedId={lockedPick?.id ?? donePick?.id ?? null}
             scores={nodeScores}
             topicPercents={topicPercents}
+            topicBadges={topicBadges}
             onOpen={openNode}
             readinessClaim={readinessClaim}
             examDate={examDate}
@@ -1346,6 +1359,7 @@ function PathSections({
   pickedId = null,
   scores = {},
   topicPercents = {},
+  topicBadges = {},
   onOpen,
   readinessClaim,
   examDate = null,
@@ -1362,6 +1376,8 @@ function PathSections({
   pickedId?: string | null;
   scores?: Record<string, number>;
   topicPercents?: Record<string, number>;
+  /** Faz 4: konu başlığı (küçük harf) → rozet (`topicMasteryView`); ekranlarla aynı etiket. */
+  topicBadges?: Record<string, MasteryBadge>;
   onOpen: (node: HomeNode) => void;
   readinessClaim: boolean | null;
   examDate?: string | null;
@@ -1428,6 +1444,7 @@ function PathSections({
               ? sectionMasteryPct(section.nodes, scores)
               : null;
         const line = sectionStatusLine(section, mastery);
+        const topicBadgeKind = Object.prototype.hasOwnProperty.call(topicBadges, topicKey) ? topicBadges[topicKey] : null;
         // Bitmiş bölüm bitiş günlerini yazar, "Yarın" değil; süren bölüm kalan adımların planlı günlerini.
         const when = section.complete
           ? sectionDoneLabel(section.nodes.map((node) => doneOn[node.id] ?? ""))
@@ -1469,6 +1486,12 @@ function PathSections({
                   {when ? <span className="cp-path-section-when">{when}</span> : null}
                   {when ? " · " : null}
                   {line}
+                  {topicBadgeKind ? (
+                    <>
+                      {" "}
+                      <span className={`cp-badge cp-badge--${BADGE_TONE[topicBadgeKind]}`}>{BADGE_LABEL[topicBadgeKind]}</span>
+                    </>
+                  ) : null}
                 </span>
                 {holidayNote ? <span className="cp-path-section-holiday">{holidayNote}</span> : null}
               </span>

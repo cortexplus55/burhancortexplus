@@ -586,3 +586,34 @@
   align-items: center;
   gap: 0.5rem;
 }
+
+/* Faz 4: plan kartında hakkın iş karşılığı ve "%100 ücretsiz tekrar" güvence bandı. 390 px'te satır kırılır, taşmaz. */
+.cs-pay-work {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--cs-text);
+  overflow-wrap: anywhere;
+}
+.cs-pay-work--sub {
+  margin-top: 0.25rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--cs-muted);
+  text-align: center;
+}
+.cs-pay-restudy-band {
+  box-sizing: border-box;
+  max-width: 44rem;
+  margin: 0 auto 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid #6ee7b7;
+  border-radius: 1rem;
+  background: #ecfdf5;
+  color: #065f46;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+  overflow-wrap: anywhere;
+}

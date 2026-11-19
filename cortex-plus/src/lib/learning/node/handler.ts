@@ -12,6 +12,7 @@ import { answerCheckAction } from "./actions/answer-check";
 import { progressAction } from "./actions/progress";
 import { resumeAction } from "./actions/resume";
 import { saveAction } from "./actions/save";
+import { skipLearnedAction } from "./actions/skip-learned";
 import { completeAction } from "./complete";
 import { startAction } from "./start";
 
@@ -39,6 +40,8 @@ export async function handleNodeRequest(
       return saveAction(loaded);
     case "complete":
       return completeAction(loaded);
+    case "skip-learned":
+      return skipLearnedAction(loaded);
     default:
       return startAction(loaded);
   }

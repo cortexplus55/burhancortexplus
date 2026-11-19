@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 
 /*
   Soru çöz (23 Ekim 2026): fotoğraf ya da yazılı soru, her ders. Yeni motor `src/lib/solve/` (iki bağımsız çözüm, kod
-  kontrolü, denetim). Ücretsiz hesapta günde 1 fotoğraf ve 3 mesaj (24 Ekim 2026). Hazırlık sayfasından gelince
+  kontrolü, denetim). Ücretsiz hesapta ayda 7 fotoğraf ve günde 3 mesaj (24 Ekim 2026). Hazırlık sayfasından gelince
   (`?hazirlik=`) şıklı soru o hazırlığın tekrar listesine eklenebilir.
 
   8 Kasım 2026 (ürün sahibinin onayı): sayfa Çalışma Stüdyosu'ndaki kartıyla aynı dilde açılır: 3B simge, ad, renk,

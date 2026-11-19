@@ -71,7 +71,7 @@ describe("fiyatlandırma karşılaştırması", () => {
     expect(buy.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     fireEvent.click(toggle);
     expect(screen.getAllByText("Ön izleme, ücretsiz ve premium")).toHaveLength(1);
-    expect(screen.getAllByText("Ayda yaklaşık 20.000 mesaj ya da 2.000 ders").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Ayda ~660 ders / 1.035 test / 14.500 sohbet").length).toBeGreaterThan(0);
     // 19 Ekim 2026: "Gelişmiş model" satırı kalktı (her plan aynı model); yerine hız satırı.
     expect(screen.queryAllByText("Gelişmiş")).toHaveLength(0);
     expect(screen.getAllByText("Hızlı").length).toBeGreaterThan(0);

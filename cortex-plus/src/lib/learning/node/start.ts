@@ -32,6 +32,7 @@ import { publicPayloadForUser } from "@/lib/learning/node/payload";
 import type { NodeContext } from "./context";
 import { openLocalSession } from "@/lib/learning/node/local-session";
 import { reopenSavedAttempt } from "@/lib/learning/node/replay";
+import { reopensSavedByDefault } from "@/lib/learning/free-restudy";
 import { adoptBuildingLesson } from "@/lib/learning/node/lesson-adopt";
 import { servePrefetched } from "@/lib/learning/node/prefetched";
 import { resolveStartSource } from "@/lib/learning/node/source";
@@ -275,8 +276,27 @@ export async function startAction(context: NodeContext): Promise<NextResponse> {
   // Kayıtlı içeriği yeniden açmak ("Tekrar incele", "Dersi tekrarla") Plus ve hak kapılarından ÖNCE (8 Kasım 2026):
   // Plus'tan ücretsize dönen öğrenci, Plus'tayken ürettiği podcast ve sözlüyü açamıyordu ("Plus gerekli"); kendi
   // içeriği kredisiz ve model çağrısız açılır. Yeni üretim aşağıdaki kapılardan geçer; kayıt yoksa bu adım boş döner.
-  if (parsed.data.review === true || parsed.data.replay === true) {
-    const reopenedEarly = await reopenSavedAttempt(context, { topic, topicLabel, title, clientRequestId, voiceSession });
+  // Faz 4 (%100 ücretsiz yeniden çalışma): bitmiş adım açık bayrak olmadan açılsa da önce kaydı açılır; yeni üretim
+  // yalnız açık istekle ("Yeni 8 Kart Üret (8 Kredi)", "Farklı anlat") ya da başka konu seçilince.
+  const implicitRestudy = reopensSavedByDefault({
+    kind,
+    nodeStatus: node.status as string | null,
+    regenerate: parsed.data.regenerate === true,
+    rewrite: parsed.data.rewrite === true,
+    requestedTopic,
+    prefetch,
+    warm: parsed.data.warm === true,
+    voiceSession,
+  });
+  if (parsed.data.review === true || parsed.data.replay === true || implicitRestudy) {
+    const reopenedEarly = await reopenSavedAttempt(context, {
+      topic,
+      topicLabel,
+      title,
+      clientRequestId,
+      voiceSession,
+      implicit: implicitRestudy && parsed.data.review !== true && parsed.data.replay !== true,
+    });
     if (reopenedEarly) return reopenedEarly;
   }
   const entitlements = await getUserEntitlements(service, userId);

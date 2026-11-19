@@ -15,6 +15,7 @@ import { LessonRatingCard } from "@/components/parity/lesson-rating-card";
 import { LevelSuggestCard } from "@/components/parity/level-suggest-card";
 import { repeatedCardsLine } from "@/lib/learning/flashcard-round";
 import { replayLabel } from "@/lib/learning/feedback-copy";
+import { FREE_RESTUDY_KINDS, NEW_DECK_LABEL, RESTUDY_NEXT_LABEL, RESTUDY_STEP_LABEL } from "@/lib/learning/free-restudy";
 import Link from "next/link";
 import type { NodeLifecycle } from "./use-node-lifecycle";
 
@@ -56,7 +57,9 @@ export function WrittenExamResult({ life }: { life: NodeLifecycle }) {
 
 export function ResultScreen({ life }: { life: NodeLifecycle }) {
   const { prepId, kind, topicId, rewriteHref, beginRewrite, resumeEnabled, isOral, stage, setStage, payload, attemptId, setIndex, setAnswers, setCardOffer, setCardRepeat, cardSummary, setCardSummary, score, spentMinutes, oralGrade, nextHref, levelHint, topicGain, pathChange, reviewScheduled, gainOpen, setGainOpen, feedback, setFeedback, feedbackLoading, podcastLoading, setPodcastCheckOpen, lessonPodcast, setLessonPodcast, isTimedExam, start, loadLessonPodcast, loadFeedback, structuredLesson, unscored, heroScore, heroTotal, mood } = life;
-  const { rewritePending } = life;
+  const { rewritePending, regenerateHref, restudyNextHref } = life;
+  // Faz 4: kayıtlı adım kayıttan, ücretsiz yeniden çözülür (sunucu kredi ayırmaz, model çağırmaz).
+  const freeRestudy = FREE_RESTUDY_KINDS.has(kind) && kind !== "lesson";
   return (
     <>
       {stage === "result" && gainOpen && topicGain ? <TopicGainCard gain={topicGain} nextHref={nextHref} /> : null}
@@ -189,11 +192,23 @@ export function ResultScreen({ life }: { life: NodeLifecycle }) {
               setCardRepeat(null);
               setCardSummary(null);
               setPodcastCheckOpen(false);
-              // Ders aynı haliyle yeniden açılır (anında, kredisiz); öbür etkinlikler yeniden kurulur.
+              // Ders aynı haliyle yeniden açılır (anında, kredisiz). Faz 4: test, doğru/yanlış, kart ve podcast da
+              // kayıttan, karışık sırayla ve ücretsiz açılır; öbür etkinlikler yeniden kurulur.
               if (kind === "lesson") void start({ replay: true });
+              else if (freeRestudy) void start({ review: true });
             }}>
-              {replayLabel(kind)}
+              {freeRestudy ? RESTUDY_STEP_LABEL : replayLabel(kind)}
             </button>
+            {kind === "flashcards" && regenerateHref ? (
+              <a href={regenerateHref} className="cp-exam-continue">
+                {NEW_DECK_LABEL}
+              </a>
+            ) : null}
+            {restudyNextHref ? (
+              <a href={restudyNextHref} className="cp-exam-continue cp-exam-continue--primary">
+                {RESTUDY_NEXT_LABEL}
+              </a>
+            ) : null}
             {kind === "lesson" ? (
               <button type="button" className="cp-exam-continue" disabled={rewritePending} aria-busy={rewritePending} onClick={() => {
                 // İlk tık yerinde başlar (3 Kasım 2026): aynı rotaya router.push ekranı yeniden kurmuyordu (sonuç

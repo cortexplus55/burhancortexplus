@@ -1,3 +1,4 @@
+import { PLAN_ALLOWANCES } from "@/lib/credits/price-table";
 /*
   Kullanıcı yönetiminin saf parçaları (6 Kasım 2026): onay sözcüğü, paket süresinin cüzdana yansıması,
   hedef hesap kuralı, durum adları. Veritabanı yok; istemci bileşenleri de okur. Yazımlar `user-manage.ts`'te.
@@ -65,7 +66,7 @@ const DAY_MS = 86_400_000;
 /**
  * Tanımlanan sürenin cüzdana yansıması. PayTR geri çağrısı ve beta kodu ile aynı kural:
  * dönem penceresi haftalıkta 7, öbürlerinde 30 gün. Süre pencereden kısaysa hak gün sayısıyla orantılı ve
- * cüzdan dönemi aboneliğin bitişinde biter (beta kodu: 14 gün = 7.200 × 14 / 30); değilse pencerenin tam hakkı,
+ * cüzdan dönemi aboneliğin bitişinde biter (beta kodu: 14 gün = aylık hak × 14 / 30); değilse pencerenin tam hakkı,
  * dönem bugünün başından pencere kadar (PayTR); sonraki dönemleri `credit_reserve` aboneliğe bakarak yeniler.
  */
 export function planGrantWallet(input: {
@@ -77,7 +78,7 @@ export function planGrantWallet(input: {
 }): { allowance: number; periodKind: "weekly" | "monthly"; periodEndsAt: string } {
   const weekly = input.billingPeriod === "weekly";
   const window = weekly ? 7 : 30;
-  const full = input.monthlyAllowance && input.monthlyAllowance > 0 ? input.monthlyAllowance : 7200;
+  const full = input.monthlyAllowance && input.monthlyAllowance > 0 ? input.monthlyAllowance : PLAN_ALLOWANCES.plusMonthly;
   const periodKind = weekly ? "weekly" : "monthly";
   if (input.days < window) {
     return {

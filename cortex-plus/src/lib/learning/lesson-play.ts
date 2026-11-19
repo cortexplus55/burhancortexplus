@@ -520,6 +520,30 @@ export function scoreLessonFromAnswers(
   };
 }
 
+/**
+ * Faz 4 (19 Kasım 2026): ders içi kontrollerin tek tek sonucu — kavrama kanıtı (`lesson_check`). Yalnız ilk cevap
+ * (`lessonAnswers`); tekrar sorusu (`retryAnswers`) kanıt yazmaz. Yarım puan doğru sayılmaz. Cevaplanmamış kontrol
+ * atlanır.
+ */
+export function lessonCheckResults(
+  lesson: { sections?: { check?: unknown }[] } | null | undefined,
+  answers: Record<string, unknown>,
+): { index: number; correct: boolean; prompt: string }[] {
+  const sections = lesson?.sections ?? [];
+  const rawAnswers = answers.lessonAnswers;
+  if (!rawAnswers || typeof rawAnswers !== "object" || Array.isArray(rawAnswers)) return [];
+  const out: { index: number; correct: boolean; prompt: string }[] = [];
+  sections.forEach((section, index) => {
+    const check = asCheck(section?.check);
+    if (!check) return;
+    const entry = (rawAnswers as Record<string, LessonCheckAnswer>)[String(index)];
+    if (!entry) return;
+    const graded = gradeSectionCheck(check, entry);
+    out.push({ index, correct: graded.correct === true && !graded.half, prompt: check.prompt });
+  });
+  return out;
+}
+
 /** optionWhy satırları birbirinden yeterince farklı mı? */
 export function optionWhyUniqueIssues(check: SectionCheck): string[] {
   if (!check.optionWhy?.length || check.optionWhy.length < 2) return [];

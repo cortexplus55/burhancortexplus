@@ -1,6 +1,6 @@
 import { escapeHtml, personName } from "@/lib/email/escape";
 import { ctaButton, emailShell, footerHtml, footerText, paragraphsHtml, type RenderedMail } from "@/lib/email/templates";
-import { FREE_CHAT_PER_DAY, FREE_PHOTO_PER_DAY } from "@/lib/billing/free-meters";
+import { FREE_CHAT_PER_DAY, FREE_PHOTO_PER_MONTH } from "@/lib/billing/free-meters";
 import { FREE_FIRST_LESSON_SENTENCE, FREE_PAGE_TOTAL, PLUS_ONLY_SENTENCE } from "@/lib/billing/free-tier-copy";
 import { PLAN_WORK_BY_ID, workCount, type PlanWorkId } from "@/lib/billing/plan-value";
 import { allowanceWorkLine, sigmaBenefitLines } from "@/lib/billing/tier-presentation";
@@ -160,7 +160,7 @@ export function renderWelcomeMail(input: WelcomeMailInput): RenderedMail {
   // kalktı (ücretsiz hesap = tek ders). Cümleler tek kaynaktan (`free-tier-copy.ts`, `free-meters.ts`).
   const freeLines = [
     FREE_FIRST_LESSON_SENTENCE.replace(/\.$/, ""),
-    `Günde ${FREE_CHAT_PER_DAY} öğretmen mesajı ve günde ${FREE_PHOTO_PER_DAY} fotoğraftan çözüm`,
+    `Günde ${FREE_CHAT_PER_DAY} öğretmen mesajı ve ayda ${FREE_PHOTO_PER_MONTH} fotoğraftan çözüm`,
     `Tek sınav hazırlığı; belgelerin ${fmt(FREE_PAGE_TOTAL)} sayfasına kadar işlenir`,
   ];
   const moreLine = `${PLUS_ONLY_SENTENCE} İlk dersten sonraki konular, yeni anlatımlar ve Çalışma Stüdyosu'ndaki test, kart ve doğru/yanlış üretimi de Plus'ta açılır; hazır olduğunda Abonelik sayfasından bakabilirsin. Acelesi yok, önce ilk dersini dene.`;

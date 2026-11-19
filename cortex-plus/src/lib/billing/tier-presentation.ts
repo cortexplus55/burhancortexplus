@@ -3,8 +3,8 @@ import { periodLabel, type PeriodKind } from "@/lib/credits/period";
 import { formatDate } from "@/lib/format";
 
 import { FIRST_LESSON_STEPS, FREE_PAGE_TOTAL, FREE_PREP_LIMIT } from "@/lib/billing/free-tier-copy";
-import { FREE_CHAT_PER_DAY, FREE_PHOTO_PER_DAY } from "@/lib/billing/free-meters";
-import { PLAN_ALLOWANCES, allowanceInWork } from "@/lib/credits/price-table";
+import { FREE_CHAT_PER_DAY, FREE_PHOTO_PER_MONTH } from "@/lib/billing/free-meters";
+import { PLAN_ALLOWANCES, allowanceInWork, planWorkLine } from "@/lib/credits/price-table";
 
 /**
  * Fiyat, profil ve kabuk aynı cümleleri buradan okur.
@@ -27,9 +27,8 @@ export const GUEST_PREVIEW_CTA = "👀 Kayıt Olmadan Örnek Dersi Gör";
  * değil, ne kadar iş. Sayılar kredi tablosundan; tablo değişirse cümle de.
  */
 export function allowanceWorkLine(allowance: number, per: "ay" | "hafta" = "ay"): string {
-  const { messages, lessons } = allowanceInWork(allowance);
-  const fmt = (value: number) => value.toLocaleString("tr-TR");
-  return `${per === "ay" ? "Ayda" : "Haftada"} yaklaşık ${fmt(messages)} mesaj ya da ${fmt(lessons)} ders`;
+  // Faz 4: fiyat sayfasıyla aynı karşılık ("~200 ders / 310 test / 4.350 sohbet").
+  return `${per === "ay" ? "Ayda" : "Haftada"} ${planWorkLine(allowance)}`;
 }
 
 export function plusBenefitLines(): string[] {
@@ -114,7 +113,7 @@ export function tierComparisonRows(): TierComparisonRow[] {
       label: "AI kullanımı",
       guest: "Yok",
       // Sayıya dayalı ücretsiz katman (24 Ekim 2026); ders sayacı yok (11 Kasım 2026 akşamı).
-      free: `İlk ders, günde ${FREE_CHAT_PER_DAY} mesaj, günde ${FREE_PHOTO_PER_DAY} fotoğraftan çözüm`,
+      free: `İlk ders, günde ${FREE_CHAT_PER_DAY} mesaj, ayda ${FREE_PHOTO_PER_MONTH} fotoğraftan çözüm`,
       plus: allowanceWorkLine(PLAN_ALLOWANCES.plusMonthly),
       sigma: allowanceWorkLine(PLAN_ALLOWANCES.sigmaMonthly),
     },
@@ -268,7 +267,7 @@ export function profilePlanView(account: {
   // akşamından beri haftalık ders hakkı da yok: ilk ders açık, devamı Plus'ta.
   return {
     label: "Temel",
-    hint: `Ücretsiz plan · ilk dersin açık, günde ${FREE_CHAT_PER_DAY} mesaj ve ${FREE_PHOTO_PER_DAY} fotoğraftan çözüm · devamı Plus'ta`,
+    hint: `Ücretsiz plan · ilk dersin açık, günde ${FREE_CHAT_PER_DAY} mesaj ve ayda ${FREE_PHOTO_PER_MONTH} fotoğraftan çözüm · devamı Plus'ta`,
     isPremium: false,
   };
 }

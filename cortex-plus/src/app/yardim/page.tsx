@@ -26,7 +26,7 @@ const faqs = [
     question: "Ücretsiz olarak ne yapabilirim?",
     // 11 Kasım 2026: ilk dersin döngüsü süreye takılmaz; aynı akşam haftalık ders hakkı kalktı (ücretsiz hesap =
     // tek ders). Cümleler tek kaynaktan (`free-meters.ts`, `free-tier-copy.ts`).
-    answer: `Ücretsiz hesapta ${FREE_TIER_SENTENCE.charAt(0).toLocaleLowerCase("tr")}${FREE_TIER_SENTENCE.slice(1)} var; mesaj ve fotoğraf hakkı gece yarısı yenilenir. İlk dersten sonraki konular, yeni anlatımlar ("Farklı anlat") ve Çalışma Stüdyosu'ndaki test, kart ve doğru/yanlış üretimi Plus'ta açılır. ${FREE_DOCUMENT_SENTENCE} ${PLUS_ONLY_SENTENCE} Sesli dinleme de Plus'ta.`,
+    answer: `Ücretsiz hesapta ${FREE_TIER_SENTENCE.charAt(0).toLocaleLowerCase("tr")}${FREE_TIER_SENTENCE.slice(1)} var; mesaj hakkı gece yarısı, fotoğraf hakkı ay başında yenilenir. İlk dersten sonraki konular, yeni anlatımlar ("Farklı anlat") ve Çalışma Stüdyosu'ndaki test, kart ve doğru/yanlış üretimi Plus'ta açılır. ${FREE_DOCUMENT_SENTENCE} ${PLUS_ONLY_SENTENCE} Sesli dinleme de Plus'ta.`,
   },
   {
     question: "Dosyalarım güvende mi?",

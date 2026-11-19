@@ -33,7 +33,7 @@ export type ReservationResult =
       refusal?: FreeRefusal;
     };
 
-const METERS: readonly FreeMeter[] = ["lesson", "chat", "photo", "included"];
+const METERS: readonly FreeMeter[] = ["lesson", "chat", "photo", "included", "reexplain"];
 
 /** SQL hata metninden ücretsiz reddi okur. */
 export function parseFreeRefusal(message: string): FreeRefusal | null {

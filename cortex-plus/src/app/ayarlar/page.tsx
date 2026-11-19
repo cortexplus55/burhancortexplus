@@ -26,6 +26,8 @@ import { getStudentAccountContext } from "@/lib/student/account-context";
 import { createServiceClient } from "@/lib/supabase/server";
 import { FounderBadge } from "@/components/student/founder-chip";
 import { DialogLink } from "@/components/parity/dialog-link";
+import { WorkCapacityCard } from "@/components/profile/work-capacity-card";
+import "@/styles/report-card.css";
 
 export const metadata = { title: "Ayarlar" };
 
@@ -114,6 +116,9 @@ export default async function AyarlarPage() {
   const school = (profile?.school_name as string | null)?.trim() || null;
   const grade = (profile?.grade_level as string | null)?.trim() || null;
   const lessons = workCount(PLAN_ALLOWANCES.plusMonthly, PLAN_WORK_BY_ID.lesson).toLocaleString("tr-TR");
+  // Faz 4 "Kalan Çalışma Kapasiten": dönem hakkından kalan + ek paket bakiyesi (harcama bu ikisinden düşer).
+  const remainingCredits = Math.max(0, account.freeAllowanceRemaining) + Math.max(0, account.balance);
+  const showCapacity = !account.isAdmin && (account.isPremium || remainingCredits > 0);
   const planLabel = account.isAdmin ? null : account.isPremium ? (account.subscriptionBadge ?? "Plus") : "Ücretsiz";
 
   return (
@@ -160,6 +165,7 @@ export default async function AyarlarPage() {
                 : `Ücretsiz plandasın. Plus ile podcast, sözlü ve yazılı deneme, video ders ve ayda yaklaşık ${lessons} ders hakkı açılır.`
           }
         >
+          {showCapacity ? <WorkCapacityCard remaining={remainingCredits} /> : null}
           <SettingsRows
             rows={[
               { href: "/krediler", icon: Gauge, title: "Kullanım limitleri", hint: "Bu ay ne kadar kullandığın" },

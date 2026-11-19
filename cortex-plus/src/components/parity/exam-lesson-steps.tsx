@@ -746,6 +746,7 @@ export function ExamLessonSteps({
   closeHref,
   gradeCheck,
   onReexplain,
+  reexplainBadge,
   toolbar,
   plannedMinutes = null,
   writingDone = false,
@@ -797,6 +798,8 @@ export function ExamLessonSteps({
    * İstek çağıran yerde (yaşam döngüsü kancası) atılır; bileşen yalnız sonucu çizer.
    */
   onReexplain?: ReexplainHandler;
+  /** Faz 4: ücretsiz hesapta "Ücretsiz deneme: X/10" rozeti (abonede null). */
+  reexplainBadge?: string | null;
 }) {
   const play = useMemo(() => toPlayV3(lesson), [lesson]);
   /** V2 görünümü: tekrar soruları, okuma süresi ve eski yardımcılar bunu okur (ekran i = bölüm i). */
@@ -1788,6 +1791,7 @@ export function ExamLessonSteps({
           text={step.body}
           onReexplain={onReexplain}
           topicHint={mathTopicHint}
+          badge={reexplainBadge ?? null}
         />
       ) : null}
 
@@ -1844,11 +1848,13 @@ function StepReexplain({
   text,
   onReexplain,
   topicHint,
+  badge,
 }: {
   heading: string;
   text: string;
   onReexplain: ReexplainHandler;
   topicHint?: string;
+  badge?: string | null;
 }) {
   const [replies, setReplies] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -1883,9 +1889,12 @@ function StepReexplain({
           {error}
         </p>
       ) : null}
-      <button type="button" className="als-reexplain-btn" onClick={() => void run()} disabled={busy} aria-busy={busy}>
-        {busy ? "Farklı bir yoldan anlatılıyor…" : latest ? "🔄 Bir kez daha farklı anlat" : "🔄 Farklı anlat"}
-      </button>
+      <div className="als-reexplain-row">
+        <button type="button" className="als-reexplain-btn" onClick={() => void run()} disabled={busy} aria-busy={busy}>
+          {busy ? "Farklı bir yoldan anlatılıyor…" : latest ? "🔄 Bir kez daha farklı anlat" : "🔄 Farklı anlat"}
+        </button>
+        {badge ? <span className="als-reexplain-trial">{badge}</span> : null}
+      </div>
     </div>
   );
 }

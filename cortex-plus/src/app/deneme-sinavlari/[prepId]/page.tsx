@@ -1,3 +1,4 @@
+import type { MasteryBadge } from "@/lib/learning/mastery-policy";
 import { officialPlanNote, officialSourceNote, readCurriculumRef } from "@/lib/curriculum/registry";
 import { notFound } from "next/navigation";
 import { after } from "next/server";
@@ -40,6 +41,8 @@ import { maybeRescheduleMissedDays } from "@/lib/learning/missed-day-reschedule"
 import { pathSkipKindsForView } from "@/lib/billing/node-free-meter";
 import {
   buildLearningIndicators,
+  MASTERY_ROW_COLUMNS,
+  masterySnapshotFromRow,
   freePathUnblockIds,
   masteryByPlannedTopic,
   preferNextNodeForTracking,
@@ -263,9 +266,7 @@ export default async function ExamPrepDetailPage({
     trackingV2
       ? supabase
           .from("exam_prep_topic_mastery")
-          .select(
-            "topic_key, measured_level, confidence, evidence_count, first_attempt_correct, first_attempt_total, independent_correct, independent_total, last_practiced_at",
-          )
+          .select(MASTERY_ROW_COLUMNS)
           .eq("exam_prep_id", prepId)
       : Promise.resolve({ data: null }),
     // Yalnız çözülmemiş yanılgılar (20 Ekim 2026); sütun yoksa hepsi açık sayılır.
@@ -439,18 +440,7 @@ export default async function ExamPrepDetailPage({
     openMisconceptions = openCount ?? 0;
     openMisconceptionsKnown = openCount != null;
 
-    masterySnapshots = (masteryRows ?? []).map((row) => ({
-      topicKey: row.topic_key as string,
-      measured: Number(row.evidence_count ?? 0) > 0,
-      level: row.measured_level as TopicMasterySnapshot["level"],
-      confidence: Number(row.confidence ?? 0),
-      evidenceCount: Number(row.evidence_count ?? 0),
-      firstAttemptCorrect: Number(row.first_attempt_correct ?? 0),
-      firstAttemptTotal: Number(row.first_attempt_total ?? 0),
-      independentCorrect: Number(row.independent_correct ?? 0),
-      independentTotal: Number(row.independent_total ?? 0),
-      lastPracticedAt: (row.last_practiced_at as string | null) ?? null,
-    }));
+    masterySnapshots = ((masteryRows ?? []) as Record<string, unknown>[]).map(masterySnapshotFromRow);
     const topics = masterySnapshots;
 
     // Planlanan konular konu listesinden (ayrı exam_prep_topics okuması yok).
@@ -546,10 +536,12 @@ export default async function ExamPrepDetailPage({
   );
   // Yol bölümü yalnız ölçülmüş konunun yüzdesini yazar (Paket I #7): ölçülmemiş konu (3 cevaptan az) sayı göstermez.
   const topicPercents: Record<string, number> = {};
+  const topicBadges: Record<string, MasteryBadge> = {};
   for (const label of topicLabels) {
     const view = masteryViews.get(label);
     if (!view || view.state === "unmeasured") continue;
     topicPercents[label.trim().toLocaleLowerCase("tr-TR")] = view.percent;
+    topicBadges[label.trim().toLocaleLowerCase("tr-TR")] = view.badge;
   }
   const progressView = buildPrepProgressView({
     nodes,
@@ -573,6 +565,7 @@ export default async function ExamPrepDetailPage({
         label,
         confidence: view && view.state !== "unmeasured" ? view.percent : 0,
         state: view?.state ?? "unmeasured",
+        badge: view?.badge ?? "unmeasured",
         // Kanıt yalnız ölçüm açıkken var; kapalı eski yolda "çözüldü" kayıtlardan sayılır.
         ...(trackingV2 ? { solved: view?.solved ?? 0 } : {}),
       };
@@ -858,6 +851,7 @@ export default async function ExamPrepDetailPage({
         lastResult={lastResult}
         nodeScores={nodeScores}
         topicPercents={topicPercents}
+        topicBadges={topicBadges}
         lockedPickId={typeof kilitli === "string" ? kilitli : null}
         pendingMaterials={pendingMaterials}
         dueReviews={dueReviews}

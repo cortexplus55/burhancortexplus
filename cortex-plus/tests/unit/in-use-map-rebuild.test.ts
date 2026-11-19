@@ -7,6 +7,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { makeFakeDb } from "./helpers/fake-supabase";
 import { model, processRequest, routeTables, titledOutline } from "./helpers/outline-model-mock";
+import { textPageCredits } from "@/lib/credits/price-table";
 
 vi.mock("@/lib/ai/generate", async () => (await import("./helpers/outline-model-mock")).generateModule());
 vi.mock("@/lib/env", async () => (await import("./helpers/outline-model-mock")).outlineEnv);
@@ -166,7 +167,8 @@ describe("V9: rebuild on a map a study plan uses", { timeout: 15_000 }, () => {
     expect(r.body).toMatchObject({ code: "topic_map_in_use" });
     expect(model.calls).toHaveLength(1);
     expect(outlineRes(fake).map((x: any) => x.status)).toEqual(["refunded"]);
-    expect(fake.chargedCredits("u1")).toBe(5); // only the original document credit
+    // only the original document credit (Faz 4: 12 metin sayfası = ceil(12 / 5) kredi)
+    expect(fake.chargedCredits("u1")).toBe(textPageCredits(12));
     expect(docA(fake)).toMatchObject({ status: "completed", topic_map_status: "ready", topic_map_error: null });
     expect(nodesA(fake)).toEqual(["on1", "on2"]);
     expect(fake.db.tables.document_topic_map_jobs!.filter((j: any) => (j.topics as unknown[] | null)?.length)).toHaveLength(0);

@@ -302,7 +302,7 @@ export async function teacherQuizLoop(
   const questions = withOneMultiLast(
     slots.filter((question): question is QuizQuestion => question !== null),
     count,
-  ).map(shuffleOptions);
+  ).map((question) => shuffleOptions(question));
   return {
     questions,
     rejected: bad.map((row) => ({ question: row.question, problems: row.problems.map((problem) => problem.text) })),

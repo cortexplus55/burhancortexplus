@@ -82,7 +82,7 @@ describe("paket 2 çizimli video", () => {
     expect(source).toContain('style: "sketch_reel"');
     expect(source).toContain('sketch ? "SKETCH_VIDEO_GENERATE" : "VIDEO_GENERATE"');
     expect(CREDIT_PRICE_TABLE.VIDEO_GENERATE.credits).toBe(280);
-    expect(CREDIT_PRICE_TABLE.SKETCH_VIDEO_GENERATE.credits).toBe(25);
+    expect(CREDIT_PRICE_TABLE.SKETCH_VIDEO_GENERATE.credits).toBe(22);
     expect(PLUS_ONLY_ACTIONS).toContain("SKETCH_VIDEO_GENERATE");
     expect(read("supabase/migrations/20261027193000_sketch_video_credits.sql")).toContain("('SKETCH_VIDEO_GENERATE', 25,");
   });
