@@ -33,6 +33,7 @@ const CACHE_MS = 30 * 60_000;
 const EXEMPT_PREFIXES = [
   "/kvkk",
   "/kullanim-kosullari",
+  "/kullanim-sartlari",
   "/cerez-politikasi",
   "/gizlilik",
   "/mesafeli-satis",

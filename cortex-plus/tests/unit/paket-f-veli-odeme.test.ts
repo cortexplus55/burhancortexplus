@@ -46,7 +46,7 @@ describe("Paket F · velime ödeme linki: imzalı, süreli, kurcalanamaz", () =>
   it("paylaşım metni öğrencinin ağzından, harfiyen; WhatsApp adresi kodlanır", () => {
     const text = parentShareText({ planName: "Örnek Paket", url: "https://example.test/veli-odeme/x" });
     expect(text).toBe(
-      "Anne/Baba, sınav hazırlığım için kullandığım Cortex Plus Örnek Paket paketini bu güvenli PayTR bağlantısından şifre girmeden onaylayabilir misin? https://example.test/veli-odeme/x",
+      "Anne/Baba, sınav hazırlığım için kullandığım paketi (Cortex Plus — Örnek Paketi) bu güvenli PayTR bağlantısından şifre girmeden onaylayabilir misin? https://example.test/veli-odeme/x",
     );
     expect(whatsappShareUrl("a b&c")).toBe("https://wa.me/?text=a%20b%26c");
     expect(parentLinkValidityLine(Date.now() + PARENT_LINK_TTL_MS)).toBe("Bağlantı 48 saat geçerli.");

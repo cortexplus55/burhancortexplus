@@ -75,7 +75,22 @@ export const CURVE_FAMILY_DEFS: Record<CurveFamily, Family> = {
   absolute: { x: [-3, 3], y: [-2, 3], f: (x) => Math.abs(x - 0.5) * 1.1 - 1, points: { root: 1.409, vertex: 0.5, min: 0.5, y_intercept: 0 }, integral: [1.409, 2.8] },
 };
 
-function flippedFamily(base: Family): Family {
+/**
+ * Ters yönlü eğri. Üstelde ters yön "azalan üstel" e^(−x)'tir: y eksenine göre ayna (19 Kasım 2026, Faz 1-B denetimi;
+ * önce y'yi negatifleyip eksenin altında −eˣ çiziyordu). Öbür ailelerde x eksenine göre ayna doğru: aşağı açılan
+ * parabol, azalan doğru, tabanı 1'den küçük logaritma (−ln x), ters sinüs.
+ */
+export function flippedFamily(base: Family, family?: CurveFamily): Family {
+  if (family === "exponential") {
+    const mirror = (x: number) => -x;
+    return {
+      ...base,
+      x: [-base.x[1], -base.x[0]],
+      f: (x) => base.f(mirror(x)),
+      points: Object.fromEntries(Object.entries(base.points).map(([kind, x]) => [kind, typeof x === "number" ? mirror(x) : x])),
+      integral: [-base.integral[1], -base.integral[0]],
+    };
+  }
   return { ...base, y: [-base.y[1], -base.y[0]], f: (x) => -base.f(x), points: { ...base.points, ...(base.points.min !== undefined ? { max: base.points.min } : {}), ...(base.points.max !== undefined ? { min: base.points.max } : {}) } };
 }
 
@@ -275,7 +290,7 @@ export function layoutMathGraph(data: MathGraphData, frame: SceneFrame, domain?:
   } else {
     const curve = data.curve ?? { family: data.mode === "integral" ? ("quadratic" as const) : ("quadratic" as const), expression: "f(x)", points: [] };
     const base = CURVE_FAMILY_DEFS[curve.family];
-    const def = curve.flipped ? flippedFamily(base) : base;
+    const def = curve.flipped ? flippedFamily(base, curve.family) : base;
     const sx = (x: number) => inner.x + ((x - def.x[0]) / (def.x[1] - def.x[0])) * inner.w;
     const sy = (y: number) => inner.y + inner.h - ((y - def.y[0]) / (def.y[1] - def.y[0])) * inner.h;
     const axisX = Math.max(inner.x, Math.min(inner.x + inner.w, sx(0)));

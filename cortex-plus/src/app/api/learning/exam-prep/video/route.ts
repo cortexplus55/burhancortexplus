@@ -12,6 +12,7 @@ import { prepTopicSource } from "@/lib/learning/prep-topic-source";
 import { resolveVideoStyle } from "@/lib/learning/video-lesson";
 import { readSharedMedia, SHARED_BUDGET_MESSAGE, SHARED_MEDIA_CODE, sharedBudgetAllows, sharedMediaUnit, writeSharedMedia } from "@/lib/content-pool/shared-media";
 import { runVideoLesson } from "@/lib/learning/video-run";
+import { findStoredSketchVideo } from "@/lib/learning/video-reuse";
 import { loadPrepDocumentIds, loadTopicTeaching } from "@/lib/documents/teacher-analysis-run";
 import { resolvePrepTopicRow } from "@/lib/learning/prep-topic-lookup";
 
@@ -56,6 +57,12 @@ export async function POST(request: Request) {
   if (!prep) return errorResponse(404, "not_found");
   const topic = await resolvePrepTopicRow<{ id: string; label: string }>(service, prepId, topicId, "id, label");
   if (!topic) return errorResponse(404, "not_found");
+  // İkinci izleme ücretsiz (19 Kasım 2026, Faz 4 denetimi): aynı konunun çizimli videosu varsa kredi ayırmadan, model
+  // çağırmadan açılır. Resimli video (tarz seçimli) bilerek dışarıda: öğrenci başka tarzda yeni video isteyebilir.
+  if (sketch) {
+    const existing = await findStoredSketchVideo(service, { userId, prepId, topicId: topic.id });
+    if (existing) return NextResponse.json({ ok: true, videoId: existing, reused: true });
+  }
 
   // Paylaşımlı video kaynak ve öğretmen analizinden ÖNCE okunur: havuz isabeti 0 model
   // çağrısı ve kaynak çözümü olmadan döner.

@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { buildExamPlan, daysUntilExam, type PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { planPathBackfill, type BackfillNode } from "@/lib/learning/exam-path-backfill";
+import { shareInFlight } from "@/lib/ai/inflight-share";
 
 export type ExamPrepNodeInsert = {
   kind: PlanNodeKind;
@@ -61,7 +62,25 @@ export async function insertExamPrepGraph(
   return { prepId: data, days };
 }
 
+/**
+ * Eşzamanlı sayfa açılışı (19 Kasım 2026, Faz 2 denetimi: 50-100 öğrenci yükü): iki istek aynı anda "düğüm yok" görüp
+ * aynı yolu iki kez yazabiliyordu (tabloda tekil kısıt yok) ve yazım hataları sessizce yutuluyordu. Hazırlık başına
+ * kısa kilit: kilidi alan yazar, öbürü en çok 3 sn bekleyip geçer (yazılmış yolu bir sonraki okumada görür).
+ */
+const PATH_WRITE_LOCK = { ttlMs: 20_000, waitMs: 3_000 } as const;
+
+function logPathWrite(stage: string, prepId: string, error: { code?: string; message?: string } | null) {
+  if (error) console.error("exam_path_write_failed", { stage, prepId, code: error.code ?? null, message: String(error.message ?? "").slice(0, 160) });
+}
+
 export async function ensurePrepNodes(
+  service: SupabaseClient,
+  prep: { id: string; exam_date?: string | null },
+) {
+  await shareInFlight(`path-nodes:${prep.id}`, () => writePrepNodes(service, prep), async () => undefined, PATH_WRITE_LOCK);
+}
+
+async function writePrepNodes(
   service: SupabaseClient,
   prep: { id: string; exam_date?: string | null },
 ) {
@@ -77,11 +96,12 @@ export async function ensurePrepNodes(
     prep.exam_date ??
     new Date(Date.now() + 14 * 86_400_000).toISOString().slice(0, 10);
   if (!prep.exam_date) {
-    await service.from("exam_preps").update({ exam_date: examDate }).eq("id", prep.id);
+    const { error } = await service.from("exam_preps").update({ exam_date: examDate }).eq("id", prep.id);
+    logPathWrite("exam_date", prep.id, error);
   }
 
   const nodes = buildExamPlan(daysUntilExam(examDate));
-  await service.from("exam_prep_nodes").insert(
+  const { error: insertError } = await service.from("exam_prep_nodes").insert(
     nodes.map((node, index) => ({
       exam_prep_id: prep.id,
       kind: node.kind,
@@ -91,6 +111,7 @@ export async function ensurePrepNodes(
       status: index === 0 ? "ready" : "locked",
     })),
   );
+  logPathWrite("plan_insert", prep.id, insertError);
 }
 
 /**
@@ -99,6 +120,10 @@ export async function ensurePrepNodes(
  * SQL dosyası bütün hazırlıkları bir seferde doldurur.
  */
 export async function ensurePathSkeletonNodes(service: SupabaseClient, prepId: string) {
+  await shareInFlight(`path-nodes:${prepId}`, () => writePathSkeletonNodes(service, prepId), async () => undefined, PATH_WRITE_LOCK);
+}
+
+async function writePathSkeletonNodes(service: SupabaseClient, prepId: string) {
   const { data, error } = await service
     .from("exam_prep_nodes")
     .select("id, kind, title, day_index, sort_order, status, session_meta")
@@ -123,14 +148,15 @@ export async function ensurePathSkeletonNodes(service: SupabaseClient, prepId: s
   if (!plan.inserts.length && !plan.sortUpdates.length) return;
 
   for (const update of plan.sortUpdates) {
-    await service
+    const { error: updateError } = await service
       .from("exam_prep_nodes")
       .update({ sort_order: update.sortOrder })
       .eq("id", update.id)
       .eq("exam_prep_id", prepId);
+    logPathWrite("skeleton_sort", prepId, updateError);
   }
   if (plan.inserts.length) {
-    await service.from("exam_prep_nodes").insert(
+    const { error: insertError } = await service.from("exam_prep_nodes").insert(
       plan.inserts.map((node) => ({
         exam_prep_id: prepId,
         kind: node.kind,
@@ -141,5 +167,6 @@ export async function ensurePathSkeletonNodes(service: SupabaseClient, prepId: s
         session_meta: node.sessionMeta,
       })),
     );
+    logPathWrite("skeleton_insert", prepId, insertError);
   }
 }

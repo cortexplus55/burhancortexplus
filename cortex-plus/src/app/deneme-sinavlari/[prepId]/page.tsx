@@ -275,10 +275,12 @@ export default async function ExamPrepDetailPage({
     // bilgi eksikleri gerçek kayıtlardan. Tahmin uydurulmuyor; kayıt yoksa
     // bölüm "ilk derslerinden sonra görünür" diyor.
     Promise.all([
-      supabase
+      // `payload` cevap anahtarı taşır: yalnız sunucu anahtarıyla okunur (göç 20261119150000), sahiplik süzgeciyle.
+      service
         .from("exam_prep_node_attempts")
         .select("node_id, score, total, created_at, payload, topic_id")
         .eq("exam_prep_id", prepId)
+        .eq("user_id", user.id)
         .eq("status", "completed")
         .order("created_at", { ascending: false })
         .limit(500),

@@ -581,6 +581,20 @@ describe("yol etkinliği rotası: start × tür", () => {
     expect(await run(seed("quiz"), { prepId: PREP, nodeId: NODE, action: "start", review: true })).toMatchSnapshot();
   });
 
+  it("cevapsız tekrar kaydı yeniden açılır; ikinci açılış yeni satır yazmaz (Faz 4 denetimi)", async () => {
+    const reviewed = { type: "quiz", questions: [QUIZ_Q1], reviewed: true };
+    const tables = seed("quiz", {
+      exam_prep_node_attempts: [
+        attemptRow({ type: "quiz", questions: [QUIZ_Q1] }, { status: "completed", client_request_id: "00000000-0000-4000-8000-0000000000f9" }),
+        attemptRow(reviewed, { id: "00000000-0000-4000-8000-0000000000e1", status: "active", answers: {}, answer_meta: {} }),
+      ],
+    });
+    await run(tables, { prepId: PREP, nodeId: NODE, action: "start", review: true });
+    const writes = h.timeline.filter((line) => line.startsWith("db insert exam_prep_node_attempts"));
+    expect(writes).toEqual([]);
+    expect(h.timeline.some((line) => line.includes("00000000-0000-4000-8000-0000000000e1"))).toBe(true);
+  });
+
   it("aynı istek kimliği: hazır kayıt yeniden döner, açık kayıt sürdürülür", async () => {
     const tables = seed("quiz", { exam_prep_node_attempts: [attemptRow({ type: "quiz", questions: [QUIZ_Q1] })] });
     expect(await run(tables, { prepId: PREP, nodeId: NODE, action: "start", clientRequestId: REQ })).toMatchSnapshot();

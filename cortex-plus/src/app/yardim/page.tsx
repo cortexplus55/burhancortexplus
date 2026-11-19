@@ -35,7 +35,7 @@ const faqs = [
   {
     question: "Plus ile ücretsiz arasındaki fark nedir?",
     answer:
-      `Plus hacim ve hız satar: ${PLAN_MARKETING_COPY.plus.periodLine.replace(/^A/, "a")}, belgenin tamamı ve bütün konular, sınırsız hazırlık, podcast, video ders, sözlü ve yazılı deneme, sınav sabahı kâğıdı ve hazır içerik yokken daha hızlı yazım. Abonelik kendiliğinden yenilenmez.`,
+      `Plus hacim ve hız satar: ${PLAN_MARKETING_COPY.plus.periodLine.replace(/^A/, "a")}, belgenin tamamı ve bütün konular, birden çok hazırlık, podcast, video ders, sözlü ve yazılı deneme, sınav sabahı kâğıdı ve hazır içerik yokken daha hızlı yazım. Abonelik kendiliğinden yenilenmez.`,
   },
   {
     // Faz 5 §4 (19 Kasım 2026): üç planın karşılığı tek merkezden; Sigma da burada.

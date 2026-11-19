@@ -130,7 +130,7 @@ function PlusMonthFull({ monthlyKurus, primary, secondary, headingLevel = "h2", 
           <li>
             <Check className="h-4 w-4" aria-hidden />
             <span>
-              <strong>Sınırsız</strong> sınav hazırlığı
+              <strong>Birden çok</strong> sınav hazırlığı
             </span>
           </li>
           <li>

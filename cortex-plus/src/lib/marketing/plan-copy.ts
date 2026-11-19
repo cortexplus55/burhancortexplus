@@ -98,8 +98,12 @@ export function planCopy(id: PlanCopyId): PlanCopy {
   return PLAN_MARKETING_COPY[id];
 }
 
+/** Yazılı deneme Plus'ta (`PLUS_ONLY_ACTIONS`): "her zaman açık" denmez (19 Kasım 2026, Faz 5 denetimi). */
+export const WRITTEN_EXAM_AVAILABILITY = "Yazılı deneme Plus paketinde dilediğin zaman açılır.";
+
 /**
  * Hiçbir kamu sayfasında kalmaması gereken eski kota metinleri (Faz 5 §4.2). Bekçi test sayfaların çizimini ve bu
- * dosyanın okuduğu kaynakları bu listeye karşı tarar.
+ * dosyanın okuduğu kaynakları bu listeye karşı tarar. 19 Kasım 2026: "sınırsız" ve "her zaman açık" vaatleri de
+ * (hazırlık sayısı sınırlanmaz ama her içerik aylık haktan düşer; yazılı deneme ücretsizde kapalı).
  */
-export const RETIRED_QUOTA_PHRASES = ["240 ders", "2.400 mesaj", "20.000 mesaj", "2.000 ders", "720 test", "haftalık ders sınırlı", "Ücretsiz hesapta haftalık ders"] as const;
+export const RETIRED_QUOTA_PHRASES = ["240 ders", "2.400 mesaj", "20.000 mesaj", "2.000 ders", "720 test", "haftalık ders sınırlı", "Ücretsiz hesapta haftalık ders", "Plus'ta sınırsız", "sınırsız hazırlık", "Sınırsız</strong> sınav", "yazılı deneme her zaman açık", "deneme sınavı her zaman açık", "60.000 kredi", "7.200 kredi"] as const;

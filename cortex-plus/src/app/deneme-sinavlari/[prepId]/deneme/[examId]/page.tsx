@@ -5,6 +5,7 @@ import { ParityExamRunner } from "@/components/parity/exam-runner";
 import { PaperExamRunner } from "@/components/parity/paper-exam-runner";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
+import { stripAnswerKeyForActiveExam } from "@/lib/security/answer-key-columns";
 
 export const metadata = { title: "Deneme" };
 
@@ -32,13 +33,8 @@ export default async function ExamPrepDenemePage({
 
   if (!exam || exam.exam_prep_id !== prepId) notFound();
 
-  const questions = (rows ?? []).map((row) => ({
-    id: row.id as string,
-    text: row.question_text as string,
-    options: (row.options as string[]) ?? [],
-    question_type: (row.question_type as string) ?? "mcq",
-    points: (row.points as number) ?? 1,
-  }));
+  // Süren sınav: soru anahtarsız gider (doğru cevap, açıklama, rubrik hiçbir koşulda tarayıcıya çıkmaz).
+  const questions = (rows ?? []).map((row) => stripAnswerKeyForActiveExam(row as Record<string, unknown>));
 
   return (
     <ParitySorShell {...shell} chrome="session">

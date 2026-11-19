@@ -209,15 +209,25 @@ export async function reserveCredits(
     if (error.message.includes("invalid_action")) {
       return { ok: false, reason: "invalid_action" };
     }
+    // 19 Kasım 2026 (Faz 2 denetimi): yük altında düşen ayırma sessiz "error" dönüyordu; sebep kayda geçer.
+    console.error("credit_reserve_failed", { actionCode, code: error.code ?? null, message: String(error.message ?? "").slice(0, 160) });
     return { ok: false, reason: "error" };
   }
 
-  if (typeof data !== "string" || !data) return { ok: false, reason: "error" };
+  if (typeof data !== "string" || !data) {
+    console.error("credit_reserve_empty", { actionCode });
+    return { ok: false, reason: "error" };
+  }
   const { data: claim, error: claimError } = await service.rpc("credit_claim_operation", {
     p_reservation_id: data,
     p_token: randomUUID(),
   });
-  if (claimError) return { ok: false, reason: "error" };
+  if (claimError) {
+    // Ayırma açıldı ama sahiplenme düştü: ayırma "bekliyor"da kalır. İade burada yapılmaz (aynı anahtarı başka bir
+    // istek sahiplenmiş olabilir); kimlik kayda geçer ki takılı ayırma temizliği ya da elle iade bulunabilsin.
+    console.error("credit_claim_failed", { actionCode, reservationId: data, code: claimError.code ?? null, message: String(claimError.message ?? "").slice(0, 160) });
+    return { ok: false, reason: "error" };
+  }
   // Faz 2: kredi/sayaç düştü; gösterim önbelleği (oturum bağlamı) anında temizlenir. Karar SQL'de verildi.
   await invalidateSessionUserContext(userId);
   if (claim?.state !== "claimed") return {

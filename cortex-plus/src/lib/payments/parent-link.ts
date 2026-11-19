@@ -1,5 +1,6 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { env } from "@/lib/env";
+import { parentPackageLabel } from "@/lib/payments/parent-link-plan";
 
 /**
  * Velime ödeme linki (29 Ekim 2026, ürün sahibinin kararı). Kartı yanında olmayan öğrenci, seçtiği
@@ -83,7 +84,7 @@ export function parentPayUrl(token: string, origin: string): string {
  * Velinin WhatsApp'ta göreceği metin (Faz 5 §2, harfiyen): öğrencinin ağzından, paket adı ve bağlantı yerinde.
  */
 export function parentShareText(input: { planName: string; url: string }): string {
-  return `Anne/Baba, sınav hazırlığım için kullandığım Cortex Plus ${input.planName} paketini bu güvenli PayTR bağlantısından şifre girmeden onaylayabilir misin? ${input.url}`;
+  return `Anne/Baba, sınav hazırlığım için kullandığım paketi (${parentPackageLabel(input.planName)}) bu güvenli PayTR bağlantısından şifre girmeden onaylayabilir misin? ${input.url}`;
 }
 
 /**

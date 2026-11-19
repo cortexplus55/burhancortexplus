@@ -72,7 +72,8 @@ describe("kendi sınavım: öğrenci soru sayısını girer", () => {
     const route = readFileSync("src/app/api/learning/exam-prep/mock-exam/route.ts", "utf8");
     expect(route).toContain("questionCount: z.number().int().min(MOCK_CUSTOM_MIN).max(MOCK_CUSTOM_MAX).optional()");
     expect(route).toContain("questionCount: fields.questionCount,");
-    const setup = readFileSync("src/components/parity/mock-exam-setup.tsx", "utf8");
+    // Satır sonu bağımsız: Windows çalışma kopyası CRLF olabilir (depo ve CI LF).
+    const setup = readFileSync("src/components/parity/mock-exam-setup.tsx", "utf8").replace(/\r\n/g, "\n");
     // Faz 5 §3.2: ikiz sınav açıkken sayı sabit 20; değilse kendi sınavım sayısı ya da hazır boy.
     expect(setup).toContain(': preset === "custom"\n          ? { questionCount: customCount }\n          : { preset }),');
     expect(setup).toContain("Kendi sınavım ·");

@@ -63,7 +63,7 @@ export const PLUS_PLAN_POINTS = [
   "Podcast ve 1 dakikalık çizimli video",
   "Sözlü deneme, yazılı deneme ve ikiz sınav",
   "Sınav sabahı kâğıdı",
-  "Belgenin tamamı, sınırsız hazırlık, daha hızlı yazım",
+  "Belgenin tamamı, birden çok hazırlık, daha hızlı yazım",
 ] as const;
 
 /** Sınav Haftası kartı: haftalık Plus. Plus'taki her şey yedi gün açık; ödeme tek seferlik, yenileme yok. */
@@ -99,7 +99,7 @@ export const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "Plus'ta ne değişiyor?",
-    a: `${PLAN_MARKETING_COPY.plus.periodLine}; bütün konular, podcast, video ders, sözlü ve yazılı deneme, sınav sabahı kâğıdı; belgenin tamamı, sınırsız hazırlık ve hazır içerik yokken daha hızlı yazım. Yapay zekâ modeli aynı; fark neyin açık olduğunda, ne kadar ve ne kadar hızlı çalışabildiğinde.`,
+    a: `${PLAN_MARKETING_COPY.plus.periodLine}; bütün konular, podcast, video ders, sözlü ve yazılı deneme, sınav sabahı kâğıdı; belgenin tamamı, birden çok hazırlık ve hazır içerik yokken daha hızlı yazım. Yapay zekâ modeli aynı; fark neyin açık olduğunda, ne kadar ve ne kadar hızlı çalışabildiğinde.`,
   },
   {
     q: "Notumda olmayan bir şeyi sorarsam?",

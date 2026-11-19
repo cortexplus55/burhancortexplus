@@ -30,6 +30,44 @@ export async function reopenSavedAttempt(
   const reopenSaved = (parsed.data.review === true || state.implicit === true) && !voiceSession && !prefetch;
   const replayLesson = kind === "lesson" && teachingV2 && !voiceSession && !prefetch && parsed.data.replay === true;
   if (reopenSaved || replayLesson) {
+    // Boş kayıt şişmesi (19 Kasım 2026, Faz 4 denetimi): her "Tekrar incele" / "Dersi tekrarla" yeni bir `active`
+    // kayıt ekliyordu; öğrenci cevap vermeden çıkıp yeniden açtıkça cevapsız satırlar birikiyordu. Bu adımda hiç cevap
+    // almamış bir tekrar kaydı varsa (ve süresi geçmemişse) o açılır; yeni satır yalnız öğrenci tekrarı gerçekten
+    // çözmeye başladıktan sonraki açılışta yazılır.
+    const { data: idle } = await service
+      .from("exam_prep_node_attempts")
+      .select(
+        "id, status, payload, answers, answer_meta, score, total, generation_id, client_request_id, complete_request_id, content_version, updated_at, difficulty, voice_mode, started_at, expires_at",
+      )
+      .eq("node_id", nodeId)
+      .eq("user_id", userId)
+      .eq("exam_prep_id", prepId)
+      .eq("status", "active")
+      .eq("payload->>reviewed", "true")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (idle && idleReplayReusable(idle)) {
+      console.info("lesson_replay_reused", { nodeId, kind });
+      return NextResponse.json({
+        ...attemptStartResponse(idle, {
+          kind,
+          title,
+          topicLabel,
+          publicPayload: await publicPayloadForUser(
+            service,
+            userId,
+            idle.payload as Record<string, unknown>,
+            lessonReviewCards,
+            kind,
+            prepLanguage(prep.learning_preferences),
+            lessonFormat,
+          ),
+          resumed: false,
+        }),
+        ...(await readWalletBalance(service, userId)),
+      });
+    }
     const { data: previous } = await service
       .from("exam_prep_node_attempts")
       .select("payload")
@@ -98,4 +136,25 @@ export async function reopenSavedAttempt(
     if (reopenSaved && !state.implicit) return errorResponse(404, "not_found");
   }
   return null;
+}
+
+/**
+ * Cevapsız tekrar kaydı yeniden açılabilir mi: gövdesi var, hiç cevap ya da cevap izi yok, süresi (yazılı denemede)
+ * geçmemiş. Saf (test edilir).
+ */
+export function idleReplayReusable(row: {
+  payload?: unknown;
+  answers?: unknown;
+  answer_meta?: unknown;
+  expires_at?: unknown;
+}, now = Date.now()): boolean {
+  if (!row.payload || typeof row.payload !== "object") return false;
+  const empty = (value: unknown) =>
+    value == null || (Array.isArray(value) ? value.length === 0 : typeof value === "object" && Object.keys(value).length === 0);
+  if (!empty(row.answers) || !empty(row.answer_meta)) return false;
+  if (typeof row.expires_at === "string" && row.expires_at) {
+    const deadline = Date.parse(row.expires_at);
+    if (Number.isFinite(deadline) && deadline <= now) return false;
+  }
+  return true;
 }

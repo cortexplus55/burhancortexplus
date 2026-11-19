@@ -47,7 +47,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 
-  const { data: questions } = await supabase
+  // Cevap anahtarı yalnız sunucu anahtarıyla okunur (göç 20261119150000); testin sahipliği yukarıda doğrulandı.
+  const { data: questions } = await createServiceClient()
     .from("quiz_questions")
     .select("id, question_text, options, correct_answer, explanation, sort_order")
     .eq("quiz_id", quizId)

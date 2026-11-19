@@ -757,7 +757,8 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
             scopeTopic: null,
             weightedTopic: topWeightedTopic(grounding.scope)?.topic ?? null,
           });
-          content = `${outcome.content}\n\n${chips.map(chipMarker).join("\n")}`.trim();
+          // 19 Kasım 2026 (Faz 2 denetimi): hazırlık öğretmen yolu da öğrenci metni süzgecinden geçer (ana sohbet geçiyordu).
+          content = `${studentOutputText(outcome.content)}\n\n${chips.map(chipMarker).join("\n")}`.trim();
           gradedForStore = studentGrade && studentGrade.verdict !== "dogru" ? studentGrade : null;
           // Kaynak satırı ("Kaynak: KPSS.pdf · s.8") ve kaynak işaretleri bu
           // listeden gelir; boş kalırsa ekran belge modunda "belgede yok" yazıyordu.

@@ -93,7 +93,7 @@ describe("§2 velime WhatsApp'tan ödeme linki", () => {
     expect(PARENT_PAY_PATH).toBe("/veli-odeme");
     expect(url).toBe("https://example.test/veli-odeme/ornek-belirtec");
     expect(parentShareText({ planName: "Örnek Paket", url })).toBe(
-      "Anne/Baba, sınav hazırlığım için kullandığım Cortex Plus Örnek Paket paketini bu güvenli PayTR bağlantısından şifre girmeden onaylayabilir misin? https://example.test/veli-odeme/ornek-belirtec",
+      "Anne/Baba, sınav hazırlığım için kullandığım paketi (Cortex Plus — Örnek Paketi) bu güvenli PayTR bağlantısından şifre girmeden onaylayabilir misin? https://example.test/veli-odeme/ornek-belirtec",
     );
     expect(PARENT_LINK_EXPIRED_TEXT).toBe("Bu ödeme bağlantısının süresi dolmuş, öğrencinizden yeni link isteyebilirsiniz");
     expect(parentLinkValidityLine(48 * 3_600_000, 0)).toBe("Bağlantı 48 saat geçerli.");
@@ -147,6 +147,8 @@ describe("§4.2 eski kota sayıları hiçbir sayfada kalmadı", () => {
     "src/lib/billing/tier-presentation.ts",
     "src/lib/legal/texts.ts",
     "src/components/parity/subscription-cards.tsx",
+    // 19 Kasım 2026: uygulama içi Sınavlar sayfası da "yazılı deneme her zaman açık" diyordu (ücretsizde kapalı).
+    "src/components/parity/exam-prep.tsx",
   ];
   it.each(pages)("%s", (path) => {
     const text = read(path);

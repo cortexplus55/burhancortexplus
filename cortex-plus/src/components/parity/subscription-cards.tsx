@@ -20,6 +20,7 @@ import { PLAN_MARKETING_COPY } from "@/lib/marketing/plan-copy";
 import "@/styles/parity-app.css";
 import "@/styles/cortex-premium.css";
 import { TrustStrip } from "@/components/parity/trust-strip";
+import { safeNextPath } from "@/lib/auth/safe-next-path";
 import { ParentWhatsAppLink, type ParentLinkChoice } from "@/components/billing/parent-whatsapp-link";
 import {
   BENEFITS_LEAD,
@@ -116,7 +117,9 @@ export function SubscriptionCards({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const returnTo = searchParams.get("returnTo");
+  // Açık yönlendirme (19 Kasım 2026, Faz 3 denetimi): "/pay?returnTo=https://…" + "Kapat" siteden çıkarıyordu.
+  // Yalnız güvenli iç yol kabul edilir; değilse yok sayılır.
+  const returnTo = safeNextPath(searchParams.get("returnTo"), "") || null;
   // Yükseltme penceresinin bağlantısı (/pay?plan=plus|week|sigma&from=…, Faz 3B): istenen kart açık ve işaretli gelir.
   // Bilinmeyen değer yok sayılır (bugünkü varsayılan); `from` hiçbir yerde ekrana basılmaz.
   const pickedPlan = pickedPlanFrom(searchParams.get("plan"));
