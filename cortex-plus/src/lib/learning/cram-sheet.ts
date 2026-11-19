@@ -1,6 +1,8 @@
 import type { LessonBlock, LessonV3 } from "@/lib/learning/lesson-v3";
+import { readSourceCorrectionWarning, repeatsSourceError, type SourceCorrectionWarning } from "@/lib/learning/source-correction";
 import { formulaRelationKeys } from "@/lib/text/math-normalize";
 import { unresolvedVisualReference } from "@/lib/learning/answer-consistency";
+import { splitTurkishSentences, turkishSentenceEnds } from "@/lib/text/turkish-sentences";
 
 /**
  * Sınav sabahı kâğıdı (31 Ekim 2026, Paket J3 #14, ürün sahibinin isteği): hazırlığın kayıtlı derslerinden,
@@ -160,7 +162,8 @@ export type CramSheetInput = {
 /** Öğretmen analizinin "Sınavda sorulur" maddesi kayıtta bu uzunlukta kesilir (`teacher-brain.ts` textList). */
 export const EXAM_POINT_STORED_MAX = 220;
 
-const SENTENCE_END = /[.!?](?=\s|$)/g;
+/** Cümle sonu: Türkçe cümle bölücüsünün sınırları ("II.", "116.", "Prof." gibi noktalarda bitmez). */
+const SENTENCE_END = "sentence" as const;
 const CLAUSE_END = /\s(?:·|;|–|—)\s|;\s/g;
 const ENDS_WHOLE = /[.!?)\]»"”']$/u;
 const CUT_MARK = /\s*(?:\.\.\.|…)$/u;
@@ -169,11 +172,21 @@ const CUT_MARK = /\s*(?:\.\.\.|…)$/u;
  * `max` içindeki son sınır (`pattern`). Sonuç en az 25 karakter; `minRatio` verilirse sınırın o kadarı da (uzun metnin
  * ilk birkaç sözcüğü tek başına satır olmasın). Kayıtta kesilmiş metinde oran yok: tam cümle ne kadarsa o kalır.
  */
-function lastBoundary(text: string, max: number, pattern: RegExp, keepMark: boolean, minRatio = 0.35): string | null {
+function lastBoundary(text: string, max: number, pattern: RegExp | typeof SENTENCE_END, keepMark: boolean, minRatio = 0.35): string | null {
   const window = text.slice(0, max);
   let end = -1;
-  for (const match of window.matchAll(pattern)) {
-    end = keepMark ? match.index! + match[0].length : match.index!;
+  if (pattern === SENTENCE_END) {
+    // Bölücünün gördüğü cümle sonları; pencerenin kendi sonu ancak ardından boşluk ya da metin sonu geliyorsa ve
+    // bölücü orada da cümle bitiriyorsa ("II." ya da "Prof." ile biten pencere sınır sayılmaz).
+    const trimmed = window.trimEnd();
+    const ends = turkishSentenceEnds(trimmed);
+    const rest = text.slice(trimmed.length);
+    if ((!rest || /^\s/u.test(rest)) && turkishSentenceEnds(`${trimmed} X`).includes(trimmed.length)) ends.push(trimmed.length);
+    end = ends.length ? Math.max(...ends) : -1;
+  } else {
+    for (const match of window.matchAll(pattern)) {
+      end = keepMark ? match.index! + match[0].length : match.index!;
+    }
   }
   if (end < 0) return null;
   const cut = window.slice(0, end).trim();
@@ -239,8 +252,7 @@ export function questionBound(text: string): boolean {
 }
 
 function sentencesOf(text: string): string[] {
-  return clean(text)
-    .split(/(?<=[.!?])\s+(?=\p{Lu}|\d)/u)
+  return splitTurkishSentences(clean(text))
     .map((part) => part.trim())
     .filter(Boolean);
 }
@@ -511,6 +523,15 @@ export function buildCramSheet(input: CramSheetInput): CramSheet {
   const buckets: Bucket[] = input.topics.map((topic) => ({ topic: clean(topic.label), key: topic.key, candidates: [] }));
   const byKey = new Map(buckets.map((bucket) => [bucket.key, bucket] as const));
   const extra = new Map<string, Bucket>();
+  // Kaynak düzeltmesi (19 Kasım 2026, Faz 1-A §2.1): kâğıt kaynağın yanlışını basmaz, doğrusunu konunun başına koyar.
+  const corrections: SourceCorrectionWarning[] = [];
+  const correctionRows = new Set<CramItem>();
+  const wrong = (text: string) => corrections.some((warning) => repeatsSourceError(text, warning));
+
+  for (const { lesson } of input.lessons) {
+    const warning = readSourceCorrectionWarning(lesson.sourceCorrectionWarning ?? null);
+    if (warning) corrections.push(warning);
+  }
 
   for (const { topicKey, lesson } of input.lessons) {
     let bucket = topicKey ? byKey.get(topicKey) : undefined;
@@ -522,9 +543,17 @@ export function buildCramSheet(input: CramSheetInput): CramSheet {
         extra.set(name.toLocaleLowerCase("tr"), bucket);
       }
     }
+    const warning = readSourceCorrectionWarning(lesson.sourceCorrectionWarning ?? null);
+    if (warning) {
+      const row = fitItem({ kind: "warn", title: "Kaynak düzeltmesi", text: warning.verifiedTruth });
+      if (row) {
+        correctionRows.add(row);
+        bucket.candidates.push(row);
+      }
+    }
     for (const row of collectLessonCram(lesson)) {
       const fitted = fitItem(row);
-      if (fitted) bucket.candidates.push(fitted);
+      if (fitted && !wrong(`${fitted.title ?? ""} ${fitted.text}`)) bucket.candidates.push(fitted);
     }
   }
   for (const { topicKey, points } of input.examPoints ?? []) {
@@ -534,7 +563,7 @@ export function buildCramSheet(input: CramSheetInput): CramSheet {
       // Madde kayıtta 220 karakterde kesilmiş olabilir: son tam cümlesine çekilir, yoksa basılmaz.
       const row = item(classifyPoint(point), null, point);
       const fitted = row ? fitItem(row, EXAM_POINT_STORED_MAX) : null;
-      if (fitted) bucket.candidates.push(fitted);
+      if (fitted && !wrong(fitted.text)) bucket.candidates.push(fitted);
     }
   }
 
@@ -543,7 +572,12 @@ export function buildCramSheet(input: CramSheetInput): CramSheet {
   for (const bucket of ordered) {
     bucket.candidates = bucket.candidates
       .map((row, index) => ({ row, index }))
-      .sort((a, b) => rankOf(a.row.kind) - rankOf(b.row.kind) || a.index - b.index)
+      .sort(
+        (a, b) =>
+          Number(correctionRows.has(b.row)) - Number(correctionRows.has(a.row)) ||
+          rankOf(a.row.kind) - rankOf(b.row.kind) ||
+          a.index - b.index,
+      )
       .map(({ row }) => row)
       .filter((row) => fresh(row));
   }
@@ -611,7 +645,7 @@ export function buildCramSheet(input: CramSheetInput): CramSheet {
   for (const rule of input.teacherRules ?? []) {
     if (teacherRules.length >= CRAM_LIMITS.teacherRules) break;
     const text = fitCramText(rule);
-    if (text && freshRule({ text })) teacherRules.push(text);
+    if (text && !wrong(text) && freshRule({ text })) teacherRules.push(text);
   }
 
   // Yanıldığın noktalar: kavramsal ders (soru kökü değil). Şekle, öncüle ya da şıkka bağlı satır basılmaz.
@@ -622,7 +656,7 @@ export function buildCramSheet(input: CramSheetInput): CramSheet {
     const raw = clean(spot.text);
     if (raw.length < 4 || /(?:→|Doğrusu:)\s*$/u.test(raw) || questionBound(raw)) continue;
     const text = fitCramText(raw);
-    if (!text || !freshSpot({ text })) continue;
+    if (!text || wrong(text) || !freshSpot({ text })) continue;
     weakSpots.push({ text, topic: clean(spot.topic) || null });
   }
 

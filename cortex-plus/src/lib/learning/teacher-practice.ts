@@ -1,4 +1,5 @@
 import { CONTENT_STYLE } from "@/lib/ai/content-style";
+import { SOURCE_CORRECTION_ISSUE, sourceCorrectionPromptBlock, trueFalseKeyRepeatsSourceError, type SourceCorrectionWarning } from "@/lib/learning/source-correction";
 import { sourceText, type TeacherLessonMode } from "@/lib/learning/teacher-lesson";
 import { singlePassItems } from "@/lib/learning/teacher-item-loop";
 import { examPointsBlock } from "@/lib/learning/exam-points";
@@ -37,6 +38,8 @@ export type PracticeSource = {
    * kart, önerme, sözlü sorusu. Yazar bunları tekrarlamaz, konunun başka alt başlığına gider.
    */
   avoid?: string[];
+  /** Kaynak düzeltme uyarısı (Faz 1-A §2.1): "Doğru" önerme kaynağın yanlışını taşıyamaz; yazar doğrusunu okur. */
+  sourceCorrection?: SourceCorrectionWarning | null;
 };
 
 export type AskJson = (system: string, user: string) => Promise<unknown | null>;
@@ -69,6 +72,7 @@ function userPrompt(input: PracticeSource, label: string, ask: number): string {
     input.topicLabel ? `KONU: ${input.topicLabel}` : "",
     `${label}: ${ask}`,
     input.brief ? `KAPSAM: ${input.brief}` : "",
+    input.mode === "topic" ? "" : sourceCorrectionPromptBlock(input.sourceCorrection),
     input.learnerLine ? `ÖĞRENCİ: ${input.learnerLine}` : "",
     input.examPointsUse === "oral" || input.examinerVibe
       ? examinerVibeStyleLine(parseExaminerVibe(input.examinerVibe))
@@ -213,6 +217,7 @@ export async function teacherTrueFalseLoop(ask: AskJson, input: PracticeSource &
     issues: (item) => {
       const problems = trueFalseStructureIssues(item);
       if (problems.length) return problems;
+      if (trueFalseKeyRepeatsSourceError(item, input.sourceCorrection)) return [`${SOURCE_CORRECTION_ISSUE}.`];
       if (kept.some((other) => sameTrueFalseFact(item, other))) return [TF_DUPLICATE_ISSUE];
       kept.push(item);
       return [];

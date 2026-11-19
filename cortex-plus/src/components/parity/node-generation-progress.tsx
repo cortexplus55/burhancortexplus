@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Check, Info, Loader2, X } from "lucide-react";
 import { CortexLogoMotion } from "@/components/brand/cortex-logo-motion";
 import { GenerationWarmup } from "@/components/parity/generation-warmup";
@@ -45,9 +45,15 @@ export function NodeGenerationProgress({
   ready,
   promised,
   documentFree,
+  stepsSlot,
 }: {
   /** Çağıran hâlâ geçirebilir; adım metni dosya adını içermez. */
   sourceName?: string | null;
+  /**
+   * Gerçek adımlar (19 Kasım 2026, Faz 1-A §4.2): verilirse tahmini adım listesinin yerine çizilir (podcast: sunucudaki
+   * sıraya alındı → senaryo → ses → hazır).
+   */
+  stepsSlot?: ReactNode;
   /** Belgesiz hazırlık: 1. adım "Notların taranıyor" değil, kazanımlar (3 Kasım 2026). */
   documentFree?: boolean;
   onClose?: () => void;
@@ -98,36 +104,38 @@ export function NodeGenerationProgress({
       <div className="apg-brand" aria-hidden>
         <CortexLogoMotion size={128} mode="loop" />
       </div>
-      <ul className="apg-steps">
-        {steps.map((label, index) => {
-          const done = index < reached;
-          const active = index === reached;
-          return (
-            <li
-              key={label}
-              className={done ? "is-done" : active ? "is-active" : undefined}
-            >
-              <span className="apg-dot" aria-hidden>
-                {done ? (
-                  <Check className="h-3 w-3" />
-                ) : active ? (
-                  <Loader2 className="h-3 w-3 apg-spin" />
-                ) : null}
-              </span>
-              {label}
-              {index === 0 && sourceChips.length ? (
-                <span className="apg-chips">
-                  {sourceChips.slice(0, 4).map((chip) => (
-                    <span key={chip} className="apg-chip">
-                      {chip}
-                    </span>
-                  ))}
+      {stepsSlot ?? (
+        <ul className="apg-steps">
+          {steps.map((label, index) => {
+            const done = index < reached;
+            const active = index === reached;
+            return (
+              <li
+                key={label}
+                className={done ? "is-done" : active ? "is-active" : undefined}
+              >
+                <span className="apg-dot" aria-hidden>
+                  {done ? (
+                    <Check className="h-3 w-3" />
+                  ) : active ? (
+                    <Loader2 className="h-3 w-3 apg-spin" />
+                  ) : null}
                 </span>
-              ) : null}
-            </li>
-          );
-        })}
-      </ul>
+                {label}
+                {index === 0 && sourceChips.length ? (
+                  <span className="apg-chips">
+                    {sourceChips.slice(0, 4).map((chip) => (
+                      <span key={chip} className="apg-chip">
+                        {chip}
+                      </span>
+                    ))}
+                  </span>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      )}
       {promised && promised > 0 ? (
         <div
           className="apg-meter"

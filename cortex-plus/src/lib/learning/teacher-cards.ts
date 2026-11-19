@@ -1,4 +1,5 @@
 import { CONTENT_STYLE } from "@/lib/ai/content-style";
+import { SOURCE_CORRECTION_ISSUE, cardRepeatsSourceError, sourceCorrectionPromptBlock, type SourceCorrectionWarning } from "@/lib/learning/source-correction";
 import { sourceText, type TeacherLessonMode } from "@/lib/learning/teacher-lesson";
 import { singlePassItems, type Reviewed } from "@/lib/learning/teacher-item-loop";
 import { examPointsBlock } from "@/lib/learning/exam-points";
@@ -56,6 +57,10 @@ export type TeacherCardsInput = {
   avoid?: string[];
   /** Öğrenci bekliyor: kısa düzeltme bütçesi (`repairBudget`). */
   urgent?: boolean;
+  /** Kapsam satırı: kardeş ünite sınır bloğu (19 Kasım 2026, Faz 1-A §1). Boşsa satır yok. */
+  scopeLine?: string;
+  /** Kaynak düzeltme uyarısı (Faz 1-A §2.1): arka yüz kaynağın yanlışını taşıyamaz, yazar ve denetçi doğrusunu okur. */
+  sourceCorrection?: SourceCorrectionWarning | null;
 };
 
 const SCHEMA = `{
@@ -102,6 +107,8 @@ export function cardsUserPrompt(input: TeacherCardsInput, ask = input.count): st
     `SINAV: ${input.prepTitle}`,
     `KONU: ${input.topicLabel}`,
     `KART SAYISI: ${ask}`,
+    input.mode === "topic" ? "" : (input.scopeLine ?? ""),
+    input.mode === "topic" ? "" : sourceCorrectionPromptBlock(input.sourceCorrection),
     input.learnerLine ? `ÖĞRENCİ: ${input.learnerLine}` : "",
     examPointsBlock(input.examPoints, "cards"),
     avoidListBlock(
@@ -142,7 +149,9 @@ export function cardsVerifyUserPrompt(cards: TeacherCard[], input: TeacherCardsI
     input.mode === "topic"
       ? `SINAV: ${input.prepTitle}\nKONU: ${input.topicLabel}\n(Belgesiz kartlar.)`
       : `KAYNAK:\n${sourceText(input.pages)}`;
-  return `${head}\n\nKARTLAR (JSON):\n${JSON.stringify({ cards })}`;
+  // Kaynak düzeltmesi (Faz 1-A §2.1): doğrusunu yazan arka yüz kaynakla çelişki sayılmaz.
+  const correction = input.mode === "topic" ? "" : sourceCorrectionPromptBlock(input.sourceCorrection);
+  return `${head}${correction ? `\n\n${correction}` : ""}\n\nKARTLAR (JSON):\n${JSON.stringify({ cards })}`;
 }
 
 export function cardsFixSystem(mode: TeacherLessonMode = "document", focus: TeacherCardsInput["focus"] = "cards"): string {
@@ -312,6 +321,7 @@ export async function teacherCardsLoop(ask: AskJson, input: TeacherCardsInput, s
     issues: (card) => {
       const problems = cardStructureIssues(card);
       if (problems.length) return problems;
+      if (cardRepeatsSourceError(card, input.sourceCorrection)) return [`${SOURCE_CORRECTION_ISSUE}.`];
       const repeated = cardSetIssue(card, deck);
       if (repeated) return [repeated];
       deck.push(card);

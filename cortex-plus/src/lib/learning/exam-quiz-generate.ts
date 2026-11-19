@@ -1,4 +1,5 @@
 import type { FreeMeter } from "@/lib/billing/free-meters";
+import type { SourceCorrectionWarning } from "@/lib/learning/source-correction";
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ActionCode } from "@/lib/env";
@@ -73,6 +74,8 @@ export async function generateExamQuiz(input: {
   rephrase?: boolean;
   /** Şık sayısı; yoksa öğretmen motoru öğrencinin profilinden bulur (`resolveOptionCount`). */
   optionCount?: OptionCount;
+  /** Kaynak düzeltme uyarısı (Faz 1-A §2.1): yazar ve denetçi doğrusunu okur, anahtar yanlışı taşıyamaz. */
+  sourceCorrection?: SourceCorrectionWarning | null;
 }): Promise<
   | { ok: true; questions: QuizQuestion[]; reservationId?: string }
   | { ok: false; status: number; error: string }
@@ -112,6 +115,7 @@ export async function generateExamQuiz(input: {
     ...(input.charge === false ? { charge: false } : {}),
     ...(input.rephrase ? { rephrase: true } : {}),
     ...(input.optionCount ? { optionCount: input.optionCount } : {}),
+    ...(input.sourceCorrection ? { sourceCorrection: input.sourceCorrection } : {}),
   });
   if (!outcome.ok) return { ok: false, status: outcome.status, error: outcome.error };
   return { ok: true, questions: outcome.questions, reservationId: outcome.reservationId };

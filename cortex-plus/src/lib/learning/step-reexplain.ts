@@ -1,3 +1,4 @@
+import { sourceCorrectionPromptBlock, type SourceCorrectionWarning } from "@/lib/learning/source-correction";
 import { EXAMPLE_CLASSIFICATION_RULE } from "@/lib/learning/teaching-rubric";
 
 /**
@@ -133,6 +134,8 @@ export function reexplainUserPrompt(input: {
   text: string;
   /** Aynı adım için daha önce verilen farklı anlatımlar: yenisi onları tekrar etmesin. */
   previous?: readonly string[];
+  /** Kaynak düzeltme uyarısı (Faz 1-A §2.1): "Farklı anlat" da doğrusunu (verifiedTruth) kullanır. */
+  sourceCorrection?: SourceCorrectionWarning | null;
 }): string {
   const previous = (input.previous ?? []).map((item) => item.trim()).filter(Boolean).slice(-2);
   const facts = extractImmutableFacts(input.text);
@@ -142,6 +145,7 @@ export function reexplainUserPrompt(input: {
     `Sınav: ${input.prepTitle}. Konu: ${input.topicLabel}.`,
     `ADIMIN BAŞLIĞI: ${input.heading.trim()}`,
     `ADIMIN İLK ANLATIMI:\n${plainStepText(input.text)}`,
+    sourceCorrectionPromptBlock(input.sourceCorrection),
     facts.length
       ? `DEĞİŞMEZ OLGULAR (kilitli; ilk anlatımdan çıkarıldı. Aynen kullan, değiştirme, yuvarlama, yenisini ekleme):\n${facts.map((fact) => `- ${fact}`).join("\n")}`
       : "",

@@ -15,7 +15,8 @@ import { upcomingTopicsAfter } from "@/lib/learning/lesson-grounding";
 import { examPointsInSource } from "@/lib/learning/exam-points";
 import { findFormulaTypos } from "@/lib/learning/formula-typos";
 import { mergeNoteWarnings } from "@/lib/learning/note-rule-check";
-import { checkNoteRules } from "@/lib/learning/note-rule-check-run";
+import { checkNoteRulesAndCorrection } from "@/lib/learning/note-rule-check-run";
+import { correctionAsNoteWarning, type SourceCorrectionWarning } from "@/lib/learning/source-correction";
 import { loadOfficialOutcome } from "@/lib/curriculum/prep-outcome";
 import { prepTopicLabels } from "@/lib/documents/generation-context";
 import { poolSourceText } from "@/lib/content-pool/serve";
@@ -123,16 +124,24 @@ export async function teacherLessonPayload(
   const warned = noteWarnings.length ? { noteWarnings } : {};
   // Genel katman (Paket J denetimi #13): katalog yalnız bilinen formülleri tanır; her derste çalışan modelli denetim
   // ders yazımıyla PARALEL koşar, dersi bekletmez. Yayın anına yetişirse kutuya eklenir, yetişmezse kayda girer.
+  // Kaynak düzeltme uyarısı (19 Kasım 2026, Faz 1-A §2.1): aynı denetim çağrısında; açık bilimsel hata varsa 1. adımda
+  // kart, kavram denetimi doğrusunu (verifiedTruth) kullanır, kayıtlı ünite uyarıyı taşır (test, kart, D/Y okur).
   let modelWarnings: typeof noteWarnings = [];
+  // "Farklı anlat" ve yeniden yazım: konunun kayıtlı uyarısı yazara baştan gider; denetim yenisini bulursa o geçer.
+  let sourceCorrection: SourceCorrectionWarning | null = core ? (input.sourceCorrection ?? null) : null;
   const modelCheck = core
-    ? checkNoteRules(input.service, input.userId, noteText).then((found) => {
-        modelWarnings = found;
-        return found;
+    ? checkNoteRulesAndCorrection(input.service, input.userId, noteText).then((found) => {
+        modelWarnings = found.warnings;
+        sourceCorrection = found.correction ?? sourceCorrection;
+        return found.warnings;
       })
     : Promise.resolve([] as typeof noteWarnings);
   const warnedNow = () => {
     const merged = mergeNoteWarnings(noteWarnings, modelWarnings);
-    return merged.length ? { noteWarnings: merged } : {};
+    return {
+      ...(merged.length ? { noteWarnings: merged } : {}),
+      ...(sourceCorrection ? { sourceCorrectionWarning: sourceCorrection } : {}),
+    };
   };
   const outcome = await runTeacherLesson(input.service, {
     mode: core ? "document" : "topic",
@@ -155,11 +164,17 @@ export async function teacherLessonPayload(
     examPoints: core ? examPointsInSource(input.examPoints, lessonPages.map((page) => page.text).join("\n")) : input.examPoints,
     runningHeaders: edges,
     ...(siblings.length ? { siblingTopics: siblings } : {}),
+    // Kardeş ünite sınırı (Faz 1-A §1): aynı kaynak sayfalarını paylaşan üniteler; yalnız belgeli derste.
+    ...(core && input.excludedSiblingTopics?.length ? { excludedSiblingTopics: input.excludedSiblingTopics } : {}),
+    ...(sourceCorrection ? { sourceCorrection } : {}),
     ...((await approvedEarly) ? { approvedFacts: await approvedEarly } : {}),
     officialOutcome: await loadOfficialOutcome(input.service, input.prepId, input.topicLabel),
     ...warned,
     // Modelli denetim yazımdan sonra bitse de kavram denetimi standart kurala çevirir.
-    lateNoteWarnings: () => mergeNoteWarnings(noteWarnings, modelWarnings),
+    lateNoteWarnings: () => [
+      ...mergeNoteWarnings(noteWarnings, modelWarnings),
+      ...(sourceCorrection ? [correctionAsNoteWarning(sourceCorrection)] : []),
+    ],
     startedAt,
     charge: input.charge,
     // Hızlı işlem yalnız öğrencinin açtığı soğuk derste (kimin alacağına `fastAllowedFor` karar verir).
@@ -238,7 +253,11 @@ export async function teacherLessonPayload(
       ],
     });
   }
-  const lesson = outcome.lesson;
+  const checked = await modelCheck.then(warnedNow);
+  // Ünite şeması (Faz 1-A §2.1): uyarı dersin kendisinde de durur; kayıt (content_json) onu taşır.
+  const lesson = checked.sourceCorrectionWarning
+    ? { ...outcome.lesson, sourceCorrectionWarning: checked.sourceCorrectionWarning }
+    : outcome.lesson;
   // Ders kalitesi örneği (23 Ekim 2026): denetçinin öğretim puanları, ek model çağrısı olmadan. Yanıtı beklemez;
   // yazım düşerse ders sürer (6 Kasım 2026'dan beri hata günlüğe iner).
   if (outcome.teachingScores?.length) {
@@ -269,7 +288,7 @@ export async function teacherLessonPayload(
     refunded: false,
     engine: "teacher",
     // Denetim çoktan bitmiş olur (15 sn tavan, ders yazımı daha uzun); yine de beklenir ki kayıt eksik kalmasın.
-    ...(await modelCheck.then(warnedNow)),
+    ...checked,
   };
   // Önceden yazılan ders konuya öğrenci açınca yazılır.
   if (input.prepId && input.topicId && input.charge !== false) {

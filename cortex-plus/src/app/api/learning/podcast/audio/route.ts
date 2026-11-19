@@ -120,10 +120,23 @@ export async function POST(request: Request) {
   }
 
   const encoder = new TextEncoder();
+  // İstemci yavaş parçayı bırakıp yeniden isteyebilir (19 Kasım 2026, Faz 1-A §4.2). Akış kapandıktan sonra yazmak
+  // atar ve sentezi ortada düşürürdü; sentez sürer, satırlar önbelleğe girer, yeniden istek aynı anahtarla onları bekler
+  // (`waitForInFlightAudio`), kredi ikinci kez yazılmaz.
+  let streamOpen = true;
   const stream = new ReadableStream({
+    cancel() {
+      streamOpen = false;
+    },
     async start(controller) {
       const send = (payload: unknown) => {
-        controller.enqueue(encoder.encode(`${JSON.stringify(payload)}\n`));
+        if (!streamOpen) return;
+        try {
+          controller.enqueue(encoder.encode(`${JSON.stringify(payload)}\n`));
+        } catch (closed) {
+          streamOpen = false;
+          console.warn("podcast_audio_client_gone", { code: closed instanceof Error ? closed.name : "closed" });
+        }
       };
       let ready = 0;
       const result = await synthesize(guard.ctx.service, guard.ctx.userId, speech, {
@@ -169,7 +182,10 @@ export async function POST(request: Request) {
           })),
         });
       }
-      controller.close();
+      if (streamOpen) {
+        streamOpen = false;
+        controller.close();
+      }
     },
   });
 

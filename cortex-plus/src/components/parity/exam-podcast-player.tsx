@@ -78,6 +78,14 @@ const AUDIO_RETRY_MS = 2_500;
  * Tek istek bütün podcast'i taşıyordu; 7 dakikalık seste rota sınırına takıldı, gelen kadarı "bitti" sayıldı.
  */
 const AUDIO_CHAPTER_PARALLEL = 2;
+/**
+ * Takılan ses parçası (19 Kasım 2026, Faz 1-A §4.2): bölüm akışı bu süre hiç satır getirmezse istek bırakılır ve
+ * bir kez kendiliğinden yeniden istenir. Sunucuda bir satırın sağlayıcı sınırı 30 sn (`TTS_LINE_TIMEOUT_MS`); süre
+ * onun üstünde, yavaş ama ilerleyen akış kesilmez. Yeniden istek aynı satırlar için aynı anahtarla gider: biten
+ * satırlar `lesson_audio` önbelleğinden anında gelir, süren satır beklenir, kredi ikinci kez yazılmaz.
+ */
+export const AUDIO_STALL_MS = 40_000;
+export const AUDIO_STALL_RETRIES = 1;
 /** Henüz gelmemiş satırın süresi karakterden tahmin edilir (~900 karakter/dk); gelen satırlar oranı düzeltir. */
 const ESTIMATED_MS_PER_CHAR = 60_000 / 900;
 
@@ -123,6 +131,7 @@ export function ExamPodcastPlayer({
   resumeKey,
   scriptNote,
   onCreditsSpent,
+  onAudioReady,
 }: {
   title: string;
   chapters: unknown[];
@@ -138,6 +147,8 @@ export function ExamPodcastPlayer({
   scriptNote?: string;
   /** Ses üretimi bitince düşen kredi. 0 önbellektir. */
   onCreditsSpent?: (credits: number) => void;
+  /** İlk bölümün sesi çalmaya hazır (Faz 1-A §4.2: durum adımlarının "Dinlemeye hazır" adımı). */
+  onAudioReady?: () => void;
   /** Podcast türü. Ses bölüm bölüm istendiğinden süre günlüğü sunucuda tür başına tutulmaz. */
   length?: PodcastLength;
 }) {
@@ -185,6 +196,10 @@ export function ExamPodcastPlayer({
   const retryFromRef = useRef<number | null>(null);
   const onCreditsSpentRef = useRef(onCreditsSpent);
   onCreditsSpentRef.current = onCreditsSpent;
+  const onAudioReadyRef = useRef(onAudioReady);
+  onAudioReadyRef.current = onAudioReady;
+  /** Takılan parça yeniden isteniyor: oynatıcı bunu söyler (sessiz bekleme değil). */
+  const [stallRetrying, setStallRetrying] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [positionMs, setPositionMs] = useState(0);
   const [heard, setHeard] = useState(false);
@@ -236,6 +251,7 @@ export function ExamPodcastPlayer({
     setPositionMs(0);
     setHeard(false);
     setAudioGap(false);
+    setStallRetrying(false);
     setStatus("loading");
     if (!normalized.length) {
       setStatus("fallback");
@@ -258,6 +274,7 @@ export function ExamPodcastPlayer({
       if (!started && index === 0) {
         started = true;
         setStatus("ready");
+        onAudioReadyRef.current?.();
         const retryFrom = retryFromRef.current;
         retryFromRef.current = null;
         const key = resumeKeyRef.current;
@@ -281,77 +298,110 @@ export function ExamPodcastPlayer({
     const fetchChapter = async (chapterIndex: number): Promise<void> => {
       const chapter = normalized[chapterIndex]!;
       const offset = offsets[chapterIndex]!;
-      const res = await fetch("/api/learning/podcast/audio", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chapters: [chapter], stream: true }),
-        signal: controller.signal,
-      });
-      // 402 iki ayrı sebeple geliyor ve ikisi de arıza değil: aboneliği
-      // olmayan öğrenci ile kredisi biten abone. Ayrım yanıttaki `code`
-      // alanından; Türkçe metni karşılaştırmak, metni değiştiren ilk
-      // kişide sessizce kırılırdı.
-      if (res.status === 402) {
-        const body = (await res.json().catch(() => null)) as { code?: string } | null;
-        throw new Error(body?.code === "insufficient_credits" ? "credits" : "premium");
-      }
-      if (!res.ok) throw new Error("unavailable");
-      const reader = res.body?.getReader();
-      if (!reader) throw new Error("unavailable");
-      const decoder = new TextDecoder();
-      let buffer = "";
-      while (alive) {
-        const chunk = await reader.read();
-        if (chunk.done) break;
-        buffer += decoder.decode(chunk.value, { stream: true });
-        const parts = buffer.split("\n");
-        buffer = parts.pop() ?? "";
-        for (const part of parts) {
-          if (!part.trim()) continue;
-          const event = JSON.parse(part) as {
-            type?: string;
-            code?: string;
-            index?: number;
-            speaker?: AudioLine["speaker"];
-            text?: string;
-            url?: string;
-            durationMs?: number;
-            lines?: AudioLine[];
-            creditsSpent?: number;
-          };
-          if (event.type === "error") {
-            throw new Error(
-              event.code === "insufficient_credits" ? "credits" : event.code === "premium_required" ? "premium" : "unavailable",
-            );
-          }
-          if (event.type === "line" && event.url && event.durationMs && event.speaker && event.text != null && event.index != null) {
-            place(offset + event.index, {
-              chapterIndex,
-              speaker: event.speaker,
-              text: event.text,
-              url: event.url,
-              durationMs: event.durationMs,
-            }, total);
-          }
-          if (event.type === "done" && event.lines) {
-            const verified = validatePodcastAudio([chapter], event.lines);
-            if (!verified) throw new Error("unavailable");
-            if (typeof event.creditsSpent === "number") creditsSpent += event.creditsSpent;
-            verified.forEach((line, index) => place(offset + index, { ...line, chapterIndex }, total));
-            return;
+      // Bölümün kendi iptali: oynatıcı kapanınca (üst iptal) ya da akış AUDIO_STALL_MS hiç satır getirmeyince.
+      const local = new AbortController();
+      const forward = () => local.abort();
+      controller.signal.addEventListener("abort", forward);
+      let lastProgress = Date.now();
+      let stalled = false;
+      const watchdog = setInterval(() => {
+        if (Date.now() - lastProgress < AUDIO_STALL_MS) return;
+        stalled = true;
+        local.abort();
+      }, 1_000);
+      try {
+        const res = await fetch("/api/learning/podcast/audio", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chapters: [chapter], stream: true }),
+          signal: local.signal,
+        });
+        // 402 iki ayrı sebeple geliyor ve ikisi de arıza değil: aboneliği
+        // olmayan öğrenci ile kredisi biten abone. Ayrım yanıttaki `code`
+        // alanından; Türkçe metni karşılaştırmak, metni değiştiren ilk
+        // kişide sessizce kırılırdı.
+        if (res.status === 402) {
+          const body = (await res.json().catch(() => null)) as { code?: string } | null;
+          throw new Error(body?.code === "insufficient_credits" ? "credits" : "premium");
+        }
+        if (!res.ok) throw new Error("unavailable");
+        const reader = res.body?.getReader();
+        if (!reader) throw new Error("unavailable");
+        const decoder = new TextDecoder();
+        let buffer = "";
+        while (alive) {
+          const chunk = await reader.read();
+          if (chunk.done) break;
+          lastProgress = Date.now();
+          buffer += decoder.decode(chunk.value, { stream: true });
+          const parts = buffer.split("\n");
+          buffer = parts.pop() ?? "";
+          for (const part of parts) {
+            if (!part.trim()) continue;
+            const event = JSON.parse(part) as {
+              type?: string;
+              code?: string;
+              index?: number;
+              speaker?: AudioLine["speaker"];
+              text?: string;
+              url?: string;
+              durationMs?: number;
+              lines?: AudioLine[];
+              creditsSpent?: number;
+            };
+            if (event.type === "error") {
+              throw new Error(
+                event.code === "insufficient_credits" ? "credits" : event.code === "premium_required" ? "premium" : "unavailable",
+              );
+            }
+            if (event.type === "line" && event.url && event.durationMs && event.speaker && event.text != null && event.index != null) {
+              place(offset + event.index, {
+                chapterIndex,
+                speaker: event.speaker,
+                text: event.text,
+                url: event.url,
+                durationMs: event.durationMs,
+              }, total);
+            }
+            if (event.type === "done" && event.lines) {
+              const verified = validatePodcastAudio([chapter], event.lines);
+              if (!verified) throw new Error("unavailable");
+              if (typeof event.creditsSpent === "number") creditsSpent += event.creditsSpent;
+              verified.forEach((line, index) => place(offset + index, { ...line, chapterIndex }, total));
+              return;
+            }
           }
         }
+        throw new Error("incomplete");
+      } catch (error) {
+        if (stalled && alive) throw new Error("stalled");
+        throw error;
+      } finally {
+        clearInterval(watchdog);
+        controller.signal.removeEventListener("abort", forward);
       }
-      throw new Error("incomplete");
     };
 
     const runChapter = async (chapterIndex: number): Promise<void> => {
+      let stallRetries = 0;
       for (let attempt = 0; ; attempt += 1) {
         try {
           await fetchChapter(chapterIndex);
+          if (alive && stallRetries > 0) setStallRetrying(false);
           return;
         } catch (error) {
           const code = error instanceof Error ? error.message : "unavailable";
+          // Takılan parça: beklemeden tek otomatik yeniden istek; ikinci takılmada bölüm eksik sayılır.
+          if (code === "stalled") {
+            if (!alive || stallRetries >= AUDIO_STALL_RETRIES) {
+              if (alive) setStallRetrying(false);
+              throw error;
+            }
+            stallRetries += 1;
+            attempt -= 1;
+            setStallRetrying(true);
+            continue;
+          }
           if (!alive || code === "credits" || code === "premium" || attempt >= AUDIO_AUTO_RETRIES) throw error;
           await new Promise<void>((resolve) => {
             retryTimer = setTimeout(resolve, AUDIO_RETRY_MS * (attempt + 1));
@@ -879,6 +929,7 @@ export function ExamPodcastPlayer({
         {status === "loading" || (status === "ready" && progress.total > progress.ready) ? (
           <p className="cp-pod-state">
             Ses hazırlanıyor…{progress.total > 0 ? ` ${progress.ready}/${progress.total}` : ""}
+            {stallRetrying ? " Yavaş gelen bir parça yeniden isteniyor." : ""}
           </p>
         ) : status === "premium" && subscriber ? (
           <p className="cp-pod-state">

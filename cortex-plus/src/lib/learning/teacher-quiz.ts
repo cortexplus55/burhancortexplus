@@ -1,3 +1,5 @@
+import { answerLeakIssue, singleChoiceVerdict } from "@/lib/learning/single-choice-guard";
+import { quizKeyRepeatsSourceError, sourceCorrectionPromptBlock, type SourceCorrectionWarning } from "@/lib/learning/source-correction";
 import { CONTENT_STYLE } from "@/lib/ai/content-style";
 import { OPTION_SEPARABILITY_PREFIX, optionSeparabilityIssues } from "@/lib/learning/option-separability";
 import { officialOutcomeBlock, type OfficialOutcomeGrounding } from "@/lib/curriculum/grounding";
@@ -71,6 +73,11 @@ export type TeacherQuizInput = {
   focus?: "practice" | "gaps";
   /** Aşinalık ve ruh hali satırı. */
   learnerLine?: string;
+  /**
+   * Kaynak düzeltme uyarısı (19 Kasım 2026, Faz 1-A §2.1): kaynaktaki açık bilimsel hatanın doğrusu. Yazar, denetçi ve
+   * doğrulayıcı doğrusunu okur; anahtar kaynağın yanlışını taşıyamaz (`quizKeyRepeatsSourceError`).
+   */
+  sourceCorrection?: SourceCorrectionWarning | null;
   /** Öğretmen analizinin "Sınavda sorulur" maddeleri (18 Ekim 2026). */
   examPoints?: string[];
   /**
@@ -454,6 +461,7 @@ export function quizUserPrompt(input: TeacherQuizInput, ask = input.count): stri
     `SORU SAYISI: ${ask}`,
     input.difficulty ? `ZORLUK: ${DIFFICULTY_LINE[input.difficulty]}` : "",
     input.brief ? `İSTEK (kurallarla çelişirse kurallar geçerli):\n${input.brief}` : "",
+    sourceCorrectionPromptBlock(input.sourceCorrection),
     input.learnerLine ? `ÖĞRENCİ: ${input.learnerLine}` : "",
     quizPointsBlock(input),
     topicTestShapeBlock(input),
@@ -599,7 +607,8 @@ export function quizVerifyUserPrompt(questions: QuizQuestion[], input: TeacherQu
       : // Belgeli kipte de denetçi İSTEK'i görür (20 Ekim 2026): podcast dinleme kontrolünün kuralları
         // ("Ada/Kerem geçmez", itiraf doğru şık olamaz) yalnız yazara gidiyordu.
         `${quizSource(input)}${input.brief ? `
-İSTEK: ${input.brief.slice(0, 600)}` : ""}`;
+İSTEK: ${input.brief.slice(0, 600)}` : ""}${input.sourceCorrection ? `
+${sourceCorrectionPromptBlock(input.sourceCorrection)}` : ""}`;
   const context =
     input.scope === "topic_test"
       ? [
@@ -1320,9 +1329,18 @@ export const INVENTED_SIBLING_PREFIX = "Çeldirici uydurma bir terim";
  */
 export function quizStructureIssues(
   question: QuizQuestion,
-  options: { multi?: boolean; optionCount?: OptionCount; context?: string; optionCheck?: boolean } = {},
+  options: {
+    multi?: boolean;
+    optionCount?: OptionCount;
+    context?: string;
+    optionCheck?: boolean;
+    sourceCorrection?: SourceCorrectionWarning | null;
+  } = {},
 ): string[] {
   const issues: string[] = [];
+  // Kaynak düzeltmesi (Faz 1-A §2.1): doğru şık kaynağın yanlış bilgisini taşıyorsa soru düşer, yerine yenisi yazılır.
+  const correctionIssue = quizKeyRepeatsSourceError(question, options.sourceCorrection);
+  if (correctionIssue) issues.push(correctionIssue);
   // H2 (15 Kasım 2026, bayrak `quiz.option_check`): ayrılmayan şık soruyu eler; metin değişmez, yedek gelir.
   if (options.optionCheck && !question.multi) issues.push(...optionSeparabilityIssues(question.options));
   const countIssue = optionCountIssue(question, options.optionCount);
@@ -1341,6 +1359,11 @@ export function quizStructureIssues(
     return [...issues, ...multiQuestionIssues(question)];
   }
   if (question.multi || question.correct.length !== 1) issues.push("Tek doğru şık olmalı (multi false).");
+  else {
+    // Faz 1-A §3.1: işaretli doğru şıklardan birine birebir denk gelmeli, şıklar birbirinden ayrı olmalı.
+    const verdict = singleChoiceVerdict(question);
+    if (!verdict.ok) issues.push(verdict.issue);
+  }
   if (!question.explanation?.trim()) issues.push("explanation yok.");
   if ((question.optionWhy?.length ?? 0) !== question.options.length) {
     issues.push("optionWhy her şık için bir cümle olmalı, şık sayısı kadar ve aynı sırada.");
@@ -1354,7 +1377,10 @@ export function quizStructureIssues(
     issues.push("Açıklama şıklara sırasıyla gönderme yapıyor; şıklar karışık gösteriliyor, her şıkkı içeriğiyle an.");
   }
   const answer = question.correct[0] ?? "";
-  if (answer.length >= 6 && question.text.toLocaleLowerCase("tr").includes(answer.toLocaleLowerCase("tr"))) {
+  // AnswerLeakGuard (Faz 1-A §3.2): kök doğru şıkkı parantez içinde ya da açıkça veriyorsa soru reddedilir, yerine yenisi yazılır.
+  const leak = answerLeakIssue(question);
+  if (leak) issues.push(leak);
+  else if (answer.length >= 6 && question.text.toLocaleLowerCase("tr").includes(answer.toLocaleLowerCase("tr"))) {
     issues.push("Kök doğru şıkkı içeriyor; cevabı veriyor.");
   } else {
     const giveaway = answerOnlyWordInStem(question.text, answer, question.options);

@@ -48,6 +48,8 @@ import {
   type TeacherQuizInput,
 } from "@/lib/learning/teacher-quiz";
 import { capSameTable, coreFirst, questionTableOf } from "@/lib/learning/topic-test-shape";
+import { enforceSingleChoice, repairSingleChoice } from "@/lib/learning/single-choice-guard";
+import { quizKeyRepeatsSourceError, sourceCorrectionPromptBlock } from "@/lib/learning/source-correction";
 
 /** `role`: taslak ve düzeltme düşük düşünmeyle, denetim varsayılanla (19 Ekim 2026). */
 export type AskJson = (system: string, user: string, role?: "draft" | "verify" | "fix") => Promise<unknown | null>;
@@ -167,7 +169,13 @@ export async function teacherQuizLoop(
     // H2 (Burhan kararı 2): gölge modda kapı değişmez; eleme yalnız iki bayrak birlikte açıkken.
     const enforce = Boolean(input.optionCheck && input.optionCheckEnforce);
     const structural = candidates.map((slot) =>
-      quizStructureIssues(slot.question, { multi: input.multi, optionCount, context, optionCheck: enforce }),
+      quizStructureIssues(slot.question, {
+        multi: input.multi,
+        optionCount,
+        context,
+        optionCheck: enforce,
+        sourceCorrection: input.sourceCorrection,
+      }),
     );
     if (input.optionCheck) {
       for (const slot of candidates) {
@@ -238,7 +246,13 @@ export async function teacherQuizLoop(
     const sanity = await runQuizSanity((system, user) => ask(system, user, "fix"), {
       mode: mode === "topic" ? "topic" : "document",
       topicLabel: input.topicLabel,
-      source: input.sourceBlock?.trim() || input.pages.map((page) => page.text).join("\n"),
+      // Kaynak düzeltmesi (Faz 1-A §2.1) kaynaktan önce: doğrulayıcı anahtarı kaynağın yanlışına geri çevirmesin.
+      source: [
+        sourceCorrectionPromptBlock(input.sourceCorrection),
+        input.sourceBlock?.trim() || input.pages.map((page) => page.text).join("\n"),
+      ]
+        .filter(Boolean)
+        .join("\n\n"),
       questions: draft,
     });
     draft = sanity.questions;
@@ -254,6 +268,10 @@ export async function teacherQuizLoop(
     });
   }
 
+  // Tek doğru şık onarımı (Faz 1-A §3.1): çok cevaplı soru istenmiyorsa kodun güvenle onarabildiği anahtar hatası
+  // (yinelenen anahtar, tek doğruyken çok cevaplı bayrağı, şık metninden yazım farkı) burada düzelir; birden fazla farklı
+  // doğru işaretli soru yapı kapısında elenir ve yerine yenisi yazılır (sınırlı geçiş).
+  if (!multi) draft = draft.map((question) => repairSingleChoice(question) ?? question);
   slots.push(...draft.map(() => null));
   let bad: Pending[] = [];
   const settle = (rows: Pending[]) => {
@@ -725,6 +743,28 @@ async function runTeacherQuizInner(
           }
         : {}),
     });
+    // Kayıt öncesi son kapı (Faz 1-A §3.1–3.2): tek doğru şık ve cevap sızıntısı. Yapı kapısı aynı ölçüyü taslakta
+    // uyguladığı için burada elenen soru beklenmez; elenirse sayı eksilir ve iade kuralı aşağıda işler.
+    if (!input.multi) {
+      const gate = enforceSingleChoice(questions);
+      if (gate.rejected.length || gate.repaired) {
+        console.warn("teacher_quiz_single_choice_gate", {
+          topic: logTopic(input.topicLabel),
+          rejected: gate.rejected.length,
+          repaired: gate.repaired,
+          reasons: gate.rejected.flatMap((row) => row.issues).slice(0, 4),
+        });
+      }
+      questions = gate.kept;
+    }
+    // Kaynak düzeltmesi (Faz 1-A §2.1): anahtarı kaynağın yanlışını taşıyan soru kayda geçmez.
+    if (input.sourceCorrection) {
+      const before = questions.length;
+      questions = questions.filter((question) => !quizKeyRepeatsSourceError(question, input.sourceCorrection));
+      if (questions.length < before) {
+        console.warn("teacher_quiz_source_correction_gate", { topic: logTopic(input.topicLabel), rejected: before - questions.length });
+      }
+    }
     if (questions.length < input.count) {
       await refund();
       return {

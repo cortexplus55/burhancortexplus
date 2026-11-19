@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { resolvePrepTopicRow } from "@/lib/learning/prep-topic-lookup";
+import { loadTopicSourceCorrection } from "@/lib/learning/node/lesson-store";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
@@ -123,6 +125,14 @@ export async function POST(request: Request) {
     });
   }
 
+  // Kaynak düzeltmesi (19 Kasım 2026, Faz 1-A §2.1): konunun kayıtlı dersindeki uyarının doğrusu bu anlatımda da geçer.
+  const metaTopicId = (node.session_meta as { topicId?: unknown } | null)?.topicId;
+  const correctionTopic =
+    typeof metaTopicId === "string" && metaTopicId
+      ? await resolvePrepTopicRow<{ id: string }>(service, parsed.data.prepId, metaTopicId, "id").catch(() => null)
+      : null;
+  const sourceCorrection = correctionTopic ? await loadTopicSourceCorrection(service, correctionTopic.id) : null;
+
   let lastIntroduced: string[] = [];
   const outcome = await generateJson({
     service,
@@ -143,6 +153,7 @@ export async function POST(request: Request) {
       heading: parsed.data.heading,
       text: parsed.data.text,
       previous: parsed.data.previous,
+      sourceCorrection,
     })}`,
     // Faz 2 (madde 7.1): adımda olmayan sayı (yeni olgu) gelirse taslak reddedilir ve aynı rezervasyonla yeniden
     // yazılır; tutmazsa öğrenciye kayan bir anlatım gösterilmez (hak iade edilir).

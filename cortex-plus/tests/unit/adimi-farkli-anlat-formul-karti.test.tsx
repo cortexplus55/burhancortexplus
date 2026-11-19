@@ -166,6 +166,7 @@ describe("kaynaktaki açık formül formül kartında gösterilir", () => {
     const lesson = read("src/lib/learning/teacher-lesson.ts");
     expect(lesson).toContain("formulas: equationsWithoutCard(lesson.screens, facts).slice(0, 3).map((fact) => fact.text)");
     expect(lesson).toContain("- Formül (bir 'formula' bloğunda, kaynaktaki yazımıyla göster): ");
-    expect(lesson).toContain("sourceEquationsBlock(lessonFacts(input.pages, input.noteWarnings))");
+    // Faz 1-A §2.1: kaynak düzeltmesinin yanlış iddiası anlatılacak bilgi listesine girmez.
+    expect(lesson).toContain("sourceEquationsBlock(lessonFacts(input.pages, input.noteWarnings, lessonCorrectionNow(input)))");
   });
 });
