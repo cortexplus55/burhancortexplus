@@ -16,6 +16,8 @@ const ARCHETYPES = [
 ] as const;
 
 async function svgTextIssues(page: import("@playwright/test").Page) {
+  // Ölçüm yazı tipi yüklendikten sonra (yedek yazı tipinin genişliği farklı).
+  await page.evaluate(() => document.fonts.ready.then(() => undefined));
   return page.evaluate(() => {
     const issues: string[] = [];
     const svgs = [...document.querySelectorAll("svg.cp-vs")].filter((svg) => (svg as unknown as HTMLElement).getBoundingClientRect().width > 0);
@@ -39,6 +41,16 @@ async function svgTextIssues(page: import("@playwright/test").Page) {
         }
       }
     }
+    // Rozet yazısı rozetin ortasında (dolgusu bir önceki kardeş dikdörtgen).
+    for (const svg of svgs) {
+      const text = svg.querySelector("text[data-text-id='badge']");
+      const pill = text?.previousElementSibling;
+      if (!text || !pill || pill.tagName !== "rect") continue;
+      const t = (text as SVGTextElement).getBBox();
+      const r = (pill as SVGRectElement).getBBox();
+      // Küçük ölçekte tarayıcı glif genişliklerini yuvarlar: rozet genişliğinin %3ü pay.
+      if (Math.abs(t.x + t.width / 2 - (r.x + r.width / 2)) > Math.max(1.5, r.width * 0.03)) issues.push(`rozet ortalı değil: ${text.textContent} ${(t.x + t.width / 2).toFixed(1)} / ${(r.x + r.width / 2).toFixed(1)}`);
+    }
     return { count: svgs.length, issues };
   });
 }
@@ -49,7 +61,12 @@ for (const width of WIDTHS) {
     await page.goto("/e2e/gorsel-sahne?mod=ders");
     await expect(page.locator("[data-fixture-archetype]")).toHaveCount(6);
     const m = await svgTextIssues(page);
-    expect(m.count).toBe(6);
+    expect(m.count).toBe(7);
+    const trend = (await page.locator("[data-fixture-trend] svg.cp-vs").filter({ visible: true }).first().textContent()) ?? "";
+    expect(trend).toContain("EĞİLİM VE YÖN DİYAGRAMI");
+    expect(trend).not.toMatch(/KUVVET|FORMÜLÜN/);
+    expect(trend).toContain("soldan sağa: azalır");
+    expect(trend).not.toContain("…");
     expect(m.issues).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
   });

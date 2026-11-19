@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ARCHETYPE_LABEL } from "@/lib/learning/visual-scenes/archetype";
+import { sceneArchetypeLabel } from "@/lib/learning/visual-scenes/archetype";
 import { parseVisualScene, readAcademicDomain } from "@/lib/learning/visual-scenes/schema";
 import { visualSceneText } from "@/lib/learning/visual-scenes/prompt";
 import { VisualSceneRenderer } from "./index";
@@ -37,7 +37,7 @@ export function LessonVisualScene({ block, id }: { block: { scene?: unknown; vis
   }, []);
   if (!scene) return null;
   return (
-    <figure ref={ref} className="cp-vs-lesson" aria-label={`${ARCHETYPE_LABEL[scene.archetype]}: ${scene.title}`} data-archetype={scene.archetype} id={id}>
+    <figure ref={ref} className="cp-vs-lesson" aria-label={`${sceneArchetypeLabel(scene)}: ${scene.title}`} data-archetype={scene.archetype} id={id}>
       <div className="cp-vs-lesson-landscape">
         <VisualSceneRenderer scene={scene} mode="16:9" chrome="lesson" domain={domain} animate="sync" playing={visible} />
       </div>

@@ -230,15 +230,14 @@ export function placeBadge(id: string, text: string, right: number, top: number,
     anchor: "end",
     single: true,
   });
-  return {
-    ...inner,
-    rect: {
-      x: inner.rect.x - BADGE_PAD.x,
-      y: top,
-      w: inner.rect.w + BADGE_PAD.x * 2,
-      h: inner.rect.h + BADGE_PAD.y * 2,
-    },
+  const rect = {
+    x: inner.rect.x - BADGE_PAD.x,
+    y: top,
+    w: inner.rect.w + BADGE_PAD.x * 2,
+    h: inner.rect.h + BADGE_PAD.y * 2,
   };
+  // Yazı rozetin ortasından çizilir: genişlik tahmini gerçek yazıdan biraz geniş olsa da yazı ortalı kalır.
+  return { ...inner, anchor: "middle", x: rect.x + rect.w / 2, rect };
 }
 
 /** Kutuyu her yönde büyütür (dolgulu zeminin ölçüsü). */
@@ -263,7 +262,19 @@ export function layoutHeader(frame: SceneFrame, title: string, badge: string): {
     });
     return { texts: [badgeBox, titleBox], bottom: titleBox.rect.y + titleBox.rect.h };
   }
-  const badgeBox = placeBadge("badge", badge, content.x + content.w, content.y, Math.min(220, content.w * 0.4));
+  const badgeBox = placeBadge("badge", badge, content.x + content.w, content.y, Math.min(260, content.w * 0.44));
+  if (badgeBox.truncated) {
+    // Rozet yan yuvaya sığmıyorsa kesilmez: kendi satırına (sağa yaslı) iner, başlık altında tam genişlik alır.
+    const ownRow = placeBadge("badge", badge, content.x + content.w, content.y, content.w);
+    const titleBelow = placeText("title", title, content.x, ownRow.rect.y + ownRow.rect.h + 6, {
+      maxWidth: content.w,
+      maxLines: 2,
+      fontSize: 17,
+      minFontSize: 13,
+      weight: 800,
+    });
+    return { texts: [ownRow, titleBelow], bottom: titleBelow.rect.y + titleBelow.rect.h };
+  }
   const titleBox = placeText("title", title, content.x, content.y, {
     maxWidth: content.w - badgeBox.rect.w - 14,
     maxLines: 2,

@@ -1,7 +1,9 @@
 "use client";
 
-import { ARCHETYPE_LABEL, DOMAIN_LABEL, type AcademicDomain } from "@/lib/learning/visual-scenes/archetype";
+import { DOMAIN_LABEL, sceneArchetypeLabel, type AcademicDomain } from "@/lib/learning/visual-scenes/archetype";
+import { withTrend } from "@/lib/learning/visual-scenes/direction-semantics";
 import {
+  inflate,
   layoutHeader,
   placeText,
   rectsOverlap,
@@ -100,11 +102,21 @@ function moveBox(box: TextBox, dx: number, dy: number): TextBox {
   return { ...box, x: box.x + dx, y: box.y + dy, rect: { ...box.rect, x: box.rect.x + dx, y: box.rect.y + dy } };
 }
 
+/** Okun etiketi: eğilim varsa "artar/azalır" yazıda da okunur. */
+export function vectorCaption(vector: MechanicsData["vectors"][number]): string {
+  return withTrend(vector.label, vector.trend);
+}
+
+/** Panel satırı: eğilim sahnesinde etkinin yönü kelimeyle de yazılır. */
+function driverCaption(data: MechanicsData, driver: MechanicsData["logic"]["drivers"][number]): string {
+  return data.setting === "trend" ? withTrend(driver.label, driver.effect === "up" ? "increase" : "decrease") : driver.label;
+}
+
 function layoutPanel(data: MechanicsData, rect: Rect, labelLines: number): { kicker: TextBox; formula: TextBox; rows: LogicRow[]; height: number } {
   const pad = 10;
   const x0 = rect.x + pad;
   const w = rect.w - pad * 2;
-  const kicker = placeText("logic-kicker", "FORMÜLÜN MANTIĞI", x0, rect.y + pad, { maxWidth: w, maxLines: 1, fontSize: 10, weight: 800, single: true });
+  const kicker = placeText("logic-kicker", data.setting === "trend" ? "EĞİLİMİN MANTIĞI" : "FORMÜLÜN MANTIĞI", x0, rect.y + pad, { maxWidth: w, maxLines: 1, fontSize: 10, weight: 800, single: true });
   const formula = placeText("logic-formula", data.logic.formula, x0, kicker.rect.y + kicker.rect.h + 4, {
     maxWidth: w,
     maxLines: 2,
@@ -119,7 +131,7 @@ function layoutPanel(data: MechanicsData, rect: Rect, labelLines: number): { kic
   const miniW = 44;
   const labelW = w - chipW - 30 - miniW - 8;
   data.logic.drivers.forEach((driver, index) => {
-    const label = placeText(`driver${index}-label`, driver.label, labelX, y + 4, { maxWidth: labelW, maxLines: labelLines, fontSize: 10.5, minFontSize: 9 });
+    const label = placeText(`driver${index}-label`, driverCaption(data, driver), labelX, y + 4, { maxWidth: labelW, maxLines: labelLines, fontSize: 10.5, minFontSize: 8.5 });
     const h = Math.max(26, label.rect.h + 8);
     const symbol = placeText(`driver${index}-symbol`, driver.symbol, x0 + chipW / 2, y + h / 2 - 8, {
       maxWidth: chipW - 6,
@@ -135,13 +147,12 @@ function layoutPanel(data: MechanicsData, rect: Rect, labelLines: number): { kic
     y += h + 4;
   });
   data.logic.distractors.forEach((item, index) => {
-    const tag = placeText(`distractor${index}-tag`, "FORMÜLDE YOK", labelX, y + 3, { maxWidth: labelW + miniW, maxLines: 1, fontSize: 8.5, weight: 800, single: true });
+    const tag = placeText(`distractor${index}-tag`, data.setting === "trend" ? "İLGİSİZ" : "FORMÜLDE YOK", labelX, y + 3, { maxWidth: labelW + miniW, maxLines: 1, fontSize: 8.5, weight: 800, single: true });
     const label = placeText(`distractor${index}-label`, item.label, labelX, tag.rect.y + tag.rect.h + 1, {
       maxWidth: labelW + miniW,
-      maxLines: 1,
+      maxLines: Math.min(2, labelLines),
       fontSize: 10.5,
-      minFontSize: 9,
-      single: true,
+      minFontSize: 8.5,
     });
     const h = Math.max(26, tag.rect.h + label.rect.h + 7);
     const symbol = placeText(`distractor${index}-symbol`, item.symbol, x0 + chipW / 2, y + h / 2 - 8, {
@@ -161,7 +172,7 @@ function layoutPanel(data: MechanicsData, rect: Rect, labelLines: number): { kic
 
 export function layoutMechanics(data: MechanicsData, frame: SceneFrame, domain?: AcademicDomain): MechanicsLayout {
   const { content } = frame;
-  const badge = `${domain ? DOMAIN_LABEL[domain] : "Fizik · Mühendislik"} · ${ARCHETYPE_LABEL.ENGINEERING_PHYSICS_MECHANICS}`;
+  const badge = `${domain ? DOMAIN_LABEL[domain] : "Fizik · Mühendislik"} · ${sceneArchetypeLabel(data)}`;
   const header = layoutHeader(frame, data.title, badge);
   const texts: TextBox[] = [...header.texts];
   const segments: SceneLayout["segments"] = [];
@@ -172,16 +183,17 @@ export function layoutMechanics(data: MechanicsData, frame: SceneFrame, domain?:
   let panelRect: Rect;
   let panel: ReturnType<typeof layoutPanel>;
   if (frame.portrait) {
-    const probe = layoutPanel(data, { x: content.x, y: 0, w: content.w, h: 0 }, 2);
-    const lines = bottom - top - probe.height < 190 ? 1 : 2;
-    const height = lines === 2 ? probe.height : layoutPanel(data, { x: content.x, y: 0, w: content.w, h: 0 }, 1).height;
+    // Satır sayısı içerik kadar (en çok 3): kesmek yerine sarılır; çizim alanı çok daralırsa 2 satır.
+    const probe = layoutPanel(data, { x: content.x, y: 0, w: content.w, h: 0 }, 3);
+    const lines = bottom - top - probe.height < 170 ? 2 : 3;
+    const height = lines === 3 ? probe.height : layoutPanel(data, { x: content.x, y: 0, w: content.w, h: 0 }, 2).height;
     panelRect = { x: content.x, y: bottom - height, w: content.w, h: height };
     panel = layoutPanel(data, panelRect, lines);
   } else {
     const w = Math.round(content.w * 0.42);
     panelRect = { x: content.x + content.w - w, y: top, w, h: bottom - top };
-    panel = layoutPanel(data, panelRect, 2);
-    if (panel.height > panelRect.h) panel = layoutPanel(data, panelRect, 1);
+    panel = layoutPanel(data, panelRect, 3);
+    if (panel.height > panelRect.h) panel = layoutPanel(data, panelRect, 2);
   }
   texts.push(panel.kicker, panel.formula);
   for (const row of panel.rows) texts.push(row.symbol, row.label, ...(row.tag ? [row.tag] : []));
@@ -241,6 +253,7 @@ export function layoutMechanics(data: MechanicsData, frame: SceneFrame, domain?:
   const maxLen = Math.max(24, Math.min(bounds.w, bounds.h) / 2 - bodySize / 2 - 30);
   const used = new Map<VectorDirection, number>();
   const vectors: VectorLayout[] = [];
+  const sides: ({ x: number; y: number } | null)[] = [];
   data.vectors.forEach((vector, index) => {
     const count = used.get(vector.direction) ?? 0;
     used.set(vector.direction, count + 1);
@@ -260,7 +273,9 @@ export function layoutMechanics(data: MechanicsData, frame: SceneFrame, domain?:
     const width = 1.6 + vector.magnitude * 0.9;
     const color = MECHANICS_COLORS.vectors[index % MECHANICS_COLORS.vectors.length]!;
     const symbolRaw = placeText(`vector${index}-symbol`, vector.symbol, 0, 0, { maxWidth: 60, maxLines: 1, fontSize: 15, minFontSize: 11, weight: 800, single: true });
-    const labelRaw = placeText(`vector${index}-label`, vector.label, 0, 0, { maxWidth: 92, maxLines: 2, fontSize: 9.5, minFontSize: 8.5 });
+    const caption = vectorCaption(vector);
+    const labelW = Math.round(Math.max(92, Math.min(124, bounds.w * 0.36)));
+    const labelRaw = placeText(`vector${index}-label`, caption, 0, 0, { maxWidth: labelW, maxLines: 3, fontSize: 9.5, minFontSize: 8 });
     const blockW = Math.max(symbolRaw.rect.w, labelRaw.rect.w);
     // Alt/üst simge (F_1, v^2) yazının kutusunu aşağı uzatır; Türkçe şapkalı harfler (ğ, Ü) etiketi yukarı. Etiket bu pay kadar aşağı iner.
     const shiftPad = (/[_^]/.test(vector.symbol) ? symbolRaw.fontSize * 0.45 : 0) + 3;
@@ -274,50 +289,64 @@ export function layoutMechanics(data: MechanicsData, frame: SceneFrame, domain?:
     const anchorX = bx + blockW / 2;
     const symbol = placeText(`vector${index}-symbol`, vector.symbol, anchorX, by, { maxWidth: 60, maxLines: 1, fontSize: 15, minFontSize: 11, weight: 800, anchor: "middle", single: true });
     symbol.rect = { ...symbol.rect, h: symbol.rect.h + shiftPad };
-    const label = placeText(`vector${index}-label`, vector.label, anchorX, by + symbol.rect.h, { maxWidth: 92, maxLines: 2, fontSize: 9.5, minFontSize: 8.5, anchor: "middle" });
+    const label = placeText(`vector${index}-label`, caption, anchorX, by + symbol.rect.h, { maxWidth: labelW, maxLines: 3, fontSize: 9.5, minFontSize: 8, anchor: "middle" });
     vectors.push({ x1: sx, y1: sy, x2: ex, y2: ey, width, color, symbol, label });
+    // Paralel ok çiftinde etiket kendi okunun dış yanında aransın (komşu okun etiketiyle yer değiştirmesin).
+    const twins = data.vectors.filter((other) => other.direction === vector.direction).length > 1;
+    sides.push(twins ? { x: nx * (lateral > 0 ? 1 : -1), y: ny * (lateral > 0 ? 1 : -1) } : null);
     segments.push(segment(`vector${index}`, sx, sy, ex, ey));
   });
 
   // Çakışma onarımı: bir etiket bir oka ya da başka etikete biniyorsa, okun dik yönünde kaydırılır.
-  const placed: TextBox[] = [bodyLabelBox];
-  for (const vector of vectors) {
-    let tries = 0;
-    const collides = () => {
-      const rects = [vector.symbol.rect, vector.label.rect];
-      return rects.some(
-        (rect) =>
-          segments.some((seg) => segmentHitsRect(seg, rect)) || placed.some((box) => rectsOverlap(box.rect, rect, 1)),
-      );
-    };
-    const dx = vector.x2 - vector.x1;
-    const dy = vector.y2 - vector.y1;
-    const len = Math.hypot(dx, dy) || 1;
-    const px = -dy / len;
-    const py = dx / len;
-    // Adaylar özgün yere göre: +6, -6, +12, -12 … ±72 (önceki sürüm adımları üst üste ekliyor, yalnız bir yana bakıyordu).
+  // Ok uçları (marker = 6 × çizgi kalınlığı) yazının binmemesi gereken opak alanlardır; çizgi kalınlığı da pay.
+  const heads = vectors.map((vector, index) => ({
+    id: `vector${index}-head`,
+    rect: { x: vector.x2 - vector.width * 3, y: vector.y2 - vector.width * 3, w: vector.width * 6, h: vector.width * 6 },
+  }));
+  const widest = Math.max(1, ...vectors.map((vector) => vector.width));
+  // Başlık ve panel yazıları da engel; aday konum çizim alanının (plane) dışına çıkamaz.
+  const placed: TextBox[] = [...texts];
+  const inside = (rect: Rect) =>
+    rect.x >= plane.x && rect.y >= plane.y && rect.x + rect.w <= plane.x + plane.w && rect.y + rect.h <= plane.y + plane.h;
+  // Adaylar: özgün yere uzaklık sırasıyla ±84 px'e kadar 6 px'lik ızgara (ilk temiz konum seçilir).
+  const offsets: [number, number][] = [];
+  for (let ox = -84; ox <= 84; ox += 6) for (let oy = -84; oy <= 84; oy += 6) offsets.push([ox, oy]);
+  offsets.sort((a, b) => Math.hypot(a[0], a[1]) - Math.hypot(b[0], b[1]));
+  vectors.forEach((vector, index) => {
+    const side = sides[index];
+    const ordered = side
+      ? [...offsets].sort((a, b) => {
+          const cost = ([ox, oy]: [number, number]) => Math.hypot(ox, oy) + (ox * side.x + oy * side.y < 0 ? 60 : 0);
+          return cost(a) - cost(b);
+        })
+      : offsets;
     const origin = { symbol: vector.symbol, label: vector.label };
-    while (collides() && tries < 24) {
-      tries += 1;
-      const step = 6 * Math.ceil(tries / 2) * (tries % 2 ? 1 : -1);
-      const shiftX = Math.abs(px) > 0.3 ? px * step : 0;
-      const shiftY = Math.abs(py) > 0.3 ? py * step : step;
-      vector.symbol = moveBox(origin.symbol, shiftX, shiftY);
-      vector.label = moveBox(origin.label, shiftX, shiftY);
-    }
-    if (collides()) {
-      vector.symbol = origin.symbol;
-      vector.label = origin.label;
+    const clean = (symbol: TextBox, label: TextBox) =>
+      [symbol.rect, label.rect].every(
+        (rect) =>
+          inside(rect) &&
+          !segments.some((seg) => segmentHitsRect(seg, inflate(rect, widest / 2 + 1))) &&
+          !heads.some((head) => rectsOverlap(head.rect, rect, 1)) &&
+          !placed.some((box) => rectsOverlap(box.rect, rect, 1)),
+      );
+    for (const [ox, oy] of ordered) {
+      const symbol = moveBox(origin.symbol, ox, oy);
+      const label = moveBox(origin.label, ox, oy);
+      if (clean(symbol, label)) {
+        vector.symbol = symbol;
+        vector.label = label;
+        break;
+      }
     }
     placed.push(vector.symbol, vector.label);
-  }
+  });
   for (const vector of vectors) texts.push(vector.symbol, vector.label);
 
   return {
     frame,
     texts,
     segments,
-    markers: [],
+    markers: heads,
     plane,
     body,
     bodyLabel: bodyLabelBox,
@@ -362,7 +391,7 @@ export function MechanicsVectorScene({ data, domain, ...common }: SceneCommonPro
   return (
     <SceneSvg
       {...common}
-      label={`${data.title}: ${data.vectors.map((vector) => `${vector.symbol} ${vector.label}`).join(", ")}. ${data.logic.formula}`}
+      label={`${data.title}: ${data.vectors.map((vector) => `${vector.symbol} ${vectorCaption(vector)}`).join(", ")}. ${data.logic.formula}`}
       archetype="ENGINEERING_PHYSICS_MECHANICS"
       background={MECHANICS_COLORS.bg}
     >
@@ -465,7 +494,7 @@ export function MechanicsVectorScene({ data, domain, ...common }: SceneCommonPro
       />
       <SceneText box={layout.bodyLabel} fill={MECHANICS_COLORS.text} className="cp-vs-fade" style={delay(0.55)} />
 
-      {/* Kuvvet vektörleri: büyüklük → uzunluk ve kalınlık */}
+      {/* Oklar (kuvvet ya da eğilim): büyüklük → uzunluk ve kalınlık */}
       {layout.vectors.map((vector, index) => {
         const at = 0.75 + index * 0.45;
         return (

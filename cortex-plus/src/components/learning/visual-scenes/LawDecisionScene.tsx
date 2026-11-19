@@ -161,9 +161,9 @@ function layoutTimeline(data: LawDecisionData, x: number, y: number, w: number, 
   const labels = data.timeline.map((event, index) =>
     placeText(`timeline${index}-label`, event.label, x + spacing * index + spacing / 2, lineY + 8, {
       maxWidth: spacing - 6,
-      maxLines: density >= 2 ? 1 : 2,
+      maxLines: density >= 2 ? 2 : 3,
       fontSize: 10,
-      minFontSize: 8.5,
+      minFontSize: 8,
       anchor: "middle",
     }),
   );

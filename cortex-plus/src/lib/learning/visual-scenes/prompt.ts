@@ -20,14 +20,19 @@ export const ARCHETYPE_SPEC: Record<VisualArchetype, { when: string; draws: stri
       '{"archetype":"MEDICAL_BIOLOGY_PATHWAY","title":"…","layer":"cell|tissue|organ","steps":[{"role":"trigger|receptor|messenger|target|finding","label":"…","detail":"…","effect":"activate|inhibit"}],"spotlight":{"text":"…"}}',
   },
   ENGINEERING_PHYSICS_MECHANICS: {
-    when: "Fizik, mühendislik, kimya: kuvvet, alan, akış, devre, denge.",
+    when: "Fizik, mühendislik, kimya: kuvvet, alan, akış, devre, denge; kuvvet olmayan eğilim ve değişim yönleri de (setting trend).",
     draws:
-      "Serbest cisim diyagramı (free_body | fluid | circuit). Vektör: symbol (alt simge _ ile, ör. F_1), label, direction " +
-      "(up, down, left, right, up_right, up_left, down_right, down_left), magnitude 1-5 (ok uzunluğu ve kalınlığı). " +
-      "logic: Formülün Mantığı paneli; drivers = formüldeki değişken artınca sonuç artar (up) ya da azalır (down); " +
-      "distractors = soruda verilip formülde OLMAYAN çeldirici değişkenler.",
+      "Serbest cisim diyagramı (free_body | fluid | circuit) ya da kuvvet olmayan içerikte eğilim/yön diyagramı (trend: ör. bir " +
+      "tabloda ya da seride ilerledikçe bir niceliğin artması/azalması; kuvvet, cisim, serbest cisim dili KULLANMA). Vektör: symbol " +
+      "(alt simge _ ile, ör. F_1), label, direction (up, down, left, right, up_right, up_left, down_right, down_left), magnitude 1-5 " +
+      "(ok uzunluğu ve kalınlığı); trend sahnesinde trend: increase | decrease (ok yönünde ilerledikçe nicelik artar/azalır). " +
+      "Okun yönü etiketteki yönle AYNI olmalı: \"soldan sağa\" → right, \"sağdan sola\" → left, \"yukarıdan aşağıya\" → down, " +
+      "\"aşağıdan yukarıya\" → up; azalmayı oku ters çevirerek değil trend: decrease ile göster. " +
+      "logic: Formülün (trend sahnesinde Eğilimin) Mantığı paneli; drivers = değişken artınca (ya da o yönde ilerleyince) sonuç " +
+      "artar (up) ya da azalır (down); distractors = soruda verilip formülde/eğilimde OLMAYAN çeldirici değişkenler. Etiketler " +
+      "kısaltılmadan tam yazılır (en çok 50 karakter).",
     json:
-      '{"archetype":"ENGINEERING_PHYSICS_MECHANICS","title":"…","setting":"free_body|fluid|circuit","body":{"label":"…"},"vectors":[{"symbol":"…","label":"…","direction":"up","magnitude":3}],"logic":{"formula":"…","drivers":[{"symbol":"…","label":"…","effect":"up|down"}],"distractors":[{"symbol":"…","label":"…"}]}}',
+      '{"archetype":"ENGINEERING_PHYSICS_MECHANICS","title":"…","setting":"free_body|fluid|circuit|trend","body":{"label":"…"},"vectors":[{"symbol":"…","label":"…","direction":"right","magnitude":3,"trend":"increase|decrease"}],"logic":{"formula":"…","drivers":[{"symbol":"…","label":"…","effect":"up|down"}],"distractors":[{"symbol":"…","label":"…"}]}}',
   },
   ARCHITECTURE_SPATIAL_BLUEPRINT: {
     when: "Mimarlık, iç mimarlık, inşaat, sanat tarihi: plan, kesit, cephe, yapı elemanı, üslup.",

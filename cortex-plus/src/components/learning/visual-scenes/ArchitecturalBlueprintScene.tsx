@@ -165,7 +165,7 @@ export function ArchitecturalBlueprintScene({ data, domain, ...common }: SceneCo
       {/* Teknik pafta ızgarası */}
       <g className="cp-vs-fade" style={delay(0.12)}>
         {gridLines.map((line, index) => (
-          <line key={index} {...line} stroke={line.major ? theme.gridMajor : theme.grid} strokeWidth={line.major ? 1 : 0.6} />
+          <line key={index} x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2} stroke={line.major ? theme.gridMajor : theme.grid} strokeWidth={line.major ? 1 : 0.6} />
         ))}
         <rect x={drawing.x} y={drawing.y} width={drawing.w} height={drawing.h} fill="none" stroke={theme.gridMajor} strokeWidth={1.2} />
       </g>
