@@ -28,9 +28,11 @@ import {
   explanationAnswerMismatch,
   inlineCarriers,
   mcqAnswerMismatch,
+  mismatchEvidence,
   unresolvedVisualReference,
 } from "@/lib/learning/answer-consistency";
 import { numbersIn, sameNumber } from "@/lib/learning/result-values";
+import { KEY_CONSISTENCY_PREFIX, checkArithmeticIssue, trueFalseCheckInconsistent } from "@/lib/learning/answer-key-consistency";
 import {
   ACADEMIC_DOMAINS,
   DOMAIN_ARCHETYPE,
@@ -1828,6 +1830,7 @@ export function settleCheckKeys(screens: readonly LessonScreen[], options: { con
             to: mismatch.expected,
             value: mismatch.value,
             source: mismatch.source,
+            reason: mismatch.reason ?? "value",
           });
           next = { ...next, answerIndex: mismatch.expectedIndex };
         }
@@ -1850,6 +1853,7 @@ export function settleCheckKeys(screens: readonly LessonScreen[], options: { con
               to: mismatch.expected,
               value: mismatch.value,
               source: mismatch.source,
+              reason: mismatch.reason ?? "value",
               review: true,
             });
             next = { ...next, review: { ...review, answerIndex: mismatch.expectedIndex } };
@@ -2976,7 +2980,7 @@ function checkIssues(
     if (mismatch) {
       add(
         where,
-        `Açıklama ${shownValue(mismatch.value)} sonucuna varıyor; answerIndex '${mismatch.keyed.join("', '")}' şıkkında, '${mismatch.expected}' olmalı ya da açıklama yanlış.`,
+        `${mismatch.reason && mismatch.reason !== "value" ? mismatchEvidence(mismatch) : `Açıklama ${shownValue(mismatch.value)} sonucuna varıyor`}; answerIndex '${mismatch.keyed.join("', '")}' şıkkında, '${mismatch.expected}' olmalı ya da açıklama yanlış.`,
       );
     }
     if (!check.optionWhy || check.optionWhy.length !== options.length) add(where, "optionWhy her şık için bir cümle olmalı.");
@@ -3008,8 +3012,12 @@ function checkIssues(
   }
   const checkText = [check.prompt, check.explanation, ...(check.options ?? []), ...(check.optionWhy ?? [])].join("\n");
   if (reversedFunctionNotation(checkText).length) add(where, FUNCTION_NOTATION_ISSUE);
+  // Cevap anahtarı tutarlılığı (19 Kasım 2026, Faz 1-A §3): açıklama ya da gerekçedeki işlem kodla hesaplanır;
+  // yanlış hesap anahtarı da şüpheli kılar, düzeltme turuna gider (kayıtlı derste soru okunurken düşer).
+  if (checkArithmeticIssue(check)) add(where, ARITHMETIC_ISSUE);
   if (check.type === "trueFalse") {
     const options = check.options ?? [];
+    if (trueFalseCheckInconsistent(check)) add(where, TRUE_FALSE_ARITHMETIC_ISSUE);
     if (options.length !== 2 || typeof check.answerIndex !== "number" || check.answerIndex > 1) {
       add(where, "Doğru/yanlış sorusunda şıklar ['Doğru','Yanlış'] ve answerIndex 0 ya da 1 olmalı.");
     }
@@ -3023,6 +3031,9 @@ function checkIssues(
     for (const problem of reviewItemProblems(reviewInput(check))) low(`${where}.review`, `İkinci soru (review): ${problem}`);
   }
 }
+
+const ARITHMETIC_ISSUE = `${KEY_CONSISTENCY_PREFIX}: açıklamadaki ya da şık gerekçesindeki işlem yanlış; hesabı ve anahtarı birlikte düzelt.`;
+const TRUE_FALSE_ARITHMETIC_ISSUE = `${KEY_CONSISTENCY_PREFIX}: önermedeki işlem yanlış, anahtar 'Doğru' olamaz; anahtarı 'Yanlış' yap ve doğrusunu (corrected) yaz.`;
 
 function reviewInput(check: Check) {
   return {

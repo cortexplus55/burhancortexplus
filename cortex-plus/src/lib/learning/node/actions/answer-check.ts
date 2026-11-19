@@ -12,6 +12,7 @@ import { errorResponse } from "@/lib/api/guards";
 import { ANSWER_LOCK_KEY, applyAnswerLocks, lockedKeys } from "@/lib/learning/answer-lock";
 import { normalizeQuizQuestion, publicQuizQuestion, type QuizQuestion } from "@/lib/learning/exam-quiz";
 import type { NodeContext } from "@/lib/learning/node/context";
+import { storedTrueFalseKey } from "@/lib/learning/answer-key-consistency";
 
 type StoredTrueFalse = { text?: unknown; correct?: unknown; explanation?: unknown; correctedStatement?: unknown };
 
@@ -34,7 +35,8 @@ export function answerFeedback(
     return {
       kind: "true_false",
       item: {
-        correct: raw.correct,
+        // Kayıtlı önermenin işlemi yanlışsa anahtar puanla aynı kapıdan okunur (Faz 1-A §3).
+        correct: storedTrueFalseKey(raw as { text?: unknown; correct: boolean }),
         explanation: typeof raw.explanation === "string" ? raw.explanation : "",
         ...(typeof raw.correctedStatement === "string" ? { correctedStatement: raw.correctedStatement } : {}),
       },
