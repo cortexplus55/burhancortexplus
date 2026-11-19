@@ -935,7 +935,7 @@ async function runTeacherLessonInner(
   const callMs: Record<string, number[]> = {};
   let firstTokenMs: number | undefined;
   // Hızlı işlem yalnız Plus/Sigma ve kurucuya (19 Ekim 2026, ürün sahibinin kararı; `fast-access.ts`).
-  const profileLoad = studentPedagogyBlock(service, input.userId, "lesson");
+  const profileLoad = studentPedagogyBlock(service, input.userId, "lesson", { prepTitle: input.prepTitle ?? null, subject: [input.prepTitle, input.topicLabel].filter(Boolean).join(" ") || null });
   const fast = Boolean(input.fast) && (await fastAllowedFor(service, input.userId));
   const profile = await profileLoad;
   const io = createLessonIo(openai, model, {

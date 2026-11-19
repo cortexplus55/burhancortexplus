@@ -1,5 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { DEFAULT_TUTOR_STYLE, parseTutorStyle, tutorStyleLabel, type TutorStyle } from "@/lib/learning/tutor-style";
+import {
+  levelFromExam,
+  pedagogicalCalibrationBlock,
+  resolvePedagogicalProfile,
+  type CalibrationSurface,
+  type PedagogicalCalibrationProfile,
+} from "@/lib/learning/pedagogical-profile";
 
 /**
  * Öğrencinin pedagojik profili (25 Ekim 2026): kayıtta verdiği sınıf, hedef sınav ve anlatım tercihi.
@@ -20,6 +27,7 @@ export const GRADE_LEVELS = [
   "10. sınıf",
   "11. sınıf",
   "12. sınıf",
+  "Üniversite",
   "Mezun",
 ] as const;
 export type GradeLevel = (typeof GRADE_LEVELS)[number];
@@ -99,6 +107,8 @@ export function parseGradeLevel(value: unknown): GradeLevel | null {
   const text = value.trim().toLocaleLowerCase("tr");
   if (!text) return null;
   if (text.includes("mezun")) return "Mezun";
+  // 20 Kasım 2026: kayıttaki "Üniversite" seçeneği "bilinmiyor" sayılıyordu; üniversite öğrencisi lise dili alıyordu.
+  if (/üniversite|universite|lisans/u.test(text)) return "Üniversite";
   const grade = text.match(/^(\d{1,2})\s*\.?\s*(?:sınıf)?$/u);
   const n = grade ? Number(grade[1]) : NaN;
   return n >= 5 && n <= 12 ? (`${n}. sınıf` as GradeLevel) : null;
@@ -234,6 +244,9 @@ const EXAM_LINES: Record<TargetExam, Partial<Record<PedagogySurface | "default",
 };
 
 function gradeLine(grade: GradeLevel): string {
+  if (grade === "Üniversite") {
+    return "Üniversite lisans düzeyi: akademik terminoloji, türetim ve ispat mantığı, kuramsal çerçeve ve vaka; hocanın puan kırdığı ayrıntı. Edebi giriş yok.";
+  }
   if (grade === "Mezun") {
     return "Üniversite / mezun düzeyi: doğrudan teknik yöntem, teorem ya da kanun adımları ve sınav veya vaka çözümü. Edebi giriş yok.";
   }
@@ -320,6 +333,28 @@ export function pedagogyPromptBlock(context: StudentPedagogicalContext | null, s
   return lines.join("\n");
 }
 
+/** Profil yüzeyinden kalibrasyon yüzeyi. */
+function calibrationSurface(surface: PedagogySurface): CalibrationSurface {
+  if (surface === "quiz" || surface === "true_false") return "quiz";
+  if (surface === "oral") return "oral";
+  if (surface === "podcast") return "podcast";
+  if (surface === "solve") return "chat";
+  return "lesson";
+}
+
+/**
+ * Öğrencinin seviye ve branş profili (20 Kasım 2026, `pedagogical-profile.ts`). Sınav önce hazırlığın adından (hazırlık
+ * bir sınav söylüyorsa o geçerli), sonra kayıttaki hedeften; sınıf kayıttan; branş ders/hazırlık adından ya da odak dersten.
+ */
+export function calibrationProfileFor(
+  context: StudentPedagogicalContext | null,
+  prep: { prepTitle?: string | null; subject?: string | null } = {},
+): PedagogicalCalibrationProfile {
+  const exam = levelFromExam(prep.prepTitle) ? prep.prepTitle : (context?.targetExam ?? context?.goalText ?? prep.prepTitle ?? null);
+  const subject = prep.subject ?? prep.prepTitle ?? context?.focusSubject ?? null;
+  return resolvePedagogicalProfile(context?.gradeLevel ?? null, exam, subject);
+}
+
 /** Sistem istemine profil bloğunu ekler; blok boşsa istem aynen döner. */
 export function withStudentProfile(system: string, block: string): string {
   return block ? `${system}\n\n${block}` : system;
@@ -330,10 +365,38 @@ export async function studentPedagogyBlock(
   client: SupabaseClient,
   userId: string,
   surface: PedagogySurface,
+  prep: { prepTitle?: string | null; subject?: string | null } = {},
 ): Promise<string> {
   try {
-    return pedagogyPromptBlock(await getStudentPedagogicalContext(userId, client), surface);
+    const context = await getStudentPedagogicalContext(userId, client);
+    const block = pedagogyPromptBlock(context, surface);
+    // Seviye kalibrasyonu (20 Kasım 2026): profil ya da hazırlık bir seviye söylüyorsa eklenir. İkisi de yoksa istem
+    // eskisi gibi bayt bayt aynı kalır (önek önbelleği).
+    if (!context && !levelFromExam(prep.prepTitle)) return block;
+    const calibration = pedagogicalCalibrationBlock(calibrationProfileFor(context, prep), calibrationSurface(surface));
+    return block ? `${block}
+${calibration}` : calibration;
   } catch {
     return "";
   }
+}
+
+/**
+ * Profil bloğu olmayan yüzeyler için (öğretmen sohbeti, "Farklı anlat", çizimli video): her zaman bir kalibrasyon
+ * bloğu döner (profil yoksa hazırlığın adından, o da yoksa lise düzeyi). Hiçbir zaman atmaz.
+ */
+export async function studentCalibration(
+  client: SupabaseClient,
+  userId: string,
+  surface: CalibrationSurface,
+  prep: { prepTitle?: string | null; subject?: string | null } = {},
+): Promise<{ profile: PedagogicalCalibrationProfile; block: string }> {
+  let context: StudentPedagogicalContext | null = null;
+  try {
+    context = await getStudentPedagogicalContext(userId, client);
+  } catch {
+    context = null;
+  }
+  const profile = calibrationProfileFor(context, prep);
+  return { profile, block: pedagogicalCalibrationBlock(profile, surface) };
 }

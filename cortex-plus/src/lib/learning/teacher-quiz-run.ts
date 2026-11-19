@@ -539,7 +539,7 @@ async function runTeacherQuizInner(
   let calls = 0;
   // Öğrenci bekliyor: hızlı işlem. Önceden yazım ve tek ücretli çok parçalı iş (yazılı deneme) normal.
   // Hızlı işlem yalnız Plus/Sigma ve kurucuya (19 Ekim 2026, `fast-access.ts`).
-  const profileLoad = studentPedagogyBlock(service, input.userId, "quiz");
+  const profileLoad = studentPedagogyBlock(service, input.userId, "quiz", { prepTitle: input.prepTitle ?? null, subject: [input.prepTitle, input.topicLabel].filter(Boolean).join(" ") || null });
   const optionCountLoad = input.optionCount
     ? Promise.resolve(input.optionCount)
     : studentOptionCount(service, input.userId, input.prepTitle);
