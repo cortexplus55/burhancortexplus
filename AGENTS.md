@@ -2787,3 +2787,26 @@ birebir** (`QUIZ_GENERATE` 10 kredi, günlük sınır yok, istem aynı). Yeniden
 | `duel.enabled` adı yeni düello sunucusuna ayrılmış, kullanılmaz. Statik kapı (`ACTION_CODE["duel.start"]`) bayrak kapalı davranışını taşır. Geri alma: önce bayrak; kod da dönerse `supabase/rollback/20261115_duello_9b_geri_al.sql` satırı kapatır (silmez). Tür karışımı, şablon imzası ve `prep_duels` eklemeli sütunları 9C ile | `docs/design-migration/duello-9b-oneri.md` §8 |
 
 Bekçi: `duello-9b.test.tsx` (bayrak kapalı regresyonu; göç ve geri alma PGlite'ta), `ucretsiz-tek-ders.test.ts`.
+
+## Cevap anahtarı okuma kapalı, evrensel seviye, görsel motor (20 Kasım 2026, #707 + #708)
+
+Göç `20261119150000` canlıda (#707 yayınından sonra): yedi tabloda (`practice_exam_questions`, `quiz_questions`,
+`exam_prep_node_attempts`, `exam_prep_intro_attempts`, `exam_prep_lessons`, `exam_prep_podcasts`, `prep_duels`) tarayıcı
+rolleri cevap anahtarı sütunlarını okuyamaz. Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| **Anahtar sütunu yalnız sunucu anahtarıyla ve sahiplik süzgeciyle okunur.** Listeye sütun eklenirse göç ve kod listesi birlikte değişir; yeni sütun kendiliğinden kapalı doğar. Öğrenci oturumuyla bu tablolarda `select("*")` yazılmaz (sütun izni olmayan yıldız okuması düşer) | `security/answer-key-columns.ts`, bekçi `cevap-anahtari-okuma.test.ts` |
+| **Seviye kalibrasyonu tek kaynak:** `resolvePedagogicalProfile` → 4 seviye (Ortaokul/LGS 4 şık, Lise/YKS 5, Üniversite, Uzmanlık: TUS, DUS, KPSS, ALES, DGS, YDS, Hâkimlik/Kaymakamlık) ve branş. Sınav önce hazırlığın adından, sonra kayıttaki hedeften; sınıf kayıttan ("Üniversite" tanınır). Ders, test, podcast, sözlü, kart, D/Y, çizimli video, öğretmen sohbeti ve "Farklı anlat" aynı bloğu okur. Profil ve hazırlık adı seviye söylemiyorsa istem bayt bayt aynı (önek önbelleği). Seviye yalnız dili, örneği ve derinliği değiştirir; kaynak ve doğruluk kuralları seviyeden bağımsız | `pedagogical-profile.ts`, `student-pedagogy.ts`, `teacher-engine-run.ts` (`prepTitle`) |
+| **Görsel sahne veri güdümlü:** mimarlık `viewType` / `layers[]` / `calloutPins[]`, hukuk en çok 3 kademeli `nodes[]` + barometre, yeni `CONCEPT_STRUCTURE_VISUALIZER` (süreç, matris, piramit, zaman çizgisi, neden-sonuç, arz-talep). Sahnenin `pedagogicalLevel`'ı modelden değil öğrencinin profilinden yazılır (`stampSceneLevel`); seviye etiket bütçesini ve yazı ölçeğini belirler. Yazı tabanı ekranda en az 11 px (viewBox 11,6). **Bilinen açık:** dikey çizimli videoda telefon ölçeği ~0,85, yazı 11 px altına inebilir | `visual-scenes/*`, `teacher-lesson-run.ts` |
+| Yığılan yazılar (rol / etiket / açıklama) arasında sabit 2 birim boşluk bırakılmaz: CI tarayıcısında yazı birkaç piksel uzun çizildi ve çakıştı. Boşluk yazı boyuyla | `MedicalPathwayScene.tsx` `stackGap` |
+| **Kaynak düzeltme bekçisi canlı ders yolunda:** notun bilimsel yanlışını öğreten cümle, kutu, soru, özet maddesi ve kapanış alanı yayımdan önce düşer (modelsiz, yalnız siler; sınav tuzağı kartı kalır). Ön yayım, kavram yayımı, kapanış, geç gelen düzeltme ve kayıtlı dersin okunuşu (`lessonV3Schema`) aynı bekçiden geçer; kayıtlı/yayımlanmış derste ekran sayısı değişmez | `lesson-correction-guard.ts` |
+| **Kart tekrar kaydı iki kart türünde** (`flashcards` ve "Kartlarla tekrar" `spaced`; canlıda destelerin çoğu ikincisi). Göç `20261120100000` depodaki eski `flashcard_reviews` tanımını canlıyla eşitler (yalnız ekler, canlıda no-op) | `node/complete.ts`, bekçi `kart-tekrar-kaydi.test.ts` (PGlite) |
+| Sonuç kartı konuları planlı adda birleştirip **Öğrendin / Gelişiyor / Zayıf / Ölçülmedi** diye sayar (eski "çalışılacak / sağlam" kalktı) | `result-stages.ts`, düğüm sonuç sayfası |
+| **"İki şık arasında kaldım" soru başına bir kez** (öğrenci + deneme + soru; Redis, bellek yedeği, 7 gün); ikinci istek ilk cevabı alır, düğme "İpucu kullanıldı" ile kilitlenir. Misafir "Soruda hata bildir" IP başına saatte 6, günde 10 | `two-option-once.ts`, `question-report/demo` |
+| Yeni e-posta kaydında üç onay sunucuda zorunlu; onay anları (`terms_accepted_at`, `kvkk_accepted_at`, `age_confirmed_at`) profilde boşsa yazılır (tetikleyicinin yazdığı ilk an ezilmez). Giriş akışına dokunulmadı | `record-consent.ts` `stampSignupAcceptance` |
+| **Faz 3:** Belgelerim / Sınav hazırlıklarım arama ve süzgeç (Türkçe harf duyarsız, `search-fold.ts`), silme onayı odak tuzaklı pencerede (`ConfirmDialog`); "İçeriğe atla" + tek `main#icerik`; `/ogretmen` yazma alanı kendiliğinden uzar, çift gönderim kilitli (`send-lock.ts`); sınav sabahı baskısı; sayfaya özel kanonik adres ve OG (`pageMetadata`) ve JSON-LD (EducationalOrganization, WebSite, FAQPage, BreadcrumbList; fiyat, puan, yorum yok) | `components/ui/*`, `lib/seo/*` |
+
+Bekçi: `pedagogical-profile.test.ts`, `kaynak-duzeltme-bekcisi.test.ts`, `visual-scenes-veri.test.tsx`,
+`visual-scenes-siniflandirici.test.ts`, `iki-sik-bir-kez.test.ts`, `misafir-bildirim-gunluk.test.ts`, `sonuc-rozetleri.test.ts`,
+`faz3-*.test.ts(x)`, e2e `gorsel-sahne.spec.ts`, `liste-suzgec.spec.ts`, `faz3-seo.spec.ts`.
