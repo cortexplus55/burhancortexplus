@@ -119,7 +119,8 @@ export function guardScreensForCorrection(
         if (check.review && checkTeaches(check.review as CheckLike, warning)) {
           changed = true;
           dropped += 1;
-          const { review: _review, ...rest } = block.check as unknown as Record<string, unknown>;
+          const rest: Record<string, unknown> = { ...(block.check as unknown as Record<string, unknown>) };
+          delete rest.review;
           blocks.push({ ...block, check: rest } as Block);
           continue;
         }

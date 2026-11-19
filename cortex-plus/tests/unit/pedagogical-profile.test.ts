@@ -208,7 +208,8 @@ describe("4 · KVKK, koşullar ve yaş sunucuda zorunlu", () => {
 
   it("onaylardan biri yoksa ya da true değilse hesap açılmaz", async () => {
     for (const field of ["termsAccepted", "kvkkAccepted", "ageConfirmed"] as const) {
-      const { [field]: _omit, ...missing } = VALID;
+      const missing: Record<string, unknown> = { ...VALID };
+      delete missing[field];
       const res = await call(missing);
       expect(res.status).toBe(400);
       expect((await res.json()).reason).toBe("consent_required");
@@ -227,5 +228,120 @@ describe("4 · KVKK, koşullar ve yaş sunucuda zorunlu", () => {
     expect(Object.keys(patch).sort()).toEqual(["kvkk_accepted_at", "terms_accepted_at"]);
     expect(patch.terms_accepted_at).toBe(VALID.consentAcceptedAt);
     expect(patch.kvkk_accepted_at).toBe(VALID.consentAcceptedAt);
+  });
+});
+
+/* ───────────── 5 · görsel motor: veri güdümlü ve seviyeye duyarlı ───────────── */
+
+import { levelFromCalibrationBlock } from "@/lib/learning/pedagogical-profile";
+import { parseVisualScene, type VisualScene } from "@/lib/learning/visual-scenes/schema";
+import { sceneFrame } from "@/lib/learning/visual-scenes/layout";
+import { layoutBlueprint } from "@/components/learning/visual-scenes/ArchitecturalBlueprintScene";
+import { layoutLawDecision } from "@/components/learning/visual-scenes/LawDecisionScene";
+import { layoutConceptStructure } from "@/components/learning/visual-scenes/ConceptStructureScene";
+import { stampSceneLevel } from "@/lib/learning/teacher-lesson-run";
+import { LESSON_V3_FORMAT, type LessonV3 } from "@/lib/learning/lesson-v3";
+
+// Jenerik fikstürler: gerçek ders içeriği yok; yalnız biçim farkı.
+const ARCH_A = {
+  archetype: "ARCHITECTURE_SPATIAL_BLUEPRINT",
+  title: "Örtülü yapının kesiti",
+  viewType: "section",
+  elements: [
+    { id: "o", label: "Üst örtü", role: "Yükü ayaklara aktarır", kind: "dome" },
+    { id: "a", label: "Taşıyıcı ayaklar", role: "Düşey yükü indirir", kind: "column", count: 4 },
+    { id: "t", label: "Temel", role: "Yükü zemine yayar", kind: "foundation" },
+  ],
+};
+const ARCH_B = {
+  archetype: "ARCHITECTURE_SPATIAL_BLUEPRINT",
+  title: "Aks planı",
+  viewType: "plan",
+  elements: [
+    { label: "Kolonlar", role: "Aks kesişiminde", kind: "column", count: 3 },
+    { label: "Kapı", role: "Giriş", kind: "opening", variant: "door" },
+  ],
+};
+const LAW_A = {
+  archetype: "LAW_SOCIAL_FLOWCHART",
+  title: "Tek şart",
+  decision: { question: "Şart sağlandı mı?", yes: "Geçerli", no: "Geçersiz" },
+};
+const LAW_B = {
+  archetype: "LAW_SOCIAL_FLOWCHART",
+  title: "Üç kademeli karar",
+  nodes: [
+    { id: "q1", text: "Birinci şart var mı?", yes: "q2", no: "Reddedilir" },
+    { id: "q2", text: "İkinci şart var mı?", yes: "q3", no: "Tamamlanır" },
+    { id: "q3", text: "Süre içinde mi?", yes: "Geçerli", no: "Hak düşer" },
+  ],
+  majority: [{ label: "Gerekli sayı", fraction: "2/3", count: 40, total: 60, actual: 45 }],
+};
+const CONCEPT_A = {
+  archetype: "CONCEPT_STRUCTURE_VISUALIZER",
+  title: "Dört aşamalı süreç",
+  structure: "process",
+  items: [{ label: "Birinci aşama" }, { label: "İkinci aşama" }, { label: "Üçüncü aşama" }, { label: "Dördüncü aşama" }],
+};
+const CONCEPT_B = {
+  archetype: "CONCEPT_STRUCTURE_VISUALIZER",
+  title: "Üç durakta kronoloji",
+  structure: "timeline",
+  items: [
+    { date: "Birinci dönem", label: "Başlangıç" },
+    { date: "İkinci dönem", label: "Gelişme" },
+    { date: "Üçüncü dönem", label: "Sonuç" },
+  ],
+};
+
+const parsed = (raw: Record<string, unknown>): VisualScene => {
+  const scene = parseVisualScene(raw);
+  expect(scene, String(raw.title)).not.toBeNull();
+  return scene!;
+};
+const layoutOf = (raw: Record<string, unknown>, level?: 1 | 2 | 3 | 4) => {
+  const scene = parsed(raw);
+  const frame = sceneFrame("16:9", "lesson", level ?? null);
+  if (scene.archetype === "ARCHITECTURE_SPATIAL_BLUEPRINT") return layoutBlueprint(scene as never, frame);
+  if (scene.archetype === "LAW_SOCIAL_FLOWCHART") return layoutLawDecision(scene as never, frame);
+  return layoutConceptStructure(scene as never, frame);
+};
+const signature = (layout: unknown) => JSON.stringify(layout);
+
+describe("5 · görsel: farklı JSON farklı çizim, seviye yoğunluğu değiştirir", () => {
+  it("mimarlık, hukuk ve genel kavram sahnesi giriş verisine göre ayrı yerleşim üretir", () => {
+    for (const [a, b] of [
+      [ARCH_A, ARCH_B],
+      [LAW_A, LAW_B],
+      [CONCEPT_A, CONCEPT_B],
+    ] as const) {
+      expect(signature(layoutOf(a))).not.toBe(signature(layoutOf(b)));
+    }
+  });
+
+  it("aynı veri: seviye 1 daha büyük başlık ve daha az etiket, seviye 4 daha çok ayrıntı", () => {
+    for (const raw of [ARCH_A, LAW_B, CONCEPT_A]) {
+      const low = layoutOf(raw, 1) as { texts: { id: string; fontSize: number }[] };
+      const high = layoutOf(raw, 4) as { texts: { id: string; fontSize: number }[] };
+      const title = (layout: typeof low) => layout.texts.find((box) => box.id === "title")!.fontSize;
+      expect(title(low), String(raw.title)).toBeGreaterThan(title(high));
+      expect(low.texts.length, String(raw.title)).toBeLessThanOrEqual(high.texts.length);
+    }
+  });
+
+  it("sahnenin seviyesi modelden değil öğrencinin profilinden yazılır", () => {
+    const block = pedagogicalCalibrationBlock(resolvePedagogicalProfile("7. sınıf", "LGS", "Tarih"), "lesson");
+    expect(levelFromCalibrationBlock(block)).toBe(1);
+    expect(levelFromCalibrationBlock(pedagogicalCalibrationBlock(resolvePedagogicalProfile("Mezun", "TUS", "Tıp"), "lesson"))).toBe(4);
+    expect(levelFromCalibrationBlock("")).toBeNull();
+    const lesson = {
+      format: LESSON_V3_FORMAT,
+      title: "Örnek",
+      screens: [{ heading: "Süreç", concept: "Süreç", blocks: [{ type: "visual_scene", scene: { ...parsed(CONCEPT_A), pedagogicalLevel: 4 } }] }],
+    } as unknown as LessonV3;
+    const stamped = stampSceneLevel(lesson, levelFromCalibrationBlock(block));
+    const scene = (stamped.screens[0]!.blocks[0] as { scene: { pedagogicalLevel?: number } }).scene;
+    expect(scene.pedagogicalLevel).toBe(1);
+    expect(stampSceneLevel(lesson, null)).toBe(lesson);
   });
 });

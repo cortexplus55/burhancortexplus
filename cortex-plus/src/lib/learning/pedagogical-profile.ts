@@ -312,3 +312,17 @@ export function pedagogicalCalibrationBlock(profile: PedagogicalCalibrationProfi
   lines.push("Kaynak, doğruluk ve biçim kuralları seviyeden bağımsızdır; seviye yalnız dili, derinliği ve örnek türünü değiştirir.");
   return lines.join("\n");
 }
+
+/**
+ * Kalibrasyon bloğundan seviye (20 Kasım 2026): motor kabukları bloğu metin olarak taşır; görsel sahneye seviye modelin
+ * tahmininden değil bu bloktan yazılır. Blok yoksa ya da tanınmazsa null (sahne seviyesiz, eski çizim).
+ */
+export function levelFromCalibrationBlock(block: string | null | undefined): PedagogicalLevel | null {
+  const match = block?.match(/SEVİYE KALİBRASYONU: ([^(\n]+?) \(/u);
+  if (!match) return null;
+  const label = match[1]!.trim();
+  for (const level of [1, 2, 3, 4] as const) {
+    if (LEVEL_SPEC[level].levelLabel === label) return level;
+  }
+  return null;
+}

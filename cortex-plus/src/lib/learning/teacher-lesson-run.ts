@@ -15,6 +15,7 @@ import { LESSON_V3_FORMAT, screenConcept, type LessonScreen, type LessonV3 } fro
 import { LessonStreamReader } from "@/lib/learning/lesson-stream";
 import { runLessonSanity } from "@/lib/learning/lesson-sanity";
 import { guardLessonForCorrection, guardScreensForCorrection } from "@/lib/learning/lesson-correction-guard";
+import { levelFromCalibrationBlock, type PedagogicalLevel } from "@/lib/learning/pedagogical-profile";
 import {
   COVERAGE_COMPLETION_SCREENS,
   DIAGRAM_COMPLETION_SYSTEM,
@@ -892,6 +893,26 @@ export function createLessonIo(
  * Kredi bir kez ayrılır; ders dönerse kesinleşir, dönmezse iade edilir.
  */
 /** Hafif doğrulayıcının kaynağı: belgeli derste sayfalar, belgesiz derste konunun onaylı havuz anlatımı (6 Kasım 2026). */
+/**
+ * Görsel sahnenin yoğunluk seviyesi öğrencinin çözülmüş profilinden (20 Kasım 2026): model alanı boş bırakabilir ya da
+ * başka seviye yazabilir; çizim etiket bütçesini ve yazı ölçeğini bu seviyeden alır. Seviye yoksa ders aynen döner.
+ */
+export function stampSceneLevel(lesson: LessonV3, level: PedagogicalLevel | null): LessonV3 {
+  if (!level) return lesson;
+  let changed = false;
+  const screens = lesson.screens.map((screen) => {
+    if (!screen.blocks.some((block) => block.type === "visual_scene")) return screen;
+    changed = true;
+    return {
+      ...screen,
+      blocks: screen.blocks.map((block) =>
+        block.type === "visual_scene" ? ({ ...block, scene: { ...block.scene, pedagogicalLevel: level } } as typeof block) : block,
+      ),
+    };
+  });
+  return changed ? { ...lesson, screens } : lesson;
+}
+
 export function sanitySource(input: Pick<TeacherLessonInput, "mode" | "pages" | "approvedFacts">): string {
   if (input.mode === "topic") return input.approvedFacts?.trim() ?? "";
   return input.pages.map((page) => page.text).join("\n");
@@ -1029,7 +1050,7 @@ async function runTeacherLessonInner(
     if (reservationId) await commitCredits(service, reservationId);
     return {
       ok: true,
-      lesson: result.lesson,
+      lesson: stampSceneLevel(result.lesson, levelFromCalibrationBlock(profile)),
       calls,
       ms: Date.now() - started,
       remainingLow: result.issues,
