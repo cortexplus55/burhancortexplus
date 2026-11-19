@@ -17,6 +17,7 @@ import {
 import { rejoinIntervalCells } from "@/lib/learning/interval-text";
 import { academicDomainSchema, parseVisualScene, visualArchetypeSchema, visualSceneSchema } from "@/lib/learning/visual-scenes/schema";
 import { visualSceneText } from "@/lib/learning/visual-scenes/prompt";
+import { checkSceneRelations } from "@/lib/learning/visual-scenes/relation-check";
 
 /**
  * LessonV3 — Ders → Ekran → Blok dizisi (16 Ekim 2026, ürün sahibinin kararı).
@@ -308,7 +309,7 @@ const v2 = lessonV2Schema.shape;
 /** Kapsam turunun ek ekranları sığsın. İstem hâlâ 12 ekran ister; bu tavan kayıt içindir. */
 export const LESSON_SCREEN_HARD_CAP = 16;
 
-export const lessonV3Schema = z.object({
+const lessonV3ObjectSchema = z.object({
   format: z.literal(LESSON_V3_FORMAT),
   title: v2.title,
   objective: v2.objective,
@@ -327,6 +328,48 @@ export const lessonV3Schema = z.object({
   academicDomain: academicDomainSchema.optional().catch(undefined),
   visualArchetype: visualArchetypeSchema.optional().catch(undefined),
 });
+
+/**
+ * Dersin doğrulanmış bilgi metni (Faz 1-B ilişki denetimi): metin, formül, adım, tablo, kart, not ve örnek blokları.
+ * Soru önermeleri (bilerek yanlış olabilir), tuzak kartları (yanlış inanç) ve görsel sahneler girmez.
+ */
+export function lessonFactText(lesson: Pick<LessonV3Object, "screens" | "summary">): string {
+  const parts: string[] = [];
+  for (const screen of lesson.screens) {
+    for (const block of screen.blocks) {
+      if (block.type === "text") parts.push(block.text);
+      else if (block.type === "formula") parts.push(`${block.formula.title}: ${block.formula.expression}`);
+      else if (block.type === "procedure") parts.push(block.procedure.steps.map((step) => `${step.label}: ${step.detail}`).join("; "));
+      else if (block.type === "table") parts.push([block.table.columns.join(" | "), ...block.table.rows.map((row) => row.join(" | "))].join("\n"));
+      else if (block.type === "cards") parts.push(block.cards.map((card) => `${card.title}: ${card.body}`).join("; "));
+      else if (block.type === "note") parts.push(`${block.note.title}: ${block.note.body}`);
+      else if (block.type === "example") parts.push(`Örnek: ${block.example.prompt} ${block.example.result ?? ""}`);
+    }
+  }
+  parts.push(...(lesson.summary ?? []));
+  return parts.join("\n").replace(/==|\*\*/g, "");
+}
+
+/**
+ * Kayıttaki görsel sahne de okunurken denetlenir: dersin doğrulanmış içeriği ya da kaynak düzeltmesiyle çelişen
+ * sahne düşer (ders sahnesiz açılır). Yeni üretimde aynı denetim yayımdan önce çalışır.
+ */
+export function dropContradictingScenes<T extends Pick<LessonV3Object, "screens" | "summary" | "sourceCorrectionWarning">>(lesson: T): T {
+  if (!lesson.screens.some((screen) => screen.blocks.some((block) => block.type === "visual_scene"))) return lesson;
+  const context = { lessonText: lessonFactText(lesson), sourceCorrection: lesson.sourceCorrectionWarning ?? null };
+  let changed = false;
+  const screens = lesson.screens.map((screen) => {
+    const blocks = screen.blocks.filter((block) => block.type !== "visual_scene" || checkSceneRelations(block.scene, context).ok);
+    if (blocks.length === screen.blocks.length) return screen;
+    changed = true;
+    return { ...screen, blocks };
+  });
+  return changed ? { ...lesson, screens } : lesson;
+}
+
+type LessonV3Object = z.infer<typeof lessonV3ObjectSchema>;
+
+export const lessonV3Schema = lessonV3ObjectSchema.transform((lesson) => dropContradictingScenes(lesson));
 
 export type LessonV3 = z.infer<typeof lessonV3Schema>;
 

@@ -75,7 +75,12 @@ export const VISUAL_SCENE_COMMON_RULE =
   "Koordinat, renk ya da piksel yazma; yerleşimi kod yapar. Etiketler kısa (2-5 kelime), açıklamalar tek cümle. " +
   "symbol, harf ve sınır alanları kelime değil simgedir (en çok 6 karakter: F_1, ΔT, EN gibi); formül ya da kural " +
   "cümlesi en çok 80 karakter. Kısaltmak için cümleyi yarıda kesme ve \"…\" koyma; daha kısa, tam bir ifade yaz. " +
-  "Düz paragraf yazma: her alan çizimin bir parçasıdır.";
+  "Düz paragraf yazma: her alan çizimin bir parçasıdır. " +
+  "BİLGİ DOĞRULUĞU: sahnenin anlattığı ilişki (doğru ya da ters orantı, artar ya da azalır, yön) yalnız DERS'in " +
+  "doğrulanmış anlatımından ve yerleşik bilimden gelir; KAYNAK yalnız etiket ve sayı içindir. KAYNAK DÜZELTMESİ " +
+  "verildiyse kaynağın yanlış ifadesini sahneye koyma, doğrusunu kullan. Bir denklemde aynı yanda çarpılan iki büyüklük " +
+  "(öbürleri sabitken) ters orantılıdır; biri artarken öbürünü azalır göster. Kaynak, ders metni ve denklem birbirini " +
+  "tutmuyorsa ya da ilişkiden emin değilsen o ilişkiyi çizme.";
 
 /** Disiplin listesi (istemde seçim için). */
 export function domainChoices(): string {
