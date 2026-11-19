@@ -14,6 +14,7 @@ import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import {
   examPrepLessonRewriteHref,
+  examPrepRegenerateHref,
   examPrepLockedHref,
   needsExamIntro,
   opensSavedLesson,
@@ -21,6 +22,7 @@ import {
 import { parseMood, type Familiarity } from "@/lib/learning/session-signals";
 import { moodAskedSince } from "@/lib/learning/lesson-open";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
+import { nextRestudyHref, parseRestudyToken } from "@/lib/learning/free-restudy";
 import { createServiceClient } from "@/lib/supabase/server";
 import { parseSessionMeta } from "@/lib/learning/teaching-standards";
 import {
@@ -72,10 +74,10 @@ export default async function ExamNodePage({
   searchParams,
 }: {
   params: Promise<{ prepId: string; nodeId: string }>;
-  searchParams: Promise<{ konu?: string; tekrar?: string; incele?: string; farkli?: string }>;
+  searchParams: Promise<{ konu?: string; tekrar?: string; incele?: string; farkli?: string; yeni?: string; yeniden?: string }>;
 }) {
   const { prepId, nodeId } = await params;
-  const { konu, tekrar, incele, farkli } = await searchParams;
+  const { konu, tekrar, incele, farkli, yeni, yeniden } = await searchParams;
   const requestedTopic = typeof konu === "string" ? konu.trim().slice(0, 400) : "";
   // Açılış kritik yolu (3 Kasım 2026): canlıda havuz dersi tıklamadan ilk metne 3,1–4,9 sn. Sorgular sıralıydı
   // (~12 gidiş-dönüş) ve kayıtlı oturum ayrı bir istemci POST'uyla ("resume") okunuyordu. Şimdi bağımsız okumalar
@@ -382,7 +384,28 @@ export default async function ExamNodePage({
   }
   // Doğrudan açılış (3 Kasım 2026, canlı ölçüm): belgesiz hazırlıkta havuzda dersi olan konu ve "Farklı anlat"
   // "Önerilen ders / Ders oluştur" kartı göstermeden açılır. Havuz denetimi bellekte (müfredat eşlemesi), sorgu yok.
-  const lessonReviewSaved = opensSavedLesson({ kind: node.kind as string, status: node.status as string, query: { incele, tekrar, farkli, konu } });
+  const lessonReviewSaved = opensSavedLesson({ kind: node.kind as string, status: node.status as string, query: { incele, tekrar, farkli, konu, yeni } });
+  // Faz 4 "Yolu Yeniden Çalış (Ücretsiz)": turun sıradaki adımı (belirteç adreste; tur bittiyse karne).
+  const restudyNextHref = parseRestudyToken(yeniden)
+    ? await (async () => {
+        const { data: rows } = await supabase
+          .from("exam_prep_nodes")
+          .select("id, kind, status, sort_order")
+          .eq("exam_prep_id", prepId)
+          .order("sort_order");
+        return nextRestudyHref({
+          prepId,
+          token: String(yeniden),
+          currentNodeId: nodeId,
+          nodes: (rows ?? []).map((row) => ({
+            id: String(row.id),
+            kind: String(row.kind),
+            status: String(row.status),
+            sortOrder: Number(row.sort_order ?? 0),
+          })),
+        });
+      })()
+    : null;
   const autoOpenLesson = shouldAutoOpenLesson({
     kind: node.kind as string,
     reviewSaved: lessonReviewSaved,
@@ -441,6 +464,9 @@ export default async function ExamNodePage({
         unitTitle={sessionMeta?.unitTitle ?? null}
         activityMinutes={sessionMeta?.activityMinutes ?? null}
         nodeDone={node.status === "done"}
+        regenerate={yeni === "1" && node.status === "done"}
+        regenerateHref={node.kind === "flashcards" ? examPrepRegenerateHref(prepId, nodeId) : null}
+        restudyNextHref={restudyNextHref}
       />
   );
   return (

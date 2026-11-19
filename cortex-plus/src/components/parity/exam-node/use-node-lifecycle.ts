@@ -188,6 +188,12 @@ export type ExamNodeSessionProps = {
   unitTitle?: string | null;
   /** Düğüm daha önce bitirildiyse hazırlık ekranı kendiliğinden yeniden kaydedilmez. */
   nodeDone?: boolean;
+  /** Faz 4: bitmiş adımda açık yeni üretim (`?yeni=1`, "Yeni 8 Kart Üret (8 Kredi)"). */
+  regenerate?: boolean;
+  /** Faz 4: bitmiş adımın yeni üretim adresi (kart destesinde "Yeni 8 Kart Üret (8 Kredi)"). */
+  regenerateHref?: string | null;
+  /** Faz 4 "Yolu Yeniden Çalış (Ücretsiz)": sıradaki bitmiş adımın kayıtlı açılışı; yol bittiyse karne. */
+  restudyNextHref?: string | null;
   /** Yol kartındaki süre. Kapı ve ders çubuğu aynı sayıyı gösterir. */
   activityMinutes?: number | null;
   prepId: string;
@@ -279,6 +285,9 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     unitTitle = null,
     nodeDone = false,
     activityMinutes = null,
+    regenerate = false,
+    regenerateHref = null,
+    restudyNextHref = null,
   } = props;
   const router = useRouter();
   const isAdmin = useIsFounder();
@@ -1209,6 +1218,8 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
           ...(kind === "lesson" && (overrides?.rewrite ?? rewriteMode) && !overrides?.replay && !overrides?.review ? { rewrite: true } : {}),
           ...((overrides?.sharedTries ?? 0) > 0 ? { twin: true } : {}),
           ...(overrides?.review ? { review: true } : {}),
+          // Faz 4: bitmiş adımda yeni üretim yalnız açık istekle; yoksa sunucu kaydı ücretsiz açar.
+          ...(regenerate && !overrides?.review && !overrides?.replay ? { regenerate: true } : {}),
           difficulty: overrides?.difficulty ?? difficulty,
           voiceMode: overrides?.voiceMode ?? voiceMode,
           familiarity,
@@ -2064,6 +2075,8 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     gradeLessonCheck,
     reexplainStep,
     reexplainBadge,
+    regenerateHref,
+    restudyNextHref,
     finishPodcast,
     prepId,
     nodeId,

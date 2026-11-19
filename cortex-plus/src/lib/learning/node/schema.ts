@@ -51,6 +51,11 @@ export const bodySchema = z.object({
   /** Ders oluşturma merkezi, düğümün konusu dışında bir konu seçtiyse. */
   activityTopicLabel: z.string().max(400).optional(),
   podcastLength: z.enum(PODCAST_LENGTHS).optional(),
+  /**
+   * Faz 4: bitmiş adımda açık yeni üretim ("Yeni 8 Kart Üret (8 Kredi)"). Yoksa kayıtlı gövde ücretsiz açılır
+   * (`free-restudy.ts`).
+   */
+  regenerate: z.boolean().optional(),
   /** Sunucunun kendi isteği: sıradaki dersi kredi düşmeden önceden yaz. */
   prefetch: z.boolean().optional(),
   /**

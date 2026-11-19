@@ -72,7 +72,7 @@ export type PolicyEvidence = {
   correct: boolean;
   hintAssisted: boolean;
   isFirstAttempt: boolean;
-  /** Değerlendirme adımının kimliği (deneme kaydı); yoksa kaynak + zaman. */
+  /** Değerlendirme adımının kimliği (deneme kaydı); yoksa kaynak + gün. */
   attemptId: string | null;
   createdAt: string;
 };
@@ -110,8 +110,9 @@ export function effectiveWeight(row: PolicyEvidence, now: Date): number {
   return EVIDENCE_WEIGHT[source] * evidenceDecay(ageDays) * (retakeCorrect ? RETAKE_CORRECT_WEIGHT : 1);
 }
 
+/** Ayrı değerlendirme adımı: deneme kaydı; kaydı olmayan cevap (tekrar sorusu) kaynak + gün başına bir adım. */
 function attemptKey(row: PolicyEvidence): string {
-  return row.attemptId ? `a:${row.attemptId}` : `s:${policySource(row.sourceKind)}:${row.createdAt}`;
+  return row.attemptId ? `a:${row.attemptId}` : `s:${String(row.sourceKind ?? "").trim() || "quiz"}:${row.createdAt.slice(0, 10)}`;
 }
 
 /** Konunun kanıtlarından politika kararı (rozet hariç sayılar). */

@@ -15,6 +15,8 @@ import {
 import { FINAL_CHECK_LIMIT, finalCardTopics, finalCheckSelection } from "@/lib/learning/final-block";
 import { loadPreviousItems } from "@/lib/learning/previous-items";
 import { buildReadinessScreen } from "@/lib/learning/readiness-screen";
+import { examPrepNewMockHref, examPrepRestudyHref, examPrepTargetedReviewHref } from "@/lib/learning/exam-prep-hrefs";
+import type { NetEstimate } from "@/lib/mastery-map/net";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import {
   MASTERY_ROW_COLUMNS,
@@ -243,6 +245,26 @@ export async function weakTopicsForPrep(
   return { topics, mastery, weakTopics };
 }
 
+/**
+ * Karnenin tahmini neti: hazırlık sayfasındaki (Hakimiyet Haritası) ile aynı hesap — `loadMapInputs` +
+ * `prepNetEstimate`. Resmî planı olmayan hazırlıkta ya da okuma düşerse null: net uydurulmaz.
+ */
+async function readinessNet(
+  service: SupabaseClient,
+  input: { userId: string; prepId: string; prefs: unknown },
+): Promise<NetEstimate | null> {
+  try {
+    const { loadMapInputs } = await import("@/lib/mastery-map/load");
+    const { prepNetEstimate } = await import("@/lib/mastery-map/net-load");
+    const mapUnits = await loadMapInputs(service, { userId: input.userId, prefs: input.prefs });
+    if (!mapUnits?.length) return null;
+    return await prepNetEstimate(service, { userId: input.userId, prepId: input.prepId, prefs: input.prefs, mapUnits });
+  } catch (error) {
+    console.error("readiness_net_failed", { prepId: input.prepId, message: error instanceof Error ? error.message : String(error) });
+    return null;
+  }
+}
+
 export async function buildLocalSessionPayload(
   service: SupabaseClient,
   input: {
@@ -396,7 +418,11 @@ export async function buildLocalSessionPayload(
         written: href("written_exam"),
         quiz: href("quiz"),
         home,
+        targeted: examPrepTargetedReviewHref(input.prepId),
+        restudyMixed: examPrepRestudyHref(input.prepId, "mixed"),
+        newExam: examPrepNewMockHref(input.prepId),
       },
+      net: await readinessNet(service, { userId: input.userId, prepId: input.prepId, prefs: input.learningPreferences }),
     });
     return { action: "serve", payload: { type: "readiness", screen } };
   }

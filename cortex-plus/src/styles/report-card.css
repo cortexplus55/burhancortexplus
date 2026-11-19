@@ -1,0 +1,201 @@
+/*
+ * Faz 4 — Akıllı Kavrama Karnesi ve rozetler. Renkler WCAG AA (metin/zemin ≥ 4.5:1):
+ *   Öğrendin  zümrüt  #065f46 / #ecfdf5 (≈ 7.9:1)
+ *   Gelişiyor kobalt  #1e3a8a / #eff6ff (≈ 9.9:1)
+ *   Zayıf     mercan  #9f1239 / #fff1f2 (≈ 7.6:1)
+ *   Ölçülmedi gri     #374151 / #f3f4f6 (≈ 9.3:1)
+ *   Uyarı     kehribar #78350f / #fffbeb (≈ 8.6:1)
+ * 390 px'te taşma yok: esnek satırlar sarılır, alt çubuk alt alta.
+ */
+.cp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  max-width: 100%;
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  font-size: 0.78rem;
+  font-weight: 650;
+  line-height: 1.3;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.cp-badge--emerald { color: #065f46; background: #ecfdf5; border-color: #a7f3d0; }
+.cp-badge--cobalt { color: #1e3a8a; background: #eff6ff; border-color: #bfdbfe; }
+.cp-badge--coral { color: #9f1239; background: #fff1f2; border-color: #fecdd3; }
+.cp-badge--gray { color: #374151; background: #f3f4f6; border-color: #e5e7eb; }
+
+.cp-report {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.cp-report-hero {
+  padding: 1.25rem 1.1rem;
+  border-radius: 1.25rem;
+  border: 1px solid var(--cp-border, #e5e7eb);
+  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+  box-shadow: 0 10px 30px -18px rgba(15, 23, 42, 0.35);
+  min-width: 0;
+}
+.cp-report-kicker {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #475569;
+}
+.cp-readiness h1.cp-report-count {
+  margin: 0.35rem 0 0.75rem;
+  font-size: clamp(1.4rem, 5.5vw, 2rem);
+  line-height: 1.15;
+  color: #0f172a;
+}
+.cp-report-meter {
+  height: 0.6rem;
+  border-radius: 9999px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+.cp-report-meter i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #047857;
+  transition: width 0.4s ease;
+}
+.cp-report-celebrate {
+  margin: 0.85rem 0 0;
+  font-weight: 700;
+  color: #065f46;
+}
+.cp-report-status {
+  margin: 0.85rem 0 0;
+  font-weight: 650;
+  color: #1f2937;
+}
+.cp-report-lead,
+.cp-report-mock {
+  margin: 0.35rem 0 0;
+  color: #475569;
+  font-size: 0.92rem;
+}
+.cp-readiness ul.cp-report-map {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.cp-readiness li.cp-report-chip {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 100%;
+  margin: 0;
+  padding: 0.4rem 0.7rem;
+  border-radius: 0.8rem;
+  border: 1px solid transparent;
+  font-size: 0.85rem;
+  min-width: 0;
+}
+.cp-report-chip-name { font-weight: 600; overflow-wrap: anywhere; }
+.cp-report-chip-badge { font-weight: 700; white-space: nowrap; }
+.cp-readiness li.cp-report-chip--emerald { color: #065f46; background: #ecfdf5; border-color: #a7f3d0; }
+.cp-readiness li.cp-report-chip--cobalt { color: #1e3a8a; background: #eff6ff; border-color: #bfdbfe; }
+.cp-readiness li.cp-report-chip--coral { color: #9f1239; background: #fff1f2; border-color: #fecdd3; }
+.cp-readiness li.cp-report-chip--gray { color: #374151; background: #f3f4f6; border-color: #e5e7eb; }
+.cp-readiness li.cp-report-chip span { display: inline; margin: 0; color: inherit; font-size: inherit; }
+
+.cp-report-net { margin-top: 1rem; }
+
+.cp-report-trap {
+  padding: 1rem 1.05rem;
+  border-radius: 1rem;
+  border: 1px solid #fcd34d;
+  border-left: 6px solid #d97706;
+  background: #fffbeb;
+  color: #78350f;
+}
+.cp-report-trap-title { margin: 0; font-weight: 750; font-size: 1rem; }
+.cp-report-trap-body { margin: 0.35rem 0 0.75rem; font-size: 0.9rem; }
+
+.cp-report-group h2 { margin: 0.25rem 0 0.4rem; }
+.cp-readiness li.cp-report-row { margin: 0.45rem 0; }
+.cp-report-row-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem 0.75rem;
+  min-width: 0;
+}
+.cp-report-row-head strong { overflow-wrap: anywhere; min-width: 0; }
+.cp-readiness .cp-report-row-head span.cp-badge { display: inline-flex; margin: 0; }
+
+.cp-report-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+}
+.cp-report-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.9rem;
+  padding: 0.65rem 1rem;
+  border-radius: 0.9rem;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+  font-weight: 650;
+  font-size: 0.95rem;
+  line-height: 1.25;
+  text-align: center;
+  text-decoration: none;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.cp-report-btn:hover { border-color: #94a3b8; }
+.cp-report-btn:focus-visible { outline: 3px solid #2563eb; outline-offset: 2px; }
+.cp-report-btn--primary { background: #1e3a8a; border-color: #1e3a8a; color: #ffffff; }
+.cp-report-btn--primary:hover { background: #1e40af; }
+.cp-report-btn--trap { background: #92400e; border-color: #92400e; color: #ffffff; width: 100%; }
+.cp-report-btn--quiet { background: transparent; color: #334155; }
+.cp-report-btn[disabled] { opacity: 0.6; cursor: progress; }
+
+@media (min-width: 768px) {
+  .cp-report-hero { padding: 1.6rem 1.6rem; }
+  .cp-report-bar { flex-direction: row; flex-wrap: wrap; }
+  .cp-report-bar .cp-report-btn { flex: 1 1 0; min-width: 12rem; }
+  .cp-report-btn--trap { width: auto; }
+}
+
+/* Kayıtlı kart destesi (Faz 4): etiket + açık yeni üretim. */
+.cp-saved-deck {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 0 0 0.75rem;
+  padding: 0.55rem 0.8rem;
+  border-radius: 0.8rem;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+  font-size: 0.875rem;
+}
+.cp-saved-deck-label { font-weight: 700; overflow-wrap: anywhere; }
+.cp-saved-deck-new {
+  color: #1e3a8a;
+  font-weight: 650;
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+}

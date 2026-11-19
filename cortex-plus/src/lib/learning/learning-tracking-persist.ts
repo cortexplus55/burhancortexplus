@@ -369,3 +369,112 @@ export async function recordLearningTrackingAfterComplete(
 }
 
 export { stripAnswerMeta };
+
+/**
+ * Faz 4: tekrar sorusunun cevabı (günü gelen tekrar ve ücretsiz hedefli tekrar) konu kanıtıdır — tekrar cevabı
+ * (`is_first_attempt: false`): doğrusu 0,4 ile çarpılır, yanlışı tam sayılır. Ardından konunun kararı yenilenir.
+ * Hata yutulmaz: günlüğe iner; cevabın kendisi (tekrar takvimi) etkilenmez.
+ */
+export async function recordReviewAnswerEvidence(
+  service: SupabaseClient,
+  input: { userId: string; prepId: string; topicLabel: string | null; correct: boolean; questionPreview?: string | null; now?: Date },
+): Promise<void> {
+  const label = input.topicLabel?.trim();
+  if (!label) return;
+  const { data: topicRows, error: topicError } = await service.from("exam_prep_topics").select("id, label").eq("exam_prep_id", input.prepId);
+  if (topicError) {
+    console.error("review_evidence_topics_read_failed", { prepId: input.prepId, message: topicError.message });
+    return;
+  }
+  const topicIndex = createTopicIndex(
+    (topicRows ?? [])
+      .map((row) => ({ id: String((row as { id?: unknown }).id ?? ""), label: String((row as { label?: unknown }).label ?? "").trim() }))
+      .filter((row) => row.label),
+  );
+  const canonicalKey = (key: string) => {
+    const row = topicIndex.rowForKey(key);
+    return row ? normalizeTopicKey(row.label) : key;
+  };
+  const topicKey = canonicalKey(normalizeTopicKey(label));
+  const { error } = await service.from("exam_prep_answer_evidence").insert({
+    user_id: input.userId,
+    exam_prep_id: input.prepId,
+    node_id: null,
+    attempt_id: null,
+    topic_key: topicKey,
+    learning_objective: null,
+    question_index: 0,
+    correct: input.correct,
+    is_first_attempt: false,
+    hint_assisted: false,
+    independent_success: input.correct,
+    wrong_type: input.correct ? null : "review_miss",
+    source_kind: "review",
+    question_preview: input.questionPreview?.slice(0, 160) ?? null,
+  });
+  if (error) {
+    console.error("review_evidence_insert_failed", { prepId: input.prepId, message: error.message });
+    return;
+  }
+  await refreshTopicPolicies(service, { userId: input.userId, prepId: input.prepId, canonicalKey, now: input.now });
+}
+
+/** Hazırlığın konu kararlarını kanıttan yeniden yazar (yalnız politika, yüzde ve seviye; eski sayımlar aynen kalır). */
+export async function refreshTopicPolicies(
+  service: SupabaseClient,
+  input: { userId: string; prepId: string; canonicalKey: (key: string) => string; now?: Date },
+): Promise<void> {
+  const policies = await loadTopicPolicies(service, input);
+  if (!policies.size) return;
+  const { data, error } = await service
+    .from("exam_prep_topic_mastery")
+    .select(MASTERY_ROW_COLUMNS)
+    .eq("user_id", input.userId)
+    .eq("exam_prep_id", input.prepId);
+  if (error) {
+    console.error("topic_policy_refresh_read_failed", { prepId: input.prepId, message: error.message });
+    return;
+  }
+  const byKey = new Map(
+    ((data ?? []) as Record<string, unknown>[]).map((row) => {
+      const snapshot = masterySnapshotFromRow(row);
+      return [normalizeTopicKey(snapshot.topicKey), snapshot] as const;
+    }),
+  );
+  const now = (input.now ?? new Date()).toISOString();
+  const rows = [...policies].map(([key, policy]) => {
+    const prior = byKey.get(key);
+    const scored = scoreTopicMastery({
+      topicKey: prior?.topicKey ?? key,
+      measured: prior?.measured ?? false,
+      level: prior?.level ?? "unmeasured",
+      confidence: prior?.confidence ?? 0,
+      evidenceCount: prior?.evidenceCount ?? 0,
+      firstAttemptCorrect: prior?.firstAttemptCorrect ?? 0,
+      firstAttemptTotal: prior?.firstAttemptTotal ?? 0,
+      independentCorrect: prior?.independentCorrect ?? 0,
+      independentTotal: prior?.independentTotal ?? 0,
+      lastPracticedAt: now,
+      policy,
+    });
+    return {
+      user_id: input.userId,
+      exam_prep_id: input.prepId,
+      topic_key: scored.topicKey,
+      measured_level: scored.level,
+      confidence: scored.confidence,
+      evidence_count: scored.evidenceCount,
+      first_attempt_correct: scored.firstAttemptCorrect,
+      first_attempt_total: scored.firstAttemptTotal,
+      independent_correct: scored.independentCorrect,
+      independent_total: scored.independentTotal,
+      last_practiced_at: now,
+      policy,
+      updated_at: now,
+    };
+  });
+  const { error: writeError } = await service
+    .from("exam_prep_topic_mastery")
+    .upsert(rows, { onConflict: "user_id,exam_prep_id,topic_key" });
+  if (writeError) console.error("topic_policy_refresh_write_failed", { prepId: input.prepId, message: writeError.message });
+}

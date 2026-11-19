@@ -1121,3 +1121,24 @@ export function topicMasteryGain(input: {
   const label = own === key && input.topicLabel ? input.topicLabel.trim() : key;
   return { label, before: beforeRounded, after: afterRounded };
 }
+
+/**
+ * Faz 4 uyarlamalı hedefli tekrar: ücretsiz tekrarın konuları — Zayıf, Gelişiyor ve tuzak (kartta "Bildim" deyip
+ * soruda yanılan) konular. "Öğrendin" konu atlanır (tekrar adımı 0 kredi ile geçilebilir).
+ */
+export function targetedReviewTopics(
+  plannedLabels: readonly string[],
+  snapshots: readonly TopicMasterySnapshot[],
+  target: number | null | undefined,
+): string[] {
+  const merged = masteryByPlannedTopic(plannedLabels, snapshots);
+  const out: string[] = [];
+  for (const label of plannedLabels) {
+    const snapshot = merged.get(label);
+    if (!snapshot) continue;
+    const view = topicMasteryView(snapshot, target);
+    const trap = snapshot.policy?.guidance === "illusion_of_competence";
+    if (trap || view.badge === "weak" || view.badge === "developing") out.push(label);
+  }
+  return out;
+}

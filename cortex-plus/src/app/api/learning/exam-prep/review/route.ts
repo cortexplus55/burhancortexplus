@@ -4,11 +4,13 @@ import { errorResponse, withUser } from "@/lib/api/guards";
 import { isFeatureEnabled, SPACED_REVIEW_FLAG } from "@/lib/admin/feature-flags";
 import { answerReviewItem } from "@/lib/learning/review-items-store";
 import { recordUserActivity } from "@/lib/streak/record-activity";
+import { recordReviewAnswerEvidence } from "@/lib/learning/learning-tracking-persist";
 
 /**
  * Günü gelen tekrarın cevabı (20 Ekim 2026). Not sunucuda: doğru cevap tarayıcıya cevaptan önce
- * gitmez (Yanlışlar Defteri'nin kalıbı). Kredi yok, model yok, yıldız yok (ürün sahibinin kararı);
- * cevap konu hâkimiyetine de yazılmaz (v1), yalnız öğenin kaydına.
+ * gitmez (Yanlışlar Defteri'nin kalıbı). Kredi yok, model yok, yıldız yok (ürün sahibinin kararı).
+ * Faz 4: cevap konu kanıtıdır (tekrar cevabı ağırlığıyla, `recordReviewAnswerEvidence`); `practice` (ücretsiz hedefli
+ * tekrar) günü gelmemiş kayıtlı soruyu da notlar, tekrar takvimini değiştirmez.
  */
 const bodySchema = z.object({
   prepId: z.string().uuid(),
@@ -16,6 +18,7 @@ const bodySchema = z.object({
   pick: z.union([z.string().min(1).max(400), z.array(z.string().min(1).max(400)).min(1).max(6)]).optional(),
   recalled: z.boolean().optional(),
   quality: z.union([z.literal(1), z.literal(4), z.literal(5)]).optional(),
+  practice: z.boolean().optional(),
 });
 
 export async function POST(request: Request) {
@@ -25,7 +28,7 @@ export async function POST(request: Request) {
 
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return errorResponse(400, "invalid_input");
-  const { prepId, itemId, pick, recalled, quality } = parsed.data;
+  const { prepId, itemId, pick, recalled, quality, practice } = parsed.data;
   if (pick === undefined && recalled === undefined && quality === undefined) return errorResponse(400, "invalid_input");
 
   if (!(await isFeatureEnabled(service, SPACED_REVIEW_FLAG))) return errorResponse(404, "not_found");
@@ -44,6 +47,7 @@ export async function POST(request: Request) {
     itemId,
     answer: { pick, recalled, quality },
     examDate: (prep.exam_date as string | null) ?? null,
+    practice: practice === true,
   });
   if ("error" in outcome) {
     if (outcome.error === "not_found") return errorResponse(404, "not_found");
@@ -54,11 +58,17 @@ export async function POST(request: Request) {
     return errorResponse(503, "save_failed");
   }
 
+  // Bilgi kartı ("Hatırladım / Hatırlamadım") öz bildirimdir: konu kanıtı yalnız notlanan sorudan (şık seçimi).
+  if (pick !== undefined) {
+    await recordReviewAnswerEvidence(service, { userId, prepId, topicLabel: outcome.topicLabel, correct: outcome.correct });
+  }
+
   try {
     await recordUserActivity(service, userId, "prep_review");
   } catch {
     // Seri ek bilgi; cevap kaydedildi.
   }
 
-  return NextResponse.json({ ok: true, ...outcome });
+  const { topicLabel: _topicLabel, ...publicOutcome } = outcome;
+  return NextResponse.json({ ok: true, ...publicOutcome });
 }

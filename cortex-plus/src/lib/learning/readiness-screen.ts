@@ -5,11 +5,15 @@ import {
   computeProgramProgress,
   effectiveTarget,
   isMeasuredTopic,
+  masteryByPlannedTopic,
   normalizeTopicKey,
   topicIsSolid,
   topicMasteryPercent,
+  topicMasteryView,
   type TopicMasterySnapshot,
 } from "@/lib/learning/learning-tracking";
+import type { MasteryBadge } from "@/lib/learning/mastery-policy";
+import type { NetEstimate } from "@/lib/mastery-map/net";
 import type { NodeStatus, PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { rankFinalStepTopics, type FinalTopicRank } from "@/lib/learning/prep-wide-target";
 
@@ -27,6 +31,12 @@ export type ReadinessTopicRow = {
   /** `topicMasteryPercent`: yol, sözlü seçici ve İlerleme'deki sayıyla aynı. */
   pct: number;
   detail: string;
+  /** Faz 4 rozeti (`topicMasteryView`): Öğrendin / Gelişiyor / Zayıf / Ölçülmedi ve rengi. */
+  badge: MasteryBadge;
+  badgeLabel: string;
+  tone: "emerald" | "cobalt" | "coral" | "gray";
+  /** Kartta "Bildim" deyip soruda yanılan konu (öğrenciye yalnız uyarı metni gider). */
+  trap: boolean;
 };
 
 export type ReadinessAction = {
@@ -42,7 +52,26 @@ export type ReadinessScreen = {
   topics: ReadinessTopicRow[];
   actions: ReadinessAction[];
   mockLine: string;
+  /** Faz 4 Akıllı Kavrama Karnesi: "X / Y Konuyu Öğrendin". */
+  hero: { learned: number; total: number; line: string };
+  /** Kehribar uyarı şeridi (tuzak konu yoksa null). */
+  trap: { count: number; line: string; action: ReadinessAction } | null;
+  /** Tahmini net: hazırlık sayfası ve İlerleme ile aynı hesap (`prepNetEstimate`); yoksa null (uydurma yok). */
+  net: NetEstimate | null;
+  /** Alt eylem çubuğu: iki ücretsiz tekrar + yeni deneme (17 kredi, notlandırma dahil). */
+  bar: ReadinessAction[];
 };
+
+/** Karne metinleri (spesifikasyon, harfiyen). */
+export const REPORT_CARD_COPY = {
+  kicker: "Akıllı Kavrama Karnesi",
+  heroLine: (learned: number, total: number) => `${learned} / ${total} Konuyu Öğrendin`,
+  trapLine: (count: number) => `Dikkat: Bildiğini Düşündüğün Ama Hata Yaptığın ${count} Konu Var`,
+  trapAction: "Hatalarımı Şimdi Kapat (Ücretsiz)",
+  targeted: "Eksik & Tuzak Soruları Çalış (Ücretsiz)",
+  restudyMixed: "Tüm Yolu Baştan Çöz — Karışık Sıra (Ücretsiz)",
+  newExam: "Yeni Deneme Başlat (17 Kredi — Notlandırma Dahil)",
+} as const;
 
 const LEVEL_TR: Record<TopicMasterySnapshot["level"], string> = {
   unmeasured: "ölçülmedi",
@@ -108,9 +137,21 @@ export function buildReadinessScreen(input: {
   mockScorePct: number | null;
   targetScore: number | null;
   nodes: { kind: PlanNodeKind; status: NodeStatus }[];
-  links: { focused?: string | null; written?: string | null; quiz?: string | null; home: string };
+  links: {
+    focused?: string | null;
+    written?: string | null;
+    quiz?: string | null;
+    home: string;
+    /** Faz 4: ücretsiz hedefli tekrar, karışık sırayla yeniden çözüm ve yeni deneme. */
+    targeted?: string | null;
+    restudyMixed?: string | null;
+    newExam?: string | null;
+  };
+  net?: NetEstimate | null;
 }): ReadinessScreen {
   const planned = input.plannedTopics.map((topic) => topic.trim()).filter(Boolean);
+  // Konu satırı yolla aynı birleştiriciden (Faz 4: tek doğruluk kaynağı `masteryByPlannedTopic` + `topicMasteryView`).
+  const plannedMastery = masteryByPlannedTopic(planned, input.mastery);
   const byKey = new Map(
     input.mastery.map((topic) => [normalizeTopicKey(topic.topicKey), topic]),
   );
@@ -124,7 +165,7 @@ export function buildReadinessScreen(input: {
   // Hedef girilmemişse karar %70'e göre verilir; ekran da aynı sayıyı söyler.
   const target = effectiveTarget(input.targetScore);
   const topics: ReadinessTopicRow[] = labels.map((label) => {
-    const snapshot = byKey.get(normalizeTopicKey(label)) ?? {
+    const snapshot = plannedMastery.get(label) ?? byKey.get(normalizeTopicKey(label)) ?? {
       topicKey: label,
       measured: false,
       level: "unmeasured" as const,
@@ -137,11 +178,16 @@ export function buildReadinessScreen(input: {
       lastPracticedAt: null,
     };
     const open = misses.get(normalizeTopicKey(label)) ?? 0;
+    const view = topicMasteryView(snapshot, target);
     return {
       topic: label,
-      state: topicState(snapshot, target),
-      pct: readinessTopicPercent(snapshot),
+      state: view.state,
+      pct: view.percent,
       detail: detailFor(snapshot, open),
+      badge: view.badge,
+      badgeLabel: view.label,
+      tone: view.tone,
+      trap: snapshot.policy?.guidance === "illusion_of_competence",
     };
   });
 
@@ -156,7 +202,8 @@ export function buildReadinessScreen(input: {
     openMisconceptions,
   });
 
-  const ready = verdict.claimFullyReady;
+  // Faz 4: kutlama yalnız bütün planlı konular "Öğrendin" iken (ekrandaki rozetlerle aynı karar).
+  const ready = verdict.claimFullyReady && topics.length > 0 && topics.every((topic) => topic.badge === "learned");
   // En düşük ölçülen başarı önce (30 Ekim 2026, Paket I #8): öneri planın sırasıyla değil, en zayıf konuyla
   // başlıyordu ("%42" dururken başka konu önerildi).
   const needsWork = topics
@@ -237,5 +284,27 @@ export function buildReadinessScreen(input: {
         ? `Yazılı deneme skoru %${input.mockScorePct}. Hedef %${target} (hedef puan girilmediği için varsayılan).`
         : `Yazılı deneme skoru %${input.mockScorePct}. Hedef %${target}.`;
 
-  return { headline, ready, lead, topics, actions, mockLine };
+  const learned = topics.filter((topic) => topic.badge === "learned").length;
+  const trapCount = topics.filter((topic) => topic.trap).length;
+  const targetedHref = input.links.targeted ?? input.links.home;
+  const bar: ReadinessAction[] = [
+    { label: REPORT_CARD_COPY.targeted, href: targetedHref },
+    ...(input.links.restudyMixed ? [{ label: REPORT_CARD_COPY.restudyMixed, href: input.links.restudyMixed }] : []),
+    ...(input.links.newExam ? [{ label: REPORT_CARD_COPY.newExam, href: input.links.newExam }] : []),
+  ];
+
+  return {
+    headline,
+    ready,
+    lead,
+    topics,
+    actions,
+    mockLine,
+    hero: { learned, total: topics.length, line: REPORT_CARD_COPY.heroLine(learned, topics.length) },
+    trap: trapCount
+      ? { count: trapCount, line: REPORT_CARD_COPY.trapLine(trapCount), action: { label: REPORT_CARD_COPY.trapAction, href: targetedHref } }
+      : null,
+    net: input.net ?? null,
+    bar,
+  };
 }

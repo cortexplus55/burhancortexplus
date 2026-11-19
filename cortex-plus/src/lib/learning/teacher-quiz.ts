@@ -788,9 +788,11 @@ function textSeed(text: string): number {
  * model doğru cevabı neredeyse hep ilk şıkka yazıyordu (KPSS 5/5, deneme
  * sınavı 4/4); öğrenci "cevap hep A" diye öğrenirdi.
  */
-export function shuffleOptions(question: QuizQuestion): QuizQuestion {
+export function shuffleOptions(question: QuizQuestion, salt?: string): QuizQuestion {
   if (question.options.length < 2) return question;
-  let state = textSeed(question.text) || 1;
+  // Faz 4: kayıtlı testin ücretsiz tekrarında tuz (yeni denemenin kimliği) sırayı her çözümde değiştirir; aynı
+  // deneme aynı sırayı görür. Doğru cevap şık METNİ olduğundan anahtar korunur.
+  let state = textSeed(salt ? `${salt}\u0000${question.text}` : question.text) || 1;
   const random = () => {
     state ^= state << 13;
     state ^= state >>> 17;
