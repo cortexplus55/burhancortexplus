@@ -249,15 +249,16 @@ describe("profil ve /krediler ücretsiz hesapta sayaç anlatır (#13, #17, #31, 
     for (const periodKind of ["daily", "weekly", "monthly"] as const) {
       expect(
         profilePlanView({ audience: "free", resetsAtLabel: "2 Kasım 2026 00:00", periodKind, subscriptionPeriodEnd: null })?.hint,
-      ).toBe("Ücretsiz plan · ilk dersin açık, günde 3 mesaj ve 1 fotoğraftan çözüm · devamı Plus'ta");
+      ).toBe("Ücretsiz plan · ilk dersin açık, günde 3 mesaj ve ayda 7 fotoğraftan çözüm · devamı Plus'ta");
     }
   });
 
   // Bakiye her zaman hediye değil (eski ek paket, promosyon): yazı tarafsız, "Ek hakkın".
   it("cüzdan bakiyesi işle anlatılır, kredi sayısı yazılmaz", () => {
-    expect(freeExtraLine(90)).toBe("Ek hakkın: yaklaşık 3 ders");
-    expect(freeExtraLine(20)).toBe("Ek hakkın: yaklaşık 6 mesaj");
-    expect(freeExtraLine(2)).toBeNull();
+    // Faz 4: ders 22 kredi.
+    expect(freeExtraLine(90)).toBe("Ek hakkın: yaklaşık 4 ders");
+    expect(freeExtraLine(20)).toBe("Ek hakkın: yaklaşık 20 mesaj");
+    expect(freeExtraLine(2)).toBe("Ek hakkın: yaklaşık 2 mesaj");
     expect(freeExtraLine(0)).toBeNull();
   });
 

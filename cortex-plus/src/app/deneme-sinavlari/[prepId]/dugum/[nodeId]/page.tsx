@@ -25,7 +25,7 @@ import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flag
 import { nextRestudyHref, parseRestudyToken } from "@/lib/learning/free-restudy";
 import { LEARNED_SKIP_KINDS, topicReviewStateForNode } from "@/lib/learning/learned-skip";
 import { TARGETED_FIRST_KINDS } from "@/lib/learning/learned-skip-copy";
-import { LearnedSkipBar, TargetedFirstBar } from "@/components/parity/exam-node/learned-skip-bar";
+import { LearnedSkipBar, TargetedFirstBar } from "@/components/parity/learned-skip-bar";
 import { createServiceClient } from "@/lib/supabase/server";
 import { parseSessionMeta } from "@/lib/learning/teaching-standards";
 import {
