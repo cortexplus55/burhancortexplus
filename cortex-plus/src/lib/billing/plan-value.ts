@@ -220,22 +220,25 @@ export function tempoMix(tempo: Tempo): WorkMix {
   };
 }
 
-/** Hazır tempolar: hepsi Plus hakkına sığar ve gittikçe yoğunlaşır (bekçi test; kredi v3, 24 Ekim 2026). */
+/**
+ * Hazır tempolar: hepsi Plus hakkına sığar ve gittikçe yoğunlaşır (bekçi test). Faz 4 (19 Kasım 2026): aylık hak 4.350
+ * krediye, ders 22 / test 14 / podcast 16 fiyatına göre yeniden ayarlandı; en yoğunu hakkın dörtte üçünü geçmez.
+ */
 export const TEMPO_PRESETS: readonly { id: string; label: string; tempo: Tempo }[] = [
   {
     id: "duzenli",
     label: "Düzenli çalışma",
-    tempo: { lessonsPerDay: 1, quizzesPerDay: 2, questionsPerDay: 5, podcastsPerWeek: 3, writtenPerWeek: 1, videosPerMonth: 1 },
+    tempo: { lessonsPerDay: 1, quizzesPerDay: 1, questionsPerDay: 5, podcastsPerWeek: 2, writtenPerWeek: 1, videosPerMonth: 1 },
   },
   {
     id: "sinav-ayi",
     label: "Sınav ayı",
-    tempo: { lessonsPerDay: 2, quizzesPerDay: 3, questionsPerDay: 5, podcastsPerWeek: 5, writtenPerWeek: 2, videosPerMonth: 0 },
+    tempo: { lessonsPerDay: 1, quizzesPerDay: 2, questionsPerDay: 5, podcastsPerWeek: 3, writtenPerWeek: 2, videosPerMonth: 0 },
   },
   {
     id: "son-sprint",
     label: "Son sprint",
-    tempo: { lessonsPerDay: 2, quizzesPerDay: 5, questionsPerDay: 8, podcastsPerWeek: 3, writtenPerWeek: 3, videosPerMonth: 0 },
+    tempo: { lessonsPerDay: 1, quizzesPerDay: 3, questionsPerDay: 8, podcastsPerWeek: 2, writtenPerWeek: 3, videosPerMonth: 0 },
   },
 ];
 
