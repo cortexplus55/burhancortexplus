@@ -8,6 +8,7 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { errorResponse } from "@/lib/api/guards";
 import { canSkipLearnedStep, learnedTopicForNode } from "@/lib/learning/learned-skip";
+import { completeSkippedNode } from "@/lib/learning/node/completion";
 import type { NodeContext } from "@/lib/learning/node/context";
 
 export async function skipLearnedAction(context: NodeContext): Promise<NextResponse> {
@@ -38,19 +39,11 @@ export async function skipLearnedAction(context: NodeContext): Promise<NextRespo
     console.error("learned_skip_attempt_failed", { nodeId, message: insertError.message });
     return errorResponse(503, "skip_failed");
   }
-  const { data: completed, error: completeError } = await service.rpc("complete_exam_prep_node", {
-    p_user_id: userId,
-    p_prep_id: prepId,
-    p_node_id: nodeId,
-    p_attempt_id: attemptId,
-    p_score: 1,
-    p_total: 1,
-    p_answers: {},
-  });
-  if (completeError || !completed) {
-    console.error("learned_skip_complete_failed", { nodeId, message: completeError?.message ?? "empty" });
+  const completed = await completeSkippedNode(service, { userId, prepId, nodeId, attemptId });
+  if (!completed.ok) {
+    console.error("learned_skip_complete_failed", { nodeId, message: completed.message });
     return errorResponse(503, "skip_failed");
   }
-  const nextId = (completed as { nextId?: string | null }).nextId ?? null;
+  const nextId = completed.nextId;
   return NextResponse.json({ ok: true, skipped: true, nextId, creditsCharged: 0 });
 }

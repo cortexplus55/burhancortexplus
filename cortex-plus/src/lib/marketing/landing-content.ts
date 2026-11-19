@@ -56,7 +56,7 @@ export const HERO_FACTS = ["Kart istemiyoruz", "İlk dersin süresiz ücretsiz",
  */
 export const FREE_PLAN_POINTS = [
   "Konu anlatımı, akıllı kartlar, doğru/yanlış ve konu testi",
-  `AI öğretmene günde ${FREE_LIMITS.chat} mesaj, günde ${FREE_LIMITS.photo} fotoğraftan çözüm`,
+  `AI öğretmene günde ${FREE_LIMITS.chat} mesaj, ayda ${FREE_LIMITS.photo} fotoğraftan çözüm`,
   `Bir sınav hazırlığı, toplam ${FREE_PAGE_TOTAL} sayfa belge`,
 ] as const;
 

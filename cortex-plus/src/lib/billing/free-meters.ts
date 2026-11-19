@@ -164,7 +164,7 @@ export function freeLimitReachedLine(meter: FreeMeter): string {
 /** "Hakkın gece yarısı yenilenir." / fotoğraf: "Hakkın ay başında yenilenir." */
 export function freeMeterResetLine(meter: DailyFreeMeter): string {
   if (meter === "photo") return "Hakkın ay başında yenilenir.";
-  if (meter === "reexplain") return "Plus'ta \"Farklı anlat\" sınırsız açılır.";
+  if (meter === "reexplain") return "Plus'ta \"Farklı anlat\" her adımda açık.";
   return "Hakkın gece yarısı yenilenir.";
 }
 

@@ -444,7 +444,9 @@ describe("metinler: tek kaynak, haftalık ders ve geri sayım yok, Plus kapısı
     // Rozet, stüdyonun uçta ayırdığı kodla aynı kuraldan.
     expect(read("src/app/api/learning/quiz/generate/route.ts")).toContain('"QUIZ_GENERATE"');
     expect(read("src/app/api/learning/flashcards/generate/route.ts")).toContain('actionCode: "FLASHCARD_GENERATE"');
-    expect(read("src/app/api/learning/true-false/generate/route.ts")).toContain('actionCode: "QUIZ_GENERATE"');
+    // Faz 4: doğru/yanlış testten ayrı kod (3 kredi), aynı ders sayacı.
+    expect(read("src/app/api/learning/true-false/generate/route.ts")).toContain('actionCode: "TRUE_FALSE_GENERATE"');
+    expect(defaultFreeMeter("TRUE_FALSE_GENERATE")).toBe("lesson");
     for (const code of ["QUIZ_GENERATE", "FLASHCARD_GENERATE", "STUDY_PLAN_GENERATE"] as const) {
       expect(defaultFreeMeter(code)).toBe("lesson");
       expect(needsPlusOutsideFirstLesson(code)).toBe(true);

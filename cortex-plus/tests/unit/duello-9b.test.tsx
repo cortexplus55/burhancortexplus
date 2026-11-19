@@ -149,7 +149,7 @@ describe("bayrak KAPALI: bugünkü düello birebir (regresyon)", () => {
   it("statik kapı ve fiyat bugünkü gibi: duel.start → QUIZ_GENERATE, DUEL_ACCESS günlük hak yok", async () => {
     const { ACTION_CODE, actionCost, DUEL_ACCESS } = await import("@/lib/entitlements/config");
     expect(ACTION_CODE["duel.start"]).toBe("QUIZ_GENERATE");
-    expect(actionCost("duel.start")).toBe(10);
+    expect(actionCost("duel.start")).toBe(14); // Faz 4: konu testi 14
     expect(DUEL_ACCESS.dailyLimit).toBeNull();
   });
 });

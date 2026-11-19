@@ -13,7 +13,7 @@ import {
 } from "@/lib/rate-limit";
 import { hashIp, recordAbuse, requestIp } from "@/lib/abuse/record";
 import { isAdminUser } from "@/lib/auth/roles";
-import { FREE_LESSON_REFUSAL_MESSAGE } from "@/lib/billing/free-meters";
+import { FREE_LESSON_REFUSAL_MESSAGE, FREE_PHOTO_PER_MONTH } from "@/lib/billing/free-meters";
 import { gateFromRefusal } from "@/lib/entitlements/gate";
 
 export type ApiContext = {
@@ -365,7 +365,7 @@ export function errorResponse(
     AUTH_REQUIRED: "Bu işlem için giriş yapmalısın.",
     premium_required: "Bu özellik Plus aboneliğine özel.",
     free_image_limit:
-      "Ücretsiz hesapta günde 1 fotoğraftan çözüm var. Gece yarısı yenilenir ya da Plus'a geçebilirsin.",
+      `Ücretsiz hesapta ayda ${FREE_PHOTO_PER_MONTH} fotoğraftan çözüm var. Ay başında yenilenir ya da Plus'a geçebilirsin.`,
     // Sayıya dayalı ücretsiz katman (24 Ekim 2026): sayaç dolunca 402 ve bu kodlar. Plus limitsiz gibi
     // anlatılmaz, Plus'ın da aylık hakkı var (generation-failure.ts ile aynı cümle).
     // 11 Kasım 2026 akşamı: ücretsiz hesap = tek ders. Bu kod artık "hak doldu" değil, "iş ücretsizde açılmıyor".

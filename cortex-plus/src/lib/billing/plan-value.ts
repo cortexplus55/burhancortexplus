@@ -28,7 +28,7 @@ export type PlanWork = {
   plusOnly: boolean;
   /**
    * Ücretsiz hesapta ne kadar (11 Kasım 2026 akşamı, ürün sahibinin kararı: ücretsiz hesap = tek ders): ders yalnız
-   * ilk hazırlığın ilk dersi ("first"), test ve kartlar o derse dahil ("included"); mesaj günde 3, fotoğraf günde 1
+   * ilk hazırlığın ilk dersi ("first"), test ve kartlar o derse dahil ("included"); mesaj günde 3, fotoğraf ayda 7
    * (ayda sayı). Plus'a özelse null.
    */
   free: number | "first" | "included" | null;
@@ -179,7 +179,7 @@ export function mixShare(mix: WorkMix, allowance: number = PLAN_ALLOWANCES.plusM
 }
 
 /**
- * Aynı karışım ücretsiz hesapla kaç günde biter: günde 3 mesaj, günde 1 fotoğraf. Ücretsiz hesapta ders yalnız ilk
+ * Aynı karışım ücretsiz hesapla kaç günde biter: günde 3 mesaj, ayda 7 fotoğraf. Ücretsiz hesapta ders yalnız ilk
  * derstir (test ve kartlar ona dahil): karışımda Plus'a özel iş, birden çok ders ya da ilk dersin dışında test/kart
  * varsa ücretsizle hiç yürümez (null).
  */

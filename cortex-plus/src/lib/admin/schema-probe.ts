@@ -87,7 +87,7 @@ async function probeMeteredReserve(service: SupabaseClient): Promise<SchemaCheck
     ok: !missing,
     critical: true,
     detail: missing
-      ? "credit_reserve_metered yok — 20261024121000 uygulanmamış ya da yarım kalmış. Ücretsiz hesabın ayırmaları sayaçsız credit_reserve'e düşüyor: günde 3 mesaj, 1 fotoğraf ve derse dahil adımlar çalışmıyor."
+      ? "credit_reserve_metered yok — 20261024121000 uygulanmamış ya da yarım kalmış. Ücretsiz hesabın ayırmaları sayaçsız credit_reserve'e düşüyor: mesaj, fotoğraf ve derse dahil adımlar çalışmıyor."
       : "credit_reserve_metered yerinde: ücretsiz hesap sayaçla ayırıyor.",
   };
 }

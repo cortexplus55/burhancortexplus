@@ -12,7 +12,7 @@ import {
  * "Plus'ta" kararı artık fiyattan değil, açık listeden gelir (`PLUS_ONLY_ACTIONS`): podcast, sözlü,
  * yazılı deneme, video ve ses. Fiyattan türetmek kredi fiyatı değişince kapıyı ters çeviriyordu (sözlü 6
  * krediye inince ücretsizde açılırdı, ders 30 krediye çıkınca "Plus" rozeti alırdı). Öteki işler sayaçla
- * açık: günde 3 mesaj, günde 1 fotoğraf.
+ * açık: günde 3 mesaj, ayda 7 fotoğraf (Faz 4).
  *
  * 11 Kasım 2026 akşamı (ürün sahibinin kararı): ücretsiz hesap = tek ders. Ders sayacına düşen üretim (Çalışma
  * Stüdyosu'nda test, kart, doğru/yanlış; "Farklı anlat"; yeniden yazım) ilk dersin döngüsü dışında Plus'a yönlenir

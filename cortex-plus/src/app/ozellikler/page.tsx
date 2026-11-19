@@ -17,7 +17,7 @@ export const metadata = {
   19 Ekim 2026: sayfa "gelişmiş model", "çalışma planı ve günlük görevler", "her işlem öncesi kredi
   gösterilir" diyordu; üçü de yoktu. Her kart bugün çalışan bir araca karşılık gelir.
 
-  24 Ekim 2026 (kredi v3): ücretsiz hesap sayaçla — günde 3 mesaj, günde 1 fotoğraf
+  24 Ekim 2026 (kredi v3): ücretsiz hesap sayaçla — günde 3 mesaj, fotoğraf (Faz 4: ayda 7)
   (`free-meters.ts`). "Plus" etiketliler ücretsiz hesapta hiç açılmayan işler (`PLUS_ONLY_ACTIONS`:
   podcast, sözlü, yazılı deneme, video, ses); sayılar koddan okunur, sayfaya elle yazılmaz.
 

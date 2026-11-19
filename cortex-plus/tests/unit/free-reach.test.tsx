@@ -34,7 +34,10 @@ describe("ücretsiz hakkı aşan işler", () => {
     expect(body).toContain(`if (kind === "podcast") return "PODCAST_GENERATE"`);
     expect(body).toContain(`if (kind === "oral") return "ORAL_EXAM_GENERATE"`);
     expect(body).toContain(`return "QUIZ_GENERATE"`);
-    expect(Object.keys(NODE_KIND_ACTION).sort()).toEqual(["flashcards", "lesson", "oral", "podcast", "spaced"]);
+    // Faz 4: doğru/yanlış ve yazılı deneme kendi koduyla.
+    expect(body).toContain(`if (kind === "true_false") return "TRUE_FALSE_GENERATE"`);
+    expect(body).toContain(`if (kind === "written_exam") return "PRACTICE_EXAM_GENERATE"`);
+    expect(Object.keys(NODE_KIND_ACTION).sort()).toEqual(["flashcards", "lesson", "oral", "podcast", "spaced", "true_false", "written_exam"]);
     expect(actionForNodeKind("quiz")).toBe("QUIZ_GENERATE");
   });
 

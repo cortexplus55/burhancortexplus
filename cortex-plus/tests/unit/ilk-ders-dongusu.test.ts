@@ -402,7 +402,8 @@ describe("rota: ders sayacında hak yokken ilk dersin adımları açılır", () 
     for (const [kind, action] of [
       ["lesson", "STUDY_PLAN_GENERATE"],
       ["quiz", "QUIZ_GENERATE"],
-      ["true_false", "QUIZ_GENERATE"],
+      // Faz 4: doğru/yanlış testten ayrı kod (3 kredi), aynı "derse dahil" sayaç.
+      ["true_false", "TRUE_FALSE_GENERATE"],
     ] as const) {
       const meters = makeMeters({ lesson: FREE_LIMITS.lesson, included: 0 });
       const result = await start(seed(kind), meters);

@@ -198,8 +198,9 @@ describe("ücretsiz hesapta günlük fotoğraf sayacı", () => {
   /* Fotoğraf en pahalı sohbet işi (gören model). 18 Eylül 2026'dan beri ayrı bir Redis tavanıyla (günde 3)
      frenleniyordu; 24 Ekim 2026'dan beri ücretsiz hesap krediyle değil sayaçla çalışıyor ve fotoğraf
      kredi ayırmasının kendi sayacında (`credit_reserve_metered`, günde 1). Tavan artık tek yerde. */
-  it("günde bir fotoğraf; IMAGE_SOLUTION fotoğraf sayacına düşer", () => {
-    expect(FREE_LIMITS.photo).toBe(1);
+  // Faz 4 (19 Kasım 2026, Burhan'ın kararı): fotoğraf ayda 7 (aylık anahtar).
+  it("ayda yedi fotoğraf; IMAGE_SOLUTION fotoğraf sayacına düşer", () => {
+    expect(FREE_LIMITS.photo).toBe(7);
     expect(defaultFreeMeter("IMAGE_SOLUTION")).toBe("photo");
   });
 

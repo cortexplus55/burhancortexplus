@@ -28,6 +28,7 @@ vi.mock("@/lib/admin/feature-flags", async (importOriginal) => {
 
 import { MAX_OUTLINE_CALLS, runCourseMapRound } from "@/lib/documents/pdf-learning-v2";
 import { loadOneshotIntakeTopics } from "@/lib/learning/intake-outline";
+import { textPageCredits } from "@/lib/credits/price-table";
 
 const COST = 3;
 const SYL = ["ka", "ze", "mo", "ri", "tu", "la", "ne", "vo", "si", "pe", "du", "go", "fi", "ba", "yu", "ce"];
@@ -342,7 +343,7 @@ describe("process route: extract per file, then ONE course outline", () => {
         processing_jobs: [{ document_id: A, status: "processing" }, { document_id: B, status: "processing" }],
         credit_reservations: [A, B].map((id) => ({
           id: `doc-${id}`, user_id: "u1", idempotency_key: `document_process_${id}`,
-          action_code: "DOCUMENT_PAGE_PROCESS", status: "pending", amount: 5, claim_token: null,
+          action_code: "DOCUMENT_PAGE_PROCESS", status: "pending", amount: textPageCredits(id === A ? 12 : 16), claim_token: null,
         })),
       },
     );
@@ -369,7 +370,7 @@ describe("process route: extract per file, then ONE course outline", () => {
     const again = await POST(post({ documentId: A, courseDocumentIds: [A, B] }));
     expect(again.status).toBe(200);
     expect(calls).toHaveLength(1);
-    expect(fake.chargedCredits("u1")).toBe(5 + 5 + COST);
+    expect(fake.chargedCredits("u1")).toBe(textPageCredits(12) + textPageCredits(16) + COST);
   });
 
   it("rejects a course whose first file is not the request's document", async () => {

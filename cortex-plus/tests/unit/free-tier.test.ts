@@ -98,7 +98,9 @@ describe("ücretsiz katman sınırları", () => {
     expect(pdf).toMatch(/chargeNow\(service, userId, "DOCUMENT_SCAN_PAGE"/);
     const route = read("src/app/api/documents/process/route.ts");
     expect(route).toMatch(/const freeTier = \(await freePagesRemaining\(service, userId, doc\.id\)\) !== null;/);
-    expect(route).toMatch(/if \(!freeTier\) \{\s*await commitCredits/);
+    // Faz 4: metin sayfası ceil(n / 5) birim; önden ayrılan ilk birim kesinleşir, kalanı aynı anahtarla bir kez.
+    expect(route).toMatch(/if \(!freeTier\) \{[\s\S]{0,400}const textUnits = textPageUnits\(/);
+    expect(route).toMatch(/if \(textUnits >= 1\) \{\s*await commitCredits/);
     expect(route).toMatch(/chargeNow\(service, userId, "DOCUMENT_SCAN_PAGE", `document_scan_\$\{doc\.id\}`, result\.scannedPages \?\? 0\)/);
   });
 

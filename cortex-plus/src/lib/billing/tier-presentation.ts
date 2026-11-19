@@ -4,7 +4,7 @@ import { formatDate } from "@/lib/format";
 
 import { FIRST_LESSON_STEPS, FREE_PAGE_TOTAL, FREE_PREP_LIMIT } from "@/lib/billing/free-tier-copy";
 import { FREE_CHAT_PER_DAY, FREE_PHOTO_PER_MONTH } from "@/lib/billing/free-meters";
-import { PLAN_ALLOWANCES, allowanceInWork } from "@/lib/credits/price-table";
+import { PLAN_ALLOWANCES, allowanceInWork, planWorkLine } from "@/lib/credits/price-table";
 
 /**
  * Fiyat, profil ve kabuk aynı cümleleri buradan okur.
@@ -27,9 +27,8 @@ export const GUEST_PREVIEW_CTA = "👀 Kayıt Olmadan Örnek Dersi Gör";
  * değil, ne kadar iş. Sayılar kredi tablosundan; tablo değişirse cümle de.
  */
 export function allowanceWorkLine(allowance: number, per: "ay" | "hafta" = "ay"): string {
-  const { messages, lessons } = allowanceInWork(allowance);
-  const fmt = (value: number) => value.toLocaleString("tr-TR");
-  return `${per === "ay" ? "Ayda" : "Haftada"} yaklaşık ${fmt(messages)} mesaj ya da ${fmt(lessons)} ders`;
+  // Faz 4: fiyat sayfasıyla aynı karşılık ("~200 ders / 310 test / 4.350 sohbet").
+  return `${per === "ay" ? "Ayda" : "Haftada"} ${planWorkLine(allowance)}`;
 }
 
 export function plusBenefitLines(): string[] {

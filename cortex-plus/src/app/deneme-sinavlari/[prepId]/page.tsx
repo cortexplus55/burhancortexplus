@@ -1,3 +1,4 @@
+import type { MasteryBadge } from "@/lib/learning/mastery-policy";
 import { officialPlanNote, officialSourceNote, readCurriculumRef } from "@/lib/curriculum/registry";
 import { notFound } from "next/navigation";
 import { after } from "next/server";
@@ -535,10 +536,12 @@ export default async function ExamPrepDetailPage({
   );
   // Yol bölümü yalnız ölçülmüş konunun yüzdesini yazar (Paket I #7): ölçülmemiş konu (3 cevaptan az) sayı göstermez.
   const topicPercents: Record<string, number> = {};
+  const topicBadges: Record<string, MasteryBadge> = {};
   for (const label of topicLabels) {
     const view = masteryViews.get(label);
     if (!view || view.state === "unmeasured") continue;
     topicPercents[label.trim().toLocaleLowerCase("tr-TR")] = view.percent;
+    topicBadges[label.trim().toLocaleLowerCase("tr-TR")] = view.badge;
   }
   const progressView = buildPrepProgressView({
     nodes,
@@ -848,6 +851,7 @@ export default async function ExamPrepDetailPage({
         lastResult={lastResult}
         nodeScores={nodeScores}
         topicPercents={topicPercents}
+        topicBadges={topicBadges}
         lockedPickId={typeof kilitli === "string" ? kilitli : null}
         pendingMaterials={pendingMaterials}
         dueReviews={dueReviews}
