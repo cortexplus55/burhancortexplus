@@ -86,9 +86,10 @@ export default async function DokumanlarPage() {
   const baseColumns =
     "id, file_name, status, size_bytes, created_at, updated_at, error_message, topic_map_status, topic_map_error, page_count, source_page_count, scan_pages_skipped";
   // Faz 2 (madde 5): seçilen aralığın başı kapsam rozeti için okunur; sütun göçten önce yoksa eski okuma.
-  let { data: documents, error: documentsError } = await listDocuments(`${baseColumns}, page_range_start`);
-  if (documentsError && missingColumn(documentsError)) {
-    ({ data: documents } = await listDocuments(baseColumns));
+  const firstList = await listDocuments(`${baseColumns}, page_range_start`);
+  let documents = firstList.data;
+  if (firstList.error && missingColumn(firstList.error)) {
+    documents = (await listDocuments(baseColumns)).data;
   }
 
   // Her belgenin kendi yolu (3 Ekim 2026). Düğme eskiden her basışta yeni
