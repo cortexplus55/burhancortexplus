@@ -1,4 +1,5 @@
 import type { LessonBlock, LessonV3 } from "@/lib/learning/lesson-v3";
+import { hasFalseArithmetic } from "@/lib/learning/answer-key-consistency";
 import { readSourceCorrectionWarning, repeatsSourceError, type SourceCorrectionWarning } from "@/lib/learning/source-correction";
 import { formulaRelationKeys } from "@/lib/text/math-normalize";
 import { unresolvedVisualReference } from "@/lib/learning/answer-consistency";
@@ -206,6 +207,8 @@ export function fitCramText(text: string, options: { max?: number; storedMax?: n
   const max = options.max ?? CRAM_LIMITS.text;
   const value = clean(text);
   if (value.length < 2) return null;
+  // Yanlış işlem taşıyan satır (kayıtlı eski içerik dahil) kâğıda basılmaz (19 Kasım 2026, Faz 1-A §3).
+  if (hasFalseArithmetic(value)) return null;
   const cutInStore =
     CUT_MARK.test(value) || (options.storedMax != null && value.length >= options.storedMax - 4 && !ENDS_WHOLE.test(value));
   if (cutInStore) {

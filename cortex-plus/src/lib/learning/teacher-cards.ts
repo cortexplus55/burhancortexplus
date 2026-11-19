@@ -1,4 +1,5 @@
 import { CONTENT_STYLE } from "@/lib/ai/content-style";
+import { KEY_CONSISTENCY_PREFIX, hasFalseArithmetic } from "@/lib/learning/answer-key-consistency";
 import { SOURCE_CORRECTION_ISSUE, cardRepeatsSourceError, sourceCorrectionPromptBlock, type SourceCorrectionWarning } from "@/lib/learning/source-correction";
 import { sourceText, type TeacherLessonMode } from "@/lib/learning/teacher-lesson";
 import { singlePassItems, type Reviewed } from "@/lib/learning/teacher-item-loop";
@@ -197,6 +198,8 @@ export function cardStructureIssues(card: TeacherCard): string[] {
   }
   if (front === back) issues.push("Ön ve arka yüz aynı.");
   else if (back.length > 3 && back.split(/\s+/).length <= 4 && front.includes(back)) issues.push("Ön yüz cevabı içeriyor.");
+  // Kartın arka yüzü cevap anahtarıdır: yanlış işlem taşıyamaz (19 Kasım 2026, Faz 1-A §3).
+  if (hasFalseArithmetic(card.back)) issues.push(`${KEY_CONSISTENCY_PREFIX}: arka yüzdeki işlem yanlış; hesabı düzelt.`);
   if (/kaynak\s*:|\bs\.\s?\d+|\bsayfa\s+\d+|\bpdf\b|metne göre|belgede/i.test(`${card.front} ${card.back}`)) {
     issues.push("Kartta kaynak/sayfa notu ya da 'metne göre' var; çıkar.");
   }

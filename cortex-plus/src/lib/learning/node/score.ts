@@ -8,6 +8,7 @@ import { scoreLessonChecks } from "@/lib/learning/lesson-claims";
 import { readLessonV2 } from "@/lib/learning/lesson-v3";
 import { reviewDraftsFromAttempt } from "@/lib/learning/review-items";
 import type { MistakeDraft } from "@/lib/learning/mistake-notebook";
+import { storedTrueFalseKey } from "@/lib/learning/answer-key-consistency";
 
 export function scoreAttempt(
   kind: PlanNodeKind,
@@ -124,7 +125,8 @@ export function mistakeDraftsFromAttempt(
     items.forEach((item, index) => {
       const value = answers[String(index)];
       if (value == null || value === "") return;
-      const ok = value === item.correct || value === String(item.correct);
+      const key = storedTrueFalseKey(item);
+      const ok = value === key || value === String(key);
       if (ok) return;
       drafts.push({
         source: "true_false",
@@ -132,7 +134,7 @@ export function mistakeDraftsFromAttempt(
         topicLabel,
         questionText: item.statement ?? item.text ?? `Doğru/Yanlış #${index + 1}`,
         options: ["Doğru", "Yanlış"],
-        correctAnswer: item.correct ? "Doğru" : "Yanlış",
+        correctAnswer: key ? "Doğru" : "Yanlış",
         wrongAnswer: String(value) === "true" || value === true ? "Doğru" : "Yanlış",
         explanation: item.explanation ?? null,
       });

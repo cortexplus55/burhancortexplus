@@ -1,4 +1,5 @@
 import { CONTENT_STYLE } from "@/lib/ai/content-style";
+import { KEY_CONSISTENCY_PREFIX, hasFalseArithmetic, trueFalseKeyInconsistent } from "@/lib/learning/answer-key-consistency";
 import { SOURCE_CORRECTION_ISSUE, sourceCorrectionPromptBlock, trueFalseKeyRepeatsSourceError, type SourceCorrectionWarning } from "@/lib/learning/source-correction";
 import { sourceText, type TeacherLessonMode } from "@/lib/learning/teacher-lesson";
 import { singlePassItems } from "@/lib/learning/teacher-item-loop";
@@ -188,6 +189,12 @@ export function trueFalseStructureIssues(item: TrueFalseItem): string[] {
     issues.push("Yanlış önermenin doğru hâlini correctedStatement'a yaz.");
   }
   if (!item.misconceptionTag) issues.push("misconceptionTag yok.");
+  // Cevap anahtarı tutarlılığı (19 Kasım 2026, Faz 1-A §3): önermedeki işlem kodla hesaplanır; yanlış işlem taşıyan
+  // önerme "Doğru" olamaz. Açıklama ya da doğru hâldeki işlem yanlışsa da önerme düşer.
+  if (trueFalseKeyInconsistent(item)) issues.push(`${KEY_CONSISTENCY_PREFIX}: önermedeki işlem yanlış, correct true olamaz.`);
+  if (hasFalseArithmetic(`${item.explanation}\n${item.correctedStatement ?? ""}`)) {
+    issues.push(`${KEY_CONSISTENCY_PREFIX}: açıklamadaki ya da doğru hâldeki işlem yanlış; hesabı düzelt.`);
+  }
   if (/kaynak\s*:|\bs\.\s?\d+|\bsayfa\s+\d+|\bpdf\b|metne göre|belgede/i.test(item.text)) {
     issues.push("Önermede kaynak/sayfa notu ya da 'metne göre' var; çıkar.");
   }
@@ -318,6 +325,10 @@ export function oralStructureIssues(item: OralItem): string[] {
   if (item.expectedPoints.some((point) => SCORE_LABEL.test(point))) issues.push("expectedPoints'te puan etiketi var.");
   if (!item.rubricCriteria.length) issues.push("rubricCriteria yok.");
   if (item.modelAnswer.length < 20) issues.push("modelAnswer çok kısa.");
+  // Sözlü sınavın örnek cevabı ve beklenen noktaları puanlamanın anahtarıdır: yanlış işlem taşıyamaz (Faz 1-A §3).
+  if (hasFalseArithmetic([item.modelAnswer, ...item.expectedPoints].join("\n"))) {
+    issues.push(`${KEY_CONSISTENCY_PREFIX}: modelAnswer ya da expectedPoints içindeki işlem yanlış; hesabı düzelt.`);
+  }
   if (/kaynak\s*:|\bs\.\s?\d+|\bsayfa\s+\d+|\bpdf\b|metne göre|belgede/i.test(item.prompt)) {
     issues.push("Soruda kaynak/sayfa notu ya da 'metne göre' var; çıkar.");
   }

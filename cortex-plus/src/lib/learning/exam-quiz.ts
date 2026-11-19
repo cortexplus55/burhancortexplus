@@ -1,3 +1,5 @@
+import { explanationAnswerMismatch } from "@/lib/learning/answer-consistency";
+import { hasFalseArithmetic } from "@/lib/learning/answer-key-consistency";
 import { z } from "zod";
 import { stripListMarker } from "@/lib/text/list-marker";
 import { repairStoredSteps } from "@/lib/learning/step-repair";
@@ -136,7 +138,32 @@ type RawQuizQuestion = {
 
 /** Kayıtlı ya da gelen soruyu okur: birden çok doğru işaretliyse soru çok cevaplı sayılır (eski kayıtlar böyle). */
 export function normalizeQuizQuestion(raw: RawQuizQuestion): QuizQuestion | null {
-  return normalizeQuizRow(raw, true);
+  const question = normalizeQuizRow(raw, true);
+  return question ? auditStoredQuizKey(question) : null;
+}
+
+export const STORED_KEY_VOID_NOTE = "Bu sorunun çözümünde hesap hatası bulundu; soru puanlanmaz, herkese tam puan verildi.";
+
+/**
+ * Kayıtlı soru okunurken cevap anahtarı kapısı (19 Kasım 2026, Faz 1-A §3): yeni üretimdeki kurallar eski kayda da
+ * uygulanır. Açıklama/gerekçe/adımdaki işlem yanlışsa soru güvenle puanlanamaz (voided: herkese tam puan, not
+ * gösterilir). Anahtar açıklamanın hesabıyla ya da şık gerekçeleriyle çelişiyorsa desteklenen şıkka alınır.
+ * Çok cevaplı ve zaten iptal edilmiş soruya dokunulmaz.
+ */
+export function auditStoredQuizKey(question: QuizQuestion): QuizQuestion {
+  if (question.multi || question.voided || question.correct.length !== 1) return question;
+  const keyed = question.options.indexOf(question.correct[0]!);
+  if (keyed < 0) return question;
+  const reasoning = [question.explanation ?? "", ...(question.optionWhy ?? []), ...(question.steps ?? [])].join("\n");
+  if (hasFalseArithmetic(reasoning)) return { ...question, voided: true, voidNote: STORED_KEY_VOID_NOTE };
+  const mismatch = explanationAnswerMismatch({
+    options: question.options,
+    keyed: [keyed],
+    steps: question.steps,
+    optionWhy: question.optionWhy && question.optionWhy.length === question.options.length ? question.optionWhy : undefined,
+    explanation: question.explanation,
+  });
+  return mismatch ? { ...question, correct: [question.options[mismatch.expectedIndex]!] } : question;
 }
 
 /**
