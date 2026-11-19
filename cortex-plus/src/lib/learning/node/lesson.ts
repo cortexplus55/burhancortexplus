@@ -16,7 +16,12 @@ import { examPointsInSource } from "@/lib/learning/exam-points";
 import { findFormulaTypos } from "@/lib/learning/formula-typos";
 import { mergeNoteWarnings } from "@/lib/learning/note-rule-check";
 import { checkNoteRulesAndCorrection } from "@/lib/learning/note-rule-check-run";
-import { correctionAsNoteWarning, type SourceCorrectionWarning } from "@/lib/learning/source-correction";
+import {
+  correctionAsNoteWarning,
+  settleWithin,
+  SOURCE_CORRECTION_WAIT_MS,
+  type SourceCorrectionWarning,
+} from "@/lib/learning/source-correction";
 import { loadOfficialOutcome } from "@/lib/curriculum/prep-outcome";
 import { prepTopicLabels } from "@/lib/documents/generation-context";
 import { poolSourceText } from "@/lib/content-pool/serve";
@@ -143,6 +148,13 @@ export async function teacherLessonPayload(
       ...(sourceCorrection ? { sourceCorrectionWarning: sourceCorrection } : {}),
     };
   };
+  // Faz 1-A §2.1 (canlı bulgu, 19 Kasım 2026): yazar düzeltmeyi baştan okusun diye denetim sınırlı süre beklenir.
+  // Gelmezse yazım bugünkü gibi başlar; geç uyarı `lateNoteWarnings` ile kavram denetimine gider.
+  if (core) {
+    const waitStarted = Date.now();
+    await settleWithin(modelCheck, SOURCE_CORRECTION_WAIT_MS);
+    console.info("lesson_source_correction_wait", { ms: Date.now() - waitStarted, correction: Boolean(sourceCorrection) });
+  }
   const outcome = await runTeacherLesson(input.service, {
     mode: core ? "document" : "topic",
     userId: input.userId,
