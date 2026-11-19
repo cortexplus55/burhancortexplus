@@ -73,6 +73,8 @@ export const publicLessonV3Schema = z.object({
   numericalCheck: publicLessonV2Schema.shape.numericalCheck,
   infoCheck: publicLessonV2Schema.shape.infoCheck,
   qualityReport: publicLessonV2Schema.shape.qualityReport,
+  academicDomain: z.string().max(40).optional().catch(undefined),
+  visualArchetype: z.string().max(40).optional().catch(undefined),
 });
 
 const KNOWN_BLOCKS = new Set<string>([

@@ -210,7 +210,7 @@ describe("6 arketip × 2 mod render (Faz 1-B)", () => {
     const { container } = render(<VisualSceneRenderer scene={scene} mode="9:16" />);
     expect(container.querySelectorAll("[data-pin]").length).toBe(4);
     expect(container.textContent).toContain("Aks aralığı");
-    expect(container.textContent).toMatch(/A.*B.*C/s);
+    expect(container.textContent).toMatch(/A[\s\S]*B[\s\S]*C/);
   });
 
   it("hukuk: evet/hayır dalları, 3/5 = 360 ve 2/3 = 400 barometresi, zaman çizgisi, kural/istisna", () => {

@@ -18,6 +18,7 @@ import { displaySolution, isPromptEcho } from "@/lib/learning/oral-review";
 import { cleanFeedbackText, feedbackKicker } from "@/lib/learning/feedback-copy";
 import { LessonDiagramView } from "@/components/parity/lesson-diagram";
 import { DiagramCard } from "@/components/parity/diagram-card";
+import { LessonVisualScene } from "@/components/learning/visual-scenes/LessonVisualScene";
 import { SourceFigureCard, SourcePageButton } from "@/components/parity/source-page-drawer";
 import { figureHintsFor, matchLessonSource, planFigureSources, type SourceDocRef } from "@/lib/learning/source-preview";
 import {
@@ -358,6 +359,8 @@ function LessonBlocks({
             return <LessonDiagramView key={key} diagram={block.diagram} id={key} />;
           case "diagram_card":
             return <DiagramCard key={key} card={block} id={key} />;
+          case "visual_scene":
+            return <LessonVisualScene key={key} block={block} id={key} />;
           case "note":
             // Genel bilgi kutusu kapalı başlar (8 Kasım 2026): belgede olmayan destek bilgisi; telefonda tek ekranda
             // metin + iki genel bilgi + sınav tuzağı üst üste geliyordu. Başlık görünür, dokununca açılır.

@@ -30,6 +30,15 @@ import {
   unresolvedVisualReference,
 } from "@/lib/learning/answer-consistency";
 import { numbersIn, sameNumber } from "@/lib/learning/result-values";
+import {
+  ACADEMIC_DOMAINS,
+  DOMAIN_ARCHETYPE,
+  type AcademicDomain,
+  type DomainClassification,
+  type VisualArchetype,
+} from "@/lib/learning/visual-scenes/archetype";
+import { parseVisualScene, readAcademicDomain, readVisualArchetype, type VisualScene } from "@/lib/learning/visual-scenes/schema";
+import { VISUAL_SCENE_COMMON_RULE, archetypeSpecBlock, domainChoices, visualSceneStrings } from "@/lib/learning/visual-scenes/prompt";
 import { enumeratedCountIssue, singleAnswerIntegrityIssues } from "@/lib/learning/question-integrity";
 import {
   BLOCK_ROLE_RULE,
@@ -117,6 +126,8 @@ export type TeacherLessonInput = {
   optionCount?: OptionCount;
   /** Hafif doğrulayıcı (30 Ekim 2026, `lesson-sanity.ts`); varsayılan açık. Yalnız ölçüm betikleri ve yapı testleri kapatır. */
   sanity?: boolean;
+  /** Branşa özel görsel sahne çağrısı (Faz 1-B); varsayılan açık. Yalnız ölçüm betikleri ve yapı testleri kapatır. */
+  visualScene?: boolean;
   /** false: ilk ekran denetim beklenerek yayımlanır (eski yol). Varsayılan stream-first (3 Kasım 2026). */
   streamFirst?: boolean;
   /**
@@ -2524,6 +2535,155 @@ export function parseDiagramCompletion(raw: unknown, lesson: LessonV3, input: Pi
     return { ...screen, blocks };
   });
   return { verdict: "added", lesson: { ...lesson, screens }, kind: block.diagramKind, concept: group.concept };
+}
+
+/* ───────────── Branşa özel görsel sahne (19 Kasım 2026, Faz 1-B) ───────────── */
+
+/**
+ * Ders yazıldıktan sonra tek küçük çağrı: disiplinin arketipine göre TEK bir `visual_scene` (diagram_card tamamlaması
+ * emsali). Disiplini kod sınıflandırır (`classifyAcademicDomain`, model çağrısız); güven düşükse istem altı arketipi
+ * gösterir ve model konuya uyanı seçer. Sahne yeni bilgi taşımaz: sayılar derste ya da kaynakta geçmeli, etiketlerin
+ * çoğu ders/kaynak köküyle eşleşmeli (`parseVisualSceneCompletion`). Geçmezse ders aynen yayımlanır.
+ */
+export function visualSceneSystem(classification: Pick<DomainClassification, "visualArchetype" | "confidence">): string {
+  const confident = classification.confidence >= VISUAL_SCENE_CONFIDENT;
+  return (
+    "Sen Cortex Plus'ın usta öğretmeni ve bilgi tasarımcısısın. Yazılmış bir dersi okuyup ona TEK bir branşa özel " +
+    "görsel sahne (visual_scene) ekliyorsun: öğrenci konuyu tek bakışta görsün, sınavda soruyu tanısın. " +
+    `${VISUAL_SCENE_COMMON_RULE} ` +
+    "afterConcept KAVRAMLAR listesindeki bir kavramın adıdır, aynen (sahne o kavramın son ekranına girer).\n\n" +
+    `${archetypeSpecBlock(classification.visualArchetype, confident)}\n\n` +
+    `academicDomain şunlardan biri: ${domainChoices()}.\n\n` +
+    'Yalnızca şu JSON\'u döndür: {"type":"visual_scene","academicDomain":"…","visualArchetype":"…","scene":{…arketip JSON…},"afterConcept":"<kavram adı>"}\n\n' +
+    STUDENT_LEAK_BAN
+  );
+}
+
+/** Bu güvenin altında istem altı arketipi gösterir. */
+export const VISUAL_SCENE_CONFIDENT = 0.25;
+
+export function visualSceneUserPrompt(
+  lesson: LessonV3,
+  input: Pick<TeacherLessonInput, "pages" | "mode" | "topicLabel" | "prepTitle">,
+  classification: DomainClassification,
+): string {
+  const groups = conceptGroups(lesson.screens);
+  const concepts = groups.map((group) => `- ${group.concept}`);
+  const screens = lesson.screens.map(
+    (screen, index) => `[${index + 1}] ${screen.heading} (${screenConcept(screen)}): ${screenPlainText(screen).slice(0, DIAGRAM_SCREEN_CHARS)}`,
+  );
+  const source =
+    input.mode === "topic" || !input.pages.length
+      ? "KAYNAK: (yok — belgesiz ders; yalnız derste geçen etiket ve sayılar)"
+      : `KAYNAK (ilk ${DIAGRAM_SOURCE_CHARS} karakter):\n${sourceText(input.pages).slice(0, DIAGRAM_SOURCE_CHARS)}`;
+  const table = classification.sourceTable
+    ? `KAYNAKTAKİ TABLO (belge şekli sahnesi seçilirse hücreler AYNEN bunlar):\n${[classification.sourceTable.columns.join(" | "), ...classification.sourceTable.rows.map((row) => row.join(" | "))].join("\n")}`
+    : "";
+  return [
+    `DERS: ${lesson.title}`,
+    `HAZIRLIK: ${input.prepTitle}`,
+    `KONU: ${input.topicLabel}`,
+    `DİSİPLİN (kod): ${classification.academicDomain} → ${classification.visualArchetype}`,
+    `KAVRAMLAR:\n${concepts.join("\n")}`,
+    `EKRANLAR:\n${screens.join("\n")}`,
+    source,
+    table,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+export type VisualSceneVerdict = "added" | "ungrounded" | "unparsed" | "timeout" | "error" | "exists";
+
+export type VisualSceneCompletion =
+  | { verdict: "added"; lesson: LessonV3; archetype: VisualArchetype; domain: AcademicDomain; concept: string }
+  | { verdict: Exclude<VisualSceneVerdict, "added">; lesson: null; archetype?: VisualArchetype; domain?: AcademicDomain };
+
+/** Etiketlerin en az bu oranı ders/kaynak köküyle eşleşmeli; belge tablosunda hücreler daha sıkı. */
+const SCENE_LABEL_GROUNDING = 0.6;
+const SCENE_TABLE_GROUNDING = 0.85;
+
+/**
+ * Sahne temellendirmesi: (1) etiket ve açıklamalardaki her sayı bütünde geçer (sembol ve formüldeki alt simge
+ * rakamları hariç); (2) etiketlerin çoğu bütünün bir köküyle eşleşir; belge tablosunda hücreler kaynakta.
+ */
+export function visualSceneGrounded(scene: VisualScene, corpus: string): boolean {
+  const lower = corpus.toLocaleLowerCase("tr");
+  const stems = groundingStems(corpus);
+  const numbers = numbersIn(corpus);
+  const numbersOk = (text: string) => numbersIn(text).every((value) => numbers.some((item) => sameNumber(item, value)));
+  const labelOk = (label: string) => {
+    const own = [...groundingStems(label)];
+    if (!own.length) return lower.includes(label.toLocaleLowerCase("tr").trim());
+    return own.some((stem) => stems.has(stem));
+  };
+  const { labels, prose } = visualSceneStrings(scene);
+  if (![...labels, ...prose].every(numbersOk)) return false;
+  if (!labels.length) return true;
+  const ratio = labels.filter(labelOk).length / labels.length;
+  const need = scene.archetype === "DOCUMENT_FIGURE_SPOTLIGHT" ? SCENE_TABLE_GROUNDING : SCENE_LABEL_GROUNDING;
+  return ratio >= need;
+}
+
+/**
+ * Modelin sahnesini ayrıştırır, temellendirir ve derse yerleştirir: `afterConcept` kavramının son ekranına, ekran
+ * soruyla bitiyorsa sorunun önüne (soru ve şık sırasına dokunulmaz). Kavram bulunamazsa ikinci kavram (yoksa son).
+ */
+export function parseVisualSceneCompletion(
+  raw: unknown,
+  lesson: LessonV3,
+  input: Pick<TeacherLessonInput, "pages" | "mode">,
+  classification: Pick<DomainClassification, "academicDomain" | "visualArchetype">,
+): VisualSceneCompletion {
+  const row = raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : null;
+  if (!row) return { verdict: "unparsed", lesson: null };
+  const nested = row.type === "visual_scene" ? row : (row.visual_scene ?? row.block ?? row);
+  const candidate = nested && typeof nested === "object" && !Array.isArray(nested) ? (nested as Record<string, unknown>) : row;
+  const archetypeHint = readVisualArchetype(candidate.visualArchetype) ?? classification.visualArchetype;
+  const scene = parseVisualScene(candidate.scene ?? candidate, archetypeHint);
+  if (!scene) return { verdict: "unparsed", lesson: null, archetype: archetypeHint };
+  const domainRaw = readAcademicDomain(candidate.academicDomain);
+  // Model arketipi değiştirdiyse disiplin de onunkiyle tutarlı olmalı; değilse kodun disiplini.
+  const domain =
+    domainRaw && DOMAIN_ARCHETYPE[domainRaw] === scene.archetype
+      ? domainRaw
+      : DOMAIN_ARCHETYPE[classification.academicDomain] === scene.archetype
+        ? classification.academicDomain
+        : (ACADEMIC_DOMAINS.find((item) => DOMAIN_ARCHETYPE[item] === scene.archetype) ?? classification.academicDomain);
+  const corpus = [
+    lesson.title,
+    ...lesson.screens.map(screenPlainText),
+    ...(lesson.summary ?? []),
+    input.mode === "topic" ? "" : input.pages.map((page) => page.text).join("\n"),
+  ].join("\n");
+  if (!visualSceneGrounded(scene, corpus)) return { verdict: "ungrounded", lesson: null, archetype: scene.archetype, domain };
+  const block: Extract<LessonBlock, { type: "visual_scene" }> = { type: "visual_scene", academicDomain: domain, visualArchetype: scene.archetype, scene };
+  const afterConceptRaw = typeof row.afterConcept === "string" ? row.afterConcept : typeof candidate.afterConcept === "string" ? candidate.afterConcept : "";
+  const groups = conceptGroups(lesson.screens);
+  const fold = (text: string) => text.trim().toLocaleLowerCase("tr");
+  const wanted = groups.findIndex((group) => fold(group.concept) === fold(afterConceptRaw));
+  const group = groups[wanted >= 0 ? wanted : Math.min(1, groups.length - 1)]!;
+  const screenIndex = group.screens[group.screens.length - 1]!;
+  const screens = lesson.screens.map((screen, index) => {
+    if (index !== screenIndex) return screen;
+    const blocks = [...screen.blocks];
+    const last = blocks[blocks.length - 1];
+    if (last && last.type === "check" && blocks.length > 1) blocks.splice(blocks.length - 1, 0, block);
+    else blocks.push(block);
+    return { ...screen, blocks: blocks.slice(0, 12) };
+  });
+  return {
+    verdict: "added",
+    lesson: { ...lesson, screens, academicDomain: domain, visualArchetype: scene.archetype },
+    archetype: scene.archetype,
+    domain,
+    concept: group.concept,
+  };
+}
+
+/** Derste zaten bir görsel sahne var mı (yeniden yazım/farklı anlat yolunda ikinci çağrı açılmasın). */
+export function hasVisualScene(lesson: LessonV3): boolean {
+  return lesson.screens.some((screen) => screen.blocks.some((block) => block.type === "visual_scene"));
 }
 
 /** Formül tek başına kota değildir: tuzak, çivi ya da kaydırma da gerekir. */
