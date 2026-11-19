@@ -91,6 +91,11 @@ export type NodePayloadInput = {
   /** Ders düğümü içeriğini konuya yazabilsin diye. */
   prepId?: string;
   topicId?: string | null;
+  /**
+   * Kardeş üniteler (19 Kasım 2026, Faz 1-A §1): etkin üniteyle aynı kaynak sayfa aralığını paylaşan ünitelerin adları
+   * (`loadExcludedSiblingTopics`). Ders, konu testi, kartlar, Doğru/Yanlış ve podcast istemine sınır bloğu olarak girer.
+   */
+  excludedSiblingTopics?: string[];
   /** Kaynağın o sayfalardaki kendi alt başlıkları; boşsa bölümü model seçer. */
   sectionBackbone?: string[];
   /** Saklı öğretmen analizi. Yoksa boş; üretim bugünkü yoldan sürer. */

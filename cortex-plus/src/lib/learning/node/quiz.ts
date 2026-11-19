@@ -14,6 +14,7 @@ import { teachingActivityForKind } from "@/lib/learning/teaching-standards";
 import { quizOpenStagesLog } from "@/lib/learning/quiz-delivery";
 import { NodeGenerationError, actionForKind } from "./shared";
 import { prepTopicLabels, prepTopicScopeLine } from "@/lib/documents/generation-context";
+import { excludedSiblingBoundaryBlock, siblingsOutsideBoundary } from "@/lib/learning/sibling-topics";
 import { ALL_TOPICS_LABEL } from "@/lib/learning/prep-wide-target";
 import { narrowPagesToTopic } from "@/lib/learning/topic-section";
 import { withSupport, type LessonCore } from "./teacher-pages";
@@ -65,7 +66,15 @@ export async function teacherQuizPayload(
       : [];
   const siblings = await siblingsEarly;
   const scoped = narrowPagesToTopic<{ page: number; text: string; label?: string }>(withSupport(clean, core), input.topicLabel, siblings);
-  const scopeLine = prepTopicScopeLine(input.topicLabel, siblings);
+  // Kardeş ünite sınırı (19 Kasım 2026, Faz 1-A §1): aynı kaynak sayfalarını paylaşan üniteler katı blokta; kapsam
+  // satırı yalnız öbürlerini sayar.
+  const excluded = core ? (input.excludedSiblingTopics ?? []) : [];
+  const scopeLine = [
+    prepTopicScopeLine(input.topicLabel, siblingsOutsideBoundary(siblings, excluded)),
+    excludedSiblingBoundaryBlock(input.topicLabel, excluded),
+  ]
+    .filter(Boolean)
+    .join("\n");
   // Testin dilimi konunun kendi (daraltılmış) sayfalarından; yardımcı sayfalar omurgaya girmez.
   const ownPages = scoped.pages.filter((page) => !page.label);
   const variant = input.sessionMeta?.practiceVariant ?? practiceVariantFromTitle(input.nodeTitle);

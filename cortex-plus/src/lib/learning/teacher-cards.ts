@@ -56,6 +56,8 @@ export type TeacherCardsInput = {
   avoid?: string[];
   /** Öğrenci bekliyor: kısa düzeltme bütçesi (`repairBudget`). */
   urgent?: boolean;
+  /** Kapsam satırı: kardeş ünite sınır bloğu (19 Kasım 2026, Faz 1-A §1). Boşsa satır yok. */
+  scopeLine?: string;
 };
 
 const SCHEMA = `{
@@ -102,6 +104,7 @@ export function cardsUserPrompt(input: TeacherCardsInput, ask = input.count): st
     `SINAV: ${input.prepTitle}`,
     `KONU: ${input.topicLabel}`,
     `KART SAYISI: ${ask}`,
+    input.mode === "topic" ? "" : (input.scopeLine ?? ""),
     input.learnerLine ? `ÖĞRENCİ: ${input.learnerLine}` : "",
     examPointsBlock(input.examPoints, "cards"),
     avoidListBlock(

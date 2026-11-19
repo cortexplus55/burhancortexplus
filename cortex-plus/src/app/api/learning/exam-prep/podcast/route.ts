@@ -32,6 +32,7 @@ import type { QuizQuestion } from "@/lib/learning/exam-quiz";
 import { resolvePrepTopicRow } from "@/lib/learning/prep-topic-lookup";
 import { readyPathPodcastNode } from "@/lib/learning/path-podcast-ready";
 import { prepTopicLabels, prepTopicScopeLine } from "@/lib/documents/generation-context";
+import { excludedSiblingBoundaryBlock, loadExcludedSiblingTopics, siblingsOutsideBoundary } from "@/lib/learning/sibling-topics";
 
 /**
  * Yoldan bağımsız podcast. Düğüm durumuna dokunmaz; kilitli adım kilitli kalır.
@@ -246,7 +247,21 @@ export async function POST(request: Request) {
             : "",
           corpus.syllabus,
           // Belgeli podcast hazırlığın öbür konularının kısımlarını bölüm yapmaz (30 Ekim 2026, `prepTopicScopeLine`).
-          topicDocumentId ? prepTopicScopeLine(topic.label, await prepTopicLabels(service, prepId)) : "",
+          // Kardeş ünite sınırı (19 Kasım 2026, Faz 1-A §1): aynı kaynak sayfalarını paylaşan üniteler katı blokta.
+          ...(topicDocumentId
+            ? await (async (documentId: string) => {
+                const excluded = await loadExcludedSiblingTopics(service, {
+                  prepId,
+                  topicLabel: topic.label,
+                  topicId: topic.id,
+                  core: { documentId, pages: pageNumbers },
+                });
+                return [
+                  prepTopicScopeLine(topic.label, siblingsOutsideBoundary(await prepTopicLabels(service, prepId), excluded)),
+                  excludedSiblingBoundaryBlock(topic.label, excluded),
+                ];
+              })(topicDocumentId)
+            : []),
         ]
           .filter(Boolean)
           .join("\n") || undefined,

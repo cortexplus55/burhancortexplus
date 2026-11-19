@@ -6,7 +6,7 @@ import { runWithTeacherModel } from "@/lib/learning/teacher-engine-run";
 import { sessionSignalsPrompt } from "@/lib/learning/session-signals";
 import { teachingActivityForKind } from "@/lib/learning/teaching-standards";
 import { NodeGenerationError, actionForKind } from "./shared";
-import { teacherPages, type LessonCore } from "./teacher-pages";
+import { siblingBoundaryLine, teacherPages, type LessonCore } from "./teacher-pages";
 import type { NodePayloadInput } from "./generate";
 
 /**
@@ -45,6 +45,8 @@ export async function teacherCardsPayload(
     learnerLine: sessionSignalsPrompt(input.familiarity, input.mood),
     examPoints: input.examPoints,
     runningHeaders: source.edges,
+    // Kardeş ünite sınırı (Faz 1-A §1).
+    scopeLine: siblingBoundaryLine(input, core),
     // Öğrenci bekliyor: kısa düzeltme bütçesi, paralel onarım (25 Ekim 2026).
     urgent: input.charge !== false,
   };

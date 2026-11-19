@@ -155,6 +155,8 @@ export async function teacherLessonPayload(
     examPoints: core ? examPointsInSource(input.examPoints, lessonPages.map((page) => page.text).join("\n")) : input.examPoints,
     runningHeaders: edges,
     ...(siblings.length ? { siblingTopics: siblings } : {}),
+    // Kardeş ünite sınırı (Faz 1-A §1): aynı kaynak sayfalarını paylaşan üniteler; yalnız belgeli derste.
+    ...(core && input.excludedSiblingTopics?.length ? { excludedSiblingTopics: input.excludedSiblingTopics } : {}),
     ...((await approvedEarly) ? { approvedFacts: await approvedEarly } : {}),
     officialOutcome: await loadOfficialOutcome(input.service, input.prepId, input.topicLabel),
     ...warned,

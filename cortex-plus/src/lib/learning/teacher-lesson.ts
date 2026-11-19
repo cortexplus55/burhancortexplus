@@ -63,6 +63,7 @@ import {
 } from "@/lib/learning/lesson-key-facts";
 import { noteWarningsPromptLine, type FormulaTypo } from "@/lib/learning/formula-typos";
 import { backboneWithoutSiblings, prepTopicScopeLine } from "@/lib/learning/topic-section";
+import { excludedSiblingBoundaryBlock, siblingsOutsideBoundary } from "@/lib/learning/sibling-topics";
 
 /**
  * Öğretmen ders motoru (2 Ekim 2026, ürün sahibinin kararı).
@@ -134,6 +135,11 @@ export type TeacherLessonInput = {
    * Yazar kapsam satırını (`prepTopicScopeLine`) okur, omurga öbür konuların başlıklarını taşımaz. Yoksa satır yok.
    */
   siblingTopics?: string[];
+  /**
+   * Kardeş üniteler (19 Kasım 2026, Faz 1-A §1): etkin üniteyle aynı kaynak sayfalarını paylaşan üniteler. Yazar
+   * katı sınır bloğunu (`excludedSiblingBoundaryBlock`) okur; bunlar kapsam satırından çıkar. Yoksa blok yok.
+   */
+  excludedSiblingTopics?: string[];
   /**
    * Belgesiz derste konunun doğrulanmış havuz anlatımı (6 Kasım 2026): tanım, sınıflandırma ve örnekler buradan.
    * Yoksa ders konunun yerleşik bilgisiyle yazılır.
@@ -564,7 +570,10 @@ export function teacherUserPrompt(input: TeacherLessonInput): string {
   return [
     `SINAV: ${input.prepTitle}`,
     `KONU: ${input.topicLabel}`,
-    input.mode === "topic" ? "" : prepTopicScopeLine(input.topicLabel, input.siblingTopics ?? []),
+    input.mode === "topic"
+      ? ""
+      : prepTopicScopeLine(input.topicLabel, siblingsOutsideBoundary(input.siblingTopics ?? [], input.excludedSiblingTopics)),
+    input.mode === "topic" ? "" : excludedSiblingBoundaryBlock(input.topicLabel, input.excludedSiblingTopics),
     lessonOptionCountLine(input),
     input.previousTopic ? `ÖNCEKİ KONU (gerekirse tek cümleyle bağlan): ${input.previousTopic}` : "",
     input.learnerLine ? `ÖĞRENCİ: ${input.learnerLine}` : "",

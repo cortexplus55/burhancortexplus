@@ -9,6 +9,8 @@ import { recordLessonTiming, recordOpenTiming } from "@/lib/admin/beta-metrics";
 import { adoptedPrefetchAttempt, dropPrefetch, publishPrefetchPartial, storePrefetchedLesson } from "@/lib/learning/lesson-prefetch";
 import { quizPrefetchStorable } from "@/lib/learning/topic-test-prefetch";
 import { loadTopicSupport, supportPagesForEngine } from "@/lib/learning/topic-support-load";
+import { loadExcludedSiblingTopics } from "@/lib/learning/sibling-topics";
+import { ALL_TOPICS_LABEL } from "@/lib/learning/prep-wide-target";
 import { fillPodcastCheckLater } from "@/lib/learning/podcast-check-later";
 import { fillOralRestLater } from "@/lib/learning/oral-rest-later";
 import { errorResponse } from "@/lib/api/guards";
@@ -232,6 +234,16 @@ export async function runStartGeneration(
   const lessonSupport = teacherCore
     ? loadTopicSupport(service, { userId, prepId, topicId: topic?.id ?? null })
     : Promise.resolve([]);
+  // Kardeş ünite sınırı (19 Kasım 2026, Faz 1-A §1): aynı kaynak sayfalarını paylaşan üniteler; yalnız okuma, paralel.
+  const excludedSiblingsEarly: Promise<string[]> =
+    teacherCore && lessonCoreDocumentId && prepId && topicLabel !== ALL_TOPICS_LABEL
+      ? loadExcludedSiblingTopics(service, {
+          prepId,
+          topicLabel,
+          topicId: topic?.id ?? null,
+          core: { documentId: lessonCoreDocumentId, pages: lessonCorePages },
+        })
+      : Promise.resolve([]);
 
   if (!leadWanted) earlyLead?.abort();
   if (leadWanted) {
@@ -338,6 +350,7 @@ export async function runStartGeneration(
                 }
               : null,
           lessonTopicOnly,
+          excludedSiblingTopics: await excludedSiblingsEarly,
           ...(alternativeOf ? { alternativeOf: leadWanted ? `${alternativeOf}\n\n${REWRITE_LEAD_NOTE}` : alternativeOf } : {}),
           repetitiveSparseEvidence: source.repetitiveSparseEvidence,
           sourceFormulas: source.formulas ?? [],

@@ -141,6 +141,8 @@ export type VideoInput = {
    * `image`: mevcut gpt-image sahne resmi.
    */
   renderMode?: "image" | "sketch_reel";
+  /** Kapsam satırı: kardeş ünite sınır bloğu (19 Kasım 2026, Faz 1-A §1). Boşsa satır yok. */
+  scopeLine?: string;
 };
 
 const SCHEMA =
@@ -181,6 +183,7 @@ export function videoUserPrompt(input: VideoInput): string {
   return [
     `SINAV: ${input.prepTitle}`,
     `KONU: ${input.topicLabel}`,
+    input.mode === "topic" ? "" : (input.scopeLine ?? ""),
     examPointsBlock(input.examPoints, "video"),
     input.mode === "topic" ? "KAYNAK: (yok — belgesiz; konunun yerleşik bilgisiyle anlat)" : `KAYNAK:\n${sourceText(input.pages)}`,
   ]
