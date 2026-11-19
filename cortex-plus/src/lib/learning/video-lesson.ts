@@ -432,10 +432,11 @@ export function sketchSystem(mode: TeacherLessonMode, domain?: DomainClassificat
     `3) comparison — ${REEL_BEAT_LABEL.comparison}: iki kavramın ya da değişken etkisinin renk kodlu matrisi (2-4 satır).\n` +
     `4) exam_trap — "${REEL_BEAT_LABEL.exam_trap}": öğrencilerin en sık yaptığı hata (✗) ve doğrusu (✓).\n` +
     `5) memory_nail — ${REEL_BEAT_LABEL.memory_nail}: akılda kalıcı görsel kodlama (harf karoları) ve tek cümlelik sınav sabahı özeti.\n` +
-    `- Toplam ${SKETCH_TARGET_WORDS.min}-${SKETCH_TARGET_WORDS.max} kelime (yaklaşık 60 saniye). Her sahnenin anlatımı 1-2 kısa cümle, en çok ${SKETCH_SCENE_MAX_WORDS} kelime; konuşur gibi, 'sen' diye.\n` +
+    `- Anlatım toplam ${SKETCH_TARGET_WORDS.min}-${SKETCH_TARGET_WORDS.max} kelime (yaklaşık 60 saniye). Her sahnenin anlatımı 1-2 kısa cümle, en çok ${SKETCH_SCENE_MAX_WORDS} kelime; konuşur gibi, 'sen' diye.\n` +
     "- Anlatım o sahnenin çizimini anlatır (çizimde ne görülüyorsa onu söyle). Boş cümle yok. Kaynağa atıf yok ('metne göre', 'belgede', 'bu videoda').\n" +
     "- sceneTitle: en çok 6 kelime. keyFact: sınavda sorulacak kilit ifade, en çok 8 kelime; yoksa boş bırak.\n" +
-    "- formula isteğe bağlı: varsa KaTeX ya da oklu düz kural (→, ↑, ↓); dolar işareti yok, uydurma sayı yok.\n" +
+    "- formula isteğe bağlı: varsa KaTeX ile kısa kural; dolar işareti yok, uydurma sayı yok. Sözle yazılan kuralda KaTeX " +
+    "komutu kullanma; düz yazı ve ok işaretleri (→, ↑, ↓) yeter.\n" +
     "- voice: sahneleri Ada (ada) ve Kerem (kerem) arasında dağıt; art arda aynı ses en çok iki sahne.\n" +
     `- ${VISUAL_SCENE_COMMON_RULE}\n` +
     "- Resim tarifi yazma. Yalnız sahne verisi.\n\n" +

@@ -109,6 +109,34 @@ describe("ders: visual_scene bloğu ve disiplin alanları", () => {
     expect(visualSceneGrounded(parseVisualScene(LAW_SCENE)!, "tamamen ilgisiz bir metin")).toBe(false);
   });
 
+  it("ders hattı: görsel sahne çağrısı yapılır, sahne derse girer, disiplin alanları yazılır", async () => {
+    const { teacherLessonPipeline } = await import("@/lib/learning/teacher-lesson-run");
+    const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const systems: string[] = [];
+    const result = await teacherLessonPipeline(
+      {
+        write: async (system, _user, onDelta) => {
+          systems.push(system);
+          const body = system.includes('"type":"visual_scene"')
+            ? JSON.stringify({ type: "visual_scene", academicDomain: "law", visualArchetype: "LAW_SOCIAL_FLOWCHART", scene: LAW_SCENE, afterConcept: "İkinci kavram" })
+            : systems.length === 1
+              ? JSON.stringify(LESSON)
+              : "";
+          onDelta(body);
+          return { text: body, finish: "stop" };
+        },
+      },
+      { topicLabel: "Anayasa ve yasama", prepTitle: "Hukuk vize", pages: [], upcomingTopics: [], sanity: false, mode: "topic" },
+    );
+    expect(systems.some((system) => system.includes('"type":"visual_scene"'))).toBe(true);
+    const lesson = result.lesson!;
+    expect(lesson.screens.flatMap((screen) => screen.blocks).some((block) => block.type === "visual_scene")).toBe(true);
+    expect(lesson.academicDomain).toBe("law");
+    expect(lesson.visualArchetype).toBe("LAW_SOCIAL_FLOWCHART");
+    expect(info).toHaveBeenCalledWith("teacher_lesson_visual_scene", expect.objectContaining({ verdict: "added", archetype: "LAW_SOCIAL_FLOWCHART" }));
+    info.mockRestore();
+  });
+
   it("ders ekranı iki yerleşimi de çizer (16:9 geniş, 9:16 dar)", () => {
     const { container } = render(<LessonVisualScene id="s1" block={{ type: "visual_scene", visualArchetype: "LAW_SOCIAL_FLOWCHART", scene: LAW_SCENE } as never} />);
     expect(container.querySelector(".cp-vs-lesson-landscape svg")?.getAttribute("viewBox")).toBe("0 0 640 360");
