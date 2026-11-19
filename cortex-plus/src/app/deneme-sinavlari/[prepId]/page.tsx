@@ -36,7 +36,7 @@ import {
 } from "@/lib/admin/feature-flags";
 import { createServiceClient } from "@/lib/supabase/server";
 import { maybeRescheduleMissedDays } from "@/lib/learning/missed-day-reschedule";
-import { pathSkipKinds } from "@/lib/billing/node-free-meter";
+import { pathSkipKindsForView } from "@/lib/billing/node-free-meter";
 import {
   buildLearningIndicators,
   freePathUnblockIds,
@@ -63,6 +63,7 @@ import { retentionFromTopics } from "@/lib/learning/prep-radar";
 // Günü gelen tekrar (20 Ekim 2026): "Bugün N tekrar"; anahtar kapalıysa ya da tablo yoksa 0.
 import { dueReviewCountForPrep } from "@/lib/learning/review-items-store";
 import { countPendingMaterials } from "@/lib/learning/pending-materials";
+import { coverageBadgeText, processedCoverage } from "@/lib/documents/page-coverage";
 import { createPrepInviteToken, prepInviteUrl } from "@/lib/learning/prep-invite";
 import { prepInviteWhatsappHref } from "@/lib/learning/prep-share";
 import { examDatePassed, examResultDue } from "@/lib/learning/exam-result";
@@ -70,7 +71,6 @@ import { loadExamBaseline } from "@/lib/learning/exam-result-load";
 import { appOrigin } from "@/lib/app-url";
 import { freeTopicLocks } from "@/lib/billing/free-topic-gate";
 import { poolLessonPreview } from "@/lib/content-pool/lesson-preview";
-import { getUserEntitlements } from "@/lib/billing/entitlements";
 import { loadPlusPrices } from "@/lib/billing/plan-prices";
 import { campOffer } from "@/lib/camp/offer";
 import { CampCard } from "@/components/camp/camp-card";
@@ -253,7 +253,7 @@ export default async function ExamPrepDetailPage({
         .eq("exam_prep_id", prepId)
         .order("sort_order");
     })(),
-    pathSkipKinds(service, user.id),
+    pathSkipKindsForView(service, user.id, supabase),
     trackingV2
       ? supabase
           .from("exam_prep_topic_mastery")
@@ -325,6 +325,8 @@ export default async function ExamPrepDetailPage({
           pageCount: parent ? pagesByParent.get(parent) ?? null : typeof row.page_count === "number" ? row.page_count : null,
         }),
         href: `/dokumanlar/${parent ?? id}`,
+        // Faz 2 (madde 5): kısmen işlenen belge kaynak kartında rozetle görünür (baş kopyası ana belgenin parçasıdır).
+        coverageNote: parent ? null : materialCoverageNote(row),
       },
     ];
   });
@@ -673,9 +675,13 @@ export default async function ExamPrepDetailPage({
       (async () => {
         // Beklemesiz kilit (Paket J takip #1): ücretsiz hesapta kilitli adım yolda 🔒 rozeti taşır, tıklayınca kart anında
         // açılır. Karar adım sayfası ve başlatma isteğiyle aynı kuraldan (`freeTopicLocks`); okuma düşerse kilit yok.
+        const plan = await getSessionUserContext(user.id, { client: supabase })
+          .then((context) => ({ unlimited: context.entitlements.isPremium || context.account.isAdmin }))
+          .catch(() => undefined);
         const firstTopicLocks = await freeTopicLocks(service, {
           userId: user.id,
           prepId,
+          plan,
           nodes: nodes
             .filter((node) => node.status !== "done")
             .map((node) => ({
@@ -717,7 +723,11 @@ export default async function ExamPrepDetailPage({
       })(),
       // Paket 5: sınava ≤ 7 gün — ücretsiz hesapta mevcut Plus Haftalık'a sakin yönlendirme (Plus'ta gizli).
       prep.exam_date && !examPassed
-        ? Promise.all([getUserEntitlements(service, user.id), loadPlusPrices(service)])
+        ? Promise.all([
+            // Faz 2 (madde 2): yalnız gösterim (kampanya şeridi): plan oturum bağlamından, ayrı okuma yok.
+            getSessionUserContext(user.id, { client: supabase }).then((context) => context.entitlements),
+            loadPlusPrices(service),
+          ])
             .then(([ent, prices]) =>
               // Hesap bağlamının bayrağı da şart (8 Kasım 2026): yetkiler kurucuyu ücretsiz sayıyordu, kurucuya Plus satılıyordu.
               campOffer({
@@ -848,4 +858,13 @@ export default async function ExamPrepDetailPage({
       />
     </ParitySorShell>
   );
+}
+
+function materialCoverageNote(row: Record<string, unknown>): string | null {
+  const coverage = processedCoverage({
+    pageCount: row.page_count,
+    sourcePageCount: row.source_page_count,
+    rangeStart: row.page_range_start,
+  });
+  return coverage ? coverageBadgeText(coverage) : null;
 }

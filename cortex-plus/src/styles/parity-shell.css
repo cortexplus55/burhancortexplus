@@ -7725,6 +7725,19 @@
   font-size: 0.8125rem;
 }
 
+/* Faz 2 (madde 5): kısmen işlenen belge rozeti — metin rengi temanın ana rengi (AA), kenarlık vurgu. */
+.cp-exam-material .cp-exam-material-coverage {
+  margin-top: 0.25rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 0.6rem;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-bg);
+  color: inherit;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
 .cp-exam-tab.is-active .cp-exam-tab-count {
   background: var(--cp-bg);
 }

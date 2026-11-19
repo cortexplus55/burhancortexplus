@@ -13,6 +13,7 @@ const MIGRATIONS = [
   "20261119100100_faz2_mistake_entries_source_ref",
   "20261119100200_faz2_canonical_email",
   "20261119100300_faz2_legal_acceptance",
+  "20261119100400_faz2_document_page_range",
 ];
 
 const U1 = "11111111-1111-4111-8111-111111111111";
@@ -68,6 +69,8 @@ beforeAll(async () => {
     CREATE TABLE public.free_usage (user_id uuid, meter text, period_key text, used integer);
     CREATE TABLE public.consent_records (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid NOT NULL, consent_type text NOT NULL,
       version text NOT NULL, accepted_at timestamptz NOT NULL DEFAULT now(), ip_hash text, evidence jsonb);
+    CREATE TABLE public.documents (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid NOT NULL, page_count integer,
+      source_page_count integer);
     ${normalize}
     ${mistakeTable.slice(0, mistakeTable.indexOf("ALTER TABLE public.mistake_entries ENABLE ROW LEVEL SECURITY")).replace(/ REFERENCES public.profiles\(id\) ON DELETE CASCADE/g, "")}
   `);
@@ -87,6 +90,7 @@ beforeAll(async () => {
       ('${U1}', 'kullanim_kosullari', 'v1', now() - interval '3 days'),
       ('${U1}', 'kvkk_aydinlatma', 'v1', now() - interval '3 days'),
       ('${U1}', 'yas_beyani', 'v1', now() - interval '3 days');
+    INSERT INTO public.documents (user_id, page_count, source_page_count) VALUES ('${U1}', 5, 12);
   `);
 
   // İki kez: tekrar çalıştırılabilir olmalı.
@@ -224,5 +228,21 @@ describe("madde 2: get_session_user_context", () => {
     await db.query("UPDATE public.profiles SET suspended_at = now() WHERE id = $1", [U2]);
     const res = await as("service_role", null, "SELECT public.get_session_user_context($1) AS ctx", [U2]);
     expect((res.rows[0] as { ctx: { active: boolean } }).ctx.active).toBe(false);
+  });
+});
+
+describe("madde 5: documents sayfa aralığı", () => {
+  it("var olan belge baştan sona kalır (NULL); geçerli aralık yazılır, ters aralık reddedilir", async () => {
+    const old = await db.query<{ s: number | null; e: number | null; n: number }>(
+      "SELECT page_range_start AS s, page_range_end AS e, page_count AS n FROM public.documents",
+    );
+    expect(old.rows).toEqual([{ s: null, e: null, n: 5 }]);
+    await db.query("INSERT INTO public.documents (user_id, page_range_start, page_range_end) VALUES ($1, 3, 9)", [U1]);
+    await expect(
+      db.query("INSERT INTO public.documents (user_id, page_range_start, page_range_end) VALUES ($1, 9, 3)", [U1]),
+    ).rejects.toThrow(/documents_page_range_valid/);
+    await expect(
+      db.query("INSERT INTO public.documents (user_id, page_range_start) VALUES ($1, 0)", [U1]),
+    ).rejects.toThrow(/documents_page_range_valid/);
   });
 });

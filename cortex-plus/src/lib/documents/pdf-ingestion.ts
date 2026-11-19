@@ -1,4 +1,5 @@
 import "server-only";
+import { missingColumn } from "@/lib/learning/missing-column";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { extractText } from "@/lib/documents/extract-text";
 import { renderPdfPages, BLANK_INK_RATIO, FIGURE_VECTOR_MIN } from "@/lib/documents/render-pdf-pages";
@@ -741,10 +742,17 @@ export async function processPdfDocumentStep(
     if (remaining === 0) throw new Error("free_page_limit");
     await renewLease(service, documentId, lease.token);
 
-    const { data: doc, error: docError } = await service.from("documents")
-      .select("storage_path, scan_pages_skipped, part_of")
+    // Faz 2 (madde 5): öğrencinin seçtiği sayfa aralığı (sütunlar göçten önce yoksa eski okuma: baştan sona).
+    let { data: doc, error: docError } = await service.from("documents")
+      .select("storage_path, scan_pages_skipped, part_of, page_range_start, page_range_end")
       .eq("id", documentId).eq("user_id", userId).is("deleted_at", null).maybeSingle();
+    if (docError && missingColumn(docError)) {
+      ({ data: doc, error: docError } = await service.from("documents")
+        .select("storage_path, scan_pages_skipped, part_of")
+        .eq("id", documentId).eq("user_id", userId).is("deleted_at", null).maybeSingle());
+    }
     if (docError || !doc) throw new Error("not_found");
+    const range = documentPageRange(doc as { page_range_start?: unknown; page_range_end?: unknown });
     if (!isOwnedDocumentStoragePath(doc.storage_path, userId, { id: documentId, part_of: doc.part_of })) {
       console.error("storage_path_mismatch", { documentId });
       throw new Error("not_found");
@@ -760,7 +768,7 @@ export async function processPdfDocumentStep(
       çağrısı yapılmaz. Sayfa ücreti yine alınır (ücretsizde 25 sayfa sınırı yine sayılır); taranmış sayfa ücreti
       alınmaz (okunmadı). Hak kopyanın tamamına yetmiyorsa eski yol: belge hak kadar okunur.
     */
-    if ((lease.nextPage ?? 1) === 1 && !reservationId && !lease.initialized) {
+    if ((lease.nextPage ?? 1) === 1 && !reservationId && !lease.initialized && range.start === 1 && range.end == null) {
       const sha256 = sha256Hex(buffer);
       await stampDocumentSha(service, documentId, sha256);
       const duplicate = await findDuplicateSource(service, { sha256, excludeId: documentId, userId });
@@ -805,13 +813,15 @@ export async function processPdfDocumentStep(
     // `total_pages`'ten okunur. Sayfa sayısında ürün sınırı yok (31 Ekim 2026: önceki 1.000 sayfa tavanı kalktı;
     // 1.200 sayfalık kitabı yalnız öğrencinin hakkı sınırlar). Duraklayıp süren okumada (pencereli işleme,
     // document-credits.ts) ayırma yalnız kalan sayfalar için açılır.
-    const firstPage = lease.nextPage ?? 1;
+    // Aralık seçildiyse okuma seçilen ilk sayfadan başlar (yalnız ilk adımda; sonraki adımlar imleçten sürer).
+    const firstPage = lease.initialized ? (lease.nextPage ?? 1) : Math.max(lease.nextPage ?? 1, range.start);
     let paidCap: number | null = null;
     let maxOcrPages = options?.maxOcrPages ?? null;
     if (remaining === null) {
       if (!reservationId) {
         const pageCount = (await extractText(buffer, "application/pdf", 1, 0)).total || 1;
-        const known = firstPage > 1 && lease.totalPages ? Math.min(lease.totalPages, pageCount) : pageCount;
+        const knownAll = firstPage > 1 && lease.totalPages ? Math.min(lease.totalPages, pageCount) : pageCount;
+        const known = range.end != null ? Math.min(knownAll, range.end) : knownAll;
         const toRead = Math.max(1, known - firstPage + 1);
         const spendable = await spendableCredits(service, userId);
         const pageCost = Math.max(1, (await getActionCost(service, "DOCUMENT_PAGE_PROCESS")) ?? 2);
@@ -834,7 +844,9 @@ export async function processPdfDocumentStep(
         maxOcrPages = maxOcrPages == null ? allowed : Math.min(maxOcrPages, allowed);
       }
     }
-    const pageCap = remaining ?? paidCap;
+    // Ücretsiz hak sayfa SAYISIdır: seçilen aralığın başından sayılır. Seçilen son sayfa ayrıca tavandır.
+    const freeCap = remaining == null ? null : range.start - 1 + remaining;
+    const pageCap = minCap(freeCap ?? paidCap, range.end);
 
     const firstStep = options?.firstStepPages && firstPage === 1
       ? Math.max(1, Math.min(adaptivePageBudget(deadlineMs), options.firstStepPages))
@@ -903,7 +915,8 @@ export async function processPdfDocumentStep(
     const { error: documentError } = await service.from("documents")
       .update({
         status: "processing",
-        page_count: total,
+        // `page_count` = İŞLENEN sayfa sayısı (aralık 1'den başlamıyorsa da); kapsam rozeti bunu toplamla karşılaştırır.
+        page_count: Math.max(0, total - range.start + 1),
         source_page_count: read.total,
         scan_pages_skipped: Number(doc.scan_pages_skipped ?? 0) + read.scanSkipped.length,
         error_message: null,
@@ -913,7 +926,7 @@ export async function processPdfDocumentStep(
     if (documentError) throw new Error("completion_update_failed");
     await service.from("processing_jobs").update({
       status: "processing",
-      progress: Math.min(complete ? 40 : 39, Math.floor((nextPage - 1) / total * 40)),
+      progress: Math.min(complete ? 40 : 39, Math.floor((nextPage - range.start) / Math.max(1, total - range.start + 1) * 40)),
       error_message: null,
     }).eq("document_id", documentId);
 
@@ -977,4 +990,22 @@ export async function processPdfDocumentStep(
       .eq("document_id", documentId);
     return { status: "failed", code, retryable: false };
   }
+}
+
+/** Faz 2 (madde 5): belge satırındaki seçili aralık; yoksa baştan sona. */
+export function documentPageRange(row: { page_range_start?: unknown; page_range_end?: unknown } | null | undefined): {
+  start: number;
+  end: number | null;
+} {
+  const start = Number(row?.page_range_start);
+  const end = Number(row?.page_range_end);
+  const s = Number.isInteger(start) && start >= 1 ? start : 1;
+  const e = Number.isInteger(end) && end >= s ? end : null;
+  return { start: s, end: e };
+}
+
+function minCap(a: number | null, b: number | null): number | null {
+  if (a == null) return b;
+  if (b == null) return a;
+  return Math.min(a, b);
 }

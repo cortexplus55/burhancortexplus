@@ -62,7 +62,10 @@ describe("ücretsiz katman sınırları", () => {
   it("5 sayfa: PDF ve diğer belgeler kalan hak kadar işleniyor", () => {
     const pdf = read("src/lib/documents/pdf-ingestion.ts");
     expect(pdf).toMatch(/const remaining = await freePagesRemaining\(service, userId, documentId\);\s*if \(remaining === 0\) throw new Error\("free_page_limit"\);/);
-    expect(pdf).toMatch(/const pageCap = remaining \?\? paidCap;/);
+    // Faz 2 (madde 5): ücretsiz hak sayfa SAYISIdır; seçilen aralığın başından sayılır, seçilen son sayfa tavandır.
+    expect(pdf).toMatch(/const freeCap = remaining == null \? null : range\.start - 1 \+ remaining;/);
+    expect(pdf).toMatch(/const pageCap = minCap\(freeCap \?\? paidCap, range\.end\);/);
+    expect(pdf).toMatch(/page_count: Math\.max\(0, total - range\.start \+ 1\)/);
     expect(pdf).toMatch(/const total = cappedPageTotal\(read\.total, pageCap\);/);
     expect(pdf).toMatch(/source_page_count: read\.total/);
     const other = read("src/lib/rag/pipeline.ts");
