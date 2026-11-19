@@ -104,6 +104,32 @@ export function pagesFromSourceRefs(raw: unknown): TopicPageSpan["pages"] {
   return out;
 }
 
+/** `source_refs` içindeki belge konu düğümü kimlikleri (`nodeId`). */
+export function nodeIdsFromSourceRefs(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const out: string[] = [];
+  for (const item of raw) {
+    const nodeId = item && typeof item === "object" ? (item as { nodeId?: unknown }).nodeId : null;
+    if (typeof nodeId === "string" && nodeId && !out.includes(nodeId)) out.push(nodeId);
+  }
+  return out;
+}
+
+/** `source_refs` içinde belgesi bilinen ama sayfası boş kalan kaynaklar. */
+export function pagelessDocumentIds(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const out: string[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const ref = item as SourceRefRow;
+    const documentId =
+      typeof ref.documentId === "string" ? ref.documentId : typeof ref.document_id === "string" ? ref.document_id : null;
+    const hasPages = (Array.isArray(ref.pages) && ref.pages.length > 0) || typeof ref.page === "number";
+    if (documentId && !hasPages && !out.includes(documentId)) out.push(documentId);
+  }
+  return out;
+}
+
 type TopicRow = { id: string; label: string | null; source_refs: unknown; document_topic_node_id: string | null };
 
 /**
@@ -131,9 +157,15 @@ export async function loadExcludedSiblingTopics(
     const spans = new Map<string, TopicPageSpan>(
       rows.map((row) => [row.id, { label: row.label ?? "", pages: pagesFromSourceRefs(row.source_refs) }]),
     );
-    const nodeless = rows.filter((row) => !spans.get(row.id)?.pages.length && row.document_topic_node_id);
-    if (nodeless.length) {
-      const byNode = new Map(nodeless.map((row) => [row.document_topic_node_id as string, row.id]));
+    // Sayfası boş konu: önce konu haritasının sayfa bağları (sütundaki ya da `source_refs` içindeki düğüm kimliğiyle).
+    const byNode = new Map<string, string>();
+    for (const row of rows) {
+      if (spans.get(row.id)?.pages.length) continue;
+      for (const nodeId of [row.document_topic_node_id, ...nodeIdsFromSourceRefs(row.source_refs)]) {
+        if (nodeId && !byNode.has(nodeId)) byNode.set(nodeId, row.id);
+      }
+    }
+    if (byNode.size) {
       const { data: links, error: linkError } = await service
         .from("document_topic_page_links")
         .select("topic_id, document_id, page_number")
@@ -145,6 +177,25 @@ export async function loadExcludedSiblingTopics(
           const span = topicId ? spans.get(topicId) : undefined;
           if (span && typeof link.page_number === "number") {
             span.pages.push({ documentId: link.document_id ?? null, page: link.page_number });
+          }
+        }
+      }
+    }
+    // Hâlâ sayfasız ve belgesi tek sayfalık olan konu o sayfadadır (fotoğraf, tek sayfalık not): bütün içerik orada.
+    const pageless = rows.filter((row) => !spans.get(row.id)?.pages.length);
+    const pagelessDocs = [...new Set(pageless.flatMap((row) => pagelessDocumentIds(row.source_refs)))];
+    if (pagelessDocs.length) {
+      const { data: docs, error: docError } = await service
+        .from("documents")
+        .select("id, page_count")
+        .in("id", pagelessDocs.slice(0, 40));
+      if (!docError) {
+        const single = new Set(
+          ((docs ?? []) as { id: string; page_count: number | null }[]).filter((doc) => doc.page_count === 1).map((doc) => doc.id),
+        );
+        for (const row of pageless) {
+          for (const documentId of pagelessDocumentIds(row.source_refs)) {
+            if (single.has(documentId)) spans.get(row.id)?.pages.push({ documentId, page: 1 });
           }
         }
       }
