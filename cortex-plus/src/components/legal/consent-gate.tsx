@@ -49,6 +49,8 @@ const EXEMPT_PREFIXES = [
   "/email-dogrula",
   "/eposta",
   "/onboarding",
+  // Faz 2: Google ile ilk girişin onay ekranı kapının kendisini sayfa olarak gösterir.
+  "/onay",
   "/odeme",
   "/e2e",
 ];
