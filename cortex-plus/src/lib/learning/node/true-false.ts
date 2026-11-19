@@ -53,6 +53,8 @@ export async function teacherTrueFalsePayload(
         examPointsUse: "true_false" as const,
         // Kardeş ünite sınırı (Faz 1-A §1).
         brief: siblingBoundaryLine(input, core),
+        // Kaynak düzeltmesi (Faz 1-A §2.1).
+        sourceCorrection: core ? (input.sourceCorrection ?? null) : null,
         count: asked,
         urgent: input.charge !== false,
         avoid,

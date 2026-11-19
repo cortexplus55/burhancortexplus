@@ -1,5 +1,7 @@
 import { deterministicCreditKey } from "@/lib/credits/slot-key";
 import { excludedSiblingBoundaryBlock, loadExcludedSiblingTopics } from "@/lib/learning/sibling-topics";
+import { sourceCorrectionPromptBlock } from "@/lib/learning/source-correction";
+import { loadTopicSourceCorrection } from "@/lib/learning/node/lesson-store";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
@@ -106,13 +108,19 @@ export async function POST(request: Request) {
           source.pages.map((page) => page.page),
         ).catch(() => null);
 
+  // Kardeş ünite sınırı (Faz 1-A §1) ve kaynak düzeltmesi (§2.1): yalnız belgeli videoda.
   const siblingScope =
     source.mode === "topic"
       ? ""
-      : excludedSiblingBoundaryBlock(
-          String(topic.label),
-          await loadExcludedSiblingTopics(service, { prepId, topicLabel: String(topic.label), topicId: topic.id }),
-        );
+      : [
+          excludedSiblingBoundaryBlock(
+            String(topic.label),
+            await loadExcludedSiblingTopics(service, { prepId, topicLabel: String(topic.label), topicId: topic.id }),
+          ),
+          sourceCorrectionPromptBlock(await loadTopicSourceCorrection(service, topic.id)),
+        ]
+          .filter(Boolean)
+          .join("\n");
 
   // Çift sekme (31 Ekim 2026, Paket J2 #9): aynı konu ve aynı tarz için aynı anda tek üretim; ikinci sekme birincinin
   // videosunu açar (280 kredi iki kez kesilmez). Birinci düştüyse ikinci kendisi üretir.

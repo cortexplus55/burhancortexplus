@@ -162,7 +162,8 @@ export async function loadExcludedSiblingTopics(
     };
     const others = rows.filter((row) => row.id !== activeRow?.id).map((row) => spans.get(row.id)!);
     return siblingTopicsSharingPages(active, others);
-  } catch {
+  } catch (error) {
+    console.warn("excluded_sibling_topics_load_failed", { cause: error instanceof Error ? error.message.slice(0, 120) : "unknown" });
     return [];
   }
 }

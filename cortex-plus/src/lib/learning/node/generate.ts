@@ -26,6 +26,7 @@ import { readSharedMedia, sharedMediaUnit } from "@/lib/content-pool/shared-medi
 import { teacherCardsPayload } from "./cards";
 import { teacherTrueFalsePayload } from "./true-false";
 import { SINGLE_CHOICE_PROMPT_LINE } from "@/lib/learning/single-choice-guard";
+import type { SourceCorrectionWarning } from "@/lib/learning/source-correction";
 
 /** Türe göre üretimin girdisi; rota hazırlar, tür modülleri okur. */
 export type NodePayloadInput = {
@@ -96,6 +97,11 @@ export type NodePayloadInput = {
    * (`loadExcludedSiblingTopics`). Ders, konu testi, kartlar, Doğru/Yanlış ve podcast istemine sınır bloğu olarak girer.
    */
   excludedSiblingTopics?: string[];
+  /**
+   * Kaynak düzeltme uyarısı (19 Kasım 2026, Faz 1-A §2.1): konunun kayıtlı dersindeki açık bilimsel hatanın doğrusu.
+   * Yalnız belgeli üretimde; test, kart, Doğru/Yanlış, podcast ve "Farklı anlat" doğrusunu kullanır.
+   */
+  sourceCorrection?: SourceCorrectionWarning | null;
   /** Kaynağın o sayfalardaki kendi alt başlıkları; boşsa bölümü model seçer. */
   sectionBackbone?: string[];
   /** Saklı öğretmen analizi. Yoksa boş; üretim bugünkü yoldan sürer. */
@@ -185,6 +191,7 @@ export async function generateNodePayload(input: NodePayloadInput) {
       prepTitle: input.prepTitle,
       charge: input.charge,
       urgent: input.charge !== false,
+      ...(input.sourceCorrection ? { sourceCorrection: input.sourceCorrection } : {}),
       userPrompt: input.teachingV2
         ? `${QA_TEACHER_PROMPT} ${ctx} ${quizCount} alıştırma sorusu. Tek kavramdan başla; her explanation ilk cümlede doğru cevabı söylesin. ${SINGLE_CHOICE_PROMPT_LINE}`
         : `${ctx} ${quizCount} çoktan seçmeli alıştırma sorusu. Şıklar A/B/C/D gibi net olsun. ${SINGLE_CHOICE_PROMPT_LINE}`,

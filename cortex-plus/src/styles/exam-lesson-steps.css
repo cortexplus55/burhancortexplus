@@ -931,6 +931,30 @@
   color: var(--cp-gold, #e2b340);
 }
 
+/* Kaynak Düzeltme Uyarısı (19 Kasım 2026, Faz 1-A §2.1): ilk adımda, başlığın altında. Mevcut not kutusunun
+   ölçüleri; uzun formül ya da cümle 390 px'te taşmaz (kelime kırılır). */
+.als-note--correction {
+  margin-top: 0.75rem;
+  border-color: #e2b340;
+  background: rgba(226, 179, 64, 0.14);
+  overflow-wrap: anywhere;
+}
+
+.als-note-correction-title {
+  margin: 0;
+  font-weight: 700;
+  color: var(--cp-gold, #e2b340);
+}
+
+.als-note-correction-label {
+  font-weight: 600;
+}
+
+.als-note-correction-claim {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
 /*
   Sınav vurgusu ve sınav kutuları (18 Ekim 2026, ürün sahibinin kararı: önemli nokta farklı
   renkte, akılda kalıcı). Terim koyu kalır; renk yalnız sınavda soru olacak kesin bilgi için.

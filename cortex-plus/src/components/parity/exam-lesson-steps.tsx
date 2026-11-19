@@ -39,6 +39,7 @@ import { RichBody } from "@/components/parity/lesson-rich-text";
 import { rejoinIntervalCells } from "@/lib/learning/interval-text";
 import { sanitizeStudentContent } from "@/lib/learning/student-safe-text";
 import { NOTE_WARNING_TITLE, formulaTypoBody, type FormulaTypo } from "@/lib/learning/formula-typos";
+import { SOURCE_CORRECTION_TITLE, correctionKey, type SourceCorrectionWarning } from "@/lib/learning/source-correction";
 import type {
   CheckGradeVariant,
   GradeCheckResult,
@@ -721,6 +722,30 @@ function NoteWarnings({ warnings }: { warnings: readonly FormulaTypo[] }) {
   );
 }
 
+/**
+ * Kaynak Düzeltme Uyarısı kartı (19 Kasım 2026, Faz 1-A §2.1): kaynakta açık bir bilimsel hata varsa dersin ilk
+ * adımında kaynağın yazdığı, doğrusu ve kısa açıklama. Ders metni değil; ekranın parçası.
+ */
+function SourceCorrectionCard({ warning }: { warning: SourceCorrectionWarning }) {
+  const titleId = useId();
+  return (
+    <aside className="als-note als-note--correction" role="note" aria-labelledby={titleId}>
+      <p id={titleId} className="als-note-correction-title">
+        {SOURCE_CORRECTION_TITLE}
+      </p>
+      <p className="als-note-body">
+        <span className="als-note-correction-label">Kaynağında yazan: </span>
+        <span className="als-note-correction-claim">{warning.documentClaim}</span>
+      </p>
+      <p className="als-note-body">
+        <span className="als-note-correction-label">Doğrusu: </span>
+        <strong>{warning.verifiedTruth}</strong>
+      </p>
+      {warning.explanation ? <p className="als-note-body">{warning.explanation}</p> : null}
+    </aside>
+  );
+}
+
 function lessonHasExamMarks(lesson: PlayLessonV3): boolean {
   return studentTextParts(JSON.stringify(lesson.screens)).some((part) => part.exam);
 }
@@ -752,8 +777,11 @@ export function ExamLessonSteps({
   writingDone = false,
   sourceDocs = [],
   noteWarnings = [],
+  sourceCorrection = null,
 }: {
   lesson: PlayLesson;
+  /** Kaynak düzeltme uyarısı (Faz 1-A §2.1): ilk adımda kart. Yoksa çizilmez. */
+  sourceCorrection?: SourceCorrectionWarning | null;
   /**
    * Akıllı hoca uyarısı (31 Ekim 2026, Paket J3 #13): notta yanlış yazılmış evrensel formüller. Ders metni değil;
    * dersin ilk ekranında sarı kutu olarak çizilir.
@@ -801,6 +829,10 @@ export function ExamLessonSteps({
   /** Faz 4: ücretsiz hesapta "Ücretsiz deneme: X/10" rozeti (abonede null). */
   reexplainBadge?: string | null;
 }) {
+  // Kaynak düzeltme kartı formül kutusundaki aynı satırı ikinci kez göstermesin.
+  const shownNoteWarnings = sourceCorrection
+    ? noteWarnings.filter((warning) => correctionKey(warning.found) !== correctionKey(sourceCorrection.documentClaim))
+    : noteWarnings;
   const play = useMemo(() => toPlayV3(lesson), [lesson]);
   /** V2 görünümü: tekrar soruları, okuma süresi ve eski yardımcılar bunu okur (ekran i = bölüm i). */
   const view = useMemo(() => v3ToV2(play as LessonV3), [play]);
@@ -1387,7 +1419,8 @@ export function ExamLessonSteps({
           ) : null}
           <h1 className="als-heading">{step.heading}</h1>
 
-          {index === 0 && noteWarnings.length ? <NoteWarnings warnings={noteWarnings} /> : null}
+          {index === 0 && sourceCorrection ? <SourceCorrectionCard warning={sourceCorrection} /> : null}
+          {index === 0 && shownNoteWarnings.length ? <NoteWarnings warnings={shownNoteWarnings} /> : null}
 
           {step.kind === "overview" ? (
             <>

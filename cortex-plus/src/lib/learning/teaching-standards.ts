@@ -4,6 +4,7 @@
  * Legacy paths stay untouched when the flag is OFF.
  */
 
+import { sourceCorrectionWarningSchema } from "@/lib/learning/source-correction";
 import { z } from "zod";
 import { lessonCheckHasAnswerKey } from "@/lib/learning/answer-key";
 import { diagramIssues, lessonDiagramSchema } from "@/lib/learning/lesson-diagram";
@@ -591,6 +592,8 @@ export const lessonV2Schema = z.object({
     .optional(),
   summary: z.array(z.string().min(2).max(240)).max(8).optional().catch(undefined),
   nextFocus: z.array(z.string().min(2).max(200)).max(6).optional().catch(undefined),
+  /** Kaynak düzeltme uyarısı (19 Kasım 2026, Faz 1-A §2.1); bozuksa düşer, eski derslerde yok. */
+  sourceCorrectionWarning: sourceCorrectionWarningSchema.nullable().optional().catch(undefined),
 });
 
 export type LessonV2 = z.infer<typeof lessonV2Schema>;

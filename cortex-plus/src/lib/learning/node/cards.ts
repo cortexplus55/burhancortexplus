@@ -47,6 +47,8 @@ export async function teacherCardsPayload(
     runningHeaders: source.edges,
     // Kardeş ünite sınırı (Faz 1-A §1).
     scopeLine: siblingBoundaryLine(input, core),
+    // Kaynak düzeltmesi (Faz 1-A §2.1).
+    sourceCorrection: core ? (input.sourceCorrection ?? null) : null,
     // Öğrenci bekliyor: kısa düzeltme bütçesi, paralel onarım (25 Ekim 2026).
     urgent: input.charge !== false,
   };

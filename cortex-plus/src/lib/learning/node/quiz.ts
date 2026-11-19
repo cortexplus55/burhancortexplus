@@ -102,6 +102,8 @@ export async function teacherQuizPayload(
     runningHeaders: edges,
     officialOutcome: await loadOfficialOutcome(input.service, input.prepId, input.topicLabel),
     difficulty: quizDifficulty(input.requestedDifficulty),
+    // Kaynak düzeltmesi (Faz 1-A §2.1): yalnız belgeli testte.
+    ...(core && input.sourceCorrection ? { sourceCorrection: input.sourceCorrection } : {}),
     // Tek doğru şık garantisi (19 Kasım 2026, Faz 1-A §3.1): konu testinin bütün soruları tek seçimli; çok cevaplı
     // soru kipi kapalı (17 Ekim 2026'daki "son soru çok cevaplı" kuralı kalktı). Kayıt öncesi kapı `enforceSingleChoice`.
     multi: false,

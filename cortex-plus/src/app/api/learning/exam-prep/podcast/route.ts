@@ -33,6 +33,8 @@ import { resolvePrepTopicRow } from "@/lib/learning/prep-topic-lookup";
 import { readyPathPodcastNode } from "@/lib/learning/path-podcast-ready";
 import { prepTopicLabels, prepTopicScopeLine } from "@/lib/documents/generation-context";
 import { excludedSiblingBoundaryBlock, loadExcludedSiblingTopics, siblingsOutsideBoundary } from "@/lib/learning/sibling-topics";
+import { sourceCorrectionPromptBlock } from "@/lib/learning/source-correction";
+import { loadTopicSourceCorrection } from "@/lib/learning/node/lesson-store";
 
 /**
  * Yoldan bağımsız podcast. Düğüm durumuna dokunmaz; kilitli adım kilitli kalır.
@@ -259,6 +261,8 @@ export async function POST(request: Request) {
                 return [
                   prepTopicScopeLine(topic.label, siblingsOutsideBoundary(await prepTopicLabels(service, prepId), excluded)),
                   excludedSiblingBoundaryBlock(topic.label, excluded),
+                  // Kaynak düzeltmesi (Faz 1-A §2.1): konunun kayıtlı dersindeki uyarının doğrusu.
+                  sourceCorrectionPromptBlock(await loadTopicSourceCorrection(service, topic.id)),
                 ];
               })(topicDocumentId)
             : []),

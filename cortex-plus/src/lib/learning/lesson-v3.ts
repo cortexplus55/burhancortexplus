@@ -303,6 +303,7 @@ export const lessonV3Schema = z.object({
   numericalCheck: v2.numericalCheck,
   summary: v2.summary,
   nextFocus: v2.nextFocus,
+  sourceCorrectionWarning: v2.sourceCorrectionWarning,
 });
 
 export type LessonV3 = z.infer<typeof lessonV3Schema>;
@@ -409,6 +410,7 @@ export function v3ToV2(lesson: LessonV3): LessonV2 {
     numericalCheck: lesson.numericalCheck,
     summary: lesson.summary,
     nextFocus: lesson.nextFocus,
+    ...(lesson.sourceCorrectionWarning ? { sourceCorrectionWarning: lesson.sourceCorrectionWarning } : {}),
   };
 }
 
@@ -446,6 +448,7 @@ export function v2ToV3(lesson: LessonV2): LessonV3 {
     numericalCheck: lesson.numericalCheck,
     summary: lesson.summary,
     nextFocus: lesson.nextFocus,
+    ...(lesson.sourceCorrectionWarning ? { sourceCorrectionWarning: lesson.sourceCorrectionWarning } : {}),
   };
 }
 

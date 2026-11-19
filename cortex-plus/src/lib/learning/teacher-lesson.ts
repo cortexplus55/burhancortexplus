@@ -64,6 +64,7 @@ import {
 import { noteWarningsPromptLine, type FormulaTypo } from "@/lib/learning/formula-typos";
 import { backboneWithoutSiblings, prepTopicScopeLine } from "@/lib/learning/topic-section";
 import { excludedSiblingBoundaryBlock, siblingsOutsideBoundary } from "@/lib/learning/sibling-topics";
+import { repeatsSourceError, sourceCorrectionPromptBlock, type SourceCorrectionWarning } from "@/lib/learning/source-correction";
 
 /**
  * Öğretmen ders motoru (2 Ekim 2026, ürün sahibinin kararı).
@@ -141,6 +142,11 @@ export type TeacherLessonInput = {
    */
   excludedSiblingTopics?: string[];
   /**
+   * Kaynak düzeltme uyarısı (19 Kasım 2026, Faz 1-A §2.1): yazım başında biliniyorsa ("Farklı anlat", yeniden yazım)
+   * yazar doğrusunu okur. Sonradan bulunan uyarı `lateNoteWarnings` ile kavram denetimine gider.
+   */
+  sourceCorrection?: SourceCorrectionWarning | null;
+  /**
    * Belgesiz derste konunun doğrulanmış havuz anlatımı (6 Kasım 2026): tanım, sınıflandırma ve örnekler buradan.
    * Yoksa ders konunun yerleşik bilgisiyle yazılır.
    */
@@ -148,8 +154,13 @@ export type TeacherLessonInput = {
 };
 
 /** Notun yazım hatası olan formülü kilit bilgi değildir: yazar ve kapsam ölçüsü onu "işlenmedi" saymasın. */
-function lessonFacts(pages: TeacherLessonInput["pages"], warnings: readonly FormulaTypo[] | undefined): KeyFact[] {
-  const facts = lessonKeyFacts(pages);
+function lessonFacts(
+  pages: TeacherLessonInput["pages"],
+  warnings: readonly FormulaTypo[] | undefined,
+  correction: SourceCorrectionWarning | null = null,
+): KeyFact[] {
+  // Kaynak düzeltmesi (Faz 1-A §2.1): kaynağın yanlış iddiası "anlatılması gereken bilgi" listesine girmez.
+  const facts = lessonKeyFacts(pages).filter((fact) => !repeatsSourceError(fact.text, correction));
   if (!warnings?.length) return facts;
   const compact = (value: string) => value.replace(/\s+/g, "");
   const typos = warnings.map((warning) => compact(warning.found)).filter(Boolean);
@@ -566,6 +577,30 @@ function sourceConflictLine(pages: readonly { label?: string }[]): string {
   return pages.some((page) => page.label) ? SOURCE_CONFLICT_RULE : "";
 }
 
+/**
+ * O anda bilinen kaynak düzeltmesi (Faz 1-A §2.1): baştan verilen ya da paralel denetimden sonradan gelen
+ * (`lateNoteWarnings` içinde `source_correction`). Yazar, düzeltici ve denetçi aynı doğruyu okur.
+ */
+type CorrectionCarrier = Partial<Pick<TeacherLessonInput, "sourceCorrection" | "lateNoteWarnings">>;
+
+export function lessonCorrectionNow(
+  input: CorrectionCarrier,
+): SourceCorrectionWarning | null {
+  if (input.sourceCorrection) return input.sourceCorrection;
+  const late = input.lateNoteWarnings?.().find((warning) => warning.id === "source_correction");
+  return late ? { documentClaim: late.found, verifiedTruth: late.standard, explanation: "" } : null;
+}
+
+/** Ders denetçisinin satırı: doğrusunu anlatmak kaynakla çelişki sayılmaz. Uyarı yoksa boş. */
+export function lessonCorrectionVerifyLine(warning: SourceCorrectionWarning | null): string {
+  if (!warning) return "";
+  return (
+    `KAYNAK DÜZELTMESİ: Kaynaktaki «${warning.documentClaim}» bilimsel olarak yanlış; doğrusu «${warning.verifiedTruth}». ` +
+    "Derste doğrusunun anlatılması kaynakla çelişki SAYILMAZ; yanlışın doğru bilgi gibi anlatılması ya da cevap " +
+    "anahtarı yapılması 'high' sorundur."
+  );
+}
+
 export function teacherUserPrompt(input: TeacherLessonInput): string {
   return [
     `SINAV: ${input.prepTitle}`,
@@ -581,14 +616,15 @@ export function teacherUserPrompt(input: TeacherLessonInput): string {
     officialOutcomeBlock(input.officialOutcome, "lesson"),
     alternativeBlock(input.alternativeOf),
     input.mode === "topic" ? "" : noteWarningsPromptLine(input.noteWarnings),
+    input.mode === "topic" ? "" : sourceCorrectionPromptBlock(lessonCorrectionNow(input)),
     input.mode === "topic" ? "" : sourceConflictLine(input.pages),
     `SIRADAKİ KONULAR: ${input.upcomingTopics.length ? input.upcomingTopics.join(" | ") : "(yok)"}`,
     input.runningHeaders?.length
       ? `Şu satırlar sayfa kenarında tekrar eden başlıklardır, konu ya da bölüm adı değildir: ${input.runningHeaders.join(" | ")}`
       : "",
     input.mode === "topic" ? "" : backboneBlock(inputBackbone(input)),
-    input.mode === "topic" ? "" : keyFactsBlock(lessonFacts(input.pages, input.noteWarnings)),
-    input.mode === "topic" ? "" : sourceEquationsBlock(lessonFacts(input.pages, input.noteWarnings)),
+    input.mode === "topic" ? "" : keyFactsBlock(lessonFacts(input.pages, input.noteWarnings, lessonCorrectionNow(input))),
+    input.mode === "topic" ? "" : sourceEquationsBlock(lessonFacts(input.pages, input.noteWarnings, lessonCorrectionNow(input))),
     input.mode === "topic"
       ? approvedFactsBlock(input.approvedFacts) || "KAYNAK: (yok — belgesiz ders; konunun yerleşik bilgisiyle yaz)"
       : `KAYNAK:\n${sourceText(input.pages)}`,
@@ -802,12 +838,14 @@ function disputeLines(disputes: TeacherDispute[]): string {
 export function verifyPartUserPrompt(
   lesson: LessonV3,
   part: LessonPart,
-  input: Pick<TeacherLessonInput, "pages" | "mode" | "topicLabel" | "prepTitle" | "examPoints">,
+  input: Pick<TeacherLessonInput, "pages" | "mode" | "topicLabel" | "prepTitle" | "examPoints"> &
+    Partial<Pick<TeacherLessonInput, "sourceCorrection" | "lateNoteWarnings">>,
   disputes: TeacherDispute[] = [],
 ): string {
   return [
     verifyUserPrompt(lesson, input),
     examPointsVerifyBlock(input.examPoints),
+    input.mode === "topic" ? "" : lessonCorrectionVerifyLine(lessonCorrectionNow(input)),
     `DENETLENECEK: yalnız ${partLabel(part)}. Dersin öbür kısımları ayrıca denetlendi ya da denetlenecek; onları ` +
       "yalnız tutarlılık (F) için oku, onlar için sorun yazma.",
     // 23 Ekim 2026 (3. ölçüm): akışlı derste ilk kavram yazılırken sonrakiler henüz yok. Denetçi dersin başlığındaki
@@ -2189,7 +2227,7 @@ export function lessonLevelStructureIssues(lesson: LessonV3, input: StructureInp
     25 Ekim 2026: tam kapsam (omurganın her alt başlığı) için 9 → 12 ekran, 5 → 6 kavram.
   */
   const documentPages = input.mode === "topic" ? [] : (input.pages ?? []);
-  const facts = lessonFacts(documentPages, input.noteWarnings);
+  const facts = lessonFacts(documentPages, input.noteWarnings, lessonCorrectionNow(input as CorrectionCarrier));
   const cap = lessonScreenCap(facts.length);
   if (screens.length > cap) {
     low("screens", cap === 12 ? "En fazla on iki ekran; kavramı daha az ekrana sığdır." : `En fazla ${cap} ekran; kavramı daha az ekrana sığdır.`);
@@ -2312,7 +2350,7 @@ export function lessonCoverageGaps(lesson: LessonV3, input: StructureInput): Les
     return { headings: gap ? [gap] : [], facts: [] };
   }
   if (!input.pages?.length) return { headings: [], facts: [] };
-  const facts = lessonFacts(input.pages, input.noteWarnings);
+  const facts = lessonFacts(input.pages, input.noteWarnings, lessonCorrectionNow(input as CorrectionCarrier));
   return {
     headings: uncoveredBackbone(lesson.screens, inputBackbone(input)),
     facts: uncoveredKeyFacts(lesson.screens, facts).map((fact) => fact.text),

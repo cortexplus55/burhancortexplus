@@ -1,4 +1,5 @@
 /** Podcast: öğretmen podcast motoru ve dinleme kontrolü. */
+import { sourceCorrectionPromptBlock } from "@/lib/learning/source-correction";
 import "server-only";
 import { documentRunningHeaders, ensureCleanPages } from "@/lib/documents/clean-pages";
 import { corePageRun } from "@/lib/learning/core-pages";
@@ -53,6 +54,8 @@ export async function teacherPodcastEpisode(
         siblings.length ? prepTopicScopeLine(input.topicLabel, siblingsOutsideBoundary(siblings, input.excludedSiblingTopics)) : "",
         // Kardeş ünite sınırı (19 Kasım 2026, Faz 1-A §1).
         siblingBoundaryLine(input, core),
+        // Kaynak düzeltmesi (Faz 1-A §2.1): senaryo ve dinleme kontrolü doğrusunu kullanır.
+        core ? sourceCorrectionPromptBlock(input.sourceCorrection) : "",
       ]
         .filter(Boolean)
         .join("\n") || undefined,

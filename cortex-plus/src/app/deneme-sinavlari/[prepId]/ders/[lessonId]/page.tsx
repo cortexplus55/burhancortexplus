@@ -4,6 +4,7 @@ import { ExamLessonBody } from "@/components/parity/exam-lesson-body";
 import { ExamLessonToolbar } from "@/components/parity/exam-lesson-toolbar";
 import { ExamLessonSteps } from "@/components/parity/exam-lesson-steps";
 import { readLessonV3 } from "@/lib/learning/lesson-v3";
+import { readSourceCorrectionWarning } from "@/lib/learning/source-correction";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
@@ -71,6 +72,7 @@ export default async function ExamPrepLessonPage({
             lesson={structured}
             language={prepLanguage(prep.learning_preferences)}
             closeHref={`/deneme-sinavlari/${prepId}`}
+            sourceCorrection={readSourceCorrectionWarning(structured.sourceCorrectionWarning ?? null)}
           />
         ) : (
           <ExamLessonBody content={content} />

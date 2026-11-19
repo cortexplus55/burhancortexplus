@@ -118,6 +118,8 @@ export type Payload = {
   writingDone?: boolean;
   /** Notta yanlış yazılmış evrensel formüller (Paket J3 #13); okuma `readNoteWarnings` ile. */
   noteWarnings?: unknown;
+  /** Kaynak düzeltme uyarısı (Faz 1-A §2.1); okuma `readSourceCorrectionWarning` ile. */
+  sourceCorrectionWarning?: unknown;
 };
 
 export { LESSON_PROGRESS_POLL_MS, LESSON_PROGRESS_FAST_POLL_MS, LESSON_PROGRESS_FAST_POLLS, lessonProgressDelay };

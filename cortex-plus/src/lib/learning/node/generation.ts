@@ -43,7 +43,7 @@ import {
   readWalletBalance,
   settlePendingStart,
 } from "@/lib/learning/node/shared";
-import { loadTopicLesson, saveTopicLesson } from "@/lib/learning/node/lesson-store";
+import { loadTopicLesson, loadTopicSourceCorrection, saveTopicLesson } from "@/lib/learning/node/lesson-store";
 import { loadSectionBackbone, loadUpcomingTopicTitles } from "@/lib/learning/node/lesson";
 import { publicPayloadForUser } from "@/lib/learning/node/payload";
 import { generateNodePayload } from "@/lib/learning/node/generate";
@@ -245,6 +245,10 @@ export async function runStartGeneration(
         })
       : Promise.resolve([]);
 
+  // Kaynak düzeltme uyarısı (19 Kasım 2026, Faz 1-A §2.1): konunun kayıtlı dersinden; yalnız belgeli üretim.
+  const sourceCorrectionEarly =
+    topic?.id && lessonCoreDocumentId && !voiceSession ? loadTopicSourceCorrection(service, topic.id) : Promise.resolve(null);
+
   if (!leadWanted) earlyLead?.abort();
   if (leadWanted) {
     // Akışlı giriş (3 Kasım 2026): ilk paragraf tamamlanır tamamlanmaz yayımlanır; JSON kapanışı beklenmez.
@@ -351,6 +355,7 @@ export async function runStartGeneration(
               : null,
           lessonTopicOnly,
           excludedSiblingTopics: await excludedSiblingsEarly,
+          sourceCorrection: await sourceCorrectionEarly,
           ...(alternativeOf ? { alternativeOf: leadWanted ? `${alternativeOf}\n\n${REWRITE_LEAD_NOTE}` : alternativeOf } : {}),
           repetitiveSparseEvidence: source.repetitiveSparseEvidence,
           sourceFormulas: source.formulas ?? [],

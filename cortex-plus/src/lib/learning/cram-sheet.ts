@@ -1,4 +1,5 @@
 import type { LessonBlock, LessonV3 } from "@/lib/learning/lesson-v3";
+import { readSourceCorrectionWarning, repeatsSourceError, type SourceCorrectionWarning } from "@/lib/learning/source-correction";
 import { formulaRelationKeys } from "@/lib/text/math-normalize";
 import { unresolvedVisualReference } from "@/lib/learning/answer-consistency";
 import { splitTurkishSentences, turkishSentenceEnds } from "@/lib/text/turkish-sentences";
@@ -522,6 +523,15 @@ export function buildCramSheet(input: CramSheetInput): CramSheet {
   const buckets: Bucket[] = input.topics.map((topic) => ({ topic: clean(topic.label), key: topic.key, candidates: [] }));
   const byKey = new Map(buckets.map((bucket) => [bucket.key, bucket] as const));
   const extra = new Map<string, Bucket>();
+  // Kaynak düzeltmesi (19 Kasım 2026, Faz 1-A §2.1): kâğıt kaynağın yanlışını basmaz, doğrusunu konunun başına koyar.
+  const corrections: SourceCorrectionWarning[] = [];
+  const correctionRows = new Set<CramItem>();
+  const wrong = (text: string) => corrections.some((warning) => repeatsSourceError(text, warning));
+
+  for (const { lesson } of input.lessons) {
+    const warning = readSourceCorrectionWarning(lesson.sourceCorrectionWarning ?? null);
+    if (warning) corrections.push(warning);
+  }
 
   for (const { topicKey, lesson } of input.lessons) {
     let bucket = topicKey ? byKey.get(topicKey) : undefined;
@@ -533,9 +543,17 @@ export function buildCramSheet(input: CramSheetInput): CramSheet {
         extra.set(name.toLocaleLowerCase("tr"), bucket);
       }
     }
+    const warning = readSourceCorrectionWarning(lesson.sourceCorrectionWarning ?? null);
+    if (warning) {
+      const row = fitItem({ kind: "warn", title: "Kaynak düzeltmesi", text: warning.verifiedTruth });
+      if (row) {
+        correctionRows.add(row);
+        bucket.candidates.push(row);
+      }
+    }
     for (const row of collectLessonCram(lesson)) {
       const fitted = fitItem(row);
-      if (fitted) bucket.candidates.push(fitted);
+      if (fitted && !wrong(`${fitted.title ?? ""} ${fitted.text}`)) bucket.candidates.push(fitted);
     }
   }
   for (const { topicKey, points } of input.examPoints ?? []) {
@@ -545,7 +563,7 @@ export function buildCramSheet(input: CramSheetInput): CramSheet {
       // Madde kayıtta 220 karakterde kesilmiş olabilir: son tam cümlesine çekilir, yoksa basılmaz.
       const row = item(classifyPoint(point), null, point);
       const fitted = row ? fitItem(row, EXAM_POINT_STORED_MAX) : null;
-      if (fitted) bucket.candidates.push(fitted);
+      if (fitted && !wrong(fitted.text)) bucket.candidates.push(fitted);
     }
   }
 
@@ -554,7 +572,12 @@ export function buildCramSheet(input: CramSheetInput): CramSheet {
   for (const bucket of ordered) {
     bucket.candidates = bucket.candidates
       .map((row, index) => ({ row, index }))
-      .sort((a, b) => rankOf(a.row.kind) - rankOf(b.row.kind) || a.index - b.index)
+      .sort(
+        (a, b) =>
+          Number(correctionRows.has(b.row)) - Number(correctionRows.has(a.row)) ||
+          rankOf(a.row.kind) - rankOf(b.row.kind) ||
+          a.index - b.index,
+      )
       .map(({ row }) => row)
       .filter((row) => fresh(row));
   }
@@ -622,7 +645,7 @@ export function buildCramSheet(input: CramSheetInput): CramSheet {
   for (const rule of input.teacherRules ?? []) {
     if (teacherRules.length >= CRAM_LIMITS.teacherRules) break;
     const text = fitCramText(rule);
-    if (text && freshRule({ text })) teacherRules.push(text);
+    if (text && !wrong(text) && freshRule({ text })) teacherRules.push(text);
   }
 
   // Yanıldığın noktalar: kavramsal ders (soru kökü değil). Şekle, öncüle ya da şıkka bağlı satır basılmaz.
@@ -633,7 +656,7 @@ export function buildCramSheet(input: CramSheetInput): CramSheet {
     const raw = clean(spot.text);
     if (raw.length < 4 || /(?:→|Doğrusu:)\s*$/u.test(raw) || questionBound(raw)) continue;
     const text = fitCramText(raw);
-    if (!text || !freshSpot({ text })) continue;
+    if (!text || wrong(text) || !freshSpot({ text })) continue;
     weakSpots.push({ text, topic: clean(spot.topic) || null });
   }
 
