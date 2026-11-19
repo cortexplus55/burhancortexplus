@@ -122,9 +122,9 @@ test.describe("dönüşüm paketi", { tag: ["@public"] }, () => {
       await app.getByRole("button", { name: /^Devam et/ }).click();
       await app.getByRole("button", { name: /Dersi bitir/ }).click();
 
-      // 4. Konu testi: ürünün soru ekranı; "İki şık arasında kaldım" ipucu sunucuya gitmeden gelir.
+      // 4. Konu testi: ürünün soru ekranı; "İki Şık Arasında Kaldım" ipucu sunucuya gitmeden gelir.
       await expect(tour.locator('.tp-frame[data-screen="question"]')).toBeVisible();
-      await app.getByRole("button", { name: /İki şık arasında kaldım/ }).click();
+      await app.getByRole("button", { name: /İki Şık Arasında Kaldım/ }).click();
       await app.locator(".cp-two-option").nth(0).click();
       await app.locator(".cp-two-option").nth(2).click();
       await expect(app.locator(".cp-two-hint")).toBeVisible();
