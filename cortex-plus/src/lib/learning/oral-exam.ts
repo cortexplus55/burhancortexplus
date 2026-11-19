@@ -34,6 +34,7 @@ import {
   firstAnswerErrorLine,
   type OralAnswerError,
 } from "@/lib/learning/oral-first-answer";
+import { splitTurkishSentencesInline } from "@/lib/text/turkish-sentences";
 
 export {
   firstAnswerErrorLine,
@@ -206,8 +207,7 @@ export function dontKnowNote(): string {
 }
 
 function clipAnswerSentences(text: string): string {
-  const parts = text
-    .split(/(?<=[.!?])\s+/)
+  const parts = splitTurkishSentencesInline(text)
     .map((part) => part.trim())
     .filter(Boolean);
   if (!parts.length) return text.trim();

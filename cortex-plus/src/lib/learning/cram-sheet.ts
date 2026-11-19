@@ -1,6 +1,7 @@
 import type { LessonBlock, LessonV3 } from "@/lib/learning/lesson-v3";
 import { formulaRelationKeys } from "@/lib/text/math-normalize";
 import { unresolvedVisualReference } from "@/lib/learning/answer-consistency";
+import { splitTurkishSentences, turkishSentenceEnds } from "@/lib/text/turkish-sentences";
 
 /**
  * Sınav sabahı kâğıdı (31 Ekim 2026, Paket J3 #14, ürün sahibinin isteği): hazırlığın kayıtlı derslerinden,
@@ -160,7 +161,8 @@ export type CramSheetInput = {
 /** Öğretmen analizinin "Sınavda sorulur" maddesi kayıtta bu uzunlukta kesilir (`teacher-brain.ts` textList). */
 export const EXAM_POINT_STORED_MAX = 220;
 
-const SENTENCE_END = /[.!?](?=\s|$)/g;
+/** Cümle sonu: Türkçe cümle bölücüsünün sınırları ("II.", "116.", "Prof." gibi noktalarda bitmez). */
+const SENTENCE_END = "sentence" as const;
 const CLAUSE_END = /\s(?:·|;|–|—)\s|;\s/g;
 const ENDS_WHOLE = /[.!?)\]»"”']$/u;
 const CUT_MARK = /\s*(?:\.\.\.|…)$/u;
@@ -169,11 +171,21 @@ const CUT_MARK = /\s*(?:\.\.\.|…)$/u;
  * `max` içindeki son sınır (`pattern`). Sonuç en az 25 karakter; `minRatio` verilirse sınırın o kadarı da (uzun metnin
  * ilk birkaç sözcüğü tek başına satır olmasın). Kayıtta kesilmiş metinde oran yok: tam cümle ne kadarsa o kalır.
  */
-function lastBoundary(text: string, max: number, pattern: RegExp, keepMark: boolean, minRatio = 0.35): string | null {
+function lastBoundary(text: string, max: number, pattern: RegExp | typeof SENTENCE_END, keepMark: boolean, minRatio = 0.35): string | null {
   const window = text.slice(0, max);
   let end = -1;
-  for (const match of window.matchAll(pattern)) {
-    end = keepMark ? match.index! + match[0].length : match.index!;
+  if (pattern === SENTENCE_END) {
+    // Bölücünün gördüğü cümle sonları; pencerenin kendi sonu ancak ardından boşluk ya da metin sonu geliyorsa ve
+    // bölücü orada da cümle bitiriyorsa ("II." ya da "Prof." ile biten pencere sınır sayılmaz).
+    const trimmed = window.trimEnd();
+    const ends = turkishSentenceEnds(trimmed);
+    const rest = text.slice(trimmed.length);
+    if ((!rest || /^\s/u.test(rest)) && turkishSentenceEnds(`${trimmed} X`).includes(trimmed.length)) ends.push(trimmed.length);
+    end = ends.length ? Math.max(...ends) : -1;
+  } else {
+    for (const match of window.matchAll(pattern)) {
+      end = keepMark ? match.index! + match[0].length : match.index!;
+    }
   }
   if (end < 0) return null;
   const cut = window.slice(0, end).trim();
@@ -239,8 +251,7 @@ export function questionBound(text: string): boolean {
 }
 
 function sentencesOf(text: string): string[] {
-  return clean(text)
-    .split(/(?<=[.!?])\s+(?=\p{Lu}|\d)/u)
+  return splitTurkishSentences(clean(text))
     .map((part) => part.trim())
     .filter(Boolean);
 }

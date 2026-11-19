@@ -5,11 +5,12 @@
  */
 import type { LessonBody } from "@/lib/content-pool/schema";
 import type { OralQuestionDraft } from "@/lib/learning/oral-exam";
+import { splitTurkishSentencesInline } from "@/lib/text/turkish-sentences";
 
 type Section = LessonBody["sections"][number];
 
 function sentences(text: string, max: number): string {
-  const parts = text.replace(/\s+/g, " ").trim().split(/(?<=[.!?])\s+/).filter(Boolean);
+  const parts = splitTurkishSentencesInline(text);
   return parts.slice(0, max).join(" ").slice(0, 900);
 }
 
