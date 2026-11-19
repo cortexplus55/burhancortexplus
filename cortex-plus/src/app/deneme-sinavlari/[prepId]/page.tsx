@@ -35,6 +35,7 @@ import {
   PDF_LEARNING_V2_FLAG,
 } from "@/lib/admin/feature-flags";
 import { createServiceClient } from "@/lib/supabase/server";
+import { resumeStalePrepSetup } from "@/lib/learning/prep-setup-finish";
 import { maybeRescheduleMissedDays } from "@/lib/learning/missed-day-reschedule";
 import { pathSkipKindsForView } from "@/lib/billing/node-free-meter";
 import {
@@ -194,6 +195,9 @@ export default async function ExamPrepDetailPage({
     const proto = head.get("x-forwarded-proto") ?? "https";
     if (host) after(() => requestPrepPrefetch(service, { origin: `${proto}://${host}`, userId: user.id, prepId }));
   }
+  // Faz 2 (madde 7.4): kurulumun arka plan yarısı yarıda kesildiyse (fonksiyonun ömrü bitti) burada kaldığı yerden
+  // sürer. Yanıttan sonra; iş yoksa tek satır okuma.
+  after(() => resumeStalePrepSetup(service, { prepId, userId: user.id }).catch(() => "failed" as const));
   // Soğuk bellek (5 Kasım 2026): bu hazırlığın gömmeleri tahliye edildiyse arka planda yeniden indekslenir (yalnız gömme çağrısı).
   after(() => reindexEvictedForPrep(service, prepId, embedTexts).catch(() => 0));
   // Kaçırılan günler (8 Kasım 2026): bitmemiş adımın günü geçtiyse kalan plan bugünden sınava yeniden dağıtılır.

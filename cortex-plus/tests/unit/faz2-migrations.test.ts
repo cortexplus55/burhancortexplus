@@ -14,7 +14,11 @@ const MIGRATIONS = [
   "20261119100200_faz2_canonical_email",
   "20261119100300_faz2_legal_acceptance",
   "20261119100400_faz2_document_page_range",
+  "20261119100500_faz2_progressive_prep_setup",
 ];
+const PREP = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const TOPIC_A = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1";
+const TOPIC_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2";
 
 const U1 = "11111111-1111-4111-8111-111111111111";
 const U2 = "22222222-2222-4222-8222-222222222222";
@@ -71,6 +75,12 @@ beforeAll(async () => {
       version text NOT NULL, accepted_at timestamptz NOT NULL DEFAULT now(), ip_hash text, evidence jsonb);
     CREATE TABLE public.documents (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid NOT NULL, page_count integer,
       source_page_count integer);
+    CREATE TABLE public.exam_preps (id uuid PRIMARY KEY, user_id uuid NOT NULL, title text);
+    CREATE TABLE public.exam_prep_nodes (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), exam_prep_id uuid NOT NULL,
+      sort_order integer NOT NULL, session_meta jsonb DEFAULT '{}'::jsonb);
+    CREATE TABLE public.exam_prep_topics (id uuid PRIMARY KEY, exam_prep_id uuid NOT NULL, label text,
+      document_topic_node_id uuid, familiarity text, measured_level text, diagnostic_status text DEFAULT 'unmeasured',
+      source_refs jsonb DEFAULT '[]'::jsonb, contradictions jsonb DEFAULT '[]'::jsonb);
     ${normalize}
     ${mistakeTable.slice(0, mistakeTable.indexOf("ALTER TABLE public.mistake_entries ENABLE ROW LEVEL SECURITY")).replace(/ REFERENCES public.profiles\(id\) ON DELETE CASCADE/g, "")}
   `);
@@ -91,6 +101,10 @@ beforeAll(async () => {
       ('${U1}', 'kvkk_aydinlatma', 'v1', now() - interval '3 days'),
       ('${U1}', 'yas_beyani', 'v1', now() - interval '3 days');
     INSERT INTO public.documents (user_id, page_count, source_page_count) VALUES ('${U1}', 5, 12);
+    INSERT INTO public.exam_preps (id, user_id, title) VALUES ('${PREP}', '${U1}', 'Hazırlık');
+    INSERT INTO public.exam_prep_nodes (exam_prep_id, sort_order) VALUES ('${PREP}', 0), ('${PREP}', 1), ('${PREP}', 2);
+    INSERT INTO public.exam_prep_topics (id, exam_prep_id, label, familiarity) VALUES
+      ('${TOPIC_A}', '${PREP}', 'Konu A', 'heard'), ('${TOPIC_B}', '${PREP}', 'Konu B', 'heard');
   `);
 
   // İki kez: tekrar çalıştırılabilir olmalı.
@@ -244,5 +258,60 @@ describe("madde 5: documents sayfa aralığı", () => {
     await expect(
       db.query("INSERT INTO public.documents (user_id, page_range_start) VALUES ($1, 0)", [U1]),
     ).rejects.toThrow(/documents_page_range_valid/);
+  });
+});
+
+describe("madde 7.4: aşamalı hazırlık kurulumu", () => {
+  const nodes = JSON.stringify([
+    { sort_order: 1, meta: { topicId: TOPIC_A, objective: "Hedef" } },
+    { sort_order: 2, meta: { topicId: TOPIC_B } },
+  ]);
+  const topics = JSON.stringify([
+    { id: TOPIC_A, familiarity: "new", measured_level: "unknown", source_refs: [{ documentId: "d", pages: [1] }] },
+    { id: TOPIC_B, contradictions: [{ concept: "k", claims: [] }] },
+  ]);
+
+  it("var olan hazırlıkta kalan iş yok (NULL)", async () => {
+    const res = await db.query<{ f: unknown }>("SELECT setup_finish AS f FROM public.exam_preps");
+    expect(res.rows).toEqual([{ f: null }]);
+  });
+
+  it("yalnız sunucu çağırır; öğrenci ve anonim reddedilir", async () => {
+    for (const role of ["authenticated", "anon"] as const) {
+      await expect(
+        as(role, U1, "SELECT public.apply_exam_prep_setup($1, $2, $3::jsonb, $4::jsonb)", [PREP, U1, nodes, topics]),
+      ).rejects.toThrow(/forbidden/);
+    }
+  });
+
+  it("başkasının hazırlığına yazmaz", async () => {
+    await expect(
+      as("service_role", null, "SELECT public.apply_exam_prep_setup($1, $2, $3::jsonb, $4::jsonb)", [PREP, U2, nodes, topics]),
+    ).rejects.toThrow(/prep_not_found/);
+  });
+
+  it("tek çağrıda düğüm meta'sı ve yalnız gönderilen konu alanları yazılır; tekrar çağrı aynı sonucu verir", async () => {
+    for (const run of [1, 2]) {
+      const res = await as("service_role", null, "SELECT public.apply_exam_prep_setup($1, $2, $3::jsonb, $4::jsonb) AS n", [
+        PREP,
+        U1,
+        nodes,
+        topics,
+      ]);
+      expect((res.rows[0] as { n: number }).n, `çalıştırma ${run}`).toBe(4);
+    }
+    const nodeRows = await db.query<{ s: number; m: Record<string, unknown> }>(
+      "SELECT sort_order AS s, session_meta AS m FROM public.exam_prep_nodes ORDER BY sort_order",
+    );
+    expect(nodeRows.rows).toEqual([
+      { s: 0, m: {} },
+      { s: 1, m: { topicId: TOPIC_A, objective: "Hedef" } },
+      { s: 2, m: { topicId: TOPIC_B } },
+    ]);
+    const topicRows = await db.query("SELECT label, familiarity, measured_level, diagnostic_status, source_refs, contradictions FROM public.exam_prep_topics ORDER BY label");
+    expect(topicRows.rows).toEqual([
+      { label: "Konu A", familiarity: "new", measured_level: "unknown", diagnostic_status: "unmeasured", source_refs: [{ documentId: "d", pages: [1] }], contradictions: [] },
+      { label: "Konu B", familiarity: "heard", measured_level: null, diagnostic_status: "unmeasured", source_refs: [], contradictions: [{ concept: "k", claims: [] }] },
+    ]);
   });
 });

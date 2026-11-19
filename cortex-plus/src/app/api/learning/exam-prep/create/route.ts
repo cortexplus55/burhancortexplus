@@ -31,17 +31,11 @@ import { ADDED_TOPIC_ID_PREFIX, addedTopicIdMap, applyStudentTopicList } from "@
 import { remapTopicIds, topicIdMap, topicOnlyScheduleTopics } from "@/lib/learning/topic-only-schedule";
 import { groundPrepTopics } from "@/lib/learning/ground-prep-topics";
 import { missingColumn } from "@/lib/learning/missing-column";
-import {
-  contradictionsByTopicTitleResolved,
-  readContradictionDocuments,
-} from "@/lib/learning/prep-contradiction-read";
 import { orderedSourceDocumentIds } from "@/lib/learning/prep-source";
 import { PREP_TOPIC_CAP } from "@/lib/learning/prep-topic-list";
 import { loadScheduleTopics } from "@/lib/learning/prep-schedule-topics";
 import { loadScheduleCheckpoints } from "@/lib/learning/schedule-checkpoints";
 import { EXAM_PLACE_MAX, EXAM_TIME_PATTERN } from "@/lib/learning/exam-time";
-import type { TopicContradiction } from "@/lib/learning/source-contradictions";
-import type { TopicSourceRef } from "@/lib/learning/topic-merge";
 import { orderTopicsForPath } from "@/lib/learning/topic-order";
 import { documentRunningHeaders } from "@/lib/documents/clean-pages";
 import { isRunningHeader } from "@/lib/documents/clean-text";
@@ -49,12 +43,16 @@ import { isJunkTopicTitle } from "@/lib/documents/topic-title";
 import { getProgram } from "@/lib/curriculum/registry";
 import { orderOfficialUnits, type OrderableUnit } from "@/lib/curriculum/official-plan-order";
 import { officialUnitTopic, verifyPlannedUnits } from "@/lib/curriculum/official-setup";
-import { runPool } from "@/lib/documents/upload-batch";
+import { applySetupWrites, runPrepSetupFinish, saveSetupFinish } from "@/lib/learning/prep-setup-finish";
+import {
+  splitSetupWrites,
+  type PrepSetupFinish,
+  type SetupNodeWrite,
+  type SetupTopicWrite,
+} from "@/lib/learning/prep-setup-split";
 import { linkScanResponsesToPrep, SCAN_LINK_MAX_TOKENS } from "@/lib/level-check/link-scan";
 import { gateFromRefusal } from "@/lib/entitlements/gate";
 
-/** Kurulumdaki bağımsız satır güncellemeleri için eşzamanlı istek sınırı. */
-const WRITE_LANES = 16;
 
 /** Kayıtta olmayan program başvurusu saklanmaz (eski istemci / bozuk istek). */
 function withKnownCurriculum<T extends { curriculum?: { programId: string } } | undefined>(prefs: T) {
@@ -449,102 +447,69 @@ export async function POST(request: Request) {
     console.error("topic order flag", orderWrite.error.message);
   }
 
-  const contradictionDocs = await readContradictionDocuments(service, documentIds).catch(() => []);
-  const contradictionMap = await contradictionsByTopicTitleResolved(
-    service,
-    userId,
-    scheduleTopics.map((topic) => ({
-      title: topic.title,
-      sources: (topic.sourceRefs ?? []).map((source) => ({
-        documentId: source.documentId,
-        pages: source.pages,
-      })),
-    })),
-    contradictionDocs,
-  );
-
-  if (scheduleSummary) {
-    const { data: nodeRows } = await service
-      .from("exam_prep_nodes")
-      .select("id, sort_order")
-      .eq("exam_prep_id", result.prepId)
-      .order("sort_order");
-    const metaBySort = sessionMetaBySortOrder(scheduleDrafts ?? []);
-    // 1 Kasım 2026: 130 kazanımlı resmî hazırlıkta ~900 düğüm sırayla güncelleniyordu (~25 sn "Kuruluyor…").
-    // Satırlar birbirinden bağımsız; aynı anda en çok WRITE_LANES istek.
-    await runPool(nodeRows ?? [], WRITE_LANES, async (row) => {
-      const meta = metaBySort.get(row.sort_order as number);
-      if (!meta) return true;
-      const { error } = await service.from("exam_prep_nodes").update({ session_meta: meta }).eq("id", row.id);
-      return !error;
-    });
-
-    try {
-      const { isFeatureEnabled, ADAPTIVE_LEARNING_FLAG } = await import(
-        "@/lib/admin/feature-flags"
-      );
-      if (await isFeatureEnabled(service, ADAPTIVE_LEARNING_FLAG, userId)) {
-        const { commitMasterPlanVersion } = await import(
-          "@/lib/adaptive/master-plan-engine"
-        );
-        const { data: prepRow } = await service
-          .from("exam_preps")
-          .select("schedule_v2")
-          .eq("id", result.prepId)
-          .maybeSingle();
-        if (prepRow?.schedule_v2) {
-          await commitMasterPlanVersion(service, {
-            userId,
-            examPrepId: result.prepId,
-            trigger: "initial",
-            schedule: prepRow.schedule_v2 as import("@/lib/learning/exam-schedule-v2").ScheduleBuildResult,
-            previousVersion: 0,
-          });
-        }
-      }
-    } catch {
-      // Adaptive snapshot must not break exam prep create.
-    }
-  }
-
+  // Faz 2 (madde 7.4): ilk ekran 5 saniyenin altında. İstek yalnız yol haritasını (düğümler zaten yazıldı) ve
+  // 1. ünitenin adımlarını + konusunu tek RPC ile yazar; kalan düğüm/konu yazımı, kaynak çelişkisi yargısı (model
+  // çağrısı) ve uyarlanabilir plan anlık görüntüsü yanıttan sonra koşar. Kalan iş kayda yazılır (`setup_finish`):
+  // arka plan işi yarıda kesilirse hazırlık sayfası açılınca kaldığı yerden sürer. Sütun yoksa (göç uygulanmadı)
+  // kalan iş eskisi gibi istek içinde biter.
+  const nodeWrites: SetupNodeWrite[] = scheduleSummary
+    ? [...sessionMetaBySortOrder(scheduleDrafts ?? [])].map(([sort_order, meta]) => ({ sort_order, meta }))
+    : [];
   const { data: prepTopics } = await service
     .from("exam_prep_topics")
     .select("id, label, sort_order")
     .eq("exam_prep_id", result.prepId)
     .order("sort_order");
-
-  await runPool(prepTopics ?? [], WRITE_LANES, async (topic) => {
-    const nodeId = topicNodeIds[topic.sort_order] ?? null;
+  const topicWrites: SetupTopicWrite[] = (prepTopics ?? []).map((topic) => {
     const isHard = hardSet.has(String(topic.label).trim().toLocaleLowerCase("tr"));
-    await service
-      .from("exam_prep_topics")
-      .update({
-        document_topic_node_id: nodeId,
-        // Self-report only — measured_level stays null until diagnostic. Zor diye işaretlenen
-        // konu kurulumdaki düzeyden yüksek başlamaz (en çok "duymuştum").
-        familiarity: isHard
-          ? parsed.data.familiarity === "new"
-            ? "new"
-            : "heard"
-          : (parsed.data.familiarity ?? null),
-        measured_level: "unknown",
-        diagnostic_status: "unmeasured",
-      })
-      .eq("id", topic.id);
-    const schedule = scheduleTopics[topic.sort_order as number];
-    const extras: {
-      source_refs?: TopicSourceRef[];
-      contradictions?: TopicContradiction[];
-    } = {
-      source_refs: schedule?.sourceRefs ?? [],
-      contradictions: contradictionMap.get(String(topic.label)) ?? [],
+    return {
+      id: topic.id as string,
+      document_topic_node_id: topicNodeIds[topic.sort_order as number] ?? null,
+      // Self-report only — measured_level stays null until diagnostic. Zor diye işaretlenen
+      // konu kurulumdaki düzeyden yüksek başlamaz (en çok "duymuştum").
+      familiarity: isHard
+        ? parsed.data.familiarity === "new"
+          ? "new"
+          : "heard"
+        : (parsed.data.familiarity ?? null),
+      measured_level: "unknown",
+      diagnostic_status: "unmeasured",
+      source_refs: scheduleTopics[topic.sort_order as number]?.sourceRefs ?? [],
     };
-    const extraWrite = await service.from("exam_prep_topics").update(extras).eq("id", topic.id);
-    if (extraWrite.error && !missingColumn(extraWrite.error)) {
-      console.error("topic sources", extraWrite.error.message);
-    }
-    return true;
   });
+  const setupSplit = splitSetupWrites(nodeWrites, topicWrites);
+  await applySetupWrites(service, { prepId: result.prepId, userId, ...setupSplit.now });
+  const setupFinish: PrepSetupFinish = {
+    v: 1,
+    startedAt: new Date().toISOString(),
+    nodes: setupSplit.later.nodes,
+    topics: setupSplit.later.topics,
+    contradictions: {
+      documentIds,
+      topics: scheduleTopics.map((topic) => ({
+        title: topic.title,
+        sources: (topic.sourceRefs ?? []).map((source) => ({ documentId: source.documentId, pages: source.pages })),
+      })),
+    },
+    masterPlan: Boolean(scheduleSummary),
+  };
+  const setupDeferred = await saveSetupFinish(service, { prepId: result.prepId, userId, finish: setupFinish });
+  let settleSetup: () => void = () => undefined;
+  const setupSettled = new Promise<void>((resolve) => {
+    settleSetup = resolve;
+  });
+  if (setupDeferred) {
+    after(async () => {
+      try {
+        await runPrepSetupFinish(service, { prepId: result.prepId, userId, finish: setupFinish, persisted: true });
+      } finally {
+        settleSetup();
+      }
+    });
+  } else {
+    await runPrepSetupFinish(service, { prepId: result.prepId, userId, finish: setupFinish, persisted: false });
+    settleSetup();
+  }
 
   // Kurulumun Hızlı Tarama yanıtları bu hazırlığın netine sayılsın (yanıttan önce: hazırlık sayfası ilk açılışta görsün).
   if (parsed.data.levelScanTokens?.length) {
@@ -576,7 +541,7 @@ export async function POST(request: Request) {
       const documentIds = await loadPrepDocumentIds(service, result.prepId).catch(() => [] as string[]);
       if (documentIds.length) {
         await Promise.race([
-          ensureTeacherAnalyses(service, { userId, documentIds }).catch(() => undefined),
+          Promise.all([ensureTeacherAnalyses(service, { userId, documentIds }).catch(() => undefined), setupSettled]),
           new Promise((resolve) => setTimeout(resolve, TEACHER_ANALYSIS_WAIT_MS)),
         ]);
       }
