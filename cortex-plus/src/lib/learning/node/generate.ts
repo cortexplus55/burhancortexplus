@@ -27,6 +27,7 @@ import { teacherCardsPayload } from "./cards";
 import { teacherTrueFalsePayload } from "./true-false";
 import { SINGLE_CHOICE_PROMPT_LINE } from "@/lib/learning/single-choice-guard";
 import type { SourceCorrectionWarning } from "@/lib/learning/source-correction";
+import type { SourceFallbackKind } from "@/lib/learning/source-fallback";
 
 /** Türe göre üretimin girdisi; rota hazırlar, tür modülleri okur. */
 export type NodePayloadInput = {
@@ -47,6 +48,11 @@ export type NodePayloadInput = {
   lessonCore?: LessonCore | null;
   /** Belgesiz hazırlık dersi (topic_only, hazırlıkta belge yok). */
   lessonTopicOnly?: boolean;
+  /**
+   * Kaynak araması yedeği (19 Kasım 2026, Faz 1-A §3.3): Kolay / Orta konu testinde arama boş ya da düştü; `sourceBlock`
+   * konunun kayıtlı dersi (lesson_context) ya da ünite özeti (unit_summary). Çekirdek sayfa yoksa test bundan yazılır.
+   */
+  sourceFallback?: SourceFallbackKind | null;
   /** Belgesiz "Farklı anlat": kazanımlar + önceki (havuz) anlatım; ders aynı bilgiyi farklı yoldan anlatır. */
   alternativeOf?: string;
   repetitiveSparseEvidence?: boolean;
@@ -162,6 +168,8 @@ export async function generateNodePayload(input: NodePayloadInput) {
   */
   const core = input.lessonCore ?? null;
   const pagesReady = Boolean(core || input.lessonTopicOnly);
+  // Faz 1-A §3.3: yedek kaynaklı konu testi çekirdek sayfa olmadan da yazılır (kaynak = kayıtlı ders / ünite özeti).
+  const fallbackReady = Boolean(input.sourceFallback && input.sourceBlock.trim() && TEACHER_QUIZ_KINDS.has(input.kind));
   const noPages = () => new NodeGenerationError(503, "source_unavailable", ["lesson_core_missing"]);
 
   if (input.kind === "lesson") {
@@ -170,7 +178,7 @@ export async function generateNodePayload(input: NodePayloadInput) {
   }
 
   if (TEACHER_QUIZ_KINDS.has(input.kind)) {
-    if (!pagesReady) throw noPages();
+    if (!pagesReady && !fallbackReady) throw noPages();
     return teacherQuizPayload(input, activity, core, Math.max(5, quizCount));
   }
 

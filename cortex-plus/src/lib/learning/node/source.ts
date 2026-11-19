@@ -14,6 +14,8 @@ import { loadPodcastCorpus, mergePodcastSource } from "@/lib/learning/podcast-ep
 import { loadPrepDocumentIds, loadTopicTeaching } from "@/lib/documents/teacher-analysis-run";
 import type { TeachingPriority } from "@/lib/learning/teacher-brain";
 import { TEACHER_PAGE_KINDS } from "@/lib/learning/node/shared";
+import { lessonSourceFallback, sourceFallbackAllowed, type SourceFallbackKind } from "@/lib/learning/source-fallback";
+import { loadTopicLesson } from "@/lib/learning/node/lesson-store";
 import { loadOralAllSource } from "@/lib/learning/node/oral";
 import { poolLessonBodies, poolSliceForTopic, poolSourceText } from "@/lib/content-pool/serve";
 import { oralDraftsFromPool } from "@/lib/content-pool/oral-from-pool";
@@ -25,7 +27,7 @@ import type { NodeContext } from "./context";
 import type { StartLocals } from "./start-types";
 
 export async function resolveStartSource(context: NodeContext, state: Pick<StartLocals, "sessionMeta" | "topic" | "topicDocumentId" | "topicNodeId" | "topicSourceRefs" | "topicLabel" | "topicWiden" | "voiceSession">) {
-  const { userId, service, parsed, prepId, teachingV2, prep, kind, oralCount, oralTopicIds, oralMultiTopic } = context;
+  const { userId, service, parsed, prepId, teachingV2, prep, kind, oralCount, oralTopicIds, oralMultiTopic, difficulty } = context;
   const { sessionMeta, topic, topicDocumentId, topicNodeId, topicSourceRefs, topicLabel, topicWiden, voiceSession } = state;
   // Ders öğrencinin kendi kaynağından üretilsin. Hazırlığa bağlı bir belge
   // varsa yalnızca onun içinde, yoksa kullanıcının tüm belgelerinde aranıyor.
@@ -108,6 +110,20 @@ export async function resolveStartSource(context: NodeContext, state: Pick<Start
   let noPrepDocuments = false;
   // Belgesiz havuz sözlüsü: doğrulanmış bölümlerden anında sorular (boşsa bugünkü üretim).
   let oralPoolDrafts: OralQuestionDraft[] = [];
+  // Kaynak araması yedeği (19 Kasım 2026, Faz 1-A §3.3): Kolay / Orta konu testinde arama boşsa ya da düştüyse test
+  // konunun kayıtlı dersinden (lesson_context), yoksa ünite özetinden (unit_summary) yazılır.
+  let sourceFallback: SourceFallbackKind | null = null;
+  const fallbackWanted = teachingV2 && !voiceSession && sourceFallbackAllowed(kind, difficulty);
+  const useFallback = async (reason: SourceUnavailableReason): Promise<boolean> => {
+    if (!fallbackWanted || !topic?.id) return false;
+    const lesson = await loadTopicLesson(service, topic.id).catch(() => null);
+    const fallback = lessonSourceFallback(lesson);
+    if (!fallback) return false;
+    sourceFallback = fallback.kind;
+    source = { ...EMPTY_SOURCE_CONTEXT, block: fallback.block, documentName: fallback.documentName };
+    console.info("node_source_fallback", { kind, topic: topicLabel.slice(0, 80), reason, fallback: fallback.kind });
+    return true;
+  };
   try {
     const mappedPages = topicWiden ? undefined : sessionMeta?.sourcePages;
     const pageDocumentIds = [
@@ -275,31 +291,38 @@ export async function resolveStartSource(context: NodeContext, state: Pick<Start
               },
             );
     }
-  } catch {
+  } catch (error) {
     const reason: SourceUnavailableReason = "search_error";
-    console.error("node_source_unavailable", {
-      kind,
-      requestId: parsed.data.clientRequestId ?? null,
-      topic: topicLabel,
-      reason,
-      trace: sourceTrace,
-    });
-    await recordLessonGenerationFailure(service, {
-      userId,
-      prepId,
-      topicId: topic?.id ?? null,
-      topicLabel,
-      kind,
-      stage: "source",
-      reason,
-      reasons: ["exception"],
-      sourceTrace: sourceTrace ?? undefined,
-    });
-    return errorResponse(503, "source_unavailable", {
-      reason,
-      refunded: false,
-    });
+    if (await useFallback(reason)) {
+      console.warn("node_source_search_failed_fallback", {
+        cause: error instanceof Error ? error.message.slice(0, 120) : "unknown",
+      });
+    } else {
+      console.error("node_source_unavailable", {
+        kind,
+        requestId: parsed.data.clientRequestId ?? null,
+        topic: topicLabel,
+        reason,
+        trace: sourceTrace,
+      });
+      await recordLessonGenerationFailure(service, {
+        userId,
+        prepId,
+        topicId: topic?.id ?? null,
+        topicLabel,
+        kind,
+        stage: "source",
+        reason,
+        reasons: ["exception"],
+        sourceTrace: sourceTrace ?? undefined,
+      });
+      return errorResponse(503, "source_unavailable", {
+        reason,
+        refunded: false,
+      });
+    }
   }
+  if (!source) source = EMPTY_SOURCE_CONTEXT;
 
   // Öğretmen test motoru: konu testi de konunun kendi sayfalarından yazılır;
   // belgesiz hazırlıkta konunun yerleşik bilgisinden.
@@ -376,11 +399,13 @@ export async function resolveStartSource(context: NodeContext, state: Pick<Start
   }
 
   // v2 + bound document: empty source must fail closed (no silent general-knowledge fill).
+  // İstisna (Faz 1-A §3.3): Kolay / Orta konu testinde boş arama konunun kayıtlı dersine düşer.
   if (
     teachingV2 &&
     !voiceSession &&
     prepSource.document_id &&
-    !source.block.trim()
+    !source.block.trim() &&
+    !(await useFallback("search_no_match"))
   ) {
     const reason: SourceUnavailableReason = "search_no_match";
     console.error("node_source_unavailable", {
@@ -406,7 +431,7 @@ export async function resolveStartSource(context: NodeContext, state: Pick<Start
       refunded: false,
     });
   }
-  return { prepSource, prepDocs, teachingPlan, sourceBoundaryMode, sourceMode, source, sourceTrace, lessonCoreDocumentId, lessonCorePages, lessonTopicOnly, oralAllPlan, podcastSyllabus, alternativeOf, oralPoolDrafts };
+  return { prepSource, prepDocs, teachingPlan, sourceBoundaryMode, sourceMode, source, sourceTrace, lessonCoreDocumentId, lessonCorePages, lessonTopicOnly, oralAllPlan, podcastSyllabus, alternativeOf, oralPoolDrafts, sourceFallback: sourceFallback as SourceFallbackKind | null };
 }
 
 /** Kaynak aşamasının erken yanıt dışındaki dönüşü. */

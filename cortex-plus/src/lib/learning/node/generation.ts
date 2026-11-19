@@ -164,7 +164,7 @@ export async function runStartGeneration(
   const { userId, service, options, requestStarted, parsed, prepId, nodeId, lessonFormat, prefetch, teachingV2, prep, node, kind, oralCount, oralMultiTopic, difficulty, voiceMode, familiarity, mood, lessonReviewCards } = context;
   const { sessionMeta, topic, topicLabel, topicWiden, warm, refreshTopicQuiz, voiceSession, premium, freeMeter, practiceTopics, finalFill, retargetedTopic, quizLesson, variant, peekBuildingMs } = state;
   let { title } = state;
-  const { prepSource, prepDocs, teachingPlan, sourceMode, source, sourceTrace, lessonCoreDocumentId, lessonCorePages, lessonTopicOnly, oralAllPlan, podcastSyllabus, alternativeOf } = sourced;
+  const { prepSource, prepDocs, teachingPlan, sourceMode, source, sourceTrace, lessonCoreDocumentId, lessonCorePages, lessonTopicOnly, oralAllPlan, podcastSyllabus, alternativeOf, sourceFallback } = sourced;
   const { clientRequestId, generationId, creatingAttemptId } = reserved;
   // Kaydı önceden açılmayan yol (v1) da bilinen bir anahtarla ücretlensin: kayıt yazılamazsa iade bu anahtarı bulur.
   // Önceden yazım ücretsizdir, anahtarı motor kendisi verir.
@@ -354,6 +354,7 @@ export async function runStartGeneration(
                 }
               : null,
           lessonTopicOnly,
+          ...(sourceFallback ? { sourceFallback } : {}),
           excludedSiblingTopics: await excludedSiblingsEarly,
           sourceCorrection: await sourceCorrectionEarly,
           ...(alternativeOf ? { alternativeOf: leadWanted ? `${alternativeOf}\n\n${REWRITE_LEAD_NOTE}` : alternativeOf } : {}),

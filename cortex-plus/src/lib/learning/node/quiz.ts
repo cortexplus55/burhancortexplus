@@ -82,8 +82,12 @@ export async function teacherQuizPayload(
     input.kind === "quiz"
       ? practiceCoverage(variant, lessonBackbone(ownPages, { topicLabel: input.topicLabel, runningHeaders: edges }))
       : undefined;
+  // Kaynak araması yedeği (Faz 1-A §3.3): çekirdek sayfa yoksa test konunun kayıtlı dersinden / ünite özetinden yazılır
+  // (belgeli kip; genel bilgiyle doldurma yok).
+  const fallbackBlock = !core && input.sourceFallback ? input.sourceBlock.trim() : "";
   const outcome = await runTeacherQuiz(input.service, {
-    mode: core ? "document" : "topic",
+    mode: core || fallbackBlock ? "document" : "topic",
+    ...(fallbackBlock ? { sourceBlock: fallbackBlock } : {}),
     focus: input.kind === "gaps" ? "gaps" : "practice",
     previousStems,
     ...(coverage ? { coverage } : {}),
