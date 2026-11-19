@@ -82,7 +82,7 @@ import {
 } from "@/lib/learning/tutor-reply";
 import { topWeightedTopic } from "@/lib/learning/prep-corpus";
 import { runTeacherTutor } from "@/lib/ai/teacher-tutor-run";
-import { answerFirstLine, bestSourcePage } from "@/lib/learning/tutor-answer";
+import { answerFirstLine, bestSourcePage, misconceptionFirstLine } from "@/lib/learning/tutor-answer";
 import { CHAT_NATURAL_VOICE, CHAT_TEACHING_MARKUP, teacherStyleLine, tutorHistoryLine, tutorHistoryText } from "@/lib/ai/teacher-tutor";
 import { simplifyLine } from "@/lib/ai/simplify-request";
 import { chatTurnBlock, chatTurnLines, readChatTurn } from "@/lib/ai/chat-turn-lines";
@@ -558,7 +558,7 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
       }
       const moodLine = turn.mood === "neutral" ? "" : ` ${moodPrompt(turn.mood)}`;
       const requestMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-        { role: "system", content: `${SYSTEM_GUARDRAIL} ${studentInstruction} ${teacherTurn} ${(v2Session && v2StyleLine(teachStyle)) || teacherStyleLine(tutorStyle)} ${CHAT_NATURAL_VOICE}${rest.prepId && prepGrounding ? "" : `\n\n${teacherV2 ? ONE_MOVE_MARKUP : CHAT_TEACHING_MARKUP}\n\n`} ${v2Session ? v2AnswerFirstLine({ message, style: teachStyle, base: tutorStyle, session: v2Session, plan: turn.plan }) : answerFirstLine(message, tutorStyle)}${moodLine}${examContext?.block ?? ""}${attachedBrief ? `\n${SOURCE_PAGE_FORMULA_RULE}\n${attachedBrief}` : ""}${contextBlock}${tutorAddendum ? `\n\n${tutorAddendum}` : ""}${simplifyLine(message) ? `\n\n${simplifyLine(message)}` : ""}${chatTurnBlock(turnLines)}` },
+        { role: "system", content: `${SYSTEM_GUARDRAIL} ${studentInstruction} ${teacherTurn} ${(v2Session && v2StyleLine(teachStyle)) || teacherStyleLine(tutorStyle)} ${CHAT_NATURAL_VOICE}${rest.prepId && prepGrounding ? "" : `\n\n${teacherV2 ? ONE_MOVE_MARKUP : CHAT_TEACHING_MARKUP}\n\n`} ${v2Session ? v2AnswerFirstLine({ message, style: teachStyle, base: tutorStyle, session: v2Session, plan: turn.plan }) : answerFirstLine(message, tutorStyle)} ${misconceptionFirstLine(message)}${moodLine}${examContext?.block ?? ""}${attachedBrief ? `\n${SOURCE_PAGE_FORMULA_RULE}\n${attachedBrief}` : ""}${contextBlock}${tutorAddendum ? `\n\n${tutorAddendum}` : ""}${simplifyLine(message) ? `\n\n${simplifyLine(message)}` : ""}${chatTurnBlock(turnLines)}` },
         ...history,
         { role: "user", content: imageUrl ? [{ type: "text", text: message }, { type: "image_url", image_url: visionImage(imageUrl) }] : message },
       ];
