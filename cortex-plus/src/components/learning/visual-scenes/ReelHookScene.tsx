@@ -63,7 +63,7 @@ export function ReelHookScene({ data, domain, ...common }: SceneCommonProps & { 
         </filter>
       </defs>
       <SceneBadge box={layout.badge} color={HOOK_COLORS.accent} textColor={HOOK_COLORS.accent} />
-      {layout.domain ? <SceneText box={layout.domain} fill={HOOK_COLORS.muted} className="cp-vs-fade" style={delay(0.05)} letterSpacing={0.8} /> : null}
+      {layout.domain ? <SceneText box={layout.domain} fill={HOOK_COLORS.muted} className="cp-vs-fade" style={delay(0.05)} /> : null}
       <circle cx={cx} cy={cy} r={size * 0.75} fill={`url(#${id("halo")})`} className="cp-vs-fade" style={delay(0.1)} />
       {rays.map((a, i) => (
         <line

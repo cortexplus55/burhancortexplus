@@ -325,8 +325,8 @@ export function LawDecisionScene({ data, domain, ...common }: SceneCommonProps &
         <line x1={tree.stem.x} y1={tree.bar.y} x2={tree.bar.x2} y2={tree.bar.y} stroke={LAW_COLORS.no} strokeWidth={2.5} pathLength={1} className="cp-vs-draw" style={delay(0.85, 0.4)} />
         <line x1={tree.yes.dropX} y1={tree.bar.y} x2={tree.yes.dropX} y2={tree.yes.rect.y} stroke={LAW_COLORS.yes} strokeWidth={2.5} pathLength={1} className="cp-vs-draw" style={delay(1.2, 0.25)} />
         <line x1={tree.no.dropX} y1={tree.bar.y} x2={tree.no.dropX} y2={tree.no.rect.y} stroke={LAW_COLORS.no} strokeWidth={2.5} pathLength={1} className="cp-vs-draw" style={delay(1.2, 0.25)} />
-        <SceneText box={tree.yes.tag} fill={LAW_COLORS.yes} className="cp-vs-fade" style={delay(1)} letterSpacing={0.6} />
-        <SceneText box={tree.no.tag} fill={LAW_COLORS.no} className="cp-vs-fade" style={delay(1)} letterSpacing={0.6} />
+        <SceneText box={tree.yes.tag} fill={LAW_COLORS.yes} className="cp-vs-fade" style={delay(1)} />
+        <SceneText box={tree.no.tag} fill={LAW_COLORS.no} className="cp-vs-fade" style={delay(1)} />
         {(["yes", "no"] as const).map((side) => {
           const branch = tree[side];
           const color = side === "yes" ? LAW_COLORS.yes : LAW_COLORS.no;
@@ -352,7 +352,7 @@ export function LawDecisionScene({ data, domain, ...common }: SceneCommonProps &
       {/* Çoğunluk barometresi */}
       {majority ? (
         <g data-section="majority" className="cp-vs-fade" style={delay(1.7)}>
-          <SceneText box={majority.kicker} fill={LAW_COLORS.bar} letterSpacing={0.6} />
+          <SceneText box={majority.kicker} fill={LAW_COLORS.bar} />
           {majority.rows.map((row, index) => (
             <g key={index} data-ratio={row.ratio.toFixed(3)}>
               <SceneText box={row.label} fill={LAW_COLORS.muted} />
@@ -378,7 +378,7 @@ export function LawDecisionScene({ data, domain, ...common }: SceneCommonProps &
       {/* Zaman çizgisi */}
       {timeline ? (
         <g data-section="timeline">
-          <SceneText box={timeline.kicker} fill={LAW_COLORS.time} className="cp-vs-fade" style={delay(1.8)} letterSpacing={0.6} />
+          <SceneText box={timeline.kicker} fill={LAW_COLORS.time} className="cp-vs-fade" style={delay(1.8)} />
           <line x1={timeline.line.x1} y1={timeline.line.y} x2={timeline.line.x2} y2={timeline.line.y} stroke={LAW_COLORS.time} strokeWidth={2} pathLength={1} className="cp-vs-draw" style={delay(1.9, 0.8)} />
           {timeline.events.map((event, index) => (
             <g key={index} className="cp-vs-fade" style={delay(2 + index * 0.18)}>
@@ -397,8 +397,8 @@ export function LawDecisionScene({ data, domain, ...common }: SceneCommonProps &
         <rect x={table.divider} y={table.rect.y} width={table.rect.x + table.rect.w - table.divider} height={table.headBottom - table.rect.y} rx={10} fill={LAW_COLORS.exception} fillOpacity={0.16} />
         <line x1={table.divider} y1={table.rect.y + 4} x2={table.divider} y2={table.rect.y + table.rect.h - 4} stroke={LAW_COLORS.stroke} strokeWidth={1.2} />
         <line x1={table.rect.x + 4} y1={table.headBottom} x2={table.rect.x + table.rect.w - 4} y2={table.headBottom} stroke={LAW_COLORS.stroke} strokeWidth={1.2} />
-        <SceneText box={table.heads[0]} fill={LAW_COLORS.rule} letterSpacing={0.6} />
-        <SceneText box={table.heads[1]} fill={LAW_COLORS.exception} letterSpacing={0.6} />
+        <SceneText box={table.heads[0]} fill={LAW_COLORS.rule} />
+        <SceneText box={table.heads[1]} fill={LAW_COLORS.exception} />
         {table.items.map((item, index) => (
           <g key={index}>
             <circle cx={item.bulletX} cy={item.bulletY} r={3} fill={item.side === "rule" ? LAW_COLORS.rule : LAW_COLORS.exception} />

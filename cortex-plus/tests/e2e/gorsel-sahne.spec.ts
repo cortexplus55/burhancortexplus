@@ -6,6 +6,14 @@ import { expect, test } from "@playwright/test";
 */
 
 const WIDTHS = [390, 1280] as const;
+const ARCHETYPES = [
+  "MEDICAL_BIOLOGY_PATHWAY",
+  "ENGINEERING_PHYSICS_MECHANICS",
+  "ARCHITECTURE_SPATIAL_BLUEPRINT",
+  "LAW_SOCIAL_FLOWCHART",
+  "MATH_ALGORITHMIC_GRAPH",
+  "DOCUMENT_FIGURE_SPOTLIGHT",
+] as const;
 
 async function svgTextIssues(page: import("@playwright/test").Page) {
   return page.evaluate(() => {
@@ -51,9 +59,25 @@ for (const width of WIDTHS) {
     for (let sahne = 0; sahne < 5; sahne += 1) {
       await page.goto(`/e2e/gorsel-sahne?mod=video&sahne=${sahne}`);
       await expect(page.locator(".cp-video-reel svg.cp-vs")).toHaveCount(1);
-      const m = await svgTextIssues(page);
-      expect(m.issues, `sahne ${sahne}`).toEqual([]);
+      expect((await svgTextIssues(page)).issues, `sahne ${sahne} 9:16`).toEqual([]);
       expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+      await page.getByRole("button", { name: /Yatay \(16:9\)/ }).click();
+      await expect(page.locator(".cp-video-reel svg.cp-vs[data-mode='16:9']")).toHaveCount(1);
+      expect((await svgTextIssues(page)).issues, `sahne ${sahne} 16:9`).toEqual([]);
+    }
+  });
+
+  test(`görsel sahne: ana çizim sahnesi altı arketiple, iki oranda ${width} px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    for (const arketip of ARCHETYPES) {
+      await page.goto(`/e2e/gorsel-sahne?mod=video&sahne=1&arketip=${arketip}`);
+      await expect(page.locator(`.cp-video-reel svg.cp-vs[data-archetype='${arketip}']`)).toHaveCount(1);
+      for (const ratio of ["9:16", "16:9"]) {
+        if (ratio === "16:9") await page.getByRole("button", { name: /Yatay \(16:9\)/ }).click();
+        await expect(page.locator(`.cp-video-reel svg.cp-vs[data-mode='${ratio}']`)).toHaveCount(1);
+        const m = await svgTextIssues(page);
+        expect(m.issues, `${arketip} ${ratio}`).toEqual([]);
+      }
     }
   });
 }

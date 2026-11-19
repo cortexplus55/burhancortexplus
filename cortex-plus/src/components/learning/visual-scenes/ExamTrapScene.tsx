@@ -105,7 +105,7 @@ export function ExamTrapScene({ data, ...common }: SceneCommonProps & { data: Re
           className="cp-vs-draw"
           style={delay(0.65, 0.4)}
         />
-        <SceneText box={wrong.kicker} fill={TRAP_COLORS.wrong} className="cp-vs-fade" style={delay(0.6)} letterSpacing={0.6} />
+        <SceneText box={wrong.kicker} fill={TRAP_COLORS.wrong} className="cp-vs-fade" style={delay(0.6)} />
         <SceneText box={wrong.body} fill={TRAP_COLORS.muted} className="cp-vs-fade" style={delay(0.7)} rich />
       </g>
       {/* Doğru: zümrüt onay */}
@@ -123,7 +123,7 @@ export function ExamTrapScene({ data, ...common }: SceneCommonProps & { data: Re
           className="cp-vs-draw"
           style={delay(1.45, 0.4)}
         />
-        <SceneText box={right.kicker} fill={TRAP_COLORS.right} className="cp-vs-fade" style={delay(1.4)} letterSpacing={0.6} />
+        <SceneText box={right.kicker} fill={TRAP_COLORS.right} className="cp-vs-fade" style={delay(1.4)} />
         <SceneText box={right.body} fill={TRAP_COLORS.text} className="cp-vs-fade" style={delay(1.5)} rich />
       </g>
       {tell ? (
@@ -132,7 +132,7 @@ export function ExamTrapScene({ data, ...common }: SceneCommonProps & { data: Re
           {/* Ampul */}
           <circle cx={tell.rect.x + 17} cy={tell.rect.y + 16} r={6.5} fill="none" stroke={TRAP_COLORS.tell} strokeWidth={2} />
           <path d={`M${tell.rect.x + 14},${tell.rect.y + 24} h6 M${tell.rect.x + 15},${tell.rect.y + 27} h4`} stroke={TRAP_COLORS.tell} strokeWidth={1.8} strokeLinecap="round" />
-          <SceneText box={tell.kicker} fill={TRAP_COLORS.tell} letterSpacing={0.6} />
+          <SceneText box={tell.kicker} fill={TRAP_COLORS.tell} />
           <SceneText box={tell.text} fill={TRAP_COLORS.text} rich />
         </g>
       ) : null}

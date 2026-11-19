@@ -364,7 +364,7 @@ export function MedicalPathwayScene({
               style={delay(at, 0.5)}
             />
             <circle cx={step.cx} cy={step.cy} r={NODE_R - 6} fill={color} opacity={0.85} className="cp-vs-fade" style={delay(at + 0.2)} />
-            <SceneText box={step.role} fill={color} className="cp-vs-fade" style={delay(at + 0.1)} letterSpacing={0.5} />
+            <SceneText box={step.role} fill={color} className="cp-vs-fade" style={delay(at + 0.1)} />
             <SceneText box={step.label} fill={MEDICAL_COLORS.text} className="cp-vs-fade" style={delay(at + 0.15)} rich />
             {step.detail ? <SceneText box={step.detail} fill={MEDICAL_COLORS.muted} className="cp-vs-fade" style={delay(at + 0.25)} rich /> : null}
           </g>
@@ -386,7 +386,7 @@ export function MedicalPathwayScene({
         {/* Spot ikonu: hedef halkası */}
         <circle cx={layout.spot.rect.x + 17} cy={layout.spot.kicker.rect.y + layout.spot.kicker.rect.h / 2} r={6} fill="none" stroke={MEDICAL_COLORS.spot} strokeWidth={2} />
         <circle cx={layout.spot.rect.x + 17} cy={layout.spot.kicker.rect.y + layout.spot.kicker.rect.h / 2} r={2} fill={MEDICAL_COLORS.spot} />
-        <SceneText box={layout.spot.kicker} fill={MEDICAL_COLORS.spot} letterSpacing={0.6} />
+        <SceneText box={layout.spot.kicker} fill={MEDICAL_COLORS.spot} />
         <SceneText box={layout.spot.text} fill={MEDICAL_COLORS.text} rich />
       </g>
     </SceneSvg>

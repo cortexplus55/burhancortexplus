@@ -124,7 +124,7 @@ export function MemoryNailScene({ data, ...common }: SceneCommonProps & { data: 
       <g className="cp-vs-fade" style={delay(0.9 + layout.tiles.length * 0.22)} data-panel="summary">
         <rect x={layout.summary.rect.x} y={layout.summary.rect.y} width={layout.summary.rect.w} height={layout.summary.rect.h} rx={14} fill={MEMORY_COLORS.card} stroke={MEMORY_COLORS.stroke} strokeWidth={1.5} />
         <rect x={layout.summary.rect.x} y={layout.summary.rect.y + 12} width={4} height={layout.summary.rect.h - 24} rx={2} fill={MEMORY_COLORS.head} />
-        <SceneText box={layout.summary.kicker} fill={MEMORY_COLORS.nail} letterSpacing={0.6} />
+        <SceneText box={layout.summary.kicker} fill={MEMORY_COLORS.nail} />
         <SceneText box={layout.summary.text} fill={MEMORY_COLORS.text} rich />
       </g>
     </SceneSvg>

@@ -153,15 +153,14 @@ export function SceneText({
   className,
   style,
   rich = false,
-  letterSpacing,
 }: {
   box: TextBox;
   fill: string;
   className?: string;
   style?: CSSProperties;
   rich?: boolean;
-  letterSpacing?: number;
 }) {
+  // Harf aralığı bilerek yok: genişlik tahmini onu hesaba katmaz, gerçek tarayıcıda komşu yazıya taşırırdı.
   const ascent = box.fontSize * 0.92;
   return (
     <text
@@ -173,7 +172,6 @@ export function SceneText({
       fill={fill}
       className={className}
       style={style}
-      letterSpacing={letterSpacing}
       data-text-id={box.id}
     >
       {box.lines.map((line, index) => (
@@ -200,7 +198,7 @@ export function SceneBadge({ box, color, textColor }: { box: TextBox; color: str
         stroke={color}
         strokeWidth={1}
       />
-      <SceneText box={box} fill={textColor} letterSpacing={0.4} />
+      <SceneText box={box} fill={textColor} />
     </g>
   );
 }

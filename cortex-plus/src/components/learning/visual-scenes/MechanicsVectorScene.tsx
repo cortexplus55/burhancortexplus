@@ -262,7 +262,9 @@ export function layoutMechanics(data: MechanicsData, frame: SceneFrame, domain?:
     const symbolRaw = placeText(`vector${index}-symbol`, vector.symbol, 0, 0, { maxWidth: 60, maxLines: 1, fontSize: 15, minFontSize: 11, weight: 800, single: true });
     const labelRaw = placeText(`vector${index}-label`, vector.label, 0, 0, { maxWidth: 92, maxLines: 2, fontSize: 9.5, minFontSize: 8.5 });
     const blockW = Math.max(symbolRaw.rect.w, labelRaw.rect.w);
-    const blockH = symbolRaw.rect.h + labelRaw.rect.h;
+    // Alt/üst simge (F_1, v^2) yazının kutusunu aşağı uzatır; Türkçe şapkalı harfler (ğ, Ü) etiketi yukarı. Etiket bu pay kadar aşağı iner.
+    const shiftPad = (/[_^]/.test(vector.symbol) ? symbolRaw.fontSize * 0.45 : 0) + 3;
+    const blockH = symbolRaw.rect.h + shiftPad + labelRaw.rect.h;
     const gap = 7;
     // Blok okun ucunun ötesinde: yönün işaretine göre köşe seçilir.
     let bx = ex + (dx > 0.3 ? gap : dx < -0.3 ? -gap - blockW : -blockW / 2);
@@ -271,6 +273,7 @@ export function layoutMechanics(data: MechanicsData, frame: SceneFrame, domain?:
     by = Math.max(bounds.y, Math.min(bounds.y + bounds.h - blockH, by));
     const anchorX = bx + blockW / 2;
     const symbol = placeText(`vector${index}-symbol`, vector.symbol, anchorX, by, { maxWidth: 60, maxLines: 1, fontSize: 15, minFontSize: 11, weight: 800, anchor: "middle", single: true });
+    symbol.rect = { ...symbol.rect, h: symbol.rect.h + shiftPad };
     const label = placeText(`vector${index}-label`, vector.label, anchorX, by + symbol.rect.h, { maxWidth: 92, maxLines: 2, fontSize: 9.5, minFontSize: 8.5, anchor: "middle" });
     vectors.push({ x1: sx, y1: sy, x2: ex, y2: ey, width, color, symbol, label });
     segments.push(segment(`vector${index}`, sx, sy, ex, ey));
@@ -292,13 +295,19 @@ export function layoutMechanics(data: MechanicsData, frame: SceneFrame, domain?:
     const len = Math.hypot(dx, dy) || 1;
     const px = -dy / len;
     const py = dx / len;
-    while (collides() && tries < 12) {
+    // Adaylar özgün yere göre: +6, -6, +12, -12 … ±72 (önceki sürüm adımları üst üste ekliyor, yalnız bir yana bakıyordu).
+    const origin = { symbol: vector.symbol, label: vector.label };
+    while (collides() && tries < 24) {
       tries += 1;
       const step = 6 * Math.ceil(tries / 2) * (tries % 2 ? 1 : -1);
       const shiftX = Math.abs(px) > 0.3 ? px * step : 0;
       const shiftY = Math.abs(py) > 0.3 ? py * step : step;
-      vector.symbol = moveBox(vector.symbol, shiftX, shiftY);
-      vector.label = moveBox(vector.label, shiftX, shiftY);
+      vector.symbol = moveBox(origin.symbol, shiftX, shiftY);
+      vector.label = moveBox(origin.label, shiftX, shiftY);
+    }
+    if (collides()) {
+      vector.symbol = origin.symbol;
+      vector.label = origin.label;
     }
     placed.push(vector.symbol, vector.label);
   }
@@ -483,7 +492,7 @@ export function MechanicsVectorScene({ data, domain, ...common }: SceneCommonPro
       {/* Formülün Mantığı paneli */}
       <g className="cp-vs-fade" style={delay(0.9 + layout.vectors.length * 0.45)} data-panel="logic">
         <rect x={layout.panel.x} y={layout.panel.y} width={layout.panel.w} height={layout.panel.h} rx={12} fill={MECHANICS_COLORS.panel} stroke={MECHANICS_COLORS.panelStroke} />
-        <SceneText box={layout.panelKicker} fill={MECHANICS_COLORS.vectors[0]} letterSpacing={0.6} />
+        <SceneText box={layout.panelKicker} fill={MECHANICS_COLORS.vectors[0]} />
         <SceneText box={layout.formula} fill={MECHANICS_COLORS.text} rich />
         {layout.rows.map((row, index) => {
           const midY = row.y + row.h / 2;
@@ -507,7 +516,7 @@ export function MechanicsVectorScene({ data, domain, ...common }: SceneCommonPro
                   {/* Üstü çizili çeldirici */}
                   <line x1={row.chip.x + 4} y1={midY} x2={row.chip.x + row.chip.w - 4} y2={midY} stroke={MECHANICS_COLORS.distractor} strokeWidth={2.2} strokeLinecap="round" />
                   <rect x={row.tag!.rect.x - 4} y={row.tag!.rect.y - 1} width={row.tag!.rect.w + 8} height={row.tag!.rect.h + 2} rx={4} fill={MECHANICS_COLORS.distractor} />
-                  <SceneText box={row.tag!} fill="#fff" letterSpacing={0.5} />
+                  <SceneText box={row.tag!} fill="#fff" />
                   <SceneText box={row.label} fill="#fecaca" />
                 </>
               ) : (
