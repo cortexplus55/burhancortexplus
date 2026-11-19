@@ -351,7 +351,7 @@ export async function gradeMockExam(input: GradeMockExamInput): Promise<GradeMoc
     items,
   });
 
-  await recordMistakes(
+  const mistakesSaved = await recordMistakes(
     service,
     userId,
     items
@@ -374,6 +374,10 @@ export async function gradeMockExam(input: GradeMockExamInput): Promise<GradeMoc
         };
       }),
   );
+  // Faz 2 (madde 3): defter yazımı notu bekletmez ama düşerse sessiz kalmaz.
+  if (!mistakesSaved.ok) {
+    console.error("grade_exam_mistakes_failed", { examId, savedCount: mistakesSaved.savedCount, error: mistakesSaved.error });
+  }
 
   const weakOnly = topicReport.filter((r) => r.percent < 70);
   if (weakOnly.length) {

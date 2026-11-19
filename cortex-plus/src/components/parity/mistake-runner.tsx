@@ -19,6 +19,9 @@ export type RunnerFeedback = {
 const SOURCE_LABEL: Record<MistakeQuestion["source"], string> = {
   quiz: "Test",
   deneme: "Deneme",
+  true_false: "Doğru/Yanlış",
+  lesson_check: "Ders sorusu",
+  podcast: "Dinleme",
 };
 
 const SAVE_FAILED_FEEDBACK: RunnerFeedback = {
