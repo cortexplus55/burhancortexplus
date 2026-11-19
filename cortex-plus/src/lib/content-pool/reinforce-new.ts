@@ -7,6 +7,7 @@ import { supabasePoolStore } from "@/lib/content-pool/supabase-store";
 import type { PoolItem } from "@/lib/content-pool/schema";
 import { foldLabel } from "@/lib/billing/free-topic-rule";
 import { freeOpenTopicLabel } from "@/lib/billing/free-topic-gate";
+import { isValidChoiceIndex, keepAnswerKeyed } from "@/lib/learning/answer-key";
 
 /*
   Paket 3 (3 Kasım 2026): "🔥 Bu Alt Konudan Yeni Pekiştirme Testi Aç". Öğrenci kredisi 0; öğrenci başına günde
@@ -54,7 +55,8 @@ export async function reinforceAllowedForFree(
 }
 
 export function reinforceRows(unit: PoolUnit, outcomeId: string, items: PoolItem[], userId: string, verifyModel: string, withOrigin: boolean) {
-  return items.map((item) => ({
+  // Faz 2 (madde 7.2): anahtarı şıkların içinde olmayan öğe havuza yazılmaz.
+  return keepAnswerKeyed(items, (item) => isValidChoiceIndex(item.choices, item.answer), "item_bank_reinforce").map((item) => ({
     content_id: null,
     unit_id: unit.unitId,
     outcome_id: outcomeId,

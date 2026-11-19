@@ -134,6 +134,8 @@ export default async function ExamPrepDetailPage({
   // (visibility, view_count, forked_from) sütunları canlıda var. Birleşik okuma hata verirse
   // (sütun yok: göçten önceki veritabanı) eski üç okumaya düşülür: önce ana select, sonra kaynak
   // (yoksa yalnız document_id) ve paylaşım ayrı ayrı; eksik sütun sayfayı 404'e düşürmez.
+  // Faz 2 (madde 2): oturum bağlamı bu istekte bir kez okunur; profil, plan ve kampanya aynı sözden.
+  const sessionContext = getSessionUserContext(user.id, { client: supabase });
   const [shell, trackingV2, mergedPrep, { data: profile }] = await Promise.all([
     loadParityShellProps(supabase, user.id, user.email),
     isFeatureEnabled(service, PDF_LEARNING_V2_FLAG),
@@ -146,7 +148,7 @@ export default async function ExamPrepDetailPage({
       .eq("user_id", user.id)
       .maybeSingle(),
     // Faz 2: okul bilgisi oturum bağlamının profilinden (kabukla aynı istek içi okuma).
-    getSessionUserContext(user.id, { client: supabase }).then((context) => ({ data: context.profile })),
+    sessionContext.then((context) => ({ data: context.profile })),
   ]);
 
   let prepRead = mergedPrep.data;
@@ -675,7 +677,7 @@ export default async function ExamPrepDetailPage({
       (async () => {
         // Beklemesiz kilit (Paket J takip #1): ücretsiz hesapta kilitli adım yolda 🔒 rozeti taşır, tıklayınca kart anında
         // açılır. Karar adım sayfası ve başlatma isteğiyle aynı kuraldan (`freeTopicLocks`); okuma düşerse kilit yok.
-        const plan = await getSessionUserContext(user.id, { client: supabase })
+        const plan = await sessionContext
           .then((context) => ({ unlimited: context.entitlements.isPremium || context.account.isAdmin }))
           .catch(() => undefined);
         const firstTopicLocks = await freeTopicLocks(service, {
@@ -725,7 +727,7 @@ export default async function ExamPrepDetailPage({
       prep.exam_date && !examPassed
         ? Promise.all([
             // Faz 2 (madde 2): yalnız gösterim (kampanya şeridi): plan oturum bağlamından, ayrı okuma yok.
-            getSessionUserContext(user.id, { client: supabase }).then((context) => context.entitlements),
+            sessionContext.then((context) => context.entitlements),
             loadPlusPrices(service),
           ])
             .then(([ent, prices]) =>

@@ -5,6 +5,7 @@
  */
 
 import { z } from "zod";
+import { lessonCheckHasAnswerKey } from "@/lib/learning/answer-key";
 import { diagramIssues, lessonDiagramSchema } from "@/lib/learning/lesson-diagram";
 import { lessonV3SectionsView } from "@/lib/learning/lesson-v3-view";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
@@ -377,6 +378,12 @@ export const sectionCheckSchema = z.object({
    * ekran o zaman şık kaydırma + önek kullanır.
    */
   review: reviewVariantSchema.optional().catch(undefined),
+}).superRefine((check, ctx) => {
+  // Faz 2 (madde 7.2): anahtarı geçerli olmayan kontrol kaydedilmez. Ders bozulmaz: bölümde kontrol düşer
+  // (`.catch(undefined)`), ekranda yalnız o blok atılır (`blocksSchema`).
+  if (!lessonCheckHasAnswerKey(check)) {
+    ctx.addIssue({ code: "custom", message: "Kontrolün cevap anahtarı geçersiz (answerIndex şıkların içinde olmalı)." });
+  }
 });
 
 export type SectionCheck = z.infer<typeof sectionCheckSchema>;

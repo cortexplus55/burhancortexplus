@@ -50,6 +50,7 @@ import { studentOptionCount, type OptionCount } from "@/lib/learning/student-ped
 import { topicWeightsFromText } from "@/lib/learning/mock-exam/weights-from-text";
 import { exclusionPhrases } from "@/lib/learning/cross-material-topics";
 import { loadPrepDocumentIds } from "@/lib/documents/teacher-analysis-run";
+import { keepAnswerKeyed, mockDraftHasAnswerKey } from "@/lib/learning/answer-key";
 
 export type CreateMockExamInput = {
   service: SupabaseClient;
@@ -694,7 +695,8 @@ export async function persistMockExam(input: {
  * yalnız harf payı %40'ı aşınca bir kaydırma yapıyordu): sıra kayda yazılır, notlama ve inceleme kayıttan okur.
  */
 export function mockQuestionRows(examId: string, drafts: MockExamQuestionDraft[]) {
-  const questions = balanceExamDrafts(drafts);
+  // Faz 2 (madde 7.2): anahtarı geçerli olmayan soru kâğıda yazılmaz (`answer-key.ts`).
+  const questions = balanceExamDrafts(keepAnswerKeyed(drafts, mockDraftHasAnswerKey, "mock_exam"));
   return questions.map((q, sort_order) => ({
     exam_id: examId,
     question_text: q.text,
@@ -722,7 +724,9 @@ export async function insertMockExamQuestions(
   examId: string,
   questions: MockExamQuestionDraft[],
 ): Promise<boolean> {
-  const { error } = await service.from("practice_exam_questions").insert(mockQuestionRows(examId, questions));
+  const rows = mockQuestionRows(examId, questions);
+  if (!rows.length) return false;
+  const { error } = await service.from("practice_exam_questions").insert(rows);
   return !error;
 }
 

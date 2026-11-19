@@ -47,7 +47,7 @@ vi.mock("@/lib/admin/feature-flags", () => ({
   PDF_LEARNING_V2_FLAG: "pdf_learning_v2",
 }));
 vi.mock("@/lib/supabase/server", () => ({ createServiceClient: () => state.service }));
-vi.mock("@/lib/billing/node-free-meter", () => ({ pathSkipKinds: async () => new Set<string>() }));
+vi.mock("@/lib/billing/node-free-meter", () => ({ pathSkipKinds: async () => new Set<string>(), pathSkipKindsForView: async () => new Set<string>() }));
 vi.mock("@/lib/billing/free-topic-gate", () => ({ freeTopicLocks: async () => null }));
 vi.mock("@/lib/content-pool/lesson-preview", () => ({ poolLessonPreview: async () => null }));
 vi.mock("@/lib/billing/entitlements", () => ({ getUserEntitlements: async () => ({ showsUpgradeChrome: false }) }));
