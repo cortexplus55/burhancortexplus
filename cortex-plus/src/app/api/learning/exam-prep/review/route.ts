@@ -69,6 +69,8 @@ export async function POST(request: Request) {
     // Seri ek bilgi; cevap kaydedildi.
   }
 
-  const { topicLabel: _topicLabel, ...publicOutcome } = outcome;
+  // Konu adı kanıt yazımı için; cevapta dönmez (tarayıcıya yalnız sonucun kendisi).
+  const publicOutcome: Partial<typeof outcome> = { ...outcome };
+  delete publicOutcome.topicLabel;
   return NextResponse.json({ ok: true, ...publicOutcome });
 }
