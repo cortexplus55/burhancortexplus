@@ -1,4 +1,4 @@
--- YAZILDI, UYGULANMADI.
+-- UYGULANDI: 20 Kasım 2026, #712 yayınından sonra SQL ekranında, kayıt satırıyla (docs/operasyon/goc-kayitlari.md).
 --
 -- Faz 7 (20 Kasım 2026, ürün sahibinin kararları): "📲 Sınıfla Paylaş" ve paylaşılan çalışma yolunu klonlama.
 --
