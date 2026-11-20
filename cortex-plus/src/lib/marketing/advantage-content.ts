@@ -142,7 +142,7 @@ export const ADVANTAGE_ROWS: AdvantageRow[] = [
       body: "Hazırladığın yolu WhatsApp sınıf grubuna at; arkadaşın 1. üniteyi ücretsiz klonlar, 1. ünitenin konu testini bitirince sen +50 kredi kazanırsın (ayda en çok 5 arkadaş).",
     },
     others: { verdict: "Yok", body: "Kişiye özel sohbette hapis kalır, sınıfla klonlanamaz." },
-    evidence: ["src/lib/learning/prep-invite.ts", "src/components/parity/prep-share-tools.tsx"],
+    evidence: ["src/lib/learning/viral-clone.ts (cloneSharedPrepForUser)", "src/lib/learning/viral-clone-reward.ts", "src/app/davet/[shareCode]/page.tsx", "supabase/migrations/20261120140000_faz7_sinif_klonlama.sql (claim_clone_referral_reward)"],
   },
   {
     id: "qr-sinav-sabahi",
@@ -152,7 +152,7 @@ export const ADVANTAGE_ROWS: AdvantageRow[] = [
       body: "Sınav sabahı kâğıdını PDF olarak kaydet; köşesindeki QR kodu okutan sınıf arkadaşın aynı hazırlığı kendi hesabında açar (kâğıt Plus'ta).",
     },
     others: { verdict: "Yok", body: "Özet istersen düz metin verir; yazdırılıp sınıfta dolaşan, kodla paylaşılan bir kâğıt kurmaz." },
-    evidence: ["src/lib/utils/qr-svg.ts", "src/app/deneme-sinavlari/[prepId]/sinav-sabahi/page.tsx", "src/lib/learning/prep-invite.ts"],
+    evidence: ["src/lib/utils/qr-svg.ts", "src/app/deneme-sinavlari/[prepId]/sinav-sabahi/page.tsx", "src/lib/learning/prep-share-code.ts"],
   },
   {
     id: "sinav-radyosu",
@@ -162,7 +162,7 @@ export const ADVANTAGE_ROWS: AdvantageRow[] = [
       body: "Ürettiğin ünite podcastleri otobüste radyo gibi sırayla çalar; kilit ekranından ve kulaklıktan yönetilir, dinlemek kredi harcamaz (podcast üretimi Plus'ta).",
     },
     others: { verdict: "Yok", body: "Ekrana düz yazı döker; kilit ekranında sıralı bir ders radyosu kuramaz." },
-    evidence: ["src/components/parity/exam-podcast-player.tsx (mediaSession)", "src/lib/demo/demo-podcasts.ts (demoRadioPlaylist)"],
+    evidence: ["src/components/parity/prep-radio.tsx", "src/lib/learning/radio-media-session.ts", "src/lib/learning/audio-cache.ts (cachedAudioOnly)", "src/app/api/learning/exam-prep/radio/route.ts"],
   },
   {
     id: "kirmizi-kalem",
@@ -176,6 +176,8 @@ export const ADVANTAGE_ROWS: AdvantageRow[] = [
       "src/lib/learning/paper-exam.ts",
       "src/lib/learning/mock-exam/work-steps.ts",
       "src/lib/learning/mock-exam/grade.ts (stepPartialCredit)",
+      "src/lib/learning/mock-exam/red-pen.ts",
+      "src/components/parity/red-pen-sheet.tsx",
     ],
   },
   {
@@ -186,7 +188,7 @@ export const ADVANTAGE_ROWS: AdvantageRow[] = [
       body: "Sınav günü geçince gerçek notunu yazarsın (istersen kısa bir yorumla); başlangıç ölçümünden sınav notuna gelişimin tek kartta görünür.",
     },
     others: { verdict: "Yok", body: "Sınav bitince iz bırakmaz; başlangıcınla gerçek notunu yan yana koymaz." },
-    evidence: ["src/lib/learning/exam-result.ts", "src/components/parity/exam-result-card.tsx"],
+    evidence: ["src/lib/learning/exam-result.ts", "src/components/parity/exam-result-card.tsx", "src/lib/learning/exam-feedback.ts"],
   },
 ];
 
