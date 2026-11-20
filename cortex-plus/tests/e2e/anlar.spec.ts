@@ -136,12 +136,39 @@ for (const size of SIZES) {
 
     // İkinci tur (raydan 1. durak birinci adımı baştan kurar): dokunuş anı atlar, bulgular 1,2 sn beklemeden görünür.
     await goStep(page, 1);
-    await sendSample(page);
+    const note = page.locator("[data-sample-start]");
+    await note.evaluate((node) => node.scrollIntoView({ block: "center" }));
+    // Süre tarayıcının içinde ve taramanın başladığı anla aynı yerde ölçülür (20 Kasım 2026): Playwright'ın tıklama ve
+    // bekleme gidiş-dönüşü CI yükünde tek başına 1,1-1,3 sn tutuyordu (test makineyi ölçüyordu); tarama ile ölçüm
+    // arasına zaman girerse de doğal 1,2 sn'lik an ölçüm penceresine düşüp bozuk atlatmayı gizleyebilirdi. Not çekirdeğe
+    // gönderilir, gün sorusu belirir belirmez dokunulur: bulgular doğal anı beklemeden, birkaç kare içinde görünmeli.
+    const skip = await page.evaluate(async () => {
+      const frame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      const card = document.querySelector<HTMLElement>("[data-sample-start]");
+      if (!card) return { before: true, shown: false, ms: Number.POSITIVE_INFINITY };
+      const sent = performance.now();
+      card.click();
+      let title: HTMLElement | null = null;
+      while (!title && performance.now() - sent < 1000) {
+        await frame();
+        title = document.querySelector<HTMLElement>(".lj-console .lj-date-title");
+      }
+      // Liste her karede yeniden sorgulanır: atlatınca gün zaten seçili olduğundan ders doğar ve React listeyi yeniden kurar.
+      const shown = () => Boolean(document.querySelector(".lj-console [data-scan-findings].is-shown"));
+      if (!title) return { before: true, shown: false, ms: Number.POSITIVE_INFINITY };
+      const before = shown();
+      // `startMoment` atlatma dinleyicisini bir sonraki karede bağlar.
+      await frame();
+      // Anı atlatan dinleyici pencerede `pointerdown` bekler (`startMoment`); `click()` onu üretmez.
+      title.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, isPrimary: true, pointerType: "mouse" }));
+      while (!shown() && performance.now() - sent < 1150) await frame();
+      return { before, shown: shown(), ms: performance.now() - sent };
+    });
+    // Dokunuştan önce bulgular görünmüyordu (doğal an daha dolmamıştı), dokunuştan sonra doğal 1,2 sn'den çok önce göründü.
+    expect(skip.before).toBe(false);
+    expect(skip.shown).toBe(true);
+    expect(skip.ms).toBeLessThan(600);
     await expect(finds).toHaveCount(4);
-    const t0 = Date.now();
-    await page.locator(".lj-console .lj-date-title").click();
-    await expect(page.locator(".lj-console [data-scan-findings]")).toHaveClass(/is-shown/);
-    expect(Date.now() - t0).toBeLessThan(1000);
   });
 }
 
