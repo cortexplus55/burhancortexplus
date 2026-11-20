@@ -301,6 +301,12 @@ inceleme hesabı tarifi `PAYTR-DESTEK-TALEBI.md` → "Durum". `RECURRING_BLOCKER
 `/admin/sistem`'de gösterir. İki tuzak: `cortexplus+paytr@` ile kayıt 409 verir (`+etiket` kutuya katlanır, kurucu
 hesabı var) → ayrı yerel adlı takma ad; iFrame API'de `store_card` yok, ilk ödeme de Direkt API kart formuyla alınır.
 
+**20 Kasım 2026, panel okundu:** 8 Kasım'da ürün sahibi test hesabı `cortextestt@gmail.com` ile girişi panelden gönderdi; PayTR
+**9 Kasım'da "E-posta veya şifre hatalı"** diye döndü ve bu 11 gün fark edilmedi (hesap sağlam, şifre çalışıyor; muhtemelen cümle
+sonundaki nokta karıştı). 20 Kasım 23:05'te bilgiler ayrı satırlarda yeniden gönderildi; PayTR'nin incelemesi bekleniyor. Tarihçe
+ve sıradaki adım: `PAYTR-DESTEK-TALEBI.md` → "Durum (20 Kasım 2026)". Panel listesi açılışta yalnız son haftayı gösterir;
+cevabı kaçırmamak için tarih aralığını geriye kaydırarak bakın.
+
 ## Ücretsiz katman (3 Ekim 2026) — günde bir ders, bir hazırlık, toplam 5 sayfa
 
 > **Güncel (bu bölümün sayıları değişti):** 24 Ekim'den beri sayaçla (haftada 3 ders, günde 3 mesaj, günde 1 fotoğraf;
