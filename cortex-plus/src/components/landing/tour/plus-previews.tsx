@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Pause, Play, RotateCcw } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import { Maximize2, Minimize2, Pause, Play, RotateCcw } from "lucide-react";
 import { ReelSceneRenderer } from "@/components/learning/visual-scenes";
 import { CramSheetView } from "@/components/parity/cram-sheet-view";
 import { PodcastKaraokeLine } from "@/components/parity/podcast-karaoke";
@@ -247,18 +248,104 @@ function SceneCaption({ narration, sceneMs, within }: { narration: string; scene
   );
 }
 
-function VideoControls({ playing, onToggle, index, count }: { playing: boolean; onToggle: () => void; index: number; count: number }) {
+function VideoControls({
+  playing,
+  onToggle,
+  index,
+  count,
+  onEnlarge,
+}: {
+  playing: boolean;
+  onToggle: () => void;
+  index: number;
+  count: number;
+  onEnlarge: (trigger: HTMLButtonElement) => void;
+}) {
   return (
     <div className="tpp-controls">
       <button type="button" className="tpp-play" onClick={onToggle}>
         {playing ? <Pause className="h-4 w-4" aria-hidden /> : <Play className="h-4 w-4" aria-hidden />}
         {playing ? JOURNEY_PLUS_PLAY.pause : JOURNEY_PLUS_PLAY.video}
       </button>
+      <button type="button" className="tpp-enlarge-open" onClick={(event) => onEnlarge(event.currentTarget)} aria-haspopup="dialog">
+        <Maximize2 className="h-4 w-4" aria-hidden />
+        {JOURNEY_PLUS_PLAY.enlarge}
+      </button>
       <span className="tpp-time">
         Sahne {index + 1}/{count}
       </span>
     </div>
   );
+}
+
+/*
+  Büyüt (Faz 7, 20 Kasım 2026): tur sahnesi küçültülmüş çizildiği için (yuva + sığdırma) dikey videonun yazısı telefonda
+  ~7 px kalıyordu. Büyütünce aynı çerçeve, sığdırma katmanının dışında (portal) ekrana sığan en büyük 9:16 boyutta
+  açılır: yazı telefonda da 12 px'in üstünde. Esc ve "Küçült" kapatır, odak açan düğmeye döner; zemine dokunmak da kapatır.
+  Çerçeve doğal genişliğinde (20 rem = 320 px; branş sahnesi viewBox 360 × 640) çizilir, ölçek açılışta ve pencere
+  boyutu değişince hesaplanır.
+*/
+const FRAME_W = 320;
+const FRAME_H = (FRAME_W * 16) / 9;
+
+function enlargeScale(): number {
+  if (typeof window === "undefined") return 1;
+  return Math.max(0.5, Math.min((window.innerWidth * 0.92) / FRAME_W, (window.innerHeight * 0.82) / FRAME_H, 2.4));
+}
+
+function EnlargeOverlay({ open, onClose, trigger, title, children }: { open: boolean; onClose: () => void; trigger: HTMLButtonElement | null; title: string; children: ReactNode }) {
+  const [scale, setScale] = useState(1);
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const fit = () => setScale(enlargeScale());
+    fit();
+    closeRef.current?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        onClose();
+      }
+    };
+    window.addEventListener("resize", fit);
+    window.addEventListener("keydown", onKey, true);
+    return () => {
+      window.removeEventListener("resize", fit);
+      window.removeEventListener("keydown", onKey, true);
+      trigger?.focus();
+    };
+  }, [open, onClose, trigger]);
+
+  if (!open || typeof document === "undefined") return null;
+  return createPortal(
+    <div className="tp-app dark cp-sor-root cp-sor-root--session tpp-enlarge" role="dialog" aria-modal="true" aria-label={title} onClick={onClose}>
+      <div className="tpp-enlarge-stage" style={{ width: FRAME_W * scale, height: FRAME_H * scale }} onClick={(event) => event.stopPropagation()}>
+        <div className="tpp-enlarge-frame" style={{ transform: `scale(${scale})` }}>
+          {children}
+        </div>
+      </div>
+      <button ref={closeRef} type="button" className="tpp-enlarge-close" onClick={onClose}>
+        <Minimize2 className="h-4 w-4" aria-hidden />
+        {JOURNEY_PLUS_PLAY.shrink}
+      </button>
+    </div>,
+    document.body,
+  );
+}
+
+function useEnlarge() {
+  const [open, setOpen] = useState(false);
+  const [trigger, setTrigger] = useState<HTMLButtonElement | null>(null);
+  return {
+    open,
+    trigger,
+    show: (button: HTMLButtonElement) => {
+      setTrigger(button);
+      setOpen(true);
+    },
+    hide: () => setOpen(false),
+  };
 }
 
 /** Lise: ürünün çizim tahtası. Şema `--draw` ile çizilir, formül adımları sırayla belirir. */
@@ -268,30 +355,35 @@ function VideoPreview({ sketch }: { sketch: TourBoardSketch }) {
   const scene = scenes[index]!;
   const steps = useMemo(() => (scene.formula ? sketchFormulaSteps(scene.formula) : []), [scene.formula]);
   const shown = steps.length ? Math.max(1, Math.ceil(draw * steps.length)) : 0;
+  const enlarge = useEnlarge();
+  const frame = (
+    <div
+      className="cp-video-frame is-portrait is-sketch tpp-video-frame"
+      data-ratio="9:16"
+      style={{ ["--cp-top-h" as string]: "0.4rem" }}
+    >
+      <SketchBoard
+        key={index}
+        title={scene.sceneTitle}
+        diagram={scene.diagram}
+        sceneKey={index}
+        draw={draw}
+        playing={playing}
+        formulaSteps={steps}
+        formulaShown={shown}
+        keyFact={scene.keyFact}
+      />
+      <SceneCaption narration={scene.narration} sceneMs={sceneMs} within={within} />
+    </div>
+  );
 
   return (
     <div className="tpp-video" data-preview="video" data-video="board">
-      <div className="tpp-video-slot">
-        <div
-          className="cp-video-frame is-portrait is-sketch tpp-video-frame"
-          data-ratio="9:16"
-          style={{ ["--cp-top-h" as string]: "0.4rem" }}
-        >
-          <SketchBoard
-            key={index}
-            title={scene.sceneTitle}
-            diagram={scene.diagram}
-            sceneKey={index}
-            draw={draw}
-            playing={playing}
-            formulaSteps={steps}
-            formulaShown={shown}
-            keyFact={scene.keyFact}
-          />
-          <SceneCaption narration={scene.narration} sceneMs={sceneMs} within={within} />
-        </div>
-      </div>
-      <VideoControls playing={playing} onToggle={() => setPlaying((current) => !current)} index={index} count={scenes.length} />
+      <div className="tpp-video-slot">{enlarge.open ? null : frame}</div>
+      <VideoControls playing={playing} onToggle={() => setPlaying((current) => !current)} index={index} count={scenes.length} onEnlarge={enlarge.show} />
+      <EnlargeOverlay open={enlarge.open} onClose={enlarge.hide} trigger={enlarge.trigger} title={scene.sceneTitle}>
+        {frame}
+      </EnlargeOverlay>
     </div>
   );
 }
@@ -306,24 +398,29 @@ function ReelPreview({ sketch }: { sketch: TourReelSketch }) {
   const { index, within, playing, setPlaying } = useSceneClock(scenes.length, sceneMs);
   const scene = scenes[index]!;
   const visual = visuals[index];
+  const enlarge = useEnlarge();
+  const frame = (
+    <div
+      className="cp-video-frame is-portrait is-reel tpp-video-frame"
+      data-ratio="9:16"
+      style={{ ["--cp-top-h" as string]: "0.4rem" }}
+    >
+      {visual ? (
+        <div className="cp-video-reel" data-beat={scene.beat}>
+          <ReelSceneRenderer key={index} visual={visual} mode="9:16" domain={sketch.domain} animate="sync" playing={playing} />
+        </div>
+      ) : null}
+      <SceneCaption narration={scene.narration} sceneMs={sceneMs} within={within} />
+    </div>
+  );
 
   return (
     <div className="tpp-video" data-preview="video" data-video="reel">
-      <div className="tpp-video-slot">
-        <div
-          className="cp-video-frame is-portrait is-reel tpp-video-frame"
-          data-ratio="9:16"
-          style={{ ["--cp-top-h" as string]: "0.4rem" }}
-        >
-          {visual ? (
-            <div className="cp-video-reel" data-beat={scene.beat}>
-              <ReelSceneRenderer key={index} visual={visual} mode="9:16" domain={sketch.domain} animate="sync" playing={playing} />
-            </div>
-          ) : null}
-          <SceneCaption narration={scene.narration} sceneMs={sceneMs} within={within} />
-        </div>
-      </div>
-      <VideoControls playing={playing} onToggle={() => setPlaying((current) => !current)} index={index} count={scenes.length} />
+      <div className="tpp-video-slot">{enlarge.open ? null : frame}</div>
+      <VideoControls playing={playing} onToggle={() => setPlaying((current) => !current)} index={index} count={scenes.length} onEnlarge={enlarge.show} />
+      <EnlargeOverlay open={enlarge.open} onClose={enlarge.hide} trigger={enlarge.trigger} title={scene.narration.slice(0, 80)}>
+        {frame}
+      </EnlargeOverlay>
     </div>
   );
 }

@@ -189,6 +189,20 @@ test.describe("branşa özel misafir demosu", { tag: ["@public"] }, () => {
       await expect(tour.locator('[data-preview="video"][data-video="reel"] svg[data-archetype="ENGINEERING_PHYSICS_MECHANICS"]')).toBeVisible({ timeout: 30_000 });
       await expect(tour.locator('[data-preview="video"] .cp-video-caption')).toBeVisible();
       await check("plus: video");
+      // Büyüt (Faz 7): sahne sığdırma katmanının dışında ekrana sığan en büyük boyutta; en küçük yazı ≥12 px, taşma yok.
+      await tour.getByRole("button", { name: "Büyüt" }).click();
+      const enlarged = page.locator(".tpp-enlarge[role=dialog]");
+      await expect(enlarged.locator('svg[data-archetype="ENGINEERING_PHYSICS_MECHANICS"]')).toBeVisible();
+      const smallestFont = await enlarged.locator("svg[data-archetype]").evaluate((svg) => {
+        const box = svg.getBoundingClientRect();
+        const unit = box.width / (svg as SVGSVGElement).viewBox.baseVal.width;
+        return Math.min(...[...svg.querySelectorAll("text")].map((text) => parseFloat(getComputedStyle(text).fontSize) * unit));
+      });
+      expect(smallestFont).toBeGreaterThanOrEqual(12);
+      expect(await overflow(page)).toBeLessThanOrEqual(1);
+      await page.keyboard.press("Escape");
+      await expect(enlarged).toHaveCount(0);
+      await expect(tour).toBeVisible();
       await tabs.filter({ hasText: "Sınav sabahı kâğıdı" }).click();
       const sheet = tour.locator('[data-preview="sheet"] .cp-cram-preview');
       await expect(sheet.locator(".cp-cram-item").first()).toBeVisible();

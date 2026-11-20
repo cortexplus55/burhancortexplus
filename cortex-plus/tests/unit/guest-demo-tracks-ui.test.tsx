@@ -237,6 +237,30 @@ describe("ürün ekranları ve önizlemeler branşın verisini çizer, istek atm
     expect(tus.container.textContent).toContain("K⁺");
   });
 
+  it("Büyüt: sahne sığdırma katmanının dışında (portal) iletişim penceresinde açılır; Esc kapatır, odak düğmeye döner", () => {
+    vi.useFakeTimers();
+    const { container } = render(<TourPlusPreview preview="video" track="tus" />);
+    const open = screen.getByRole("button", { name: "Büyüt" });
+    fireEvent.click(open);
+    const dialog = screen.getByRole("dialog");
+    expect(dialog.getAttribute("aria-modal")).toBe("true");
+    // Pencere önizlemenin kabının dışında (body altında); sahne yalnız pencerede çizilir, yuva boşalır.
+    expect(container.contains(dialog)).toBe(false);
+    expect(dialog.querySelector('svg[data-archetype="MEDICAL_BIOLOGY_PATHWAY"]')).toBeTruthy();
+    expect(container.querySelector(".tpp-video-slot svg")).toBeNull();
+    expect(document.activeElement?.textContent).toContain("Küçült");
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(open);
+    expect(container.querySelector(".tpp-video-slot svg")).toBeTruthy();
+    // Lise tahtası da büyür; zemine dokunmak kapatır.
+    cleanup();
+    render(<TourPlusPreview preview="video" track="lise" />);
+    fireEvent.click(screen.getByRole("button", { name: "Büyüt" }));
+    fireEvent.click(screen.getByRole("dialog"));
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
   it("sınav sabahı kâğıdı branşın dersinden; podcast kesiti yoksa önizleme hiçbir şey çizmez", () => {
     const { container } = render(<TourPlusPreview preview="sheet" track="hukuk" />);
     const paper = container.querySelector(".tpp-paper .cp-cram.cp-cram-preview") as HTMLElement;

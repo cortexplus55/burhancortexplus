@@ -290,6 +290,9 @@ export const JOURNEY_PLUS_PLAY = {
   video: "Sahneyi oynat",
   pause: "Duraklat",
   replay: "Baştan oynat",
+  /** Faz 7: tur sahnesi küçük çizildiği için videoyu ekrana sığan en büyük boyutta açar. */
+  enlarge: "Büyüt",
+  shrink: "Küçült",
   /** Ses yüklenemezse: görsel akış sürer, gerçek bölümün yeri söylenir. */
   silent: "Ses yüklenemedi; kelimeler sessiz akıyor. Tam bölüm örnek ders sayfasında.",
 } as const;
