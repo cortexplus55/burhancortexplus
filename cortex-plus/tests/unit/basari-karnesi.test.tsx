@@ -181,7 +181,8 @@ describe("göç (PGlite)", () => {
 
   it("yalnız ekleme; hazırlık başına tek satır; varsayılan izin kapalı; tarayıcı rollerine kapalı; silinince gider", async () => {
     const sql = read("supabase/migrations/20261120141000_faz7_basari_karnesi.sql");
-    expect(sql.split("\n")[0]).toMatch(/^-- YAZILDI, UYGULANMADI/);
+    // 20 Kasım 2026, #712 yayınından sonra uygulandı.
+    expect(sql.split("\n")[0]).toMatch(/^-- UYGULANDI: 20 Kasım 2026/);
     expect(sql).not.toMatch(/^\s*(DROP|DELETE|UPDATE|TRUNCATE)\b/im);
     await db.query(`INSERT INTO exam_feedback_testimonials (user_id, exam_prep_id, actual_score, comment) VALUES ($1, $2, '85', 'iyi')`, [USER, PREP]);
     const { rows } = await db.query<{ allow_public_showcase: boolean; predicted_readiness_pct: string | null }>("SELECT allow_public_showcase, predicted_readiness_pct FROM exam_feedback_testimonials");

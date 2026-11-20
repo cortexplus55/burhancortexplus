@@ -1,4 +1,4 @@
--- YAZILDI, UYGULANMADI (20 Kasım 2026, Faz 7). Ürün sahibi SQL ekranında uygular ve aynı oturumda kayıt satırını yazar:
+-- UYGULANDI: 20 Kasım 2026, #712 yayınından sonra SQL ekranında, kayıt satırıyla (docs/operasyon/goc-kayitlari.md). Ürün sahibi SQL ekranında uygular ve aynı oturumda kayıt satırını yazar:
 --   insert into supabase_migrations.schema_migrations (version, name)
 --   values ('20261120141000', 'faz7_basari_karnesi') on conflict (version) do nothing;
 --

@@ -117,6 +117,25 @@ penceresi kopyalanan bildirimleri gösteriyor, `/ayarlar` ve `/bildirim-tercihle
 işlemdir (yalnız Burhan'ın kararıyla): göçten sonra yazılan bildirim, tercih ve gönderim kaydı kaybolur, gönderim kilidi
 tekilliği unutur.
 
+## 20261120140000 · faz7_sinif_klonlama ve 20261120141000 · faz7_basari_karnesi (PR #712)
+
+| | |
+|---|---|
+| Onaylayan | Burhan (Faz 7 istemi, 20 Kasım 2026: "ekleyici göçleri uygulayıp goc-kayitlari.md dosyasına işle"; klonlama ve +50 kredi kararları aynı gün sohbette) |
+| Uygulama | 20 Kasım 2026, TR ~14:30; #712 birleşme commit'i `630b647a` Vercel'de "success" ve üretim duman testi 7/7 geçtikten sonra. Supabase SQL ekranı, ikisi tek çalıştırmada + iki kayıt satırı |
+| Uygulayan | Claude, Burhan'ın onayıyla |
+| Değişen | `exam_preps`'e 4 sütun (`share_code` UNIQUE, `is_public_cloneable` varsayılan false, `cloned_from_prep_id` ON DELETE SET NULL, `share_ip_hash`) ve `exam_preps_clone_once` kısmi tekil dizini (yalnız ekleme; var olan satırların değeri boş/false). Yeni tablolar `referral_credit_rewards` ve `exam_feedback_testimonials` (satır güvenliği açık, `anon` / `authenticated` izni yok). Yeni işlev `claim_clone_referral_reward(uuid)` (SECURITY DEFINER, yalnız `service_role`) |
+
+**Doğrulama:** 4 sütun var; iki tabloda `relrowsecurity` true, tarayıcı rollerine izin 0; işlevin `anon`/`authenticated`/`PUBLIC` yetkisi 0;
+dayandığı canlı nesneler var (`credit_ledger.user_id`/`idempotency_key`, `credit_gift(uuid, integer, text, jsonb)`,
+`account_verified`, `normalize_email`); boş kimlikle salt okuma denemesi `{"status": "not_clone"}`. Kayıt satırları 2. Canlıda
+kurucu oturumuyla hazırlık sayfasında "📲 Sınıfla Paylaş" ve "🎧 Sınav Radyosu (2 hazır bölüm · 0 kredi)" görünüyor; radyo
+önbellekteki sesi çaldı (`mediaSession` başlığı ayarlı). `/davet/ORNEK` 200 (örnek bağlantı kartı).
+
+**Geri alma:** gerekmez ve önerilmez. Kod sütunlar/tablolar yokken eski davranışa düşer (imzalı sınıf daveti, ödül atlanır, karne
+notu `learning_preferences`'e). Silmek yıkıcı işlemdir (yalnız Burhan'ın kararıyla): paylaşım kodları, klon bağı, ödül kayıtları
+ve sınav sonrası yorumlar kaybolur.
+
 ## İstatistik işlemleri (göç değil)
 
 | Zaman (UTC) | İşlem | Onay | Sonuç |

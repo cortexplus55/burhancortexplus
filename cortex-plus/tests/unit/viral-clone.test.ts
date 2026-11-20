@@ -607,9 +607,9 @@ describe("ödül işlevi (göç PGlite'ta)", () => {
     await expect(clonePrep(friend, source)).rejects.toThrow(/exam_preps_clone_once|duplicate/);
   });
 
-  it("göç yalnız ekler: DROP, DELETE ve var olan verinin UPDATE'i yok; başlık 'YAZILDI, UYGULANMADI'", () => {
+  it("göç yalnız ekler: DROP, DELETE ve var olan verinin UPDATE'i yok; başlık 'UYGULANDI' (20 Kasım 2026, #712 sonrası)", () => {
     const sql = read(MIGRATION);
-    expect(sql.split("\n")[0]).toBe("-- YAZILDI, UYGULANMADI.");
+    expect(sql.split("\n")[0]).toMatch(/^-- UYGULANDI: 20 Kasım 2026/);
     const code = sql
       .split("\n")
       .filter((line) => !line.trim().startsWith("--"))
