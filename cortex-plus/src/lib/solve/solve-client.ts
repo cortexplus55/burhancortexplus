@@ -1,5 +1,6 @@
 import type { Solution } from "@/lib/solve/question-solver";
 import type { SolveEvent, SolveStatus } from "@/lib/solve/solve-run";
+import { SOLVE_IMAGE_TYPES, compressImageForUpload } from "@/lib/upload/compress-image";
 
 /*
   Soru çözücünün istemci tarafı (23 Ekim 2026): `/api/ai/solve` isteği ve olay akışının ekran durumuna çevrilmesi.
@@ -63,11 +64,18 @@ export type SolveRequest = {
   signal?: AbortSignal;
 };
 
+/**
+ * Gönderilecek fotoğraf (20 Kasım 2026): tek küçültücüden (1600 piksel, JPEG %82, döndürme düzeltilir). Çözücü yalnız
+ * JPEG, PNG ve WEBP alır: HEIC tarayıcı çözebiliyorsa JPEG'e çevrilir. Soru çöz sayfası ve sohbet buradan gönderir.
+ */
+export function solveUploadFile(file: File): Promise<File> {
+  return compressImageForUpload(file, { accepts: SOLVE_IMAGE_TYPES });
+}
+
 /** İsteği atar, her olayı `onEvent`e verir. İstek kurulamazsa hata olayı üretir. */
 export async function requestSolve(request: SolveRequest, onEvent: (event: SolveEvent) => void): Promise<void> {
-  const { downscaleImage } = await import("@/lib/solve/downscale-image");
   const form = new FormData();
-  if (request.file) form.append("file", await downscaleImage(request.file));
+  if (request.file) form.append("file", await solveUploadFile(request.file));
   if (request.text?.trim()) form.append("text", request.text.trim());
   form.append("operationId", request.operationId ?? crypto.randomUUID());
   if (request.toChat) form.append("chat", "1");

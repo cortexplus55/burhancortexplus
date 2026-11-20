@@ -11,12 +11,15 @@
  * (`photoSetPages`) — taranmış sayfada en yavaş adım çizimdi (Paket B ölçümü).
  *
  * Ölçüm (canlı fotoğraf 4080×3060): 1600 piksel JPEG %80 ~285 KB, okunan metin 2048 pikselle aynı (3.143 / 3.144,
- * 3.423 / 3.461 karakter). 100 fotoğraf ~28 MB; parça sınırı PDF tavanının (50 MB) altında.
+ * 3.423 / 3.461 karakter). 100 fotoğraf ~28 MB; parça sınırı PDF tavanının (50 MB) altında. Sayfanın ölçüsü ve
+ * kalitesi 20 Kasım 2026'dan beri tek küçültücüden (`@/lib/upload/compress-image`: 1600 piksel, JPEG %82).
  */
 
+import { IMAGE_MAX_SIDE, IMAGE_QUALITY } from "@/lib/upload/compress-image";
+
 export const PHOTO_SET_PRODUCER = "Cortex Plus Fotograf Seti";
-export const PHOTO_SET_MAX_SIDE = 1600;
-export const PHOTO_SET_QUALITY = 0.8;
+export const PHOTO_SET_MAX_SIDE = IMAGE_MAX_SIDE;
+export const PHOTO_SET_QUALITY = IMAGE_QUALITY;
 /** Tek seçimde bu kadar ya da daha çok fotoğraf tek belgeye toplanır. */
 export const PHOTO_SET_MIN_PHOTOS = 2;
 /** Bir PDF parçasının en büyük boyu (PDF tavanı 50 MB). Aşan set "Bölüm 2" olarak ayrı belgeye geçer. */

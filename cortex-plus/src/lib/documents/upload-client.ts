@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
-import { compressImageForUpload } from "@/lib/documents/image-compress";
+import { compressImageForUpload } from "@/lib/upload/compress-image";
 
 /** "Yoğun" (429) cevabında yükleme hazırlığının yeniden denenme sayısı. */
 const PREPARE_RETRIES = 5;
@@ -41,7 +41,7 @@ function responseError(body: Record<string, unknown>, fallback: string, status: 
 
 /**
  * Browser bytes go straight to the private bucket; Next only signs and verifies.
- * Fotoğraf önce cihazda 2048 piksele küçültülür (31 Ekim 2026, `image-compress.ts`): 3,5 MB → ~0,5 MB.
+ * Fotoğraf önce cihazda küçültülür (tek küçültücü `@/lib/upload/compress-image`: 1600 piksel, JPEG %82).
  */
 export async function uploadDocumentFile(original: File): Promise<{ documentId: string }> {
   const file = await compressImageForUpload(original);

@@ -3012,6 +3012,35 @@
   background: var(--apw-sel-hover);
 }
 
+/* "Dosya seç" ve (telefonda) "Fotoğraf çek" yan yana (20 Kasım 2026); kamera düğmesi ikincil. */
+.apw-drop-picks {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.apw .apw-drop-picks .apw-drop-pick {
+  margin-top: 0;
+}
+
+.apw .apw-drop-pick--camera {
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  padding: 0 1.25rem;
+  border: 1px solid var(--apw-line-2);
+  background: var(--apw-s2);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+/* Tepsi bölgenin içinde: bölgenin dolgusu yeter, kesik çerçeve kalır. */
+.apw .apw-drop:has(> .cx-ptray) {
+  padding: 1.25rem 1rem 1rem;
+}
+
 .apw-or {
   display: flex;
   align-items: center;
