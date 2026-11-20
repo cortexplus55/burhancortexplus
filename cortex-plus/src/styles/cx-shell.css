@@ -278,9 +278,33 @@
     justify-content: center;
   }
   .cx-home-tab span,
-  .cx-home-more-label,
+  .cx-home-more-label {
+    /* Tablette sekme yazısı gizli; simge kalır. Ad ekran okuyucuda. */
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+  /* Faz 2 (13 Kasım 2026): sağ taraf (Başla, seri, Plus, kapsül) eşit yan sütuna sığmıyordu; yan sütunlar içerik
+     kadar, sekmeler kalan boşluğun ortasında. Faz 6: çanla birlikte aralıklar bir basamak dar. */
+  .cx-home-top {
+    grid-template-columns: auto 1fr auto;
+    column-gap: var(--cx-space-8);
+  }
+}
+
+/*
+  ---------- Sıkı sağ taraf (768–1279 px) ----------
+  Faz 6 (20 Kasım 2026): çan eklenince sağ taraf (Başla, seri, Plus, çan, kapsül) iki yerde taşıyordu: 768 px'te CI
+  tarayıcısının daha geniş yazı tipiyle 3 px; 1100–1236 px'te (iPad yatay, küçük dizüstü) kapsül ekranın dışına
+  (ana dalda da 1100–1188 arası taşıyordu). Bu aralıkta Başla ve kapsül yalnız simge/halka (adları ekran okuyucuda,
+  kapsülde aria-label), Plus hapı kısa adıyla, seri koruma rozeti gizli: sağ taraf ~480 px'ten ~260 px'e iner ve
+  yazı tipinden neredeyse bağımsız olur. 1280 px ve üstü değişmedi.
+*/
+@media (max-width: 1279px) and (min-width: 768px) {
+  .cx-home-start-label,
   .cx-home-actions .cx-capsule-text {
-    /* Tablette sekme yazısı ve kapsülün adı gizli; simge ve halka kalır. Ad ekran okuyucuda (kapsülde aria-label). */
     position: absolute;
     width: 1px;
     height: 1px;
@@ -290,13 +314,10 @@
   .cx-home-actions .cx-capsule {
     padding: 6px;
   }
-  /* Faz 2 (13 Kasım 2026): sağ taraf (Başla, seri, Plus, kapsül) eşit yan sütuna sığmıyordu; yan sütunlar içerik
-     kadar, sekmeler kalan boşluğun ortasında. Plus hapı kısa adıyla, seri koruma rozeti telefondaki gibi gizli. */
-  /* Faz 6 (20 Kasım 2026): sağa bildirim çanı (40 px) eklendi; 768 px'te kapsül sağ boşluğa taşmasın diye aralıklar
-     bir basamak dar (öğeler ve boyları aynı). */
-  .cx-home-top {
-    grid-template-columns: auto 1fr auto;
-    column-gap: var(--cx-space-8);
+  .cx-home-start {
+    width: var(--cx-control-s);
+    padding-inline: 0;
+    justify-content: center;
   }
   .cx-home-actions {
     gap: var(--cx-space-4);

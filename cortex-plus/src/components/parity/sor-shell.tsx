@@ -368,7 +368,7 @@ export function ParitySorShell({
           <div className="cx-home-actions">
             <button type="button" className="cx-home-start cx-glass" onClick={startTeacher}>
               <Sparkles aria-hidden />
-              Başla
+              <span className="cx-home-start-label">Başla</span>
             </button>
             <button
               type="button"
