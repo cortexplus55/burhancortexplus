@@ -200,6 +200,6 @@ describe("tetikleyiciler", () => {
     expect(read("src/app/onboarding/page.tsx")).toContain("void triggerWelcomeEmail().catch(() => undefined);");
     expect(read("src/app/api/payments/paytr/callback/route.ts")).toContain("sendPurchaseMail(service, merchantOid, appOrigin())");
     expect(read("src/app/api/promo/redeem/route.ts")).toContain("sendTrialMail(service, userId,");
-    expect(read("src/app/api/cron/study-reminders/route.ts")).toContain("sendWelcomeCatchUp(service,");
+    expect(read("src/lib/notifications/jobs/daily-reminders.ts")).toContain("sendWelcomeCatchUp(service,");
   });
 });
