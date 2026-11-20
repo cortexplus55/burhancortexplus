@@ -143,3 +143,21 @@
     scale: 1;
   }
 }
+
+/* Çok satırlı açıklama (21 Kasım 2026, hazırlık silme): her satır kendi paragrafı; uyarı satırı uyarı renginde. */
+.cx-confirm-line {
+  display: block;
+}
+
+.cx-confirm-line + .cx-confirm-line {
+  margin-top: var(--cx-space-8);
+}
+
+.cx-confirm-note {
+  color: var(--cx-warning);
+}
+
+/* Uyarı satırı sonradan dolar (canlı bölge kalır): boşken yer kaplamasın. */
+.cx-confirm-line + .cx-confirm-note:empty {
+  margin-top: 0;
+}

@@ -2936,7 +2936,10 @@ Bekçi: `ders-cekirdegi.test.ts`, `faz9-kahraman-formul.test.tsx`, `landing-show
 ince konuları ünitenin alt başlığı), ücretsiz hesapta **1. ünite açık**, sıra **belge sırası + önkoşul**, canlı ölçüm en çok
 3 $. **19 Ekim'in "konu sayısı gevşetilmez" (#247) kararı YENİ hazırlıklar için bilerek değişti**; eski hazırlıkların satırları
 (alt başlıksız) bugünkü gibi çalışır ve rota sözleşme anlık görüntüleri değişmedi. Göç `20261121120000_faz10_unite_alt_baslik.sql`
-**kod yayınından sonra** (yalnız ekler; kod onsuz çalışır, alt başlıklar düğümün `session_meta.lessonSubtopics` alanında durur).
+**kod yayınından sonra** (yalnız ekler; kod onsuz çalışır, alt başlıklar düğümün `session_meta.lessonSubtopics` alanında durur);
+21 Kasım 2026'da #720 yayınından sonra uygulandı (`docs/operasyon/goc-kayitlari.md`). Canlı ölçüm (yerel, üretim veritabanına
+yazmadan, ~0,12 $): sınav seti (65 s PDF + Word + 5 foto okuması, 76 etkin sayfa) → 8–9 ünite (bant 8–12), 9 alt başlıklı ünite
+11 ekran, 3 alt başlıklı 6 ekran, işlenmeyen alt başlık 0; sayfa altlığı ("Sayfa 53 / 65") kilit bilgi sayılıyordu, düzeltildi.
 Yeniden açmayın:
 
 | Kural | Nerede |
@@ -2957,3 +2960,16 @@ yalnız takvimdeki oturumlardan kurulur).
 
 Bekçi: `multi-source-topic-consolidation.test.ts` (sentetik karma kaynak: bant, birleştirme adımları, gürültü, basamak sırası,
 materyal ekleme tavanı ve sayfa kaybı), `unite-alt-konu-dersi.test.ts`, `node-route-contract.test.ts`, e2e `unite-alt-baslik.spec.ts`.
+
+## Hazırlığı sil ve Kullanım Koşulları güncellemesi (21 Kasım 2026)
+
+Ürün sahibi: "sınav hazırlığı başlatabiliyor ama çalışmayacaksa veya süresi bittiyse silmek isterse silme tuşu yok; silme kritik,
+emin misin diye sorulsun". Silme vardı ama yalnız hazırlık sayfasında Seçenekler → Ayarlar sekmesinin dibindeydi. Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| **Tek bileşen, üç yer:** Sınavlar ve "Sınav hazırlıklarım" kartının köşesinde çöp kutusu (40 px, telefonda 44; tarihsiz ve sınavı geçmiş kartta da), hazırlık sayfasında Seçenekler listesinin sonunda "Hazırlığı sil" (tehlike satırı), Ayarlar'da aynı düğme. Her yerde aynı onay penceresi (`ConfirmDialog`): hazırlığın adı, neyin kalıcı silindiği, "geri alınamaz", belgelerin Belgelerim'de kaldığı; odak "Vazgeç"te açılır, Escape kapatır, sürerken kapanmaz. Silme sunucuda `delete_exam_prep` (sahiplik orada; hazırlığa bağlı bütün tablolarda silme kuralı tanımlı) | `prep-delete-button.tsx` (`PREP_DELETE_COPY`), `exam-prep.tsx`, `exam-prep-home.tsx`, `prep-basics-panel.tsx` |
+| **Ücretsiz hesap uyarısı:** ilk dersini kullanmış ücretsiz öğrenci silip yeniden kurarsa yeni hazırlıkta dersler Plus ister (`first-lesson-cycle.ts` "ilk hazırlık" kanıtı). Pencere bunu söyler. Bilgi sayfa açılışında değil, **pencere açılınca** salt okunur uçtan (`GET /api/learning/exam-prep/delete-note`) okunur: sayfada okununca hazırlık sayfası sorgu bütçesini aştı (`page-query-budget.test.ts`, 22 → 26). Okuma düşerse uyarı çıkmaz | `freeFirstLessonUsed`, `delete-note/route.ts` |
+| **Kullanım Koşulları 2026-11-21:** "Ücretsiz ve ücretli kullanım" maddesi eski "haftalık ders sınırlıdır" yerine satış sözleşmeleriyle aynı merkezi cümleyi okur (`PLAN_MARKETING_COPY.legalUsage`). Sürüm değişti; öğrenci bir sonraki girişte değişiklik notuyla bir kez yeniden onaylar (ürün sahibinin kararı: "Güncelle, yeni sürüm"). Plan sayıları değişirse metnin özeti de değişir ve bekçi yeni sürüm ister | `terms-text.ts`, `versions.ts` (`LEGAL_CHANGE_NOTES`), `uyum-paketi.test.ts` |
+
+Bekçi: `hazirlik-sil.test.tsx`, `prep-basics.test.tsx`, `uyum-paketi.test.ts`, `page-query-budget.test.ts`.

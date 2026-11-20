@@ -1,10 +1,12 @@
 import { sellerField } from "@/lib/legal/seller";
 import { LEGAL_VERSIONS } from "@/lib/legal/versions";
 import type { LegalSection } from "@/lib/legal/legal-types";
+import { PLAN_MARKETING_COPY } from "@/lib/marketing/plan-copy";
 
 /**
- * Kullanım Koşulları. Ürünün bugünkü davranışına göre yazıldı: ücretsiz katman sayaçla (haftalık ders, günlük
- * mesaj ve fotoğraf), otomatik yenileme yok (`AUTO_RENEW_SUPPORTED = false`), en çok iki cihaz, sıralamada ad +
+ * Kullanım Koşulları. Ürünün bugünkü davranışına göre yazıldı: ücretsiz hesapta ilk hazırlığın ilk ders döngüsü süresiz
+ * açık, sohbet ve fotoğraf sayaçla (21 Kasım 2026: kota cümlesi satış sözleşmeleriyle aynı merkezden, `plan-copy.ts`;
+ * eski "haftalık ders" sınırı 11 Kasım 2026'da kalkmıştı), otomatik yenileme yok (`AUTO_RENEW_SUPPORTED = false`), en çok iki cihaz, sıralamada ad +
  * soyadın baş harfi + okul. Eski metindeki "kredi bedelleri işlem öncesinde gösterilir" cümlesi kaldırıldı:
  * öğrenci 19 Ekim 2026'dan beri kredi sayısı görmüyor, söz tutulmuyordu.
  *
@@ -39,7 +41,7 @@ export const TERMS_SECTIONS: LegalSection[] = [
   {
     heading: "Ücretsiz ve ücretli kullanım",
     body: [
-      "Ücretsiz hesapta haftalık ders, günlük sohbet mesajı ve günlük fotoğraftan çözüm sayısı sınırlıdır; bazı özellikler (podcast, sözlü ve yazılı deneme, video ders, sesli kullanım) yalnız ücretli planlarda açılır. Güncel sınırlar ve fiyatlar fiyatlandırma sayfasında yazar.",
+      `${PLAN_MARKETING_COPY.legalUsage} Güncel sınırlar ve fiyatlar fiyatlandırma sayfasında yazar.`,
       "Bir iş teknik bir arıza yüzünden tamamlanamazsa kullandığın hak kendiliğinden geri verilir.",
       "Ödemeler PayTR altyapısıyla alınır; kart bilgilerin bize gelmez ve bizde saklanmaz.",
     ],

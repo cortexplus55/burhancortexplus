@@ -15,7 +15,8 @@
  */
 export const LEGAL_VERSIONS = {
   kvkk_aydinlatma: "2026-11-08",
-  kullanim_kosullari: "2026-11-07",
+  // 21 Kasım 2026: ücretsiz hesabın kapsamı bugünkü kurala göre (haftalık ders sınırı 11 Kasım'da kalkmıştı).
+  kullanim_kosullari: "2026-11-21",
 } as const;
 
 export type ConsentType = keyof typeof LEGAL_VERSIONS;
@@ -40,7 +41,7 @@ export const LEGAL_CHANGE_NOTES: Record<ConsentType, string> = {
   kvkk_aydinlatma:
     "Çocuklar için kısa bir özet, hizmet aldığımız şirketlerin listesi, saklama süreleri ve başvuru yolları eklendi; IP adresinin hangi kayıtta nasıl tutulduğu netleştirildi.",
   kullanim_kosullari:
-    "18 yaşından küçükler için veli izni, yüklediğin içerik, sıralamada görünürlük ve metin değişikliklerinin nasıl bildirildiği eklendi.",
+    "Ücretsiz hesabın kapsamı güncellendi: haftalık ders sınırı yerine ilk hazırlığının ilk ders döngüsü süre sınırı olmadan açık; planların kullanım hakları tek yerden yazıldı.",
 };
 
 export function consentKey(type: string, version: string): string {

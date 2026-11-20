@@ -151,6 +151,20 @@ ve sınav sonrası yorumlar kaybolur.
 **Geri alma:** gerekmez. Kod iki işlev sürümüyle de çalışır (`same_ip` ve `ip_daily_cap` ikisi de tanınır). Eski davranışa dönmek
 işlevi 20261120140000'daki gövdesiyle yeniden tanımlamaktır (yalnız Burhan'ın kararıyla); sütun ve dizin zararsız kalır.
 
+## 20261121120000 · faz10_unite_alt_baslik (PR #720)
+
+| | |
+|---|---|
+| Onaylayan | Burhan (Faz 10 istemi, 20 Kasım 2026: "göç varsa yayından sonra uygulayıp `docs/operasyon/goc-kayitlari.md` dosyasına işle"; ana ünite modeli kararı aynı gün) |
+| Uygulama | 21 Kasım 2026; #720 birleşme commit'i `28549a20` Vercel'de "success" ve üretim duman testi 7/7 geçtikten sonra. Supabase SQL ekranı, tek çalıştırma + kayıt satırı |
+| Uygulayan | Claude, Burhan'ın onayıyla |
+| Değişen | `exam_prep_topics`'e `subtopics jsonb NOT NULL DEFAULT '[]'` sütunu (yalnız ekleme; var olan satırlar boş dizi, yani eski model). `apply_exam_prep_setup(uuid, uuid, jsonb, jsonb)` aynı imzayla yeniden tanımlandı; önceki tanımdan (`20261119100500`) tek farkı `subtopics` alanını da yazması |
+
+**Doğrulama:** sütun 1; işlev tanımında `subtopics` var; kayıt satırı 1; alt başlığı dolu satır 0 (göç hiçbir satırı değiştirmedi).
+
+**Geri alma:** gerekmez. Kod sütun olmadan da çalışır (alt başlıklar düğümün `session_meta.lessonSubtopics` alanında). Eski işleve
+dönmek 20261119100500'deki gövdeyle yeniden tanımlamaktır (yalnız Burhan'ın kararıyla); sütun zararsız kalır.
+
 ## İstatistik işlemleri (göç değil)
 
 | Zaman (UTC) | İşlem | Onay | Sonuç |
