@@ -1,5 +1,6 @@
 import { LESSON_SCREEN_HARD_CAP } from "@/lib/learning/lesson-v3";
 import { splitTableCells } from "@/lib/learning/interval-text";
+import { SUBTOPIC_EXTRA_SCREENS, lessonDepthForSubtopics } from "@/lib/learning/subtopic-list";
 
 /**
  * Kilit bilgiler (ders bağımsız).
@@ -546,8 +547,14 @@ export function lessonReadyToFinish(
   return true;
 }
 
-/** Kilit bilgi varken ekran tavanı esner; bilgi yokken 12 kalır. Sert tavan maliyet içindir. */
-export function lessonScreenCap(factCount: number): number {
+/**
+ * Kilit bilgi varken ekran tavanı esner; bilgi yokken 12 kalır. Sert tavan maliyet içindir.
+ * Alt konulu ünite dersinde (20 Kasım 2026) tavan derinliğin üst ucu + kapanış payıdır (`lessonDepthForSubtopics`):
+ * yazarın istemi ve yapı denetimi aynı sayıyı okur, biri öbürünü "fazla ekran" diye geri çevirmez.
+ */
+export function lessonScreenCap(factCount: number, subtopicCount = 0): number {
+  const depth = lessonDepthForSubtopics(subtopicCount);
+  if (depth) return Math.min(LESSON_SCREEN_HARD_CAP, depth.maxScreens + SUBTOPIC_EXTRA_SCREENS);
   if (factCount <= 0) return LESSON_SCREEN_BASE;
   const extra = Math.min(4, Math.max(1, Math.ceil(factCount / 4)));
   return Math.min(LESSON_SCREEN_HARD_CAP, LESSON_SCREEN_BASE + extra);

@@ -27,6 +27,7 @@ import { prepTopicLabels } from "@/lib/documents/generation-context";
 import { poolSourceText } from "@/lib/content-pool/serve";
 import { ALL_TOPICS_LABEL } from "@/lib/learning/prep-wide-target";
 import { narrowPagesToTopic } from "@/lib/learning/topic-section";
+import { resolveLessonSubtopicScope } from "@/lib/learning/lesson-subtopics";
 import { APPROVED_FACTS_CHARS } from "@/lib/learning/teacher-lesson";
 import { NodeGenerationError, actionForKind, awaitLoggedWrite } from "./shared";
 import { guardLessonForCorrection } from "@/lib/learning/lesson-correction-guard";
@@ -119,8 +120,29 @@ export async function teacherLessonPayload(
     cleanedByModelNow: clean.filter((item) => item.cleaned).length,
   });
   // Konu yalıtımı (6 Kasım 2026): aynı sayfayı paylaşan öbür konuların bölümleri kaynaktan çıkar, yazar kapsam satırını okur.
-  const siblings = await (siblingsEarly ?? Promise.resolve([] as string[]));
-  const scoped = narrowPagesToTopic<{ page: number; text: string; label?: string }>(withSupport(clean, core), input.topicLabel, siblings);
+  const prepSiblings = await (siblingsEarly ?? Promise.resolve([] as string[]));
+  // Ünite dersi (20 Kasım 2026, ürün sahibinin kararı): ders ünitenin alt konularının hepsini öğretir (bölünmüş ünitede
+  // yalnız bu derse düşenleri). Öbür ünitelerin alt konuları kapsam satırına ve daraltmaya kardeş olarak, ünitenin öbür
+  // derslerinin alt konuları dışarıda tutulacak ad olarak girer. Alt konu yoksa hepsi boş: ders bugünkü gibi.
+  const unitScope = resolveLessonSubtopicScope({
+    lessonSubtopics: input.sessionMeta?.lessonSubtopics,
+    unitSubtopics: input.unitSubtopics?.unit,
+    otherUnitSubtopics: input.unitSubtopics?.others,
+  });
+  const unitLesson = unitScope.subtopics.length > 0;
+  const siblings = unitLesson ? [...prepSiblings, ...unitScope.otherUnits] : prepSiblings;
+  if (unitLesson) {
+    console.info("lesson_subtopic_scope", {
+      topic: input.topicLabel.slice(0, 80),
+      subtopics: unitScope.subtopics.length,
+      excluded: unitScope.excluded.length,
+      otherUnits: unitScope.otherUnits.length,
+      split: Boolean(input.sessionMeta?.lessonSubtopics?.length),
+    });
+  }
+  const narrowSiblings = unitLesson ? [...siblings, ...unitScope.excluded] : siblings;
+  const narrowOptions = unitLesson ? { selfNames: unitScope.subtopics } : undefined;
+  const scoped = narrowPagesToTopic<{ page: number; text: string; label?: string }>(withSupport(clean, core), input.topicLabel, narrowSiblings, narrowOptions);
   if (scoped.narrowed) console.info("lesson_topic_scope", { topic: input.topicLabel.slice(0, 80), dropped: scoped.dropped.slice(0, 6) });
   const lessonPages = scoped.pages;
   // Akıllı hoca uyarısı (31 Ekim 2026, Paket J3 #13): notta yanlış yazılmış evrensel formül. Yalnız belgeli derste;
@@ -177,6 +199,9 @@ export async function teacherLessonPayload(
     examPoints: core ? examPointsInSource(input.examPoints, lessonPages.map((page) => page.text).join("\n")) : input.examPoints,
     runningHeaders: edges,
     ...(siblings.length ? { siblingTopics: siblings } : {}),
+    // Ünitenin zorunlu planı ve bu dersin dışında kalan alt konuları; yalnız ünite dersinde (yoksa alan yok).
+    ...(unitLesson ? { subtopics: unitScope.subtopics } : {}),
+    ...(unitScope.excluded.length ? { excludedSubtopics: unitScope.excluded } : {}),
     // Kardeş ünite sınırı (Faz 1-A §1): aynı kaynak sayfalarını paylaşan üniteler; yalnız belgeli derste.
     ...(core && input.excludedSiblingTopics?.length ? { excludedSiblingTopics: input.excludedSiblingTopics } : {}),
     ...(sourceCorrection ? { sourceCorrection } : {}),

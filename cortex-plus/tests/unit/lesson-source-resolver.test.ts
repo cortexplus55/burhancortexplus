@@ -766,6 +766,34 @@ describe("resolveLessonSource", () => {
       });
       expect(result.unavailable).toBeUndefined();
       expect(result.context?.block).toContain(topic.split(" ")[0]!);
+      // Hazırlıkta alt konu yok: sonuç eskisi gibi, alan hiç yazılmaz (ünite dersi, 20 Kasım 2026).
+      expect("unitSubtopics" in result).toBe(false);
     }
+  });
+
+  it("9) ünite dersi: alt konular sayfa çözümüyle birlikte döner (20 Kasım 2026)", async () => {
+    loadPageSourceContext.mockResolvedValue(pageBlock("gen.pdf", [1], "topic-alpha anlatım metni. ".repeat(15)));
+    const rows = [
+      { id: "t", label: "topic-alpha", subtopics: ["subtopic-1", "subtopic-2"] },
+      { id: "t2", label: "topic-beta", subtopics: ["other-1"] },
+    ];
+    const topics = { select: () => topics, eq: () => topics, order: () => topics, limit: async () => ({ data: rows, error: null }) };
+    const service = { from: (table: string) => (table === "exam_prep_topics" ? topics : (mockService() as unknown as { from: (name: string) => unknown }).from(table)) } as never;
+    const result = await resolveLessonSource(service, {
+      userId: "u",
+      prepId: "p",
+      topicId: "t",
+      topicLabel: "topic-alpha",
+      sessionMeta: { sourcePages: [] },
+      prepDocs: ["d1"],
+      primaryDocumentId: "d1",
+      topicDocumentId: "d1",
+      topicNodeId: null,
+      sourceRefs: [{ documentId: "d1", pages: [1], nodeId: null, fileName: "gen.pdf" }],
+      sourceDocumentIds: ["d1"],
+      sourceBoundaryMode: "documents_only",
+    });
+    expect(result.context?.block).toContain("topic-alpha");
+    expect(result.unitSubtopics).toEqual({ unit: ["subtopic-1", "subtopic-2"], others: ["other-1"] });
   });
 });

@@ -5,6 +5,7 @@
  */
 
 import { sourceCorrectionWarningSchema } from "@/lib/learning/source-correction";
+import { parseSubtopicList } from "@/lib/learning/subtopic-list";
 import { z } from "zod";
 import { lessonCheckHasAnswerKey } from "@/lib/learning/answer-key";
 import { diagramIssues, lessonDiagramSchema } from "@/lib/learning/lesson-diagram";
@@ -64,6 +65,11 @@ export type SessionTeachingMeta = {
   practiceVariant?: number;
   /** Öğrenciye yazılan süre. Yol, kapı ve ders çubuğu aynı sayıyı okur. */
   activityMinutes?: number;
+  /**
+   * Bölünmüş ünitenin bu derse düşen alt konuları (20 Kasım 2026, ünite dersi). Yoksa ders ünitenin bütün alt
+   * konularını (`exam_prep_topics.subtopics`) öğretir; ikisi de yoksa ders bugünkü gibi yazılır.
+   */
+  lessonSubtopics?: string[];
 };
 
 export type MisconceptionDraft = {
@@ -100,6 +106,7 @@ export function parseSessionMeta(raw: unknown): SessionTeachingMeta | null {
     row.role === "mock"
       ? row.role
       : undefined;
+  const lessonSubtopics = parseSubtopicList(row.lessonSubtopics);
   return {
     topicId: typeof row.topicId === "string" ? row.topicId : undefined,
     topicTitle: typeof row.topicTitle === "string" ? row.topicTitle : undefined,
@@ -118,6 +125,7 @@ export function parseSessionMeta(raw: unknown): SessionTeachingMeta | null {
       typeof row.activityMinutes === "number" && Number.isFinite(row.activityMinutes) && row.activityMinutes > 0
         ? Math.round(row.activityMinutes)
         : undefined,
+    lessonSubtopics: lessonSubtopics.length ? lessonSubtopics : undefined,
   };
 }
 

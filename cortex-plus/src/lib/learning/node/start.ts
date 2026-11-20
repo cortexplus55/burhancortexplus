@@ -426,6 +426,8 @@ export async function startAction(context: NodeContext): Promise<NextResponse> {
     oralQuestionCount: oralCount ?? null,
     oralScope: parsed.data.oralScope ?? null,
     mood,
+    // Bölünmüş ünitenin bu derse düşen alt konuları (20 Kasım 2026): başka kümeyle yazılmış hazır ders verilmez.
+    lessonSubtopics: kind === "lesson" ? (sessionMeta?.lessonSubtopics ?? null) : null,
   });
   const served = await servePrefetched(context, {
     topic,

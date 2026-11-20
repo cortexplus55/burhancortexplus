@@ -23,6 +23,7 @@ import { poolLessonText } from "@/lib/content-pool/lesson-text";
 import type { OralQuestionDraft } from "@/lib/learning/oral-exam";
 import { oralPoolLabelsFrom } from "@/lib/content-pool/oral-pool-labels";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { UnitSubtopics } from "@/lib/learning/lesson-subtopics";
 import type { NodeContext } from "./context";
 import type { StartLocals } from "./start-types";
 
@@ -113,6 +114,8 @@ export async function resolveStartSource(context: NodeContext, state: Pick<Start
   // Kaynak araması yedeği (19 Kasım 2026, Faz 1-A §3.3): Kolay / Orta konu testinde arama boşsa ya da düştüyse test
   // konunun kayıtlı dersinden (lesson_context), yoksa ünite özetinden (unit_summary) yazılır.
   let sourceFallback: SourceFallbackKind | null = null;
+  // Ünite dersinin alt konuları (20 Kasım 2026): ders çözücüsü okur; alt konu yoksa null, ders bugünkü gibi.
+  let unitSubtopics: UnitSubtopics | null = null;
   const fallbackWanted = teachingV2 && !voiceSession && sourceFallbackAllowed(kind, difficulty);
   const applyLessonFallback = async (reason: SourceUnavailableReason): Promise<boolean> => {
     if (!fallbackWanted || !topic?.id) return false;
@@ -175,6 +178,7 @@ export async function resolveStartSource(context: NodeContext, state: Pick<Start
         query: sourceQuery,
       });
       sourceTrace = resolved.trace;
+      unitSubtopics = resolved.unitSubtopics ?? null;
       // Öğretmen motoru dersi yalnız konunun kendi sayfalarından yazar;
       // aşağıdaki zenginleştirmenin belgenin başka yerlerinden eklediği
       // parçalar (KPSS dersi s.5'ten s.28'e dağılmıştı) motora gitmez.
@@ -431,7 +435,7 @@ export async function resolveStartSource(context: NodeContext, state: Pick<Start
       refunded: false,
     });
   }
-  return { prepSource, prepDocs, teachingPlan, sourceBoundaryMode, sourceMode, source, sourceTrace, lessonCoreDocumentId, lessonCorePages, lessonTopicOnly, oralAllPlan, podcastSyllabus, alternativeOf, oralPoolDrafts, sourceFallback: sourceFallback as SourceFallbackKind | null };
+  return { prepSource, prepDocs, teachingPlan, sourceBoundaryMode, sourceMode, source, sourceTrace, lessonCoreDocumentId, lessonCorePages, lessonTopicOnly, oralAllPlan, podcastSyllabus, alternativeOf, oralPoolDrafts, sourceFallback: sourceFallback as SourceFallbackKind | null, unitSubtopics: unitSubtopics as UnitSubtopics | null };
 }
 
 /** Kaynak aşamasının erken yanıt dışındaki dönüşü. */

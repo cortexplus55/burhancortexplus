@@ -28,6 +28,7 @@ import { teacherTrueFalsePayload } from "./true-false";
 import { SINGLE_CHOICE_PROMPT_LINE } from "@/lib/learning/single-choice-guard";
 import type { SourceCorrectionWarning } from "@/lib/learning/source-correction";
 import type { SourceFallbackKind } from "@/lib/learning/source-fallback";
+import type { UnitSubtopics } from "@/lib/learning/lesson-subtopics";
 
 /** Türe göre üretimin girdisi; rota hazırlar, tür modülleri okur. */
 export type NodePayloadInput = {
@@ -110,6 +111,11 @@ export type NodePayloadInput = {
   sourceCorrection?: SourceCorrectionWarning | null;
   /** Kaynağın o sayfalardaki kendi alt başlıkları; boşsa bölümü model seçer. */
   sectionBackbone?: string[];
+  /**
+   * Ünite dersinin alt konuları (20 Kasım 2026, ürün sahibinin kararı): hazırlığın konu satırlarından (ders çözücüsü
+   * okur). Ders `sessionMeta.lessonSubtopics ?? unit` listesinin hepsini öğretir; yoksa ders bugünkü gibi yazılır.
+   */
+  unitSubtopics?: UnitSubtopics | null;
   /** Saklı öğretmen analizi. Yoksa boş; üretim bugünkü yoldan sürer. */
   teacherBrief?: string;
   /** Öğretmen analizinin "Sınavda sorulur" maddeleri. */

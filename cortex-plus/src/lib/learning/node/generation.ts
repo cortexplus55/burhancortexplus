@@ -164,7 +164,7 @@ export async function runStartGeneration(
   const { userId, service, options, requestStarted, parsed, prepId, nodeId, lessonFormat, prefetch, teachingV2, prep, node, kind, oralCount, oralMultiTopic, difficulty, voiceMode, familiarity, mood, lessonReviewCards } = context;
   const { sessionMeta, topic, topicLabel, topicWiden, warm, refreshTopicQuiz, voiceSession, premium, freeMeter, practiceTopics, finalFill, retargetedTopic, quizLesson, variant, peekBuildingMs } = state;
   let { title } = state;
-  const { prepSource, prepDocs, teachingPlan, sourceMode, source, sourceTrace, lessonCoreDocumentId, lessonCorePages, lessonTopicOnly, oralAllPlan, podcastSyllabus, alternativeOf, sourceFallback } = sourced;
+  const { prepSource, prepDocs, teachingPlan, sourceMode, source, sourceTrace, lessonCoreDocumentId, lessonCorePages, lessonTopicOnly, oralAllPlan, podcastSyllabus, alternativeOf, sourceFallback, unitSubtopics } = sourced;
   const { clientRequestId, generationId, creatingAttemptId } = reserved;
   // Kaydı önceden açılmayan yol (v1) da bilinen bir anahtarla ücretlensin: kayıt yazılamazsa iade bu anahtarı bulur.
   // Önceden yazım ücretsizdir, anahtarı motor kendisi verir.
@@ -400,6 +400,8 @@ export async function runStartGeneration(
                   return title.length >= 3 && source.block.toLocaleLowerCase("tr").includes(title);
                 })
               : [],
+          // Ünite dersinin alt konuları (20 Kasım 2026): yalnız ders; hazırlıkta alt konu yoksa alan yok.
+          ...(kind === "lesson" && unitSubtopics ? { unitSubtopics } : {}),
           learningPreferences: teachingV2 ? prep.learning_preferences : null,
           teacherBrief: teachingV2 ? teachingPlan.brief : "",
           // "Öğretmen gözü" (18 Ekim 2026): bütün öğretmen motorları aynı maddeleri okur.
