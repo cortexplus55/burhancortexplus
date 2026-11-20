@@ -3,7 +3,7 @@ import "server-only";
 import { after } from "next/server";
 import { studentOptionCount } from "@/lib/learning/student-pedagogy";
 import { documentRunningHeaders, ensureCleanPages } from "@/lib/documents/clean-pages";
-import { corePageRun } from "@/lib/learning/core-pages";
+import { corePageRun, unitLessonPages } from "@/lib/learning/core-pages";
 import { runTeacherLesson, type PublishedLesson } from "@/lib/learning/teacher-lesson-run";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { recordLessonGenerationFailure } from "@/lib/learning/lesson-generation-failures";
@@ -102,13 +102,15 @@ export async function teacherLessonPayload(
         topicLabels: [input.topicLabel],
         maxChars: APPROVED_FACTS_CHARS,
       }).catch(() => "");
+  // Ana ünite dersi (Faz 10): alt başlıkların dağınık sayfaları kesilmez; tek konulu ders bugünkü gibi en uzun ardışık dizi.
+  const unitLessonEarly = Boolean(input.sessionMeta?.lessonSubtopics?.length || input.unitSubtopics?.unit?.length);
   const edges = core ? await documentRunningHeaders(input.service, core.documentId) : [];
   const headersMs = Date.now() - startedAt;
   const clean = core
     ? await ensureCleanPages(input.service, {
         userId: input.userId,
         documentId: core.documentId,
-        pages: corePageRun(core.pages),
+        pages: unitLessonEarly ? unitLessonPages(core.pages) : corePageRun(core.pages),
         edges,
       })
     : [];

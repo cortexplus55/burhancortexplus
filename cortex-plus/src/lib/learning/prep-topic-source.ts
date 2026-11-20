@@ -3,7 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 import { loadPrepDocumentIds } from "@/lib/documents/teacher-analysis-run";
 import { documentRunningHeaders, ensureCleanPages } from "@/lib/documents/clean-pages";
-import { corePageRun } from "@/lib/learning/core-pages";
+import { corePageRun, unitLessonPages } from "@/lib/learning/core-pages";
 import { loadSourceContext, pagesMarkedInSource } from "@/lib/learning/source-context";
 import { resolvePrepTopicRow } from "@/lib/learning/prep-topic-lookup";
 import { isUnitTopicRow, unitRowDocumentSources } from "@/lib/learning/unit-topic-row";
@@ -63,7 +63,7 @@ export async function prepTopicSource(
   }
   if (!pageNumbers.length) return null;
   const edges = await documentRunningHeaders(service, documentId);
-  const clean = await ensureCleanPages(service, { userId: input.userId, documentId, pages: corePageRun(pageNumbers), edges });
+  const clean = await ensureCleanPages(service, { userId: input.userId, documentId, pages: unitMain ? unitLessonPages(pageNumbers) : corePageRun(pageNumbers), edges });
   if (!clean.length) return null;
   return { mode: "document", pages: clean.map((item) => ({ page: item.page, text: item.text })) };
 }
