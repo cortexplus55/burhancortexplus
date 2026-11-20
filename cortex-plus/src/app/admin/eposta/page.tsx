@@ -42,22 +42,32 @@ export default async function AdminEpostaPage() {
     service.rpc("referral_top_inviters", { p_limit: 5 }),
   ]);
 
-  // Otomatik e-postaların gönderim sayıları ("once:" olayları, yalnız gönderilmiş olanlar).
-  const countKey = async (pattern: string, like = false) => {
-    const query = service.from("email_events").select("id", { count: "exact", head: true }).eq("status", "sent");
-    const { count } = await (like ? query.like("template_key", pattern) : query.eq("template_key", pattern));
-    return count ?? 0;
-  };
-  const [welcomeSent, purchaseSent, trialSent] = await Promise.all([
-    countKey("once:welcome"),
-    countKey("once:purchase:%", true),
-    countKey("once:trial"),
-  ]);
+  // Otomatik e-postaların gönderim sayıları (Faz 6: gönderim kaydı `email_dispatch_log`; tablo yoksa eski "once:" olayları).
+  // Ödeme e-postası paket türüne göre ayrılmaz: dört ödeme satırı ortak sayıyı göstermez (null).
+  const templateKeys = [...new Set(LIFECYCLE_MAILS.map((mail) => mail.templateKey as string))];
+  const logged = await Promise.all(
+    templateKeys.map(async (key) => {
+      const { count, error } = await service.from("email_dispatch_log").select("id", { count: "exact", head: true }).eq("template_key", key);
+      return [key, error ? null : (count ?? 0)] as const;
+    }),
+  );
+  const sentByKey = new Map<string, number | null>(logged);
+  if (logged.every(([, value]) => value === null)) {
+    const legacy = async (pattern: string, like = false) => {
+      const query = service.from("email_events").select("id", { count: "exact", head: true }).eq("status", "sent");
+      const { count } = await (like ? query.like("template_key", pattern) : query.eq("template_key", pattern));
+      return count ?? 0;
+    };
+    sentByKey.set("welcome_onboarding", await legacy("once:welcome"));
+    sentByKey.set("payment_confirmed", await legacy("once:purchase:%", true));
+    sentByKey.set("trial", await legacy("once:trial"));
+  }
+  const purchaseSent = sentByKey.get("payment_confirmed") ?? 0;
   const lifecycleRows = LIFECYCLE_MAILS.map((mail) => ({
     id: mail.id as string,
     name: mail.name as string,
     when: mail.when as string,
-    sent: mail.id === "welcome" ? welcomeSent : mail.id === "trial" ? trialSent : null,
+    sent: mail.templateKey === "payment_confirmed" ? null : (sentByKey.get(mail.templateKey) ?? null),
   }));
   const resendReady = resendConfigured();
   const resendStatus = describeResendStatus(await readResendStatus());

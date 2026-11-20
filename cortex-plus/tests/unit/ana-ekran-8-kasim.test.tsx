@@ -73,7 +73,13 @@ describe("yerleşim: üste binme yok (#604)", () => {
     expect(shell).toMatch(/\.cp-sor-root \.cp-sor-msg-user \{[^}]*color: var\(--cp-text\)/);
     // 13 Kasım 2026: kabuğun üst çubuğu (cx-shell.css); tablette sekme yazısı görsel olarak gizli, ad ekran okuyucuda.
     expect(read("src/components/parity/sor-shell.tsx")).toContain("<span>{tab.label}</span>");
-    expect(read("src/styles/cx-shell.css")).toMatch(/\.cx-home-tab span,\n\s*\.cx-home-more-label,\n\s*\.cx-home-actions \.cx-capsule-text \{[^}]*clip: rect\(0 0 0 0\)/);
+    const css = read("src/styles/cx-shell.css");
+    const tablet = css.slice(css.indexOf("@media (max-width: 1099px) and (min-width: 768px)"));
+    expect(tablet).toMatch(/\.cx-home-tab span,\r?\n\s*\.cx-home-more-label \{[^}]*clip: rect\(0 0 0 0\)/);
+    // Faz 6 (20 Kasım 2026): çan eklenince sağ taraf 768–1279 px'te sıkı; Başla ve kapsülün adı da görsel olarak gizli.
+    const compact = css.slice(css.indexOf("@media (max-width: 1279px) and (min-width: 768px)"));
+    expect(compact).toMatch(/\.cx-home-start-label,\r?\n\s*\.cx-home-actions \.cx-capsule-text \{[^}]*clip: rect\(0 0 0 0\)/);
+    expect(read("src/components/parity/sor-shell.tsx")).toContain('<span className="cx-home-start-label">Başla</span>');
   });
 });
 

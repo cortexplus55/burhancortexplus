@@ -4,16 +4,36 @@ import { appOrigin } from "@/lib/app-url";
 import { pathSkipKinds } from "@/lib/billing/node-free-meter";
 import { isEmailUnverified } from "@/lib/auth/email-verification";
 import { sendEmail } from "@/lib/email/mailer";
-import { claimOnce, settleOnce } from "@/lib/email/once";
 import {
+  allowanceForPurchase,
   purchaseKindFor,
   renderPurchaseMail,
-  renderWelcomeMail,
   type LifecycleMailId,
   type PurchaseKind,
   type PurchaseMailInput,
-  type WelcomeMailInput,
 } from "@/lib/email/lifecycle-templates";
+import { renderWelcomeOnboarding } from "@/lib/email/templates/welcome-onboarding";
+import { renderActivation24h } from "@/lib/email/templates/activation-24h";
+import { renderFreeFirstUnitCompleted } from "@/lib/email/templates/free-first-unit-completed";
+import { renderSmartTrapNudge } from "@/lib/email/templates/smart-trap-nudge";
+import { renderExamEveCheatSheet } from "@/lib/email/templates/exam-eve-cheat-sheet";
+import { renderSubscriptionExpiryReminder } from "@/lib/email/templates/subscription-expiry-reminder";
+import { renderWeeklyStudyDigest } from "@/lib/email/templates/weekly-study-digest";
+import {
+  SAMPLE_ACTIVATION_24H,
+  SAMPLE_EXAM_EVE_CHEAT_SHEET,
+  SAMPLE_FREE_FIRST_UNIT_COMPLETED,
+  SAMPLE_PAYMENT_CONFIRMED,
+  SAMPLE_SMART_TRAP_NUDGE,
+  SAMPLE_SUBSCRIPTION_EXPIRY_REMINDER,
+  SAMPLE_WEEKLY_STUDY_DIGEST,
+  SAMPLE_WELCOME_ONBOARDING,
+} from "@/lib/email/templates/sample-inputs";
+import { renderPaymentConfirmed, type PaymentConfirmedKind } from "@/lib/email/templates/payment-confirmed";
+import { PLAN_WORK_BY_ID, workCount, type PlanWorkId } from "@/lib/billing/plan-value";
+import { sigmaBenefitLines } from "@/lib/billing/tier-presentation";
+import { claimDispatch, dedupeKeys, settleDispatch, type DispatchDecision } from "@/lib/notifications/dispatch-guard";
+import { missingRelation } from "@/lib/learning/missing-column";
 import { loadNearestExamCountdown } from "@/lib/learning/exam-countdown-load";
 import { loadContinueStep } from "@/lib/learning/prep-cards";
 import { runWithBudget } from "@/lib/learning/reminder-facts";
@@ -21,8 +41,8 @@ import type { RenderedMail } from "@/lib/email/templates";
 
 /*
   Yaşam döngüsü e-postaları (8 Kasım 2026): hoş geldin, satın alma (paket türüne göre), beta deneme. Hepsi hesapla ilgili
-  bilgilendirme (hizmet e-postası: izin istemez), hepsi Resend'den (`sendEmail`) ve her biri `email_events`te `once:`
-  anahtarıyla bir kez gider: PayTR geri çağrısı yeniden denense, sayfa iki kez açılsa, iki sekme aynı anda bitirse çift
+  bilgilendirme (hizmet e-postası: izin istemez), hepsi Resend'den (`sendEmail`) ve her biri bir kez gider (Faz 6, 20 Kasım
+  2026'dan beri gönderim kaydı `email_dispatch_log`, işlem kategorisi; hoş geldin ve ödeme yeni şablonlarla): PayTR geri çağrısı yeniden denense, sayfa iki kez açılsa, iki sekme aynı anda bitirse çift
   e-posta çıkmaz. Hiçbiri fırlatmaz: çağıranın akışı (kayıt tamamlama, ödeme "OK"u) e-posta yüzünden bozulmaz.
 */
 
@@ -78,18 +98,40 @@ function urls(origin: string) {
   };
 }
 
+/** "Bir kez" kilidi (işlem e-postası: sessiz saat ve 24 saat kuralı yok, yalnız tekillik). */
+type Claim = { userId: string; dedupeKey: string; decision: Extract<DispatchDecision, { ok: true }> };
+
+async function claim(service: SupabaseClient, userId: string, templateKey: string, dedupeKey: string): Promise<Claim | null> {
+  const decision = await claimDispatch(service, { userId, templateKey, dedupeKey, category: "transactional" });
+  return decision.ok ? { userId, dedupeKey, decision } : null;
+}
+
+async function release(service: SupabaseClient, held: Claim, sent: boolean): Promise<void> {
+  await settleDispatch(service, { userId: held.userId, dedupeKey: held.dedupeKey }, held.decision, sent);
+}
+
 async function deliver(
   service: SupabaseClient,
-  userId: string,
-  key: string,
+  held: Claim,
   to: string,
   mail: RenderedMail,
-  idempotencyKey: string,
 ): Promise<LifecycleOutcome> {
-  const result = await sendEmail({ to, subject: mail.subject, html: mail.html, text: mail.text, idempotencyKey });
-  await settleOnce(service, userId, key, result.ok);
-  if (!result.ok) console.warn("lifecycle_mail_failed", { key: key.split(":")[1], reason: result.reason.slice(0, 160) });
+  const result = await sendEmail({ to, subject: mail.subject, html: mail.html, text: mail.text, idempotencyKey: held.dedupeKey.slice(0, 200) });
+  await release(service, held, result.ok);
+  if (!result.ok) console.warn("lifecycle_mail_failed", { key: held.dedupeKey.split(":")[0], reason: result.reason.slice(0, 160) });
   return result.ok ? "sent" : "failed";
+}
+
+/** Paket türüne göre ödeme e-postasının kazanım satırları (sayılar kredi tablosundan; elle yazılmaz). */
+const BENEFIT_GRID: PlanWorkId[] = ["lesson", "podcast", "oral", "written", "video", "photo"];
+
+export function purchaseBenefits(kind: PaymentConfirmedKind, allowance: number): string[] {
+  const fmt = (value: number) => new Intl.NumberFormat("tr-TR").format(value);
+  const grid = BENEFIT_GRID.map((id) => `${fmt(workCount(allowance, PLAN_WORK_BY_ID[id]))} ${PLAN_WORK_BY_ID[id].noun}`);
+  const lines = [`Bu dönem hakkınla örneğin: ${grid.join(", ")} (her biri tek başına; hepsi aynı haktan düşer).`];
+  if (kind === "sigma") lines.push(...sigmaBenefitLines());
+  if (kind === "addon") return [`Ek hakkın hesabına eklendi: örneğin ${grid.slice(0, 3).join(", ")} (her biri tek başına).`];
+  return lines;
 }
 
 /**
@@ -97,35 +139,33 @@ async function deliver(
  * silinir; günlük tur (`sendWelcomeCatchUp`) birkaç gün içinde yeniden dener.
  */
 export async function sendWelcomeOnce(service: SupabaseClient, userId: string, origin: string = appOrigin()): Promise<LifecycleOutcome> {
-  const key = "once:welcome";
+  let held: Claim | null = null;
   try {
-    if (!(await claimOnce(service, userId, key))) return "skipped";
+    held = await claim(service, userId, "welcome_onboarding", dedupeKeys.welcome(userId));
+    if (!held) return "skipped";
     const persona = await loadPersona(service, userId);
     if (!persona) {
-      await settleOnce(service, userId, key, false);
+      await release(service, held, false);
       return "skipped";
     }
     const context = await loadPersonalContext(service, userId, origin);
-    const base = urls(origin);
-    const mail = renderWelcomeMail({
+    // Faz 6: "Hoş geldin {ad}! İlk sınav yolunu 2 dakikada kuralım" (yeni şablon, ilk ders süresiz ücretsiz).
+    const mail = renderWelcomeOnboarding({
       firstName: persona.firstName,
-      via: persona.via,
-      needsVerification: persona.needsVerification,
-      exam: context.exam,
-      next: context.next,
-      ctaUrl: base.ctaUrl,
-      createUrl: base.createUrl,
-      solveUrl: base.solveUrl,
+      origin,
+      unverified: persona.needsVerification,
+      daysToExam: context.exam?.daysLeft ?? null,
     });
-    return await deliver(service, userId, key, persona.email, mail, `welcome-${userId}`);
+    return await deliver(service, held, persona.email, mail);
   } catch (error) {
-    await settleOnce(service, userId, key, false).catch(() => undefined);
+    if (held) await release(service, held, false).catch(() => undefined);
     console.error("lifecycle_welcome_failed", { error: String(error).slice(0, 200) });
     return "failed";
   }
 }
 
 type PaymentRow = {
+  amount_try?: number | null;
   user_id: string | null;
   beneficiary_user_id: string | null;
   status: string | null;
@@ -143,7 +183,7 @@ export async function sendPurchaseMail(service: SupabaseClient, merchantOid: str
   try {
     const { data: payment } = await service
       .from("payments")
-      .select("user_id, beneficiary_user_id, status, plans(slug, name, tier, billing_period, is_premium, credit_amount)")
+      .select("user_id, beneficiary_user_id, status, amount_try, plans(slug, name, tier, billing_period, is_premium, credit_amount)")
       .eq("merchant_oid", merchantOid)
       .maybeSingle();
     const row = payment as PaymentRow | null;
@@ -153,12 +193,12 @@ export async function sendPurchaseMail(service: SupabaseClient, merchantOid: str
     const kind = purchaseKindFor(plan);
     if (!kind) return "skipped";
 
-    const key = `once:purchase:${merchantOid}`;
-    if (!(await claimOnce(service, userId, key))) return "skipped";
+    const held = await claim(service, userId, "payment_confirmed", dedupeKeys.purchase(merchantOid));
+    if (!held) return "skipped";
     try {
       const persona = await loadPersona(service, userId);
       if (!persona) {
-        await settleOnce(service, userId, key, false);
+        await release(service, held, false);
         return "skipped";
       }
       const { data: audit } = await service
@@ -182,21 +222,28 @@ export async function sendPurchaseMail(service: SupabaseClient, merchantOid: str
           .maybeSingle();
         endsAt = (sub?.current_period_end as string | null) ?? null;
       }
-      const context = await loadPersonalContext(service, userId, origin);
-      const mail = renderPurchaseMail({
-        kind,
-        firstName: persona.firstName,
-        planName: plan.name?.trim() || "Cortex Plus",
-        endsAt,
-        addonCredits: plan.credit_amount ?? null,
-        giftedByParent,
-        exam: context.exam,
-        next: context.next,
-        ...urls(origin),
-      });
-      return await deliver(service, userId, key, persona.email, mail, `purchase-${merchantOid}`.slice(0, 200));
+      const planName = plan.name?.trim() || "Cortex Plus";
+      let mail: RenderedMail;
+      if (kind === "trial") {
+        const context = await loadPersonalContext(service, userId, origin);
+        mail = renderPurchaseMail({ kind, firstName: persona.firstName, planName, endsAt, giftedByParent, exam: context.exam, next: context.next, ...urls(origin) });
+      } else {
+        // Faz 6: "{plan} paketin aktif! Sınav yolunda tüm kilitler açıldı" (tutar KDV dahil, otomatik çekim yok).
+        const allowance = allowanceForPurchase({ kind, addonCredits: plan.credit_amount ?? null });
+        mail = renderPaymentConfirmed({
+          firstName: persona.firstName,
+          planName,
+          kind,
+          amountKurus: Number(row.amount_try ?? 0),
+          periodEnd: endsAt,
+          benefits: purchaseBenefits(kind, allowance),
+          parentPaid: giftedByParent,
+          origin,
+        });
+      }
+      return await deliver(service, held, persona.email, mail);
     } catch (error) {
-      await settleOnce(service, userId, key, false).catch(() => undefined);
+      await release(service, held, false).catch(() => undefined);
       throw error;
     }
   } catch (error) {
@@ -213,12 +260,13 @@ export async function sendTrialMail(
   origin: string = appOrigin(),
 ): Promise<LifecycleOutcome> {
   if (!trial.plusDays || trial.plusDays < 1) return "skipped";
-  const key = "once:trial";
+  let held: Claim | null = null;
   try {
-    if (!(await claimOnce(service, userId, key))) return "skipped";
+    held = await claim(service, userId, "trial", dedupeKeys.trial(userId));
+    if (!held) return "skipped";
     const persona = await loadPersona(service, userId);
     if (!persona) {
-      await settleOnce(service, userId, key, false);
+      await release(service, held, false);
       return "skipped";
     }
     const context = await loadPersonalContext(service, userId, origin);
@@ -232,9 +280,9 @@ export async function sendTrialMail(
       next: context.next,
       ...urls(origin),
     });
-    return await deliver(service, userId, key, persona.email, mail, `trial-${userId}`);
+    return await deliver(service, held, persona.email, mail);
   } catch (error) {
-    await settleOnce(service, userId, key, false).catch(() => undefined);
+    if (held) await release(service, held, false).catch(() => undefined);
     console.error("lifecycle_trial_failed", { error: String(error).slice(0, 200) });
     return "failed";
   }
@@ -258,7 +306,10 @@ export async function sendWelcomeCatchUp(
     .limit(options.limit ?? 100);
   const ids = (profiles ?? []).map((row) => String(row.id));
   if (!ids.length) return { mailed: 0, skipped: 0 };
-  const { data: done } = await service.from("email_events").select("user_id").eq("template_key", "once:welcome").in("user_id", ids);
+  const logged = await service.from("email_dispatch_log").select("user_id").in("dedupe_key", ids.map((id) => dedupeKeys.welcome(id)));
+  const done = logged.error && missingRelation(logged.error)
+    ? (await service.from("email_events").select("user_id").eq("template_key", "once:welcome").in("user_id", ids)).data
+    : logged.data;
   const sent = new Set((done ?? []).map((row) => String(row.user_id)));
   const pending = ids.filter((id) => !sent.has(id));
   const result = await runWithBudget(pending, async (id) => (await sendWelcomeOnce(service, id)) === "sent", {
@@ -273,28 +324,38 @@ export function renderLifecycleSample(id: LifecycleMailId, origin: string = appO
   const base = urls(origin);
   const exam = { daysLeft: 23, title: "TYT Biyoloji" };
   const next = { heading: "Hücre zarının yapısı ve seçici geçirgenliği", url: `${origin}/ogretmen` };
-  if (id === "welcome") {
-    const input: WelcomeMailInput = { firstName: "ayşe", via: "email", needsVerification: true, exam, next: null, ctaUrl: base.ctaUrl, createUrl: base.createUrl, solveUrl: base.solveUrl };
-    return renderWelcomeMail(input);
-  }
+  // Faz 6: önizleme gerçekte gönderilen şablonu çizer (bağlantılar bu sitenin adresiyle).
+  const withOrigin = <T extends { origin: string }>(input: T): T => ({ ...input, origin });
+  if (id === "welcome") return renderWelcomeOnboarding(withOrigin(SAMPLE_WELCOME_ONBOARDING));
+  if (id === "activation_24h") return renderActivation24h(withOrigin(SAMPLE_ACTIVATION_24H));
+  if (id === "free_first_unit_completed") return renderFreeFirstUnitCompleted(withOrigin(SAMPLE_FREE_FIRST_UNIT_COMPLETED));
+  if (id === "smart_trap_nudge") return renderSmartTrapNudge(withOrigin(SAMPLE_SMART_TRAP_NUDGE));
+  if (id === "exam_eve_cheat_sheet") return renderExamEveCheatSheet(withOrigin(SAMPLE_EXAM_EVE_CHEAT_SHEET));
+  if (id === "subscription_expiry_reminder") return renderSubscriptionExpiryReminder(withOrigin(SAMPLE_SUBSCRIPTION_EXPIRY_REMINDER));
+  if (id === "weekly_study_digest") return renderWeeklyStudyDigest(withOrigin(SAMPLE_WEEKLY_STUDY_DIGEST));
   const kind: PurchaseKind = id;
-  const names: Record<PurchaseKind, string> = {
-    plus_monthly: "Plus",
-    plus_weekly: "Plus",
-    plus_yearly: "Plus",
-    sigma: "Sigma",
-    addon: "Ek Kredi 150",
-    trial: "Plus",
-  };
-  const day = 86_400_000;
-  const days = kind === "plus_weekly" ? 7 : kind === "trial" ? 14 : 30;
+  if (kind !== "trial") {
+    const names: Record<PaymentConfirmedKind, string> = { plus_monthly: "Plus", plus_weekly: "Sınav Haftası", plus_yearly: "Plus", sigma: "Sigma", addon: "Ek Kredi 150" };
+    const amounts: Record<PaymentConfirmedKind, number> = { plus_monthly: 59900, plus_weekly: 34900, plus_yearly: 599000, sigma: 199900, addon: 14900 };
+    const days = kind === "plus_weekly" ? 7 : 30;
+    return renderPaymentConfirmed({
+      ...SAMPLE_PAYMENT_CONFIRMED,
+      kind,
+      planName: names[kind],
+      amountKurus: amounts[kind],
+      periodEnd: kind === "addon" ? null : new Date(Date.now() + days * 86_400_000).toISOString(),
+      benefits: purchaseBenefits(kind, allowanceForPurchase({ kind, addonCredits: kind === "addon" ? 2500 : null })),
+      origin,
+    });
+  }
+  // Deneme (beta kodu) eski şablonla gider: ödeme yok, kart istenmez.
   const input: PurchaseMailInput = {
     kind,
     firstName: "ayşe",
-    planName: names[kind],
-    endsAt: kind === "addon" ? null : new Date(Date.now() + days * day).toISOString(),
-    trialDays: kind === "trial" ? 14 : null,
-    addonCredits: kind === "addon" ? 2500 : null,
+    planName: "Plus",
+    endsAt: new Date(Date.now() + 14 * 86_400_000).toISOString(),
+    trialDays: 14,
+    addonCredits: null,
     exam,
     next,
     ...base,

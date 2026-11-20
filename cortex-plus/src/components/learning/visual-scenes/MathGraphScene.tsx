@@ -3,7 +3,6 @@
 import { ARCHETYPE_LABEL, DOMAIN_LABEL, type AcademicDomain } from "@/lib/learning/visual-scenes/archetype";
 import {
   layoutHeader,
-  SCENE_FONT_FLOOR,
   labelBudget,
   textPlacer,
   rectsOverlap,
@@ -424,6 +423,8 @@ function arcPath(cx: number, cy: number, r: number, from: number, to: number): s
 
 export function MathGraphScene({ data, domain, ...common }: SceneCommonProps & { data: MathGraphData; domain?: AcademicDomain }) {
   const layout = layoutMathGraph(data, common.frame, domain);
+  // Adım numarası çerçevenin yazı tabanında (dikey videoda büyür).
+  const stepFont = layout.frame.text.floor;
   const id = useSceneIds("math");
   const [badge, title] = layout.texts;
   const { graph } = layout;
@@ -551,7 +552,7 @@ export function MathGraphScene({ data, domain, ...common }: SceneCommonProps & {
         <g key={`step${index}`} className="cp-vs-fade" style={delay(2.2 + index * 0.35)}>
           <rect x={step.chip.x} y={step.chip.y} width={step.chip.w} height={step.chip.h} rx={10} fill={MATH_COLORS.step} fillOpacity={0.14} stroke={MATH_COLORS.step} strokeWidth={1.2} />
           <circle cx={step.chip.x + 14} cy={step.chip.y + step.chip.h / 2} r={8} fill={MATH_COLORS.step} />
-          <text x={step.chip.x + 14} y={step.chip.y + step.chip.h / 2 + SCENE_FONT_FLOOR * 0.36} fontSize={SCENE_FONT_FLOOR} fontWeight={800} textAnchor="middle" fill={MATH_COLORS.bg}>
+          <text x={step.chip.x + 14} y={step.chip.y + step.chip.h / 2 + stepFont * 0.36} fontSize={stepFont} fontWeight={800} textAnchor="middle" fill={MATH_COLORS.bg}>
             {index + 1}
           </text>
           <SceneText box={step.text} fill={MATH_COLORS.text} rich />

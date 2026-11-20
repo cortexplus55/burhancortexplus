@@ -59,7 +59,7 @@ async function measure(page: Page) {
   }, PARTS);
 }
 
-for (const width of [375, 768, 1280]) {
+for (const width of [375, 768, 1180, 1280]) {
   test(`kabuk ${width} px: üst çubuk üç sayfada aynı, taşma yok`, { tag: ["@public"] }, async ({ page }) => {
     await prepare(page);
     await page.setViewportSize({ width, height: width < 768 ? 812 : 900 });

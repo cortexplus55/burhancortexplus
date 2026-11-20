@@ -1,6 +1,6 @@
 "use client";
 
-import { placeBadge, placeText, shiftBox, type Rect, type SceneFrame, type SceneLayout, type TextBox } from "@/lib/learning/visual-scenes/layout";
+import { floorPlacer, placeBadge, shiftBox, type Rect, type SceneFrame, type SceneLayout, type TextBox, type TextPlacer } from "@/lib/learning/visual-scenes/layout";
 import type { ReelTrap } from "@/lib/learning/visual-scenes/schema";
 import { SceneBadge, SceneSvg, SceneText, delay, type SceneCommonProps } from "./scene-kit";
 
@@ -14,14 +14,14 @@ export const TRAP_COLORS = { bg: "#1a0b10", wrong: "#ef4444", right: "#10b981", 
 export type TrapPanel = { rect: Rect; kicker: TextBox; body: TextBox; icon: { cx: number; cy: number; r: number } };
 export type TrapLayout = SceneLayout & { warning: TextBox; title: TextBox; wrong: TrapPanel; right: TrapPanel; tell: { rect: Rect; kicker: TextBox; text: TextBox } | null };
 
-function panel(id: "wrong" | "right", text: string, rect: Rect, portrait: boolean): TrapPanel {
+function panel(place: TextPlacer, id: "wrong" | "right", text: string, rect: Rect, portrait: boolean): TrapPanel {
   const iconR = portrait ? 22 : 20;
   const textX = rect.x + 14 + iconR * 2 + 12;
   const maxWidth = rect.x + rect.w - 12 - textX;
-  const kicker0 = placeText(`${id}-kicker`, id === "wrong" ? "SIK YAPILAN HATA" : "DOĞRUSU", textX, rect.y + 14, { maxWidth, maxLines: 1, fontSize: portrait ? 11.5 : 10.5, weight: 800, single: true });
+  const kicker0 = place(`${id}-kicker`, id === "wrong" ? "SIK YAPILAN HATA" : "DOĞRUSU", textX, rect.y + 14, { maxWidth, maxLines: 1, fontSize: portrait ? 11.5 : 10.5, weight: 800, single: true });
   const bodyTop = kicker0.rect.y + kicker0.rect.h + 4;
   const lineH = portrait ? 23 : 18;
-  const body0 = placeText(`${id}-body`, text, textX, bodyTop, {
+  const body0 = place(`${id}-body`, text, textX, bodyTop, {
     maxWidth,
     maxLines: Math.max(2, Math.floor((rect.y + rect.h - 12 - bodyTop) / lineH)),
     fontSize: portrait ? 18 : 14.5,
@@ -39,19 +39,20 @@ function panel(id: "wrong" | "right", text: string, rect: Rect, portrait: boolea
 
 export function layoutExamTrap(data: ReelTrap, frame: SceneFrame): TrapLayout {
   const { content } = frame;
-  const warning = placeBadge("warning", "Sakın buna düşme!", content.x + content.w, content.y, content.w * 0.7, 11);
-  const title = placeText("title", data.title, content.x, warning.rect.y + warning.rect.h + 8, { maxWidth: content.w, maxLines: 2, fontSize: 19, minFontSize: 14, weight: 800 });
+  const place = floorPlacer(frame);
+  const warning = placeBadge("warning", "Sakın buna düşme!", content.x + content.w, content.y, content.w * 0.7, 11, 1, frame.text);
+  const title = place("title", data.title, content.x, warning.rect.y + warning.rect.h + 8, { maxWidth: content.w, maxLines: 2, fontSize: 19, minFontSize: 14, weight: 800 });
   const top = title.rect.y + title.rect.h + 12;
   const bottom = content.y + content.h;
   let tell: TrapLayout["tell"] = null;
   let tellH = 0;
   if (data.tell) {
-    const kicker = placeText("tell-kicker", "AYIRT ETTİREN İPUCU", content.x + 34, 0, { maxWidth: content.w - 46, maxLines: 1, fontSize: 9.5, weight: 800, single: true });
-    const probe = placeText("tell-text", data.tell, content.x + 34, 0, { maxWidth: content.w - 46, maxLines: 2, fontSize: 11.5, minFontSize: 9.5, weight: 600 });
+    const kicker = place("tell-kicker", "AYIRT ETTİREN İPUCU", content.x + 34, 0, { maxWidth: content.w - 46, maxLines: 1, fontSize: 9.5, weight: 800, single: true });
+    const probe = place("tell-text", data.tell, content.x + 34, 0, { maxWidth: content.w - 46, maxLines: 2, fontSize: 11.5, minFontSize: 9.5, weight: 600 });
     tellH = kicker.rect.h + probe.rect.h + 18;
     const y = bottom - tellH;
-    const k = placeText("tell-kicker", "AYIRT ETTİREN İPUCU", content.x + 34, y + 8, { maxWidth: content.w - 46, maxLines: 1, fontSize: 9.5, weight: 800, single: true });
-    const t = placeText("tell-text", data.tell, content.x + 34, k.rect.y + k.rect.h + 2, { maxWidth: content.w - 46, maxLines: 2, fontSize: 11.5, minFontSize: 9.5, weight: 600 });
+    const k = place("tell-kicker", "AYIRT ETTİREN İPUCU", content.x + 34, y + 8, { maxWidth: content.w - 46, maxLines: 1, fontSize: 9.5, weight: 800, single: true });
+    const t = place("tell-text", data.tell, content.x + 34, k.rect.y + k.rect.h + 2, { maxWidth: content.w - 46, maxLines: 2, fontSize: 11.5, minFontSize: 9.5, weight: 600 });
     tell = { rect: { x: content.x, y, w: content.w, h: tellH }, kicker: k, text: t };
   }
   const panelsBottom = bottom - (tell ? tellH + 12 : 0);
@@ -66,8 +67,8 @@ export function layoutExamTrap(data: ReelTrap, frame: SceneFrame): TrapLayout {
     wrongRect = { x: content.x, y: top, w, h: panelsBottom - top };
     rightRect = { x: content.x + w + 14, y: top, w, h: panelsBottom - top };
   }
-  const wrong = panel("wrong", data.wrong, wrongRect, frame.portrait);
-  const right = panel("right", data.right, rightRect, frame.portrait);
+  const wrong = panel(place, "wrong", data.wrong, wrongRect, frame.portrait);
+  const right = panel(place, "right", data.right, rightRect, frame.portrait);
   const markers = [wrong, right].map((p, i) => ({ id: `icon${i}`, rect: { x: p.icon.cx - p.icon.r, y: p.icon.cy - p.icon.r, w: p.icon.r * 2, h: p.icon.r * 2 } }));
   if (tell) markers.push({ id: "bulb", rect: { x: content.x + 8, y: tell.rect.y + 8, w: 18, h: 22 } });
   return {

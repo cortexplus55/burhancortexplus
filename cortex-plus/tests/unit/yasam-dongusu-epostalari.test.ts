@@ -143,14 +143,21 @@ describe("bir kez gönderim", () => {
         },
       },
       from: (table: string) => {
-        if (table === "email_events") {
+        // Faz 6 (20 Kasım 2026): "bir kez" kaydı `email_dispatch_log` (dedupe_key tekil); işlem e-postası 24 saat
+        // kuralına girmez, bu yüzden son gönderim okunmaz.
+        if (table === "email_dispatch_log") {
           return {
-            insert: async (row: { template_key: string }) => {
-              state.events.push(row.template_key);
-              return { error: state.claimFails ? { code: "23505" } : null };
-            },
-            update: () => ({ eq: () => ({ eq: async () => ({}) }) }),
-            delete: () => ({ eq: () => ({ eq: () => ({ eq: async () => ((state.deletes += 1), {}) }) }) }),
+            insert: (row: { dedupe_key: string }) => ({
+              select: () => ({
+                maybeSingle: async () => {
+                  state.events.push(row.dedupe_key);
+                  return state.claimFails
+                    ? { data: null, error: { code: "23505", message: "duplicate key value" } }
+                    : { data: { id: "log-1" }, error: null };
+                },
+              }),
+            }),
+            delete: () => ({ eq: async () => ((state.deletes += 1), { error: null }) }),
           };
         }
         return { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { full_name: "Ada Yılmaz" } }) }) }) };
@@ -174,7 +181,7 @@ describe("bir kez gönderim", () => {
   it("ilk çağrı gönderir; kayıt zaten varsa (ikinci çağrı) göndermez", async () => {
     const { sendWelcomeOnce } = await load();
     expect(await sendWelcomeOnce(service(), "u1", "https://cortexplus.app")).toBe("sent");
-    expect(state.events).toEqual(["once:welcome"]);
+    expect(state.events).toEqual(["welcome:u1"]);
     state.claimFails = true;
     expect(await sendWelcomeOnce(service(), "u1", "https://cortexplus.app")).toBe("skipped");
     expect(state.sends).toBe(1);
@@ -200,6 +207,6 @@ describe("tetikleyiciler", () => {
     expect(read("src/app/onboarding/page.tsx")).toContain("void triggerWelcomeEmail().catch(() => undefined);");
     expect(read("src/app/api/payments/paytr/callback/route.ts")).toContain("sendPurchaseMail(service, merchantOid, appOrigin())");
     expect(read("src/app/api/promo/redeem/route.ts")).toContain("sendTrialMail(service, userId,");
-    expect(read("src/app/api/cron/study-reminders/route.ts")).toContain("sendWelcomeCatchUp(service,");
+    expect(read("src/lib/notifications/jobs/daily-reminders.ts")).toContain("sendWelcomeCatchUp(service,");
   });
 });

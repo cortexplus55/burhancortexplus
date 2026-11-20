@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render } from "@testing-library/react";
 import { isProgression, phraseDirection, trendOf, withTrend } from "@/lib/learning/visual-scenes/direction-semantics";
 import { parseVisualScene, type MechanicsData } from "@/lib/learning/visual-scenes/schema";
-import { layoutIssues, sceneFrame, type SceneChrome, type SceneMode } from "@/lib/learning/visual-scenes/layout";
+import { VIDEO_PORTRAIT_FONT_FLOOR, layoutIssues, sceneFrame, type SceneChrome, type SceneMode } from "@/lib/learning/visual-scenes/layout";
 import { layoutMechanics } from "@/components/learning/visual-scenes/MechanicsVectorScene";
 import { layoutMedicalPathway } from "@/components/learning/visual-scenes/MedicalPathwayScene";
 import { VisualSceneRenderer } from "@/components/learning/visual-scenes";
@@ -102,6 +102,30 @@ describe("yön ve eğilim anlamı", () => {
       });
     }
   }
+
+  it("dikey videonun yazı tabanında (13,5) kalabalık eğilim sahnesi: panel sadeleşir; dört ok etiketiyle, formül ve ilk sürücü kalır", () => {
+    const scene = parseVisualScene(TREND_RAW) as MechanicsData;
+    const problems: string[] = [];
+    let trimmed = 0;
+    for (const level of [undefined, 1, 2, 3, 4] as const) {
+      for (const domain of [undefined, "physics", "engineering", "chemistry"] as const) {
+        const key = `L${level ?? "-"} ${domain ?? "-"}`;
+        const layout = layoutMechanics(scene, sceneFrame("9:16", "video", level), domain);
+        const issues = layoutIssues(layout).map((issue) => `${issue.kind} ${issue.detail}`);
+        const cut = layout.texts.filter((box) => box.truncated).map((box) => `kesik ${box.id}`);
+        const small = layout.texts.filter((box) => box.fontSize < VIDEO_PORTRAIT_FONT_FLOOR).map((box) => `${box.id}:${box.fontSize}`);
+        if (issues.length || cut.length || small.length) problems.push(`${key}: ${[...issues, ...cut, ...small].join("; ")}`);
+        expect(layout.vectors, key).toHaveLength(4);
+        expect(layout.vectors.every((vector) => vector.label.lines.join(" ").length > 0), key).toBe(true);
+        expect(layout.formula.lines.join(" "), key).toBe("İki nicelik aynı yönde değişir.");
+        expect(layout.rows[0]?.label.lines.join(" "), key).toBe("Soldan sağa ilerleme: azalır");
+        // Bu fikstür panel sadeleşmesini çalıştırır: ders kartında iki sürücü satırı, dikey videoda gerekince bir.
+        if (layout.rows.length < layoutMechanics(scene, sceneFrame("9:16", "lesson", level), domain).rows.length) trimmed += 1;
+      }
+    }
+    expect(problems).toEqual([]);
+    expect(trimmed).toBeGreaterThan(0);
+  });
 
   it("50 karakterlik etiketler kesilmeden sarılır (kuvvet sahnesi, iki oran, iki yüzey)", () => {
     const long = {

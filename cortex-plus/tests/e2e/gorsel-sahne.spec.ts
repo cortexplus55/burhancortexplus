@@ -97,6 +97,11 @@ for (const width of WIDTHS) {
         await expect(page.locator(`.cp-video-reel svg.cp-vs[data-mode='${ratio}']`)).toHaveCount(1);
         const m = await svgTextIssues(page);
         expect(m.issues, `${arketip} ${ratio}`).toEqual([]);
+        if (ratio === "9:16") {
+          // Dikey videonun yazı tabanı 13,5 birim (telefonda ~0,85 ölçekte ≥ 11,4 px): rozet, pin ve küçük etiketler dahil.
+          const sizes = await page.locator(".cp-video-reel svg.cp-vs text").evaluateAll((nodes) => nodes.map((node) => Number(node.getAttribute("font-size"))));
+          expect(Math.min(...sizes), `${arketip} 9:16 en küçük yazı`).toBeGreaterThanOrEqual(13.5);
+        }
       }
     }
   });

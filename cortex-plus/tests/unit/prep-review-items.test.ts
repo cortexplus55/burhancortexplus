@@ -516,7 +516,7 @@ describe("bekçi: kaynak", () => {
     expect(prepPage).toContain("dueReviewCountForPrep(service");
     expect(prepPage).toContain("dueReviews={dueReviews}");
     expect(read("src/lib/learning/review-items-store.ts")).toMatch(/dueReviewCountForPrep[\s\S]*SPACED_REVIEW_FLAG/);
-    const cron = read("src/app/api/cron/study-reminders/route.ts");
+    const cron = read("src/lib/notifications/jobs/daily-reminders.ts");
     expect(cron).toContain("isFeatureEnabled(service, SPACED_REVIEW_FLAG)");
     // 31 Ekim 2026: sayılar SQL fonksiyonundan, yoksa tablodan (reminder-facts.ts).
     const facts = read("src/lib/learning/reminder-facts.ts");

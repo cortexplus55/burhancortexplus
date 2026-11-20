@@ -30,6 +30,7 @@ import { EmailVerifyBanner } from "@/components/auth/email-verify-banner";
 import { profilePlanView } from "@/lib/billing/tier-presentation";
 import { ExamChatMenu } from "@/components/parity/exam-chat-menu";
 import { ExamCountdownBadge } from "@/components/parity/exam-countdown-badge";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import type { ExamCountdown } from "@/lib/learning/exam-countdown";
 import type { RecentConversation } from "@/lib/student/conversation-time";
 import "@/styles/parity-shell.css";
@@ -367,7 +368,7 @@ export function ParitySorShell({
           <div className="cx-home-actions">
             <button type="button" className="cx-home-start cx-glass" onClick={startTeacher}>
               <Sparkles aria-hidden />
-              Başla
+              <span className="cx-home-start-label">Başla</span>
             </button>
             <button
               type="button"
@@ -390,6 +391,8 @@ export function ParitySorShell({
                 <span className="cx-home-buy-short">Plus</span>
               </Link>
             ) : null}
+            {/* Bildirim çanı (Faz 6, 20 Kasım 2026): kapsülün solunda; telefonda kapsül yokken de görünür. */}
+            <NotificationBell />
             <AccountCapsule
               name={displayName}
               initial={initial}

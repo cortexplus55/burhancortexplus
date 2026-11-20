@@ -44,6 +44,7 @@ import { mistakeDraftsFromAttempt, nonPoolQuizAnswers, poolQuizAnswers, scoreAtt
 import { recordAnswerEvidence } from "@/lib/mastery-map/exam-evidence";
 import { recordPoolAnswers } from "@/lib/content-pool/record-answers";
 import { refreshStudentMemory } from "@/lib/learning/student-memory";
+import { notifyBlindSpots, notifyTopicLearned } from "@/lib/notifications/events";
 import type { NodeContext } from "./context";
 
 export async function completeAction(context: NodeContext): Promise<NextResponse> {
@@ -293,6 +294,18 @@ export async function completeAction(context: NodeContext): Promise<NextResponse
             question_preview: d.questionPreview,
           })),
         );
+        // Faz 6: yeni sınav tuzağı çanda (etkinlik başına bir bildirim, 0 maliyet).
+        deferTask(
+          () =>
+            notifyBlindSpots(service, {
+              userId,
+              prepId,
+              attemptId: attempt.id,
+              count: drafts.length,
+              topicLabel: topicLabel || null,
+            }),
+          background,
+        );
       }
     }
 
@@ -349,6 +362,18 @@ export async function completeAction(context: NodeContext): Promise<NextResponse
             question_preview: d.questionPreview,
           })),
         );
+        // Faz 6: yeni sınav tuzağı çanda (etkinlik başına bir bildirim, 0 maliyet).
+        deferTask(
+          () =>
+            notifyBlindSpots(service, {
+              userId,
+              prepId,
+              attemptId: attempt.id,
+              count: fresh.length,
+              topicLabel: canonicalTopicLabel(doneTopicLabel ?? topicLabel) || null,
+            }),
+          background,
+        );
       }
 
       // Faz 4: kart düğümünün öz bildirimleri SM-2 ile kart tekrar kaydına (hata günlüğe iner, tamamlama sürer).
@@ -381,6 +406,9 @@ export async function completeAction(context: NodeContext): Promise<NextResponse
         });
         learningTracking = tracked.tracking;
         topicGain = tracked.topicGain;
+        // Faz 6: konu "Öğrendin" rozetine ulaştıysa çanda (konu başına bir kez).
+        const learnedLabel = tracked.topicGain?.badge === "learned" ? tracked.topicGain.label : null;
+        if (learnedLabel) deferTask(() => notifyTopicLearned(service, { userId, prepId, topicLabel: learnedLabel }), background);
         // Sonuç sayfası "+%X" aşamasını kayıttan okur (29 Ekim 2026); kazanç yoksa kayda bir şey yazılmaz.
         if (tracked.topicGain) {
           await awaitLoggedWrite(

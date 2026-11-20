@@ -1,7 +1,7 @@
 "use client";
 
 import { DOMAIN_LABEL, type AcademicDomain } from "@/lib/learning/visual-scenes/archetype";
-import { placeBadge, placeText, type Rect, type SceneFrame, type SceneLayout, type TextBox } from "@/lib/learning/visual-scenes/layout";
+import { floorPlacer, placeBadge, type Rect, type SceneFrame, type SceneLayout, type TextBox } from "@/lib/learning/visual-scenes/layout";
 import type { ReelHook } from "@/lib/learning/visual-scenes/schema";
 import { SceneBadge, SceneSvg, SceneText, delay, useSceneIds, type SceneCommonProps } from "./scene-kit";
 
@@ -16,16 +16,17 @@ export type HookLayout = SceneLayout & { badge: TextBox; glyph: { cx: number; cy
 
 export function layoutReelHook(data: ReelHook, frame: SceneFrame, domain?: AcademicDomain): HookLayout {
   const { content } = frame;
-  const badge = placeBadge("badge", data.badge ?? "Sınavda en çok çıkan", content.x + content.w, content.y, content.w * 0.7, 10.5);
-  const domainBox = domain ? placeText("domain", DOMAIN_LABEL[domain].toLocaleUpperCase("tr"), content.x, content.y + 4, { maxWidth: content.w - badge.rect.w - 12, maxLines: 1, fontSize: 10, weight: 800, single: true }) : null;
+  const place = floorPlacer(frame);
+  const badge = placeBadge("badge", data.badge ?? "Sınavda en çok çıkan", content.x + content.w, content.y, content.w * 0.7, 10.5, 1, frame.text);
+  const domainBox = domain ? place("domain", DOMAIN_LABEL[domain].toLocaleUpperCase("tr"), content.x, content.y + 4, { maxWidth: content.w - badge.rect.w - 12, maxLines: 1, fontSize: 10, weight: 800, single: true }) : null;
   const top = badge.rect.y + badge.rect.h + 10;
   const bottom = content.y + content.h;
   if (frame.portrait) {
     const glyphSize = Math.min(110, (bottom - top) * 0.26);
     const glyph = { cx: content.x + content.w / 2, cy: top + glyphSize / 2 + 4, size: glyphSize };
-    const title = placeText("visual-title", data.visualTitle, content.x + content.w / 2, glyph.cy + glyphSize / 2 + 14, { maxWidth: content.w, maxLines: 2, fontSize: 26, minFontSize: 18, weight: 800, anchor: "middle" });
+    const title = place("visual-title", data.visualTitle, content.x + content.w / 2, glyph.cy + glyphSize / 2 + 14, { maxWidth: content.w, maxLines: 2, fontSize: 26, minFontSize: 18, weight: 800, anchor: "middle" });
     const qTop = title.rect.y + title.rect.h + 22;
-    const question = placeText("question", data.question, content.x + 16, qTop + 14, { maxWidth: content.w - 32, maxLines: Math.max(2, Math.floor((bottom - qTop - 28) / 20)), fontSize: 16, minFontSize: 12, weight: 700 });
+    const question = place("question", data.question, content.x + 16, qTop + 14, { maxWidth: content.w - 32, maxLines: Math.max(2, Math.floor((bottom - qTop - 28) / 20)), fontSize: 16, minFontSize: 12, weight: 700 });
     const bubble: Rect = { x: content.x, y: qTop, w: content.w, h: question.rect.h + 28 };
     return { frame, texts: [badge, ...(domainBox ? [domainBox] : []), title, question], segments: [], markers: [], badge, glyph, title, bubble, question, domain: domainBox };
   }
@@ -33,9 +34,9 @@ export function layoutReelHook(data: ReelHook, frame: SceneFrame, domain?: Acade
   const glyph = { cx: content.x + glyphSize / 2 + 10, cy: top + (bottom - top) / 2, size: glyphSize };
   const textX = content.x + glyphSize + 36;
   const textW = content.x + content.w - textX;
-  const title = placeText("visual-title", data.visualTitle, textX, top + 4, { maxWidth: textW, maxLines: 2, fontSize: 24, minFontSize: 16, weight: 800 });
+  const title = place("visual-title", data.visualTitle, textX, top + 4, { maxWidth: textW, maxLines: 2, fontSize: 24, minFontSize: 16, weight: 800 });
   const qTop = title.rect.y + title.rect.h + 16;
-  const question = placeText("question", data.question, textX + 14, qTop + 12, { maxWidth: textW - 28, maxLines: Math.max(2, Math.floor((bottom - qTop - 24) / 19)), fontSize: 15, minFontSize: 11.5, weight: 700 });
+  const question = place("question", data.question, textX + 14, qTop + 12, { maxWidth: textW - 28, maxLines: Math.max(2, Math.floor((bottom - qTop - 24) / 19)), fontSize: 15, minFontSize: 11.5, weight: 700 });
   const bubble: Rect = { x: textX, y: qTop, w: textW, h: question.rect.h + 24 };
   return { frame, texts: [badge, ...(domainBox ? [domainBox] : []), title, question], segments: [], markers: [], badge, glyph, title, bubble, question, domain: domainBox };
 }
