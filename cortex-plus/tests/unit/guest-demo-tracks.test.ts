@@ -119,16 +119,22 @@ describe("dört branş, yedi adım: her adım branşın kendi verisi", () => {
         expect(meta.pages).toBe(expected.pages);
         const file = journeyFile(id);
         expect(file.name).toBe(expected.file);
-        expect(file.meta).toBe(`Örnek not · ${meta.subject} · ${expected.pages} sayfa`);
         const findings = journeyScanFindings(id);
         expect(findings.map((item) => item.id)).toEqual(["pages", "topics", "warning", "figure"]);
         expect(findings[0]!.text).toBe(`${expected.pages} sayfa`);
         expect(findings[1]!.text).toBe(`${meta.units.length} konu`);
         expect(findings[2]!.text).toBe(meta.warning);
         expect(findings[3]!.text).toBe(meta.figure);
-        // Ana sayfadaki bırakma alanının rozeti: dosya adı ve "N sayfa" (Faz 9; konsolun bağlam satırı kalktı).
+        // Ana sayfadaki örnek not kartı: dosya adı ve "N sayfa" (Faz 9.1: kart ders çekirdeğine götürülür).
         expect(file.pagesLabel).toBe(`${expected.pages} sayfa`);
-        expect(file.start).toBe("Örnek Notla 7 Adımı İzle");
+        expect(file.send).toBe("Örnek notu çekirdeğe gönder");
+        // Çekirdekten doğan kartların sayıları stüdyonun göstereceği örnek veriyle aynı (uydurma sayı yok).
+        expect(meta.tour).toEqual({
+          sections: content.lesson.screens.length,
+          questions: content.quiz.length,
+          cards: content.cards.length,
+          statements: content.trueFalse.length,
+        });
       });
 
       it("2. yol: branşın konuları gün gün, ilk gün hazır ders; uyarının etiketi notun kendi satırından", () => {
@@ -302,7 +308,7 @@ describe("kahramanın tek seçicisi ↔ branş: tek durum (Faz 9)", () => {
 
   it("lise branşının değerleri turun öteden beri bilinen sabitleri", () => {
     expect(JOURNEY_FILE.name).toBe(journeyFile("lise").name);
-    expect(JOURNEY_FILE.meta).toBe("Örnek not · Matematik · 6 sayfa");
+    expect(JOURNEY_FILE.pagesLabel).toBe("6 sayfa");
     expect(JOURNEY_ROADMAP.days).toEqual(journeyRoadmap("lise").days);
     expect(JOURNEY_WARNING).toEqual(journeyWarning("lise"));
     expect(journeyPlusPreviews("lise")).toEqual(JOURNEY_PLUS_PREVIEWS);

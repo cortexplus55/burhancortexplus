@@ -112,6 +112,7 @@ import { CameraCaptureInput, PhotoPageTray } from "@/components/parity/photo-pag
 import { TRAY_COPY, photoOnlySelection } from "@/lib/upload/photo-tray";
 import { usePhotoTray } from "@/lib/upload/use-photo-tray";
 import { GuestDocumentOffer } from "@/components/parity/guest-document-offer";
+import { readTourProgress } from "@/lib/marketing/guest-tour-progress";
 import { fileFindings, ScanCore, ScanFindings, useScanMoment, type ScanFinding } from "@/components/learning/scan-core";
 import { EXAM_PLACE_MAX, parseExamPlace, parseExamTime } from "@/lib/learning/exam-time";
 import {
@@ -628,8 +629,12 @@ export function ExamCreateWizard({
 
     if (local) {
       applyDraft(local);
-    } else if (pending) {
-      setStep("material");
+    } else {
+      if (pending) setStep("material");
+      // Faz 9.1 (20 Kasım 2026): misafir ana sayfanın turunda sınav gününü seçtiyse (bu sekmenin tur kaydı) ve taslak
+      // yoksa tarih adımı bugün + o gün ile açılır. Sunucudaki taslak gelirse onun tarihi geçerli (aşağıda).
+      const tourDays = readTourProgress()?.days;
+      if (tourDays) setExamDate(isoOf(addDays(tourDays)));
     }
 
     // Başka cihazda bırakılan kurulum (18 Ekim 2026): sunucudaki kopya yeniyse onu aç.

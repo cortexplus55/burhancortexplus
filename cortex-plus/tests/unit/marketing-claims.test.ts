@@ -35,6 +35,8 @@ const SURFACES = [
   // 11 Kasım 2026: 7 adımlı tanıtım turu vitrinin yerini aldı.
   "src/lib/marketing/landing-journey.ts",
   "src/components/landing/futuristic-guided-journey.tsx",
+  // Faz 9.1 (20 Kasım 2026): birinci adımın ders çekirdeği (örnek not, sınav günü, doğan ders ve küçük yol).
+  "src/components/landing/lesson-core.tsx",
   // Turun ürün ekranlarında gösterilen örnek veri de misafire gösterilen sözdür.
   "src/lib/demo/guest-tour.ts",
   // Faz 7 (20 Kasım 2026): turun dört branşı (örnek not, yol, uyarı, ders, soru, kart, önerme, sahne).

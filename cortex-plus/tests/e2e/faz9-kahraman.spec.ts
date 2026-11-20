@@ -50,7 +50,7 @@ test.describe("Faz 9: misafir kahramanı ve birinci adım", { tag: ["@public"] }
   test.describe.configure({ timeout: 120_000 });
 
   for (const size of SIZES) {
-    test(`kahraman ${size.width}px: tek seçici, tek kart, tek satır; taşma yok, dokunma ≥ 44 px, seçili seçenek ≥ 4,5:1`, async ({ page }) => {
+    test(`kahraman ${size.width}px: tek seçici, ders çekirdeği, tek satır; taşma yok, dokunma ≥ 44 px, seçili seçenek ≥ 4,5:1`, async ({ page }) => {
       await page.setViewportSize(size);
       await page.goto("/");
       const picker = page.getByRole("radiogroup", { name: "Hangi sınava hazırlanıyorsun?" });
@@ -75,7 +75,7 @@ test.describe("Faz 9: misafir kahramanı ve birinci adım", { tag: ["@public"] }
           await expect(page.getByRole("radio", { name })).toHaveAttribute("aria-checked", "true", { timeout: 1500 });
         }).toPass({ timeout: 20_000 });
         await expect(page.locator("[data-hero-cta]")).toHaveAttribute("href", href);
-        await expect(page.locator(".lj-drop-badge")).toContainText(file);
+        await expect(page.locator(".lj-note")).toContainText(file);
         await expect.poll(() => selectedContrast(page), { message: name }).toBeGreaterThanOrEqual(4.5);
         expect(await overflow(page), name).toBeLessThanOrEqual(1);
       }
@@ -85,17 +85,20 @@ test.describe("Faz 9: misafir kahramanı ve birinci adım", { tag: ["@public"] }
       await expect(page.getByRole("radio", { name: "Üniversite · Mühendislik" })).toBeFocused();
       await expect(page.getByRole("radio", { name: "Üniversite · Mühendislik" })).toHaveAttribute("aria-checked", "true");
 
-      // Birinci adım: tek kart; ray, bırakma alanı ve iki düğme. Geniş ekranda düğmeler yan yana, telefonda alt alta.
+      // Birinci adım (Faz 9.1): ray, örnek not, kendi notunun yuvası ve ders çekirdeği. Geniş ekranda not solda, çekirdek
+      // sağda; telefonda not üstte, çekirdek altta. Faz 9'un tek kartı ve iki düğmesi yok.
       const card = page.locator("section#nasil .lj-console");
       await expect(card.locator(".lj-rail button")).toHaveCount(7);
-      await expect(card.locator("[data-drop]")).toBeVisible();
-      await expect(card.locator(".lj-live, .lj-context, .lj-console-head, button.lj-zone, button.lj-file")).toHaveCount(0);
+      await expect(card.locator("[data-core]")).toBeVisible();
+      await expect(card.locator(".lj-live, .lj-context, .lj-console-head, button.lj-zone, button.lj-file, [data-drop], .lj-door-actions")).toHaveCount(0);
       const start = (await card.locator("[data-sample-start]").boundingBox())!;
       const own = (await card.locator("[data-own-pick]").boundingBox())!;
+      const core = (await card.locator(".lj-core-orb").boundingBox())!;
       expect(start.height).toBeGreaterThanOrEqual(44);
       expect(own.height).toBeGreaterThanOrEqual(44);
-      if (size.width >= 820) expect(Math.abs(start.y - own.y)).toBeLessThan(1);
-      else expect(own.y).toBeGreaterThan(start.y + start.height - 1);
+      expect(own.y).toBeGreaterThan(start.y + start.height - 1);
+      if (size.width >= 640) expect(core.x).toBeGreaterThan(start.x + start.width);
+      else expect(core.y).toBeGreaterThan(own.y + own.height);
       // Kahramanın altı tek satır; geniş ekranda gerçekten tek satır.
       const foot = page.locator("[data-hero-foot]");
       await expect(foot).toContainText("Kart istemiyoruz");

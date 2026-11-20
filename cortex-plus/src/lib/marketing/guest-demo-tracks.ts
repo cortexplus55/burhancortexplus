@@ -45,7 +45,16 @@ export type GuestDemoTrack = {
   units: readonly string[];
   /** Yol haritası: konular gün gün; ilk gün hazır ders. */
   days: readonly GuestDemoRoadmapDay[];
+  /**
+   * Stüdyonun göstereceği örnek verinin sayıları (Faz 9.1): ana sayfada çekirdekten doğan kartlar ("Ders · 2 bölüm",
+   * "Konu testi · 1 soru", "Kartlar · 2 kart") bunları söyler. Veri ilk yükte değil (`guest-tour-tracks.ts`, ayrı
+   * parça); bekçi test burada yazan sayıların o veriyle aynı olduğunu tutar.
+   */
+  tour: { sections: number; questions: number; cards: number; statements: number };
 };
+
+/** Dört branşın örnek dersi bugün aynı biçimde: 2 bölüm, 1 konu testi sorusu, 2 kart, 2 önerme (bekçi testle). */
+const TOUR_COUNTS = { sections: 2, questions: 1, cards: 2, statements: 2 } as const;
 
 const READY = "Hazır · 5 dk";
 
@@ -86,6 +95,7 @@ export const GUEST_DEMO_TRACKS: Record<GuestTrackId, GuestDemoTrack> = {
     figure: SAME_NOTE_CASE.input.lines[1],
     units: LISE_DAYS.map((day) => day.title),
     days: LISE_DAYS,
+    tour: TOUR_COUNTS,
   },
   muhendislik: {
     id: "muhendislik",
@@ -98,6 +108,7 @@ export const GUEST_DEMO_TRACKS: Record<GuestTrackId, GuestDemoTrack> = {
     figure: "5. sayfada kuvvet diyagramı ve tablo",
     units: MUHENDISLIK_UNITS,
     days: unitDays(MUHENDISLIK_UNITS, "Konu testleri, vize provası ve genel tekrar"),
+    tour: TOUR_COUNTS,
   },
   tus: {
     id: "tus",
@@ -110,6 +121,7 @@ export const GUEST_DEMO_TRACKS: Record<GuestTrackId, GuestDemoTrack> = {
     figure: "4. sayfada Vaughan-Williams tablosu",
     units: TUS_UNITS,
     days: unitDays(TUS_UNITS, "Konu testleri, vaka soruları ve genel tekrar"),
+    tour: TOUR_COUNTS,
   },
   hukuk: {
     id: "hukuk",
@@ -122,6 +134,7 @@ export const GUEST_DEMO_TRACKS: Record<GuestTrackId, GuestDemoTrack> = {
     figure: "6. sayfada yeter sayı tablosu",
     units: HUKUK_UNITS,
     days: unitDays(HUKUK_UNITS, "Konu testleri ve genel tekrar"),
+    tour: TOUR_COUNTS,
   },
 };
 

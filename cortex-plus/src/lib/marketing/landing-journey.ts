@@ -23,6 +23,11 @@
  * Not Stüdyosu"): üstte yedi adımlık ray, ortada bırakma alanı (örnek notun rozeti + tek cümle), altta iki düğme
  * (örnek notla turu izle / kendi notunu seç). Canlı rozeti, konsol başlığı, bağlam satırı ve branş şeridi kalktı; branş
  * kahramanın tek seçicisinden gelir.
+ *
+ * Faz 9.1 (20 Kasım 2026, ürün sahibi tek kartı geri çevirdi): birinci adım "Çekirdeğe bırak". Kart ve iki düğme
+ * kalktı; örnek not kâğıt kart olarak ders çekirdeğine sürüklenir (ya da dokunulur), tarama ana sayfada olur,
+ * "Sınavın ne zaman?" sorulur (`JOURNEY_EXAM_DAYS`), gün seçilince çekirdekten ilk ders doğar: üç kart (`journeyOutputs`,
+ * sayılar örnek veriden) ve günlere yayılmış küçük yol (`journeyDayPlan`). Bileşen `components/landing/lesson-core.tsx`.
  */
 
 import { FREE_PAGE_TOTAL } from "@/lib/billing/free-tier-copy";
@@ -53,7 +58,7 @@ export type JourneyStep = {
 };
 
 export const JOURNEY_STEPS: JourneyStep[] = [
-  { id: "upload", short: "Not", title: "Notunu tarama çekirdeğine bırak", guide: "Örnek notla yedi adımı izle ya da kendi notunu seç" },
+  { id: "upload", short: "Not", title: "Notunu tarama çekirdeğine bırak", guide: "Örnek notu ders çekirdeğine götür ya da kendi notunu bırak" },
   { id: "roadmap", short: "Yol", title: "Yol haritan çıktı", guide: "1. dersi aç" },
   { id: "lesson", short: "Ders", title: "Ders ekranın", guide: "Önce dene, sonra kuralı oku; dersi sonuna kadar ilerlet" },
   { id: "question", short: "Soru", title: "Konu testi", guide: "Bir şık seç ve kontrol et; takılırsan iki şık ipucunu aç" },
@@ -71,8 +76,8 @@ export function isProductStep(id: JourneyStepId): id is JourneyProductStep {
 }
 
 export const JOURNEY_COPY = {
-  /** Ana sayfadaki birinci adım kartının adı (Faz 9): bölümün başlığı, ekranda gizli, ekran okuyucuda okunur. */
-  card: "Akıllı Not Stüdyosu",
+  /** Ana sayfadaki birinci adımın adı (Faz 9.1): bölümün başlığı, ekranda gizli, ekran okuyucuda okunur. */
+  card: "Notunu ders çekirdeğine bırak",
   /** Tam ekran stüdyonun adı (iletişim penceresinin ekran okuyucu adı). */
   title: "Bir not, yedi adımda derse dönüşsün",
   restart: "Turu baştan oyna",
@@ -117,49 +122,54 @@ export const JOURNEY_WARNING_STEPS: readonly JourneyStepId[] = ["lesson", "quest
 /* ---------- 1. Not: Akıllı Not Stüdyosu kartı ---------- */
 
 /**
- * A: hazır örnek not. Ana sayfada kartın birincil düğmesi (`start`) stüdyoyu açar, tarama anı oynar ve yol açılır.
- * Stüdyodaki tarama anında örnek notun kartı ve çekirdek görünür (`meta`, `sampleCta`, `zone*`).
+ * A: hazır örnek not (Faz 9.1, ürün sahibinin seçimi "Çekirdeğe bırak"). Ana sayfada örnek notun kâğıt kartı tutulup
+ * ders çekirdeğine götürülür; çekirdeğe yaklaşınca mıknatıs gibi oturur ve bırakılınca içine çekilir. Kartın kendisi
+ * bir düğmedir: dokunmak ya da Enter / Space sürükleyip bırakmakla aynı işi yapar (çekirdeğe dokunmak da).
  */
 export const JOURNEY_FILE = {
   name: GUEST_DEMO_TRACKS.lise.file,
-  /** "Örnek not" yazılı: ziyaretçi bunun hazır bir örnek olduğunu bilir. */
-  meta: `Örnek not · ${GUEST_DEMO_TRACKS.lise.subject} · ${GUEST_DEMO_TRACKS.lise.pages} sayfa`,
-  /** Bırakma alanındaki rozetin sayfa satırı ("6 sayfa"). */
+  /** Kartın sayfa satırı ("6 sayfa"). */
   pagesLabel: `${GUEST_DEMO_TRACKS.lise.pages} sayfa`,
-  /** Kartın birincil düğmesi (ekranda önünde ✨, arkasında ok; ikisi ekran okuyucuda okunmaz). */
-  start: "Örnek Notla 7 Adımı İzle",
-  /** Bırakma alanının tek cümlesi: kabul edilen türler ve vaadi. */
-  dropLine: "PDF, slayt, Word ya da defter fotoğrafını bırak; 7 adımda sınava hazır yolun çıksın.",
-  sampleCta: "Örnek notla başlat",
-  zoneTitle: "Cortex tarama çekirdeği",
-  zoneHint: "Örnek notu ya da kendi dosyanı buraya bırak",
-  scanning: ["Sayfalar taranıyor…", "Formüller ve sınav tuzakları çıkarılıyor…"],
+  /** Kartın ekran okuyucu adının başı (görünen yazı arkasından gelir). */
+  send: "Örnek notu çekirdeğe gönder",
+  /** Kartın altındaki küçük yazı. */
+  grip: "Tut ve sürükle",
+  /** Çekirdeğin ekran okuyucu adının başı. */
+  coreName: "Ders çekirdeği",
+  coreLabel: "Notunu buraya bırak",
+  /** Not çekirdeğe yaklaşınca (mıknatıs) ya da üstünde dosya tutulurken. */
+  coreNear: "Bırak",
+  /** Not çekirdeğe girdikten sonra çekirdeğin altındaki yazı: tarama ve dersin doğuşu. */
+  coreScanned: "Not tarandı",
+  coreBorn: "İlk ders hazır",
+  /** Yön ipucu: geniş ekranda not solda, çekirdek sağda; telefonda not üstte, çekirdek altta. */
+  hintWide: "Notu tut, çekirdeğe götür",
+  hintNarrow: "Aşağı sürükle ya da çekirdeğe dokun",
+  /** Not çekirdeğe çekilirken (an): kart küçülerek içine girer. */
+  absorbMs: 280,
   /**
-   * Tarama anı (A2, 13 Kasım 2026): 2,4 sn. Not çekirdeğe kayar, halkalar bir kez atar, bulgular sırayla belirir, sonra
-   * yol açılır. Tıklama ya da tuş atlar; hareket azaltmada beklenmez (depo kararı 11).
+   * Tarama bulguları sırayla belirir (an, 1,2 sn). Tıklama ya da tuş atlar; hareket azaltmada beklenmez (depo kararı
+   * 11). Bulgular görünüp sınav günü seçilince ders doğar.
    */
-  scanMs: 2400,
+  findingsMs: 1200,
 } as const;
 
-/** Seçili branşın örnek notu: dosya adı ve kartın alt satırı ("Örnek not · {ders} · N sayfa"). */
+/** Seçili branşın örnek notu: dosya adı ve sayfa satırı. */
 export function journeyFile(track: GuestTrackId): typeof JOURNEY_FILE {
   const item = guestDemoTrack(track);
-  return {
-    ...JOURNEY_FILE,
-    name: item.file,
-    meta: `Örnek not · ${item.subject} · ${item.pages} sayfa`,
-    pagesLabel: `${item.pages} sayfa`,
-  };
+  return { ...JOURNEY_FILE, name: item.file, pagesLabel: `${item.pages} sayfa` };
 }
 
 /**
- * B: misafirin kendi dosyası (kartın ikinci düğmesi ya da bırakma alanı). Dosya sunucuya GÖNDERİLMEZ: tarayıcıda
- * (sekme oturumu + IndexedDB) bekler, kayıttan sonra kurulumun materyal adımında "Bu dosyayı ekle" diye sunulur.
- * Tarayıcı saklamaya izin vermezse kart bunu söyler (verilmeyen söz yok).
+ * B: misafirin kendi dosyası (örnek notun altındaki küçük yuva ya da çekirdeğe bırakılan dosya). Dosya sunucuya
+ * GÖNDERİLMEZ: tarayıcıda (sekme oturumu + IndexedDB) bekler, kayıttan sonra kurulumun materyal adımında "Bu dosyayı
+ * ekle" diye sunulur. Tarayıcı saklamaya izin vermezse kart bunu söyler (verilmeyen söz yok).
  */
 export const JOURNEY_OWN = {
-  /** Kartın ikinci düğmesi (ekranda önünde 📎; ekran okuyucuda okunmaz). */
-  pick: "Kendi Notunu Seç",
+  /** Örnek notun altındaki kesikli yuva: dokununca dosya seçici açılır, üstüne dosya bırakılabilir. */
+  pick: "Kendi notunu bırak",
+  /** Yuvanın ikinci satırı: misafirin bırakabileceği türler (kahramandan taşındı; ürünün okuduğu türler). */
+  types: "PDF, slayt, Word ya da defter fotoğrafı",
   kept: "Dosyan bu cihazda bekliyor; hiçbir yere gönderilmedi. Hesabını açınca ya da giriş yapınca kurulum sihirbazına kendiliğinden aktarılır.",
   notKept: "Dosyan seçildi ama tarayıcın saklamaya izin vermedi; hesabını açınca aynı dosyayı bir kez daha seçeceksin.",
   body: `Bu belgeden ilk dersin, akıllı kartların ve konu testin yazılsın. İlk dersin süre sınırı olmadan ücretsiz; ücretsiz hesapta toplam ${FREE_PAGE_TOTAL} sayfa belge işlenir.`,
@@ -194,6 +204,83 @@ export function journeyScanFindings(track: GuestTrackId = DEFAULT_GUEST_TRACK): 
   ];
 }
 
+/* ---------- 1b. Sınav günü ve dersin doğuşu (Faz 9.1) ---------- */
+
+/** Tarama sürerken sorulan sınav günü: dört seçenek. Seçilen gün stüdyodaki "Sınavına N gün var" çipine de yazılır. */
+export const JOURNEY_EXAM_DAYS = [3, 7, 14, 30] as const;
+export type JourneyExamDays = (typeof JOURNEY_EXAM_DAYS)[number];
+/** Gün seçilmeden stüdyo açılırsa (raydan) çipin günü. */
+export const DEFAULT_EXAM_DAYS: JourneyExamDays = 7;
+
+export function isJourneyExamDays(value: unknown): value is JourneyExamDays {
+  return typeof value === "number" && (JOURNEY_EXAM_DAYS as readonly number[]).includes(value);
+}
+
+export const JOURNEY_DATE = {
+  title: "Sınavın ne zaman?",
+  chip: (days: JourneyExamDays) => `${days} gün`,
+  /** Dersin doğuşunun birincil düğmesi: stüdyoyu doğrudan dersin ilk ekranında açar. */
+  cta: "İlk ekranı aç",
+  planTitle: (days: JourneyExamDays) => `${days} günlük yolun`,
+  /** Ekran okuyucunun duyuruları: not tarandı ve gün soruluyor; ders doğdu. */
+  scanned: "Not tarandı. Sınavın ne zaman?",
+  born: (days: JourneyExamDays) => `İlk ders hazır: ders, konu testi ve kartlar. ${days} günlük yolun altında.`,
+} as const;
+
+export type JourneyOutput = { id: "lesson" | "question" | "cards"; title: string; meta: string };
+
+/**
+ * Çekirdekten doğan üç kart. Her sayı stüdyonun gerçekten göstereceği örnek veriden (`GuestDemoTrack.tour`; bekçi
+ * test sayıların `GUEST_TOUR_CONTENT` ile aynı olduğunu tutar): uydurma "5 soru" yok. Ders bölüm (ekran) sayısıyla,
+ * konu testi soru, kartlar kart sayısıyla söylenir.
+ */
+export function journeyOutputs(track: GuestTrackId): JourneyOutput[] {
+  const tour = guestDemoTrack(track).tour;
+  return [
+    { id: "lesson", title: "Ders", meta: `${tour.sections} bölüm` },
+    { id: "question", title: "Konu testi", meta: `${tour.questions} soru` },
+    { id: "cards", title: "Kartlar", meta: `${tour.cards} kart` },
+  ];
+}
+
+export type JourneyDayRow = { when: string; steps: string[] };
+
+/** Bugün 1. gün; "Bugün", "Yarın", sonra "N. gün". */
+function dayLabel(day: number): string {
+  if (day === 1) return "Bugün";
+  if (day === 2) return "Yarın";
+  return `${day}. gün`;
+}
+
+/**
+ * Seçilen güne göre küçük yol: ilk dersin döngüsü (ders, konu testi, kartlar, doğru/yanlış) ve sınav sabahı kartlarla
+ * tekrar. Hepsi ücretsiz hesapta da açık adımlar (ilk dersin temel döngüsü, `first-lesson-cycle.ts`): sınav sabahı
+ * kâğıdı ve "Kartlarla son tekrar" (hazırlık geneli adım) Plus'ta olduğu için burada yok.
+ *
+ * - 3 gün: sıkışır (ilk iki gün ikişer adım).
+ * - 7 gün ve üstü: her adım ayrı gün; testler ilk iki günde, kartlar ve doğru/yanlış süreye yayılır (14 ve 30 günde
+ *   aralar açılır). Son adım sınavdan önceki son çalışma gününü geçmez.
+ */
+export function journeyDayPlan(days: JourneyExamDays): JourneyDayRow[] {
+  const morning: JourneyDayRow = { when: "Sınav sabahı", steps: ["Kartlarla tekrar"] };
+  if (days <= 3) {
+    return [
+      { when: dayLabel(1), steps: ["Ders", "Konu testi"] },
+      { when: dayLabel(2), steps: ["Kartlar", "Doğru/Yanlış"] },
+      morning,
+    ];
+  }
+  const cards = Math.max(3, Math.round(days * 0.4));
+  const truth = Math.min(days, Math.max(cards + 1, Math.round(days * 0.7)));
+  return [
+    { when: dayLabel(1), steps: ["Ders"] },
+    { when: dayLabel(2), steps: ["Konu testi"] },
+    { when: dayLabel(cards), steps: ["Kartlar"] },
+    { when: dayLabel(truth), steps: ["Doğru/Yanlış"] },
+    morning,
+  ];
+}
+
 /* ---------- 2. Yol haritası ---------- */
 
 const ROADMAP_CTA = "Şimdi 1. dersi aç";
@@ -205,9 +292,12 @@ export function journeyRoadmap(track: GuestTrackId): { days: readonly GuestDemoR
 
 export const JOURNEY_ROADMAP = journeyRoadmap(DEFAULT_GUEST_TRACK);
 
-/** Yol haritasının hedef çipleri: ilk çip seçili sekmenin sınav sözüyle başlar ("Vizene 7 gün var"). */
-export function journeyGoals(examWord: string): string[] {
-  return [`${examWord} 7 gün var`, "Günde 30 dk", "Hedef: 95+"];
+/**
+ * Yol haritasının hedef çipleri: ilk çip seçili profilin sınav sözüyle ve birinci adımda seçilen günle başlar
+ * ("Vizene 14 gün var"); gün seçilmediyse 7.
+ */
+export function journeyGoals(examWord: string, days: JourneyExamDays = DEFAULT_EXAM_DAYS): string[] {
+  return [`${examWord} ${days} gün var`, "Günde 30 dk", "Hedef: 95+"];
 }
 
 /* ---------- 3-6. Ürün ekranları ---------- */

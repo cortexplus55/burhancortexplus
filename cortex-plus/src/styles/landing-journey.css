@@ -1,7 +1,8 @@
 /*
-  Ana sayfanın 7 adımlı canlı kokpiti (11 Kasım 2026). Tur kahramanın içinde, ilk ekranda durur. Faz 9 (20 Kasım 2026):
-  ana sayfada yalnız birinci adımın tek kartı ("Akıllı Not Stüdyosu": ray, bırakma alanı, iki düğme); canlı etiketi,
-  görünen başlık, bağlam satırı ve branş şeridi kalktı. Öbür adımlar tam ekran stüdyoda.
+  Ana sayfanın 7 adımlı canlı kokpiti (11 Kasım 2026). Tur kahramanın içinde, ilk ekranda durur. Faz 9.1 (20 Kasım
+  2026): ana sayfada birinci adım "Çekirdeğe bırak": ray, örnek notun kâğıt kartı, ders çekirdeği; not çekirdeğe
+  bırakılınca tarama, sınav günü ve dersin doğuşu aynı yerde. Öbür adımlar tam ekran stüdyoda. Kendiliğinden olan
+  hareketler CSS'te; sürüklemede kart yalnız elin hareketini izler.
 
   Dil (ikinci tur, aynı gün; ürün sahibi: "mavi zemin, mavi düğme klasik yapay zekâ sitesi gibi"): sıcak siyah zemin,
   koyu sıcak cam, kâğıt beyazı ışık ve logonun şeridi (kehribar → gül → mor → camgöbeği). Çivit ve camgöbeği vurgu
@@ -52,137 +53,15 @@
   padding-inline: 1rem;
 }
 
-/*
-  ---------- Akıllı Not Stüdyosu: ana sayfadaki birinci adım (Faz 9, 20 Kasım 2026) ----------
-  Ürün sahibi: "birinci adımda üç kutu yarışıyor" (örnek not kartı, tarama çekirdeği, "Kendi notun mu var?" kutusu;
-  üstünde canlı rozeti, başlık ve bağlam satırı). Şimdi tek kart: üstte yedi adımlık ray, ortada bırakma alanı (seçili
-  branşın örnek notunun rozeti ve tek cümle), altta yan yana iki düğme (telefonda alt alta). Bırakılan dosya misafirin
-  kendi dosyasıdır; örnek not birincil düğmeyle açılır. Branş seçimi kahramanın tek seçicisinde (`landing-showcase.css`).
-  Kontrast: alan cümlesi 9,7:1, rozetin adı 15:1; düğmeler en az 52 px.
-*/
-
-.lj-drop {
-  position: relative;
-  display: grid;
-  justify-items: center;
-  gap: 0.7rem;
-  padding: clamp(1.1rem, 3vw, 1.6rem) clamp(1rem, 3vw, 1.75rem);
-  border: 1.5px dashed rgba(247, 241, 232, 0.28);
-  border-radius: 1.25rem;
-  background:
-    radial-gradient(28rem 10rem at 50% 0%, rgba(255, 178, 36, 0.07), transparent 70%),
-    #120e0b;
-  text-align: center;
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease;
-}
-
-.lj-drop.is-over {
-  border-color: var(--lj-beam);
-  box-shadow: 0 0 0 4px rgba(255, 217, 160, 0.12);
-}
-
-/* Örnek notun rozeti: "PDF · dosya adı · N sayfa". Uzun dosya adı satır sarar; rozet kartın dışına taşmaz. */
-.lj-drop-badge {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 0.35rem 0.5rem;
-  max-width: 100%;
-  padding: 0.45rem 0.85rem 0.45rem 0.45rem;
-  border-radius: 1.25rem;
-  background: #1e1813;
-  box-shadow: 0 0 0 1px var(--lj-line-strong) inset;
-  font-size: 0.875rem;
-  line-height: 1.3;
-}
-
-.lj-drop-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.2rem 0.55rem;
-  border-radius: 999px;
-  background: var(--lj-paper);
-  color: var(--lj-paper-ink);
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-}
-
-/* Dosya adı alt çizgilerden kırılır (`<wbr>`); ".pdf" kelimeden kopmaz. Tek parça sığmazsa son çare kırılır. */
-.lj-drop-name {
-  min-width: 0;
-  font-weight: 600;
-  color: var(--lj-text);
-  overflow-wrap: break-word;
-}
-
-.lj-drop-pages {
-  color: var(--lj-muted);
-  white-space: nowrap;
-}
-
-/* Branş değişince rozet yeniden belirir (ilk yükte değil). */
-.lj-drop-badge.is-switched {
-  animation: lj-swap 0.45s var(--lj-ease) both;
-}
-
+/* Branş değişince örnek notun kartı yeniden belirir (ilk yükte değil), sonra süzülmeye devam eder. */
 @keyframes lj-swap {
   from {
     opacity: 0;
-    transform: translateY(0.3rem);
+    transform: translateY(0.4rem);
   }
   to {
     opacity: 1;
     transform: none;
-  }
-}
-
-.lj-drop-line {
-  max-width: 34rem;
-  margin: 0;
-  font-size: 0.9375rem;
-  line-height: 1.5;
-  color: var(--lj-muted);
-  text-wrap: pretty;
-}
-
-/* İki düğme yan yana: birincil (kâğıt beyazı) örnek notla turu açar, ikincil kendi dosyasını seçtirir. */
-.lj-door-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.6rem;
-  margin-top: 0.85rem;
-}
-
-.lj-door-actions > .lj-cta,
-.lj-door-actions > .lj-ghost {
-  width: 100%;
-  min-height: 3.25rem;
-  margin: 0;
-  padding-inline: 1rem;
-  font-size: 1rem;
-  text-align: center;
-}
-
-.lj-door-start {
-  font-weight: 700;
-}
-
-.lj-cta:disabled,
-.lj-cta:disabled:hover {
-  opacity: 0.6;
-  cursor: default;
-  transform: none;
-}
-
-@media (max-width: 560px) {
-  .lj-door-actions {
-    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -672,8 +551,6 @@
 .lj-chip:focus-visible,
 .lj-option:focus-visible,
 .lj-truth-btn:focus-visible,
-.lj-file:focus-visible,
-.lj-zone:focus-visible,
 .lj-flip:focus-visible,
 .lj-link:focus-visible,
 .lj-next:focus-visible,
@@ -860,35 +737,690 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* ---------- 1. Not ---------- */
-
 /*
-  Stüdyodaki tarama anı: solda örnek not, sağda tarama çekirdeği; not çekirdeğe kayar, bulgular çekirdekte belirir.
-  (Faz 9: ana sayfadaki birinci adım artık ayrı bir kart, yukarıda "Akıllı Not Stüdyosu"; kendi dosya kapısı orada.)
+  ---------- Ders çekirdeği: ana sayfadaki birinci adım (Faz 9.1, 20 Kasım 2026) ----------
+  Ürün sahibi Faz 9'daki tek kartı ("Akıllı Not Stüdyosu") geri çevirdi: öğrencinin bir şeyi kendi eliyle başlattığı
+  his kayboldu. Seçilen tasarım "Çekirdeğe bırak": solda (telefonda üstte) seçili branşın örnek notu kâğıt kart olarak
+  hafifçe süzülür, altında küçük kesikli "Kendi notunu bırak" yuvası; sağda (telefonda altta) ders çekirdeği: ortada
+  logonun işareti, çevresinde logonun şeridinden iki ince halka yavaşça döner. Aralarında yönü gösteren kesikli yay.
+  Not çekirdeğe yaklaşınca (~60 px) mıknatıs gibi oturur, çekirdek büyür, halkalar hızlanır, yazı "Bırak" olur;
+  bırakılınca not içine çekilir, bir dalga atar, bulgular belirir ve "Sınavın ne zaman?" sorulur; gün seçilince
+  çekirdekten üç kart doğar (ders, konu testi, kartlar), altında günlere yayılmış küçük yol ve "İlk ekranı aç".
+  Hareket kısa (toplam 2-3 sn); hareket azaltmada hiçbiri yok, durumlar anında.
 */
-.lj-upload {
+
+.lj-core-stage {
+  --lj-core: 11.75rem;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 3.5rem minmax(0, 1.15fr);
-  grid-template-areas: "file flight zone";
+  grid-template-columns: minmax(0, 17rem) minmax(4rem, 1fr) auto;
+  grid-template-areas: "src arc core";
   align-items: center;
-  gap: 0.75rem 0.5rem;
-  min-height: 14rem;
+  gap: 0.5rem 1rem;
+  min-height: 0;
+  padding: 0.35rem 0 0;
 }
 
-.lj-upload .lj-file {
-  grid-area: file;
+.lj-core-stage:not([data-phase="idle"]) {
+  --lj-core: 8.25rem;
+  grid-template-columns: auto minmax(0, 40rem);
+  grid-template-areas: "core body";
+  justify-content: center;
+  gap: 1rem 1.75rem;
 }
 
-.lj-upload .lj-flight {
-  grid-area: flight;
+/* Sol: örnek not ve kendi notunun yuvası. */
+.lj-core-src {
+  grid-area: src;
+  display: grid;
+  justify-items: stretch;
+  /* Eğik ve süzülen kartın köşesi yuvaya değmesin. */
+  gap: 1rem;
+  min-width: 0;
 }
 
-.lj-upload .lj-zone {
-  grid-area: zone;
-  align-self: stretch;
+/* Örnek not: kâğıt kart (kâğıt beyazı zemin, mürekkep yazı). Yalnız bu kart sürüklenir: dokunmatikte sayfa kaymaz. */
+.lj-note {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    "tag name"
+    "tag meta";
+  align-items: center;
+  gap: 0.15rem 0.75rem;
+  min-height: 5.25rem;
+  padding: 0.85rem 1rem;
+  border: 0;
+  border-radius: 0.9rem;
+  background:
+    repeating-linear-gradient(180deg, transparent 0 1.35rem, rgba(27, 20, 13, 0.06) 1.35rem calc(1.35rem + 1px)),
+    var(--lj-paper);
+  color: var(--lj-paper-ink);
+  font: inherit;
+  text-align: left;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  box-shadow:
+    0 1.1rem 2.4rem -0.6rem rgba(0, 0, 0, 0.7),
+    0 0 0 1px rgba(255, 250, 240, 0.6) inset;
+  rotate: -2deg;
+  animation: lj-note-float 3.8s ease-in-out infinite;
+  transition: transform 0.36s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* Dosya seçici görünmez; "Kendi Notunu Seç" düğmesi açar. */
+@keyframes lj-note-float {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -0.3rem;
+  }
+}
+
+.lj-note:focus-visible {
+  outline: 2px solid var(--lj-beam-text);
+  outline-offset: 4px;
+}
+
+/* Tutulurken: süzülme durur, kart birkaç derece eğilir ve imleci izler (geçişsiz). */
+.lj-note.is-dragging {
+  cursor: grabbing;
+  rotate: -7deg;
+  animation: none;
+  transition: none;
+  box-shadow:
+    0 1.8rem 3rem -0.8rem rgba(0, 0, 0, 0.8),
+    0 0 0 1px rgba(255, 250, 240, 0.7) inset;
+}
+
+.lj-note.is-switched {
+  animation:
+    lj-swap 0.45s var(--lj-ease) both,
+    lj-note-float 3.8s ease-in-out 0.45s infinite;
+}
+
+/* Mıknatıs: çekirdeğin merkezine oturur. */
+.lj-note.is-near {
+  rotate: 0deg;
+  transition: transform 0.15s var(--lj-ease);
+}
+
+/* Çekilme: kart küçülerek çekirdeğin içine girer. */
+.lj-note.is-absorbing {
+  animation: none;
+  opacity: 0;
+  transition:
+    transform 0.28s cubic-bezier(0.55, 0, 0.75, 0.2),
+    opacity 0.28s ease-in;
+}
+
+.lj-note-tag {
+  grid-area: tag;
+  display: grid;
+  place-items: center;
+  gap: 0.15rem;
+  width: 2.6rem;
+  height: 3.2rem;
+  border-radius: 0.45rem;
+  background: #ffffff;
+  box-shadow: 0 0 0 1px rgba(27, 20, 13, 0.14);
+  color: var(--lj-paper-ink);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.lj-note-name {
+  grid-area: name;
+  min-width: 0;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.3;
+  overflow-wrap: break-word;
+}
+
+.lj-note-meta {
+  grid-area: meta;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.6rem;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  color: #5c4a37;
+}
+
+.lj-note-grip {
+  font-weight: 600;
+}
+
+.lj-note-grip::before {
+  content: "· ";
+}
+
+/* Kendi notunun yuvası: kesikli, küçük; dokununca dosya seçici açılır, üstüne dosya bırakılabilir. */
+.lj-own-slot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 2.75rem;
+  padding: 0.4rem 0.9rem;
+  border: 1.5px dashed rgba(247, 241, 232, 0.34);
+  border-radius: 0.85rem;
+  background: rgba(247, 241, 232, 0.03);
+  color: var(--lj-text);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color 0.16s ease,
+    background 0.16s ease;
+}
+
+.lj-own-slot-text {
+  display: grid;
+  text-align: left;
+  line-height: 1.3;
+}
+
+.lj-own-types {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--lj-muted);
+}
+
+.lj-own-slot:hover,
+.lj-own-slot.is-over {
+  border-color: var(--lj-beam-text);
+  background: rgba(255, 217, 160, 0.08);
+}
+
+.lj-own-slot:focus-visible {
+  outline: 2px solid var(--lj-beam-text);
+  outline-offset: 3px;
+}
+
+.lj-own-slot:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+/* Yön ipucu: notla çekirdek arasında kesikli yay; kesikler yavaşça akar. Telefonda dikey kesikli çizgi. */
+.lj-core-arc {
+  grid-area: arc;
+  display: block;
+  align-self: center;
+  width: 100%;
+  min-width: 4rem;
+  height: 4.5rem;
+  pointer-events: none;
+}
+
+.lj-core-arc svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.lj-core-arc-path {
+  fill: none;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-dasharray: 3 5;
+  animation: lj-core-dash 2.6s linear infinite;
+}
+
+.lj-core-arc-head {
+  fill: none;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@keyframes lj-core-dash {
+  to {
+    stroke-dashoffset: -32;
+  }
+}
+
+/* Ders çekirdeği: logonun işareti ve iki ince halka (logonun şeridi). Düğme: dokununca örnek notu alır. */
+.lj-core {
+  grid-area: core;
+  justify-self: center;
+  display: grid;
+  justify-items: center;
+  gap: 0.55rem;
+  padding: 0.25rem;
+  border: 0;
+  border-radius: 1.25rem;
+  background: none;
+  color: var(--lj-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.lj-core:disabled {
+  cursor: default;
+}
+
+.lj-core:focus-visible {
+  outline: 2px solid var(--lj-beam-text);
+  outline-offset: 4px;
+}
+
+.lj-core-orb {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--lj-core);
+  height: var(--lj-core);
+  border-radius: 50%;
+  transition:
+    transform 0.25s var(--lj-ease),
+    width 0.35s var(--lj-ease),
+    height 0.35s var(--lj-ease);
+}
+
+.lj-core-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, #ffb224, #ff4d8d, #8b5cf6, #22d3ee, #ffb224);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+  opacity: 0.9;
+  animation: lj-core-spin 14s linear infinite;
+}
+
+.lj-core-ring--b {
+  inset: 12%;
+  background: conic-gradient(from 90deg, #22d3ee, transparent 22%, #ff4d8d 48%, transparent 70%, #ffb224 92%, #22d3ee);
+  opacity: 0.75;
+  animation-duration: 22s;
+  animation-direction: reverse;
+}
+
+@keyframes lj-core-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+
+.lj-core-disc {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 56%;
+  height: 56%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 32%, #2a2119, #120e0b 72%);
+  box-shadow:
+    0 0 0 1px rgba(247, 241, 232, 0.14) inset,
+    0 0 2.6rem rgba(255, 77, 141, 0.2),
+    0 0 1.4rem rgba(255, 178, 36, 0.14);
+  transition: box-shadow 0.25s ease;
+}
+
+.lj-core-disc img {
+  width: 58%;
+  height: auto;
+}
+
+/* Bırakınca tek dalga: logonun şeridinden bir halka dışa yayılıp söner. */
+.lj-core-wave {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 45deg, #ffb224, #ff4d8d, #8b5cf6, #22d3ee, #ffb224);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+  opacity: 0;
+  pointer-events: none;
+}
+
+.lj-core-stage[data-phase="scanning"] .lj-core-wave {
+  animation: lj-core-wave 0.7s ease-out 1 both;
+}
+
+@keyframes lj-core-wave {
+  from {
+    opacity: 0.95;
+    scale: 1;
+  }
+  to {
+    opacity: 0;
+    scale: 1.55;
+  }
+}
+
+.lj-core-label {
+  font-size: 0.9375rem;
+  font-weight: 650;
+  line-height: 1.25;
+  color: var(--lj-text);
+}
+
+/* Mıknatıs ya da üstünde dosya: çekirdek büyür, ışığı artar, yazı "Bırak" olur (halkalar betikle hızlanır). */
+.lj-core-stage[data-near] .lj-core-orb {
+  transform: scale(1.08);
+}
+
+.lj-core-stage[data-near] .lj-core-disc {
+  box-shadow:
+    0 0 0 1px rgba(255, 217, 160, 0.5) inset,
+    0 0 3.4rem rgba(255, 77, 141, 0.38),
+    0 0 2rem rgba(255, 178, 36, 0.32);
+}
+
+.lj-core-stage[data-near] .lj-core-label {
+  color: var(--lj-beam-text);
+}
+
+.lj-core-hint {
+  margin: 0.6rem 0 0;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  text-align: center;
+  color: var(--lj-muted);
+}
+
+.lj-core-hint-narrow {
+  display: none;
+}
+
+/* Tarama ve doğuş: sağda (telefonda altta) bulgular, sınav günü, üç kart, yol ve düğme. */
+.lj-core-body {
+  grid-area: body;
+  display: grid;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+/* Bulgular sırayla belirir (an 1,2 sn); an bitince ya da atlanınca hepsi hemen görünür. */
+.lj-scan-finds {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lj-scan-find {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  color: var(--lj-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.4;
+  animation: lj-find-in 0.28s var(--lj-ease) both;
+  animation-delay: calc(0.1s + var(--lj-i, 0) * 0.24s);
+}
+
+.lj-scan-finds.is-shown .lj-scan-find {
+  animation: none;
+}
+
+.lj-scan-find svg {
+  flex: none;
+  margin-top: 0.15rem;
+  color: var(--lj-ok);
+}
+
+.lj-scan-find[data-finding="warning"] {
+  color: var(--lj-beam-text);
+}
+
+@keyframes lj-find-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.35rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Sınav günü: dört çip (tek seçimli grup). */
+.lj-date {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.lj-date-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--lj-text);
+}
+
+.lj-date-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.lj-date-chip {
+  min-width: 4.75rem;
+  min-height: 2.75rem;
+  padding: 0 1rem;
+  border: 1px solid var(--lj-line-strong);
+  border-radius: 999px;
+  background: #1e1813;
+  color: var(--lj-text);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition:
+    background 0.16s ease,
+    color 0.16s ease,
+    border-color 0.16s ease;
+}
+
+.lj-date-chip:hover {
+  border-color: var(--lj-light-text);
+}
+
+.lj-date-chip:focus-visible {
+  outline: 2px solid var(--lj-beam-text);
+  outline-offset: 2px;
+}
+
+.lj-date-chip[aria-checked="true"] {
+  border-color: transparent;
+  background: var(--lj-paper);
+  color: var(--lj-paper-ink);
+}
+
+/* Dersin doğuşu: çekirdekten üç kart sırayla açılır. */
+.lj-outputs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lj-output {
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.65rem 0.8rem;
+  border-radius: 0.85rem;
+  background: #1e1813;
+  box-shadow: 0 0 0 1px var(--lj-line-strong) inset;
+  animation: lj-output-in 0.34s var(--lj-ease) both;
+  animation-delay: calc(var(--lj-i, 0) * 0.12s);
+}
+
+.lj-output strong {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--lj-text);
+}
+
+.lj-output strong svg {
+  flex: none;
+  color: var(--lj-beam-text);
+}
+
+.lj-output span {
+  font-size: 0.8125rem;
+  color: var(--lj-muted);
+}
+
+@keyframes lj-output-in {
+  from {
+    opacity: 0;
+    transform: translateX(-1.25rem) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.lj-plan {
+  display: grid;
+  gap: 0.35rem;
+  animation: lj-find-in 0.3s var(--lj-ease) 0.36s both;
+}
+
+.lj-plan-title {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--lj-muted);
+}
+
+.lj-plan-days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lj-plan-days li {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(247, 241, 232, 0.05);
+  box-shadow: 0 0 0 1px var(--lj-line) inset;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  color: var(--lj-text);
+}
+
+.lj-plan-when {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--lj-beam-text);
+}
+
+.lj-born-cta {
+  justify-self: start;
+  min-height: 3.25rem;
+  padding-inline: 1.5rem;
+  font-size: 1rem;
+  font-weight: 700;
+  animation: lj-find-in 0.3s var(--lj-ease) 0.46s both;
+}
+
+/* Telefon: not üstte, çekirdek altta; aralarında dikey kesikli çizgi. Tarama ve doğuşta çekirdek üstte, gövde altta. */
+@media (max-width: 639px) {
+  .lj-core-stage {
+    --lj-core: 9.5rem;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "src"
+      "arc"
+      "core";
+    gap: 0.5rem;
+  }
+
+  .lj-core-stage:not([data-phase="idle"]) {
+    --lj-core: 7rem;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "core"
+      "body";
+  }
+
+  .lj-core-arc {
+    justify-self: center;
+    width: 2px;
+    min-width: 0;
+    height: 2.5rem;
+    background: repeating-linear-gradient(180deg, #ffb224 0 0.35rem, transparent 0.35rem 0.75rem);
+    background-size: 100% 1.5rem;
+    animation: lj-core-dash-y 1.6s linear infinite;
+  }
+
+  .lj-core-arc svg {
+    display: none;
+  }
+
+  .lj-core-hint-wide {
+    display: none;
+  }
+
+  .lj-core-hint-narrow {
+    display: inline;
+  }
+
+  /* Telefonda dört gün tek satırda, eşit genişlikte. */
+  .lj-date-chips {
+    flex-wrap: nowrap;
+  }
+
+  .lj-date-chip {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0 0.4rem;
+  }
+
+  /* Telefonda üç kart tek sütunda, birer satır: ad solda, sayı sağda. */
+  .lj-outputs {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.4rem;
+  }
+
+  .lj-output {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.55rem 0.85rem;
+  }
+
+  .lj-born-cta {
+    justify-self: stretch;
+  }
+}
+
+@keyframes lj-core-dash-y {
+  to {
+    background-position: 0 1.5rem;
+  }
+}
+
+/* Dosya seçici görünmez; "Kendi notunu bırak" yuvası açar. */
 .lj-own-input {
   position: absolute;
   width: 1px;
@@ -908,7 +1440,7 @@
   color: #fda4af;
 }
 
-/* B kapısından sonra: dosya tarayıcıda bekliyor. Yeşil, çünkü hazır olanı söyler. */
+/* Kendi dosyası seçildikten sonra: dosya tarayıcıda bekliyor. Yeşil, çünkü hazır olanı söyler. */
 .lj-ready {
   display: grid;
   justify-items: start;
@@ -976,301 +1508,6 @@
   gap: 0.5rem 0.75rem;
 }
 
-.lj-file {
-  display: flex;
-  align-items: center;
-  gap: 0.9rem;
-  min-height: 5.5rem;
-  padding: 1rem 1.1rem;
-  border-radius: 1.1rem;
-  border: 1px solid rgba(255, 250, 240, 0.405);
-  background: linear-gradient(135deg, rgba(246, 236, 217, 0.11), rgba(22, 17, 12, 0.6));
-  color: var(--lj-text);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  box-shadow: 0 1rem 2.5rem rgba(0, 0, 0, 0.55);
-  animation: lj-float 3.6s ease-in-out infinite;
-  transition:
-    opacity 0.35s ease,
-    transform 0.5s var(--lj-ease);
-}
-
-@keyframes lj-float {
-  0%,
-  100% {
-    translate: 0 0;
-  }
-  50% {
-    translate: 0 -0.35rem;
-  }
-}
-
-.lj-file-sheet {
-  position: relative;
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 3rem;
-  height: 3.6rem;
-  border-radius: 0.5rem;
-  background: #e2e8f0;
-  color: #334155;
-}
-
-.lj-file-badge {
-  position: absolute;
-  bottom: -0.35rem;
-  left: 50%;
-  translate: -50% 0;
-  padding: 0.05rem 0.35rem;
-  border-radius: 0.3rem;
-  background: #e11d48;
-  color: #fff;
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  font-weight: 700;
-}
-
-.lj-file-text {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  min-width: 0;
-}
-
-.lj-file-text strong {
-  font-size: 0.9375rem;
-  font-weight: 650;
-  overflow-wrap: anywhere;
-}
-
-.lj-file-text span {
-  font-size: 0.8125rem;
-  color: var(--lj-muted);
-}
-
-.lj-file-text .lj-file-go {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  margin-top: 0.15rem;
-  color: var(--lj-light-text);
-  font-weight: 650;
-}
-
-/* Dosyadan alana uçuş çizgisi: kesikli hat üzerinde akan ışık. */
-.lj-flight {
-  height: 2px;
-  border-radius: 2px;
-  background: repeating-linear-gradient(90deg, rgba(103, 232, 249, 0.8) 0 0.45rem, transparent 0.45rem 0.9rem);
-  background-size: 1.8rem 100%;
-  animation: lj-dash 1.1s linear infinite;
-}
-
-@keyframes lj-dash {
-  to {
-    background-position: 1.8rem 0;
-  }
-}
-
-.lj-zone {
-  position: relative;
-  display: grid;
-  place-items: center;
-  align-content: center;
-  gap: 0.75rem;
-  min-height: 13rem;
-  padding: 1.25rem;
-  border-radius: 1.25rem;
-  border: 1.5px dashed rgba(255, 217, 160, 0.341);
-  background: radial-gradient(closest-side, rgba(255, 217, 160, 0.087), rgba(22, 17, 12, 0.35));
-  color: var(--lj-text);
-  font: inherit;
-  cursor: pointer;
-  overflow: hidden;
-  transition:
-    border-color 0.2s ease,
-    background 0.2s ease;
-}
-
-.lj-zone:hover {
-  border-color: var(--lj-beam-text);
-  background: radial-gradient(closest-side, rgba(255, 217, 160, 0.149), rgba(22, 17, 12, 0.35));
-}
-
-.lj-zone:disabled,
-.lj-file:disabled {
-  cursor: progress;
-}
-
-.lj-zone-rings {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  pointer-events: none;
-}
-
-.lj-zone-rings span {
-  position: absolute;
-  width: 6rem;
-  height: 6rem;
-  border-radius: 50%;
-  border: 1px solid rgba(103, 232, 249, 0.5);
-  animation: lj-ring 3s ease-out infinite;
-}
-
-.lj-zone-rings span:nth-child(2) {
-  animation-delay: 1s;
-}
-
-.lj-zone-rings span:nth-child(3) {
-  animation-delay: 2s;
-}
-
-@keyframes lj-ring {
-  from {
-    transform: scale(0.7);
-    opacity: 0.9;
-  }
-  to {
-    transform: scale(2.9);
-    opacity: 0;
-  }
-}
-
-.lj-zone-core {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 5.25rem;
-  height: 5.25rem;
-  border-radius: 50%;
-  background: radial-gradient(closest-side, rgba(22, 17, 12, 0.95), rgba(22, 17, 12, 0.6));
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.12),
-    0 0 2.5rem rgba(246, 236, 217, 0.275);
-}
-
-.lj-zone-copy,
-.lj-scan {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.2rem;
-  text-align: center;
-}
-
-.lj-zone-copy strong {
-  font-size: 1rem;
-  font-weight: 650;
-}
-
-.lj-zone-copy span,
-.lj-scan-line {
-  font-size: 0.875rem;
-  color: var(--lj-muted);
-}
-
-.lj-upload.is-scanning .lj-file {
-  opacity: 0;
-  transform: translateX(40%) scale(0.6);
-  animation: none;
-}
-
-/* Tarama anı (A2): halkalar bir kez atar (sonsuz döngü değil). */
-.lj-upload.is-scanning .lj-zone-rings span {
-  animation: lj-ring 1.1s var(--lj-ease) 1 both;
-}
-
-.lj-upload.is-scanning .lj-zone-rings span:nth-child(2) {
-  animation-delay: 0.15s;
-}
-
-.lj-upload.is-scanning .lj-zone-rings span:nth-child(3) {
-  animation-delay: 0.3s;
-}
-
-/* Bulgular sırayla belirir: 0,7 sn'den başlar, aralarında 0,3 sn; an 2,4 sn'de biter. */
-.lj-scan-finds {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.3rem;
-  margin-top: 0.4rem;
-  max-width: 17rem;
-}
-
-.lj-scan-find {
-  display: inline-flex;
-  align-items: flex-start;
-  gap: 0.35rem;
-  color: var(--lj-text);
-  font-size: 0.8125rem;
-  font-weight: 600;
-  line-height: 1.35;
-  text-align: left;
-  animation: lj-find-in 0.3s var(--lj-ease) both;
-  animation-delay: calc(0.7s + var(--lj-i, 0) * 0.3s);
-}
-
-.lj-scan-find svg {
-  flex: none;
-  margin-top: 0.1rem;
-  color: var(--lj-ok);
-}
-
-.lj-scan-find[data-finding="warning"] {
-  color: var(--lj-beam-text);
-}
-
-@keyframes lj-find-in {
-  from {
-    opacity: 0;
-    transform: translateY(0.35rem);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-.lj-scan-sheet {
-  position: relative;
-  width: 3.4rem;
-  height: 4.2rem;
-  margin-bottom: 0.35rem;
-  border-radius: 0.4rem;
-  background:
-    repeating-linear-gradient(180deg, rgba(51, 65, 85, 0.55) 0 2px, transparent 2px 9px) 0.5rem 0.6rem / calc(100% - 1rem) calc(100% - 1.2rem) no-repeat,
-    #e2e8f0;
-  overflow: hidden;
-}
-
-.lj-scan-laser {
-  position: absolute;
-  inset: 0 0 auto;
-  height: 0.5rem;
-  background: linear-gradient(180deg, transparent, rgba(255, 217, 160, 0.589));
-  box-shadow: 0 0 1rem rgba(255, 217, 160, 0.558);
-  animation: lj-laser 0.6s ease-in-out infinite alternate;
-}
-
-@keyframes lj-laser {
-  from {
-    translate: 0 -0.5rem;
-  }
-  to {
-    translate: 0 4.2rem;
-  }
-}
-
-.lj-scan-line {
-  color: var(--lj-beam-text);
-  font-weight: 600;
-}
 
 /* ---------- 2. Yol haritası ---------- */
 
@@ -1639,37 +1876,6 @@
 /* ---------- Telefon ---------- */
 
 @media (max-width: 760px) {
-  .lj-upload {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas:
-      "file"
-      "flight"
-      "zone";
-    gap: 0.6rem;
-    min-height: 0;
-  }
-
-  .lj-upload .lj-file {
-    align-self: auto;
-  }
-
-  .lj-flight {
-    justify-self: center;
-    width: 2px;
-    height: 1.1rem;
-    background: repeating-linear-gradient(180deg, rgba(103, 232, 249, 0.8) 0 0.45rem, transparent 0.45rem 0.9rem);
-    background-size: 100% 1.8rem;
-    animation-name: lj-dash-y;
-  }
-
-  .lj-upload.is-scanning .lj-file {
-    transform: translateY(40%) scale(0.6);
-  }
-
-  .lj-zone {
-    min-height: 10.5rem;
-  }
-
   .lj-rail {
     padding-top: 0.8rem;
   }
@@ -1694,7 +1900,7 @@
     margin-bottom: 0.8rem;
   }
 
-  /* Telefonda yönlendirme hap değil, tek satırlık yazı: ilk ekranda örnek not kartına yer kalsın. */
+  /* Telefonda yönlendirme hap değil, tek satırlık yazı. */
   .lj-guide {
     padding: 0;
     border: 0;
@@ -1706,12 +1912,6 @@
 
   .lj-row > * {
     flex: 1 1 100%;
-  }
-}
-
-@keyframes lj-dash-y {
-  to {
-    background-position: 0 1.8rem;
   }
 }
 
@@ -1739,14 +1939,20 @@
   }
 }
 
+/* Hareket azaltma: hiçbir şey kendiliğinden hareket etmez; durumlar anında (sürükleme yalnız elin hareketi). */
 @media (prefers-reduced-motion: reduce) {
   .lj-guide,
   .lj-cta--pulse,
-  .lj-file,
-  .lj-flight,
-  .lj-zone-rings span,
-  .lj-scan-laser,
-  .lj-drop-badge.is-switched,
+  .lj-note,
+  .lj-note.is-switched,
+  .lj-core-ring,
+  .lj-core-arc,
+  .lj-core-arc-path,
+  .lj-core-stage[data-phase="scanning"] .lj-core-wave,
+  .lj-scan-find,
+  .lj-output,
+  .lj-plan,
+  .lj-born-cta,
   .lj-studio > *,
   .lj-next,
   .lj-warn,
@@ -1764,8 +1970,18 @@
   .lj-next,
   .lj-next::before,
   .lj-option,
-  .lj-file {
+  .lj-note,
+  .lj-note.is-near,
+  .lj-note.is-absorbing,
+  .lj-core-orb,
+  .lj-core-disc,
+  .lj-own-slot,
+  .lj-date-chip {
     transition: none;
+  }
+
+  .lj-note.is-dragging {
+    rotate: -2deg;
   }
 }
 
