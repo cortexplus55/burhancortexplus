@@ -238,6 +238,29 @@
   }
 }
 
+/*
+  Dizüstü (geniş ama kısa ekran, ör. 1366×768; tarayıcının görünen alanı ~650 px): turun birinci adımı (ray, bırakma
+  alanı, iki düğme) ilk ekranda kalsın diye kahramanın dikey boşlukları sıkılaşır. Linux'ta yazı bir satır fazla
+  kırılınca "Örnek Notla" düğmesinin altı 658 px'e iniyordu (20 Kasım 2026, CI); bu blok ~50 px pay bırakır.
+*/
+@media (min-width: 1100px) and (max-height: 860px) {
+  .hm-hero {
+    padding-top: 1.25rem;
+  }
+
+  .hm-hero-grid {
+    gap: 0.75rem;
+  }
+
+  .hm-lead {
+    margin-top: 0.5rem;
+  }
+
+  .hm-hero .lj-drop {
+    padding-block: 1.1rem;
+  }
+}
+
 /* Başlığın altını şerit çizer; açılışta bir kez, soldan sağa. */
 .hm-title-under {
   display: block;
