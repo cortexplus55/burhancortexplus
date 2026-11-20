@@ -2876,3 +2876,17 @@ Bekçi: `viral-clone.test.ts` (0 model/kredi çağrısı, kopya sınırı, idemp
 Bekçi: `guest-demo-tracks*.test.ts(x)`, `demo-podcasts.test.ts`, `fark-vitrini.test.tsx`, `sinav-radyosu*.test.ts(x)`,
 `kirmizi-kalem.test.tsx`, `basari-karnesi.test.tsx`, `qr-svg.test.ts`; e2e `brans-demo.spec.ts`, `fark-vitrini.spec.ts`,
 `faz7-radyo-kalem.spec.ts`, `sinif-paylas.spec.ts`.
+
+## Lansman öncesi final paketi (20 Kasım 2026, Faz 8)
+
+Ürün sahibinin Faz 8 istemi ve iki ayarı. Kod satırları ilgili bölümlerde: tek küçültücü ve sayfa tepsisi "Evrensel yükleme",
+uygulama kartı Paket B "Telefona kurulum", büyüme hunisi "Kurucu kokpiti", aynı IP günlük ödül sınırı "Sınıfla Paylaş". Göç
+`20261120160000_faz8_davet_ip_gunluk.sql` **kod yayınından sonra** uygulanır (yalnız ekler; eski işlev aynı IP'yi engellemeye devam eder,
+kod iki durumda da çalışır). Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| **Kırmızı kalem misafir örneği** gerçekten puan kıran bir hata gösterir: ara basamakta işaret / mutlak değer (√((2 − x)²) = 2 − x yazıp −4 bulmak); "birim yazılmamış" gibi her zaman puan kırmayan örnek yazılmaz. Sayılar testte yeniden hesaplanır | `fark-vitrini.ts` `RED_PEN_SHOWCASE`, `fark-vitrini.test.tsx` |
+| **Velime ödeme linki düğmesi misafiri kayda götürür** (`/kayit?next=/pay?veli=1`), öbür misafir satın alma düğmeleri gibi; giriş ekranı yeni gelen öğrenciye "Tekrar hoş geldin" diyordu (canlı bağlantı taramasında bulundu) | `parent-whatsapp-copy.ts` `PARENT_WHATSAPP_GUEST_HREF`, bekçi `veli-misafir-kayit.test.ts` |
+| **Canlı denetim (20 Kasım 2026):** PayTR çerçevesi kurucu hesabıyla açıldı, canlı güvenli ödeme sayfası (`www.paytr.com/odeme/guvenli`) normal kart formunu gösterdi ("Sistem Bakımda" yok; kart girilmedi). Misafir sayfaları 390 ve 1280 px'te konsol hatasız ve taşmasız. Canlıda Sentry yalnız oturum sayacı (`session`) gönderir, hata kaydı yok: misafir e2e testlerinin "üçüncü taraf istek yok" denetimi canlıya karşı bu yüzden düşer (yerelde DSN yok), ürün hatası değildir | — |
+| Uygulamada `DATABASE_URL` / Postgres bağlantı dizesi kullanılmaz; veritabanına yalnız Supabase HTTPS API'siyle gidilir (6543 / 5432 sorusu bu ürün için geçerli değil) | — |
