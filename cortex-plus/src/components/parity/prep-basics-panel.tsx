@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import { PrepDeleteButton } from "@/components/parity/prep-delete-button";
 
 /**
  * Hazırlık Ayarları'nın üstü (kıyas ürünü, 1 Ekim 2026): adı ve hedef puanı yerinde
@@ -22,8 +23,6 @@ export function PrepBasicsPanel({
   const [draftTitle, setDraftTitle] = useState(title);
   const [draftTarget, setDraftTarget] = useState(targetScore != null ? String(targetScore) : "");
   const [saving, setSaving] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [deleting, setDeleting] = useState(false);
 
   async function save(body: { title?: string; targetScore?: number | null }) {
     setSaving(true);
@@ -41,24 +40,6 @@ export function PrepBasicsPanel({
       toast.error("Kaydedilemedi. Lütfen tekrar dene.");
     } finally {
       setSaving(false);
-    }
-  }
-
-  async function remove() {
-    setDeleting(true);
-    try {
-      const res = await fetch("/api/learning/exam-prep/details", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prepId }),
-      });
-      if (!res.ok) throw new Error();
-      toast.success("Hazırlık silindi.");
-      router.push("/deneme-sinavlari");
-      router.refresh();
-    } catch {
-      toast.error("Silinemedi. Lütfen tekrar dene.");
-      setDeleting(false);
     }
   }
 
@@ -138,27 +119,14 @@ export function PrepBasicsPanel({
         )}
       </div>
 
+      {/* 21 Kasım 2026: satır içi onay yerine her yerdeki aynı onay penceresi (`prep-delete-button.tsx`). */}
       <div className="cp-prep-basics-danger">
-        {confirmDelete ? (
-          <div role="alertdialog" aria-labelledby="prep-delete-title" className="cp-prep-basics-confirm">
-            <p id="prep-delete-title">
-              <strong>Hazırlık silinsin mi?</strong> Yol, konular, dersler ve yazılı denemeler kalıcı
-              olarak silinir. Yüklediğin belgeler Belgeler&apos;de kalır.
-            </p>
-            <div>
-              <button type="button" className="is-danger" disabled={deleting} onClick={() => void remove()}>
-                {deleting ? "Siliniyor…" : "Sil"}
-              </button>
-              <button type="button" className="is-ghost" disabled={deleting} onClick={() => setConfirmDelete(false)}>
-                Vazgeç
-              </button>
-            </div>
-          </div>
-        ) : (
-          <button type="button" className="cp-prep-basics-delete" onClick={() => setConfirmDelete(true)}>
-            Hazırlığı sil
-          </button>
-        )}
+        <PrepDeleteButton
+          prepId={prepId}
+          title={title}
+          variant="text"
+          redirectTo="/deneme-sinavlari"
+        />
       </div>
     </div>
   );

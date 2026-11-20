@@ -302,6 +302,8 @@ export function OralStudio({
               type="button"
               className={cn("ls-mic-orb", listening && "is-live")}
               onClick={listen}
+              // Faz 3 (20 Kasım 2026): yalnız simgeydi, adı yoktu. Basılı hâli aria-pressed söyler; ad sabit kalır.
+              aria-label="Mikrofonla cevapla"
               aria-pressed={listening}
             >
               <Mic className="h-8 w-8" aria-hidden />

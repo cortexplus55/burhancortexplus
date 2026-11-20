@@ -19,6 +19,23 @@ import { MIME_BY_EXTENSION, uploadSizeProblem } from "@/lib/documents/upload-acc
  */
 
 export const GUEST_HANDOFF_TTL_MS = 2 * 60 * 60 * 1000;
+
+/**
+ * Misafirin dosyası bekliyorken giriş ya da kayıttan sonraki durak: hazırlık kurulum sihirbazı (Faz 5 §1.3). Dosya
+ * sihirbazın materyal adımında kendiliğinden eklenir (`GuestDocumentOffer`, `auto`).
+ */
+export const GUEST_DOCUMENT_NEXT = "/deneme-sinavlari/olustur";
+
+/**
+ * Giriş / kayıt sonrası gidilecek yol (Faz 5 §1.3, 19 Kasım 2026). Bağlantı açıkça bir `next` taşıyorsa (ör. ödeme
+ * sayfası) ona saygı duyulur; taşımıyorsa ve bu sekmede süresi geçmemiş bir misafir dosyası bekliyorsa öğrenci
+ * kurulum sihirbazına gider, dosyası orada kendiliğinden eklenir. Dosya yoksa `fallback` aynen döner.
+ */
+export function guestHandoffTarget(fallback: string, options: { explicitNext?: boolean; now?: number } = {}): string {
+  if (options.explicitNext) return fallback;
+  if (typeof window === "undefined") return fallback;
+  return readGuestMarker(options.now) ? GUEST_DOCUMENT_NEXT : fallback;
+}
 export const GUEST_HANDOFF_MAX_FILES = 10;
 export const GUEST_HANDOFF_MAX_BYTES = 100 * 1024 * 1024;
 

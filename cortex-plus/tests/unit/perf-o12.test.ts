@@ -10,6 +10,9 @@ describe("O12 cheap perf wins", () => {
   it("ayarlar reads run in parallel", () => {
     const src = readFileSync("src/app/ayarlar/page.tsx", "utf8");
     expect(src.match(/await supabase/g)).toBeNull();
-    expect(src).toContain('select("study_reminder_email")');
+    // Faz 2: profilin iki okuması tek select'te birleşti. Faz 6 (20 Kasım 2026): hatırlatma tercihi artık profilden
+    // değil bildirim tercihi deposundan okunur; o okuma da aynı paralel turda (Promise.all içinde).
+    expect(src).not.toMatch(/select\("[^"]*study_reminder_email[^"]*"\)/);
+    expect(src).toMatch(/Promise\.all\(\[[\s\S]*loadNotificationPreferences\(service, user\.id\),\s*\]\)/);
   });
 });

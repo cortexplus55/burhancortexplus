@@ -4,6 +4,7 @@ import { useParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { ParityExamRunner } from "@/components/parity/exam-runner";
 import { peekInstantExam } from "@/lib/learning/mock-exam/instant-exam";
+import { MAIN_CONTENT_ID } from "@/lib/ui/main-content";
 
 /**
  * Anında açılış (3 Kasım 2026): havuz denemesinin soruları kurulumdan bellekte geldiyse ilk soru sunucu
@@ -15,7 +16,7 @@ export default function ExamPrepDenemeLoading() {
   const instant = params?.prepId && params?.examId ? peekInstantExam(params.prepId, params.examId) : null;
   return (
     <div className="cp-sor-root cp-sor-root--session">
-      <main className="cp-sor-main">
+      <main id={MAIN_CONTENT_ID} className="cp-sor-main">
         {instant ? (
           <ParityExamRunner examId={instant.examId} prepId={instant.prepId} title={instant.title} questions={instant.questions} />
         ) : (

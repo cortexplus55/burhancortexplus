@@ -1,5 +1,6 @@
 "use client";
 
+import { uploadPreviewLine, type UploadPageKinds } from "@/lib/billing/upload-preview";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -51,6 +52,7 @@ import {
   listSegments,
   redundantUnitHeader,
   topicSourcesChip,
+  unitSubtopicsToShow,
 } from "@/lib/learning/exam-wizard-copy";
 import {
   dropExamWizardDraft,
@@ -99,13 +101,19 @@ import {
 } from "@/lib/learning/session-signals";
 import { DOCUMENT_UPLOAD_ACCEPT, uploadSizeProblem } from "@/lib/documents/upload-accept";
 import { isPdfSplitTail } from "@/lib/documents/pdf-split-client";
+import { defaultPageRange, shouldAskPageRange, type PageRange } from "@/lib/documents/page-coverage";
+import { PdfPageRangePrompt, type PageRangeRequest } from "@/components/parity/pdf-page-range-prompt";
 import { PasteTextPanel } from "@/components/parity/paste-text-panel";
 import { UrlImportPanel } from "@/components/parity/url-import-panel";
 import { officialExamsForTrack } from "@/lib/curriculum/calendar";
 import { OfficialCurriculumPanel, type OfficialCurriculumPick } from "@/components/parity/official-curriculum-panel";
 import type { CurriculumRef } from "@/lib/curriculum/types";
 import { PhotoQualityPrompt } from "@/components/parity/photo-quality-prompt";
+import { CameraCaptureInput, PhotoPageTray } from "@/components/parity/photo-page-tray";
+import { TRAY_COPY, photoOnlySelection } from "@/lib/upload/photo-tray";
+import { usePhotoTray } from "@/lib/upload/use-photo-tray";
 import { GuestDocumentOffer } from "@/components/parity/guest-document-offer";
+import { readTourProgress } from "@/lib/marketing/guest-tour-progress";
 import { fileFindings, ScanCore, ScanFindings, useScanMoment, type ScanFinding } from "@/components/learning/scan-core";
 import { EXAM_PLACE_MAX, parseExamPlace, parseExamTime } from "@/lib/learning/exam-time";
 import {
@@ -177,6 +185,8 @@ type TopicMeta = {
   /** Short student-facing why/what line from oneshot outline. */
   description?: string | null;
   unitTitle?: string | null;
+  /** Ana ünitenin alt başlıkları (Faz 10): ünitenin altında küçük liste; ünite seçilince hepsi gelir. */
+  subtopics?: string[];
 };
 
 type TopicUnit = { title: string; topicIndexes: number[] };
@@ -365,6 +375,8 @@ export function ExamCreateWizard({
   /** true: tüm konulara eşit. false: focusTopics seçili. */
   const [equalFocus, setEqualFocus] = useState(true);
 
+  // Faz 4: belge başına metin sayfası / fotoğraf sayısı (ön kontrol ya da dosya türü) — yükleme önizleme şeridi.
+  const [pageKinds, setPageKinds] = useState<Record<string, UploadPageKinds>>({});
   const [materials, setMaterialsState] = useState<WizardMaterial[]>(
     initialDocumentId
       ? [{ id: initialDocumentId, fileName: "Seçili materyal", sizeBytes: null, pageCount: null }]
@@ -422,6 +434,14 @@ export function ExamCreateWizard({
   /** Genişlik panelleri (29 Ekim 2026): metin yapıştır, bağlantı ekle, hazır müfredat. */
   const [importPanel, setImportPanel] = useState<"none" | "paste" | "url" | "curriculum">("none");
   const fileRef = useRef<HTMLInputElement>(null);
+  /**
+   * Sayfa tepsisi (20 Kasım 2026): yalnız fotoğraftan oluşan seçim ve kamerayla çekilen her sayfa yüklenmeden önce
+   * tepside bekler; öğrenci sırayı düzeltip "Sayfaları yükle"ye basınca tepsi sırasıyla `takeFiles`'a gider (aynı motor).
+   * PDF / Word / sunu ve sürükle-bırak bugünkü gibi hemen yüklenir.
+   */
+  const tray = usePhotoTray();
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const trayPending = tray.pages.length > 0;
   const documentIds = materials.map((item) => item.id);
   /**
    * Arkadaki konu haritası (31 Ekim 2026): dil adımına girilince başlar, öğrenci dil / çalışma tarzı / aşinalık
@@ -612,8 +632,12 @@ export function ExamCreateWizard({
 
     if (local) {
       applyDraft(local);
-    } else if (pending) {
-      setStep("material");
+    } else {
+      if (pending) setStep("material");
+      // Faz 9.1 (20 Kasım 2026): misafir ana sayfanın turunda sınav gününü seçtiyse (bu sekmenin tur kaydı) ve taslak
+      // yoksa tarih adımı bugün + o gün ile açılır. Sunucudaki taslak gelirse onun tarihi geçerli (aşağıda).
+      const tourDays = readTourProgress()?.days;
+      if (tourDays) setExamDate(isoOf(addDays(tourDays)));
     }
 
     // Başka cihazda bırakılan kurulum (18 Ekim 2026): sunucudaki kopya yeniyse onu aç.
@@ -958,6 +982,9 @@ export function ExamCreateWizard({
         const descriptions: unknown[] = Array.isArray(payload?.draft?.topicDescriptions)
           ? payload.draft.topicDescriptions
           : [];
+        const subtopicLists: unknown[] = Array.isArray(payload?.draft?.topicSubtopics)
+          ? payload.draft.topicSubtopics
+          : [];
         setTopicMeta(
           found.map((_, index) => ({
             sourceCount: typeof counts[index] === "number" ? counts[index] : 0,
@@ -971,6 +998,9 @@ export function ExamCreateWizard({
                 ? String(descriptions[index]).trim()
                 : null,
             unitTitle: unitTitleForIndex(units, index),
+            ...(Array.isArray(subtopicLists[index])
+              ? { subtopics: unitSubtopicsToShow(found[index] ?? "", subtopicLists[index] as unknown[]) }
+              : {}),
           })),
         );
         setExcludedTopics(
@@ -1053,7 +1083,9 @@ export function ExamCreateWizard({
     continueFromMaterialRef.current = continueFromMaterial;
   });
   useEffect(() => {
-    const armed = step === "material" && autoArmedRef.current && Boolean(documentKey) && !materialNotes && !checkingMaterials;
+    // Tepside yüklenmemiş sayfa varken kendiliğinden geçilmez: öğrenci sayfalarını çekiyor.
+    const armed =
+      step === "material" && autoArmedRef.current && Boolean(documentKey) && !materialNotes && !checkingMaterials && !trayPending;
     if (!armed) {
       if (autoCountdown != null) setAutoCountdown(null);
       return;
@@ -1070,7 +1102,7 @@ export function ExamCreateWizard({
     }
     const timer = window.setTimeout(() => setAutoCountdown((current) => (current == null ? null : current - 1)), 1000);
     return () => window.clearTimeout(timer);
-  }, [step, documentKey, materialNotes, checkingMaterials, autoCountdown]);
+  }, [step, documentKey, materialNotes, checkingMaterials, autoCountdown, trayPending]);
 
   function rememberMaterial(material: WizardMaterial) {
     // Ana belge bitti: harita henüz kurulmadıysa baş kopyası yerine belgenin tamamı kullanılır; kurulduysa baş
@@ -1113,6 +1145,9 @@ export function ExamCreateWizard({
     }
     const processExamType = clampExamLabel(subject);
     const processExamDate = examDate.trim() || undefined;
+    // Faz 2 (madde 5): seçilen sayfa aralığı. Aralık 1'den başlamıyorsa hızlı başlatma (baş kopyası) kapalı.
+    const pageRange = pageRangeByDocRef.current.get(input.documentId) ?? null;
+    const fastStart = options.fastStart === true && (!pageRange || pageRange.start === 1);
     const result = await requestDocumentProcessing({
       documentId: input.documentId,
       post: (body) =>
@@ -1122,7 +1157,8 @@ export function ExamCreateWizard({
           examDate: processExamDate,
           // Extract now; the one course outline runs when topics are requested.
           deferMap: true,
-          ...(options.fastStart ? { fastStart: true } : {}),
+          ...(fastStart ? { fastStart: true } : {}),
+          ...(pageRange ? { pageRange } : {}),
         }),
       // Baş kopyası çıktı ve okuma pencere işçisine devredildi: yoklama burada biter.
       stopWhen: (progress) => progress.windowed === true,
@@ -1265,8 +1301,20 @@ export function ExamCreateWizard({
     });
   }
 
+  /** Faz 2 (madde 5): belge başına seçilen sayfa aralığı ve bekleyen aralık sorusu (sırayla, birer birer). */
+  const pageRangeByDocRef = useRef(new Map<string, PageRange>());
+  const [rangeAsk, setRangeAsk] = useState<(PageRangeRequest & { resolve: (range: PageRange) => void }) | null>(null);
+  const rangeQueueRef = useRef<Promise<unknown>>(Promise.resolve());
+  function askPageRange(request: PageRangeRequest): Promise<PageRange> {
+    const next = rangeQueueRef.current.then(
+      () => new Promise<PageRange>((resolve) => setRangeAsk({ ...request, resolve })),
+    );
+    rangeQueueRef.current = next.catch(() => undefined);
+    return next;
+  }
+
   /** Sunucunun sayfa/hak ön kontrolü (yalnız bilgi verir); ücretsiz sayfa hakkı dolduysa "stop". */
-  async function preflightPdf(documentId: string): Promise<PoolOutcome | null> {
+  async function preflightPdf(documentId: string, fileName?: string): Promise<PoolOutcome | null> {
     try {
       const preflightRes = await fetch("/api/documents/preflight", {
         method: "POST",
@@ -1289,8 +1337,25 @@ export function ExamCreateWizard({
         openPaywall(preflight.error);
         return "stop";
       }
+      if (typeof preflight.textPages === "number" || typeof preflight.scannedPages === "number") {
+        setPageKinds((current) => ({
+          ...current,
+          [documentId]: { textPages: preflight.textPages ?? 0, photoPages: preflight.scannedPages ?? 0 },
+        }));
+      }
       const free = preflight.freePages;
-      if (free && typeof preflight.pageCount === "number" && preflight.pageCount > free.remaining) {
+      // Faz 2 (madde 5): belge sessizce kırpılmaz. Varsayılan aralığa sığmayan PDF'te öğrenci aralığı seçer; yükleme
+      // cevabı bekler. Aralık sorulmadıysa ve hak yetmiyorsa eski bilgi satırı çıkar.
+      const affordable = free?.remaining ?? preflight.creditUse?.pagesAffordable ?? null;
+      if (typeof preflight.pageCount === "number" && shouldAskPageRange(preflight.pageCount, affordable)) {
+        const range = await askPageRange({
+          fileName: fileName ?? "Belge",
+          total: preflight.pageCount,
+          initial: defaultPageRange(preflight.pageCount, affordable),
+          affordable,
+        });
+        pageRangeByDocRef.current.set(documentId, range);
+      } else if (free && typeof preflight.pageCount === "number" && preflight.pageCount > free.remaining) {
         toast.message(freePageCapLine(preflight.pageCount, free.remaining));
       }
       // Ücretlide belge sayfa başına haktan düşer (kredi sistemi v2): önceden söyle.
@@ -1354,8 +1419,11 @@ export function ExamCreateWizard({
       process: async ({ documentId, item, onPages }) => {
         try {
           if (isPdfFile(item.file)) {
-            const stop = await preflightPdf(documentId);
+            const stop = await preflightPdf(documentId, item.file.name);
             if (stop) return stop;
+          } else if (item.file.type.startsWith("image/")) {
+            // Kamerayla çekilen fotoğraf: sayfa başına fotoğraf ücreti (Faz 4).
+            setPageKinds((current) => ({ ...current, [documentId]: { textPages: 0, photoPages: 1 } }));
           }
           return await processAndRemember(
             { documentId, fileName: item.file.name, sizeBytes: item.file.size },
@@ -1606,6 +1674,15 @@ export function ExamCreateWizard({
     const pages = ready.reduce((sum, material) => sum + (material.ofPages ?? material.pageCount ?? 0), 0);
     const files = `${ready.length} dosya`;
     return { id: "readout", kind: "done", text: pages > 0 ? `${files} · ${pages === 1 ? "1 sayfa" : `${pages} sayfa`}` : files };
+  })();
+
+  /** Faz 4 önizleme şeridi: yalnız sayfa sayısı bilinen belgelerden; ücretli hesapta (ücretsizde belge kredisiz). */
+  const uploadStrip = (() => {
+    if (!paidUploads) return null;
+    const docs = materials
+      .map((material) => pageKinds[material.id] ?? (material.pageCount ? { textPages: material.ofPages ?? material.pageCount, photoPages: 0 } : null))
+      .filter((item): item is UploadPageKinds => Boolean(item));
+    return docs.length ? uploadPreviewLine(docs) : null;
   })();
 
   const showProcessingPanel =
@@ -1889,8 +1966,9 @@ export function ExamCreateWizard({
             </div>
           ) : null}
 
-          {/* Misafirken ana sayfaya bırakılan dosya: tarayıcıda bekliyor, öğrencinin dokunuşuyla bildiğimiz yoldan yüklenir. */}
-          <GuestDocumentOffer variant="offer" disabled={uploading} onTake={(files) => takeFiles(files)} />
+          {/* Misafirken ana sayfaya bırakılan dosya (Faz 5 §1.3): tarayıcıda bekliyor; bu adıma gelince kendiliğinden,
+              bildiğimiz yükleme yoluyla eklenir (hak, sayfa sınırı ve okuma her dosyayla aynı). */}
+          <GuestDocumentOffer variant="offer" auto disabled={uploading} onTake={(files) => takeFiles(files)} />
 
           <div
             className={dragOver ? "apw-drop apw-drop--over" : "apw-drop"}
@@ -1905,21 +1983,41 @@ export function ExamCreateWizard({
               void takeFiles(e.dataTransfer.files);
             }}
           >
-            {/* Tarama çekirdeği (C1, 13 Kasım 2026): dosya gelince bir an oynar; durağan hâlde hareket yok. */}
-            <ScanCore playing={scan.playing} />
-            {scan.playing && scanBatch ? (
-              <ScanFindings items={scanBatch.files} />
+            {/* Sayfa tepsisi (20 Kasım 2026): fotoğraflar yüklenmeden önce burada bekler; tarama anı sürerken gizli. */}
+            {trayPending && !scan.playing ? (
+              <PhotoPageTray
+                tray={tray}
+                busy={uploading}
+                onAddPage={() => cameraRef.current?.click()}
+                onUpload={(files) => void takeFiles(files)}
+              />
             ) : (
               <>
-                {/* Dokunmatik ekranda sürükle-bırak yok (2 Kasım 2026); başlık cihaza göre. */}
-                <p className="apw-drop-title">
-                  <span className="apw-only-desktop">Dosyanı buraya bırak</span>
-                  <span className="apw-only-touch">Dosya seç</span>
-                </p>
-                <p className="apw-drop-hint">{DOCUMENT_UPLOAD_HINT}</p>
+                {/* Tarama çekirdeği (C1, 13 Kasım 2026): dosya gelince bir an oynar; durağan hâlde hareket yok. */}
+                <ScanCore playing={scan.playing} />
+                {scan.playing && scanBatch ? (
+                  <ScanFindings items={scanBatch.files} />
+                ) : (
+                  <>
+                    {/* Dokunmatik ekranda sürükle-bırak yok (2 Kasım 2026); başlık cihaza göre. */}
+                    <p className="apw-drop-title">
+                      <span className="apw-only-desktop">Dosyanı buraya bırak</span>
+                      <span className="apw-only-touch">Dosya seç</span>
+                    </p>
+                    <p className="apw-drop-hint">{DOCUMENT_UPLOAD_HINT}</p>
+                  </>
+                )}
               </>
             )}
             <PhotoQualityPrompt request={upload.photoQuality} onAnswer={upload.answerPhotoQuality} />
+            <PdfPageRangePrompt
+              request={rangeAsk}
+              onConfirm={(range) => {
+                const pending = rangeAsk;
+                setRangeAsk(null);
+                pending?.resolve(range);
+              }}
+            />
             {/* An bitince (ya da atlanınca) bugünkü ilerleme satırları ve bu seçimin okunan dosya / sayfa sayısı. */}
             {scan.playing ? null : (
               <>
@@ -1947,14 +2045,26 @@ export function ExamCreateWizard({
                 </p>
               </>
             )}
-            <button
-              type="button"
-              className="apw-drop-pick apw-drop-pick--main"
-              disabled={uploading}
-              onClick={() => fileRef.current?.click()}
-            >
-              {uploading ? "Yükleniyor…" : "Dosya seç"}
-            </button>
+            {trayPending ? null : (
+              <div className="apw-drop-picks">
+                <button
+                  type="button"
+                  className="apw-drop-pick apw-drop-pick--main"
+                  disabled={uploading}
+                  onClick={() => fileRef.current?.click()}
+                >
+                  {uploading ? "Yükleniyor…" : "Dosya seç"}
+                </button>
+                {/* Telefonda defter sayfasını doğrudan çek: her çekim tepsiye bir sayfa ekler. */}
+                <button
+                  type="button"
+                  className="apw-drop-pick apw-drop-pick--camera cx-camera-pick"
+                  onClick={() => cameraRef.current?.click()}
+                >
+                  {TRAY_COPY.camera}
+                </button>
+              </div>
+            )}
             <input
               ref={fileRef}
               type="file"
@@ -1962,11 +2072,16 @@ export function ExamCreateWizard({
               className="hidden"
               accept={DOCUMENT_UPLOAD_ACCEPT}
               onChange={(e) => {
-                void takeFiles(e.target.files ?? undefined);
+                const picked = e.target.files ? [...e.target.files] : [];
                 e.target.value = "";
+                // Yalnız fotoğraf seçildiyse önce tepsi (sıra, silme, bir sayfa daha); belge varsa hemen yüklenir.
+                if (photoOnlySelection(picked)) tray.add(picked);
+                else void takeFiles(picked);
               }}
             />
           </div>
+          {/* Kamera girişi bölgenin dışında: bölgede tek dosya girişi kalsın (sürükle-bırak ve seçici aynı giriş). */}
+          <CameraCaptureInput ref={cameraRef} onFiles={tray.add} />
 
           {materials.length ? (
             <ul className="apw-materials">
@@ -1995,6 +2110,12 @@ export function ExamCreateWizard({
                 );
               })}
             </ul>
+          ) : null}
+
+          {uploadStrip ? (
+            <p className="apw-upload-strip" role="status">
+              {uploadStrip}
+            </p>
           ) : null}
 
           <p className="apw-or">Ya da</p>
@@ -2092,8 +2213,9 @@ export function ExamCreateWizard({
                 <p className="apw-drop-hint" role="note">{WIZARD_COPY.continueEarlyHint}</p>
               ) : null}
               {/* Tek devam düğmesi (2 Kasım 2026): müfredat paneli açıkken kendi "Bu konularla devam et"i var;
-                  belge yokken altta ikinci, devre dışı bir "Devam et" gösterilmez. */}
-              {importPanel === "curriculum" && !documentIds.length ? null : (
+                  belge yokken altta ikinci, devre dışı bir "Devam et" gösterilmez. Tepside yüklenmemiş sayfa varken
+                  ekranın tek ana düğmesi tepsinin "Sayfaları yükle"si (20 Kasım 2026). */}
+              {(importPanel === "curriculum" && !documentIds.length) || trayPending ? null : (
               <button
                 type="button"
                 className="apw-cta"
@@ -2714,6 +2836,13 @@ function TopicEditor({
           ) : null}
           {meta.description ? (
             <em className="apw-topic-desc">{meta.description}</em>
+          ) : null}
+          {meta.subtopics?.length ? (
+            <ul className="apw-topic-subtopics" aria-label={`${topic} ${WIZARD_COPY.subtopicsLabel}`}>
+              {meta.subtopics.map((subtopic) => (
+                <li key={subtopic}>{subtopic}</li>
+              ))}
+            </ul>
           ) : null}
           {topicWarnings[index] ? (
             <em className="apw-topic-warning">{topicWarnings[index]}</em>

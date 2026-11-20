@@ -1,0 +1,163 @@
+/*
+  Onay penceresi (20 Kasım 2026, Faz 3; `components/ui/confirm-dialog.tsx`). Tasarım sistemi §6 "Diyalog": ortalanmış,
+  en çok 480 px, `bg-1`, köşe 32, arka plan `--cx-dim`, sağ üstte 40 px cam kapat. Renkler token'dan; açık ve koyu temada
+  okunur. Telefonda (390 px) yanlarda 16 px boşluk kalır, düğmeler 44 px.
+*/
+
+.cx-confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: var(--cx-dim);
+  transition: opacity var(--cx-dur-color) ease;
+}
+
+.cx-confirm-backdrop[data-starting-style],
+.cx-confirm-backdrop[data-ending-style] {
+  opacity: 0;
+}
+
+.cx-confirm {
+  position: fixed;
+  z-index: 91;
+  top: 50%;
+  left: 50%;
+  box-sizing: border-box;
+  width: min(480px, calc(100vw - 2 * var(--cx-gutter)));
+  max-height: calc(100dvh - 2 * var(--cx-gutter));
+  overflow-y: auto;
+  padding: var(--cx-space-24);
+  border-radius: var(--cx-radius-xl);
+  background: var(--cx-bg-1);
+  color: var(--cx-text-primary);
+  box-shadow: var(--cx-shadow-popover);
+  transform: translate(-50%, -50%);
+  font-family: var(--cx-font-sans);
+  transition: opacity var(--cx-dur-color) ease, scale var(--cx-dur-color) var(--cx-ease-glide);
+}
+
+.cx-confirm[data-starting-style],
+.cx-confirm[data-ending-style] {
+  opacity: 0;
+  scale: 0.96;
+}
+
+.cx-confirm:focus-visible {
+  outline: none;
+}
+
+.cx-confirm-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cx-space-12);
+}
+
+.cx-confirm-title {
+  margin: 0;
+  padding-top: var(--cx-space-8);
+  font: var(--cx-t-title-m);
+  letter-spacing: var(--cx-ls-heading);
+  text-wrap: balance;
+}
+
+.cx-confirm-close {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--cx-icon-btn-l);
+  height: var(--cx-icon-btn-l);
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  cursor: pointer;
+}
+
+.cx-confirm-close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.cx-confirm-text {
+  margin: var(--cx-space-12) 0 0;
+  font: var(--cx-t-body-14);
+  color: var(--cx-text-secondary);
+}
+
+.cx-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cx-space-8);
+  margin-top: var(--cx-space-24);
+}
+
+.cx-confirm-btn {
+  display: inline-flex;
+  flex: 1 1 10rem;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--cx-control-m);
+  padding: 0 var(--cx-space-18);
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-bg-2);
+  color: var(--cx-text-primary);
+  font: var(--cx-t-button-s);
+  cursor: pointer;
+  transition: background-color var(--cx-dur-color) ease;
+}
+
+.cx-confirm-btn:hover {
+  background: var(--cx-bg-3);
+}
+
+.cx-confirm-btn[data-tone="danger"] {
+  background: var(--cx-danger-weak);
+  color: var(--cx-danger);
+}
+
+.cx-confirm-btn[data-tone="danger"]:hover {
+  background: color-mix(in srgb, var(--cx-danger) 18%, var(--cx-danger-weak));
+}
+
+.cx-confirm-btn[aria-disabled="true"],
+.cx-confirm-close[aria-disabled="true"] {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+@media (max-width: 767px) {
+  .cx-confirm {
+    padding: var(--cx-space-20);
+  }
+
+  .cx-confirm-close {
+    width: var(--cx-tap-min);
+    height: var(--cx-tap-min);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cx-confirm[data-starting-style],
+  .cx-confirm[data-ending-style] {
+    scale: 1;
+  }
+}
+
+/* Çok satırlı açıklama (21 Kasım 2026, hazırlık silme): her satır kendi paragrafı; uyarı satırı uyarı renginde. */
+.cx-confirm-line {
+  display: block;
+}
+
+.cx-confirm-line + .cx-confirm-line {
+  margin-top: var(--cx-space-8);
+}
+
+.cx-confirm-note {
+  color: var(--cx-warning);
+}
+
+/* Uyarı satırı sonradan dolar (canlı bölge kalır): boşken yer kaplamasın. */
+.cx-confirm-line + .cx-confirm-note:empty {
+  margin-top: 0;
+}

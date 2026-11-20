@@ -11,7 +11,10 @@ import {
   foldTopicMastery,
   holdMasteryOnSuccess,
   holdTrackingOnSuccess,
+  masterySnapshotFromRow,
+  MASTERY_ROW_COLUMNS,
   normalizeTopicKey,
+  scoreTopicMastery,
   parsePersistedTracking,
   preferNextNodeForTracking,
   stripAnswerMeta,
@@ -26,6 +29,48 @@ import {
   resolveMisconceptionsAfterEvidence,
 } from "@/lib/learning/misconception-store";
 import { createTopicIndex } from "@/lib/learning/topic-identity";
+import { computeTopicPolicy, type PolicyEvidence, type TopicPolicy } from "@/lib/learning/mastery-policy";
+
+/** Bir hazırlığın politika için okunan kanıt tavanı (en yeni satırlar). */
+const POLICY_EVIDENCE_LIMIT = 5000;
+
+/**
+ * Faz 4: hazırlığın bütün kanıtından konu başına akıllı kavrama kararı (`mastery-policy.ts`). Konu anahtarı hazırlığın
+ * konu adına bağlanır (`canonicalKey`). Okuma düşerse hata günlüğe iner ve boş döner (eski sayım kullanılır).
+ */
+export async function loadTopicPolicies(
+  service: SupabaseClient,
+  input: { userId: string; prepId: string; canonicalKey: (key: string) => string; now?: Date },
+): Promise<Map<string, TopicPolicy>> {
+  const { data, error } = await service
+    .from("exam_prep_answer_evidence")
+    .select("topic_key, source_kind, correct, hint_assisted, is_first_attempt, attempt_id, created_at")
+    .eq("user_id", input.userId)
+    .eq("exam_prep_id", input.prepId)
+    .order("created_at", { ascending: false })
+    .limit(POLICY_EVIDENCE_LIMIT);
+  const out = new Map<string, TopicPolicy>();
+  if (error) {
+    console.error("mastery_policy_evidence_read_failed", { prepId: input.prepId, message: error.message });
+    return out;
+  }
+  const byTopic = new Map<string, PolicyEvidence[]>();
+  for (const row of (data ?? []) as Record<string, unknown>[]) {
+    const key = normalizeTopicKey(input.canonicalKey(normalizeTopicKey(String(row.topic_key ?? ""))));
+    const list = byTopic.get(key) ?? [];
+    list.push({
+      sourceKind: String(row.source_kind ?? ""),
+      correct: row.correct === true,
+      hintAssisted: row.hint_assisted === true,
+      isFirstAttempt: row.is_first_attempt !== false,
+      attemptId: (row.attempt_id as string | null) ?? null,
+      createdAt: String(row.created_at ?? ""),
+    });
+    byTopic.set(key, list);
+  }
+  for (const [key, rows] of byTopic) out.set(key, computeTopicPolicy(rows, input.now ?? new Date()));
+  return out;
+}
 
 export async function countPriorCompletedAttempts(
   service: SupabaseClient,
@@ -123,7 +168,7 @@ export async function recordLearningTrackingAfterComplete(
   }
 
   if (evidence.length) {
-    await service.from("exam_prep_answer_evidence").insert(
+    const { error: evidenceError } = await service.from("exam_prep_answer_evidence").insert(
       evidence.map((row) => ({
         user_id: input.userId,
         exam_prep_id: input.prepId,
@@ -141,6 +186,10 @@ export async function recordLearningTrackingAfterComplete(
         question_preview: row.questionPreview,
       })),
     );
+    // Hata yutulmaz (Faz 4): kanıt yazılamazsa günlüğe iner; hâkimiyet eldeki kanıtla hesaplanır.
+    if (evidenceError) {
+      console.error("answer_evidence_insert_failed", { prepId: input.prepId, nodeId: input.nodeId, message: evidenceError.message });
+    }
   }
 
   // Yanılgı çözümü (20 Ekim 2026): bu bitişte yardımsız doğru varsa, iki ayrı günde doğru
@@ -155,27 +204,43 @@ export async function recordLearningTrackingAfterComplete(
 
   const { data: masteryRows } = await service
     .from("exam_prep_topic_mastery")
-    .select(
-      "topic_key, measured_level, confidence, evidence_count, first_attempt_correct, first_attempt_total, independent_correct, independent_total, last_practiced_at",
-    )
+    .select(MASTERY_ROW_COLUMNS)
     .eq("user_id", input.userId)
     .eq("exam_prep_id", input.prepId);
 
-  const prior: TopicMasterySnapshot[] = (masteryRows ?? []).map((row) => ({
-    topicKey: row.topic_key as string,
-    measured: (row.evidence_count as number) > 0,
-    level: row.measured_level as TopicMasterySnapshot["level"],
-    confidence: Number(row.confidence ?? 0),
-    evidenceCount: Number(row.evidence_count ?? 0),
-    firstAttemptCorrect: Number(row.first_attempt_correct ?? 0),
-    firstAttemptTotal: Number(row.first_attempt_total ?? 0),
-    independentCorrect: Number(row.independent_correct ?? 0),
-    independentTotal: Number(row.independent_total ?? 0),
-    lastPracticedAt: (row.last_practiced_at as string | null) ?? null,
-  }));
+  const prior: TopicMasterySnapshot[] = ((masteryRows ?? []) as Record<string, unknown>[]).map(masterySnapshotFromRow);
+  // Faz 4: konu başına akıllı kavrama kararı — bu bitişin kanıtı dahil bütün kanıttan.
+  const policies = await loadTopicPolicies(service, { userId: input.userId, prepId: input.prepId, canonicalKey });
 
   const succeeded = activitySucceeded(evidence);
-  const folded = holdMasteryOnSuccess(prior, foldTopicMastery(evidence, prior), succeeded);
+  const withPolicy = (topics: TopicMasterySnapshot[]) => {
+    const seen = new Set(topics.map((topic) => normalizeTopicKey(topic.topicKey)));
+    const out = topics.map((topic) => {
+      const policy = policies.get(normalizeTopicKey(topic.topicKey));
+      return policy ? scoreTopicMastery({ ...topic, policy }) : topic;
+    });
+    // Yalnız kart öz bildirimi olan konu da kayda geçer (eski sayımı yok, kararı var).
+    for (const [key, policy] of policies) {
+      if (seen.has(key)) continue;
+      out.push(
+        scoreTopicMastery({
+          topicKey: key,
+          measured: false,
+          level: "unmeasured",
+          confidence: 0,
+          evidenceCount: 0,
+          firstAttemptCorrect: 0,
+          firstAttemptTotal: 0,
+          independentCorrect: 0,
+          independentTotal: 0,
+          lastPracticedAt: new Date().toISOString(),
+          policy,
+        }),
+      );
+    }
+    return out;
+  };
+  const folded = holdMasteryOnSuccess(prior, withPolicy(foldTopicMastery(evidence, prior)), succeeded);
   // "+%X kazandın" kartı (19 Ekim 2026): bu etkinliğin kanıtıyla değişen konunun güveni.
   // Zayıf konuya yönelen hazırlık geneli düğümde (20 Ekim 2026) kartın adı sorulan konu.
   const tested = (input.payload as { testedTopic?: unknown } | null)?.testedTopic;
@@ -185,6 +250,7 @@ export async function recordLearningTrackingAfterComplete(
     folded,
     evidenceKeys: evidence.map((row) => row.topicKey),
     topicLabel: gainLabel ? (topicIndex.rowForKey(gainLabel)?.label ?? gainLabel) : gainLabel,
+    targetScore: input.targetScore ?? null,
   });
 
   // Konular tek istekte (6 Kasım 2026, hız paketi): önce konu başına art arda bir upsert gidiyordu.
@@ -192,7 +258,7 @@ export async function recordLearningTrackingAfterComplete(
   // aynı satıra iki kez dokunulamaz).
   const masteryUpserts = new Map<string, Record<string, unknown>>();
   for (const topic of folded) {
-    if (!topic.measured && topic.evidenceCount === 0) continue;
+    if (!topic.measured && topic.evidenceCount === 0 && !topic.policy) continue;
     masteryUpserts.set(topic.topicKey, {
       user_id: input.userId,
       exam_prep_id: input.prepId,
@@ -205,17 +271,21 @@ export async function recordLearningTrackingAfterComplete(
       independent_correct: topic.independentCorrect,
       independent_total: topic.independentTotal,
       last_practiced_at: topic.lastPracticedAt,
+      policy: topic.policy ?? null,
       updated_at: new Date().toISOString(),
     });
   }
   if (masteryUpserts.size) {
     // Tek konuda satırın kendisi (istek gövdesi eskisiyle aynı), birden çoksa dizi: ikisi de tek istek.
     const masteryRowsOut = [...masteryUpserts.values()];
-    await service
+    const { error: masteryError } = await service
       .from("exam_prep_topic_mastery")
       .upsert(masteryRowsOut.length === 1 ? masteryRowsOut[0]! : masteryRowsOut, {
         onConflict: "user_id,exam_prep_id,topic_key",
       });
+    if (masteryError) {
+      console.error("topic_mastery_upsert_failed", { prepId: input.prepId, message: masteryError.message });
+    }
   }
 
   const { data: nodeRows } = await service
@@ -300,3 +370,112 @@ export async function recordLearningTrackingAfterComplete(
 }
 
 export { stripAnswerMeta };
+
+/**
+ * Faz 4: tekrar sorusunun cevabı (günü gelen tekrar ve ücretsiz hedefli tekrar) konu kanıtıdır — tekrar cevabı
+ * (`is_first_attempt: false`): doğrusu 0,4 ile çarpılır, yanlışı tam sayılır. Ardından konunun kararı yenilenir.
+ * Hata yutulmaz: günlüğe iner; cevabın kendisi (tekrar takvimi) etkilenmez.
+ */
+export async function recordReviewAnswerEvidence(
+  service: SupabaseClient,
+  input: { userId: string; prepId: string; topicLabel: string | null; correct: boolean; questionPreview?: string | null; now?: Date },
+): Promise<void> {
+  const label = input.topicLabel?.trim();
+  if (!label) return;
+  const { data: topicRows, error: topicError } = await service.from("exam_prep_topics").select("id, label").eq("exam_prep_id", input.prepId);
+  if (topicError) {
+    console.error("review_evidence_topics_read_failed", { prepId: input.prepId, message: topicError.message });
+    return;
+  }
+  const topicIndex = createTopicIndex(
+    (topicRows ?? [])
+      .map((row) => ({ id: String((row as { id?: unknown }).id ?? ""), label: String((row as { label?: unknown }).label ?? "").trim() }))
+      .filter((row) => row.label),
+  );
+  const canonicalKey = (key: string) => {
+    const row = topicIndex.rowForKey(key);
+    return row ? normalizeTopicKey(row.label) : key;
+  };
+  const topicKey = canonicalKey(normalizeTopicKey(label));
+  const { error } = await service.from("exam_prep_answer_evidence").insert({
+    user_id: input.userId,
+    exam_prep_id: input.prepId,
+    node_id: null,
+    attempt_id: null,
+    topic_key: topicKey,
+    learning_objective: null,
+    question_index: 0,
+    correct: input.correct,
+    is_first_attempt: false,
+    hint_assisted: false,
+    independent_success: input.correct,
+    wrong_type: input.correct ? null : "review_miss",
+    source_kind: "review",
+    question_preview: input.questionPreview?.slice(0, 160) ?? null,
+  });
+  if (error) {
+    console.error("review_evidence_insert_failed", { prepId: input.prepId, message: error.message });
+    return;
+  }
+  await refreshTopicPolicies(service, { userId: input.userId, prepId: input.prepId, canonicalKey, now: input.now });
+}
+
+/** Hazırlığın konu kararlarını kanıttan yeniden yazar (yalnız politika, yüzde ve seviye; eski sayımlar aynen kalır). */
+export async function refreshTopicPolicies(
+  service: SupabaseClient,
+  input: { userId: string; prepId: string; canonicalKey: (key: string) => string; now?: Date },
+): Promise<void> {
+  const policies = await loadTopicPolicies(service, input);
+  if (!policies.size) return;
+  const { data, error } = await service
+    .from("exam_prep_topic_mastery")
+    .select(MASTERY_ROW_COLUMNS)
+    .eq("user_id", input.userId)
+    .eq("exam_prep_id", input.prepId);
+  if (error) {
+    console.error("topic_policy_refresh_read_failed", { prepId: input.prepId, message: error.message });
+    return;
+  }
+  const byKey = new Map(
+    ((data ?? []) as Record<string, unknown>[]).map((row) => {
+      const snapshot = masterySnapshotFromRow(row);
+      return [normalizeTopicKey(snapshot.topicKey), snapshot] as const;
+    }),
+  );
+  const now = (input.now ?? new Date()).toISOString();
+  const rows = [...policies].map(([key, policy]) => {
+    const prior = byKey.get(key);
+    const scored = scoreTopicMastery({
+      topicKey: prior?.topicKey ?? key,
+      measured: prior?.measured ?? false,
+      level: prior?.level ?? "unmeasured",
+      confidence: prior?.confidence ?? 0,
+      evidenceCount: prior?.evidenceCount ?? 0,
+      firstAttemptCorrect: prior?.firstAttemptCorrect ?? 0,
+      firstAttemptTotal: prior?.firstAttemptTotal ?? 0,
+      independentCorrect: prior?.independentCorrect ?? 0,
+      independentTotal: prior?.independentTotal ?? 0,
+      lastPracticedAt: now,
+      policy,
+    });
+    return {
+      user_id: input.userId,
+      exam_prep_id: input.prepId,
+      topic_key: scored.topicKey,
+      measured_level: scored.level,
+      confidence: scored.confidence,
+      evidence_count: scored.evidenceCount,
+      first_attempt_correct: scored.firstAttemptCorrect,
+      first_attempt_total: scored.firstAttemptTotal,
+      independent_correct: scored.independentCorrect,
+      independent_total: scored.independentTotal,
+      last_practiced_at: now,
+      policy,
+      updated_at: now,
+    };
+  });
+  const { error: writeError } = await service
+    .from("exam_prep_topic_mastery")
+    .upsert(rows, { onConflict: "user_id,exam_prep_id,topic_key" });
+  if (writeError) console.error("topic_policy_refresh_write_failed", { prepId: input.prepId, message: writeError.message });
+}

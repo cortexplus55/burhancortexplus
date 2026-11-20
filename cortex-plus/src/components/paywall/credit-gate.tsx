@@ -93,7 +93,7 @@ export function CreditGate({
 
 /**
  * Yenilenme saati kapıya taşınıyor: "abone ol" tek çözüm değil, beklemek de çözüm ve bunu söylemek
- * dürüst olan. Ücretsiz hesapta sayacın kendi saati (mesaj, fotoğraf ve derse dahil adımlar gece yarısı).
+ * dürüst olan. Ücretsiz hesapta sayacın kendi saati (mesaj ve derse dahil adımlar gece yarısı, fotoğraf ay başında).
  * Ders sayacının saati yok (11 Kasım 2026 akşamı): hak yenilenmez, iş Plus'ta.
  *
  * Sayaç bilinmiyorsa (kurulum, belge işleme, sınav hazırlığı sınırı) saat yazılmaz: 24 Ekim 2026'ya kadar

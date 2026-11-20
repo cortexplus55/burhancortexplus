@@ -1760,7 +1760,11 @@ export function reviewItemProblems(check: ReviewCheck & { review?: StoredReview 
   if (check.type === "mcq") {
     const mismatch = explanationAnswerMismatch({ options, keyed: [review.answerIndex], explanation: review.explanation });
     if (mismatch) {
-      problems.push(`açıklaması ${String(mismatch.value).replace(".", ",")} sonucuna varıyor ama answerIndex '${mismatch.keyed.join("', '")}' şıkkında.`);
+      const evidence =
+        mismatch.reason === "rationale"
+          ? "şık gerekçeleri anahtarı yanılgı diye anlatıyor"
+          : `açıklaması ${Number.isFinite(mismatch.value) ? String(mismatch.value).replace(".", ",") : mismatch.expected} sonucuna varıyor`;
+      problems.push(`${evidence} ama answerIndex '${mismatch.keyed.join("', '")}' şıkkında.`);
     }
   }
   return problems;

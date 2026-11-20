@@ -19,7 +19,11 @@ function stubFetch() {
   const calls: { method: string; body: Record<string, unknown> }[] = [];
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+    vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+      // Silme penceresinin ücretsiz ilk ders uyarısı (21 Kasım 2026) yalnız okur; yazım çağrısı sayılmaz.
+      if (String(url) === "/api/learning/exam-prep/delete-note") {
+        return new Response(JSON.stringify({ freeLessonUsed: false }), { status: 200 });
+      }
       calls.push({ method: String(init?.method), body: JSON.parse(String(init?.body ?? "{}")) });
       return new Response(JSON.stringify({ ok: true }), { status: 200 });
     }),
@@ -59,8 +63,12 @@ describe("hazırlık ayarları", () => {
     render(<PrepBasicsPanel prepId="p1" title="Trigonometri" targetScore={null} />);
     fireEvent.click(screen.getByRole("button", { name: "Hazırlığı sil" }));
     expect(calls).toHaveLength(0);
-    expect(screen.getByRole("alertdialog").textContent).toContain("Belgeler'de kalır");
-    fireEvent.click(screen.getByRole("button", { name: "Sil" }));
+    // 21 Kasım 2026: satır içi onay yerine ortak onay penceresi; hazırlığın adı ve geri alınamazlık yazılı.
+    const dialog = screen.getByRole("alertdialog");
+    expect(dialog.textContent).toContain("«Trigonometri»");
+    expect(dialog.textContent).toContain("geri alınamaz");
+    expect(dialog.textContent).toContain("Belgelerim'de kalır");
+    fireEvent.click(screen.getByRole("button", { name: "Evet, kalıcı olarak sil" }));
     await waitFor(() => expect(push).toHaveBeenCalledWith("/deneme-sinavlari"));
     expect(calls[0]).toEqual({ method: "DELETE", body: { prepId: "p1" } });
   });

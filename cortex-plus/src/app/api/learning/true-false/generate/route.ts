@@ -57,7 +57,7 @@ export async function POST(request: Request) {
 
   // Ücretsiz hesap = tek ders (11 Kasım 2026 akşamı): bu üretim ders sayacına düşer, ücretsiz hesapta Plus'a yönlenir.
   // Kaynak okuma, kredi ayırma ve model çağrısından ÖNCE; cüzdan bakiyesi (davet hediyesi) yetiyorsa iş onunla yapılır.
-  if (await freeLessonRefused(service, userId, "QUIZ_GENERATE")) return errorResponse(402, FREE_LESSON_CODE);
+  if (await freeLessonRefused(service, userId, "TRUE_FALSE_GENERATE")) return errorResponse(402, FREE_LESSON_CODE);
 
   // Kredi ayrılmadan önce: belge hazır değilse net sebep, kayıp yok.
   const source = await studioTeacherSource(service, { userId, topic, documentId });
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
 
   const outcome = await runWithTeacherModel(service, {
     userId,
-    actionCode: "QUIZ_GENERATE",
+    actionCode: "TRUE_FALSE_GENERATE",
     idempotencyKey: `studio-tf:${userId}:${crypto.randomUUID()}`,
     label: "studio_true_false",
     topic,

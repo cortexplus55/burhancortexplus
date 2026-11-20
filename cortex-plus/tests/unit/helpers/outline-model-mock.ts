@@ -7,6 +7,7 @@
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { vi } from "vitest";
+import { textPageCredits } from "@/lib/credits/price-table";
 
 export type ModelCall = { model: string; key: string; prompt: string };
 export const HANG = Symbol("hang");
@@ -82,7 +83,8 @@ export function routeTables(
     processing_jobs: docs.map((d) => ({ document_id: d.id, status: "processing" })),
     credit_reservations: docs.map((d) => ({
       id: `doc-${d.id}`, user_id: "u1", idempotency_key: `document_process_${d.id}`,
-      action_code: "DOCUMENT_PAGE_PROCESS", status: "pending", amount: 5, claim_token: null,
+      // Faz 4: önden ayrılan tutar gerçek yüklemedeki gibi metin sayfası bedeli (ceil(sayfa / 5)).
+      action_code: "DOCUMENT_PAGE_PROCESS", status: "pending", amount: textPageCredits(d.pages.length), claim_token: null,
     })),
     document_topic_map_jobs: [], document_topic_nodes: [], document_topic_page_links: [],
     document_coverage_reports: [], exam_preps: [], exam_prep_topics: [],

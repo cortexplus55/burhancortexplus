@@ -16,10 +16,18 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { MASTERY_STREAK } from "@/lib/learning/mistake-notebook-rule";
 export { MASTERY_STREAK };
 
-export type MistakeSource = "deneme" | "quiz";
+export type MistakeSource = "deneme" | "quiz" | "true_false" | "lesson_check" | "podcast";
+
+export const MISTAKE_SOURCES: readonly MistakeSource[] = ["deneme", "quiz", "true_false", "lesson_check", "podcast"];
 
 export type MistakeDraft = {
   source: MistakeSource;
+  /**
+   * Sorunun kimliği. Deneme sorusunun kimliği gerçek bir UUID'dir (`source_question_id`). Hazırlık yolundaki
+   * etkinliklerin soruları ise satır değil, etkinlik içeriğindeki sıradır: `${attemptId}:q:0`, `:tf:1`, `:pc:2`,
+   * `:lc:3` — bunlar `source_ref` sütununa yazılır (Faz 2 madde 3). UUID sütununa UUID olmayan metin yazmak
+   * Postgres'te 22P02 verir ve eskiden bütün yazım sessizce düşüyordu.
+   */
   sourceQuestionId: string;
   topicLabel: string | null;
   questionText: string;
@@ -107,7 +115,7 @@ const SELECT =
 function toEntry(row: Row): MistakeEntry {
   return {
     id: row.id,
-    source: row.source === "quiz" ? "quiz" : "deneme",
+    source: (MISTAKE_SOURCES as readonly string[]).includes(row.source) ? (row.source as MistakeSource) : "deneme",
     topicLabel: row.topic_label,
     questionText: row.question_text,
     options: Array.isArray(row.options) ? (row.options as string[]) : [],
@@ -124,6 +132,53 @@ function toEntry(row: Row): MistakeEntry {
 /** Konusuz sorular tek bir başlık altında toplanıyor, dağılmasınlar. */
 const UNLABELLED = "Konusu belirsiz";
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Gerçek bir UUID mi (deneme sorusu). Yol kimlikleri (`…:q:0`) UUID değildir. */
+export function isUuid(value: string): boolean {
+  return UUID_RE.test(value.trim());
+}
+
+/** Taslağın veritabanındaki kimlik sütunları: UUID → `source_question_id`, diğer her şey → `source_ref`. */
+export function mistakeIdentity(draft: Pick<MistakeDraft, "sourceQuestionId">): {
+  source_question_id: string | null;
+  source_ref: string | null;
+} {
+  const id = String(draft.sourceQuestionId ?? "").trim();
+  if (isUuid(id)) return { source_question_id: id.toLowerCase(), source_ref: null };
+  return { source_question_id: null, source_ref: id || null };
+}
+
+export type RecordMistakesResult = {
+  ok: boolean;
+  /** Yeni açılan + yeniden açılan (yanlış sayacı artan) satır sayısı. */
+  savedCount: number;
+  error: string | null;
+};
+
+type ExistingRow = {
+  id: string;
+  source: string;
+  source_question_id: string | null;
+  source_ref: string | null;
+  wrong_count: number | null;
+};
+
+type DbError = { code?: string | null; message?: string | null } | null | undefined;
+
+function logWriteFailure(step: string, error: DbError, extra: Record<string, unknown>) {
+  console.error("mistake_notebook_write_failed", {
+    step,
+    code: error?.code ?? null,
+    message: error?.message ?? null,
+    ...extra,
+  });
+}
+
+function keyOf(row: { source: string; source_question_id: string | null; source_ref: string | null }): string {
+  return row.source_question_id ? `uuid:${row.source_question_id.toLowerCase()}` : `ref:${row.source}:${row.source_ref}`;
+}
+
 /**
  * Yanlışları deftere yazar.
  *
@@ -131,57 +186,138 @@ const UNLABELLED = "Konusu belirsiz";
  * doğru serisini sıfırlıyor ve soruyu defterden geri çağırıyor. Yani bir kez
  * aşılmış bir soruyu yeniden yanlış yaparsan defterine geri dönüyor — çünkü
  * demek ki aşılmamış.
+ *
+ * Faz 2 (madde 3): hata yutulmaz. Her adımın hatası yapılandırılmış günlüğe iner ve sonuç
+ * `{ ok, savedCount, error }` olarak döner; çağıran (deneme notlama, yol bitişi) kendi akışını
+ * bozmadan sonucu görür.
  */
 export async function recordMistakes(
   service: SupabaseClient,
   userId: string,
   drafts: MistakeDraft[],
-): Promise<void> {
-  if (!drafts.length) return;
+): Promise<RecordMistakesResult> {
+  if (!drafts.length) return { ok: true, savedCount: 0, error: null };
 
-  const ids = drafts.map((d) => d.sourceQuestionId);
-  const { data: existing } = await service
-    .from("mistake_entries")
-    .select("id, source_question_id, wrong_count")
-    .eq("user_id", userId)
-    .in("source_question_id", ids);
-
-  const seen = new Map(
-    (existing ?? []).map((row) => [
-      row.source_question_id as string,
-      { id: row.id as string, wrongCount: (row.wrong_count as number) ?? 1 },
-    ]),
-  );
-
-  const fresh = drafts.filter((d) => !seen.has(d.sourceQuestionId));
-  if (fresh.length) {
-    await service.from("mistake_entries").insert(
-      fresh.map((d) => ({
-        user_id: userId,
-        source: d.source,
-        source_question_id: d.sourceQuestionId,
-        topic_label: d.topicLabel,
-        question_text: d.questionText,
-        options: d.options,
-        correct_answer: d.correctAnswer,
-        first_wrong_answer: d.wrongAnswer,
-        explanation: d.explanation,
-      })),
-    );
-  }
-
+  // Aynı istek içinde aynı soru iki kez gelirse tek satır sayılır.
+  const unique = new Map<string, MistakeDraft & { identity: ReturnType<typeof mistakeIdentity> }>();
   for (const draft of drafts) {
-    const hit = seen.get(draft.sourceQuestionId);
-    if (!hit) continue;
-    await service
-      .from("mistake_entries")
-      .update({
-        wrong_count: hit.wrongCount + 1,
-        correct_streak: 0,
-        mastered_at: null,
-      })
-      .eq("id", hit.id);
+    const identity = mistakeIdentity(draft);
+    if (!identity.source_question_id && !identity.source_ref) {
+      logWriteFailure("validate", { code: "empty_id", message: "source id missing" }, { source: draft.source });
+      continue;
+    }
+    const key = keyOf({ source: draft.source, ...identity });
+    if (!unique.has(key)) unique.set(key, { ...draft, identity });
   }
+  const list = [...unique.values()];
+  if (!list.length) return { ok: false, savedCount: 0, error: "empty_id" };
+
+  const uuids = list.map((d) => d.identity.source_question_id).filter((v): v is string => Boolean(v));
+  const refs = list.map((d) => d.identity.source_ref).filter((v): v is string => Boolean(v));
+
+  const reads = await Promise.all([
+    uuids.length
+      ? service
+          .from("mistake_entries")
+          .select("id, source, source_question_id, source_ref, wrong_count")
+          .eq("user_id", userId)
+          .in("source_question_id", uuids)
+      : Promise.resolve({ data: [] as ExistingRow[], error: null }),
+    refs.length
+      ? service
+          .from("mistake_entries")
+          .select("id, source, source_question_id, source_ref, wrong_count")
+          .eq("user_id", userId)
+          .in("source_ref", refs)
+      : Promise.resolve({ data: [] as ExistingRow[], error: null }),
+  ]);
+  for (const [index, read] of reads.entries()) {
+    if (read.error) {
+      logWriteFailure(index === 0 ? "read_uuid" : "read_ref", read.error, { count: index === 0 ? uuids.length : refs.length });
+      return { ok: false, savedCount: 0, error: read.error.message ?? "read_failed" };
+    }
+  }
+
+  const seen = new Map<string, { id: string; wrongCount: number }>();
+  for (const row of [...(reads[0].data ?? []), ...(reads[1].data ?? [])] as ExistingRow[]) {
+    seen.set(keyOf(row), { id: row.id, wrongCount: row.wrong_count ?? 1 });
+  }
+
+  let savedCount = 0;
+  let firstError: string | null = null;
+
+  const toRow = (d: (typeof list)[number]) => ({
+    user_id: userId,
+    source: d.source,
+    source_question_id: d.identity.source_question_id,
+    source_ref: d.identity.source_ref,
+    topic_label: d.topicLabel,
+    question_text: d.questionText,
+    options: d.options,
+    correct_answer: d.correctAnswer,
+    first_wrong_answer: d.wrongAnswer,
+    explanation: d.explanation,
+  });
+
+  const bump = async (hit: { id: string; wrongCount: number }) => {
+    const { error } = await service
+      .from("mistake_entries")
+      .update({ wrong_count: hit.wrongCount + 1, correct_streak: 0, mastered_at: null })
+      .eq("id", hit.id);
+    if (error) {
+      logWriteFailure("update", error, {});
+      firstError ??= error.message ?? "update_failed";
+      return;
+    }
+    savedCount += 1;
+  };
+
+  const fresh = list.filter((d) => !seen.has(keyOf({ source: d.source, ...d.identity })));
+  if (fresh.length) {
+    const { error } = await service.from("mistake_entries").insert(fresh.map(toRow));
+    if (!error) {
+      savedCount += fresh.length;
+    } else if (error.code === "23505") {
+      // Eşzamanlı iki bitiş aynı soruyu yazdı: satır satır dene; çakışan satır var olanın sayacını artırır.
+      for (const draft of fresh) {
+        const single = await service.from("mistake_entries").insert(toRow(draft));
+        if (!single.error) {
+          savedCount += 1;
+          continue;
+        }
+        if (single.error.code !== "23505") {
+          logWriteFailure("insert_row", single.error, { source: draft.source });
+          firstError ??= single.error.message ?? "insert_failed";
+          continue;
+        }
+        const column = draft.identity.source_question_id ? "source_question_id" : "source_ref";
+        const value = draft.identity.source_question_id ?? draft.identity.source_ref;
+        let lookup = service
+          .from("mistake_entries")
+          .select("id, wrong_count")
+          .eq("user_id", userId)
+          .eq(column, value as string);
+        if (column === "source_ref") lookup = lookup.eq("source", draft.source);
+        const { data: row, error: readError } = await lookup.maybeSingle();
+        if (readError || !row) {
+          logWriteFailure("conflict_read", readError ?? { code: "not_found", message: "conflict row missing" }, { source: draft.source });
+          firstError ??= readError?.message ?? "conflict_read_failed";
+          continue;
+        }
+        await bump({ id: row.id as string, wrongCount: (row.wrong_count as number) ?? 1 });
+      }
+    } else {
+      logWriteFailure("insert", error, { count: fresh.length, sources: [...new Set(fresh.map((d) => d.source))] });
+      firstError ??= error.message ?? "insert_failed";
+    }
+  }
+
+  for (const draft of list) {
+    const hit = seen.get(keyOf({ source: draft.source, ...draft.identity }));
+    if (hit) await bump(hit);
+  }
+
+  return { ok: firstError === null, savedCount, error: firstError };
 }
 
 /** Defterdeki bekleyen sorular, konuya göre gruplu; en çok yanlış yapılan üstte. */

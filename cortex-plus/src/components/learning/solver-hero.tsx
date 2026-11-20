@@ -1,5 +1,6 @@
 import { Icon3D } from "@/components/ui/icon-3d";
 import { STUDIOS } from "@/lib/parity/studios";
+import { FREE_PHOTO_PER_MONTH } from "@/lib/billing/free-meters";
 
 const STUDIO = STUDIOS.find((item) => item.id === "soru-coz")!;
 
@@ -23,7 +24,7 @@ export function SolverHero({ freeAccount }: { freeAccount: boolean }) {
         <span className="cp-solver-hero-facts">
           <span>Her şıkkın açıklaması</span>
           <span>Akılda kalacak kısa kural</span>
-          {freeAccount ? <span className="cp-solver-hero-quota">Ücretsiz: günde 1 fotoğraf</span> : null}
+          {freeAccount ? <span className="cp-solver-hero-quota">{`Ücretsiz: ayda ${FREE_PHOTO_PER_MONTH} fotoğraf`}</span> : null}
         </span>
       </span>
     </header>

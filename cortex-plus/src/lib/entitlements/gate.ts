@@ -144,7 +144,8 @@ function freeGate(snapshot: EntitlementSnapshot, action: Action, context: GateCo
 
   if (snapshot.spendCap && price > 0) return { state: "locked", reason: "spend_cap" };
   if (action === "photo.solve" && snapshot.photoAbuse) {
-    return { state: "locked", reason: "free_photo_abuse_limit", period: "day", resetAt: freeMeterResetsAt("photo", now).toISOString() };
+    // Okunamayan fotoğraf sigortası günlüktür (fotoğraf hakkı Faz 4'te aylık olsa da): gece yarısı açılır.
+    return { state: "locked", reason: "free_photo_abuse_limit", period: "day", resetAt: freeMeterResetsAt("chat", now).toISOString() };
   }
   if (plusOnly(action)) return { state: "locked", reason: "feature_requires_plus", requiredPlan: "plus" };
 
@@ -197,7 +198,8 @@ export function gateFromRefusal(code: string, now: Date = new Date()): Gate | nu
       return { state: "locked", reason: "daily_messages_used", period: "day", remaining: 0, resetAt: midnight(), requiredPlan: "plus" };
     case "free_photo_limit":
     case "free_image_limit":
-      return { state: "locked", reason: "daily_photo_used", period: "day", remaining: 0, resetAt: midnight(), requiredPlan: "plus" };
+      // Faz 4: fotoğraf sayacı aylık; yenilenme İstanbul ay başı (SQL `free_period_key('photo')` ile aynı).
+      return { state: "locked", reason: "daily_photo_used", period: "day", remaining: 0, resetAt: freeMeterResetsAt("photo", now).toISOString(), requiredPlan: "plus" };
     case "free_included_limit":
       return { state: "locked", reason: "free_included_limit", period: "day", remaining: 0, resetAt: midnight() };
     case "free_photo_abuse_limit":

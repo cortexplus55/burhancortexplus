@@ -436,7 +436,10 @@ describe("bitmiş ders kayıtlı hâliyle açılır; yeni anlatım yalnız 'Fark
     expect(opensSavedLesson({ kind: "lesson", status: "done", query: { tekrar: "1" } })).toBe(false);
     expect(opensSavedLesson({ kind: "lesson", status: "done", query: { konu: "Mitoz" } })).toBe(false);
     expect(opensSavedLesson({ kind: "lesson", status: "ready", query: {} })).toBe(false);
-    expect(opensSavedLesson({ kind: "quiz", status: "done", query: {} })).toBe(false);
+    // Faz 4: bitmiş test, D/Y, kart ve podcast da kaydından açılır (0 kredi); yeni üretim yalnız `?yeni=1` ile.
+    expect(opensSavedLesson({ kind: "quiz", status: "done", query: {} })).toBe(true);
+    expect(opensSavedLesson({ kind: "flashcards", status: "done", query: { yeni: "1" } })).toBe(false);
+    expect(opensSavedLesson({ kind: "written_exam", status: "done", query: {} })).toBe(false);
     expect(opensSavedLesson({ kind: "quiz", status: "done", query: { incele: "1" } })).toBe(true);
     expect(examPrepLessonRewriteHref("p", "n")).toBe("/deneme-sinavlari/p/dugum/n?farkli=1");
   });

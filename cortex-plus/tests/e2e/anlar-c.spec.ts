@@ -217,13 +217,14 @@ test.describe("anlar C", { tag: ["@public"] }, () => {
       expect(m.starts).toBe(1);
       expect(m.end! - m.start!).toBeLessThanOrEqual(MOMENT_MAX_MS + SLACK_MS);
 
-      // Kurulumun materyal adımında dosya öğrencinin dokunuşunu bekler.
-      await page.goto("/e2e/sihirbaz?adim=material");
-      const offer = page.getByRole("group", { name: "Ana sayfada seçtiğin dosya" });
-      await expect(offer).toBeVisible({ timeout: 30_000 });
-      await expect(offer).toContainText("Kimya ders notu.pdf");
-      await expect(offer.getByRole("button", { name: "Bu dosyayı ekle" })).toBeVisible();
+      // Kuruluma gelene kadar dosya hiçbir yere gönderilmedi.
       expect(sent.filter((item) => /documents|uploads?\b|storage/i.test(item))).toEqual([]);
+      // Faz 5 §1.3 (19 Kasım 2026): kurulumun materyal adımında dosya kendiliğinden eklenir.
+      await page.goto("/e2e/sihirbaz?adim=material");
+      const added = page.locator('[data-guest-document="added"]');
+      await expect(added).toBeVisible({ timeout: 30_000 });
+      await expect(added).toContainText("Kimya ders notu.pdf");
+      await expect(added).toContainText("kuruluma aktarıldı");
     });
   }
 

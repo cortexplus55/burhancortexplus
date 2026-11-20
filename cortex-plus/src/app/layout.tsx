@@ -9,6 +9,8 @@ import "@/styles/premium-design-system.css";
 import "@/styles/mobile-tap-targets.css";
 import { Providers } from "@/components/providers";
 import { InAppBrowserBanner } from "@/components/layout/in-app-browser-banner";
+import { SkipLink } from "@/components/layout/skip-link";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from "@/lib/seo/page-metadata";
 import { logSchemaGaps } from "@/lib/admin/schema-probe";
 
 const figtree = Figtree({
@@ -47,18 +49,18 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// 19 Ekim 2026: başlık ürünün ne yaptığını söyler (arama sonucunda ve sekmede görünen ilk satır).
-const siteTitle = "Cortex Plus — Ders notundan sınav hazırlığı";
-const siteDescription =
-  "Ders notunu yükle; ders, podcast, test ve sözlü pratik senin notundan hazırlansın. Sınav hazırlığı için AI öğretmen — cortexplus.app";
+// Başlık, açıklama ve adres tek kaynakta (`lib/seo/page-metadata.ts`, 20 Kasım 2026): kamu sayfaları aynı değerlerle
+// kendi kanonik adresini ve paylaşım bilgisini yazar.
+const siteTitle = SITE_TITLE;
+const siteDescription = SITE_DESCRIPTION;
 
 export const metadata: Metadata = {
   title: {
     default: siteTitle,
-    template: "%s | Cortex Plus",
+    template: `%s | ${SITE_NAME}`,
   },
   description: siteDescription,
-  metadataBase: new URL("https://cortexplus.app"),
+  metadataBase: new URL(SITE_URL),
   manifest: "/manifest.webmanifest",
   applicationName: "Cortex Plus",
   // Ana ekrandan açılınca tam ekran (28 Ekim 2026, /mobil-uygulama). Simge `apple-icon.png` (180 px, opak).
@@ -74,8 +76,8 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "tr_TR",
-    url: "https://cortexplus.app",
-    siteName: "Cortex Plus",
+    url: SITE_URL,
+    siteName: SITE_NAME,
     title: siteTitle,
     description: siteDescription,
   },
@@ -115,6 +117,8 @@ export default function RootLayout({
       <body
         className={`${figtree.variable} ${geistSans.variable} ${geistMono.variable} ${jetbrainsMono.variable} min-h-screen antialiased bg-background text-foreground`}
       >
+        {/* Sayfanın ilk odaklanabilir öğesi: klavyeyle üst çubuğu ve menüyü atlayıp ana içeriğe geç (20 Kasım 2026). */}
+        <SkipLink />
         <Providers>
           {/* Instagram / Facebook / TikTok / WhatsApp tarayıcısında "tarayıcıda aç" şeridi (31 Ekim 2026). */}
           <InAppBrowserBanner />

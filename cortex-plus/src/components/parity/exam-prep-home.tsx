@@ -1,5 +1,6 @@
 "use client";
 
+import { TWIN_EXAM_LABEL, TWIN_EXAM_QUESTION_COUNT } from "@/lib/learning/mock-exam/past-questions";
 import { markNodeClick } from "@/lib/learning/node-open-click";
 import { primeInstantLesson, type LessonPreview } from "@/lib/learning/instant-lesson";
 import { gradeOfLabel, topicOnlyLabel } from "@/lib/learning/path-labels";
@@ -79,7 +80,8 @@ import { examDayLabel } from "@/lib/learning/exam-time";
 import { isLevelNode, LEVEL_NODE_ID, levelNodeAria } from "@/lib/learning/path-level";
 import { StudyToolsHub } from "@/components/parity/study-tools-hub";
 import { ExamPrepProgress } from "@/components/parity/exam-prep-progress";
-import { PrepDueReviewCard } from "@/components/parity/prep-review-card";
+import { PrepDueReviewCard, PrepRestudyCard } from "@/components/parity/prep-review-card";
+import { FREE_RESTUDY_KINDS } from "@/lib/learning/free-restudy";
 import {
   buildPrepProgressView,
   type PrepProgressView,
@@ -92,6 +94,7 @@ import { MOMENT_MS, startMoment } from "@/lib/ui/moment";
 import { isPathMemory, pathMemoryKey, readMoment, writeMoment, type PathMemory } from "@/lib/ui/moment-memory";
 import { formatDayLong } from "@/lib/format";
 import { PrepBasicsPanel } from "@/components/parity/prep-basics-panel";
+import { PrepDeleteButton } from "@/components/parity/prep-delete-button";
 import {
   buildPrepRadarView,
   tempoFromProgress,
@@ -103,8 +106,13 @@ import { PREP_HOME_COPY } from "@/lib/learning/exam-wizard-copy";
 import { PrepMaterialAdder } from "@/components/parity/prep-add-material";
 import { PendingMaterialsBanner } from "@/components/parity/pending-materials-banner";
 import { PrepShareTools } from "@/components/parity/prep-share-tools";
+import { ClassShareButton } from "@/components/parity/class-share-button";
 import { ExamResultCard, type ExamResultCardProps } from "@/components/parity/exam-result-card";
+import { PrepRadio } from "@/components/parity/prep-radio";
+import type { RadioItem } from "@/lib/learning/prep-radio";
 import "@/styles/prep-home-cx.css";
+import "@/styles/report-card.css";
+import { BADGE_LABEL, BADGE_TONE, type MasteryBadge } from "@/lib/learning/mastery-policy";
 import {
   ExamPrepSettingsPanel,
   type PrepSettingsInitial,
@@ -234,6 +242,8 @@ export type PrepMaterial = {
   name: string;
   kindLabel: string;
   href: string;
+  /** Faz 2 (madde 5): "İşlenen kapsam: Sayfa 1–N / Toplam T sayfa. …" (dosyanın tamamı işlendiyse yok). */
+  coverageNote?: string | null;
 };
 
 export type LearningTrackingView = {
@@ -291,6 +301,7 @@ export function ExamPrepHome({
   lastResult = null,
   nodeScores = {},
   topicPercents = {},
+  topicBadges = {},
   lockedPickId = null,
   dueReviews = 0,
   pendingMaterials = 0,
@@ -302,14 +313,20 @@ export function ExamPrepHome({
   examResult = null,
   firstTopicLock = null,
   officialNote = null,
+  radioItems = [],
 }: {
   prepId: string;
+  /** Sınav Radyosu (Faz 7): sesi önbellekte olan kayıtlı podcast bölümleri, sırayla; boşsa düğme yok. */
+  radioItems?: RadioItem[];
   /** Resmî müfredattan kurulduysa kaynak notu (sunucuda kayıttan üretilir). */
   officialNote?: string | null;
   /** 1. konu özeti; ücretsiz hesapta kilitli adım varsa dolu (`freeTopicLocks`). */
   firstTopicLock?: FirstTopicSummary | null;
-  /** Sınav sabahı kâğıdı + sınıf paylaşımı (Paket J3 #14); bağlantı sunucuda imzalı ve mutlak. Yoksa kâğıt düğmesi yine görünür. */
-  shareTools?: { inviteUrl: string | null; whatsappHref: string | null; cramSheetLocked?: boolean } | null;
+  /**
+   * Sınav sabahı kâğıdının kilidi (Paket J3 #14). Sınıfla paylaşım 20 Kasım 2026'dan beri üst simgelerdeki
+   * `ClassShareButton`'da; bağlantıyı sunucu açar (`/api/learning/exam-prep/share-code`).
+   */
+  shareTools?: { cramSheetLocked?: boolean } | null;
   /** Sınav günü geçince not sorusu ya da başarı kartı (Paket J3 #14). */
   examResult?: ExamResultCardProps | null;
   /** Hazırlığın kurulduğu belge; konu haritası oradan yenilenir. */
@@ -373,6 +390,8 @@ export function ExamPrepHome({
   nodeScores?: Record<string, number>;
   /** Konu başlığı (küçük harf) → topicMasteryPercent. Yol bölümü bu sayıyı gösterir. */
   topicPercents?: Record<string, number>;
+  /** Faz 4: konu başlığı (küçük harf) → rozet (`topicMasteryView`); ekranlarla aynı etiket. */
+  topicBadges?: Record<string, MasteryBadge>;
   /** Kilitli adımın adresi açıldıysa o adım seçili gelir. */
   lockedPickId?: string | null;
   /** Bu hazırlıkta bugün sorulacak tekrar (20 Ekim 2026); yolu kilitlemez. */
@@ -648,6 +667,8 @@ export function ExamPrepHome({
         role="toolbar"
         aria-label="Hazırlık işlemleri"
       >
+        {/* Faz 7 (20 Kasım 2026): sınıfla paylaşımın tek girişi (yolun altındaki eski WhatsApp düğmesi buraya taşındı). */}
+        <ClassShareButton prepId={prepId} />
         <Link
           href={`/deneme-sinavlari/${prepId}/sohbet`}
           className="cp-prep-icon"
@@ -801,6 +822,14 @@ export function ExamPrepHome({
             Daha fazla
           </button>
         </div>
+        {/* Faz 5 §3.2: "Hocanın İkiz Sınavı (20 Soru)" modu hazırlığın başlangıç ekranında; kurulum çıkmış soru yoksa
+            yükleme yolunu gösterir. */}
+        <Link href={examPrepTwinExamHref(prepId)} className="cp-prep-twin-entry" data-testid="prep-twin-entry">
+          <span className="cp-prep-twin-entry-title">{TWIN_EXAM_LABEL}</span>
+          <span className="cp-prep-twin-entry-sub">Hocanın çıkmış sorularının tarzında ve konu ağırlığında tam {TWIN_EXAM_QUESTION_COUNT} soru</span>
+        </Link>
+        {/* Sınav Radyosu (Faz 7, 20 Kasım 2026): hazır podcast bölümleri sırayla, 0 kredi; liste boşsa düğme yok. */}
+        <PrepRadio prepId={prepId} prepTitle={title} items={radioItems} />
       </header>
       </aside>
 
@@ -823,6 +852,12 @@ export function ExamPrepHome({
       ) : null}
 
       {view === "yol" ? <PrepDueReviewCard prepId={prepId} count={dueReviews} /> : null}
+      {view === "yol" ? (
+        <PrepRestudyCard
+          prepId={prepId}
+          doneCount={nodes.filter((node) => node.status === "done" && FREE_RESTUDY_KINDS.has(node.kind)).length}
+        />
+      ) : null}
 
       {view === "ilerleme" ? (
         <ExamPrepProgress
@@ -864,6 +899,7 @@ export function ExamPrepHome({
             pickedId={lockedPick?.id ?? donePick?.id ?? null}
             scores={nodeScores}
             topicPercents={topicPercents}
+            topicBadges={topicBadges}
             onOpen={openNode}
             readinessClaim={readinessClaim}
             examDate={examDate}
@@ -884,14 +920,9 @@ export function ExamPrepHome({
               Deneme sınavı oluştur
             </Link>
           </section>
-          {/* 8 Kasım 2026 (ürün sahibinin onayı: "yol önce"): sınav sabahı kâğıdı ve paylaşım yolun altında; önce
-              yolun üstündeydi, telefonda yol ancak ikinci ekranda başlıyordu. */}
-          <PrepShareTools
-            prepId={prepId}
-            inviteUrl={shareTools?.inviteUrl ?? null}
-            whatsappHref={shareTools?.whatsappHref ?? null}
-            cramSheetLocked={shareTools?.cramSheetLocked ?? false}
-          />
+          {/* 8 Kasım 2026 (ürün sahibinin onayı: "yol önce"): sınav sabahı kâğıdı yolun altında; önce yolun üstündeydi,
+              telefonda yol ancak ikinci ekranda başlıyordu. Sınıfla paylaşım 20 Kasım 2026'dan beri üst simgelerde. */}
+          <PrepShareTools prepId={prepId} cramSheetLocked={shareTools?.cramSheetLocked ?? false} />
         </>
       ) : null}
 
@@ -1133,6 +1164,15 @@ export function ExamPrepHome({
                       Ayarlar
                     </button>
                   </li>
+                  {/* 21 Kasım 2026: silme Ayarlar sekmesinin dibindeydi, bulunmuyordu; listenin sonunda, onay penceresiyle. */}
+                  <li>
+                    <PrepDeleteButton
+                      prepId={prepId}
+                      title={title}
+                      variant="row"
+                      redirectTo="/deneme-sinavlari"
+                    />
+                  </li>
                 </ul>
               </>
             ) : null}
@@ -1344,6 +1384,7 @@ function PathSections({
   pickedId = null,
   scores = {},
   topicPercents = {},
+  topicBadges = {},
   onOpen,
   readinessClaim,
   examDate = null,
@@ -1360,6 +1401,8 @@ function PathSections({
   pickedId?: string | null;
   scores?: Record<string, number>;
   topicPercents?: Record<string, number>;
+  /** Faz 4: konu başlığı (küçük harf) → rozet (`topicMasteryView`); ekranlarla aynı etiket. */
+  topicBadges?: Record<string, MasteryBadge>;
   onOpen: (node: HomeNode) => void;
   readinessClaim: boolean | null;
   examDate?: string | null;
@@ -1426,6 +1469,7 @@ function PathSections({
               ? sectionMasteryPct(section.nodes, scores)
               : null;
         const line = sectionStatusLine(section, mastery);
+        const topicBadgeKind = Object.prototype.hasOwnProperty.call(topicBadges, topicKey) ? topicBadges[topicKey] : null;
         // Bitmiş bölüm bitiş günlerini yazar, "Yarın" değil; süren bölüm kalan adımların planlı günlerini.
         const when = section.complete
           ? sectionDoneLabel(section.nodes.map((node) => doneOn[node.id] ?? ""))
@@ -1467,6 +1511,12 @@ function PathSections({
                   {when ? <span className="cp-path-section-when">{when}</span> : null}
                   {when ? " · " : null}
                   {line}
+                  {topicBadgeKind ? (
+                    <>
+                      {" "}
+                      <span className={`cp-badge cp-badge--${BADGE_TONE[topicBadgeKind]}`}>{BADGE_LABEL[topicBadgeKind]}</span>
+                    </>
+                  ) : null}
                 </span>
                 {holidayNote ? <span className="cp-path-section-holiday">{holidayNote}</span> : null}
               </span>
@@ -1739,9 +1789,19 @@ function MaterialsList({ materials }: { materials: PrepMaterial[] }) {
           <Link href={material.href} className="cp-exam-material">
             <strong>{material.name}</strong>
             <span>{material.kindLabel}</span>
+            {material.coverageNote ? (
+              <span className="cp-exam-material-coverage" data-coverage-badge>
+                {material.coverageNote}
+              </span>
+            ) : null}
           </Link>
         </li>
       ))}
     </ul>
   );
+}
+
+/** Faz 5 §3.2: ikiz sınav modu açık gelen deneme kurulumu. */
+export function examPrepTwinExamHref(prepId: string): string {
+  return `/deneme-sinavlari/${prepId}/deneme/kurulum?mod=ikiz`;
 }

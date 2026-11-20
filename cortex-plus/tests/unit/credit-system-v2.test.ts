@@ -16,12 +16,13 @@ import { allowanceWorkLine } from "@/lib/billing/tier-presentation";
 const read = (path: string) => readSource(path);
 
 describe("kredi sistemi v2: sayılar", () => {
-  it("Plus kıyas ürününden fazla mesaj: ayda 2.400 mesaj ya da 240 ders (kredi v3)", () => {
-    expect(allowanceInWork(PLAN_ALLOWANCES.plusMonthly)).toEqual({ messages: 2400, lessons: 240 });
-    expect(allowanceInWork(PLAN_ALLOWANCES.sigmaMonthly)).toEqual({ messages: 20000, lessons: 2000 });
+  it("Faz 4 plan karşılıkları: Plus ~200 ders / 310 test / 4.350 sohbet, Sınav Haftası ve Sigma", () => {
+    expect(allowanceInWork(PLAN_ALLOWANCES.plusMonthly)).toEqual({ messages: 4350, lessons: 197 });
+    expect(allowanceInWork(PLAN_ALLOWANCES.sigmaMonthly)).toEqual({ messages: 14500, lessons: 659 });
     expect(allowanceInWork(PLAN_ALLOWANCES.free)).toEqual({ messages: 0, lessons: 0 });
-    expect(allowanceWorkLine(PLAN_ALLOWANCES.plusMonthly)).toBe("Ayda yaklaşık 2.400 mesaj ya da 240 ders");
-    expect(allowanceWorkLine(PLAN_ALLOWANCES.plusWeekly, "hafta")).toBe("Haftada yaklaşık 900 mesaj ya da 90 ders");
+    expect(allowanceWorkLine(PLAN_ALLOWANCES.plusMonthly)).toBe("Ayda ~200 ders / 310 test / 4.350 sohbet");
+    expect(allowanceWorkLine(PLAN_ALLOWANCES.plusWeekly, "hafta")).toBe("Haftada ~115 ders / 178 test / 2.500 sohbet");
+    expect(allowanceWorkLine(PLAN_ALLOWANCES.sigmaMonthly)).toBe("Ayda ~660 ders / 1.035 test / 14.500 sohbet");
   });
 
   it("hakkının tamamını kullanan Plus öğrencisi bile zarar ettirmiyor; ek paketler tam kullanımda %50", () => {
@@ -34,14 +35,14 @@ describe("kredi sistemi v2: sayılar", () => {
     }
   });
 
-  it("göç ve fiyat tablosu aynı sayıları söylüyor", () => {
-    const sql = read("supabase/migrations/20261008120000_credit_system_v2.sql");
-    expect(sql).toContain(`('plus-aylik', ${PLAN_ALLOWANCES.plusMonthly})`);
-    expect(sql).toContain(`('plus-haftalik', ${PLAN_ALLOWANCES.plusWeekly})`);
-    expect(sql).toContain(`('sigma-aylik', ${PLAN_ALLOWANCES.sigmaMonthly})`);
+  it("göç ve fiyat tablosu aynı sayıları söylüyor (Faz 4 göçü son sözü söyler)", () => {
+    const sql = read("supabase/migrations/20261119120000_faz4_credit_economy.sql");
+    expect(sql).toContain(`monthly_allowance = ${PLAN_ALLOWANCES.plusMonthly}, updated_at = now()\n  WHERE slug IN ('plus-aylik', 'plus-yillik')`);
+    expect(sql).toContain(`monthly_allowance = ${PLAN_ALLOWANCES.plusWeekly}, updated_at = now()\n  WHERE slug = 'plus-haftalik'`);
+    expect(sql).toContain(`monthly_allowance = ${PLAN_ALLOWANCES.sigmaMonthly}, updated_at = now()\n  WHERE slug IN ('sigma-aylik', 'sigma-yillik')`);
     expect(sql).toContain(`('PODCAST_GENERATE', ${CREDIT_PRICE_TABLE.PODCAST_GENERATE.credits},`);
     expect(sql).toContain(`('DOCUMENT_SCAN_PAGE', ${CREDIT_PRICE_TABLE.DOCUMENT_SCAN_PAGE.credits},`);
-    for (const pack of ADDON_PACKS) expect(sql).toContain(`('${pack.slug}', ${pack.credits},`);
+    for (const pack of ADDON_PACKS) expect(sql).toContain(`credit_amount = ${pack.credits}, updated_at = now() WHERE slug = '${pack.slug}'`);
   });
 
   it("her iş kendi koduyla fiyatlanıyor", () => {

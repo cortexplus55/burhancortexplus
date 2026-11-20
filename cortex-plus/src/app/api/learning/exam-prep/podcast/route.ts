@@ -1,5 +1,7 @@
 import { deterministicCreditKey } from "@/lib/credits/slot-key";
 import { NextResponse, after } from "next/server";
+import { notifyPodcastReady } from "@/lib/notifications/events";
+import { notifyAfterResponse } from "@/lib/notifications/defer";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { shareInFlight } from "@/lib/ai/inflight-share";
@@ -32,6 +34,10 @@ import type { QuizQuestion } from "@/lib/learning/exam-quiz";
 import { resolvePrepTopicRow } from "@/lib/learning/prep-topic-lookup";
 import { readyPathPodcastNode } from "@/lib/learning/path-podcast-ready";
 import { prepTopicLabels, prepTopicScopeLine } from "@/lib/documents/generation-context";
+import { excludedSiblingBoundaryBlock, loadExcludedSiblingTopics, siblingsOutsideBoundary } from "@/lib/learning/sibling-topics";
+import { sourceCorrectionPromptBlock } from "@/lib/learning/source-correction";
+import { loadTopicSourceCorrection } from "@/lib/learning/node/lesson-store";
+import { writePodcastStatus, type PodcastStatus } from "@/lib/learning/podcast-status";
 
 /**
  * Yoldan bağımsız podcast. Düğüm durumuna dokunmaz; kilitli adım kilitli kalır.
@@ -46,10 +52,15 @@ const bodySchema = z.object({
   clientRequestId: z.string().uuid().optional(),
   /**
    * Ders sonu "Şimdi dinle" (`lesson-podcast`) false gönderir (30 Ekim 2026, Paket I #9): o yolda dinleme kontrolü
-   * yok (20 Ekim kararı: ~20-35 sn bekleme, yeni bir şey ölçmez). Kontrolsüz bölüm önbelleğe YAZILMAZ; yoksa yoldaki
+   * yok (20 Ekim kararı: ~20-35 sn bekleme, yeni bir şey ölçmez). Kontrolsüz bölüm kontrollü önbelleğe YAZILMAZ (19 Kasım 2026'dan beri kendi `plain` anahtarına yazılır); yoksa yoldaki
    * podcast adımı o konunun kontrolünü kaybederdi. Önbellekte bölüm varsa ikisi de onu alır.
    */
   listeningCheck: z.boolean().optional(),
+  /**
+   * Üretim durumu kimliği (19 Kasım 2026, Faz 1-A §4.2): istemci bir kez üretir, kendiliğinden yeniden denemede de
+   * aynı kalır; adımlar `podcast_generation_status` satırına yazılır, istemci GET .../podcast/status ile okur.
+   */
+  statusId: z.string().uuid().optional(),
 });
 
 export async function POST(request: Request) {
@@ -87,12 +98,19 @@ export async function POST(request: Request) {
   }>(service, prepId, topicId, "id, label, lesson_id, document_topic_node_id");
   if (!topic) return errorResponse(404, "not_found");
 
+  // Durum adımları (Faz 1-A §4.2): yazım düşerse podcast durmaz (günlüğe iner).
+  const statusId = parsed.data.statusId ?? null;
+  const markStatus = (status: PodcastStatus, errorCode?: string) =>
+    writePodcastStatus(service, { id: statusId, userId, prepId, topicId: topic.id, status, errorCode });
+  await markStatus("queued");
+
   // Çift sekme (31 Ekim 2026, Paket J2 #9): aynı konu ve süre için aynı anda tek üretim. İkinci sekme birincinin
-  // bitmesini bekler, sonra aşağıdaki önbellek okuması aynı bölümü ücretsiz verir (kontrolsüz bölüm önbelleğe yazılmaz:
+  // bitmesini bekler, sonra aşağıdaki önbellek okuması aynı bölümü ücretsiz verir (kontrolsüz bölüm kontrollü önbelleğe yazılmaz:
   // ders sonu "Şimdi dinle" o durumda kendisi yazar).
   const continueRequest = async (): Promise<NextResponse> => {
     const cached = await readPodcastCache(service, prepId, topic.label, length);
     if (cached) {
+      await markStatus("synthesizing_audio");
       return NextResponse.json({
         ok: true,
         title: cached.title,
@@ -101,6 +119,24 @@ export async function POST(request: Request) {
         reused: true,
         check: cached.check.map(publicQuizQuestion),
       });
+    }
+
+    // Ders sonu "Şimdi dinle" bölümünün kalıcı önbelleği (19 Kasım 2026, Faz 1-A §4.2): kontrolsüz bölüm ayrı anahtarla
+    // saklanır; aynı konuda ikinci dinleme senaryoyu yeniden yazmaz, kredi yazmaz. Satır sesleri zaten `lesson_audio`
+    // önbelleğinde: ikinci açılışta ses de anında gelir.
+    if (!withCheck) {
+      const plain = await readPodcastCache(service, prepId, topic.label, length, "plain");
+      if (plain) {
+        await markStatus("synthesizing_audio");
+        return NextResponse.json({
+          ok: true,
+          title: plain.title,
+          chapters: plain.chapters,
+          length,
+          reused: true,
+          check: [],
+        });
+      }
     }
 
     // Yoldaki aynı konunun podcast'i hazır bekliyorsa (30 Ekim 2026): sayfa onu baştan yazmaz, öğrenci o adıma gider;
@@ -122,6 +158,7 @@ export async function POST(request: Request) {
     if (poolUnit) {
       const shared = await readSharedMedia<{ episode: PodcastEpisode; check: QuizQuestion[] }>(service, poolUnit, sharedKind);
       if (shared?.episode?.chapters?.length) {
+        await markStatus("synthesizing_audio");
         if (withCheck)
           await writePodcastCache(service, { prepId, userId, topicLabel: topic.label, episode: { ...shared.episode, length }, check: shared.check ?? [] });
         return NextResponse.json({
@@ -133,8 +170,13 @@ export async function POST(request: Request) {
           check: (shared.check ?? []).map(publicQuizQuestion),
         });
       }
-      if (!(await sharedBudgetAllows(service, "podcast"))) return errorResponse(503, "shared_budget", { message: SHARED_BUDGET_MESSAGE });
+      if (!(await sharedBudgetAllows(service, "podcast"))) {
+        await markStatus("failed", "shared_budget");
+        return errorResponse(503, "shared_budget", { message: SHARED_BUDGET_MESSAGE });
+      }
     }
+
+    await markStatus("generating_script");
 
     const teachingV2 = await isFeatureEnabled(service, PDF_LEARNING_V2_FLAG);
     const prepDocs = teachingV2 ? await loadPrepDocumentIds(service, prepId) : [];
@@ -190,6 +232,7 @@ export async function POST(request: Request) {
     }
     if (topicDocumentId && !pageNumbers.length) {
       console.error("podcast_source_unavailable", { requestId, topic: topic.label, code: "empty" });
+      await markStatus("failed", "source_unavailable");
       return errorResponse(503, "source_unavailable");
     }
     const edges = topicDocumentId ? await documentRunningHeaders(service, topicDocumentId) : [];
@@ -246,7 +289,23 @@ export async function POST(request: Request) {
             : "",
           corpus.syllabus,
           // Belgeli podcast hazırlığın öbür konularının kısımlarını bölüm yapmaz (30 Ekim 2026, `prepTopicScopeLine`).
-          topicDocumentId ? prepTopicScopeLine(topic.label, await prepTopicLabels(service, prepId)) : "",
+          // Kardeş ünite sınırı (19 Kasım 2026, Faz 1-A §1): aynı kaynak sayfalarını paylaşan üniteler katı blokta.
+          ...(topicDocumentId
+            ? await (async (documentId: string) => {
+                const excluded = await loadExcludedSiblingTopics(service, {
+                  prepId,
+                  topicLabel: topic.label,
+                  topicId: topic.id,
+                  core: { documentId, pages: pageNumbers },
+                });
+                return [
+                  prepTopicScopeLine(topic.label, siblingsOutsideBoundary(await prepTopicLabels(service, prepId), excluded)),
+                  excludedSiblingBoundaryBlock(topic.label, excluded),
+                  // Kaynak düzeltmesi (Faz 1-A §2.1): konunun kayıtlı dersindeki uyarının doğrusu.
+                  sourceCorrectionPromptBlock(await loadTopicSourceCorrection(service, topic.id)),
+                ];
+              })(topicDocumentId)
+            : []),
         ]
           .filter(Boolean)
           .join("\n") || undefined,
@@ -275,8 +334,12 @@ export async function POST(request: Request) {
         reason: outcome.error,
         reasons: outcome.reasons,
       });
+      await markStatus("failed", outcome.error);
       return errorResponse(outcome.status, outcome.error, { refunded: true });
     }
+
+    // Senaryo hazır: ses istemcide bölüm bölüm üretilir (`/api/learning/podcast/audio`, satır önbelleği `lesson_audio`).
+    await markStatus("synthesizing_audio");
 
     if (withCheck) {
       const { episode, checkLater } = outcome;
@@ -287,8 +350,19 @@ export async function POST(request: Request) {
       // Kontrolsüz bölüm önbelleğe yazılmaz: kontrol bitince (yazılamadıysa boş) bölümle birlikte girer.
       if (checkLater) after(async () => cache(await checkLater()));
       else await cache(outcome.check);
+    } else {
+      // Kontrolsüz bölüm kendi anahtarıyla (Faz 1-A §4.2); kontrollü önbelleğe girmez.
+      await writePodcastCache(service, {
+        prepId,
+        userId,
+        topicLabel: topic.label,
+        episode: outcome.episode,
+        variant: "plain",
+      });
     }
 
+    // Faz 6: yeni yazılan podcast için çanda "podcast hazır" (0 maliyet; yanıtı bekletmez).
+    notifyAfterResponse(() => notifyPodcastReady(service, { userId, prepId, topicId: String(topic.id), topicLabel: String(topic.label), length }));
     return NextResponse.json({
       ok: true,
       title: outcome.episode.title,

@@ -1,0 +1,326 @@
+/* Velinin ödeme sayfası (Faz 5 §2, 19 Kasım 2026): açık zemin, tek sütun, güven veren mobil tasarım. */
+.vo-page {
+  --vo-bg: #f4f7fb;
+  --vo-card: #ffffff;
+  --vo-text: #0f172a;
+  --vo-muted: #5b6474;
+  --vo-border: #e3e8ef;
+  --vo-green: #128c4a;
+  --vo-green-soft: #e8f7ee;
+  --vo-accent: #2563eb;
+  min-height: 100dvh;
+  background: var(--vo-bg);
+  color: var(--vo-text);
+  display: flex;
+  flex-direction: column;
+  /* ReadGate ve onay kutusu koyu tema değişkenlerini okur; bu sayfada açık zemine uyarlanır. */
+  --c-text-subtle: #64748b;
+  --cs-text: var(--vo-text);
+  --cs-muted: var(--vo-muted);
+  --mk-text: var(--vo-text);
+  --mk-muted: var(--vo-muted);
+}
+.vo-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  background: var(--vo-card);
+  border-bottom: 1px solid var(--vo-border);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+.vo-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--vo-text);
+  text-decoration: none;
+}
+.vo-brand img {
+  height: 25px;
+  width: auto;
+}
+.vo-brand b {
+  background: linear-gradient(90deg, #7c3aed, #2563eb);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.vo-secure-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  background: var(--vo-green-soft);
+  color: var(--vo-green);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.vo-main {
+  width: 100%;
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  flex: 1;
+}
+.vo-card {
+  background: var(--vo-card);
+  border: 1px solid var(--vo-border);
+  border-radius: 1.1rem;
+  padding: 1.1rem;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.04), 0 8px 24px rgb(15 23 42 / 0.05);
+}
+.vo-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--vo-muted);
+  font-weight: 600;
+}
+.vo-muted {
+  font-size: 0.82rem;
+  color: var(--vo-muted);
+}
+.vo-student {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding-bottom: 0.9rem;
+  border-bottom: 1px dashed var(--vo-border);
+}
+.vo-avatar {
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #7c3aed, #2563eb);
+  flex-shrink: 0;
+}
+.vo-student-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+.vo-plan {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-top: 0.9rem;
+}
+.vo-plan-name {
+  font-size: 1rem;
+  font-weight: 650;
+  line-height: 1.3;
+}
+.vo-price {
+  text-align: right;
+  flex-shrink: 0;
+}
+.vo-price-value {
+  font-size: 1.8rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.vo-assurance {
+  background: var(--vo-green-soft);
+  border-color: #bfe6cf;
+}
+.vo-assurance-title {
+  font-weight: 700;
+  color: #0b5d31;
+  display: flex;
+  gap: 0.45rem;
+  align-items: flex-start;
+}
+.vo-assurance ul {
+  margin-top: 0.5rem;
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.86rem;
+  color: #1f4d33;
+  padding-left: 1.1rem;
+  list-style: disc;
+}
+.vo-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+.vo-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+.vo-field input {
+  border: 1px solid var(--vo-border);
+  border-radius: 0.75rem;
+  padding: 0.75rem 0.85rem;
+  font-size: 1rem;
+  background: #fff;
+  color: var(--vo-text);
+  font-weight: 400;
+}
+.vo-field input:focus {
+  outline: 2px solid var(--vo-accent);
+  outline-offset: 1px;
+}
+.vo-consents {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  font-size: 0.86rem;
+}
+.vo-consents .cp-legal-row-text,
+.vo-consents label,
+.vo-consents p {
+  color: var(--vo-text);
+}
+/* Sözleşme adı açık zeminde okunur (koyu temanın açık renkli bağlantısı beyaz kartta kayboluyordu, canlı 19 Kasım). */
+.vo-consents .cp-legal-link {
+  color: var(--vo-accent);
+}
+.vo-consents .cp-legal-hint {
+  color: var(--vo-muted);
+}
+.vo-error {
+  font-size: 0.86rem;
+  color: #b42318;
+}
+.vo-pay-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 3.1rem;
+  border-radius: 0.9rem;
+  border: 0;
+  background: var(--vo-green);
+  color: #fff;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+}
+.vo-pay-btn:disabled {
+  opacity: 0.65;
+}
+.vo-iframe-card {
+  padding: 0;
+  overflow: hidden;
+}
+.vo-iframe-note {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  padding: 0.8rem 1rem;
+  font-size: 0.82rem;
+  color: var(--vo-muted);
+  border-bottom: 1px solid var(--vo-border);
+}
+.vo-iframe {
+  width: 100%;
+  height: 640px;
+  border: 0;
+  display: block;
+}
+.vo-notice {
+  text-align: center;
+  padding: 2rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+}
+.vo-notice--ok {
+  border-color: #bfe6cf;
+}
+.vo-notice-icon {
+  font-size: 2.2rem;
+}
+.vo-notice-title {
+  font-size: 1.25rem;
+  font-weight: 750;
+}
+.vo-notice-body {
+  font-size: 0.95rem;
+  color: var(--vo-muted);
+  line-height: 1.5;
+  max-width: 26rem;
+}
+.vo-confirm-icon {
+  width: 3rem;
+  height: 3rem;
+  color: var(--vo-green);
+}
+.vo-spin {
+  animation: vo-spin 1s linear infinite;
+  color: var(--vo-accent);
+}
+@keyframes vo-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vo-spin {
+    animation: none;
+  }
+}
+.vo-footer {
+  padding: 1rem 1rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7rem;
+}
+.vo-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem;
+}
+.vo-badges li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--vo-border);
+  background: var(--vo-card);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--vo-muted);
+}
+.vo-legal {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.35rem 0.9rem;
+  font-size: 0.75rem;
+}
+.vo-legal a {
+  color: var(--vo-muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+@media (min-width: 768px) {
+  .vo-main {
+    padding-top: 2rem;
+  }
+}

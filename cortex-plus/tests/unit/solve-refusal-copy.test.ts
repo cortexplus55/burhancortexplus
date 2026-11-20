@@ -35,7 +35,9 @@ describe("soru çözücünün ücretsiz sınır metni", () => {
       const [event, ...rest] = await refusalFor(meter);
       expect(rest).toEqual([]);
       expect(event).toMatchObject({ type: "error", code: `free_${meter}_limit`, status: 402 });
-      expect(event.message, meter).toContain("Gece yarısı yenilenir; dilersen Plus'a geçip beklemeden devam edebilirsin.");
+      // Faz 4: fotoğraf hakkı aylık (ay başında), mesaj hakkı günlük (gece yarısı).
+      const reset = meter === "photo" ? "Ay başında yenilenir" : "Gece yarısı yenilenir";
+      expect(event.message, meter).toContain(`${reset}; dilersen Plus'a geçip beklemeden devam edebilirsin.`);
       expect(event.message!.toLocaleLowerCase("tr"), meter).not.toMatch(/sınır yok|sınırsız|kredi/);
     }
   });

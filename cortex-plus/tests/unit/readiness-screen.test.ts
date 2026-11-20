@@ -8,11 +8,12 @@ function topic(partial: Partial<TopicMasterySnapshot> & { topicKey: string }): T
     measured: true,
     level: "solid",
     confidence: 100,
-    evidenceCount: 3,
-    firstAttemptCorrect: 3,
-    firstAttemptTotal: 3,
-    independentCorrect: 3,
-    independentTotal: 3,
+    // Faz 4: "Öğrendin" en az 4 ipucusuz doğru ister (`LEARNED_MIN_INDEPENDENT_CORRECT`).
+    evidenceCount: 4,
+    firstAttemptCorrect: 4,
+    firstAttemptTotal: 4,
+    independentCorrect: 4,
+    independentTotal: 4,
     lastPracticedAt: "2026-09-20T00:00:00.000Z",
     ...partial,
   };

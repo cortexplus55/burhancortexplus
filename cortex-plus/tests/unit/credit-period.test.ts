@@ -64,7 +64,8 @@ describe("quotaView", () => {
 
   it("cüzdan yoksa katmana göre varsayılan verir", () => {
     expect(quotaView(null, false, NOW).allowance).toBe(0);
-    expect(quotaView(null, true, NOW).allowance).toBe(7200);
+    // Faz 4: Plus aylık hakkı 4.350.
+    expect(quotaView(null, true, NOW).allowance).toBe(4350);
   });
 
   it("Sigma dönem yenilenmesini planın gerçek kotasıyla gösterir", () => {

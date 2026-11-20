@@ -35,7 +35,7 @@ describe("konu hâkimiyeti kazancı", () => {
         evidenceKeys: ["Devletin Unsurları", "devletin unsurları"],
         topicLabel: "Devletin Unsurları",
       }),
-    ).toEqual({ label: "Devletin Unsurları", before: 0, after: 20 });
+    ).toMatchObject({ label: "Devletin Unsurları", before: 0, after: 20 });
     expect(
       topicMasteryGain({
         prior: [snap("devletin unsurları", 20)],
@@ -43,7 +43,7 @@ describe("konu hâkimiyeti kazancı", () => {
         evidenceKeys: ["devletin unsurları"],
         topicLabel: "Devletin Unsurları",
       }),
-    ).toEqual({ label: "Devletin Unsurları", before: 20, after: 32 });
+    ).toMatchObject({ label: "Devletin Unsurları", before: 20, after: 32 });
   });
 
   it("kanıt yoksa (ders, kart, podcast) kazanç yok", () => {

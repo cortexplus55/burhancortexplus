@@ -103,9 +103,12 @@ describe("kazanım sayfası havuz ön izlemesi", async () => {
     expect(helper).not.toMatch(/select\([^)]*answer/);
     expect(helper).not.toMatch(/select\([^)]*explanation/);
     const page = read("src/app/mufredat/[programId]/[unitId]/[outcomeId]/page.tsx");
-    expect(page).toMatch(/robots: \{ index: false, follow: true \}/);
+    // 20 Kasım 2026 (Faz 3): metadata ortak `pageMetadata`'dan (noindex `robots` seçeneğiyle gider) ve betik ortak
+    // `JsonLd` bileşeninden; "<" kaçışı artık o yardımcıda (`jsonLdString`), sayfada tekrar yazılmıyor.
+    expect(page).toMatch(/robots: preview \? undefined : \{ index: false, follow: true \}/);
     expect(page).toContain('"@type": "LearningResource"');
-    expect(page).toContain('.replace(/</g, "\\\\u003c")');
+    expect(page).toContain("<JsonLd");
+    expect(read("src/lib/seo/structured-data.ts")).toContain('.replace(/</g, "\\\\u003c")');
     expect(page).toContain('data-testid="sample-question"');
     expect(page).toContain('data-testid="sibling-outcomes"');
     expect(page).toContain('data-testid="review-cards"');

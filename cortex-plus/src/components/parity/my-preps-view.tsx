@@ -1,17 +1,33 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { PrepCard, type ExamPrepCard } from "@/components/parity/exam-prep";
+import { ListFilterChips, ListFilterEmpty, ListSearchBox } from "@/components/ui/list-filter";
+import {
+  EMPTY_PREP_FILTER,
+  filterPrepCards,
+  isPrepFilterActive,
+  prepSubjects,
+  type PrepFilter,
+} from "@/lib/learning/prep-card-filter";
+
+/** Ders süzgecinin "hepsi" seçeneği; gerçek bir sınav türüyle çakışmayan iç değer. */
+const ALL_SUBJECTS = "__all__";
 
 /**
  * "Sınav hazırlıklarım" — kıyas ürünündeki ayrı sayfa (1 Ekim 2026): bütün
- * hazırlıklar, Yaklaşan / Geçmiş. Ana liste yalnız son birkaçını gösteriyor.
+ * hazırlıklar, Yaklaşan / Geçmiş. Ana liste yalnız son birkaçını gösteriyor. 20 Kasım 2026 (Faz 3): hazırlık
+ * adında ve sınav türünde anlık arama, sınav/ders süzgeci; sekme sayıları süzülmüş listeden.
  */
 export function MyPrepsView({ cards, userInitial }: { cards: ExamPrepCard[]; userInitial: string }) {
   const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
-  const upcoming = cards.filter((card) => !card.past);
-  const past = cards.filter((card) => card.past);
+  const [filter, setFilter] = useState<PrepFilter>(EMPTY_PREP_FILTER);
+  const subjects = useMemo(() => prepSubjects(cards), [cards]);
+  const filtered = useMemo(() => filterPrepCards(cards, filter), [cards, filter]);
+  const filterActive = isPrepFilterActive(filter);
+  const upcoming = filtered.filter((card) => !card.past);
+  const past = filtered.filter((card) => card.past);
   const shown = tab === "upcoming" ? upcoming : past;
   const joins = cards.reduce((sum, card) => sum + (card.joinCount ?? 0), 0);
 
@@ -27,6 +43,27 @@ export function MyPrepsView({ cards, userInitial }: { cards: ExamPrepCard[]; use
           {joins > 0 ? ` · ${joins} katılım` : ""}
         </p>
       </header>
+
+      {cards.length ? (
+        <div className="cx-list-filter cp-my-preps-filter" data-testid="preps-filter">
+          <ListSearchBox
+            value={filter.query}
+            onChange={(query) => setFilter((current) => ({ ...current, query }))}
+            label="Hazırlıklarda ara"
+            placeholder="Hazırlık adı ya da sınav türü"
+          />
+          {subjects.length > 1 ? (
+            <ListFilterChips
+              label="Sınav ya da derse göre süz"
+              options={[{ id: ALL_SUBJECTS, label: "Tümü" }, ...subjects.map((subject) => ({ id: subject, label: subject }))]}
+              value={filter.subject ?? ALL_SUBJECTS}
+              onChange={(subject) =>
+                setFilter((current) => ({ ...current, subject: subject === ALL_SUBJECTS ? null : subject }))
+              }
+            />
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="cp-my-preps-tabs" role="tablist" aria-label="Hazırlıklar">
         <button
@@ -55,6 +92,8 @@ export function MyPrepsView({ cards, userInitial }: { cards: ExamPrepCard[]; use
             <PrepCard key={card.id} card={card} showTargetLabel={index === 0} />
           ))}
         </div>
+      ) : filterActive ? (
+        <ListFilterEmpty title="Aramana uyan hazırlık yok" onClear={() => setFilter(EMPTY_PREP_FILTER)} />
       ) : (
         <p className="cp-upload-hint">
           {tab === "upcoming"

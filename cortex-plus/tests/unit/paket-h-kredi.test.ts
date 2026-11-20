@@ -106,7 +106,7 @@ describe("reserveCredits: eksik kural satırı ilk istekte eklenir, RPC bir kez 
     expect(calls).toEqual(["credit_reserve_metered", "credit_reserve_metered", "credit_claim_operation"]);
     expect(upserts).toEqual([{ table: "credit_rules", payload: seedOf("SKETCH_VIDEO_GENERATE"), options: ONLY_INSERT }]);
     expect(warn).toHaveBeenCalledTimes(1);
-    expect(warn).toHaveBeenCalledWith("credit_rule_seeded_from_code", { actionCode: "SKETCH_VIDEO_GENERATE", credits: 25 });
+    expect(warn).toHaveBeenCalledWith("credit_rule_seeded_from_code", { actionCode: "SKETCH_VIDEO_GENERATE", credits: 22 });
 
     // Aynı örnekte ikinci öğrenci aynı duruma düşerse: ekleme yine denenir (ON CONFLICT DO NOTHING, zararsız),
     // uyarı yeniden yazılmaz.

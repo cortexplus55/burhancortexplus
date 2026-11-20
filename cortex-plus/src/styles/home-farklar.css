@@ -1,0 +1,1286 @@
+/*
+  Ana sayfa, Faz 9 (20 Kasım 2026): "Aynı not, iki ayrı sonuç" akordeonu, plan kartlarının altındaki tek güven satırı ve
+  beş soruluk sık sorulanlar.
+
+  Palet 11 Kasım'ın pazarlama paleti (sıcak siyah zemin, kâğıt beyazı eylem, tek vurgu logonun şeridi); mavi ve çivit yok,
+  altın yalnız "Plus" etiketinde. Akordeonun değişkenleri `.lp.hm`ten (`--hm-*`), sahnelerin değişkenleri `.fv`ten
+  (`--fv-*`, `fark-vitrini.css`): sahne sarmalayıcısı `.fv` sınıfını taşır.
+
+  Yerleşim tek DOM'la: telefonda ve tablette (< 960 px) sahne açık başlığın içinde (başlık, metin ve sahne tek kart);
+  geniş ekranda başlık sarmalayıcısı `display: contents` olur, başlıklar ve açık metin solda (5/12), sahne sağda (7/12)
+  yapışkan. Sağ sütundaki sahne bütün satırları kaplar; son satır `1fr`: sahne başlıklardan uzunsa fazlası oraya gider,
+  başlıkların arası açılmaz. Satır sayısı = altı başlık + bir açık metin (bekçi başlık sayısını tutar).
+
+  Kurallar: yazı en az 12 px, dokunma alanı en az 44 px, hiçbir kutu kabından geniş değil. Geçiş yalnız açılan metin ve
+  sahnede (solarak ve 8 px yükselerek, 320 ms); `prefers-reduced-motion`da yok.
+*/
+
+/* ---------- Bölüm ---------- */
+
+.hm-farklar {
+  background:
+    radial-gradient(40rem 26rem at 100% 12%, rgba(255, 77, 141, 0.08), transparent 70%),
+    radial-gradient(36rem 24rem at 0% 80%, rgba(255, 178, 36, 0.06), transparent 70%);
+}
+
+.fk {
+  --fk-edge: rgba(255, 217, 160, 0.4);
+  --fk-radius: 1.1rem;
+  --fk-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --fk-focus: #ffdcae;
+  display: grid;
+  gap: 0.6rem;
+  color: var(--hm-text);
+}
+
+.fk-item {
+  min-width: 0;
+}
+
+.fk-head {
+  margin: 0;
+}
+
+/* ---------- Başlık düğmesi ---------- */
+
+.fk-trigger {
+  position: relative;
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 3.5rem;
+  padding: 0.55rem 0.9rem 0.55rem 0.6rem;
+  border: 1px solid var(--hm-line-strong);
+  border-radius: var(--fk-radius);
+  background: var(--hm-ink-2);
+  color: var(--hm-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  /* Sabit üst menünün altında kalmasın (açılınca görünür alana getirilir). */
+  scroll-margin-top: 5.5rem;
+  scroll-margin-bottom: 1rem;
+  transition:
+    border-color 0.16s ease,
+    background-color 0.16s ease;
+}
+
+.fk-trigger:hover {
+  border-color: rgba(247, 241, 232, 0.42);
+}
+
+.fk-trigger:focus-visible {
+  outline: 2px solid var(--fk-focus);
+  outline-offset: 2px;
+}
+
+.fk-item.is-open .fk-trigger {
+  border-color: var(--fk-edge);
+  border-bottom-color: transparent;
+  border-radius: var(--fk-radius) var(--fk-radius) 0 0;
+  background: var(--hm-ink-3);
+  cursor: default;
+}
+
+/* Açık başlığın solunda şeritten ince bir çizgi. */
+.fk-item.is-open .fk-trigger::before {
+  content: "";
+  position: absolute;
+  top: 0.75rem;
+  bottom: 0.75rem;
+  left: -1px;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--hm-ribbon-down);
+}
+
+.fk-node {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 1px solid var(--hm-line-strong);
+  border-radius: 50%;
+  background: var(--hm-ink);
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.fk-item.is-open .fk-node {
+  border-color: rgba(255, 178, 36, 0.55);
+  box-shadow: 0 0 1.2rem rgba(255, 178, 36, 0.3);
+}
+
+.fk-title {
+  min-width: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+  text-wrap: pretty;
+}
+
+/* Plus: altın yalnız burada (#fdc94a, koyu altın zeminde 9:1). */
+.fk-plus {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(253, 179, 0, 0.16);
+  color: #fdc94a;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.fk-chevron {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--hm-muted);
+  transition: transform 0.22s var(--fk-ease);
+}
+
+.fk-item.is-open .fk-chevron {
+  color: var(--hm-text);
+  transform: rotate(180deg);
+}
+
+/* ---------- Açık metin: en çok iki cümle ve tek satırlık fark ---------- */
+
+.fk-panel {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.1rem 1.1rem 1.05rem 3.85rem;
+  border: 1px solid var(--fk-edge);
+  border-top: 0;
+  border-radius: 0 0 var(--fk-radius) var(--fk-radius);
+  background: var(--hm-ink-3);
+}
+
+.fk-panel[hidden] {
+  display: none;
+}
+
+.fk-body {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--hm-text);
+  text-wrap: pretty;
+}
+
+/* Fark: iki kısa satır alt alta, önce genel botlar. */
+.fk-diff {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0.15rem 0 0;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--hm-line);
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+/* Genel botlar sönük (#b9ada0 ink-3 üstünde 7,9:1), etiketi gül; Cortex Plus ışıkta, etiketi zümrüt (12:1). */
+.fk-diff-them {
+  color: var(--hm-muted);
+}
+
+.fk-diff-them strong {
+  color: #fda4af;
+}
+
+.fk-diff-us {
+  color: var(--hm-text);
+}
+
+.fk-diff-us strong {
+  color: #6ee7b7;
+}
+
+.fk-diff strong {
+  font-weight: 700;
+}
+
+.fk-diff-icon {
+  display: inline-block;
+  width: 0.9rem;
+  height: 0.9rem;
+  margin-right: 0.3rem;
+  vertical-align: -0.12em;
+}
+
+.fk-diff-them .fk-diff-icon {
+  color: #fda4af;
+}
+
+.fk-diff-us .fk-diff-icon {
+  color: #6ee7b7;
+}
+
+/* ---------- Sahne ---------- */
+
+.fk-scene.fv {
+  margin: 0;
+}
+
+.fk-scene {
+  min-width: 0;
+  container: fk-scene / inline-size;
+}
+
+/*
+  Sınıfla Paylaş sahnesi (6. öğe): geniş sahnede kâğıdın maddeleri başlığın hemen altında, QR'ın yanında. Önce maddeler
+  uzun QR sütununun altından başlıyor, başlığın altında büyük bir boşluk kalıyordu (20 Kasım 2026, gözle kontrol).
+  Dar sahnede (telefon) bugünkü düzen: başlık + QR, altında tam genişlik maddeler.
+*/
+@container fk-scene (min-width: 30rem) {
+  .fv-sheet {
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 1rem;
+    align-items: start;
+  }
+
+  .fv-sheet-top {
+    display: contents;
+  }
+
+  .fv-sheet-heading {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .fv-sheet .fv-qr {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+
+  .fv-sheet-lines {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .fv-sheet-sign {
+    grid-column: 1 / -1;
+  }
+}
+
+@keyframes fk-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+}
+
+.fk-panel:not([hidden]),
+.fk-scene {
+  animation: fk-in 0.32s var(--fk-ease) both;
+}
+
+/* Telefon ve tablet: sahne açık başlığın içinde; başlık, metin ve sahne tek kart. */
+@media (max-width: 959px) {
+  .fk-item.has-scene .fk-panel {
+    border-radius: 0;
+    padding-bottom: 0.9rem;
+  }
+
+  .fk-scene {
+    padding: 0 0.75rem 0.85rem;
+    border: 1px solid var(--fk-edge);
+    border-top: 0;
+    border-radius: 0 0 var(--fk-radius) var(--fk-radius);
+    background: var(--hm-ink-3);
+  }
+}
+
+@media (max-width: 559px) {
+  .fk-panel {
+    padding-inline: 1rem;
+  }
+
+  .fk-trigger {
+    gap: 0.6rem;
+    padding-right: 0.75rem;
+  }
+
+  .fk-scene {
+    padding-inline: 0.5rem;
+  }
+}
+
+/* Geniş ekran: başlıklar solda (5/12), sahne sağda (7/12) ve yapışkan. */
+@media (min-width: 960px) {
+  .fk {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    /* Altı başlık + bir açık metin; son satır sahnenin fazlasını alır. */
+    grid-template-rows: repeat(7, auto) 1fr;
+    align-items: start;
+    column-gap: clamp(1.5rem, 3vw, 2.5rem);
+    row-gap: 0;
+  }
+
+  .fk-item {
+    display: contents;
+  }
+
+  .fk-head,
+  .fk-panel {
+    grid-column: 1;
+  }
+
+  .fk-item + .fk-item .fk-head {
+    margin-top: 0.6rem;
+  }
+
+  /* `.fv` (`position: relative`) ile aynı özgüllük yetmez: yapışkanlık iki sınıfla. */
+  .fk-scene.fv {
+    position: sticky;
+    top: 6rem;
+    grid-column: 2;
+    grid-row: 1 / -1;
+    align-self: start;
+  }
+}
+
+/* ---------- Sahne kartları (aynı not, ikiz soru, ikiz sınav, veli linki) ---------- */
+
+.fk-card {
+  container-type: inline-size;
+  display: grid;
+  gap: 0.85rem;
+  min-width: 0;
+  padding: 1.1rem 1.15rem 1.2rem;
+  border: 1px solid var(--fv-line-strong);
+  border-radius: 1.25rem;
+  background: var(--fv-ink-2);
+  box-shadow: 0 1.4rem 3.2rem -2rem rgba(0, 0, 0, 0.9);
+  color: var(--fv-text);
+}
+
+.fk-stack {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.fk-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem 0.6rem;
+}
+
+.fk-card-title {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+}
+
+.fk-card-emoji {
+  font-size: 1.1rem;
+}
+
+.fk-kicker {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  line-height: 1.3;
+  text-transform: uppercase;
+  color: var(--fv-peach);
+}
+
+.fk-fine {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--fv-muted);
+}
+
+.fk-mono {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  color: var(--fv-muted);
+  overflow-wrap: anywhere;
+}
+
+.fk-check-icon {
+  flex: none;
+  width: 0.85rem;
+  height: 0.85rem;
+  color: var(--fv-success-text);
+}
+
+/* Sahne 1: aynı not. */
+
+.fk-note-file {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.fk-note-icon {
+  flex: none;
+  width: 1.4rem;
+  height: 1.4rem;
+  color: #ffb224;
+}
+
+.fk-note-name {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.3;
+}
+
+.fk-note-lines {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--fv-muted);
+}
+
+.fk-note-lines li {
+  padding-left: 0.8rem;
+  border-left: 2px solid rgba(255, 178, 36, 0.55);
+}
+
+.fk-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+}
+
+@container (min-width: 34rem) {
+  .fk-split {
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  }
+}
+
+.fk-side {
+  display: grid;
+  align-content: start;
+  gap: 0.6rem;
+  min-width: 0;
+  padding: 0.9rem 1rem 1rem;
+  border-radius: 1rem;
+}
+
+.fk-side--them {
+  border: 1px dashed rgba(247, 241, 232, 0.22);
+  background: rgba(247, 241, 232, 0.02);
+}
+
+.fk-side--us {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--fv-ink-3), var(--fv-ink-3)) padding-box,
+    var(--fv-ribbon) border-box;
+}
+
+.fk-side-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.fk-side--them .fk-side-head {
+  color: var(--fv-them-text);
+}
+
+.fk-side--us .fk-side-icon {
+  color: var(--fv-success-text);
+}
+
+.fk-side-icon {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+}
+
+.fk-badge {
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  background: var(--fv-success-weak);
+  color: var(--fv-success-text);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.fk-points {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--fv-muted);
+}
+
+.fk-points li {
+  position: relative;
+  padding-left: 1rem;
+}
+
+.fk-points li::before {
+  content: "";
+  position: absolute;
+  top: 0.62em;
+  left: 0.1rem;
+  width: 0.38rem;
+  height: 0.38rem;
+  border-radius: 50%;
+  background: rgba(247, 241, 232, 0.35);
+}
+
+.fk-side--us .fk-points {
+  color: var(--fv-text);
+}
+
+.fk-side--us .fk-points li::before {
+  background: var(--fv-success-text);
+}
+
+.fk-q {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.fk-q-text {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+/* Şıklar tek satırda haplar: sahne kısa kalsın (telefonda iki satıra sarar). */
+.fk-opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fk-opts li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2rem;
+  padding: 0.2rem 0.65rem 0.2rem 0.25rem;
+  border-radius: 999px;
+  background: rgba(247, 241, 232, 0.05);
+  font-size: 0.875rem;
+}
+
+.fk-opts li.is-right {
+  background: var(--fv-success-weak);
+  box-shadow: inset 0 0 0 1px var(--fv-success-edge);
+  font-weight: 700;
+}
+
+.fk-opt-letter {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: var(--fv-ink-4);
+  color: var(--fv-muted);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.is-right .fk-opt-letter {
+  background: var(--fv-success);
+  color: #0b0907;
+}
+
+.fk-opt-mark {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+  margin-left: auto;
+  color: var(--fv-success-text);
+}
+
+.fk-opts--ghost .fk-opt-bar {
+  width: 1.75rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: rgba(247, 241, 232, 0.1);
+}
+
+.fk-cap {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--fv-muted);
+}
+
+.fk-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fk-checks li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: 1.75rem;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(247, 241, 232, 0.05);
+  color: var(--fv-text);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* Sahne 4: tuzak yakalandı → yanlışın ikizi. */
+
+.fk-steps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fk-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2rem;
+  padding: 0.2rem 0.75rem 0.2rem 0.25rem;
+  border-radius: 999px;
+  background: rgba(247, 241, 232, 0.04);
+  color: var(--fv-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.fk-step + .fk-step::before {
+  content: "→";
+  margin-left: 0.2rem;
+  color: var(--fv-muted);
+}
+
+.fk-step.is-current {
+  background: var(--fv-ink-3);
+  box-shadow: inset 0 0 0 1px var(--fk-edge, rgba(255, 217, 160, 0.4));
+  color: var(--fv-text);
+}
+
+.fk-step.is-done {
+  color: var(--fv-success-text);
+}
+
+.fk-step-num {
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: var(--fv-ink-4);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+.fk-step.is-current .fk-step-num {
+  background: var(--fv-paper);
+  color: var(--fv-paper-ink);
+}
+
+.fk-step.is-done .fk-step-num {
+  background: var(--fv-success);
+  color: #0b0907;
+}
+
+.fk-twin-body {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.fk-twin-opts {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fk-twin-opt {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.3rem 0.8rem 0.3rem 0.4rem;
+  border: 1px solid var(--fv-line-strong);
+  border-radius: 999px;
+  background: var(--fv-ink-3);
+  color: var(--fv-text);
+  font: inherit;
+  font-size: 0.9375rem;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 0.16s ease,
+    border-color 0.16s ease;
+}
+
+.fk-twin-opt:hover:not(:disabled) {
+  border-color: rgba(247, 241, 232, 0.45);
+  background: var(--fv-ink-4);
+}
+
+.fk-twin-opt:disabled {
+  cursor: default;
+}
+
+.fk-twin-opt.is-right {
+  border-color: var(--fv-success-edge);
+  background: var(--fv-success-weak);
+  font-weight: 700;
+}
+
+.fk-twin-opt.is-wrong {
+  border-color: rgba(253, 164, 175, 0.5);
+  background: rgba(253, 164, 175, 0.1);
+  font-weight: 700;
+}
+
+.fk-twin-opt.is-wrong .fk-opt-letter {
+  background: var(--fv-them-text);
+  color: #0b0907;
+}
+
+.fk-twin-opt.is-wrong .fk-opt-mark {
+  color: var(--fv-them-text);
+}
+
+.fk-twin-opt.is-gone .fk-twin-opt-text {
+  color: var(--fv-muted);
+  text-decoration: line-through;
+}
+
+.fk-twin-opt-text {
+  min-width: 0;
+}
+
+.fk-chip,
+.fk-twin-again {
+  display: inline-flex;
+  justify-self: start;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0 1rem;
+  border: 1px solid var(--fv-line-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--fv-text);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.fk-chip:hover,
+.fk-twin-again:hover {
+  background: rgba(247, 241, 232, 0.06);
+}
+
+.fk-two {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 1rem;
+  background: rgba(247, 241, 232, 0.04);
+  box-shadow: inset 0 0 0 1px var(--fv-line);
+}
+
+.fk-two-title {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--fv-muted);
+}
+
+.fk-two-letters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.fk-two-letter {
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 1px solid var(--fv-line-strong);
+  border-radius: 50%;
+  background: var(--fv-ink-3);
+  color: var(--fv-text);
+  font-family: var(--font-mono);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.fk-two-letter.is-on {
+  border-color: var(--fv-paper);
+  background: var(--fv-paper);
+  color: var(--fv-paper-ink);
+}
+
+.fk-two-hint {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--fv-text);
+}
+
+.fk-two-out {
+  margin: 0.35rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--fv-muted);
+}
+
+.fk-result {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.8rem 0.9rem;
+  border-radius: 1rem;
+}
+
+.fk-result.is-right {
+  background: var(--fv-success-weak);
+  box-shadow: inset 0 0 0 1px var(--fv-success-edge);
+}
+
+.fk-result.is-wrong {
+  background: rgba(253, 164, 175, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(253, 164, 175, 0.4);
+}
+
+.fk-result-head {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.fk-result.is-right .fk-result-head {
+  color: var(--fv-success-text);
+}
+
+.fk-result.is-wrong .fk-result-head {
+  color: var(--fv-them-text);
+}
+
+.fk-result-why,
+.fk-result-exp {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.fk-result-why {
+  color: var(--fv-text);
+}
+
+.fk-result-exp {
+  color: var(--fv-muted);
+}
+
+/* Ürünün düğmesi: sahnenin tek ana eylemi, kâğıt beyazı (mürekkep yazı 15:1). */
+.fk-twin-go {
+  display: inline-flex;
+  justify-self: start;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0.5rem 1.1rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--fv-paper);
+  color: var(--fv-paper-ink);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.3;
+  text-align: left;
+  cursor: pointer;
+}
+
+.fk-twin-go:hover {
+  background: var(--fv-paper-hover);
+}
+
+.fk-chip:focus-visible,
+.fk-twin-again:focus-visible,
+.fk-twin-go:focus-visible,
+.fk-twin-opt:focus-visible,
+.fk-two-letter:focus-visible,
+.fk-q-text:focus-visible,
+.fk-result-head:focus-visible,
+.fk-two-hint:focus-visible {
+  outline: 2px solid var(--fk-focus, #ffdcae);
+  outline-offset: 2px;
+  border-radius: 0.6rem;
+}
+
+.fk-q-text:focus:not(:focus-visible),
+.fk-result-head:focus:not(:focus-visible),
+.fk-two-hint:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Sahne 5: ikiz sınav ve sessiz sözlü. Hücre renkleri logonun şeridinden (koyu yazı her birinde 7:1 üstü). */
+
+.fk-cells {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 0.3rem;
+  max-width: 24rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fk-cells li {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  min-width: 0;
+  border-radius: 0.45rem;
+  color: #0b0907;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.fk-cells [data-topic="0"],
+.fk-legend [data-topic="0"] .fk-legend-dot {
+  background: #ffb224;
+}
+
+.fk-cells [data-topic="1"],
+.fk-legend [data-topic="1"] .fk-legend-dot {
+  background: #ff8fb3;
+}
+
+.fk-cells [data-topic="2"],
+.fk-legend [data-topic="2"] .fk-legend-dot {
+  background: #c4b5fd;
+}
+
+.fk-cells [data-topic="3"],
+.fk-legend [data-topic="3"] .fk-legend-dot {
+  background: #f6ecd9;
+}
+
+.fk-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.9rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8125rem;
+  color: var(--fv-muted);
+}
+
+.fk-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.fk-legend b {
+  color: var(--fv-text);
+  font-weight: 700;
+}
+
+.fk-legend-dot {
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 0.2rem;
+}
+
+.fk-oral-prompt {
+  margin: 0;
+  padding: 0.7rem 0.85rem;
+  border-radius: 1rem 1rem 1rem 0.3rem;
+  background: var(--fv-ink-3);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.fk-oral-box {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--fv-line-strong);
+  border-radius: 1rem;
+  background: var(--fv-ink);
+}
+
+.fk-oral-answer {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.fk-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1.05em;
+  margin-left: 2px;
+  vertical-align: -0.15em;
+  background: var(--fv-paper);
+  animation: fk-blink 1.1s steps(1) infinite;
+}
+
+@keyframes fk-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+.fk-oral-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--fv-muted);
+}
+
+.fk-oral-mic {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--fv-ink-3);
+  color: var(--fv-muted);
+}
+
+.fk-oral-done {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--fv-success-text);
+}
+
+/* Sahne 6: velime ödeme linki. */
+
+.fk-parent-badge {
+  display: inline-flex;
+  justify-self: start;
+  align-items: center;
+  min-height: 2rem;
+  margin: 0;
+  padding: 0.3rem 0.85rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background:
+    linear-gradient(var(--fv-ink-3), var(--fv-ink-3)) padding-box,
+    var(--fv-ribbon) border-box;
+  color: var(--fv-text);
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+
+.fk-parent-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fk-parent-facts li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 1.75rem;
+  padding: 0.15rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(247, 241, 232, 0.05);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+/* ---------- Bölümün altındaki tek bağlantı ---------- */
+
+.fk-more,
+.lp-faq-more {
+  display: flex;
+  justify-content: center;
+  margin: 1.5rem 0 0;
+}
+
+/* SSS başlığı sola yaslı: bağlantı da onun hizasında. */
+.lp-faq-more {
+  justify-content: flex-start;
+  margin-top: 1.1rem;
+}
+
+.fk-more a,
+.lp-faq-more a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.75rem;
+  padding: 0 1.1rem;
+  border: 1px solid var(--hm-line-strong);
+  border-radius: 999px;
+  color: var(--hm-text);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.fk-more a:hover,
+.lp-faq-more a:hover {
+  border-color: rgba(247, 241, 232, 0.45);
+  background: rgba(247, 241, 232, 0.05);
+}
+
+.fk-more a:focus-visible,
+.lp-faq-more a:focus-visible {
+  outline: 2px solid #ffdcae;
+  outline-offset: 2px;
+}
+
+/* ---------- Güven satırı: plan kartlarının altında tek satır, üç simgeli öğe ---------- */
+
+.hm .lp-trustline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem 1.75rem;
+  margin: 1.25rem 0 0;
+  padding: 0.9rem 0 0;
+  border-top: 1px solid var(--hm-line);
+  list-style: none;
+}
+
+.hm .lp-trustline li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2rem;
+  color: var(--hm-text);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.lp-trustline-icon {
+  flex: none;
+  width: 1.15rem;
+  height: 1.15rem;
+  color: var(--hm-amber);
+}
+
+/* ---------- Sık sorulanlar: beş soru ve Yardım Merkezi bağlantısı ---------- */
+
+.hm .lp-faq-item {
+  padding: 0.3rem 1.1rem;
+}
+
+.hm .lp-faq-item summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 3rem;
+  padding-block: 0.35rem;
+  line-height: 1.35;
+}
+
+.hm .lp-faq-item summary::after {
+  flex: none;
+  float: none;
+}
+
+.hm .lp-faq-item summary:focus-visible {
+  outline: 2px solid #ffdcae;
+  outline-offset: 2px;
+  border-radius: 0.6rem;
+}
+
+.hm .lp-faq-item p {
+  margin: 0.15rem 0 0.85rem;
+}
+
+.lp-faq-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2.75rem;
+  margin-bottom: 0.4rem;
+  color: #ffc7a8;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.lp-faq-link:focus-visible {
+  outline: 2px solid #ffdcae;
+  outline-offset: 2px;
+  border-radius: 0.4rem;
+}
+
+/* ---------- Hareket azaltma ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .fk-panel:not([hidden]),
+  .fk-scene {
+    animation: none;
+  }
+
+  .fk-trigger,
+  .fk-chevron,
+  .fk-twin-opt {
+    transition: none;
+  }
+
+  .fk-caret {
+    animation: none;
+  }
+}

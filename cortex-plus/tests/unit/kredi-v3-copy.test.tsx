@@ -83,7 +83,9 @@ describe("/krediler ücretsiz kartı (#1, #2)", () => {
     expect(defaultFreeMeter("QUIZ_GENERATE")).toBe("lesson");
     expect(defaultFreeMeter("FLASHCARD_GENERATE")).toBe("lesson");
     expect(defaultFreeMeter("AI_CHAT_STANDARD")).toBe("chat");
-    expect(read("src/app/api/learning/true-false/generate/route.ts")).toContain('actionCode: "QUIZ_GENERATE"');
+    // Faz 4: doğru/yanlış testten ayrı kod (3 kredi), aynı ders sayacı.
+    expect(read("src/app/api/learning/true-false/generate/route.ts")).toContain('actionCode: "TRUE_FALSE_GENERATE"');
+    expect(defaultFreeMeter("TRUE_FALSE_GENERATE")).toBe("lesson");
     const explain = read("src/app/api/learning/explain/route.ts");
     expect(explain).toContain('actionCode: "AI_CHAT_STANDARD"');
     expect(explain).not.toMatch(/freeMeter:/);
@@ -98,7 +100,7 @@ describe("yükseltme kapısı (#3)", () => {
     expect(UPGRADE_FREE_LINE).toBe(
       // 11 Kasım 2026 (ürün sahibinin kararı): ilk dersin döngüsü süreye takılmaz; aynı akşam haftalık ders hakkı
       // kalktı (ücretsiz hesap = tek ders). Belge ve hazırlık sınırı kapıda da yazılı.
-      `Ücretsiz hesapta ilk hazırlığında ilk dersin (konu anlatımı, kartlar, doğru/yanlış ve konu testi) süre sınırı olmadan açık; ayrıca günde ${FREE_LIMITS.chat} sohbet mesajı ve günde ${FREE_LIMITS.photo} fotoğraftan soru çözümü var. ` +
+      `Ücretsiz hesapta ilk hazırlığında ilk dersin (konu anlatımı, kartlar, doğru/yanlış ve konu testi) süre sınırı olmadan açık; ayrıca günde ${FREE_LIMITS.chat} sohbet mesajı ve ayda ${FREE_LIMITS.photo} fotoğraftan soru çözümü var. ` +
         `${FREE_DOCUMENT_SENTENCE} ` +
         `Davet ettiğin arkadaş hesabını doğrulayıp ilk çalışmasını yapınca ikinize de ${REFERRAL_GIFT_LESSONS} ders hediye; en çok ${REFERRAL_MAX_INVITES} davet için.`,
     );

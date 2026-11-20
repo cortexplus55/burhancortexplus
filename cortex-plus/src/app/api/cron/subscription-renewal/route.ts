@@ -21,6 +21,7 @@ import { sampleLessonQuality } from "@/lib/learning/lesson-quality-judge";
 import { pumpDueGenerationJobs } from "@/lib/learning/mock-exam-durable";
 import { sweepAbandonedMockBuilds } from "@/lib/learning/mock-exam/fallback-exam";
 import { sendPlanNoticeMails, type PlanNoticeMail } from "@/lib/email/plan-notice-mails";
+import { notifyInAppMany } from "@/lib/notifications/in-app";
 
 export const dynamic = "force-dynamic";
 // Günlük kalite örneği (üç model çağrısı) özetten sonra çalışır; tur 300 sn'ye sığar.
@@ -99,6 +100,8 @@ export async function GET(request: Request) {
   };
   const reminded: string[] = [];
   const expired: string[] = [];
+  // Deneme (kodla açılan Plus) e-postaları burada kalır: "ücretsize dönersin" der, yenileme önermez.
+  const trialSubscriptions = new Set<string>();
 
   for (const sub of rows) {
     const planName = sub.plans?.name ?? "Aboneliğin";
@@ -108,6 +111,7 @@ export async function GET(request: Request) {
 
     // Kodla açılan Plus denemesi (kapalı beta): "yenile" değil, "ücretsize dönersin" denir.
     const trial = isTrialPeriod(sub);
+    if (trial) trialSubscriptions.add(sub.id);
 
     if (hasExpired(sub, now)) {
       expired.push(sub.id);
@@ -142,8 +146,12 @@ export async function GET(request: Request) {
 
   const stamp = now.toISOString();
 
+  // Faz 6 (20 Kasım 2026): uygulama içi bildirim yeni depoda (hesap bildirimi: öğrencinin anahtarından bağımsız).
   if (notices.length) {
-    await service.from("notifications").insert(notices);
+    await notifyInAppMany(
+      service,
+      notices.map((notice) => ({ userId: notice.user_id, kind: "plan_notice" as const, title: notice.title, body: notice.body, actionUrl: "/pay" })),
+    );
   }
 
   if (reminded.length) {
@@ -167,7 +175,13 @@ export async function GET(request: Request) {
   // Bildirim yazıldıktan sonra e-posta; düşen gönderim turu durdurmaz (bildirim uygulamada duruyor).
   let planMails = { sent: 0, failed: 0, skipped: 0 };
   try {
-    planMails = await sendPlanNoticeMails(service, mails, now);
+    // Faz 6: "3 gün kala" e-postası yaşam döngüsü motoruna taşındı (18:30, 3 gün ve 24 saat kala, gönderim kilidiyle;
+    // lib/notifications/jobs). Burada bitiş günü ve deneme e-postaları kalır.
+    planMails = await sendPlanNoticeMails(
+      service,
+      mails.filter((mail) => mail.kind === "expired" || trialSubscriptions.has(mail.subscriptionId)),
+      now,
+    );
   } catch {
     logOpsEvent("subscription_sync_failed", { stage: "plan_notice_mail", count: mails.length });
   }

@@ -25,6 +25,10 @@ import { teacherPodcastEpisode } from "./podcast";
 import { readSharedMedia, sharedMediaUnit } from "@/lib/content-pool/shared-media";
 import { teacherCardsPayload } from "./cards";
 import { teacherTrueFalsePayload } from "./true-false";
+import { SINGLE_CHOICE_PROMPT_LINE } from "@/lib/learning/single-choice-guard";
+import type { SourceCorrectionWarning } from "@/lib/learning/source-correction";
+import type { SourceFallbackKind } from "@/lib/learning/source-fallback";
+import type { UnitSubtopics } from "@/lib/learning/lesson-subtopics";
 
 /** Türe göre üretimin girdisi; rota hazırlar, tür modülleri okur. */
 export type NodePayloadInput = {
@@ -45,6 +49,11 @@ export type NodePayloadInput = {
   lessonCore?: LessonCore | null;
   /** Belgesiz hazırlık dersi (topic_only, hazırlıkta belge yok). */
   lessonTopicOnly?: boolean;
+  /**
+   * Kaynak araması yedeği (19 Kasım 2026, Faz 1-A §3.3): Kolay / Orta konu testinde arama boş ya da düştü; `sourceBlock`
+   * konunun kayıtlı dersi (lesson_context) ya da ünite özeti (unit_summary). Çekirdek sayfa yoksa test bundan yazılır.
+   */
+  sourceFallback?: SourceFallbackKind | null;
   /** Belgesiz "Farklı anlat": kazanımlar + önceki (havuz) anlatım; ders aynı bilgiyi farklı yoldan anlatır. */
   alternativeOf?: string;
   repetitiveSparseEvidence?: boolean;
@@ -90,8 +99,23 @@ export type NodePayloadInput = {
   /** Ders düğümü içeriğini konuya yazabilsin diye. */
   prepId?: string;
   topicId?: string | null;
+  /**
+   * Kardeş üniteler (19 Kasım 2026, Faz 1-A §1): etkin üniteyle aynı kaynak sayfa aralığını paylaşan ünitelerin adları
+   * (`loadExcludedSiblingTopics`). Ders, konu testi, kartlar, Doğru/Yanlış ve podcast istemine sınır bloğu olarak girer.
+   */
+  excludedSiblingTopics?: string[];
+  /**
+   * Kaynak düzeltme uyarısı (19 Kasım 2026, Faz 1-A §2.1): konunun kayıtlı dersindeki açık bilimsel hatanın doğrusu.
+   * Yalnız belgeli üretimde; test, kart, Doğru/Yanlış, podcast ve "Farklı anlat" doğrusunu kullanır.
+   */
+  sourceCorrection?: SourceCorrectionWarning | null;
   /** Kaynağın o sayfalardaki kendi alt başlıkları; boşsa bölümü model seçer. */
   sectionBackbone?: string[];
+  /**
+   * Ünite dersinin alt konuları (20 Kasım 2026, ürün sahibinin kararı): hazırlığın konu satırlarından (ders çözücüsü
+   * okur). Ders `sessionMeta.lessonSubtopics ?? unit` listesinin hepsini öğretir; yoksa ders bugünkü gibi yazılır.
+   */
+  unitSubtopics?: UnitSubtopics | null;
   /** Saklı öğretmen analizi. Yoksa boş; üretim bugünkü yoldan sürer. */
   teacherBrief?: string;
   /** Öğretmen analizinin "Sınavda sorulur" maddeleri. */
@@ -150,6 +174,8 @@ export async function generateNodePayload(input: NodePayloadInput) {
   */
   const core = input.lessonCore ?? null;
   const pagesReady = Boolean(core || input.lessonTopicOnly);
+  // Faz 1-A §3.3: yedek kaynaklı konu testi çekirdek sayfa olmadan da yazılır (kaynak = kayıtlı ders / ünite özeti).
+  const fallbackReady = Boolean(input.sourceFallback && input.sourceBlock.trim() && TEACHER_QUIZ_KINDS.has(input.kind));
   const noPages = () => new NodeGenerationError(503, "source_unavailable", ["lesson_core_missing"]);
 
   if (input.kind === "lesson") {
@@ -158,7 +184,7 @@ export async function generateNodePayload(input: NodePayloadInput) {
   }
 
   if (TEACHER_QUIZ_KINDS.has(input.kind)) {
-    if (!pagesReady) throw noPages();
+    if (!pagesReady && !fallbackReady) throw noPages();
     return teacherQuizPayload(input, activity, core, Math.max(5, quizCount));
   }
 
@@ -179,9 +205,10 @@ export async function generateNodePayload(input: NodePayloadInput) {
       prepTitle: input.prepTitle,
       charge: input.charge,
       urgent: input.charge !== false,
+      ...(input.sourceCorrection ? { sourceCorrection: input.sourceCorrection } : {}),
       userPrompt: input.teachingV2
-        ? `${QA_TEACHER_PROMPT} ${ctx} ${quizCount} alıştırma sorusu. Tek kavramdan başla; her explanation ilk cümlede doğru cevabı söylesin. multi=true yalnızca gerçekten birden fazla bağımsız doğru varken.`
-        : `${ctx} ${quizCount} çoktan seçmeli alıştırma sorusu. Şıklar A/B/C/D gibi net olsun. En az 1 soruda birden fazla doğru şık olsun (multi true, correct dizi).`,
+        ? `${QA_TEACHER_PROMPT} ${ctx} ${quizCount} alıştırma sorusu. Tek kavramdan başla; her explanation ilk cümlede doğru cevabı söylesin. ${SINGLE_CHOICE_PROMPT_LINE}`
+        : `${ctx} ${quizCount} çoktan seçmeli alıştırma sorusu. Şıklar A/B/C/D gibi net olsun. ${SINGLE_CHOICE_PROMPT_LINE}`,
     });
     if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error);
     return { type: "quiz", questions: outcome.questions, teachingStandard: activity };
@@ -328,8 +355,8 @@ export async function generateNodePayload(input: NodePayloadInput) {
         : undefined,
     userPrompt: `${ctx} ${input.kind === "final_check" ? Math.min(4, quizCount) : input.kind === "focused" ? Math.min(5, quizCount) : quizCount} çoktan seçmeli soru. ${
       input.teachingV2
-        ? "multi=true yalnızca gerçekten birden fazla bağımsız doğru varken; aksi halde multi false. Her soruda learningObjective ve explanation yaz."
-        : "En az 1 soruda birden fazla doğru şık olsun (multi true, correct dizi)."
+        ? `${SINGLE_CHOICE_PROMPT_LINE} Her soruda learningObjective ve explanation yaz.`
+        : SINGLE_CHOICE_PROMPT_LINE
     } ${input.kind === "written_exam" ? "Sınav disiplini: ipucu yok, her soruda explanation yaz, doğru cevabı soru metnine koyma." : ""} ${input.kind === "gaps" ? "Zayıf nokta / tuzak sorular. Öğretmen notunda yanılgı varsa onu ölç." : ""} ${
       input.practiceTopics?.length
         ? `Yalnızca şu zayıf konular: ${input.practiceTopics.join(", ")}. Listede olmayan konu yazma.`

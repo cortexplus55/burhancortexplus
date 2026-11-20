@@ -10,6 +10,8 @@ const STEPS = ["subject", "date", "target", "material", "language", "modality", 
 
 /** Yer tutucu konular; içerik bir derse özgü değil. */
 const TOPICS = ["Birinci ünite: temel kavramlar", "İkinci ünite: yöntemler", "Üçüncü ünite: uygulamalar", "Dördüncü ünite: tekrar"];
+/** Yer tutucu alt başlıklar (Faz 10); uzun olanı dar ekranda sarmayı sınar. */
+const SUBTOPICS = ["Alt başlık A", "Alt başlık B", "Uzun bir alt başlık adı ki dar ekranda alt satıra sarar"];
 
 function account(): StudentAccountContext {
   return {
@@ -61,7 +63,21 @@ function seed(step: string) {
         : [],
     failedMaterials: [],
     processing: null,
-    topicsDraft: index > 6 ? { topics: TOPICS, topicPages: TOPICS.map((_, i) => [i * 3 + 1, i * 3 + 2]) } : undefined,
+    topicsDraft:
+      index > 6
+        ? {
+            topics: TOPICS,
+            topicPages: TOPICS.map((_, i) => [i * 3 + 1, i * 3 + 2]),
+            // Ana ünite modeli (Faz 10): her ünitenin altında küçük alt başlık listesi.
+            meta: TOPICS.map((_, i) => ({
+              sourceCount: 0,
+              examHeavy: false,
+              important: false,
+              sections: [],
+              subtopics: SUBTOPICS.map((label) => `${label} ${i + 1}`),
+            })),
+          }
+        : undefined,
     title: "",
     orderEdited: false,
     updatedAt: new Date().toISOString(),

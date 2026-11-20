@@ -4,7 +4,11 @@ import { MarketingPage } from "@/components/layout/marketing-page";
 import { CURRICULUM, getProgram, programSources } from "@/lib/curriculum/registry";
 import { displayUnitTitles } from "@/lib/curriculum/unit-title";
 import { OfficialLinks } from "@/components/curriculum/official-links";
-import { treeLabelFor, unitPath } from "@/lib/curriculum/seo";
+import { shortText, treeLabelFor, unitPath } from "@/lib/curriculum/seo";
+import { pageMetadata } from "@/lib/seo/page-metadata";
+import { breadcrumbJsonLd } from "@/lib/seo/structured-data";
+import { curriculumBreadcrumb } from "@/lib/seo/curriculum-breadcrumb";
+import { JsonLd } from "@/components/seo/json-ld";
 import { cleanMathGlyphs } from "@/lib/curriculum/math-glyphs";
 import { ExternalAnchor } from "@/components/ui/external-anchor";
 
@@ -17,10 +21,16 @@ export function generateStaticParams() {
   return CURRICULUM.programs.map((p) => ({ programId: p.id }));
 }
 
+/** Açıklama sayfanın kendi alt satırı (rozet · kapsam); kanonik adres programın yolu (20 Kasım 2026, Faz 3). */
 export async function generateMetadata({ params }: { params: Promise<{ programId: string }> }) {
   const { programId } = await params;
   const program = getProgram(programId);
-  return { title: program ? `${program.label} — Resmî Müfredat` : "Resmî Müfredat" };
+  if (!program) return { title: "Resmî Müfredat" };
+  return pageMetadata({
+    title: `${program.label} — Resmî Müfredat`,
+    description: shortText(`${program.label}: ${program.badge} · ${program.scope}`, 155),
+    path: `/mufredat/${program.id}`,
+  });
 }
 
 export default async function ProgramPage({ params }: { params: Promise<{ programId: string }> }) {
@@ -32,6 +42,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ progra
   const exams = Object.entries(program.exams);
   return (
     <MarketingPage title={program.label} description={`${program.badge} · ${program.scope}`}>
+      <JsonLd data={breadcrumbJsonLd(curriculumBreadcrumb({ program }))} />
       <p className="mk-eyebrow">
         <Link href="/mufredat">← Tüm programlar</Link>
       </p>

@@ -406,6 +406,83 @@ export async function synthesizeCharged(
   return { ok: true, tracks, creditsSpent: units };
 }
 
+/** `.in("hash", …)` sorgusu adreste taşınır; uzun bölüm listesi parça parça sorulur. */
+const CACHE_LOOKUP_CHUNK = 150;
+
+/**
+ * Önbellekteki satırlar — YALNIZ OKUMA (Faz 7, 20 Kasım 2026, Sınav Radyosu). Süresi ölçülmemiş satır yok sayılır
+ * (yarım kayıt çalınamaz). Okuma düşerse fırlatır; çağıran "ses şu an yok" der.
+ */
+export async function readCachedAudio(
+  service: Service,
+  hashes: readonly string[],
+): Promise<Map<string, { path: string; durationMs: number }>> {
+  const unique = [...new Set(hashes)];
+  const out = new Map<string, { path: string; durationMs: number }>();
+  for (let start = 0; start < unique.length; start += CACHE_LOOKUP_CHUNK) {
+    const { data, error } = await service
+      .from("lesson_audio")
+      .select("hash, storage_path, duration_ms")
+      .in("hash", unique.slice(start, start + CACHE_LOOKUP_CHUNK));
+    if (error) throw new Error("audio_cache_read_failed");
+    for (const row of data ?? []) {
+      const durationMs = Number(row.duration_ms);
+      if (typeof row.storage_path !== "string" || !Number.isFinite(durationMs) || durationMs <= 0) continue;
+      out.set(row.hash as string, { path: row.storage_path, durationMs });
+    }
+  }
+  return out;
+}
+
+export type CachedOnlyAudio =
+  | { ok: true; tracks: AudioTrack[] }
+  | { ok: false; reason: "not_cached" | "audio_unavailable" };
+
+/**
+ * Yalnız önbellekten ses (Faz 7, Sınav Radyosu): HİÇBİR PLANDA seslendirme yapmaz ve kredi ayırmaz — ne
+ * `synthesizeLine` ne `reserveCredits` ne kullanım kaydı. Satırlardan biri bile önbellekte yoksa `not_cached` döner
+ * (yarım bölüm çalınmaz). Önbellekten gelen ses bize maliyetsiz; ücretsiz hesap da dinler.
+ */
+export async function cachedAudioOnly(service: Service, lines: readonly AudioRequest[]): Promise<CachedOnlyAudio> {
+  if (!lines.length) return { ok: false, reason: "not_cached" };
+  const hashes = lines.map((line) => audioHash(line.text, line.speaker));
+  let cache: Map<string, { path: string; durationMs: number }>;
+  try {
+    cache = await readCachedAudio(service, hashes);
+  } catch {
+    return { ok: false, reason: "audio_unavailable" };
+  }
+  if (hashes.some((hash) => !cache.has(hash))) return { ok: false, reason: "not_cached" };
+
+  const paths = [...new Set(hashes.map((hash) => cache.get(hash)!.path))];
+  const { data: signed, error } = await service.storage.from(AUDIO_BUCKET).createSignedUrls(paths, SIGNED_URL_SECONDS);
+  if (error || !signed) return { ok: false, reason: "audio_unavailable" };
+  const urlByPath = new Map<string, string>();
+  signed.forEach((item, index) => {
+    if (item.signedUrl) urlByPath.set(paths[index]!, item.signedUrl);
+  });
+  const tracks: AudioTrack[] = [];
+  for (const hash of hashes) {
+    const entry = cache.get(hash)!;
+    const url = urlByPath.get(entry.path);
+    if (!url) return { ok: false, reason: "audio_unavailable" };
+    tracks.push({ url, durationMs: entry.durationMs });
+  }
+  // Son kullanım zamanı (önbellek temizliği için); beklenmez, düşerse ses yine döner. Sorgu kurucusu ancak
+  // `then` çağrılınca gider: `Promise.resolve` onu çalıştırır.
+  try {
+    void Promise.resolve(
+      service
+        .from("lesson_audio")
+        .update({ last_used_at: new Date().toISOString() })
+        .in("hash", [...new Set(hashes)].slice(0, CACHE_LOOKUP_CHUNK)),
+    ).catch(() => undefined);
+  } catch {
+    // Yalnız iz kaydı.
+  }
+  return { ok: true, tracks };
+}
+
 /**
  * Paylaşımlı ünite podcast'inin sesi (2 Kasım 2026): senaryo `shared_unit_media`'daki bölümle aynıysa öğrenciden
  * kredi ayrılmaz; ilk üretimin TTS maliyeti SHARED_CONTENT_MEDIA koduyla yazılır. Ses önbelleği içerik adresli

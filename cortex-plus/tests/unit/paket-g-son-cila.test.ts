@@ -425,9 +425,9 @@ describe("Paket G-2 — kısa ama doğru çözüm tam puan", () => {
   });
 });
 
-describe("Paket G-3 — çizimli 1 dakikalık video 25 kredi", () => {
-  it("fiyat tablosu 25, video kabuğu çizimde bu kodu kullanır", () => {
-    expect(CREDIT_PRICE_TABLE.SKETCH_VIDEO_GENERATE.credits).toBe(25);
+describe("Paket G-3 — çizimli 1 dakikalık video (Faz 4: 22 kredi)", () => {
+  it("fiyat tablosu 22, video kabuğu çizimde bu kodu kullanır", () => {
+    expect(CREDIT_PRICE_TABLE.SKETCH_VIDEO_GENERATE.credits).toBe(22);
     expect(CREDIT_PRICE_TABLE.VIDEO_GENERATE.credits).toBe(280);
     expect(read("src/lib/learning/video-run.ts")).toContain('sketch ? "SKETCH_VIDEO_GENERATE" : "VIDEO_GENERATE"');
   });

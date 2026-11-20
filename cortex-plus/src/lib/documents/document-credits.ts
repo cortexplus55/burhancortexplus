@@ -2,6 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { commitCredits, refundCredits } from "@/lib/credits/service";
 import { chargeNow } from "@/lib/credits/charge-now";
+import { textPageCredits, textPageUnits } from "@/lib/credits/price-table";
 import {
   DOCUMENT_RESERVATION_PREFIX,
   parseDocumentReservationKey,
@@ -43,39 +44,62 @@ async function readablePages(
   service: SupabaseClient,
   documentId: string,
   range: { from: number; to?: number },
-): Promise<{ total: number; unreadable: number } | null> {
+): Promise<{ total: number; unreadable: number; photo: number } | null> {
   let all = service.from("document_pages").select("id", { count: "exact", head: true })
     .eq("document_id", documentId).gte("page_number", range.from);
   let bad = service.from("document_pages").select("id", { count: "exact", head: true })
     .eq("document_id", documentId).eq("page_kind", "unreadable").gte("page_number", range.from);
+  // Faz 4: fotoğraf / taranmış (Vision OCR) sayfa kendi bedeliyle (DOCUMENT_SCAN_PAGE, 5) kesilir; metin biriminden düşer.
+  let ocr = service.from("document_ocr_claims").select("page_number", { count: "exact", head: true })
+    .eq("document_id", documentId).gte("page_number", range.from);
   if (range.to != null) {
     all = all.lte("page_number", range.to);
     bad = bad.lte("page_number", range.to);
+    ocr = ocr.lte("page_number", range.to);
   }
-  const [{ count: total, error }, { count: unreadable, error: badError }] = await Promise.all([all, bad]);
+  const [{ count: total, error }, { count: unreadable, error: badError }, { count: photo, error: ocrError }] =
+    await Promise.all([all, bad, ocr]);
   if (error || badError) return null;
-  return { total: total ?? 0, unreadable: unreadable ?? 0 };
+  if (ocrError) console.error("document_ocr_count_failed", { documentId, message: ocrError.message });
+  return { total: total ?? 0, unreadable: unreadable ?? 0, photo: ocrError ? 0 : (photo ?? 0) };
+}
+
+/** Faz 4: okunan metin sayfası (okunamayan ve fotoğraf/OCR sayfası hariç). */
+export function readTextPages(pages: { total: number; unreadable: number; photo: number }): number {
+  return Math.max(0, pages.total - pages.unreadable - pages.photo);
 }
 
 /**
  * Belgenin sayfa ücretini kesinleştirir. Okunamayan sayfa (31 Ekim 2026, ürün sahibi: "okunmayan sayfanın kredisi
- * düşmesin"): ayrılan ücret iade edilir, yalnız okunan sayfa kadar kesilir (anahtar aynı aralıkta bir kez). Taranmış
- * sayfa ücreti zaten yalnız okunan sayfadan alınıyor.
+ * düşmesin"): ücreti alınmaz. Faz 4 (19 Kasım 2026): metin sayfası ceil(n / 5) kredi; fotoğraf / taranmış sayfa
+ * metin biriminden düşülür (kendi bedeli DOCUMENT_SCAN_PAGE ile zaten kesildi). Ayrılan tutar kesin bedele eşitse
+ * kesinleşir; değilse iade edilip kesin bedel tek anahtarla (aynı aralıkta bir kez) kesilir.
  */
 export async function commitDocumentCredits(service: SupabaseClient, userId: string, documentId: string) {
   const reservation = await documentReservation(service, userId, documentId);
   if (!reservation) return;
   const pages = await readablePages(service, documentId, { from: reservation.firstPage });
-  if (!pages || !pages.unreadable || !pages.total) {
+  if (!pages || !pages.total) {
+    await commitCredits(service, reservation.id);
+    return;
+  }
+  const textPages = readTextPages(pages);
+  const { data: row } = await service
+    .from("credit_reservations")
+    .select("amount")
+    .eq("id", reservation.id)
+    .maybeSingle();
+  const reserved = Number((row as { amount?: unknown } | null)?.amount ?? NaN);
+  if (Number.isFinite(reserved) && reserved === textPageCredits(textPages)) {
     await commitCredits(service, reservation.id);
     return;
   }
   await refundCredits(service, reservation.id);
   const suffix = reservation.firstPage > 1 ? `_${reservation.firstPage}` : "";
-  await chargeNow(
-    service, userId, "DOCUMENT_PAGE_PROCESS", `document_pages_read_${documentId}${suffix}`,
-    Math.max(0, pages.total - pages.unreadable),
-  );
+  const units = textPageUnits(textPages);
+  if (units > 0) {
+    await chargeNow(service, userId, "DOCUMENT_PAGE_PROCESS", `document_pages_read_${documentId}${suffix}`, units);
+  }
 }
 
 /** Harita kalıcı olarak düşünce: süren ayırma iade. */
@@ -113,11 +137,12 @@ export async function settleDocumentHold(
     .select("document_id");
   if (!released?.length) return false;
   await refundCredits(service, reservation.id);
-  const readable = Math.max(0, pages.total - pages.unreadable);
-  if (readable > 0) {
+  // Faz 4: okunan metin sayfaları ceil(n / 5) birim; fotoğraf / OCR sayfası kendi bedeliyle kesildi.
+  const units = textPageUnits(readTextPages(pages));
+  if (units > 0) {
     await chargeNow(
       service, input.userId, "DOCUMENT_PAGE_PROCESS",
-      `document_pages_read_${input.documentId}_${reservation.firstPage}_${input.readThrough}`, readable,
+      `document_pages_read_${input.documentId}_${reservation.firstPage}_${input.readThrough}`, units,
     );
   }
   return true;

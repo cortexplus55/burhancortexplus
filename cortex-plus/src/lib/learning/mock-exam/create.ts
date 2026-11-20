@@ -1,6 +1,7 @@
 import {
   PAST_MIN_QUESTIONS,
-  TWIN_EXAM_LABEL,
+  TWIN_EXAM_QUESTION_COUNT,
+  TWIN_EXAM_SHORT_LABEL,
   detectPastQuestions,
   pastSamplesFor,
   pastStyleBrief,
@@ -50,6 +51,7 @@ import { studentOptionCount, type OptionCount } from "@/lib/learning/student-ped
 import { topicWeightsFromText } from "@/lib/learning/mock-exam/weights-from-text";
 import { exclusionPhrases } from "@/lib/learning/cross-material-topics";
 import { loadPrepDocumentIds } from "@/lib/documents/teacher-analysis-run";
+import { keepAnswerKeyed, mockDraftHasAnswerKey } from "@/lib/learning/answer-key";
 
 export type CreateMockExamInput = {
   service: SupabaseClient;
@@ -228,10 +230,12 @@ export async function planMockExam(
     .join(" ");
   const allowNumeric = sourceHasMeasurableQuantities(sampleSource + syllabusText);
 
-  let preset: MockLengthPreset = input.preset ?? (syllabus || official ? "real" : "standard");
-  if (input.questionCount != null) {
+  // Faz 5 §3.2: ikiz sınav her zaman tam 20 soru (rota da zorlar; burası ikinci kilit).
+  const questionCount = input.twin ? TWIN_EXAM_QUESTION_COUNT : input.questionCount;
+  let preset: MockLengthPreset = input.twin ? "standard" : (input.preset ?? (syllabus || official ? "real" : "standard"));
+  if (questionCount != null) {
     // Stüdyo kısa yol
-    preset = input.questionCount <= 12 ? "short" : "standard";
+    preset = questionCount <= 12 ? "short" : "standard";
   }
 
   // Soru türü yerleri de seçilen sayıya göre (24 Ekim 2026 lansman testi): Araçlar'da 5 soruluk yazılı
@@ -242,7 +246,7 @@ export async function planMockExam(
     syllabus: preset === "real" ? syllabus : null,
     allowNumeric,
     // Belgede biçim yoksa "Gerçek sınav" resmî tablonun soru sayısıdır.
-    questionCount: input.questionCount ?? (preset === "real" && !syllabus && official ? official.total : undefined),
+    questionCount: questionCount ?? (preset === "real" && !syllabus && official ? official.total : undefined),
   });
   if (input.durationMinutes != null) blueprint.durationMinutes = input.durationMinutes;
   if (past.length >= PAST_MIN_QUESTIONS) {
@@ -674,7 +678,7 @@ export async function persistMockExam(input: {
     .from("practice_exams")
     .insert({
       user_id: input.userId,
-      title: input.blueprint.pastStyle ? `${input.prepTitle} · ${TWIN_EXAM_LABEL}` : `${input.prepTitle} · yazılı deneme`,
+      title: input.blueprint.pastStyle ? `${input.prepTitle} · ${TWIN_EXAM_SHORT_LABEL}` : `${input.prepTitle} · yazılı deneme`,
       duration_minutes: input.blueprint.durationMinutes,
       exam_prep_id: input.prepId,
       blueprint: input.blueprint,
@@ -694,7 +698,8 @@ export async function persistMockExam(input: {
  * yalnız harf payı %40'ı aşınca bir kaydırma yapıyordu): sıra kayda yazılır, notlama ve inceleme kayıttan okur.
  */
 export function mockQuestionRows(examId: string, drafts: MockExamQuestionDraft[]) {
-  const questions = balanceExamDrafts(drafts);
+  // Faz 2 (madde 7.2): anahtarı geçerli olmayan soru kâğıda yazılmaz (`answer-key.ts`).
+  const questions = balanceExamDrafts(keepAnswerKeyed(drafts, mockDraftHasAnswerKey, "mock_exam"));
   return questions.map((q, sort_order) => ({
     exam_id: examId,
     question_text: q.text,
@@ -722,7 +727,9 @@ export async function insertMockExamQuestions(
   examId: string,
   questions: MockExamQuestionDraft[],
 ): Promise<boolean> {
-  const { error } = await service.from("practice_exam_questions").insert(mockQuestionRows(examId, questions));
+  const rows = mockQuestionRows(examId, questions);
+  if (!rows.length) return false;
+  const { error } = await service.from("practice_exam_questions").insert(rows);
   return !error;
 }
 

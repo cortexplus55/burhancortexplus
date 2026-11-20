@@ -185,7 +185,7 @@ describe("yol adımları ve hazırlık kartı (8 Kasım 2026)", () => {
   });
 
   it("hazırlık kartında sınav tarihi varsa kalan süre çipi", () => {
-    expect(read("src/components/parity/exam-prep.tsx")).toContain("{card.dated && card.daysLabel ? (");
+    expect(read("src/components/parity/exam-prep.tsx")).toContain("{dated ? (");
     expect(read("src/lib/learning/prep-cards.ts")).toContain("dated: Boolean(prep.exam_date),");
   });
 });

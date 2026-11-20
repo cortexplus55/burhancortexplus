@@ -81,11 +81,19 @@ export async function inviterReferralCode(service: SupabaseClient, userId: strin
   }
 }
 
-/** Kopyayı kurar. Kaynağın sahibi ve önceki kopya çağıranda denetlenir. */
+/**
+ * Kopyayı kurar. Kaynağın sahibi ve önceki kopya çağıranda denetlenir.
+ *
+ * `clone` (Faz 7, 20 Kasım 2026): paylaşım koduyla klonlamada kopya kaynağını (`cloned_from_prep_id`) ve klonlayan
+ * isteğin IP özetini taşır (ödülün aynı IP'den günlük tavanı, Faz 8). İkisi de belge değil; konu kopyası aynı.
+ */
 export async function copyInvitedPrep(
   service: SupabaseClient,
-  input: { source: InviteSource; userId: string },
-): Promise<{ ok: true; id: string; topics: number } | { ok: false }> {
+  input: { source: InviteSource; userId: string; clone?: { ipHash: string | null } },
+): Promise<
+  | { ok: true; id: string; topics: number; firstTopicId: string | null }
+  | { ok: false; conflict: boolean }
+> {
   const { source, userId } = input;
   const { data: profile } = await service.from("profiles").select("school_id").eq("id", userId).maybeSingle();
   const { time, place } = examTimeFromPreferences(source.learningPreferences);
@@ -102,22 +110,52 @@ export async function copyInvitedPrep(
       visibility: "private",
       forked_from: source.id,
       learning_preferences: { ...(time ? { examTime: time } : {}), ...(place ? { examPlace: place } : {}) },
+      ...(input.clone ? { cloned_from_prep_id: source.id, share_ip_hash: input.clone.ipHash } : {}),
     })
     .select("id")
     .single();
-  if (error || !copy) return { ok: false };
+  // 23505: aynı öğrencinin aynı kaynaktan ikinci klonu (`exam_preps_clone_once`); çağıran eski kopyayı açar.
+  if (error || !copy) return { ok: false, conflict: (error as { code?: string } | null)?.code === "23505" };
 
-  // Yalnız konu başlıkları ve sırası; ilerleme kopyalanmaz.
-  const { data: topics } = await service
+  // Yalnız konu başlıkları, sırası ve (ana ünite modelinde, Faz 10) ünitenin alt başlık adları; ilerleme kopyalanmaz.
+  // `subtopics` sütunu göçten önce yoksa (42703) başlık ve sıra eskisi gibi kopyalanır.
+  type TopicCopyRow = { label: string; sort_order: number; subtopics?: unknown };
+  let topics: TopicCopyRow[] = [];
+  let hasSubtopics = true;
+  const withSubtopics = await service
     .from("exam_prep_topics")
-    .select("label, sort_order")
+    .select("label, sort_order, subtopics")
     .eq("exam_prep_id", source.id)
     .order("sort_order");
-  const rows = (topics ?? []) as { label: string; sort_order: number }[];
+  if (withSubtopics.error) {
+    hasSubtopics = false;
+    const plain = await service.from("exam_prep_topics").select("label, sort_order").eq("exam_prep_id", source.id).order("sort_order");
+    topics = (plain.data ?? []) as TopicCopyRow[];
+  } else {
+    topics = (withSubtopics.data ?? []) as TopicCopyRow[];
+  }
+  const rows = topics;
+  let firstTopicId: string | null = null;
   if (rows.length) {
-    await service
-      .from("exam_prep_topics")
-      .insert(rows.map((topic) => ({ exam_prep_id: copy.id, label: topic.label, sort_order: topic.sort_order })));
+    const subtopicsOf = (topic: TopicCopyRow): string[] =>
+      Array.isArray(topic.subtopics) ? topic.subtopics.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : [];
+    const anySubtopics = hasSubtopics && rows.some((topic) => subtopicsOf(topic).length > 0);
+    const insertRows = (withUnits: boolean) =>
+      service
+        .from("exam_prep_topics")
+        .insert(
+          rows.map((topic) => ({
+            exam_prep_id: copy.id,
+            label: topic.label,
+            sort_order: topic.sort_order,
+            ...(withUnits ? { subtopics: subtopicsOf(topic) } : {}),
+          })),
+        )
+        .select("id, sort_order");
+    let result = await insertRows(anySubtopics);
+    if (result.error && anySubtopics) result = await insertRows(false);
+    const ordered = ((result.data ?? []) as { id: string; sort_order: number }[]).sort((a, b) => a.sort_order - b.sort_order);
+    firstTopicId = ordered[0]?.id ?? null;
   }
 
   // Yıldızlar: "Hazırlığında yeni öğrenci" — okul katılımıyla aynı kaynak ve anahtar (aynı kişi iki kez saymaz).
@@ -128,5 +166,5 @@ export async function copyInvitedPrep(
     amount: PREP_JOINED_STARS,
   });
 
-  return { ok: true, id: copy.id as string, topics: rows.length };
+  return { ok: true, id: copy.id as string, topics: rows.length, firstTopicId };
 }

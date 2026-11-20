@@ -1,4 +1,5 @@
 import { SELLER, sellerField } from "@/lib/legal/seller";
+import { PLAN_MARKETING_COPY } from "@/lib/marketing/plan-copy";
 
 /**
  * Hukuki metinler — Mesafeli Sözleşmeler Yönetmeliği'ne göre.
@@ -59,7 +60,8 @@ const SELLER_BLOCK = () => {
 
 const SERVICE_DESC = [
   "Hizmetin konusu: Cortex Plus, öğrencinin yüklediği ders materyalinden ya da seçtiği konudan yapay zekâ ile çalışma içeriği üreten bir internet hizmetidir. Üretilen içerikler anlatım, konu haritası, test, sesli anlatım (podcast) ve sözlü pratiktir.",
-  "Hizmet, kullanım hakkı üzerinden sunulur. Ücretli planlarda dönem için tanımlı hak işlemlerde harcanır ve kalan hak yüzde olarak gösterilir. Ücretsiz hesapta haftalık ders, günlük sohbet mesajı ve günlük fotoğraftan çözüm sayısı sınırlıdır; podcast, sözlü ve yazılı deneme, video ders ve sesli kullanım ücretli planlarda sunulur.",
+  // Faz 5 §4 (19 Kasım 2026): kota cümlesi tek merkezden (`plan-copy.ts`); eski haftalık sınır cümlesi kalktı.
+  PLAN_MARKETING_COPY.legalUsage,
   "Abonelikler belirli bir dönem için satılır ve o dönemde tanımlı kullanım hakkını açar. Kredi paketleri tek seferlik alımdır ve bakiyeye eklenir.",
 ];
 

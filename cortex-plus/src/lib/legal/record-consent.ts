@@ -172,3 +172,45 @@ export function consentMoment(claimed: unknown, now = new Date()): string {
   }
   return now.toISOString();
 }
+
+/** Profilde tutulan üç onay anı (göç 20261119100300). */
+export const SIGNUP_ACCEPTANCE_COLUMNS = ["terms_accepted_at", "kvkk_accepted_at", "age_confirmed_at"] as const;
+
+/**
+ * Yeni e-posta kaydında üç onayın anı profile yazılır (20 Kasım 2026). Onay kaydı tetikleyicisi
+ * (`consent_records_stamp_profile`) alanları yalnız okuma kanıtı geçerliyse doldurur; kanıtı eksik eski sekmede
+ * profil boş kalıyordu, oysa sunucu üç onayı da zorunlu tutup almıştı. Yalnız boş alan yazılır (tetikleyicinin
+ * yazdığı ilk an ezilmez); hata kaydı düşürmez, günlüğe iner. Sütun yoksa (göç uygulanmamış) sessizce atlar.
+ */
+export async function stampSignupAcceptance(service: SupabaseClient, userId: string, at: string): Promise<boolean> {
+  try {
+    const { data, error } = await service
+      .from("profiles")
+      .select(SIGNUP_ACCEPTANCE_COLUMNS.join(", "))
+      .eq("id", userId)
+      .maybeSingle();
+    if (error) {
+      if (!missingColumn(error)) console.error("signup_acceptance_read_failed", { userId, error: error.message });
+      return false;
+    }
+    if (!data) {
+      console.error("signup_acceptance_profile_missing", { userId });
+      return false;
+    }
+    const row = data as unknown as Record<string, unknown>;
+    const patch: Record<string, string> = {};
+    for (const column of SIGNUP_ACCEPTANCE_COLUMNS) {
+      if (row[column] == null) patch[column] = at;
+    }
+    if (!Object.keys(patch).length) return true;
+    const { error: writeError } = await service.from("profiles").update(patch).eq("id", userId);
+    if (writeError) {
+      console.error("signup_acceptance_write_failed", { userId, error: writeError.message });
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error("signup_acceptance_failed", { userId, error: String(error) });
+    return false;
+  }
+}

@@ -24,6 +24,9 @@ export type LoadedPrepTopic = {
   sourceRefs?: TopicSourceRef[];
   /** Kavram birimleri; yeniden adlandırmada da konuya bağlı kalır. */
   units?: { title: string; pages: number[] }[];
+  /** Ana ünitenin alt başlıkları ve dersleri (Faz 10); yeniden adlandırmada da üniteye bağlı kalır. */
+  subtopics?: string[];
+  lessonGroups?: { subtopics: string[]; sourceRefs: { documentId: string; pages: number[] }[] }[];
 };
 
 export type LoadedPrepTopics = {
@@ -103,6 +106,18 @@ export function addedTopicIdMap(
   return out;
 }
 
+/**
+ * Başlığı alt başlık olarak taşıyan ünite (Faz 10). Başlık bir ünitenin kendi adıysa (yeniden adlandırma dahil) bu
+ * eşleme yapılmaz: ünite adı alt başlık eşlemesinden önce gelir.
+ */
+function subtopicOwner(title: string, loaded: LoadedPrepTopics): number | null {
+  const want = foldOf(title);
+  if (!want) return null;
+  if (loaded.scheduleTopics.some((topic) => foldOf(topic.title ?? "") === want)) return null;
+  const index = loaded.scheduleTopics.findIndex((topic) => (topic.subtopics ?? []).some((sub) => foldOf(sub) === want));
+  return index >= 0 ? index : null;
+}
+
 export function applyStudentTopicList(input: {
   requested: RequestedPrepTopic[];
   loaded: LoadedPrepTopics;
@@ -119,17 +134,23 @@ export function applyStudentTopicList(input: {
   for (const item of input.requested) {
     const title = item.title.trim();
     if (!title) continue;
-    const index = findLoadedIndex(item, input.loaded, used);
+    // Ana ünite modeli (Faz 10): listedeki başlık bir ünitenin alt başlığıysa (eski sekme ince konuları gönderdi) o
+    // ünitedir; ünite zaten listeye girdiyse başlık ona katılır, ayrı konu açılmaz.
+    const owner = subtopicOwner(title, input.loaded);
+    if (owner != null && used.has(owner)) continue;
+    const index = owner ?? findLoadedIndex(item, input.loaded, used);
     const selfHard = hard.has(title.toLocaleLowerCase("tr"));
     if (index != null) {
       used.add(index);
       const source = input.loaded.scheduleTopics[index];
-      titles.push(title);
+      // Alt başlıktan bulunan ünite kendi adını taşır (öğrencinin yeniden adlandırması değil).
+      const named = owner != null ? (source?.title?.trim() || title) : title;
+      titles.push(named);
       nodeIds.push(input.loaded.nodeIds[index] ?? source?.id ?? null);
       scheduleTopics.push({
         ...source,
         id: source?.id ?? `topic-${titles.length}`,
-        title,
+        title: named,
         selfHard: Boolean(source?.selfHard) || selfHard,
         pageNumbers: source?.pageNumbers?.length ? source.pageNumbers : item.pageNumbers,
         sourceRefs: source?.sourceRefs?.length ? source.sourceRefs : item.sourceRefs ?? [],

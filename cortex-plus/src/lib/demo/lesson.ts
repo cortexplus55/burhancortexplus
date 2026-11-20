@@ -18,12 +18,9 @@ import { chunkText } from "@/lib/rag/chunk";
 
 const SIGNED_URL_SECONDS = 60 * 60;
 
-export type DemoQuiz = {
-  text: string;
-  options: string[];
-  correct: number;
-  explanation: string;
-};
+import type { DemoQuiz } from "./demo-quiz";
+
+export type { DemoQuiz } from "./demo-quiz";
 
 /**
  * Ziyaretçiye gösterilen hat sayıları.

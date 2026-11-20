@@ -1,3 +1,4 @@
+import type { MasteryBadge } from "@/lib/learning/mastery-policy";
 import { officialPlanNote, officialSourceNote, readCurriculumRef } from "@/lib/curriculum/registry";
 import { notFound } from "next/navigation";
 import { after } from "next/server";
@@ -13,6 +14,7 @@ import { loadMapInputs } from "@/lib/mastery-map/load";
 import { prepNetEstimate } from "@/lib/mastery-map/net-load";
 import { ExamPrepHome, type LearningTrackingView } from "@/components/parity/exam-prep-home";
 import { requireStudentArea } from "@/lib/auth/session";
+import { getSessionUserContext } from "@/lib/auth/session-context";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { loadOrBackfillTopics } from "@/lib/learning/exam-prep-topics";
 import { topicProgress } from "@/lib/learning/exam-prep-progress";
@@ -34,10 +36,13 @@ import {
   PDF_LEARNING_V2_FLAG,
 } from "@/lib/admin/feature-flags";
 import { createServiceClient } from "@/lib/supabase/server";
+import { resumeStalePrepSetup } from "@/lib/learning/prep-setup-finish";
 import { maybeRescheduleMissedDays } from "@/lib/learning/missed-day-reschedule";
-import { pathSkipKinds } from "@/lib/billing/node-free-meter";
+import { pathSkipKindsForView } from "@/lib/billing/node-free-meter";
 import {
   buildLearningIndicators,
+  MASTERY_ROW_COLUMNS,
+  masterySnapshotFromRow,
   freePathUnblockIds,
   masteryByPlannedTopic,
   preferNextNodeForTracking,
@@ -62,17 +67,18 @@ import { retentionFromTopics } from "@/lib/learning/prep-radar";
 // Günü gelen tekrar (20 Ekim 2026): "Bugün N tekrar"; anahtar kapalıysa ya da tablo yoksa 0.
 import { dueReviewCountForPrep } from "@/lib/learning/review-items-store";
 import { countPendingMaterials } from "@/lib/learning/pending-materials";
-import { createPrepInviteToken, prepInviteUrl } from "@/lib/learning/prep-invite";
-import { prepInviteWhatsappHref } from "@/lib/learning/prep-share";
+import { coverageBadgeText, processedCoverage } from "@/lib/documents/page-coverage";
 import { examDatePassed, examResultDue } from "@/lib/learning/exam-result";
 import { loadExamBaseline } from "@/lib/learning/exam-result-load";
+import { createReadinessToken } from "@/lib/learning/readiness-snapshot";
+import { loadPrepRadio } from "@/lib/learning/prep-radio-server";
 import { appOrigin } from "@/lib/app-url";
 import { freeTopicLocks } from "@/lib/billing/free-topic-gate";
 import { poolLessonPreview } from "@/lib/content-pool/lesson-preview";
-import { getUserEntitlements } from "@/lib/billing/entitlements";
 import { loadPlusPrices } from "@/lib/billing/plan-prices";
 import { campOffer } from "@/lib/camp/offer";
 import { CampCard } from "@/components/camp/camp-card";
+import { InstallAppCard } from "@/components/pwa/install-app-card";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const metadata = { title: "Sınav hazırlığı" };
@@ -133,6 +139,8 @@ export default async function ExamPrepDetailPage({
   // (visibility, view_count, forked_from) sütunları canlıda var. Birleşik okuma hata verirse
   // (sütun yok: göçten önceki veritabanı) eski üç okumaya düşülür: önce ana select, sonra kaynak
   // (yoksa yalnız document_id) ve paylaşım ayrı ayrı; eksik sütun sayfayı 404'e düşürmez.
+  // Faz 2 (madde 2): oturum bağlamı bu istekte bir kez okunur; profil, plan ve kampanya aynı sözden.
+  const sessionContext = getSessionUserContext(user.id, { client: supabase });
   const [shell, trackingV2, mergedPrep, { data: profile }] = await Promise.all([
     loadParityShellProps(supabase, user.id, user.email),
     isFeatureEnabled(service, PDF_LEARNING_V2_FLAG),
@@ -144,7 +152,8 @@ export default async function ExamPrepDetailPage({
       .eq("id", prepId)
       .eq("user_id", user.id)
       .maybeSingle(),
-    supabase.from("profiles").select("school_id, school_name").eq("id", user.id).maybeSingle(),
+    // Faz 2: okul bilgisi oturum bağlamının profilinden (kabukla aynı istek içi okuma).
+    sessionContext.then((context) => ({ data: context.profile })),
   ]);
 
   let prepRead = mergedPrep.data;
@@ -190,6 +199,9 @@ export default async function ExamPrepDetailPage({
     const proto = head.get("x-forwarded-proto") ?? "https";
     if (host) after(() => requestPrepPrefetch(service, { origin: `${proto}://${host}`, userId: user.id, prepId }));
   }
+  // Faz 2 (madde 7.4): kurulumun arka plan yarısı yarıda kesildiyse (fonksiyonun ömrü bitti) burada kaldığı yerden
+  // sürer. Yanıttan sonra; iş yoksa tek satır okuma.
+  after(() => resumeStalePrepSetup(service, { prepId, userId: user.id }).catch(() => "failed" as const));
   // Soğuk bellek (5 Kasım 2026): bu hazırlığın gömmeleri tahliye edildiyse arka planda yeniden indekslenir (yalnız gömme çağrısı).
   after(() => reindexEvictedForPrep(service, prepId, embedTexts).catch(() => 0));
   // Kaçırılan günler (8 Kasım 2026): bitmemiş adımın günü geçtiyse kalan plan bugünden sınava yeniden dağıtılır.
@@ -251,13 +263,11 @@ export default async function ExamPrepDetailPage({
         .eq("exam_prep_id", prepId)
         .order("sort_order");
     })(),
-    pathSkipKinds(service, user.id),
+    pathSkipKindsForView(service, user.id, supabase),
     trackingV2
       ? supabase
           .from("exam_prep_topic_mastery")
-          .select(
-            "topic_key, measured_level, confidence, evidence_count, first_attempt_correct, first_attempt_total, independent_correct, independent_total, last_practiced_at",
-          )
+          .select(MASTERY_ROW_COLUMNS)
           .eq("exam_prep_id", prepId)
       : Promise.resolve({ data: null }),
     // Yalnız çözülmemiş yanılgılar (20 Ekim 2026); sütun yoksa hepsi açık sayılır.
@@ -266,10 +276,12 @@ export default async function ExamPrepDetailPage({
     // bilgi eksikleri gerçek kayıtlardan. Tahmin uydurulmuyor; kayıt yoksa
     // bölüm "ilk derslerinden sonra görünür" diyor.
     Promise.all([
-      supabase
+      // `payload` cevap anahtarı taşır: yalnız sunucu anahtarıyla okunur (göç 20261119150000), sahiplik süzgeciyle.
+      service
         .from("exam_prep_node_attempts")
         .select("node_id, score, total, created_at, payload, topic_id")
         .eq("exam_prep_id", prepId)
+        .eq("user_id", user.id)
         .eq("status", "completed")
         .order("created_at", { ascending: false })
         .limit(500),
@@ -323,6 +335,8 @@ export default async function ExamPrepDetailPage({
           pageCount: parent ? pagesByParent.get(parent) ?? null : typeof row.page_count === "number" ? row.page_count : null,
         }),
         href: `/dokumanlar/${parent ?? id}`,
+        // Faz 2 (madde 5): kısmen işlenen belge kaynak kartında rozetle görünür (baş kopyası ana belgenin parçasıdır).
+        coverageNote: parent ? null : materialCoverageNote(row),
       },
     ];
   });
@@ -429,18 +443,7 @@ export default async function ExamPrepDetailPage({
     openMisconceptions = openCount ?? 0;
     openMisconceptionsKnown = openCount != null;
 
-    masterySnapshots = (masteryRows ?? []).map((row) => ({
-      topicKey: row.topic_key as string,
-      measured: Number(row.evidence_count ?? 0) > 0,
-      level: row.measured_level as TopicMasterySnapshot["level"],
-      confidence: Number(row.confidence ?? 0),
-      evidenceCount: Number(row.evidence_count ?? 0),
-      firstAttemptCorrect: Number(row.first_attempt_correct ?? 0),
-      firstAttemptTotal: Number(row.first_attempt_total ?? 0),
-      independentCorrect: Number(row.independent_correct ?? 0),
-      independentTotal: Number(row.independent_total ?? 0),
-      lastPracticedAt: (row.last_practiced_at as string | null) ?? null,
-    }));
+    masterySnapshots = ((masteryRows ?? []) as Record<string, unknown>[]).map(masterySnapshotFromRow);
     const topics = masterySnapshots;
 
     // Planlanan konular konu listesinden (ayrı exam_prep_topics okuması yok).
@@ -536,10 +539,12 @@ export default async function ExamPrepDetailPage({
   );
   // Yol bölümü yalnız ölçülmüş konunun yüzdesini yazar (Paket I #7): ölçülmemiş konu (3 cevaptan az) sayı göstermez.
   const topicPercents: Record<string, number> = {};
+  const topicBadges: Record<string, MasteryBadge> = {};
   for (const label of topicLabels) {
     const view = masteryViews.get(label);
     if (!view || view.state === "unmeasured") continue;
     topicPercents[label.trim().toLocaleLowerCase("tr-TR")] = view.percent;
+    topicBadges[label.trim().toLocaleLowerCase("tr-TR")] = view.badge;
   }
   const progressView = buildPrepProgressView({
     nodes,
@@ -563,6 +568,7 @@ export default async function ExamPrepDetailPage({
         label,
         confidence: view && view.state !== "unmeasured" ? view.percent : 0,
         state: view?.state ?? "unmeasured",
+        badge: view?.badge ?? "unmeasured",
         // Kanıt yalnız ölçüm açıkken var; kapalı eski yolda "çözüldü" kayıtlardan sayılır.
         ...(trackingV2 ? { solved: view?.solved ?? 0 } : {}),
       };
@@ -653,26 +659,41 @@ export default async function ExamPrepDetailPage({
       }
     : null;
 
-  // Paket J3 #14 (31 Ekim 2026): sınıf davet bağlantısı sunucuda imzalanır ve mutlak adresle gider (WhatsApp metnine
-  // göreli adres girmez). Sınav günü geçince not sorusu / başarı kartı; not göçsüz `learning_preferences`'ta.
-  const inviteToken = createPrepInviteToken(prep.id as string);
-  const inviteUrl = inviteToken ? prepInviteUrl(inviteToken) : null;
+  // Sınıfla paylaşım (Faz 7, 20 Kasım 2026): bağlantıyı sayfa değil üst simgelerdeki düğme ister
+  // (`/api/learning/exam-prep/share-code`: paylaşım kodu, göç yoksa imzalı sınıf daveti; ikisi de mutlak adres).
+  // Sınav günü geçince not sorusu / başarı kartı; not göçsüz `learning_preferences`'ta.
   const resultPrefs = parseLearningPreferences(prep.learning_preferences);
   const resultToday = istanbulDay();
   const examPassed = examDatePassed(prep.exam_date as string | null, resultToday);
   // Kaydedilmiş notun başlangıcı boşsa (eski kural ya da sonradan gelen kayıt) okurken yeniden hesaplanır (Paket J takip #2).
   const storedResult = resultPrefs.examResult;
 
+  // Sınav Radyosu (Faz 7, 20 Kasım 2026): sesi tamamen önbellekte olan kayıtlı podcast'ler, konu ve yol sırasıyla.
+  // Dalga 4 ile aynı anda okunur; düşerse boş liste (düğme yok). Hiçbir şey üretilmez, kredi düşmez.
+  const radioRead = loadPrepRadio(service, {
+    prepId,
+    userId: user.id,
+    topicLabels: [
+      ...prepTopics.map((topic) => String(topic.label ?? "")),
+      ...nodes.map((node) => String((node.sessionMeta as { topicTitle?: string } | undefined)?.topicTitle ?? "")),
+    ],
+  });
+
   // Dalga 4: kilit + havuz önizlemesi, sınav sonrası başlangıç, ünite kontrolü, hakimiyet haritası ve kamp kartı
   // birbirini beklemez (kilit, dalga 3'teki yol açma yazımından sonra okunur).
-  const [{ firstTopicLocks, lockedIds, previewNode, lessonPreview }, lateBaseline, unitCheck, { mapUnits, prepNet }, camp] =
+  // Faz 2: bekleyen materyal ve tekrar sayıları da bu turda (eskiden sayfanın sonunda iki ayrı sıralı turdu).
+  const [{ firstTopicLocks, lockedIds, previewNode, lessonPreview }, lateBaseline, unitCheck, { mapUnits, prepNet }, camp, pendingMaterials, dueReviews] =
     await Promise.all([
       (async () => {
         // Beklemesiz kilit (Paket J takip #1): ücretsiz hesapta kilitli adım yolda 🔒 rozeti taşır, tıklayınca kart anında
         // açılır. Karar adım sayfası ve başlatma isteğiyle aynı kuraldan (`freeTopicLocks`); okuma düşerse kilit yok.
+        const plan = await sessionContext
+          .then((context) => ({ unlimited: context.entitlements.isPremium || context.account.isAdmin }))
+          .catch(() => undefined);
         const firstTopicLocks = await freeTopicLocks(service, {
           userId: user.id,
           prepId,
+          plan,
           nodes: nodes
             .filter((node) => node.status !== "done")
             .map((node) => ({
@@ -714,7 +735,11 @@ export default async function ExamPrepDetailPage({
       })(),
       // Paket 5: sınava ≤ 7 gün — ücretsiz hesapta mevcut Plus Haftalık'a sakin yönlendirme (Plus'ta gizli).
       prep.exam_date && !examPassed
-        ? Promise.all([getUserEntitlements(service, user.id), loadPlusPrices(service)])
+        ? Promise.all([
+            // Faz 2 (madde 2): yalnız gösterim (kampanya şeridi): plan oturum bağlamından, ayrı okuma yok.
+            sessionContext.then((context) => context.entitlements),
+            loadPlusPrices(service),
+          ])
             .then(([ent, prices]) =>
               // Hesap bağlamının bayrağı da şart (8 Kasım 2026): yetkiler kurucuyu ücretsiz sayıyordu, kurucuya Plus satılıyordu.
               campOffer({
@@ -726,7 +751,14 @@ export default async function ExamPrepDetailPage({
             )
             .catch(() => null)
         : Promise.resolve(null),
+      countPendingMaterials(service, { prepId, userId: user.id }),
+      dueReviewCountForPrep(service, {
+        userId: user.id,
+        prepId,
+        examDate: (prep.exam_date as string | null) ?? null,
+      }),
     ]);
+  const radioItems = await radioRead;
   const pathNodes = lockedIds.size
     ? homeNodes.map((node) => (lockedIds.has(node.id) ? { ...node, planLocked: true } : node))
     : homeNodes;
@@ -739,7 +771,12 @@ export default async function ExamPrepDetailPage({
           today: resultToday,
           result: resultPrefs.examResult ?? null,
           snoozedUntil: resultPrefs.examResultSnoozedUntil ?? null,
+          feedbackAt: resultPrefs.examFeedbackAt ?? null,
         }),
+        // Faz 7 (20 Kasım 2026): "Sınav öncesi hazırlık puanın %X idi" — sayfanın gösterdiği "Hazırlık" puanı; kayıt
+        // tarayıcının yazdığı sayıyı değil sunucunun imzaladığı anlık görüntüyü okur.
+        readinessPct: progressView.scorePct,
+        readinessToken: createReadinessToken({ prepId: prep.id as string, userId: user.id, pct: progressView.scorePct }),
         stored: storedResult
           ? {
               score: storedResult.score,
@@ -778,8 +815,6 @@ export default async function ExamPrepDetailPage({
         prepId={prep.id}
         officialNote={officialPlanNote(prep.learning_preferences) ?? officialSourceNote(readCurriculumRef(prep.learning_preferences))}
         shareTools={{
-          inviteUrl,
-          whatsappHref: inviteUrl ? prepInviteWhatsappHref((prep.title ?? prep.exam_type) as string | null, inviteUrl) : null,
           // 11 Kasım 2026: sınav sabahı kâğıdı Plus'ta. Karar yolun Plus adımlarıyla aynı okumadan (`pathSkipKinds`:
           // ücretsiz hesapta dolu küme); sayfanın kendisi de kapıyı gösterir (`plusOnlyLocked`).
           cramSheetLocked: skipKinds.size > 0,
@@ -833,14 +868,24 @@ export default async function ExamPrepDetailPage({
         lastResult={lastResult}
         nodeScores={nodeScores}
         topicPercents={topicPercents}
+        topicBadges={topicBadges}
         lockedPickId={typeof kilitli === "string" ? kilitli : null}
-        pendingMaterials={await countPendingMaterials(service, { prepId, userId: user.id })}
-        dueReviews={await dueReviewCountForPrep(service, {
-          userId: user.id,
-          prepId,
-          examDate: (prep.exam_date as string | null) ?? null,
-        })}
+        pendingMaterials={pendingMaterials}
+        dueReviews={dueReviews}
+        radioItems={radioItems}
       />
+      {/* "Telefonuna Uygulama Gibi Ekle" (20 Kasım 2026, Faz 8): sahibinin hazırlık sayfası = ilk hazırlık kurulmuş.
+          Telefon, kurulu değil, 30 günde bir: kararı kart verir; alt çubuğun ve "Devam et" kartının üstünde. */}
+      <InstallAppCard milestone="prep_created" placement="dock" />
     </ParitySorShell>
   );
+}
+
+function materialCoverageNote(row: Record<string, unknown>): string | null {
+  const coverage = processedCoverage({
+    pageCount: row.page_count,
+    sourcePageCount: row.source_page_count,
+    rangeStart: row.page_range_start,
+  });
+  return coverage ? coverageBadgeText(coverage) : null;
 }

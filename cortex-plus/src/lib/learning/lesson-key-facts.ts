@@ -1,5 +1,6 @@
 import { LESSON_SCREEN_HARD_CAP } from "@/lib/learning/lesson-v3";
 import { splitTableCells } from "@/lib/learning/interval-text";
+import { SUBTOPIC_EXTRA_SCREENS, lessonDepthForSubtopics } from "@/lib/learning/subtopic-list";
 
 /**
  * Kilit bilgiler (ders bağımsız).
@@ -94,6 +95,9 @@ function fold(text: string): string {
     .replace(/\s+/g, " ")
     .trim();
 }
+
+/** Kesirden hemen önce sayfa sözcüğü: "Sayfa", "sayfası", "Page", "pg.", "sf.", "s." (kesir sayfa numaralandırmasıdır). */
+const PAGE_NUMBER_LEAD = /(?:^|[^\p{L}])(?:sayfa(?:s[ıi])?|page|pg\.?|sf\.?|s\.)\s*$/iu;
 
 function lineStems(line: string): string[] {
   const out: string[] = [];
@@ -267,6 +271,9 @@ export function lessonKeyFacts(pages: readonly { text?: string }[]): KeyFact[] {
 
   for (const match of text.matchAll(/\d{1,4}\s*\/\s*\d{1,4}/g)) {
     if (inside(dates, match.index ?? 0)) continue;
+    // Sayfa numaralandırması ("Sayfa 12 / 40", "Page 3/10", "s. 5/9") kilit bilgi değildir (21 Kasım 2026, Faz 10 canlı
+    // ölçümü: her sayfanın altlığı derste "yok" sayılıp kapsam açığı açıyordu).
+    if (PAGE_NUMBER_LEAD.test(text.slice(Math.max(0, (match.index ?? 0) - 16), match.index ?? 0))) continue;
     const signature = match[0].replace(/\s+/g, "");
     pushFact(facts, { kind: "fraction", text: signature, signatures: [signature], stems: lineStems(lineAt(text, match.index ?? 0)) });
   }
@@ -546,8 +553,14 @@ export function lessonReadyToFinish(
   return true;
 }
 
-/** Kilit bilgi varken ekran tavanı esner; bilgi yokken 12 kalır. Sert tavan maliyet içindir. */
-export function lessonScreenCap(factCount: number): number {
+/**
+ * Kilit bilgi varken ekran tavanı esner; bilgi yokken 12 kalır. Sert tavan maliyet içindir.
+ * Alt konulu ünite dersinde (20 Kasım 2026) tavan derinliğin üst ucu + kapanış payıdır (`lessonDepthForSubtopics`):
+ * yazarın istemi ve yapı denetimi aynı sayıyı okur, biri öbürünü "fazla ekran" diye geri çevirmez.
+ */
+export function lessonScreenCap(factCount: number, subtopicCount = 0): number {
+  const depth = lessonDepthForSubtopics(subtopicCount);
+  if (depth) return Math.min(LESSON_SCREEN_HARD_CAP, depth.maxScreens + SUBTOPIC_EXTRA_SCREENS);
   if (factCount <= 0) return LESSON_SCREEN_BASE;
   const extra = Math.min(4, Math.max(1, Math.ceil(factCount / 4)));
   return Math.min(LESSON_SCREEN_HARD_CAP, LESSON_SCREEN_BASE + extra);

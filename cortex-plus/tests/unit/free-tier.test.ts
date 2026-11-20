@@ -62,7 +62,10 @@ describe("ücretsiz katman sınırları", () => {
   it("5 sayfa: PDF ve diğer belgeler kalan hak kadar işleniyor", () => {
     const pdf = read("src/lib/documents/pdf-ingestion.ts");
     expect(pdf).toMatch(/const remaining = await freePagesRemaining\(service, userId, documentId\);\s*if \(remaining === 0\) throw new Error\("free_page_limit"\);/);
-    expect(pdf).toMatch(/const pageCap = remaining \?\? paidCap;/);
+    // Faz 2 (madde 5): ücretsiz hak sayfa SAYISIdır; seçilen aralığın başından sayılır, seçilen son sayfa tavandır.
+    expect(pdf).toMatch(/const freeCap = remaining == null \? null : range\.start - 1 \+ remaining;/);
+    expect(pdf).toMatch(/const pageCap = minCap\(freeCap \?\? paidCap, range\.end\);/);
+    expect(pdf).toMatch(/page_count: Math\.max\(0, total - range\.start \+ 1\)/);
     expect(pdf).toMatch(/const total = cappedPageTotal\(read\.total, pageCap\);/);
     expect(pdf).toMatch(/source_page_count: read\.total/);
     const other = read("src/lib/rag/pipeline.ts");
@@ -95,7 +98,9 @@ describe("ücretsiz katman sınırları", () => {
     expect(pdf).toMatch(/chargeNow\(service, userId, "DOCUMENT_SCAN_PAGE"/);
     const route = read("src/app/api/documents/process/route.ts");
     expect(route).toMatch(/const freeTier = \(await freePagesRemaining\(service, userId, doc\.id\)\) !== null;/);
-    expect(route).toMatch(/if \(!freeTier\) \{\s*await commitCredits/);
+    // Faz 4: metin sayfası ceil(n / 5) birim; önden ayrılan ilk birim kesinleşir, kalanı aynı anahtarla bir kez.
+    expect(route).toMatch(/if \(!freeTier\) \{[\s\S]{0,400}const textUnits = textPageUnits\(/);
+    expect(route).toMatch(/if \(textUnits >= 1\) \{\s*await commitCredits/);
     expect(route).toMatch(/chargeNow\(service, userId, "DOCUMENT_SCAN_PAGE", `document_scan_\$\{doc\.id\}`, result\.scannedPages \?\? 0\)/);
   });
 

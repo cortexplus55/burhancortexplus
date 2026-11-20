@@ -183,8 +183,9 @@ describe("prep create keeps stored analysis", () => {
     expect(create).not.toContain("runTeacherAnalysis");
     expect(intake).toContain("mergeTopicGroups");
     expect(intake).not.toContain("runTeacherAnalysis");
-    // Oneshot maps keep LLM order; legacy path may still reorder.
-    expect(intake).toContain("loadOneshotIntakeTopics");
+    // Oneshot maps keep LLM order; legacy path may still reorder. Faz 10: oneshot haritası ana ünitelere toplanır
+    // (`loadIntakeMainUnits` → `loadOneshotIntakeTopics`); kurulum aynı işlevden yazar.
+    expect(intake).toContain("loadIntakeMainUnits");
     expect(intake).toContain("keepLlmOrder");
     expect(intake).toContain("regenerateUnusedFlatTopicMap");
   });

@@ -2,6 +2,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { readFileSync } from "node:fs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PAID_PLANS } from "@/lib/entitlements/config";
+import { CREDIT_PRICE_TABLE } from "@/lib/credits/price-table";
 
 /*
   Sınav Haftası (ve aylık Plus) cüzdan dönemi boşluğu — bilinen-sunucu-sapmalari.md #2.
@@ -23,6 +24,8 @@ import { PAID_PLANS } from "@/lib/entitlements/config";
 
 const file = (path: string) => readFileSync(path, "utf8");
 const migration = (name: string) => file(`supabase/migrations/${name}.sql`);
+/** Faz 4: ders bedeli 22 kredi (göç 20261119120000 ile price-table aynı). */
+const LESSON = CREDIT_PRICE_TABLE.STUDY_PLAN_GENERATE.credits;
 
 const DAY = 86_400_000;
 const PLAN = {
@@ -134,6 +137,8 @@ beforeAll(async () => {
   await db.exec(migration("20261111180000_free_lesson_trial"));
   await db.exec(migration("20260923180000_paytr_subscription_tier_only"));
   await db.exec(migration("20261115120000_sinav_haftasi_cuzdan_donemi"));
+  // Faz 4 (19 Kasım 2026): yeni plan hakları (Plus 4.350, Sınav Haftası 2.500, Sigma 14.500) ve fiyatlar.
+  await db.exec(migration("20261119120000_faz4_credit_economy"));
 }, 90_000);
 afterAll(() => db.close());
 
@@ -151,7 +156,7 @@ describe("ödeme: cüzdan dönemi abonelikle aynı anda biter", () => {
 });
 
 describe("aboneliğin son saatleri: yeni dönem hakkı yazılmaz", () => {
-  it("Sınav Haftası: hak bitmiş, cüzdan dönemi dolmuş, abonelik 6 saat sonra bitiyor → yeni 2.700 yok", async () => {
+  it("Sınav Haftası: hak bitmiş, cüzdan dönemi dolmuş, abonelik 6 saat sonra bitiyor → yeni 2.500 yok", async () => {
     const user = await tailState("week", 6 * 3_600_000);
     const result = await reserve(user, "STUDY_PLAN_GENERATE", "lesson");
     // Bugün: credit_reserve dönemi yeniler, ayırma geçer ve cüzdana 7 günlük yeni hak yazılır.
@@ -159,7 +164,7 @@ describe("aboneliğin son saatleri: yeni dönem hakkı yazılmaz", () => {
     expect((await wallet(user)).free_allowance_remaining).toBe(0);
   });
 
-  it("Plus aylık: aynı kuyrukta yeni 7.200 yok", async () => {
+  it("Plus aylık: aynı kuyrukta yeni 4.350 yok", async () => {
     const user = await tailState("plus", 6 * 3_600_000);
     const result = await reserve(user, "STUDY_PLAN_GENERATE", "lesson");
     expect(result).toMatchObject({ ok: false, error: expect.stringContaining("insufficient_credits") });
@@ -170,7 +175,7 @@ describe("aboneliğin son saatleri: yeni dönem hakkı yazılmaz", () => {
     const user = await tailState("week", 6 * 3_600_000, 300);
     expect((await reserve(user, "STUDY_PLAN_GENERATE", "lesson")).ok).toBe(true);
     const w = await wallet(user);
-    expect(w.free_allowance_remaining).toBe(300 - 30);
+    expect(w.free_allowance_remaining).toBe(300 - LESSON);
     expect(Math.abs(new Date(w.period_ends_at).getTime() - (await subEnd(user)).getTime())).toBeLessThan(1000);
   });
 
@@ -194,7 +199,7 @@ describe("yenilenen dönem aboneliği geçmez; abonelik bitince kalan hak harcan
     const user = await tailState("week", 3 * DAY);
     expect((await reserve(user, "STUDY_PLAN_GENERATE", "lesson")).ok).toBe(true);
     const w = await wallet(user);
-    expect(w.free_allowance_remaining).toBe(PLAN.week.allowance - 30);
+    expect(w.free_allowance_remaining).toBe(PLAN.week.allowance - LESSON);
     // Bugün: date_trunc('day', now()) + 7 gün → abonelikten ~4 gün sonra.
     expect(new Date(w.period_ends_at).getTime()).toBeLessThanOrEqual((await subEnd(user)).getTime() + 1000);
   });
@@ -205,7 +210,7 @@ describe("yenilenen dönem aboneliği geçmez; abonelik bitince kalan hak harcan
     // Abonelik bitsin (3 gün + 1 saat ileri).
     await advance(user, 3 * DAY + 3_600_000);
     const after = await reserve(user, "DOCUMENT_PAGE_PROCESS", null);
-    // Bugün: cüzdan dönemi 4 gün daha sürüyor, ~2.670 kalan hak ücretsiz hesapta harcanabiliyor.
+    // Bugün: cüzdan dönemi 4 gün daha sürüyor, ~2.478 kalan hak ücretsiz hesapta harcanabiliyor.
     expect(after).toMatchObject({ ok: false, error: expect.stringContaining("insufficient_credits") });
   });
 });
@@ -224,7 +229,7 @@ describe("olağan davranış bozulmaz", () => {
     );
     expect((await reserve(user, "STUDY_PLAN_GENERATE", "lesson")).ok).toBe(true);
     const w = await wallet(user);
-    expect(w.free_allowance_remaining).toBe(PLAN.plus.allowance - 30);
+    expect(w.free_allowance_remaining).toBe(PLAN.plus.allowance - LESSON);
     const days = (new Date(w.period_ends_at).getTime() - (await dbNow()).getTime()) / DAY;
     expect(days).toBeGreaterThan(29);
     expect(days).toBeLessThanOrEqual(30);
@@ -236,7 +241,7 @@ describe("olağan davranış bozulmaz", () => {
     expect((await reserve(user, "STUDY_PLAN_GENERATE", "lesson")).ok).toBe(true);
     const after = await wallet(user);
     expect(after.period_ends_at).toBe(before.period_ends_at);
-    expect(after.free_allowance_remaining).toBe(PLAN.week.allowance - 30);
+    expect(after.free_allowance_remaining).toBe(PLAN.week.allowance - LESSON);
   });
 
   it("abonelik bitmiş, cüzdan dönemi dolmuş: ücretsiz hesap gibi (hak 0)", async () => {

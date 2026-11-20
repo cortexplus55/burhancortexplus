@@ -4,6 +4,7 @@ import {
   blockAlias,
   conceptGroups,
   diagramCardBlockSchema,
+  lessonFactText,
   lessonScreenSchema,
   readLessonV3,
   screenCheck,
@@ -27,9 +28,20 @@ import {
   explanationAnswerMismatch,
   inlineCarriers,
   mcqAnswerMismatch,
+  mismatchEvidence,
   unresolvedVisualReference,
 } from "@/lib/learning/answer-consistency";
 import { numbersIn, sameNumber } from "@/lib/learning/result-values";
+import { KEY_CONSISTENCY_PREFIX, checkArithmeticIssue, trueFalseCheckInconsistent } from "@/lib/learning/answer-key-consistency";
+import {
+  ACADEMIC_DOMAINS,
+  DOMAIN_ARCHETYPE,
+  type AcademicDomain,
+  type DomainClassification,
+  type VisualArchetype,
+} from "@/lib/learning/visual-scenes/archetype";
+import { parseVisualScene, readAcademicDomain, readVisualArchetype, type VisualScene } from "@/lib/learning/visual-scenes/schema";
+import { VISUAL_SCENE_COMMON_RULE, archetypeSpecBlock, domainChoices, visualSceneStrings } from "@/lib/learning/visual-scenes/prompt";
 import { enumeratedCountIssue, singleAnswerIntegrityIssues } from "@/lib/learning/question-integrity";
 import {
   BLOCK_ROLE_RULE,
@@ -49,6 +61,8 @@ import { removableBlock } from "@/lib/learning/lesson-sanity";
 import { contentTokens, rootCoverage } from "@/lib/learning/lexical-overlap";
 import { splitTableCells } from "@/lib/learning/interval-text";
 import { backboneBlock, lessonBackbone, uncoveredBackbone } from "@/lib/learning/lesson-backbone";
+import { backboneWithoutSubtopics, subtopicPlanBlock, uncoveredSubtopics } from "@/lib/learning/lesson-subtopics";
+import { lessonDepthForSubtopics, type LessonDepth } from "@/lib/learning/subtopic-list";
 import {
   keyFactsBlock,
   equationsWithoutCard,
@@ -63,6 +77,9 @@ import {
 } from "@/lib/learning/lesson-key-facts";
 import { noteWarningsPromptLine, type FormulaTypo } from "@/lib/learning/formula-typos";
 import { backboneWithoutSiblings, prepTopicScopeLine } from "@/lib/learning/topic-section";
+import { excludedSiblingBoundaryBlock, siblingsOutsideBoundary } from "@/lib/learning/sibling-topics";
+import { allCorrections, combineCorrections, presentsTruthAsMistake, repeatsSourceError, sourceCorrectionPromptBlock, type SourceCorrectionWarning } from "@/lib/learning/source-correction";
+import { checkSceneRelations } from "@/lib/learning/visual-scenes/relation-check";
 
 /**
  * Öğretmen ders motoru (2 Ekim 2026, ürün sahibinin kararı).
@@ -115,6 +132,8 @@ export type TeacherLessonInput = {
   optionCount?: OptionCount;
   /** Hafif doğrulayıcı (30 Ekim 2026, `lesson-sanity.ts`); varsayılan açık. Yalnız ölçüm betikleri ve yapı testleri kapatır. */
   sanity?: boolean;
+  /** Branşa özel görsel sahne çağrısı (Faz 1-B); varsayılan açık. Yalnız ölçüm betikleri ve yapı testleri kapatır. */
+  visualScene?: boolean;
   /** false: ilk ekran denetim beklenerek yayımlanır (eski yol). Varsayılan stream-first (3 Kasım 2026). */
   streamFirst?: boolean;
   /**
@@ -135,15 +154,39 @@ export type TeacherLessonInput = {
    */
   siblingTopics?: string[];
   /**
+   * Kardeş üniteler (19 Kasım 2026, Faz 1-A §1): etkin üniteyle aynı kaynak sayfalarını paylaşan üniteler. Yazar
+   * katı sınır bloğunu (`excludedSiblingBoundaryBlock`) okur; bunlar kapsam satırından çıkar. Yoksa blok yok.
+   */
+  excludedSiblingTopics?: string[];
+  /**
+   * Kaynak düzeltme uyarısı (19 Kasım 2026, Faz 1-A §2.1): yazım başında biliniyorsa ("Farklı anlat", yeniden yazım)
+   * yazar doğrusunu okur. Sonradan bulunan uyarı `lateNoteWarnings` ile kavram denetimine gider.
+   */
+  sourceCorrection?: SourceCorrectionWarning | null;
+  /**
    * Belgesiz derste konunun doğrulanmış havuz anlatımı (6 Kasım 2026): tanım, sınıflandırma ve örnekler buradan.
    * Yoksa ders konunun yerleşik bilgisiyle yazılır.
    */
   approvedFacts?: string;
+  /**
+   * Ünite dersi (20 Kasım 2026, ürün sahibinin kararı): yeni hazırlıkta konu bir ana ünitedir ve tek derin ders bu
+   * listenin HEPSİNİ öğretir (bölünmüş ünitede yalnız bu derse düşen kısım). Yazar zorunlu planı ve sözleşmeyi okur,
+   * derinlik alt konu sayısından gelir (`lessonDepthForSubtopics`), kapanışta işlenmeyen alt konu ek ekranla istenir.
+   * Yoksa ya da boşsa ders bugünkü gibi yazılır.
+   */
+  subtopics?: string[];
+  /** Ünitenin bu derse düşmeyen alt konuları (bölünmüş ünitenin öbür dersleri): bu derste bölüm olmaz. */
+  excludedSubtopics?: string[];
 };
 
 /** Notun yazım hatası olan formülü kilit bilgi değildir: yazar ve kapsam ölçüsü onu "işlenmedi" saymasın. */
-function lessonFacts(pages: TeacherLessonInput["pages"], warnings: readonly FormulaTypo[] | undefined): KeyFact[] {
-  const facts = lessonKeyFacts(pages);
+function lessonFacts(
+  pages: TeacherLessonInput["pages"],
+  warnings: readonly FormulaTypo[] | undefined,
+  correction: SourceCorrectionWarning | null = null,
+): KeyFact[] {
+  // Kaynak düzeltmesi (Faz 1-A §2.1): kaynağın yanlış iddiası "anlatılması gereken bilgi" listesine girmez.
+  const facts = lessonKeyFacts(pages).filter((fact) => !repeatsSourceError(fact.text, correction));
   if (!warnings?.length) return facts;
   const compact = (value: string) => value.replace(/\s+/g, "");
   const typos = warnings.map((warning) => compact(warning.found)).filter(Boolean);
@@ -509,14 +552,29 @@ export function teacherSystem(mode: TeacherLessonMode = "document"): string {
   return mode === "topic" ? TOPIC_TEACHER_SYSTEM : TEACHER_SYSTEM;
 }
 
+/**
+ * Dersin dışındaki adlar: hazırlığın öbür konuları ve (ünite dersinde) ünitenin bu derse düşmeyen alt konuları.
+ * Alt konu yoksa yalnız öbür konular (eski davranış).
+ */
+export function lessonSiblingTopics(input: Partial<Pick<TeacherLessonInput, "siblingTopics" | "subtopics" | "excludedSubtopics">>): string[] {
+  const siblings = input.siblingTopics ?? [];
+  if (!input.subtopics?.length || !input.excludedSubtopics?.length) return siblings;
+  return [...siblings, ...input.excludedSubtopics];
+}
+
 /** Konunun kendi sayfalarından omurga; belgesiz derste yok. */
 export function inputBackbone(
-  input: Partial<Pick<TeacherLessonInput, "pages" | "topicLabel" | "runningHeaders" | "mode" | "siblingTopics">>,
+  input: Partial<
+    Pick<TeacherLessonInput, "pages" | "topicLabel" | "runningHeaders" | "mode" | "siblingTopics" | "subtopics" | "excludedSubtopics">
+  >,
 ): string[] {
   if (input.mode === "topic" || !input.pages?.length) return [];
   const backbone = lessonBackbone(input.pages, { topicLabel: input.topicLabel, runningHeaders: input.runningHeaders });
   // Öbür konuların başlıkları omurga değildir (6 Kasım 2026): "her alt başlık bir ekranda" kuralı onları dayatmasın.
-  return input.siblingTopics?.length ? backboneWithoutSiblings(backbone, input.topicLabel ?? "", input.siblingTopics) : backbone;
+  const siblings = lessonSiblingTopics(input);
+  const outside = siblings.length ? backboneWithoutSiblings(backbone, input.topicLabel ?? "", siblings) : backbone;
+  // Ünite dersinde ünitenin kendi alt konuları zorunlu planda: omurgada ikinci kez istenmez (20 Kasım 2026).
+  return backboneWithoutSubtopics(outside, input.subtopics);
 }
 
 /** Belgesiz derste konunun doğrulanmış havuz anlatımı; yazar ve hafif doğrulayıcı aynı bloğu okur. */
@@ -532,8 +590,11 @@ export function approvedFactsBlock(text: string | undefined): string {
 /** Onaylı bilgiler bloğunun tavanı (istem kısa kalsın; ilk ekranı geciktirmesin). */
 export const APPROVED_FACTS_CHARS = 6_000;
 
-/** "Farklı anlat" bloğu: aynı kazanımlar, farklı yol. Öğrencinin anlatım tercihi profil bloğundan gelir. */
-export function alternativeBlock(text: string | undefined): string {
+/**
+ * "Farklı anlat" bloğu: aynı kazanımlar, farklı yol. Öğrencinin anlatım tercihi profil bloğundan gelir.
+ * Ünite dersinde (`depth`) ekran sayısı alt konu planının derinliğinden gelir; yoksa eski 6-8 kuralı.
+ */
+export function alternativeBlock(text: string | undefined, depth: LessonDepth | null = null): string {
   const body = text?.trim();
   if (!body) return "";
   return [
@@ -541,7 +602,9 @@ export function alternativeBlock(text: string | undefined): string {
     "farklı bir giriş, farklı örnek ve benzetme, farklı sıra kullan. Önceki anlatımın cümlelerini ve örneklerini tekrar etme.",
     // 6 Kasım 2026 (canlı sınav): "farklı örnek" isteği yeni bir günlük örneği yanlış sınıfa koydurdu.
     "Yeni örnek ve benzetme ÖRNEĞİN SINIFLANDIRMASI kuralına birebir uyar; emin olmadığın yerde önceki anlatımın gerçek örneğini başka bir açıdan kullan.",
-    `Ders en az ${TOPIC_MIN_SCREENS} ekran olsun (6-8): kazanımları alt fikirlere böl, her alt fikre kendi ekranı.`,
+    depth
+      ? `Ders alt konu planının derinliğinde olsun (${depth.minScreens}-${depth.maxScreens} ekran): her alt konuya kendi ekranı.`
+      : `Ders en az ${TOPIC_MIN_SCREENS} ekran olsun (6-8): kazanımları alt fikirlere böl, her alt fikre kendi ekranı.`,
     body.slice(0, 10_000),
   ].join("\n");
 }
@@ -560,26 +623,57 @@ function sourceConflictLine(pages: readonly { label?: string }[]): string {
   return pages.some((page) => page.label) ? SOURCE_CONFLICT_RULE : "";
 }
 
+/**
+ * O anda bilinen kaynak düzeltmesi (Faz 1-A §2.1): baştan verilen ya da paralel denetimden sonradan gelen
+ * (`lateNoteWarnings` içinde `source_correction`). Yazar, düzeltici ve denetçi aynı doğruyu okur.
+ */
+type CorrectionCarrier = Partial<Pick<TeacherLessonInput, "sourceCorrection" | "lateNoteWarnings">>;
+
+export function lessonCorrectionNow(
+  input: CorrectionCarrier,
+): SourceCorrectionWarning | null {
+  if (input.sourceCorrection) return input.sourceCorrection;
+  const late = (input.lateNoteWarnings?.() ?? []).filter((warning) => warning.id === "source_correction");
+  return combineCorrections(late.map((warning) => ({ documentClaim: warning.found, verifiedTruth: warning.standard, explanation: "" })));
+}
+
+/** Ders denetçisinin satırı: doğrusunu anlatmak kaynakla çelişki sayılmaz. Uyarı yoksa boş. */
+export function lessonCorrectionVerifyLine(warning: SourceCorrectionWarning | null): string {
+  const items = allCorrections(warning);
+  if (!items.length) return "";
+  return (
+    `KAYNAK DÜZELTMESİ: ${items.map((item) => `Kaynaktaki «${item.documentClaim}» bilimsel olarak yanlış; doğrusu «${item.verifiedTruth}».`).join(" ")} ` +
+    "Derste doğrusunun anlatılması kaynakla çelişki SAYILMAZ; yanlışın doğru bilgi gibi anlatılması ya da cevap " +
+    "anahtarı yapılması 'high' sorundur."
+  );
+}
+
 export function teacherUserPrompt(input: TeacherLessonInput): string {
   return [
     `SINAV: ${input.prepTitle}`,
     `KONU: ${input.topicLabel}`,
-    input.mode === "topic" ? "" : prepTopicScopeLine(input.topicLabel, input.siblingTopics ?? []),
+    input.mode === "topic"
+      ? ""
+      : prepTopicScopeLine(input.topicLabel, siblingsOutsideBoundary(lessonSiblingTopics(input), input.excludedSiblingTopics)),
+    input.mode === "topic" ? "" : excludedSiblingBoundaryBlock(input.topicLabel, input.excludedSiblingTopics),
     lessonOptionCountLine(input),
     input.previousTopic ? `ÖNCEKİ KONU (gerekirse tek cümleyle bağlan): ${input.previousTopic}` : "",
     input.learnerLine ? `ÖĞRENCİ: ${input.learnerLine}` : "",
     examPointsBlock(input.examPoints, "lesson"),
     officialOutcomeBlock(input.officialOutcome, "lesson"),
-    alternativeBlock(input.alternativeOf),
+    alternativeBlock(input.alternativeOf, lessonDepthForSubtopics(input.subtopics?.length ?? 0)),
     input.mode === "topic" ? "" : noteWarningsPromptLine(input.noteWarnings),
+    input.mode === "topic" ? "" : sourceCorrectionPromptBlock(lessonCorrectionNow(input)),
     input.mode === "topic" ? "" : sourceConflictLine(input.pages),
     `SIRADAKİ KONULAR: ${input.upcomingTopics.length ? input.upcomingTopics.join(" | ") : "(yok)"}`,
     input.runningHeaders?.length
       ? `Şu satırlar sayfa kenarında tekrar eden başlıklardır, konu ya da bölüm adı değildir: ${input.runningHeaders.join(" | ")}`
       : "",
+    // Ünite dersi (20 Kasım 2026): zorunlu alt konu planı, derinlik ve sözleşme; alt konu yoksa boş.
+    subtopicPlanBlock(input),
     input.mode === "topic" ? "" : backboneBlock(inputBackbone(input)),
-    input.mode === "topic" ? "" : keyFactsBlock(lessonFacts(input.pages, input.noteWarnings)),
-    input.mode === "topic" ? "" : sourceEquationsBlock(lessonFacts(input.pages, input.noteWarnings)),
+    input.mode === "topic" ? "" : keyFactsBlock(lessonFacts(input.pages, input.noteWarnings, lessonCorrectionNow(input))),
+    input.mode === "topic" ? "" : sourceEquationsBlock(lessonFacts(input.pages, input.noteWarnings, lessonCorrectionNow(input))),
     input.mode === "topic"
       ? approvedFactsBlock(input.approvedFacts) || "KAYNAK: (yok — belgesiz ders; konunun yerleşik bilgisiyle yaz)"
       : `KAYNAK:\n${sourceText(input.pages)}`,
@@ -793,12 +887,18 @@ function disputeLines(disputes: TeacherDispute[]): string {
 export function verifyPartUserPrompt(
   lesson: LessonV3,
   part: LessonPart,
-  input: Pick<TeacherLessonInput, "pages" | "mode" | "topicLabel" | "prepTitle" | "examPoints">,
+  input: Pick<TeacherLessonInput, "pages" | "mode" | "topicLabel" | "prepTitle" | "examPoints"> &
+    Partial<Pick<TeacherLessonInput, "sourceCorrection" | "lateNoteWarnings" | "subtopics" | "excludedSubtopics">>,
   disputes: TeacherDispute[] = [],
 ): string {
   return [
     verifyUserPrompt(lesson, input),
     examPointsVerifyBlock(input.examPoints),
+    input.mode === "topic" ? "" : lessonCorrectionVerifyLine(lessonCorrectionNow(input)),
+    // Ünite dersi (20 Kasım 2026): kapsamı yargılayan denetçi yazarın okuduğu planı ve sözleşmeyi aynen okur.
+    part.closing && input.subtopics?.length
+      ? `${subtopicPlanBlock(input)}\nListedeki bir alt konu derste kendi ekranında işlenmemişse 'high' yaz.`
+      : "",
     `DENETLENECEK: yalnız ${partLabel(part)}. Dersin öbür kısımları ayrıca denetlendi ya da denetlenecek; onları ` +
       "yalnız tutarlılık (F) için oku, onlar için sorun yazma.",
     // 23 Ekim 2026 (3. ölçüm): akışlı derste ilk kavram yazılırken sonrakiler henüz yok. Denetçi dersin başlığındaki
@@ -1222,7 +1322,66 @@ function givesAway(text: string, prompt: string, corrected: string): boolean {
 }
 
 type StructureInput = Pick<TeacherLessonInput, "runningHeaders"> &
-  Partial<Pick<TeacherLessonInput, "pages" | "topicLabel" | "mode" | "optionCount" | "noteWarnings" | "siblingTopics">>;
+  Partial<
+    Pick<
+      TeacherLessonInput,
+      | "pages"
+      | "topicLabel"
+      | "mode"
+      | "optionCount"
+      | "noteWarnings"
+      | "siblingTopics"
+      | "sourceCorrection"
+      | "lateNoteWarnings"
+      | "subtopics"
+      | "excludedSubtopics"
+    >
+  >;
+
+/**
+ * Ekranın öğrettiği önermeler (Faz 1-A §2.1 ek düzeltmesi): metin, formül, şema ve karşılaştırma kartları, kartlar,
+ * notlar, örnek, sorunun doğru cevabı ve açıklaması. Tuzak kartı (yanlış inanç bilerek yazılır) ve görsel sahne
+ * (kendi denetimi var) girmez.
+ */
+function screenTaughtStatements(screen: LessonScreen): string[] {
+  const out: string[] = [];
+  const checkStatements = (check: Record<string, unknown> | undefined) => {
+    if (!check) return;
+    const options = Array.isArray(check.options) ? (check.options as unknown[]).map(String) : [];
+    const answer = typeof check.answerIndex === "number" ? check.answerIndex : -1;
+    const prompt = typeof check.prompt === "string" ? check.prompt : "";
+    if (check.type === "trueFalse" && /^do[gğ]ru$/i.test(options[answer]?.trim() ?? "")) out.push(prompt);
+    else if (options[answer]) out.push(`${prompt} ${options[answer]}`);
+    for (const key of ["explanation", "whyRight"]) if (typeof check[key] === "string") out.push(check[key] as string);
+    if (check.review && typeof check.review === "object") checkStatements(check.review as Record<string, unknown>);
+  };
+  for (const block of screen.blocks) {
+    if (block.type === "text") out.push(block.text);
+    else if (block.type === "formula") out.push(`${block.formula.title}: ${block.formula.expression}`);
+    else if (block.type === "cards") out.push(...block.cards.map((card) => `${card.title}: ${card.body}`));
+    else if (block.type === "note") out.push(`${block.note.title}: ${block.note.body}`);
+    else if (block.type === "example") out.push(`${block.example.prompt} ${block.example.result ?? ""}`);
+    else if (block.type === "check") checkStatements(block.check as unknown as Record<string, unknown>);
+    else if (block.type !== "exam_trap_card" && block.type !== "visual_scene") {
+      const visual = visualBlockText(block);
+      if (visual) out.push(visual);
+    }
+  }
+  return out.map((item) => item.replace(/==|\*\*/g, "")).filter((item) => item.trim());
+}
+
+/** Kaynak düzeltmesinin yanlışını (aynı ya da başka sözcüklerle) öğreten önerme varsa sorun metni; yoksa null. */
+function correctionRepeatIssue(statements: readonly string[], input: StructureInput): string | null {
+  if (input.mode === "topic") return null;
+  const correction = lessonCorrectionNow(input);
+  if (!correction) return null;
+  const hit = statements.find((statement) => repeatsSourceError(statement, correction));
+  if (!hit) return null;
+  const truths = allCorrections(correction).map((item) => `«${item.verifiedTruth}»`).join(", ");
+  return `${SOURCE_CORRECTION_ISSUE_LESSON} «${hit.slice(0, 160)}». Kaynaktaki yanlış yerine doğrusunu öğret: ${truths}. Şema, karşılaştırma, soru anahtarı ve açıklamalar da doğrusunu söylesin.`;
+}
+
+const SOURCE_CORRECTION_ISSUE_LESSON = "Kaynak düzeltmesi: ekran kaynağın bilimsel olarak yanlış bilgisini öğretiyor:";
 
 function collector() {
   const issues: TeacherIssue[] = [];
@@ -1284,6 +1443,8 @@ export function screenStructureIssues(screen: LessonV3["screens"][number], index
   if (headers.some((line) => sameKey(line, screen.heading))) add(`${where}.heading`, "Başlık sayfa üst bilgisi; kavramın adını yaz.");
   const text = screenText(screen);
   if (!text) add(`${where}.blocks`, "Ekranda en az bir 'text' bloğu olmalı.");
+  const correctionIssue = correctionRepeatIssue(screenTaughtStatements(screen), input);
+  if (correctionIssue) add(`${where}.blocks`, correctionIssue);
   // 16 Ekim 2026 Beslenme dersi: "Tabloda bulguyu … oku" dedi, tablo bir sonraki ekrandaydı.
   if (POINTS_TO_TABLE.test(text) && !/periyodik\s+tablo/i.test(text) && !screen.blocks.some((block) => block.type === "table")) {
     add(`${where}.blocks`, "Metin bir tabloya gönderiyor ama bu ekranda tablo yok; tabloyu bu ekrana taşı ya da cümleyi çıkar.");
@@ -1720,6 +1881,7 @@ export function settleCheckKeys(screens: readonly LessonScreen[], options: { con
             to: mismatch.expected,
             value: mismatch.value,
             source: mismatch.source,
+            reason: mismatch.reason ?? "value",
           });
           next = { ...next, answerIndex: mismatch.expectedIndex };
         }
@@ -1742,6 +1904,7 @@ export function settleCheckKeys(screens: readonly LessonScreen[], options: { con
               to: mismatch.expected,
               value: mismatch.value,
               source: mismatch.source,
+              reason: mismatch.reason ?? "value",
               review: true,
             });
             next = { ...next, review: { ...review, answerIndex: mismatch.expectedIndex } };
@@ -2180,12 +2343,43 @@ export function lessonLevelStructureIssues(lesson: LessonV3, input: StructureInp
     25 Ekim 2026: tam kapsam (omurganın her alt başlığı) için 9 → 12 ekran, 5 → 6 kavram.
   */
   const documentPages = input.mode === "topic" ? [] : (input.pages ?? []);
-  const facts = lessonFacts(documentPages, input.noteWarnings);
-  const cap = lessonScreenCap(facts.length);
+  const facts = lessonFacts(documentPages, input.noteWarnings, lessonCorrectionNow(input as CorrectionCarrier));
+  // Kapanış alanları da doğrusunu öğretsin: sık yapılan hatanın düzeltmesi, özet, genel bakış ve hedef.
+  const closingIssue = correctionRepeatIssue(
+    [lesson.commonMistake?.correction ?? "", ...(lesson.summary ?? []), lesson.overview ?? "", lesson.objective ?? ""].filter(Boolean),
+    input,
+  );
+  if (closingIssue) add("commonMistake", closingIssue);
+  if (input.mode !== "topic" && presentsTruthAsMistake(lesson.commonMistake?.claim ?? "", lessonCorrectionNow(input as CorrectionCarrier))) {
+    add("commonMistake", "Kaynak düzeltmesi: sık yapılan hata alanı bilimsel olarak DOĞRU olan bilgiyi yanılgı diye gösteriyor; hata olarak kaynağın yanlışını, düzeltme olarak doğrusunu yaz.");
+  }
+  // Ünite dersinde (20 Kasım 2026) ekran ve kavram sınırı alt konu sayısının derinliğinden: yazarın istemi aynı sayıyı okur.
+  const subtopics = input.subtopics ?? [];
+  const cap = lessonScreenCap(facts.length, subtopics.length);
   if (screens.length > cap) {
     low("screens", cap === 12 ? "En fazla on iki ekran; kavramı daha az ekrana sığdır." : `En fazla ${cap} ekran; kavramı daha az ekrana sığdır.`);
   }
-  if (groups.length > 6) low("screens", "En fazla altı kavram; kısa alt başlıkları komşusuyla birleştir.");
+  const conceptCap = lessonDepthForSubtopics(subtopics.length)?.maxConcepts ?? 6;
+  if (groups.length > conceptCap) {
+    low(
+      "screens",
+      conceptCap === 6
+        ? "En fazla altı kavram; kısa alt başlıkları komşusuyla birleştir."
+        : `En fazla ${conceptCap} kavram; kısa alt başlıkları komşusuyla birleştir.`,
+    );
+  }
+  // Ünitenin alt konuları (yüksek, kapsam): kavram düşmez; kapanışta yalnız eksik alt konular için ekran istenir.
+  const missingSubtopics = uncoveredSubtopics(screens, subtopics, input.topicLabel ?? "");
+  if (missingSubtopics.length) {
+    issues.push({
+      where: `screens[${screens.length - 1}]`,
+      severity: "high",
+      problem:
+        `${COVERAGE_TAG} Ünitenin şu alt konuları derste kendi ekranında işlenmedi: ${missingSubtopics.join(" · ")}. Her biri ` +
+        "için bu kısmın ardına alt konunun adını taşıyan bir ekran ekle (tanım, kural ya da formül, istisna ya da çözümlü " +
+        "örnek; ekran bir soruyla biter). Mevcut ekranları silme.",
+    });
+  }
   // Omurga ve kilit bilgi (yüksek): kavram düşmez; kapanışta sessiz bir ekran turu açar.
   const missingHeads = uncoveredBackbone(screens, inputBackbone(input));
   if (missingHeads.length) {
@@ -2279,8 +2473,20 @@ export function lessonLevelStructureIssues(lesson: LessonV3, input: StructureInp
  */
 export const COVERAGE_COMPLETION_SCREENS = 2;
 
-/** `formulas`: derste formül kartında gösterilmeyen kaynak denklemleri (10 Kasım 2026); eski çağıranlarda yok. */
-export type LessonCoverageGaps = { headings: string[]; facts: string[]; formulas?: string[] };
+/**
+ * `formulas`: derste formül kartında gösterilmeyen kaynak denklemleri (10 Kasım 2026); eski çağıranlarda yok.
+ * `subtopics`: ünite dersinde kendi ekranında işlenmeyen alt konular (20 Kasım 2026); alt konusuz derste alan yok.
+ */
+export type LessonCoverageGaps = { headings: string[]; facts: string[]; formulas?: string[]; subtopics?: string[] };
+
+/**
+ * Tamamlamanın en çok kaç yeni ekran isteyeceği: 2; ünite dersinde eksik alt konu sayısı kadar (en az 2). Sert tavanı
+ * (16) aşmaz: kayıtlı ders şeması 16'dan fazla ekranı okumaz, aşan ders yeniden açılamazdı. Yer yoksa 0 (çağrı yok).
+ */
+export function coverageCompletionScreens(gaps: LessonCoverageGaps, screenCount: number): number {
+  const wanted = Math.max(COVERAGE_COMPLETION_SCREENS, gaps.subtopics?.length ?? 0);
+  return Math.max(0, Math.min(wanted, LESSON_SCREEN_HARD_CAP - screenCount));
+}
 
 /**
  * Belgesiz (konu) derste alt sınır (3 Kasım 2026 canlı ölçüm: "Farklı anlat" 5 bölümle bitti, sayaç "Adım 1/8").
@@ -2289,36 +2495,44 @@ export type LessonCoverageGaps = { headings: string[]; facts: string[]; formulas
 export { TOPIC_MIN_SCREENS } from "@/lib/learning/lesson-screen-floor";
 import { TOPIC_MIN_SCREENS } from "@/lib/learning/lesson-screen-floor";
 
-export function topicDepthGap(screenCount: number): string | null {
-  if (screenCount >= TOPIC_MIN_SCREENS) return null;
+/** `floor`: ünite dersinde alt konu derinliğinin alt ucu (20 Kasım 2026); yoksa belgesiz dersin 6 ekranı. */
+export function topicDepthGap(screenCount: number, floor: number = TOPIC_MIN_SCREENS): string | null {
+  if (screenCount >= floor) return null;
   return (
-    `Ders ${screenCount} ekranda kaldı; en az ${TOPIC_MIN_SCREENS} olmalı. Kazanımların henüz kendi ekranı olmayan alt ` +
+    `Ders ${screenCount} ekranda kaldı; en az ${floor} olmalı. Kazanımların henüz kendi ekranı olmayan alt ` +
     "fikirleri (tanım, neden-sonuç, karşılaştırma, sınavda çıkan ayrıntı ya da çözümlü örnek)"
   );
 }
 
 export function lessonCoverageGaps(lesson: LessonV3, input: StructureInput): LessonCoverageGaps {
+  // Ünite dersi (20 Kasım 2026): kendi ekranında işlenmeyen alt konular; alt konusuz derste alan hiç yazılmaz.
+  const subtopics = input.subtopics?.length
+    ? { subtopics: uncoveredSubtopics(lesson.screens, input.subtopics, input.topicLabel ?? "") }
+    : {};
   if (input.mode === "topic") {
-    const gap = topicDepthGap(lesson.screens.length);
-    return { headings: gap ? [gap] : [], facts: [] };
+    const gap = topicDepthGap(lesson.screens.length, lessonDepthForSubtopics(input.subtopics?.length ?? 0)?.minScreens);
+    return { headings: gap ? [gap] : [], facts: [], ...subtopics };
   }
-  if (!input.pages?.length) return { headings: [], facts: [] };
-  const facts = lessonFacts(input.pages, input.noteWarnings);
+  if (!input.pages?.length) return { headings: [], facts: [], ...subtopics };
+  const facts = lessonFacts(input.pages, input.noteWarnings, lessonCorrectionNow(input as CorrectionCarrier));
   return {
     headings: uncoveredBackbone(lesson.screens, inputBackbone(input)),
     facts: uncoveredKeyFacts(lesson.screens, facts).map((fact) => fact.text),
     // Kaynaktaki açık formül bir formül kartında gösterilmeli (en çok üçü istenir: tamamlama iki ekranla sınırlı).
     formulas: equationsWithoutCard(lesson.screens, facts).slice(0, 3).map((fact) => fact.text),
+    ...subtopics,
   };
 }
 
 export function coverageGapCount(gaps: LessonCoverageGaps): number {
-  return gaps.headings.length + gaps.facts.length + (gaps.formulas?.length ?? 0);
+  return gaps.headings.length + gaps.facts.length + (gaps.formulas?.length ?? 0) + (gaps.subtopics?.length ?? 0);
 }
 
 export function coverageCompletionUserPrompt(lesson: LessonV3, input: TeacherLessonInput, gaps: LessonCoverageGaps): string {
   const screens = lesson.screens.map((screen, index) => `[${index + 1}] ${screen.heading} (${screenConcept(screen)})`);
   const missing = [
+    // Ünite dersi (20 Kasım 2026): eksik alt konular önce; zorunlu planın tamamı yukarıdaki istemde.
+    ...(gaps.subtopics ?? []).map((subtopic) => `- Alt konu (ünitenin zorunlu planında; kendi ekranında eksiksiz anlat): ${subtopic}`),
     ...gaps.headings.map((heading) => `- Alt başlık: ${heading}`),
     ...gaps.facts.slice(0, 8).map((fact) => `- Kilit bilgi: ${fact}`),
     ...(gaps.formulas ?? []).map((formula) => `- Formül (bir 'formula' bloğunda, kaynaktaki yazımıyla göster): ${formula}`),
@@ -2326,7 +2540,11 @@ export function coverageCompletionUserPrompt(lesson: LessonV3, input: TeacherLes
   return (
     `${teacherUserPrompt(input)}\n\nKAPSAM TAMAMLAMASI: Bu ders yazıldı ve öğrenciye gidiyor. Mevcut ekranlar:\n${screens.join("\n")}\n\n` +
     `Kaynağın şu kısımları derste işlenmedi:\n${missing.join("\n")}\n\n` +
-    `Yalnız bunları öğreten en çok ${COVERAGE_COMPLETION_SCREENS} YENİ ekran yaz. Bilgi kaynaktaki yazımıyla gelir (terim, ` +
+    `Yalnız bunları öğreten en çok ${coverageCompletionScreens(gaps, lesson.screens.length)} YENİ ekran yaz.` +
+    (gaps.subtopics?.length
+      ? " Her eksik alt konuya en az bir ekran ayır; o ekranın 'concept' adı alt konunun adını taşır."
+      : "") +
+    " Bilgi kaynaktaki yazımıyla gelir (terim, " +
     "kısaltmanın açılımı, sayı); kaynakta olmayan bilgi ekleme. Her ekranın kendi 'concept' adı olur ve ekran bir soruyla " +
     "biter. Mevcut ekranları yeniden yazma, giriş, özet ve sık yapılan hata alanlarını boş bırak. Aynı JSON biçiminde " +
     `döndür: {"title":"${lesson.title.replace(/"/g, "'")}","screens":[…yalnız yeni ekranlar…]}`
@@ -2477,6 +2695,166 @@ export function parseDiagramCompletion(raw: unknown, lesson: LessonV3, input: Pi
     return { ...screen, blocks };
   });
   return { verdict: "added", lesson: { ...lesson, screens }, kind: block.diagramKind, concept: group.concept };
+}
+
+/* ───────────── Branşa özel görsel sahne (19 Kasım 2026, Faz 1-B) ───────────── */
+
+/**
+ * Ders yazıldıktan sonra tek küçük çağrı: disiplinin arketipine göre TEK bir `visual_scene` (diagram_card tamamlaması
+ * emsali). Disiplini kod sınıflandırır (`classifyAcademicDomain`, model çağrısız); güven düşükse istem altı arketipi
+ * gösterir ve model konuya uyanı seçer. Sahne yeni bilgi taşımaz: sayılar derste ya da kaynakta geçmeli, etiketlerin
+ * çoğu ders/kaynak köküyle eşleşmeli (`parseVisualSceneCompletion`). Geçmezse ders aynen yayımlanır.
+ */
+export function visualSceneSystem(classification: Pick<DomainClassification, "visualArchetype" | "confidence">): string {
+  const confident = classification.confidence >= VISUAL_SCENE_CONFIDENT;
+  return (
+    "Sen Cortex Plus'ın usta öğretmeni ve bilgi tasarımcısısın. Yazılmış bir dersi okuyup ona TEK bir branşa özel " +
+    "görsel sahne (visual_scene) ekliyorsun: öğrenci konuyu tek bakışta görsün, sınavda soruyu tanısın. " +
+    `${VISUAL_SCENE_COMMON_RULE} ` +
+    "afterConcept KAVRAMLAR listesindeki bir kavramın adıdır, aynen (sahne o kavramın son ekranına girer).\n\n" +
+    `${archetypeSpecBlock(classification.visualArchetype, confident)}\n\n` +
+    `academicDomain şunlardan biri: ${domainChoices()}.\n\n` +
+    'Yalnızca şu JSON\'u döndür: {"type":"visual_scene","academicDomain":"…","visualArchetype":"…","scene":{…arketip JSON…},"afterConcept":"<kavram adı>"}\n\n' +
+    STUDENT_LEAK_BAN
+  );
+}
+
+/** Bu güvenin altında istem altı arketipi gösterir. */
+export const VISUAL_SCENE_CONFIDENT = 0.25;
+
+export function visualSceneUserPrompt(
+  lesson: LessonV3,
+  input: Pick<TeacherLessonInput, "pages" | "mode" | "topicLabel" | "prepTitle"> & CorrectionCarrier,
+  classification: DomainClassification,
+): string {
+  const groups = conceptGroups(lesson.screens);
+  const concepts = groups.map((group) => `- ${group.concept}`);
+  const screens = lesson.screens.map(
+    (screen, index) => `[${index + 1}] ${screen.heading} (${screenConcept(screen)}): ${screenPlainText(screen).slice(0, DIAGRAM_SCREEN_CHARS)}`,
+  );
+  const source =
+    input.mode === "topic" || !input.pages.length
+      ? "KAYNAK: (yok — belgesiz ders; yalnız derste geçen etiket ve sayılar)"
+      : `KAYNAK (ilk ${DIAGRAM_SOURCE_CHARS} karakter):\n${sourceText(input.pages).slice(0, DIAGRAM_SOURCE_CHARS)}`;
+  const table = classification.sourceTable
+    ? `KAYNAKTAKİ TABLO (belge şekli sahnesi seçilirse hücreler AYNEN bunlar):\n${[classification.sourceTable.columns.join(" | "), ...classification.sourceTable.rows.map((row) => row.join(" | "))].join("\n")}`
+    : "";
+  return [
+    `DERS: ${lesson.title}`,
+    `HAZIRLIK: ${input.prepTitle}`,
+    `KONU: ${input.topicLabel}`,
+    `DİSİPLİN (kod): ${classification.academicDomain} → ${classification.visualArchetype}`,
+    `KAVRAMLAR:\n${concepts.join("\n")}`,
+    `EKRANLAR:\n${screens.join("\n")}`,
+    input.mode === "topic" ? "" : sourceCorrectionPromptBlock(lessonCorrectionNow(input) ?? lesson.sourceCorrectionWarning ?? null),
+    source,
+    table,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+export type VisualSceneVerdict = "added" | "ungrounded" | "contradicts" | "unparsed" | "timeout" | "error" | "exists";
+
+export type VisualSceneCompletion =
+  | { verdict: "added"; lesson: LessonV3; archetype: VisualArchetype; domain: AcademicDomain; concept: string }
+  | { verdict: Exclude<VisualSceneVerdict, "added">; lesson: null; archetype?: VisualArchetype; domain?: AcademicDomain };
+
+/** Etiketlerin en az bu oranı ders/kaynak köküyle eşleşmeli; belge tablosunda hücreler daha sıkı. */
+const SCENE_LABEL_GROUNDING = 0.6;
+const SCENE_TABLE_GROUNDING = 0.85;
+
+/**
+ * Sahne temellendirmesi: (1) etiket ve açıklamalardaki her sayı bütünde geçer (sembol ve formüldeki alt simge
+ * rakamları hariç); (2) etiketlerin çoğu bütünün bir köküyle eşleşir; belge tablosunda hücreler kaynakta.
+ */
+export function visualSceneGrounded(scene: VisualScene, corpus: string): boolean {
+  const lower = corpus.toLocaleLowerCase("tr");
+  const stems = groundingStems(corpus);
+  const numbers = numbersIn(corpus);
+  const numbersOk = (text: string) => numbersIn(text).every((value) => numbers.some((item) => sameNumber(item, value)));
+  const labelOk = (label: string) => {
+    const own = [...groundingStems(label)];
+    if (!own.length) return lower.includes(label.toLocaleLowerCase("tr").trim());
+    return own.some((stem) => stems.has(stem));
+  };
+  const { labels, prose } = visualSceneStrings(scene);
+  if (![...labels, ...prose].every(numbersOk)) return false;
+  if (!labels.length) return true;
+  const ratio = labels.filter(labelOk).length / labels.length;
+  const need = scene.archetype === "DOCUMENT_FIGURE_SPOTLIGHT" ? SCENE_TABLE_GROUNDING : SCENE_LABEL_GROUNDING;
+  return ratio >= need;
+}
+
+/**
+ * Modelin sahnesini ayrıştırır, temellendirir ve derse yerleştirir: `afterConcept` kavramının son ekranına, ekran
+ * soruyla bitiyorsa sorunun önüne (soru ve şık sırasına dokunulmaz). Kavram bulunamazsa ikinci kavram (yoksa son).
+ */
+export function parseVisualSceneCompletion(
+  raw: unknown,
+  lesson: LessonV3,
+  input: Pick<TeacherLessonInput, "pages" | "mode"> & CorrectionCarrier,
+  classification: Pick<DomainClassification, "academicDomain" | "visualArchetype">,
+): VisualSceneCompletion {
+  const row = raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : null;
+  if (!row) return { verdict: "unparsed", lesson: null };
+  const nested = row.type === "visual_scene" ? row : (row.visual_scene ?? row.block ?? row);
+  const candidate = nested && typeof nested === "object" && !Array.isArray(nested) ? (nested as Record<string, unknown>) : row;
+  const archetypeHint = readVisualArchetype(candidate.visualArchetype) ?? classification.visualArchetype;
+  const scene = parseVisualScene(candidate.scene ?? candidate, archetypeHint);
+  if (!scene) return { verdict: "unparsed", lesson: null, archetype: archetypeHint };
+  const domainRaw = readAcademicDomain(candidate.academicDomain);
+  // Model arketipi değiştirdiyse disiplin de onunkiyle tutarlı olmalı; değilse kodun disiplini.
+  const domain =
+    domainRaw && DOMAIN_ARCHETYPE[domainRaw] === scene.archetype
+      ? domainRaw
+      : DOMAIN_ARCHETYPE[classification.academicDomain] === scene.archetype
+        ? classification.academicDomain
+        : (ACADEMIC_DOMAINS.find((item) => DOMAIN_ARCHETYPE[item] === scene.archetype) ?? classification.academicDomain);
+  const corpus = [
+    lesson.title,
+    ...lesson.screens.map(screenPlainText),
+    ...(lesson.summary ?? []),
+    input.mode === "topic" ? "" : input.pages.map((page) => page.text).join("\n"),
+  ].join("\n");
+  if (!visualSceneGrounded(scene, corpus)) return { verdict: "ungrounded", lesson: null, archetype: scene.archetype, domain };
+  // Kaynağın hatasını ya da uydurulmuş bir ilişkiyi öğretmesin: dersin doğrulanmış içeriği (kaynak değil) ve kaynak
+  // düzeltmesiyle çapraz denetim; çelişkide sahne yayımlanmaz (`relation-check.ts`).
+  const relation = checkSceneRelations(scene, {
+    lessonText: lessonFactText(lesson),
+    sourceCorrection: lessonCorrectionNow(input) ?? lesson.sourceCorrectionWarning ?? null,
+  });
+  if (!relation.ok) {
+    console.info("teacher_lesson_visual_scene_rejected", { archetype: scene.archetype, reason: relation.reason });
+    return { verdict: "contradicts", lesson: null, archetype: scene.archetype, domain };
+  }
+  const block: Extract<LessonBlock, { type: "visual_scene" }> = { type: "visual_scene", academicDomain: domain, visualArchetype: scene.archetype, scene };
+  const afterConceptRaw = typeof row.afterConcept === "string" ? row.afterConcept : typeof candidate.afterConcept === "string" ? candidate.afterConcept : "";
+  const groups = conceptGroups(lesson.screens);
+  const fold = (text: string) => text.trim().toLocaleLowerCase("tr");
+  const wanted = groups.findIndex((group) => fold(group.concept) === fold(afterConceptRaw));
+  const group = groups[wanted >= 0 ? wanted : Math.min(1, groups.length - 1)]!;
+  const screenIndex = group.screens[group.screens.length - 1]!;
+  const screens = lesson.screens.map((screen, index) => {
+    if (index !== screenIndex) return screen;
+    const blocks = [...screen.blocks];
+    const last = blocks[blocks.length - 1];
+    if (last && last.type === "check" && blocks.length > 1) blocks.splice(blocks.length - 1, 0, block);
+    else blocks.push(block);
+    return { ...screen, blocks: blocks.slice(0, 12) };
+  });
+  return {
+    verdict: "added",
+    lesson: { ...lesson, screens, academicDomain: domain, visualArchetype: scene.archetype },
+    archetype: scene.archetype,
+    domain,
+    concept: group.concept,
+  };
+}
+
+/** Derste zaten bir görsel sahne var mı (yeniden yazım/farklı anlat yolunda ikinci çağrı açılmasın). */
+export function hasVisualScene(lesson: LessonV3): boolean {
+  return lesson.screens.some((screen) => screen.blocks.some((block) => block.type === "visual_scene"));
 }
 
 /** Formül tek başına kota değildir: tuzak, çivi ya da kaydırma da gerekir. */
@@ -2699,7 +3077,7 @@ function checkIssues(
     if (mismatch) {
       add(
         where,
-        `Açıklama ${shownValue(mismatch.value)} sonucuna varıyor; answerIndex '${mismatch.keyed.join("', '")}' şıkkında, '${mismatch.expected}' olmalı ya da açıklama yanlış.`,
+        `${mismatch.reason && mismatch.reason !== "value" ? mismatchEvidence(mismatch) : `Açıklama ${shownValue(mismatch.value)} sonucuna varıyor`}; answerIndex '${mismatch.keyed.join("', '")}' şıkkında, '${mismatch.expected}' olmalı ya da açıklama yanlış.`,
       );
     }
     if (!check.optionWhy || check.optionWhy.length !== options.length) add(where, "optionWhy her şık için bir cümle olmalı.");
@@ -2731,8 +3109,12 @@ function checkIssues(
   }
   const checkText = [check.prompt, check.explanation, ...(check.options ?? []), ...(check.optionWhy ?? [])].join("\n");
   if (reversedFunctionNotation(checkText).length) add(where, FUNCTION_NOTATION_ISSUE);
+  // Cevap anahtarı tutarlılığı (19 Kasım 2026, Faz 1-A §3): açıklama ya da gerekçedeki işlem kodla hesaplanır;
+  // yanlış hesap anahtarı da şüpheli kılar, düzeltme turuna gider (kayıtlı derste soru okunurken düşer).
+  if (checkArithmeticIssue(check)) add(where, ARITHMETIC_ISSUE);
   if (check.type === "trueFalse") {
     const options = check.options ?? [];
+    if (trueFalseCheckInconsistent(check)) add(where, TRUE_FALSE_ARITHMETIC_ISSUE);
     if (options.length !== 2 || typeof check.answerIndex !== "number" || check.answerIndex > 1) {
       add(where, "Doğru/yanlış sorusunda şıklar ['Doğru','Yanlış'] ve answerIndex 0 ya da 1 olmalı.");
     }
@@ -2746,6 +3128,9 @@ function checkIssues(
     for (const problem of reviewItemProblems(reviewInput(check))) low(`${where}.review`, `İkinci soru (review): ${problem}`);
   }
 }
+
+const ARITHMETIC_ISSUE = `${KEY_CONSISTENCY_PREFIX}: açıklamadaki ya da şık gerekçesindeki işlem yanlış; hesabı ve anahtarı birlikte düzelt.`;
+const TRUE_FALSE_ARITHMETIC_ISSUE = `${KEY_CONSISTENCY_PREFIX}: önermedeki işlem yanlış, anahtar 'Doğru' olamaz; anahtarı 'Yanlış' yap ve doğrusunu (corrected) yaz.`;
 
 function reviewInput(check: Check) {
   return {

@@ -12,7 +12,7 @@ import { signReviewToken, solutionReviewItem } from "@/lib/solve/solve-review";
 /*
   Soru çözücü (23 Ekim 2026): fotoğraf ya da yazılı soru → olay akışı (satır başına bir JSON). İlk çözüm ~8-12 sn'de
   gelir, denetim arkadan "verified" / "revised" olayıyla. Ayrıntı: `src/lib/solve/solve-run.ts`.
-  Vercel gövde sınırı 4,5 MB: istemci fotoğrafı göndermeden önce küçültür (`downscale-image.ts`).
+  Vercel gövde sınırı 4,5 MB: istemci fotoğrafı göndermeden önce küçültür (`@/lib/upload/compress-image`, `solve-client.ts`).
 */
 export const maxDuration = 120;
 export const dynamic = "force-dynamic";

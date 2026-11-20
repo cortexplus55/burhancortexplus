@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { FREE_LIMITS, PLUS_ONLY_NODE_KINDS, freePeriodKey, type FreeMeter } from "@/lib/billing/free-meters";
 import { getUserEntitlements } from "@/lib/billing/entitlements";
 import { billingExempt } from "@/lib/billing/free-preview";
+import { getSessionUserContext } from "@/lib/auth/session-context";
 
 const NO_SKIP: ReadonlySet<string> = new Set();
 
@@ -22,6 +23,25 @@ export async function pathSkipKinds(service: SupabaseClient, userId: string): Pr
     return entitlements.isPremium || exempt ? NO_SKIP : PLUS_ONLY_NODE_KINDS;
   } catch {
     return NO_SKIP;
+  }
+}
+
+/**
+ * Sayfa çizimi için aynı karar (Faz 2, madde 2): plan ve kurucu muafiyeti oturum bağlamından (istekte tek okuma, 45 sn
+ * önbellek; ödeme/abonelik değişikliği önbelleği siler). `account.isAdmin` = yönetici ve önizleme kapalı
+ * (`billingExempt` ile aynı); önizlemede plan ücretsizdir. Yalnız gösterim ve "Sıradaki" seçimi içindir; adımı açan ve
+ * hakkı düşen yol (`node/start`, tamamlama SQL'i) taze okur. Bağlam okunamazsa taze karar.
+ */
+export async function pathSkipKindsForView(
+  service: SupabaseClient,
+  userId: string,
+  client?: SupabaseClient,
+): Promise<ReadonlySet<string>> {
+  try {
+    const context = await getSessionUserContext(userId, client ? { client } : {});
+    return context.entitlements.isPremium || context.account.isAdmin ? NO_SKIP : PLUS_ONLY_NODE_KINDS;
+  } catch {
+    return pathSkipKinds(service, userId);
   }
 }
 

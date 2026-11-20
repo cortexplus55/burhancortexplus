@@ -39,3 +39,27 @@ bir satır yazıyor ve PayTR'ye gerçek istek atıyor. Bu yüzden ödeme tamamla
 3. "Plus'a yükselt" → sözleşme kutuları → PayTR çerçevesi açılıyor mu, telefonda yana taşıyor mu. **Ödemeyi tamamlama**,
    çerçeveyi kapat.
 4. Sorun yoksa açık bırak; varsa aynı satırdan **Kapat** (en geç 30 sn'de eski görünüm).
+
+## 24 saat izleme (son kontrol)
+
+Bayrak 15 Kasım 2026 09:06 UTC'de açıldı (Burhan kararı 7). Son kontrol 19 Kasım 2026'da yapıldı (24. saat denetimi
+zamanında koşmadı; oturum kapalıydı). Salt okunur: Supabase SQL ekranı ve kurucu hesabıyla `/pay`.
+
+| Ölçü | Sonuç |
+|---|---|
+| Bayrak | Açık (`feature_flags.ui.v2.pay = true`) |
+| Bayrak açıldığından beri ödeme kaydı | 1 satır, `failed` (19 Kasım 14:39 UTC, Plus, 599 TL) |
+| 30 dakikadan eski bekleyen (`pending`) | 0 |
+| Tamamlanan (`paid`) ödeme | 0 (taban: önceki 30 günde de 0) |
+| `/pay` | `[data-ui~="pay"]` var, yana taşma 0, konsolda hata yok, 9 plan düğmesi çiziliyor |
+
+**Başarısız kaydın kaynağı `/pay` değil.** Denetim kaydı (`audit_logs`, `payment.token.created`) bu ödemeyi
+`via: parent_link` olarak gösteriyor: velime ödeme bağlantısı sayfasından başlatılmış, PayTR çerçevesi açılmış (token var),
+ödeme tamamlanmadan bırakılmış. Aynı gün Faz 5'in veli sayfası canlıda denendi (#705, #706); zaman örtüşüyor. `ui.v2.pay`
+yalnız `/pay` sayfasının görünümünü değiştirir, veli sayfasını çizmez.
+
+**Karar:** izleme kuralı "failed > 0 ise kapat" diyordu. Kayıt bayrağın etkilediği sayfadan gelmediği ve `/pay` sağlıklı
+olduğu için bayrak **kapatılmadı**; durum Burhan'a bildirildi. Burhan isterse `/admin/feature-flags` → "Yeni görünüm ·
+Abonelik sayfası" → Kapat ile 30 sn'de eski görünüme dönülür.
+
+PayTR dönüş oranı ölçülemedi: izleme süresinde `/pay` üzerinden başlatılmış ödeme yok.

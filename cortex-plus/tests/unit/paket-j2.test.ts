@@ -256,7 +256,9 @@ describe("#10 soruda hata bildir", () => {
 
   it("ödül metni ve sayıları ürün sahibinin istediği gibi", async () => {
     const copy = await import("@/lib/learning/question-report/copy");
-    expect(copy.REPORT_BUTTON).toBe("🚩 Soruda hata bildir");
+    expect(copy.REPORT_BUTTON).toBe("🚩 Soruda Hata Bildir");
+    // Faz 5 §3.1: modalda üç neden.
+    expect(copy.REPORT_REASONS.map((item) => item.label)).toEqual(["Cevap anahtarı hatalı", "Soru kökü eksik", "Görsel-formül bozuk"]);
     expect(copy.REPORT_THANKS).toBe(
       "👏 Dikkatli gözün için teşekkürler! Hatayı yakaladığın için hesabına +15 Hediye Kredi ve +20 Yıldız tanımlandı",
     );

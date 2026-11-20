@@ -2,8 +2,17 @@
 
 import Link from "next/link";
 import "@/styles/topic-gain.css";
+import "@/styles/report-card.css";
 
-export type TopicGain = { label: string; before: number; after: number };
+export type TopicGain = {
+  label: string;
+  before: number;
+  after: number;
+  /** Faz 4: ekranlarla aynı rozet (`topicMasteryView`). Eski kayıtta yok. */
+  badge?: "learned" | "developing" | "weak" | "unmeasured";
+  badgeLabel?: string;
+  tone?: "emerald" | "cobalt" | "coral" | "gray";
+};
 
 /** Kart yalnız gerçek bir artışta açılır; düşüş ya da aynı kalış kutlanmaz. */
 export function topicGainWorthShowing(gain: unknown): gain is TopicGain {
@@ -45,6 +54,7 @@ export function TopicGainCard({ gain, nextHref }: { gain: TopicGain; nextHref: s
         <p className="cp-topic-gain-ring">
           <strong>%{after}</strong>
         </p>
+        {gain.badgeLabel && gain.tone ? <p className={`cp-badge cp-badge--${gain.tone} cp-topic-gain-badge`}>{gain.badgeLabel}</p> : null}
       </div>
       <p className="cp-topic-gain-note">
         Her etkinlik seni hedefine biraz daha yaklaştırır. Hakimiyet Haritası&apos;ndaki yüzde kazanım bazında ve tüm

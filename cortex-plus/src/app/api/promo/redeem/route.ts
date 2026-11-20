@@ -1,3 +1,4 @@
+import { invalidateSessionUserContext } from "@/lib/auth/session-context";
 import { after, NextResponse } from "next/server";
 import { sendTrialMail } from "@/lib/email/lifecycle";
 import { z } from "zod";
@@ -50,6 +51,8 @@ export async function POST(request: Request) {
   }
 
   const row = (data ?? {}) as RedeemRow;
+  // Faz 2: kod plan ya da kredi verdi; gösterim önbelleği anında düşer.
+  await invalidateSessionUserContext(userId);
   if (!row.ok) {
     return NextResponse.json(
       { ok: false, reason: row.reason ?? "invalid_code", error: redeemFailureMessage(row.reason) },

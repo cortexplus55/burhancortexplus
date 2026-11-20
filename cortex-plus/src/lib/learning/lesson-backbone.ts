@@ -122,7 +122,11 @@ export function backboneBlock(backbone: readonly string[]): string {
   );
 }
 
-const stems = (text: string): string[] =>
+/**
+ * Başlığın içerik kökleri (dört harften kısa sözcük düşer, sözcük beş harfe kesilir; rakamlı sözcük olduğu gibi).
+ * Omurga ve ünitenin alt konu kapsamı (`lesson-subtopics.ts`) aynı ölçüyü okur.
+ */
+export const headingStems = (text: string): string[] =>
   fold(text)
     .split(" ")
     .filter((word) => (/\d/.test(word) ? word.length >= 1 : word.length >= 4))
@@ -135,10 +139,10 @@ const stems = (text: string): string[] =>
 export function uncoveredBackbone(screens: readonly LessonScreen[], backbone: readonly string[]): string[] {
   if (!backbone.length || !screens.length) return [];
   const told = new Set(
-    stems(screens.map((screen) => `${screen.heading} ${screen.concept ?? ""} ${JSON.stringify(screen.blocks)}`).join(" ")),
+    headingStems(screens.map((screen) => `${screen.heading} ${screen.concept ?? ""} ${JSON.stringify(screen.blocks)}`).join(" ")),
   );
   return backbone.filter((item) => {
-    const keys = stems(item);
+    const keys = headingStems(item);
     if (!keys.length) return false;
     const hits = keys.filter((key) => told.has(key)).length;
     return hits * 2 < keys.length;

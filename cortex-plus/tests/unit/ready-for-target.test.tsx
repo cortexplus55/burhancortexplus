@@ -125,7 +125,8 @@ describe("her ders aynı kurala bağlı", () => {
 });
 
 describe("ekran ve düğüm", () => {
-  it("Hazırsın ekranı Sağlam / Çalışılacak gruplarını ayrı başlıkla gösterir", () => {
+  // Faz 4 karnesi: dört rozet (Öğrendin / Gelişiyor / Zayıf / Ölçülmedi), grup başlıkları rozete göre.
+  it("Hazırsın ekranı Öğrendin / Gelişiyor gruplarını ayrı başlıkla gösterir", () => {
     const screen = buildReadinessScreen({
       plannedTopics: ["Türev", "İntegral"],
       mastery: [topic("Türev", 9), topic("İntegral", 6)],
@@ -137,11 +138,14 @@ describe("ekran ve düğüm", () => {
     });
     const html = renderToStaticMarkup(createElement(ExamReadinessScreen, { screen }));
     expect(html).not.toContain(READY_HEADLINE);
-    expect(html).toContain("✅ Sağlam konular");
-    expect(html).toContain("Türev · ✅ Sağlam");
-    expect(html).toContain("Çalışılacak / Tekrar edilecek");
-    expect(html).toContain("İntegral · Çalışılacak");
+    expect(html).toContain("1 / 2 Konuyu Öğrendin");
+    expect(html).toContain("<h2>Öğrendiğin konular</h2>");
+    expect(html).toContain('<span class="cp-badge cp-badge--emerald">Öğrendin · %90</span>');
+    expect(html).toContain("<h2>Gelişen konular</h2>");
+    expect(html).toContain('<span class="cp-badge cp-badge--cobalt">Gelişiyor · %60</span>');
+    expect(html).toContain("Eksik &amp; Tuzak Soruları Çalış (Ücretsiz)");
     expect(html).not.toContain("Hazır konular");
+    expect(html).not.toContain("Sağlam");
   });
 
   it("hazırlık ekranı görünce düğüm kendiliğinden tamamlanır (bir kez, bitmiş düğümde değil)", () => {

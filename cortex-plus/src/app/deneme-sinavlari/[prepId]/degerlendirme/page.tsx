@@ -22,6 +22,9 @@ import {
 } from "@/lib/learning/exam-prep-hrefs";
 import {
   buildLearningIndicators,
+  MASTERY_ROW_COLUMNS,
+  masteryByPlannedTopic,
+  masterySnapshotFromRow,
   preferNextNodeForTracking,
   scoreTopicMastery,
   topicMasteryView,
@@ -78,9 +81,7 @@ export default async function ExamPrepAssessmentPage({
 
   const { data: masteryRows } = await supabase
     .from("exam_prep_topic_mastery")
-    .select(
-      "topic_key, measured_level, confidence, evidence_count, first_attempt_correct, first_attempt_total, independent_correct, independent_total, last_practiced_at",
-    )
+    .select(MASTERY_ROW_COLUMNS)
     .eq("exam_prep_id", prepId);
 
   const { data: topicRows } = await supabase
@@ -91,22 +92,19 @@ export default async function ExamPrepAssessmentPage({
   // Yalnız çözülmemiş yanılgılar (20 Ekim 2026); sütun yoksa hepsi açık sayılır.
   const misconceptionCount = await countOpenMisconceptions(supabase, { prepId });
 
-  const topics: TopicMasterySnapshot[] = (masteryRows ?? []).map((row) => ({
-    topicKey: row.topic_key as string,
-    measured: Number(row.evidence_count ?? 0) > 0,
-    level: row.measured_level as TopicMasterySnapshot["level"],
-    confidence: Number(row.confidence ?? 0),
-    evidenceCount: Number(row.evidence_count ?? 0),
-    firstAttemptCorrect: Number(row.first_attempt_correct ?? 0),
-    firstAttemptTotal: Number(row.first_attempt_total ?? 0),
-    independentCorrect: Number(row.independent_correct ?? 0),
-    independentTotal: Number(row.independent_total ?? 0),
-    lastPracticedAt: (row.last_practiced_at as string | null) ?? null,
-  }));
+  const topics: TopicMasterySnapshot[] = ((masteryRows ?? []) as Record<string, unknown>[]).map(masterySnapshotFromRow);
 
   const plannedTopicKeys = (topicRows ?? [])
     .map((t) => String(t.label ?? "").trim())
     .filter(Boolean);
+  // Ekrandaki konu satırları hazırlığın konu adlarıyla (ad varyantı aynı konuya toplanır); plan yoksa kayıtlı satırlar.
+  const plannedMastery = masteryByPlannedTopic(plannedTopicKeys, topics);
+  const displayTopics: TopicMasterySnapshot[] = plannedTopicKeys.length
+    ? plannedTopicKeys.flatMap((label) => {
+        const snapshot = plannedMastery.get(label);
+        return snapshot ? [snapshot] : [];
+      })
+    : topics;
 
   const mockNode =
     nodes.find((n) => n.kind === "written_exam" && n.status === "ready") ??
@@ -179,13 +177,15 @@ export default async function ExamPrepAssessmentPage({
           examReadinessLabel: indicators.examReadiness.label,
           claimFullyReady: indicators.examReadiness.claimFullyReady,
         }}
-        topics={topics.map((t) => {
-          // Yol, İlerleme ve Hazırsın ile aynı kaynak (Paket I #7): kayıtlı confidence okunmaz.
+        topics={displayTopics.map((t) => {
+          // Yol, İlerleme ve Hazırsın ile aynı kaynak (Paket I #7; Faz 4: aynı birleştirici `masteryByPlannedTopic` ve
+          // aynı rozet `topicMasteryView`). Kayıtlı confidence okunmaz.
           const view = topicMasteryView(scoreTopicMastery(t), typeof prep.target_score === "number" ? prep.target_score : null);
           return {
             topicKey: t.topicKey,
             measured: view.state !== "unmeasured",
             stateLabel: view.label,
+            tone: view.tone,
             percentText: view.text,
             evidenceCount: t.evidenceCount,
             lastPracticedAt: t.lastPracticedAt,

@@ -6,6 +6,8 @@ import { cn } from "@/lib/utils";
 import { PREP_HOME_COPY } from "@/lib/learning/exam-wizard-copy";
 import type { PrepProgressView } from "@/lib/learning/prep-progress-view";
 import { MASTERY_STATE_LABEL } from "@/lib/learning/learning-tracking";
+import { BADGE_LABEL, BADGE_TONE } from "@/lib/learning/mastery-policy";
+import "@/styles/report-card.css";
 import { METRIC_LABEL, masteryPercentText } from "@/lib/learning/prep-metrics";
 import { gapLines } from "@/lib/learning/feedback-copy";
 import { PrepRadarChart } from "@/components/parity/prep-radar-chart";
@@ -236,7 +238,9 @@ export function ExamPrepProgress({
                     <div className="cp-prog-topic-row">
                       <strong>{withoutOutcomeCode(topic.label)}</strong>
                       <span>
-                        {topic.state && topic.state !== "unmeasured" ? (
+                        {topic.badge && topic.badge !== "unmeasured" ? (
+                          <em className={cn("cp-prog-topic-state", "cp-badge", `cp-badge--${BADGE_TONE[topic.badge]}`)}>{BADGE_LABEL[topic.badge]}</em>
+                        ) : topic.state && topic.state !== "unmeasured" ? (
                           <em className={cn("cp-prog-topic-state", `is-${topic.state}`)}>{MASTERY_STATE_LABEL[topic.state]}</em>
                         ) : null}
                         {/* Ölçülmemiş konu sayı değil "Ölçülmedi" (30 Ekim 2026, Paket I #7). */}
