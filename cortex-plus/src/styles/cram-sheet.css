@@ -667,7 +667,15 @@
     color: #000 !important;
   }
 
+  /* Üst çubuk 13 Kasım 2026'dan beri `cx-home-top` (eski `cp-sor-top` geride kalan sayfalar için duruyor); geri,
+     kapat, sınav şeridi ve "İçeriğe atla" da kâğıtta yer kaplamaz (20 Kasım 2026, Faz 3). */
   body:has(.cp-cram-sheet) .cp-sor-top,
+  body:has(.cp-cram-sheet) .cx-home-top,
+  body:has(.cp-cram-sheet) .cx-shell-back,
+  body:has(.cp-cram-sheet) .cx-shell-close,
+  body:has(.cp-cram-sheet) .cx-shell-countdown,
+  body:has(.cp-cram-sheet) .cx-skip-link,
+  body:has(.cp-cram-sheet) .ug-promo,
   body:has(.cp-cram-sheet) .cp-sor-bottomnav,
   body:has(.cp-cram-sheet) .cp-free-preview-bar,
   body:has(.cp-cram-sheet) .cp-verify-bar,
@@ -813,6 +821,47 @@
 
   .cp-cram-sheet mark {
     font-weight: 700;
+  }
+
+  /*
+    Baskı cilası (20 Kasım 2026, Faz 3). Tarayıcılar baskıda zemin rengini varsayılan olarak atar; kâğıttaki
+    vurgular (fosforlu işaret) basılmıyordu. Kâğıt `exact` ister; vurgu siyah-beyaz yazıcıda da seçilsin diye açık
+    gri. Uzun formül (`.cp-uni-math` ekranda tek satır) sütunu taşırmasın diye baskıda sarar. Paragraf ve madde
+    sayfa/sütun sonunda tek satır bırakmaz.
+  */
+  .cp-cram-sheet,
+  .cp-cram-sheet * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .cp-cram-sheet mark {
+    background: #e3e3e3 !important;
+    padding: 0 0.15em;
+  }
+
+  .cp-cram-sheet .cp-uni-math,
+  .cp-cram-sheet .katex {
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+  }
+
+  .cp-cram-sheet .katex-display,
+  .cp-cram-sheet .cp-cram-formula,
+  .cp-cram-sheet .cp-cram-item {
+    max-width: 100%;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .cp-cram-sheet .katex-display {
+    overflow: visible;
+  }
+
+  .cp-cram-sheet p,
+  .cp-cram-sheet li {
+    orphans: 3;
+    widows: 3;
   }
 }
 

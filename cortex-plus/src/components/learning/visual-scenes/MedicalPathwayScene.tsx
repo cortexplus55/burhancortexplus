@@ -4,12 +4,14 @@ import { ARCHETYPE_LABEL, DOMAIN_LABEL, type AcademicDomain } from "@/lib/learni
 import {
   inflate,
   layoutHeader,
-  placeText,
+  labelBudget,
+  textPlacer,
   segment,
   type Rect,
   type SceneFrame,
   type SceneLayout,
   type TextBox,
+  type TextPlacer,
 } from "@/lib/learning/visual-scenes/layout";
 import { PATHWAY_ROLE_LABEL, type MedicalPathwayData } from "@/lib/learning/visual-scenes/schema";
 import { ArrowDefs, SceneBadge, SceneSvg, SceneText, delay, useSceneIds, type SceneCommonProps } from "./scene-kit";
@@ -41,6 +43,14 @@ export const MEDICAL_COLORS = {
 
 const NODE_R = 15;
 
+/**
+ * Üst üste dizilen rol, etiket ve açıklama arasındaki boşluk yazı boyuyla büyür (20 Kasım 2026). Sabit 2 birimde rol
+ * rozetinin alt satırı ile etiketin üstü arasında 1,6 px kalıyordu; CI tarayıcısında birkaç piksel uzun çizilen yazı
+ * ikisini çakıştırdı ("İKİNCİL HABERCİ" / "İkincil haberci", 16:9). Dikeyde satır yüksekliği basamağın ihtiyacına göre
+ * paylaşıldığı için boşluk dar tutulur (uzun açıklama kesilmesin).
+ */
+const stackGap = (box: TextBox, ratio: number, min: number) => Math.max(min, Math.round(box.fontSize * ratio));
+
 export type MedicalStepLayout = {
   cx: number;
   cy: number;
@@ -57,6 +67,7 @@ export type MedicalPathwayLayout = SceneLayout & {
 };
 
 function stepTexts(
+  place: TextPlacer,
   index: number,
   step: MedicalPathwayData["steps"][number],
   x: number,
@@ -73,13 +84,18 @@ function stepTexts(
     [3, 3],
     [2, 4],
     [3, 4],
+    [2, 5],
+    [3, 5],
+    [2, 6],
+    [3, 6],
+    [2, 7],
     [2, 1],
     [1, 1],
     [2, 0],
     [1, 0],
   ];
   const build = (labelLines: number, detailLines: number) => {
-    const role = placeText(`step${index}-role`, PATHWAY_ROLE_LABEL[step.role].toLocaleUpperCase("tr"), x, y, {
+    const role = place(`step${index}-role`, PATHWAY_ROLE_LABEL[step.role].toLocaleUpperCase("tr"), x, y, {
       maxWidth,
       maxLines: 2,
       fontSize: 9.5,
@@ -87,7 +103,7 @@ function stepTexts(
       weight: 700,
       anchor,
     });
-    const label = placeText(`step${index}-label`, step.label, x, role.rect.y + role.rect.h + 2, {
+    const label = place(`step${index}-label`, step.label, x, role.rect.y + role.rect.h + (portrait ? 3 : stackGap(role, 0.45, 5)), {
       maxWidth,
       maxLines: labelLines,
       fontSize: portrait ? 14 : 12.5,
@@ -97,7 +113,7 @@ function stepTexts(
     });
     const detail =
       step.detail && detailLines > 0
-        ? placeText(`step${index}-detail`, step.detail, x, label.rect.y + label.rect.h + 2, {
+        ? place(`step${index}-detail`, step.detail, x, label.rect.y + label.rect.h + (portrait ? 2 : stackGap(label, 0.3, 4)), {
             maxWidth,
             maxLines: detailLines,
             fontSize: portrait ? 11 : 10,
@@ -130,8 +146,23 @@ export function spotKicker(domain?: AcademicDomain): string {
   return domain === "medicine" || domain === "dentistry" || domain === "pharmacy" ? "KLİNİK SPOTU" : "SPOT BİLGİ";
 }
 
-export function layoutMedicalPathway(data: MedicalPathwayData, frame: SceneFrame, domain?: AcademicDomain): MedicalPathwayLayout {
+export function layoutMedicalPathway(raw: MedicalPathwayData, frame: SceneFrame, domain?: AcademicDomain): MedicalPathwayLayout {
   const { content } = frame;
+  const place = textPlacer(frame);
+  // Etiket bütçesi (seviye): basamak adları hep kalır, açıklamalar sondan düşer.
+  const [, detailN] = labelBudget(frame.text.maxLabels, [
+    { count: raw.steps.length + 1, keep: raw.steps.length + 1 },
+    { count: raw.steps.filter((step) => step.detail).length, keep: 0 },
+  ]);
+  let kept = 0;
+  const data: MedicalPathwayData = {
+    ...raw,
+    steps: raw.steps.map((step) => {
+      if (!step.detail) return step;
+      kept += 1;
+      return kept <= detailN ? step : { ...step, detail: undefined };
+    }),
+  };
   const badge = `${domain ? DOMAIN_LABEL[domain] : "Tıp · Biyoloji"} · ${ARCHETYPE_LABEL.MEDICAL_BIOLOGY_PATHWAY}`;
   const header = layoutHeader(frame, data.title, badge);
   const texts: TextBox[] = [...header.texts];
@@ -144,14 +175,14 @@ export function layoutMedicalPathway(data: MedicalPathwayData, frame: SceneFrame
   const spotWidth = frame.portrait ? content.w : Math.round(content.w * 0.3);
   const spotX = frame.portrait ? content.x : content.x + content.w - spotWidth;
   const spotPad = 10;
-  const kicker = placeText("spot-kicker", spotKicker(domain), spotX + spotPad + 18, 0, {
+  const kicker = place("spot-kicker", spotKicker(domain), spotX + spotPad + 18, 0, {
     maxWidth: spotWidth - spotPad * 2 - 18,
     maxLines: 1,
     fontSize: 10,
     weight: 800,
     single: true,
   });
-  const spotTextProbe = placeText("spot-text", data.spotlight.text, spotX + spotPad, 0, {
+  const spotTextProbe = place("spot-text", data.spotlight.text, spotX + spotPad, 0, {
     maxWidth: spotWidth - spotPad * 2,
     maxLines: frame.portrait ? 3 : 6,
     fontSize: frame.portrait ? 12.5 : 12,
@@ -161,7 +192,7 @@ export function layoutMedicalPathway(data: MedicalPathwayData, frame: SceneFrame
   const spotHeight = spotPad + kicker.rect.h + 6 + spotTextProbe.rect.h + spotPad;
   const spotY = frame.portrait ? bottom - spotHeight : top;
   const kickerBox: TextBox = { ...kicker, y: spotY + spotPad, rect: { ...kicker.rect, y: spotY + spotPad } };
-  const spotText = placeText("spot-text", data.spotlight.text, spotX + spotPad, spotY + spotPad + kicker.rect.h + 6, {
+  const spotText = place("spot-text", data.spotlight.text, spotX + spotPad, spotY + spotPad + kicker.rect.h + 6, {
     maxWidth: spotWidth - spotPad * 2,
     maxLines: frame.portrait ? 3 : 6,
     fontSize: frame.portrait ? 12.5 : 12,
@@ -178,14 +209,25 @@ export function layoutMedicalPathway(data: MedicalPathwayData, frame: SceneFrame
   const n = data.steps.length;
   const steps: MedicalStepLayout[] = [];
   if (frame.portrait) {
-    const rowH = chainArea.h / n;
     const cx = chainArea.x + NODE_R + 4;
     const textX = cx + NODE_R + 12;
     const textW = chainArea.x + chainArea.w - textX;
+    // Satır yüksekliği basamağın ihtiyacına göre: kısa basamak kısa satır, uzun açıklama daha geniş satır alır (eşit satırda
+    // yazı tabanıyla uzun açıklama kesiliyordu). Hepsi sığmazsa eşit satırlara dönülür.
+    const blocks = data.steps.map((step, index) => stepTexts(place, index, step, textX, 0, textW, "start", Number.POSITIVE_INFINITY, true).height);
+    const needsFor = (margin: number) => blocks.map((h) => Math.max(NODE_R * 2 + 6, h + margin));
+    const sum = (list: number[]) => list.reduce((total, h) => total + h, 0);
+    const margin = sum(needsFor(8)) <= chainArea.h ? 8 : 3;
+    const needs = needsFor(margin);
+    const needTotal = sum(needs);
+    const rowHs = needTotal <= chainArea.h ? needs.map((h) => h + (chainArea.h - needTotal) / n) : needs.map(() => chainArea.h / n);
+    let rowCursor = chainArea.y;
     data.steps.forEach((step, index) => {
-      const rowTop = chainArea.y + rowH * index;
-      const block = stepTexts(index, step, textX, rowTop, textW, "start", rowH - 8, true);
-      const shift = Math.max(0, (rowH - 8 - block.height) / 2);
+      const rowH = rowHs[index]!;
+      const rowTop = rowCursor;
+      rowCursor += rowH;
+      const block = stepTexts(place, index, step, textX, rowTop, textW, "start", rowH - margin, true);
+      const shift = Math.max(0, (rowH - margin - block.height) / 2);
       const move = (box: TextBox | null) => (box ? { ...box, y: box.y + shift, rect: { ...box.rect, y: box.rect.y + shift } } : null);
       const role = move(block.role)!;
       const label = move(block.label)!;
@@ -199,7 +241,7 @@ export function layoutMedicalPathway(data: MedicalPathwayData, frame: SceneFrame
     const baseCy = chainArea.y + NODE_R + 6;
     const blocks = data.steps.map((step, index) => {
       const cx = chainArea.x + spacing * index + spacing / 2;
-      return { cx, block: stepTexts(index, step, cx, baseCy + NODE_R + 10, spacing - 10, "middle", chainArea.y + chainArea.h - (baseCy + NODE_R + 10), false) };
+      return { cx, block: stepTexts(place, index, step, cx, baseCy + NODE_R + 10, spacing - 10, "middle", chainArea.y + chainArea.h - (baseCy + NODE_R + 10), false) };
     });
     // Zincir boş alanın dikey ortasına alınır (yatayda alt yarı boş kalmasın); spot kutusu zincirle hizalanır.
     const chainBottom = Math.max(...blocks.map(({ block }) => (block.detail ?? block.label).rect.y + (block.detail ?? block.label).rect.h));

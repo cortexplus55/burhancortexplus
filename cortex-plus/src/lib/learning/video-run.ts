@@ -281,6 +281,7 @@ export async function runVideoLesson(
     idempotencyKey: input.idempotencyKey,
     ...(input.sharedUsageCode ? { sharedUsageCode: input.sharedUsageCode } : {}),
     label: "teacher_video",
+    prepTitle: input.prepTitle,
     topic: input.topicLabel,
     work: async (ask) => {
       if (input.renderMode === "sketch_reel") {

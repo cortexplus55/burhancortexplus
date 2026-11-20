@@ -2,11 +2,15 @@ import Link from "next/link";
 import { MarketingPage } from "@/components/layout/marketing-page";
 import { CURRICULUM, listProgramSummaries } from "@/lib/curriculum/registry";
 import { programGroupLabel } from "@/lib/curriculum/program-group";
+import { pageMetadata } from "@/lib/seo/page-metadata";
 
-export const metadata = {
+// Kanonik adres ve sayfaya özel paylaşım bilgisi (20 Kasım 2026, Faz 3).
+export const metadata = pageMetadata({
   title: "Resmî Müfredat",
-  description: "MEB öğretim programları ve ortak yazılı senaryolarından çıkarılan kazanım listesi, kaynaklarıyla.",
-};
+  description:
+    "MEB öğretim programları ve ortak yazılı senaryolarından çıkarılan kazanım listesi, kaynaklarıyla.",
+  path: "/mufredat",
+});
 
 const EXAM_LABEL: Record<string, string> = { d1y1: "1. Yazılı", d1y2: "2. Yazılı" };
 

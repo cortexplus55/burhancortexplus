@@ -13,6 +13,7 @@ import { layoutBlueprint } from "@/components/learning/visual-scenes/Architectur
 import { layoutLawDecision } from "@/components/learning/visual-scenes/LawDecisionScene";
 import { layoutMathGraph } from "@/components/learning/visual-scenes/MathGraphScene";
 import { layoutDocumentSpotlight } from "@/components/learning/visual-scenes/DocumentSpotlightScene";
+import { layoutConceptStructure } from "@/components/learning/visual-scenes/ConceptStructureScene";
 
 /*
   Faz 1-B düzeltmesi (19 Kasım 2026): orta uzunlukta (≈ 55 karakter) metinlerle hiçbir arketipte, hiçbir disiplin
@@ -113,6 +114,18 @@ const RAW: Record<VisualArchetype, unknown> = {
       { row: 2, col: 2, label: "İkinci vurgu", note: LONG },
     ],
   },
+  CONCEPT_STRUCTURE_VISUALIZER: {
+    archetype: "CONCEPT_STRUCTURE_VISUALIZER",
+    title: "Başlangıç koşulundan sonuca dört aşamalı süreç",
+    structure: "process",
+    items: [
+      { id: "a", label: "Birinci aşama", detail: "Sürecin başladığı koşul" },
+      { id: "b", label: "İkinci aşama", detail: LONG },
+      { id: "c", label: "Üçüncü aşama", detail: "Ara sonuç belirginleşir" },
+      { id: "d", label: "Sonuç", detail: "Sınavda en çok sorulan nokta" },
+    ],
+    takeaway: "Aşamaların sırası sorulur; ikinci aşama atlanırsa sonuç değişir.",
+  },
 };
 
 
@@ -160,6 +173,7 @@ const LAYOUTS: Record<VisualArchetype, Layout> = {
   LAW_SOCIAL_FLOWCHART: (s, m, c, d) => layoutLawDecision(s as never, sceneFrame(m, c), d),
   MATH_ALGORITHMIC_GRAPH: (s, m, c, d) => layoutMathGraph(s as never, sceneFrame(m, c), d),
   DOCUMENT_FIGURE_SPOTLIGHT: (s, m, c) => layoutDocumentSpotlight(s as never, sceneFrame(m, c)),
+  CONCEPT_STRUCTURE_VISUALIZER: (s, m, c, d) => layoutConceptStructure(s as never, sceneFrame(m, c), d),
 };
 
 describe("kesik yazı yok (orta uzunlukta metin)", () => {

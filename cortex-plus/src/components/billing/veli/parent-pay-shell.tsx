@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Lock, ShieldCheck } from "lucide-react";
 import { PARENT_PAY_COPY } from "@/lib/payments/parent-pay-copy";
 import "@/styles/veli-odeme.css";
+import { MAIN_CONTENT_ID } from "@/lib/ui/main-content";
 
 /**
  * Velinin ödeme sayfalarının kabuğu (Faz 5 §2): güven veren üst bant (Cortex Plus logosu + "Güvenli veli ödemesi"),
@@ -24,7 +25,7 @@ export function ParentPayShell({ children }: { children: ReactNode }) {
           <Lock className="h-3.5 w-3.5" aria-hidden /> {PARENT_PAY_COPY.brandLine}
         </span>
       </header>
-      <main className="vo-main">{children}</main>
+      <main id={MAIN_CONTENT_ID} className="vo-main">{children}</main>
       <footer className="vo-footer">
         <ul className="vo-badges" aria-label="Ödeme güvencesi">
           {PARENT_PAY_COPY.badges.map((badge) => (

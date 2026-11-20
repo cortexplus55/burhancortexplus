@@ -4,6 +4,7 @@ import { loadTopicSourceCorrection } from "@/lib/learning/node/lesson-store";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
+import { studentCalibration } from "@/lib/learning/student-pedagogy";
 import { teacherPersona } from "@/lib/learning/teacher-brain";
 import { SOURCE_NUMBER_PRIORITY } from "@/lib/learning/teaching-rubric";
 import {
@@ -30,6 +31,7 @@ const replySchema = z.object({
 });
 
 const CACHE_TABLE = "exam_prep_step_reexplains";
+const PARAGRAPH = "\n\n";
 
 type FreeTrial = { used: number; limit: number };
 
@@ -133,6 +135,12 @@ export async function POST(request: Request) {
       : null;
   const sourceCorrection = correctionTopic ? await loadTopicSourceCorrection(service, correctionTopic.id) : null;
 
+  // Seviye kalibrasyonu (20 Kasım 2026): aynı adım ortaokulda sade, uzmanlıkta teknik anlatılır; sayılar yine notun.
+  const calibration = await studentCalibration(service, userId, "reexplain", {
+    prepTitle: String(prep.title),
+    subject: [String(prep.title), topicLabel].filter(Boolean).join(" "),
+  });
+
   let lastIntroduced: string[] = [];
   const outcome = await generateJson({
     service,
@@ -146,7 +154,7 @@ export async function POST(request: Request) {
     maxDraftAttempts: 2,
     schemaHint: 'JSON: {"reply":string}. Türkçe; 4-8 cümle, son satır "Kısaca:" ile başlar.',
     // Adımın sayıları notun sayılarıdır: yazar "düzeltmesin" (tek istem; ayrı denetçi yok).
-    systemAddendum: SOURCE_NUMBER_PRIORITY,
+    systemAddendum: [SOURCE_NUMBER_PRIORITY, calibration.block].join(PARAGRAPH),
     userPrompt: `${teacherPersona()}\n${reexplainUserPrompt({
       prepTitle: String(prep.title),
       topicLabel,

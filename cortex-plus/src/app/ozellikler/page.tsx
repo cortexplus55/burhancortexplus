@@ -8,12 +8,15 @@ import { FREE_FIRST_LESSON_SENTENCE } from "@/lib/billing/free-tier-copy";
 import { PLAN_MARKETING_COPY } from "@/lib/marketing/plan-copy";
 import { FREE_RESTUDY_BAND } from "@/lib/credits/price-table";
 import "@/styles/landing.css";
+import { pageMetadata } from "@/lib/seo/page-metadata";
 
-export const metadata = {
+// Kanonik adres ve sayfaya özel paylaşım bilgisi (20 Kasım 2026, Faz 3).
+export const metadata = pageMetadata({
   title: "Özellikler",
   description:
     "Ders, podcast, video, kartlar, konu testi, yazılı ve sözlü deneme, yanlışlar defteri ve AI öğretmen — hepsi kendi notundan.",
-};
+  path: "/ozellikler",
+});
 
 /*
   19 Ekim 2026: sayfa "gelişmiş model", "çalışma planı ve günlük görevler", "her işlem öncesi kredi

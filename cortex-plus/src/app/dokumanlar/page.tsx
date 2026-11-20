@@ -4,6 +4,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { DocumentRetryButton } from "@/components/documents/document-retry-button";
 import { DocumentDeleteButton } from "@/components/documents/document-delete-button";
 import { DocumentStatusPoller } from "@/components/documents/document-status-poller";
+import { DocumentsBrowser, type DocumentBrowserItem } from "@/components/documents/documents-browser";
 import { EmptyState } from "@/components/ui-kit/empty-state";
 import { requireUser } from "@/lib/auth/session";
 import { formatDate } from "@/lib/format";
@@ -22,6 +23,7 @@ import { DOCUMENT_EMPTY_DESCRIPTION } from "@/lib/documents/upload-labels";
 import { isProcessingStuck } from "@/lib/documents/processing-stale";
 import { coverageBadgeText, processedCoverage } from "@/lib/documents/page-coverage";
 import { missingColumn } from "@/lib/learning/missing-column";
+import { documentKind, documentStatusBucket } from "@/lib/documents/document-filter";
 
 export const metadata = { title: "Belgelerim" };
 
@@ -139,8 +141,9 @@ export default async function DokumanlarPage() {
       <div className="cp-docs">
 
         {documents?.length ? (
-          <ul className="cp-docs-list">
-            {documents.map((document) => {
+          /* 20 Kasım 2026 (Faz 3): kartlar burada çizilir; arama ve süzgeç tarayıcıda (`DocumentsBrowser`). */
+          <DocumentsBrowser
+            items={documents.map((document): DocumentBrowserItem => {
               // Ekranda tek marka düğmesi (13 Kasım 2026): yalnız hazır olan ilk belgenin birincil düğmesi.
               const brandPrimary = document.id === brandDocumentId;
               const ready =
@@ -176,7 +179,12 @@ export default async function DokumanlarPage() {
                 mapStopped && document.topic_map_error ? topicMapErrorLabel(document.topic_map_error) : null,
               ].filter(Boolean);
 
-              return (
+              return {
+                id: document.id,
+                fileName: document.file_name,
+                status: documentStatusBucket({ status: document.status, mapStopped }),
+                kind: documentKind(document.file_name),
+                card: (
                 <li key={document.id} className="cp-docs-card">
                   <div className="cp-docs-head">
                     <span className="cp-docs-icon" aria-hidden>
@@ -237,9 +245,10 @@ export default async function DokumanlarPage() {
                     </span>
                   </div>
                 </li>
-              );
+                ),
+              };
             })}
-          </ul>
+          />
         ) : (
           <EmptyState
             variant="parity"

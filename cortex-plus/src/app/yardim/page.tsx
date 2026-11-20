@@ -8,11 +8,17 @@ import { ParitySorShell } from "@/components/parity/sor-shell";
 import { loadOptionalStudentShell } from "@/lib/student/optional-shell";
 import { FREE_DOCUMENT_SENTENCE, PLUS_ONLY_SENTENCE } from "@/lib/billing/free-tier-copy";
 import { supportSlaLine } from "@/lib/support/sla";
+import { pageMetadata } from "@/lib/seo/page-metadata";
+import { faqPageJsonLd } from "@/lib/seo/structured-data";
+import { JsonLd } from "@/components/seo/json-ld";
 
-export const metadata = {
+// Kanonik adres ve sayfaya özel paylaşım bilgisi (20 Kasım 2026, Faz 3).
+export const metadata = pageMetadata({
   title: "Yardım",
-  description: "Cortex Plus hakkında sık sorulan sorular ve destek kanalları.",
-};
+  description:
+    "Cortex Plus hakkında sık sorulan sorular ve destek kanalları.",
+  path: "/yardim",
+});
 
 // 19 Ekim 2026: "çalışma planı", "gelişmiş model" ve "öncelikli destek" yoktu; cevaplar bugünkü ürüne göre.
 const faqs = [
@@ -81,6 +87,8 @@ export default async function YardimPage() {
 function YardimContent() {
   return (
     <>
+      {/* Sık sorulanların yapılandırılmış verisi: soru ve cevap aşağıdaki metnin aynısı (20 Kasım 2026, Faz 3). */}
+      <JsonLd data={faqPageJsonLd(faqs)} />
       <p className="mk-eyebrow">Sık sorulanlar</p>
 
       {/*

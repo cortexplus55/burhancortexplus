@@ -5,6 +5,7 @@ import Link from "next/link";
 import { LevelCheckRunner } from "@/components/level-check/level-check-runner";
 import { httpLevelApi, type LevelApi } from "@/lib/level-check/types";
 import "@/styles/level-check.css";
+import { MAIN_CONTENT_ID } from "@/lib/ui/main-content";
 
 export type GuestScanSubject = { key: string; label: string; unitIds: string[] };
 
@@ -31,7 +32,7 @@ export function GuestQuickScan({
 
   if (signedIn)
     return (
-      <main className="lc-page" data-testid="signed-in-scan">
+      <main id={MAIN_CONTENT_ID} className="lc-page" data-testid="signed-in-scan">
         <h1 className="lc-title">⚡ Akıllı Hızlı Tarama</h1>
         <div className="lc-box">
           <p className="lc-status">
@@ -45,7 +46,7 @@ export function GuestQuickScan({
     );
 
   return (
-    <main className="lc-page" data-testid="guest-scan">
+    <main id={MAIN_CONTENT_ID} className="lc-page" data-testid="guest-scan">
       <p className="lc-kicker">Ücretsiz ön izleme · 3 soru</p>
       <h1 className="lc-title">⚡ Akıllı Hızlı Tarama</h1>
       {!subject ? (

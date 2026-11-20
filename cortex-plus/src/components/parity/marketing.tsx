@@ -9,6 +9,7 @@ import { CinematicPageHero } from "@/components/marketing/cinematic-page-hero";
 import { CinematicScrollReveal } from "@/components/marketing/cinematic-scroll-reveal";
 import { CookiePreferencesButton } from "@/components/legal/cookie-banner";
 import { LOGO_FULL_ASPECT } from "@/components/brand/logo-oran";
+import { MAIN_CONTENT_ID } from "@/lib/ui/main-content";
 
 
 export { ParitySiteHeader } from "@/components/marketing/parity-site-header";
@@ -89,7 +90,7 @@ export function ParityMarketingPage({
     <div className={shellClass}>
       <ParitySiteHeader />
       <CinematicScrollReveal>
-        <main className="min-w-0 flex-1">
+        <main id={MAIN_CONTENT_ID} className="min-w-0 flex-1">
           {title && variant === "marketing" ? (
             <CinematicPageHero title={title} description={description} />
           ) : null}

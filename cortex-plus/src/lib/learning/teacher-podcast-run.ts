@@ -441,7 +441,7 @@ async function runTeacherPodcastInner(
   let calls = 0;
   // Öğrenci bekliyor (önceden hazır podcast yok): hızlı işlem.
   // Hızlı işlem yalnız Plus/Sigma ve kurucuya (19 Ekim 2026, `fast-access.ts`).
-  const profileLoad = studentPedagogyBlock(service, input.userId, "podcast");
+  const profileLoad = studentPedagogyBlock(service, input.userId, "podcast", { prepTitle: input.prepTitle ?? null, subject: [input.prepTitle, input.topicLabel].filter(Boolean).join(" ") || null });
   const optionCountLoad = studentOptionCount(service, input.userId, input.prepTitle);
   const tier = fastTier(!free && (await fastAllowedFor(service, input.userId)));
   const profile = shared ? "" : await profileLoad;

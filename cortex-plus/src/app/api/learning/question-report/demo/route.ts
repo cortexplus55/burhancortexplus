@@ -18,10 +18,15 @@ const bodySchema = z.object({
  * Tanıtım turunda "🚩 Soruda Hata Bildir" (Faz 5 §3.1, 19 Kasım 2026). Ziyaretçi misafir olabilir; bildirim
  * `question_reports` tablosuna `source = 'demo'` ile yazılır (oturum varsa hesabıyla). Soru sunucudaki sabit veriden
  * okunur, tarayıcının gönderdiği metne güvenilmez. Model çağrısı ve ödül yok: ekip yönetim panelinde inceler.
- * IP başına saatte 6 bildirim.
+ * IP başına saatte 6, günde 10 bildirim (20 Kasım 2026, Faz 5 denetimi: yalnız saatlik sınır vardı, gün boyu sınırsız
+ * yazılabiliyordu).
  */
+const GUEST_REPORT_DAILY_LIMIT = 10;
+
 export async function POST(request: Request) {
-  const limited = await guestLimit(request, { scope: "question-report-demo", limit: 6, windowSeconds: 3_600 });
+  const limited =
+    (await guestLimit(request, { scope: "question-report-demo", limit: 6, windowSeconds: 3_600 })) ??
+    (await guestLimit(request, { scope: "question-report-demo-day", limit: GUEST_REPORT_DAILY_LIMIT, windowSeconds: 86_400 }));
   if (limited) return limited;
 
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));

@@ -106,7 +106,8 @@ export function fitText(text: string, options: FitOptions): FittedText {
   let fontSize = options.fontSize;
   let lines = wrapText(clean, options.maxWidth, fontSize, weight);
   while (lines.length > options.maxLines && fontSize > minFont) {
-    fontSize -= 1;
+    // En küçük boyun altına inilmez (eskiden 1'er inerken taban 0,5 aşılabiliyordu).
+    fontSize = Math.max(minFont, fontSize - 1);
     lines = wrapText(clean, options.maxWidth, fontSize, weight);
   }
   let truncated = false;
@@ -132,7 +133,7 @@ export function fitSingleLine(
 ): { text: string; fontSize: number; width: number } {
   const clean = text.replace(/\s+/g, " ").trim();
   let size = fontSize;
-  while (size > minFontSize && measureText(clean, size, weight) > maxWidth) size -= 1;
+  while (size > minFontSize && measureText(clean, size, weight) > maxWidth) size = Math.max(minFontSize, size - 1);
   if (measureText(clean, size, weight) <= maxWidth) return { text: clean, fontSize: size, width: measureText(clean, size, weight) };
   const cut = ellipsize(clean, maxWidth, size, weight);
   return { text: cut, fontSize: size, width: measureText(cut, size, weight) };

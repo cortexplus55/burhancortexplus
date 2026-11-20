@@ -1,10 +1,12 @@
 "use client";
 
+import type { PedagogicalLevel } from "@/lib/learning/pedagogical-profile";
 import type { AcademicDomain } from "@/lib/learning/visual-scenes/archetype";
 import { sceneFrame, type SceneChrome, type SceneMode } from "@/lib/learning/visual-scenes/layout";
 import type { ReelVisual, VisualScene } from "@/lib/learning/visual-scenes/schema";
 import { ArchitecturalBlueprintScene } from "./ArchitecturalBlueprintScene";
 import { ComparisonMatrixScene } from "./ComparisonMatrixScene";
+import { ConceptStructureScene } from "./ConceptStructureScene";
 import { DocumentSpotlightScene } from "./DocumentSpotlightScene";
 import { ExamTrapScene } from "./ExamTrapScene";
 import { LawDecisionScene } from "./LawDecisionScene";
@@ -21,14 +23,16 @@ export type VisualSceneProps = {
   mode: SceneMode;
   chrome?: SceneChrome;
   domain?: AcademicDomain;
+  /** Seviye: verilmezse sahnenin kendi `pedagogicalLevel` alanı (o da yoksa eski davranış). */
+  level?: PedagogicalLevel;
   animate?: SceneAnimate;
   playing?: boolean;
   className?: string;
 };
 
-/** Arketip verisini kendi bileşenine yollar (6 arketip). */
-export function VisualSceneRenderer({ scene, mode, chrome = "lesson", domain, animate, playing, className }: VisualSceneProps) {
-  const common = { frame: sceneFrame(mode, chrome), animate, playing, className };
+/** Arketip verisini kendi bileşenine yollar (7 arketip); çerçeve seviyenin yazı ölçeğini ve etiket bütçesini taşır. */
+export function VisualSceneRenderer({ scene, mode, chrome = "lesson", domain, level, animate, playing, className }: VisualSceneProps) {
+  const common = { frame: sceneFrame(mode, chrome, level ?? scene.pedagogicalLevel), animate, playing, className };
   switch (scene.archetype) {
     case "MEDICAL_BIOLOGY_PATHWAY":
       return <MedicalPathwayScene data={scene} domain={domain} {...common} />;
@@ -42,6 +46,8 @@ export function VisualSceneRenderer({ scene, mode, chrome = "lesson", domain, an
       return <MathGraphScene data={scene} domain={domain} {...common} />;
     case "DOCUMENT_FIGURE_SPOTLIGHT":
       return <DocumentSpotlightScene data={scene} {...common} />;
+    case "CONCEPT_STRUCTURE_VISUALIZER":
+      return <ConceptStructureScene data={scene} domain={domain} {...common} />;
   }
 }
 
@@ -76,4 +82,4 @@ export function ReelSceneRenderer({
   }
 }
 
-export { MedicalPathwayScene, MechanicsVectorScene, ArchitecturalBlueprintScene, LawDecisionScene, MathGraphScene, DocumentSpotlightScene };
+export { MedicalPathwayScene, MechanicsVectorScene, ArchitecturalBlueprintScene, LawDecisionScene, MathGraphScene, DocumentSpotlightScene, ConceptStructureScene };

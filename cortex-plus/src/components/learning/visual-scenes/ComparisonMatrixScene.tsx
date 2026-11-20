@@ -1,6 +1,6 @@
 "use client";
 
-import { layoutHeader, placeText, segment, type Rect, type SceneFrame, type SceneLayout, type TextBox } from "@/lib/learning/visual-scenes/layout";
+import { SCENE_FONT_FLOOR, layoutHeader, placeText, segment, type Rect, type SceneFrame, type SceneLayout, type TextBox } from "@/lib/learning/visual-scenes/layout";
 import type { ReelComparison } from "@/lib/learning/visual-scenes/schema";
 import { SceneBadge, SceneSvg, SceneText, delay, type SceneCommonProps } from "./scene-kit";
 
@@ -116,7 +116,7 @@ export function ComparisonMatrixScene({ data, ...common }: SceneCommonProps & { 
       </g>
       <g className="cp-vs-fade" style={delay(0.4)}>
         <circle cx={heads.vs.cx} cy={heads.vs.cy} r={13} fill={COMPARE_COLORS.bg} stroke={COMPARE_COLORS.vs} strokeWidth={2} />
-        <text x={heads.vs.cx} y={heads.vs.cy + 3.8} fontSize={10} fontWeight={800} textAnchor="middle" fill={COMPARE_COLORS.vs}>
+        <text x={heads.vs.cx} y={heads.vs.cy + SCENE_FONT_FLOOR * 0.36} fontSize={SCENE_FONT_FLOOR} fontWeight={800} textAnchor="middle" fill={COMPARE_COLORS.vs}>
           VS
         </text>
       </g>

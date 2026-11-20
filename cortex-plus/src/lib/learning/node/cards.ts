@@ -60,6 +60,7 @@ export async function teacherCardsPayload(
     charge: input.charge,
     startedAt,
     label: "teacher_cards",
+    prepTitle: input.prepTitle,
     topic: input.topicLabel,
     work: async (ask, started) => {
       let cards = (await teacherCardsLoop(ask, cardsInput, started)).cards;

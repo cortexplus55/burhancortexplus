@@ -4,12 +4,15 @@ import { ParityMarketingPage } from "@/components/parity/marketing";
 import { Icon3D, type Icon3DName } from "@/components/ui/icon-3d";
 import { PLAN_MARKETING_COPY, WRITTEN_EXAM_AVAILABILITY } from "@/lib/marketing/plan-copy";
 import "@/styles/landing.css";
+import { pageMetadata } from "@/lib/seo/page-metadata";
 
-export const metadata = {
+// Kanonik adres ve sayfaya özel paylaşım bilgisi (20 Kasım 2026, Faz 3).
+export const metadata = pageMetadata({
   title: "Sınav hazırlığı",
   description:
     "Notunu ya da sınavını ver; konular sırayla bir yola dizilir. Sıradaki adımın, hazırlık puanın ve sınav günü tahminin hep görünür.",
-};
+  path: "/sinav-hazirligi",
+});
 
 /*
   19 Ekim 2026: sayfa eski ürünü anlatıyordu ("net" analizi, saatli günlük plan, "planına dön") ve

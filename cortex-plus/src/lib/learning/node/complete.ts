@@ -33,6 +33,7 @@ import {
   onNodeFailure,
   readWalletBalance,
   scheduleAfter,
+  TEACHER_CARD_KINDS,
 } from "@/lib/learning/node/shared";
 import { reviewSourceBlock, writtenReviewForPayload } from "@/lib/learning/node/written-review";
 import { gradeOralSemantics, oralCorpus, oralHasAnswerText, oralNeedsJudge, oralReviewFromPayload } from "@/lib/learning/node/oral";
@@ -351,7 +352,9 @@ export async function completeAction(context: NodeContext): Promise<NextResponse
       }
 
       // Faz 4: kart düğümünün öz bildirimleri SM-2 ile kart tekrar kaydına (hata günlüğe iner, tamamlama sürer).
-      if (kind === "flashcards") {
+      // İki kart türü de yazılır: canlıda destelerin çoğu "Kartlarla tekrar" (spaced) adımı; yalnız "flashcards"
+      // yazılınca o destelerin değerlendirmeleri sessizce düşüyordu (20 Kasım 2026).
+      if (TEACHER_CARD_KINDS.has(kind)) {
         await recordNodeCardReviews(service, {
           userId,
           prepId,

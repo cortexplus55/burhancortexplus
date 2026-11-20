@@ -65,6 +65,25 @@ olmalı; docs/operasyon/disk-io.md).
 **Geri alma:** `20261031160000_part_search_parent.sql` dosyasının `CREATE OR REPLACE` bloğunu SQL ekranında yeniden
 çalıştırmak (göç değil; yalnız Burhan'ın kararıyla).
 
+## 20261119150000 · cevap_anahtari_okuma_kapat (PR #707)
+
+| | |
+|---|---|
+| Onaylayan | Burhan (sohbette, 20 Kasım 2026: "SADECE PR #707 CANLIYA GİRDİKTEN SONRA, `20261119150000` cevap anahtarı RLS migration'ını canlı Supabase veritabanına uygula") |
+| Uygulama | 20 Kasım 2026, TR ~01:40; #707 birleşme commit'i `24a7e86c` Vercel'de "success" ve üretim duman testi 7/7 geçtikten sonra. Supabase SQL ekranı, tek çalıştırma + kayıt satırı |
+| Uygulayan | Claude, Burhan'ın onayıyla |
+| Değişen | Yalnız izin: yedi tabloda `anon` ve `authenticated` için tablo düzeyi SELECT kalktı, `authenticated` anahtar taşımayan sütunları okur. Satır, sütun, politika ve veri değişmedi |
+
+**Doğrulama:** `has_column_privilege` ile: `practice_exam_questions` (correct_answer, correct_answers, explanation, model_answer,
+rubric), `quiz_questions` (correct_answer, explanation), `exam_prep_node_attempts.payload`, `exam_prep_intro_attempts.payload`,
+`exam_prep_lessons` (content_json, content_md), `exam_prep_podcasts.listening_check`, `prep_duels.questions` için authenticated
+ve anon **false**; anahtar olmayan sütunlar (soru metni, durum, başlık, bölümler) authenticated için **true**. Kayıt satırı 1.
+Göçten önce ve sonra kurucu hesabıyla aynı dört sayfa (bitmiş ders, düğüm sonucu, deneme sonucu, deneme incelemesi) 200 ve
+birebir aynı içerikle açıldı; inceleme doğru yanıtları ve çözüm açıklamalarını gösteriyor. Sınavlar, hazırlık, sınav sabahı,
+İlerleme, Yanlışlarım, öğretmen ve Çalışma Stüdyosu 200.
+
+**Geri alma:** `supabase/rollback/20261119_cevap_anahtari_okuma_geri_al.sql` (göç değil; açığı yeniden açar, yalnız Burhan'ın kararıyla).
+
 ## İstatistik işlemleri (göç değil)
 
 | Zaman (UTC) | İşlem | Onay | Sonuç |

@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 /*
-  Faz 1-B (19 Kasım 2026): altı arketip ders ekranında ve 5 sahneli akış oynatıcıda, gerçek tarayıcıda. Sayfa yatay
+  Faz 1-B (19 Kasım 2026; 20 Kasım 2026 kavram yapısıyla yedi): arketipler ders ekranında ve 5 sahneli akış oynatıcıda, gerçek tarayıcıda. Sayfa yatay
   taşmaz; görünen her SVG'de her yazının ölçülen kutusu çizim alanının içindedir ve yazılar üst üste binmez.
 */
 
@@ -13,6 +13,7 @@ const ARCHETYPES = [
   "LAW_SOCIAL_FLOWCHART",
   "MATH_ALGORITHMIC_GRAPH",
   "DOCUMENT_FIGURE_SPOTLIGHT",
+  "CONCEPT_STRUCTURE_VISUALIZER",
 ] as const;
 
 async function svgTextIssues(page: import("@playwright/test").Page) {
@@ -56,12 +57,14 @@ async function svgTextIssues(page: import("@playwright/test").Page) {
 }
 
 for (const width of WIDTHS) {
-  test(`görsel sahne: altı arketip ders ekranında ${width} px`, async ({ page }) => {
+  test(`görsel sahne: yedi arketip ders ekranında ${width} px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/e2e/gorsel-sahne?mod=ders");
-    await expect(page.locator("[data-fixture-archetype]")).toHaveCount(6);
+    await expect(page.locator("[data-fixture-archetype]")).toHaveCount(ARCHETYPES.length);
+    await expect(page.locator("[data-fixture-concept]")).toHaveCount(5);
     const m = await svgTextIssues(page);
-    expect(m.count).toBe(7);
+    // Yedi arketip + kavram yapısının öbür beş biçimi + eğilim sahnesi.
+    expect(m.count).toBe(ARCHETYPES.length + 5 + 1);
     const trend = (await page.locator("[data-fixture-trend] svg.cp-vs").filter({ visible: true }).first().textContent()) ?? "";
     expect(trend).toContain("EĞİLİM VE YÖN DİYAGRAMI");
     expect(trend).not.toMatch(/KUVVET|FORMÜLÜN/);
@@ -84,7 +87,7 @@ for (const width of WIDTHS) {
     }
   });
 
-  test(`görsel sahne: ana çizim sahnesi altı arketiple, iki oranda ${width} px`, async ({ page }) => {
+  test(`görsel sahne: ana çizim sahnesi yedi arketiple, iki oranda ${width} px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     for (const arketip of ARCHETYPES) {
       await page.goto(`/e2e/gorsel-sahne?mod=video&sahne=1&arketip=${arketip}`);

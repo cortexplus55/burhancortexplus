@@ -14,6 +14,8 @@ import { parseModelJson } from "@/lib/learning/teaching-standards";
 import { LESSON_V3_FORMAT, screenConcept, type LessonScreen, type LessonV3 } from "@/lib/learning/lesson-v3";
 import { LessonStreamReader } from "@/lib/learning/lesson-stream";
 import { runLessonSanity } from "@/lib/learning/lesson-sanity";
+import { guardLessonForCorrection, guardScreensForCorrection } from "@/lib/learning/lesson-correction-guard";
+import { levelFromCalibrationBlock, type PedagogicalLevel } from "@/lib/learning/pedagogical-profile";
 import {
   COVERAGE_COMPLETION_SCREENS,
   DIAGRAM_COMPLETION_SYSTEM,
@@ -30,6 +32,7 @@ import {
   dropRepeatedScreens,
   fourPartGaps,
   isCoverageIssue,
+  lessonCorrectionNow,
   lessonCoverageGaps,
   lessonLevelStructureIssues,
   lessonTeachingFlags,
@@ -397,6 +400,21 @@ export async function teacherLessonPipeline(
 ): Promise<PipelineResult> {
   const started = options.started ?? Date.now();
   const mode = input.mode ?? "document";
+  // Her yayım (ön yayım, nabız, kavram yayımı) kaynak düzeltme bekçisinden geçer: başlıktaki hedef ve genel bakış da.
+  // Ekranlar kavram yayımında zaten süzülüyor; burada ekran sayısı değişmez.
+  const rawPublish = options.onPublish;
+  if (rawPublish) {
+    options = {
+      ...options,
+      onPublish: (item) =>
+        rawPublish({
+          ...item,
+          lesson: guardLessonForCorrection(item.lesson, mode === "topic" ? null : lessonCorrectionNow(input), {
+            keepScreens: true,
+          }).lesson,
+        }),
+    };
+  }
   const fixTriggers: TeacherIssue[][] = [];
   const dropped: string[] = [];
   const teachingScores: number[] = [];
@@ -437,7 +455,9 @@ export async function teacherLessonPipeline(
     let preview: { screen: LessonScreen; sent: Promise<void> } | null = null;
     const sendPreview = (screen: LessonScreen) => {
       if (!options.onPublish || input.streamFirst === false || preview) return;
-      const shown = previewScreen(screen);
+      // Ön yayım da kaynak düzeltme bekçisinden geçer: denetlenmemiş ekran yanlış bağıntıyı bir an bile göstermesin.
+      const guarded = guardScreensForCorrection([screen], mode === "topic" ? null : lessonCorrectionNow(input)).screens[0];
+      const shown = guarded ? previewScreen(guarded) : null;
       if (!shown) return;
       const lesson = stripLessonIssueTags({
         format: LESSON_V3_FORMAT,
@@ -598,8 +618,14 @@ export async function teacherLessonPipeline(
         // Ders içi soru tekrarı yayımdan önce deterministik olarak düşer (25 Ekim 2026); anahtar açıklamasıyla
         // hizalanır, görsele gönderen soru çıkar (29 Ekim 2026) — karıştırmadan önce.
         // Ekran içi tekrar süzgeci (30 Ekim 2026): üçüncü kez geçen örnek ya da cümle süs kutusundan silinir.
+        // Kaynak düzeltme bekçisi (20 Kasım 2026): notun bilimsel olarak yanlış bağıntısını öğreten cümle, kutu ya da
+        // soru yayımdan önce düşer (yalnız siler). Düzeltme o anda bilinen (baştan ya da paralel denetimden gelen).
+        const corrected = guardScreensForCorrection(outcome.screens, mode === "topic" ? null : lessonCorrectionNow(input));
+        if (corrected.dropped) {
+          console.info("teacher_lesson_correction_guard", { concept: parts[index]?.concept?.slice(0, 60) ?? null, dropped: corrected.dropped });
+        }
         const deduped = dedupScreens(
-          settleCheckKeys(dropRepeatedScreens(published, dropRepeatedChecks(published, outcome.screens)), {
+          settleCheckKeys(dropRepeatedScreens(published, dropRepeatedChecks(published, corrected.screens)), {
             concept: parts[index]?.concept,
           }),
         );
@@ -759,6 +785,14 @@ export async function teacherLessonPipeline(
       academicDomain: scene?.verdict === "added" ? scene.domain : domain.academicDomain,
       visualArchetype: scene?.verdict === "added" ? scene.archetype : domain.visualArchetype,
     };
+    // Kapanış alanları ve sonradan eklenen ekranlar da (onarım, kapsam, şema) aynı bekçiden geçer.
+    if (mode !== "topic") {
+      const closing = guardLessonForCorrection(delivered, lessonCorrectionNow(input));
+      if (closing.dropped) {
+        console.info("teacher_lesson_correction_guard", { stage: "closing", dropped: closing.dropped });
+        delivered = closing.lesson;
+      }
+    }
     const done = !lessonLevelStructureIssues(delivered, input).some(isCoverageIssue);
     return {
       lesson: stripLessonIssueTags(delivered),
@@ -859,6 +893,26 @@ export function createLessonIo(
  * Kredi bir kez ayrılır; ders dönerse kesinleşir, dönmezse iade edilir.
  */
 /** Hafif doğrulayıcının kaynağı: belgeli derste sayfalar, belgesiz derste konunun onaylı havuz anlatımı (6 Kasım 2026). */
+/**
+ * Görsel sahnenin yoğunluk seviyesi öğrencinin çözülmüş profilinden (20 Kasım 2026): model alanı boş bırakabilir ya da
+ * başka seviye yazabilir; çizim etiket bütçesini ve yazı ölçeğini bu seviyeden alır. Seviye yoksa ders aynen döner.
+ */
+export function stampSceneLevel(lesson: LessonV3, level: PedagogicalLevel | null): LessonV3 {
+  if (!level) return lesson;
+  let changed = false;
+  const screens = lesson.screens.map((screen) => {
+    if (!screen.blocks.some((block) => block.type === "visual_scene")) return screen;
+    changed = true;
+    return {
+      ...screen,
+      blocks: screen.blocks.map((block) =>
+        block.type === "visual_scene" ? ({ ...block, scene: { ...block.scene, pedagogicalLevel: level } } as typeof block) : block,
+      ),
+    };
+  });
+  return changed ? { ...lesson, screens } : lesson;
+}
+
 export function sanitySource(input: Pick<TeacherLessonInput, "mode" | "pages" | "approvedFacts">): string {
   if (input.mode === "topic") return input.approvedFacts?.trim() ?? "";
   return input.pages.map((page) => page.text).join("\n");
@@ -935,7 +989,7 @@ async function runTeacherLessonInner(
   const callMs: Record<string, number[]> = {};
   let firstTokenMs: number | undefined;
   // Hızlı işlem yalnız Plus/Sigma ve kurucuya (19 Ekim 2026, ürün sahibinin kararı; `fast-access.ts`).
-  const profileLoad = studentPedagogyBlock(service, input.userId, "lesson");
+  const profileLoad = studentPedagogyBlock(service, input.userId, "lesson", { prepTitle: input.prepTitle ?? null, subject: [input.prepTitle, input.topicLabel].filter(Boolean).join(" ") || null });
   const fast = Boolean(input.fast) && (await fastAllowedFor(service, input.userId));
   const profile = await profileLoad;
   const io = createLessonIo(openai, model, {
@@ -996,7 +1050,7 @@ async function runTeacherLessonInner(
     if (reservationId) await commitCredits(service, reservationId);
     return {
       ok: true,
-      lesson: result.lesson,
+      lesson: stampSceneLevel(result.lesson, levelFromCalibrationBlock(profile)),
       calls,
       ms: Date.now() - started,
       remainingLow: result.issues,

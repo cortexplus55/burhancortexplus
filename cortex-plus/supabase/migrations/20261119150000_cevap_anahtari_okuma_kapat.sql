@@ -1,4 +1,4 @@
--- YAZILDI, UYGULANMADI: Burhan onayıyla SQL ekranında uygulanır (kayıt satırıyla); docs/operasyon/goc-kayitlari.md.
+-- UYGULANDI: 20 Kasım 2026, #707 yayından sonra, Burhan onayıyla SQL ekranında (kayıt satırıyla); docs/operasyon/goc-kayitlari.md.
 --
 -- 19 Kasım 2026 (Faz 2 denetimi): cevap anahtarı okuma açığı kapanır.
 --

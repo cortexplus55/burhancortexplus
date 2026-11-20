@@ -6,7 +6,7 @@ import { VISUAL_ARCHETYPES, type AcademicDomain, type VisualArchetype } from "@/
 import { parseReelVisual, REEL_BEATS, type ReelBeat } from "@/lib/learning/visual-scenes/schema";
 
 /*
-  Yalnız test fikstürü (E2E_FIXTURE=1): içerik jeneriktir, öğrenciye gösterilmez. Altı arketip ders ekranında
+  Yalnız test fikstürü (E2E_FIXTURE=1): içerik jeneriktir, öğrenciye gösterilmez. Yedi arketip (kavram yapısının altı biçimi) ders ekranında
   ve 5 sahneli akış oynatıcıda nasıl görünüyor, dar ve geniş ekranda göz kontrolü için.
 */
 const LONG = "Bu açıklama bilerek uzun yazıldı; satıra sığmazsa sarılmalı, küçülmeli ve gerekirse üç noktayla kesilmelidir ki kutudan hiç taşmasın";
@@ -103,6 +103,18 @@ const RAW: Record<VisualArchetype, unknown> = {
       { row: 2, col: 2, label: "İkinci vurgu", note: LONG },
     ],
   },
+  CONCEPT_STRUCTURE_VISUALIZER: {
+    archetype: "CONCEPT_STRUCTURE_VISUALIZER",
+    title: "Başlangıç koşulundan sonuca dört aşamalı süreç",
+    structure: "process",
+    items: [
+      { id: "a", label: "Birinci aşama", detail: "Sürecin başladığı koşul" },
+      { id: "b", label: "İkinci aşama", detail: LONG },
+      { id: "c", label: "Üçüncü aşama", detail: "Ara sonuç belirginleşir" },
+      { id: "d", label: "Sonuç", detail: "Sınavda en çok sorulan nokta" },
+    ],
+    takeaway: "Aşamaların sırası sorulur; ikinci aşama atlanırsa sonuç değişir.",
+  },
 };
 
 const REEL: Record<string, unknown> = {
@@ -172,7 +184,91 @@ const ARCHETYPE_DOMAIN: Record<VisualArchetype, AcademicDomain> = {
   LAW_SOCIAL_FLOWCHART: "law",
   MATH_ALGORITHMIC_GRAPH: "mathematics",
   DOCUMENT_FIGURE_SPOTLIGHT: "document_figure",
+  CONCEPT_STRUCTURE_VISUALIZER: "history",
 };
+
+/** Kavram yapısının öbür beş biçimi (süreç ana fikstürde): göz kontrolü için ayrı bölümler. */
+const CONCEPT_EXTRA: { structure: string; domain: AcademicDomain; raw: unknown }[] = [
+  {
+    structure: "matrix",
+    domain: "literature",
+    raw: {
+      archetype: "CONCEPT_STRUCTURE_VISUALIZER",
+      title: "Üç dönemin ölçütlere göre karşılaştırması",
+      structure: "matrix",
+      columns: ["Birinci dönem", "İkinci dönem", "Üçüncü dönem"],
+      comparisonRows: [
+        { label: "Ana tema", values: ["Birinci tema", "İkinci tema", "Üçüncü tema"], highlight: 1 },
+        { label: "Biçim", values: ["Kalıplı", "Serbest", "Karma"] },
+        { label: "Dil", values: ["Ağır", "Sade", LONG] },
+      ],
+      takeaway: "Ayırt edici ölçüt temadır.",
+    },
+  },
+  {
+    structure: "pyramid",
+    domain: "psychology",
+    raw: {
+      archetype: "CONCEPT_STRUCTURE_VISUALIZER",
+      title: "Tepeden tabana beş katmanlı yapı",
+      structure: "pyramid",
+      items: [
+        { label: "Tepe katman", detail: "En az öğe, en üst düzey" },
+        { label: "Dördüncü katman" },
+        { label: "Üçüncü katman", detail: "Ara düzey" },
+        { label: "İkinci katman" },
+        { label: "Taban katman", detail: "Bütün yapının dayanağı" },
+      ],
+    },
+  },
+  {
+    structure: "timeline",
+    domain: "history",
+    raw: {
+      archetype: "CONCEPT_STRUCTURE_VISUALIZER",
+      title: "Dört durakta kronoloji",
+      structure: "timeline",
+      items: [
+        { date: "Birinci dönem", label: "Başlangıç olayı", detail: "Sürecin ilk adımı" },
+        { date: "İkinci dönem", label: "Gelişme" },
+        { date: "Üçüncü dönem", label: "Dönüm noktası", detail: LONG },
+        { date: "Dördüncü dönem", label: "Sonuç" },
+      ],
+    },
+  },
+  {
+    structure: "cause_effect",
+    domain: "geography",
+    raw: {
+      archetype: "CONCEPT_STRUCTURE_VISUALIZER",
+      title: "İki nedenden sonuca uzanan ağ",
+      structure: "cause_effect",
+      items: [
+        { id: "n1", label: "Birinci neden" },
+        { id: "n2", label: "İkinci neden" },
+        { id: "m", label: "Ara etki" },
+        { id: "s", label: "Sonuç" },
+      ],
+      links: [
+        { from: "n1", to: "m", effect: "increase" },
+        { from: "n2", to: "m", effect: "decrease" },
+        { from: "m", to: "s", effect: "increase" },
+        { from: "n1", to: "s" },
+      ],
+    },
+  },
+  {
+    structure: "supply_demand",
+    domain: "economics",
+    raw: {
+      archetype: "CONCEPT_STRUCTURE_VISUALIZER",
+      title: "Talep artınca yeni denge",
+      structure: "supply_demand",
+      market: { equilibrium: "Piyasa dengesi", shift: { curve: "demand", direction: "right", label: "Talep artar" } },
+      pedagogicalLevel: 3,
+    },
+  },
+];
 
 function reelFor(beat: ReelBeat, archetype: VisualArchetype): unknown {
   return beat === "main_diagram" ? { kind: "archetype", scene: RAW[archetype] } : REEL[beat];
@@ -207,6 +303,11 @@ export function GorselSahneFixture({ mod, sahne, arketip }: { mod: string; sahne
       {VISUAL_ARCHETYPES.map((item) => (
         <section key={item} data-fixture-archetype={item}>
           <LessonVisualScene id={`sahne-${item}`} block={{ scene: RAW[item], visualArchetype: item, academicDomain: ARCHETYPE_DOMAIN[item] }} />
+        </section>
+      ))}
+      {CONCEPT_EXTRA.map((item) => (
+        <section key={item.structure} data-fixture-concept={item.structure}>
+          <LessonVisualScene id={`sahne-kavram-${item.structure}`} block={{ scene: item.raw, visualArchetype: "CONCEPT_STRUCTURE_VISUALIZER", academicDomain: item.domain }} />
         </section>
       ))}
       <section data-fixture-trend="1">

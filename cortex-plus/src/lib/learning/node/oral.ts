@@ -116,6 +116,7 @@ export async function teacherOralPayload(
     charge: input.charge,
     startedAt,
     label: "teacher_oral",
+    prepTitle: input.prepTitle,
     topic: input.topicLabel,
     ...(split ? { reasoningEffort: "low" as const } : {}),
     work: async (ask, started) => {
@@ -138,6 +139,7 @@ export async function teacherOralPayload(
         charge: false,
         startedAt: Date.now(),
         label: "teacher_oral_rest",
+        prepTitle: input.prepTitle,
         topic: input.topicLabel,
         work: async (ask, started) => {
           const loop = await teacherOralLoop(ask, loopInput(asked - first.length, firstPrompts), started);

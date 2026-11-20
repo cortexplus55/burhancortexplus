@@ -309,20 +309,20 @@ describe("Paket C · sonuç kartının dört aşaması", () => {
       streak: 3,
       topicGain: { label: "Hücre zarı", before: 40, after: 62 },
       openMisconceptions: 1,
-      masteryStates: ["ready", "needs_work", "needs_work", "unmeasured"],
+      masteryBadges: ["learned", "developing", "weak", "weak", "unmeasured"],
     });
     expect(stages.map((stage) => stage.id)).toEqual(["reward", "mastery", "gaps"]);
     expect(stages[0]).toMatchObject({ value: "+18 yıldız", note: "3 günlük seri sürüyor." });
     expect(stages[1]).toMatchObject({ value: "+%22", note: "Hücre zarı · şimdi %62", gain: true });
-    expect(stages[2]!.value).toBe("1 açık yanılgı · 2 çalışılacak konu · 1 sağlam konu");
+    expect(stages[2]!.value).toBe("1 açık yanılgı · Öğrendin: 1 konu · Gelişiyor: 1 konu · Zayıf: 2 konu · Ölçülmedi: 1 konu");
   });
 
   it("okunamayan veri sayfayı düşürmez; ders hâkimiyet ölçmez; artış yoksa 'Değişmedi'", () => {
-    const lesson = resultStages({ kind: "lesson", score: 1, total: 1, streak: null, topicGain: null, openMisconceptions: null, masteryStates: null });
+    const lesson = resultStages({ kind: "lesson", score: 1, total: 1, streak: null, topicGain: null, openMisconceptions: null, masteryBadges: null });
     expect(lesson[0]!.note).toBe("Seri şu an okunamadı.");
     expect(lesson[1]!.value).toBe("Bu adım ölçmez");
     expect(lesson[2]!.value).toBe("Eksik sayısı şu an okunamadı");
-    expect(resultStages({ kind: "quiz", score: 2, total: 5, streak: 0, topicGain: { label: "x", before: 50, after: 50 }, openMisconceptions: 0, masteryStates: [] })[1]!.value).toBe("Değişmedi");
+    expect(resultStages({ kind: "quiz", score: 2, total: 5, streak: 0, topicGain: { label: "x", before: 50, after: 50 }, openMisconceptions: 0, masteryBadges: [] })[1]!.value).toBe("Değişmedi");
     expect(readTopicGain({ label: "x", before: 50, after: 40 })).toBeNull();
     const page = read("src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/sonuc/page.tsx");
     expect(page).toContain("⏭️ Sıradaki etkinliğe geç");

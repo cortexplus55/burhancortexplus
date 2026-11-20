@@ -13,7 +13,13 @@ import { resultStages } from "@/lib/learning/result-stages";
 import { replayLabel } from "@/lib/learning/feedback-copy";
 import { mockReviewHref } from "@/lib/learning/mock-exam/prep-node-link";
 import { parseSessionMeta } from "@/lib/learning/teaching-standards";
-import { MASTERY_ROW_COLUMNS, masterySnapshotFromRow, scoreTopicMastery, topicMasteryView } from "@/lib/learning/learning-tracking";
+import {
+  MASTERY_ROW_COLUMNS,
+  masteryByPlannedTopic,
+  masterySnapshotFromRow,
+  scoreTopicMastery,
+  topicMasteryView,
+} from "@/lib/learning/learning-tracking";
 import { countOpenMisconceptions } from "@/lib/learning/misconception-store";
 import { getUserStreak } from "@/lib/streak/record-activity";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
@@ -75,7 +81,7 @@ export default async function NodeResultPage({ params }: { params: Promise<{ pre
 
   // Her okuma kendi başına düşer: biri gelmezse kart o aşamayı "okunamadı" diye yazar, sayfa açılır.
   const target = typeof prep.target_score === "number" ? prep.target_score : null;
-  const [levelHint, streak, openMisconceptions, masteryRows] = await Promise.all([
+  const [levelHint, streak, openMisconceptions, masteryRows, plannedLabels] = await Promise.all([
     loadLevelHint(supabase, prepId).catch(() => null),
     getUserStreak(supabase, user.id).catch(() => null),
     countOpenMisconceptions(supabase, { userId: user.id, prepId }).catch(() => null),
@@ -85,9 +91,25 @@ export default async function NodeResultPage({ params }: { params: Promise<{ pre
       .eq("exam_prep_id", prepId)
       .eq("user_id", user.id)
       .then(({ data }) => (data ?? []) as Record<string, unknown>[], () => null),
+    supabase
+      .from("exam_prep_topics")
+      .select("label")
+      .eq("exam_prep_id", prepId)
+      .then(
+        ({ data }) =>
+          ((data ?? []) as { label?: unknown }[])
+            .map((row) => (typeof row.label === "string" ? row.label.trim() : ""))
+            .filter(Boolean),
+        () => null,
+      ),
   ]);
-  const masteryStates = masteryRows
-    ? masteryRows.map((row) => topicMasteryView(scoreTopicMastery(masterySnapshotFromRow(row)), target).state)
+  // Konu sayımı İlerleme ile aynı: ad varyantları planlı konuda birleşir, rozet tek kaynaktan (topicMasteryView).
+  // Planlı konu listesi okunamazsa kayıtlar olduğu gibi sayılır.
+  const snapshots = masteryRows ? masteryRows.map((row) => scoreTopicMastery(masterySnapshotFromRow(row))) : null;
+  const masteryBadges = snapshots
+    ? (plannedLabels?.length ? [...masteryByPlannedTopic(plannedLabels, snapshots).values()] : snapshots).map(
+        (snapshot) => topicMasteryView(snapshot, target).badge,
+      )
     : null;
   const stages = resultStages({
     kind: node.kind as string,
@@ -96,12 +118,13 @@ export default async function NodeResultPage({ params }: { params: Promise<{ pre
     streak,
     topicGain: (attempt.payload as { topicGain?: unknown } | null)?.topicGain,
     openMisconceptions,
-    masteryStates,
+    masteryBadges,
   });
 
   return (
     <ParitySorShell {...shell} chrome="session">
-      <main className={view.pct != null && view.pct < 50 ? "cp-node-result is-low" : "cp-node-result"}>
+      {/* Kabuğun kendi main öğesi var; sonuç kartı div (20 Kasım 2026, iç içe main yok). */}
+      <div className={view.pct != null && view.pct < 50 ? "cp-node-result is-low" : "cp-node-result"}>
         <Link href={back} className="cp-node-result-close" aria-label="Kapat">
           <X className="h-5 w-5" aria-hidden />
         </Link>
@@ -192,7 +215,7 @@ export default async function NodeResultPage({ params }: { params: Promise<{ pre
         <Link href={back} className="cp-node-result-go">
           Devam et
         </Link>
-      </main>
+      </div>
     </ParitySorShell>
   );
 }
