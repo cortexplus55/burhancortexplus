@@ -230,6 +230,8 @@ beforeAll(async () => {
   await db.exec(`${migration("20261024120000_credit_prices_v3")}\n${migration("20261024123000_free_daily_zero")}`);
   await db.exec(migration("20261027193000_sketch_video_credits"));
   await db.exec(migration("20261111180000_free_lesson_trial"));
+  // Faz 4 (19 Kasım 2026): bugünkü fiyatlar, plan havuzları ve sayaçlar (fotoğraf ayda 7, "Farklı anlat" toplam 10).
+  await db.exec(migration("20261119120000_faz4_credit_economy"));
 }, 90_000);
 afterAll(() => db.close());
 
@@ -326,11 +328,11 @@ describe("KNOWN_DEVIATION: tablo ile sunucu ayrışıyor, kapı sunucuyu izler (
     expect(gate.requiredPlan).toBeUndefined();
   });
 
-  it("KNOWN_DEVIATION fotoğraf iki yoldan: sohbetteki fotoğraf AI_CHAT_STANDARD + fotoğraf sayacı (3 kredi), çözücü IMAGE_SOLUTION (4)", async () => {
+  it("KNOWN_DEVIATION fotoğraf iki yoldan: sohbetteki fotoğraf AI_CHAT_STANDARD + fotoğraf sayacı (Faz 4: 1 kredi), çözücü IMAGE_SOLUTION (4)", async () => {
     const { actionCost } = await import("@/lib/entitlements/config");
     expect(actionCost("photo.solve")).toBe(4);
     const chat = await db.query<{ credit_cost: number }>("SELECT credit_cost FROM credit_rules WHERE action_code = 'AI_CHAT_STANDARD'");
-    expect(chat.rows[0]?.credit_cost).toBe(3);
+    expect(chat.rows[0]?.credit_cost).toBe(1);
   });
 
   it("KNOWN_DEVIATION ders ve mesaj tek havuz: ücretli hesapta kalan 'ders' ve 'mesaj' aynı kredilerden türetilir", () => {

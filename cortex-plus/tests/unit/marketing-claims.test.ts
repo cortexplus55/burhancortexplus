@@ -1,7 +1,9 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { FAQ, FREE_PLAN_POINTS, PLUS_PLAN_POINTS, TRUST_FACTS } from "@/lib/marketing/landing-content";
-import { PLAN_ALLOWANCES, allowanceInWork } from "@/lib/credits/price-table";
+import { FAQ, FREE_PLAN_POINTS, PLUS_PLAN_POINTS, TRUST_LINE } from "@/lib/marketing/landing-content";
+import { allFarkAccordionCopy } from "@/lib/marketing/fark-accordion";
+import { PLAN_MARKETING_COPY } from "@/lib/marketing/plan-copy";
+import { PLAN_ALLOWANCES, allowanceInWork, planWorkEquivalent } from "@/lib/credits/price-table";
 import { AUTO_RENEW_SUPPORTED } from "@/lib/payments/paytr-capability";
 import { tierComparisonRows } from "@/lib/billing/tier-presentation";
 import { FREE_LIMITS, isPlusOnlyAction } from "@/lib/billing/free-meters";
@@ -28,11 +30,22 @@ const SURFACES = [
   // 7 Kasım 2026: hedef kitle sekmeleri ve kayıtsız vitrin de misafire gösterilen söz.
   "src/lib/marketing/landing-showcase.ts",
   "src/components/landing/audience-hero.tsx",
+  // Faz 9 (20 Kasım 2026): kahramanın tek seçicisi.
+  "src/components/landing/audience-picker.tsx",
   // 11 Kasım 2026: 7 adımlı tanıtım turu vitrinin yerini aldı.
   "src/lib/marketing/landing-journey.ts",
   "src/components/landing/futuristic-guided-journey.tsx",
+  // Faz 9.1 (20 Kasım 2026): birinci adımın ders çekirdeği (örnek not, sınav günü, doğan ders ve küçük yol).
+  "src/components/landing/lesson-core.tsx",
   // Turun ürün ekranlarında gösterilen örnek veri de misafire gösterilen sözdür.
   "src/lib/demo/guest-tour.ts",
+  // Faz 7 (20 Kasım 2026): turun dört branşı (örnek not, yol, uyarı, ders, soru, kart, önerme, sahne).
+  "src/lib/marketing/guest-demo-tracks.ts",
+  "src/lib/demo/guest-tour-tracks.ts",
+  "src/lib/demo/guest-tracks/muhendislik.ts",
+  "src/lib/demo/guest-tracks/tus.ts",
+  "src/lib/demo/guest-tracks/hukuk.ts",
+  "src/components/landing/tour/product-screens.tsx",
   // 11 Kasım 2026, kokpit: karşılaştırma düellosu, Plus önizlemeleri ve misafirin dosya kartları.
   "src/components/landing/landing-duel.tsx",
   "src/components/landing/tour/plus-previews.tsx",
@@ -42,6 +55,17 @@ const SURFACES = [
   "src/lib/student/first-step.ts",
   "src/lib/marketing/advantage-content.ts",
   "src/components/marketing/advantage-sections.tsx",
+  // 20 Kasım 2026 (Faz 7): fark vitrini (radyo, kırmızı kalem, sınıfla paylaş + QR'lı kâğıt).
+  "src/lib/marketing/fark-vitrini.ts",
+  "src/components/landing/fark-vitrini.tsx",
+  "src/components/landing/fark-vitrini-radio.tsx",
+  "src/components/landing/fark-vitrini-red-pen.tsx",
+  "src/components/landing/fark-vitrini-parts.tsx",
+  // 20 Kasım 2026 (Faz 9): "Aynı not, iki ayrı sonuç" akordeonu ve sahneleri.
+  "src/lib/marketing/fark-accordion.ts",
+  "src/components/landing/fark-accordion.tsx",
+  "src/components/landing/fark-scenes.tsx",
+  "src/components/landing/fark-twin-scene.tsx",
   "src/app/page.tsx",
   "src/app/ozellikler/page.tsx",
   "src/app/fiyatlandirma/page.tsx",
@@ -92,16 +116,18 @@ const BANNED: [RegExp, string][] = [
   [/interaktif problem/i, "simülasyonlar kaldırıldı"],
   [/kişisel çalışma planı|çalışma planı ve ilerleme/i, "çalışma planı ekranı emekli"],
   // Kredi v3 (24 Ekim 2026). "Sınırsız hazırlık" doğru (hazırlık sayısı); "sınır yok" Plus'ın aylık hakkını yok sayar.
-  [/sınır yok/i, "Plus'ın aylık hakkı var (ayda yaklaşık 240 ders); 'Plus'a geçip beklemeden devam edebilirsin' yazın"],
+  [/sınır yok/i, "Plus'ın aylık hakkı var (ayda yaklaşık 200 ders); 'Plus'a geçip beklemeden devam edebilirsin' yazın"],
   [/katına|katlan/i, "davet çarpanı kalktı; iki tarafa bir kez 3 ders hediye"],
-  [/günlük hak/i, "ücretsiz günlük kredi yok; hak sayaçla: haftada 3 ders, günde 3 mesaj, günde 1 fotoğraf"],
+  [/günlük hak/i, "ücretsiz günlük kredi yok; hak sayaçla: ilk ders, günde 3 mesaj, ayda 7 fotoğraf"],
+  // Faz 4: fotoğraf hakkı aylık (ayda 7). "Günde N fotoğraf" artık her N için yanlış; aylık sayı sabitten.
+  [/günde \d+ (fotoğraf|foto)/i, `ücretsiz hesapta ayda ${FREE_LIMITS.photo} fotoğraftan çözüm (FREE_PHOTO_PER_MONTH)`],
   [
-    new RegExp(`günde (?!${FREE_LIMITS.photo}\\b)\\d+ (fotoğraf|foto)`, "i"),
-    `ücretsiz hesapta günde ${FREE_LIMITS.photo} fotoğraftan çözüm (FREE_PHOTO_PER_DAY)`,
+    new RegExp(`ayda (?!${FREE_LIMITS.photo}\\b)\\d+ (fotoğraf|foto)`, "i"),
+    `ücretsiz hesapta ayda ${FREE_LIMITS.photo} fotoğraftan çözüm (FREE_PHOTO_PER_MONTH)`,
   ],
   [
-    new RegExp(`fotoğraf[^.\\n]{0,120}\\.\\s*Ücretsiz hesapta günde (?!${FREE_LIMITS.photo}\\b)\\d`, "i"),
-    `ücretsiz hesapta günde ${FREE_LIMITS.photo} fotoğraftan çözüm (FREE_PHOTO_PER_DAY)`,
+    /fotoğraf[^.\n]{0,120}\.\s*Ücretsiz hesapta günde \d/i,
+    `ücretsiz hesapta ayda ${FREE_LIMITS.photo} fotoğraftan çözüm (FREE_PHOTO_PER_MONTH)`,
   ],
 ];
 
@@ -125,13 +151,15 @@ describe("yasak vaatler", () => {
       "Etiketsizler ücretsiz günlük hakla açılır.",
       "Ücretsiz hesapta günde 3 fotoğraf sorusu çözülür.",
       "Sorunun fotoğrafını çek ya da yaz; adım adım çözüm ve her şıkkın açıklaması. Ücretsiz hesapta günde 3.",
+      // Faz 4 öncesi doğru cümleler: fotoğraf artık aylık.
+      "Haftada 3 ders, günde 3 mesaj, günde 1 fotoğraf",
+      "Ücretsiz hesapta ayda 3 fotoğraf sorusu çözülür.",
     ]) {
       expect(caught(line), line).toBe(true);
     }
     for (const line of [
       "Belgenin tamamı, sınırsız hazırlık",
-      "Haftada 3 ders, günde 3 mesaj, günde 1 fotoğraf",
-      "Ücretsiz hesapta haftada 3 ders, günde 3 mesaj ve 1 fotoğraf var.",
+      `İlk ders, günde 3 mesaj, ayda ${FREE_LIMITS.photo} fotoğraf`,
       "Arkadaşını davet et, ikinize de 3 ders hediye",
     ]) {
       expect(caught(line), line).toBe(false);
@@ -140,7 +168,7 @@ describe("yasak vaatler", () => {
 
   it("özellikler sayfası ücretsiz sayıları koddan okur", () => {
     const page = read("src/app/ozellikler/page.tsx");
-    expect(page).toContain("Ücretsiz hesapta günde ${FREE_PHOTO_PER_DAY}.");
+    expect(page).toContain("Ücretsiz hesapta ayda ${FREE_PHOTO_PER_MONTH}.");
     expect(page).toContain("FREE_TIER_SENTENCE");
     // Kart çarpan alanlarını okumuyor; davet hediyesi tek kaynaktan.
     const card = read("src/components/parity/referral-reward-card.tsx");
@@ -171,31 +199,41 @@ describe("yasak vaatler", () => {
 });
 
 describe("ana sayfanın sayıları koddan", () => {
-  // 11 Kasım 2026: kanıt şeridi ve özellik ızgarası kalktı; sayılar SSS, plan ikilisi ve güven satırında.
+  // 11 Kasım 2026: kanıt şeridi ve özellik ızgarası kalktı; sayılar SSS, plan kartları ve güven satırında.
+  // Faz 9 (20 Kasım 2026): SSS beş soruya indi, güven satırı tek satır; Plus'ın aylık karşılığı Plus kartında
+  // (`plus.periodLine`, sayfa aynen basar), fark akordeonunun metni de taranır.
   const text = [
     ...FAQ.map((item) => `${item.q} ${item.a}`),
     ...FREE_PLAN_POINTS,
     ...PLUS_PLAN_POINTS,
-    ...TRUST_FACTS.map((fact) => `${fact.title}. ${fact.body}`),
+    ...TRUST_LINE,
+    PLAN_MARKETING_COPY.plus.periodLine,
+    allFarkAccordionCopy(),
   ].join("\n");
+
+  it("Plus kartı aylık karşılığı sayfaya aynen basar", () => {
+    expect(withoutComments(read("src/components/landing/landing-page.tsx"))).toContain("{plus.periodLine}; bütün konular açık.");
+  });
 
   // 24 Ekim 2026: ücretsiz hesap sayaçla — günde 3 mesaj, günde 1 fotoğraf (göç 20261024121000). 11 Kasım 2026
   // akşamı (ürün sahibinin kararı): haftalık 3 ders hakkı kalktı, ücretsiz hesap = tek ders (göç 20261111180000:
   // `free_meter_limit('lesson')` 0; SQL'in son tanımı o dosyada).
-  it("ücretsiz hak: ilk ders, günde 3 mesaj, günde 1 fotoğraf; SQL ve kopya aynı", () => {
-    expect(FREE_LIMITS).toMatchObject({ lesson: 0, chat: 3, photo: 1, included: 40 });
-    const sql = read("supabase/migrations/20261111180000_free_lesson_trial.sql");
+  // Faz 4 (19 Kasım 2026): fotoğraf ayda 7, ücretsiz "Farklı anlat" 10; son tanım 20261119120000_faz4_credit_economy.
+  it("ücretsiz hak: ilk ders, günde 3 mesaj, ayda 7 fotoğraf; SQL ve kopya aynı", () => {
+    expect(FREE_LIMITS).toMatchObject({ lesson: 0, chat: 3, photo: 7, included: 40, reexplain: 10 });
+    const sql = read("supabase/migrations/20261119120000_faz4_credit_economy.sql");
     expect(sql).toContain(`WHEN 'lesson' THEN ${FREE_LIMITS.lesson}`);
     expect(sql).toContain(`WHEN 'chat' THEN ${FREE_LIMITS.chat}`);
     expect(sql).toContain(`WHEN 'photo' THEN ${FREE_LIMITS.photo}`);
     expect(sql).toContain(`WHEN 'included' THEN ${FREE_LIMITS.included}`);
+    expect(sql).toContain(`WHEN 'reexplain' THEN ${FREE_LIMITS.reexplain}`);
     // Sonraki hiçbir göç sınırı yeniden tanımlamıyor: son söz bu dosyada.
-    const later = readdirSync("supabase/migrations").filter((name) => name > "20261111180000_free_lesson_trial.sql");
+    const later = readdirSync("supabase/migrations").filter((name) => name > "20261119120000_faz4_credit_economy.sql");
     for (const name of later) expect(read(`supabase/migrations/${name}`), name).not.toMatch(/FUNCTION public[.]free_meter_limit/);
     // Ücretsiz günlük kredi 0: credit_reserve'ün son hâli ayrı göçte (20261024123000).
     expect(read("supabase/migrations/20261024123000_free_daily_zero.sql")).toContain("v_allowance := 0;");
     // 11 Kasım 2026 (ürün sahibinin kararı): ilk dersin döngüsü süreye takılmaz; aynı akşam haftalık ders hakkı kalktı.
-    expect(text).toContain("ilk hazırlığında ilk dersin (konu anlatımı, kartlar, doğru/yanlış ve konu testi) süre sınırı olmadan açık; ayrıca günde 3 sohbet mesajı ve günde 1 fotoğraftan soru çözümü");
+    expect(text).toContain("ilk hazırlığında ilk dersin (konu anlatımı, kartlar, doğru/yanlış ve konu testi) süre sınırı olmadan açık; ayrıca günde 3 sohbet mesajı ve ayda 7 fotoğraftan soru çözümü");
     expect(text).not.toMatch(/haftada [0-9]+ ders|haftalık ders hakkı/);
     expect(text).not.toContain("günde bir ders");
   });
@@ -221,11 +259,11 @@ describe("ana sayfanın sayıları koddan", () => {
   });
 
   it("Plus hakkı fiyat tablosuyla aynı", () => {
-    const plus = allowanceInWork(PLAN_ALLOWANCES.plusMonthly);
-    // Kredi v3 (24 Ekim 2026): ders 30 kredi, mesaj 3.
-    expect(plus).toEqual({ messages: 2400, lessons: 240 });
-    expect(text).toContain("Ayda yaklaşık 2.400 mesaj ya da 240 ders");
-    expect(text).not.toContain("1.200 ders");
+    // Faz 4 (19 Kasım 2026): 4.350 kredi; ders 22, test 14, mesaj 1. Plan satırı ~5'e yuvarlanmış ders.
+    expect(allowanceInWork(PLAN_ALLOWANCES.plusMonthly)).toEqual({ messages: 4350, lessons: 197 });
+    expect(planWorkEquivalent(PLAN_ALLOWANCES.plusMonthly)).toEqual({ lessons: 200, tests: 310, chats: 4350 });
+    expect(text).toContain("Ayda ~200 ders / 310 test / 4.350 sohbet");
+    expect(text).not.toContain("240 ders");
   });
 
   it("otomatik yenileme sözü verilmiyor", () => {

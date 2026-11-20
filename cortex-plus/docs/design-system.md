@@ -12,7 +12,7 @@ Bileşende ham hex ya da ham px yazılmaz; token yoksa önce `tokens.css`'e ekle
 
 | # | Karar | Uygulama |
 |---|---|---|
-| 1 | Misafir ve pazarlama sayfaları 11 Kasım paletinde kalır; o sayfalarda skill'den yalnız ölçü, köşe, boşluk ve hareket alınır | `tokens.css` sonundaki "Misafir sayfaları" blokları, `.cinematic-marketing`, `.lp` ve `.cortex-premium-auth` köklü sayfalarda eski `--c-*` değerlerini geri koyar. Pazarlama paletinin kendisi (`landing.css`, `home-cinema.css` …) zaten `--c-*` okumuyor. `audience-tabs.tsx` metinli bölümlü seçici olacak (Faz 3), rengi pazarlama paletinden |
+| 1 | Misafir ve pazarlama sayfaları 11 Kasım paletinde kalır; o sayfalarda skill'den yalnız ölçü, köşe, boşluk ve hareket alınır | `tokens.css` sonundaki "Misafir sayfaları" blokları, `.cinematic-marketing`, `.lp` ve `.cortex-premium-auth` köklü sayfalarda eski `--c-*` değerlerini geri koyar. Pazarlama paletinin kendisi (`landing.css`, `home-cinema.css` …) zaten `--c-*` okumuyor. `audience-picker.tsx` (Faz 9, 20 Kasım 2026: kahramanın tek seçicisi, dört branş) bölümlü seçici, rengi pazarlama paletinden |
 | 2 | ~~Faz 4.1 = `/` ve `/ogretmen`; §7 "Ana ekran" kalıbı uygulanmaz~~ | Madde 8 ile değişti |
 | 3 | Açık tema kalır | `--cx-*` açık değerleri koyu merdivenin tersi **[varsayım]**, kontrastlar aşağıda |
 | 4 | Figtree ve JetBrains Mono kalır, Jersey 10 kalkar, Caveat kalır; Newsreader ders ekranı fazında | `--cx-font-sans` = Figtree, `--cx-font-mono` = JetBrains Mono; `--cx-font-reading` şimdilik sans |

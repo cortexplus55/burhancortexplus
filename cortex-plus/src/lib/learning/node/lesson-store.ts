@@ -5,6 +5,7 @@ import { generateJson } from "@/lib/ai/generate";
 import type { LessonV2 } from "@/lib/learning/teaching-standards";
 import { readLessonV2 } from "@/lib/learning/lesson-v3";
 import { awaitLoggedWrite } from "./shared";
+import { readSourceCorrectionWarning, type SourceCorrectionWarning } from "@/lib/learning/source-correction";
 
 /**
  * Konunun en son doğrulanmış dersi. Podcast bunun üzerine kuruluyor;
@@ -46,4 +47,22 @@ export async function saveTopicLesson(
       content_json: input.payload.lesson,
     }),
   );
+}
+
+/**
+ * Konunun son dersindeki kaynak düzeltme uyarısı (19 Kasım 2026, Faz 1-A §2.1). Test, kart, Doğru/Yanlış, podcast,
+ * video ve "Farklı anlat" doğrusunu (verifiedTruth) buradan okur. Ders yoksa ya da uyarı yoksa null.
+ */
+export async function loadTopicSourceCorrection(
+  service: Parameters<typeof generateJson>[0]["service"],
+  topicId: string | null | undefined,
+): Promise<SourceCorrectionWarning | null> {
+  if (!topicId) return null;
+  try {
+    const lesson = await loadTopicLesson(service, topicId);
+    return readSourceCorrectionWarning(lesson?.sourceCorrectionWarning ?? null);
+  } catch (error) {
+    console.warn("topic_source_correction_load_failed", { cause: error instanceof Error ? error.message.slice(0, 120) : "unknown" });
+    return null;
+  }
 }

@@ -1,5 +1,7 @@
 "use server";
 
+import { invalidateSessionUserContext } from "@/lib/auth/session-context";
+import { notifyInApp } from "@/lib/notifications/in-app";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -81,8 +83,9 @@ export async function reviewTeacherApplication(input: {
     });
   }
 
-  await service.from("notifications").insert({
-    user_id: application.user_id,
+  await notifyInApp(service, {
+    kind: "account",
+    userId: application.user_id,
     title:
       parsed.data.decision === "approved"
         ? "Öğretmen başvurun onaylandı"
@@ -247,6 +250,7 @@ export async function grantCredits(userId: string, amount: number) {
     p_entry_type: "grant",
     p_reason: `admin:${actorId}`,
   });
+  if (!error) await invalidateSessionUserContext(parsed.data.userId);
 
   if (error) {
     if (error.message.includes("wallet_not_found")) {
@@ -422,6 +426,7 @@ export async function adjustCredits(input: {
     p_entry_type: parsed.data.delta > 0 ? "grant" : "adjustment",
     p_reason: parsed.data.reason ?? `admin:${actorId}`,
   });
+  if (!error) await invalidateSessionUserContext(parsed.data.userId);
 
   if (error) {
     if (error.message.includes("wallet_not_found")) {
@@ -1148,6 +1153,8 @@ export async function setUserSuspended(input: {
     })
     .eq("id", userId);
   if (error) return { ok: false, error: "Kayıt güncellenemedi." };
+  // Faz 2: askı anında geçerli; oturum bağlamı ve middleware kapısı önbelleği silinir.
+  await invalidateSessionUserContext(userId);
 
   // Giriş kapısı: 100 yıl yasak = kalıcı; "none" kaldırır. Düşerse profil bariyeri yine tutar.
   await service.auth.admin

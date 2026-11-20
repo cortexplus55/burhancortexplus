@@ -6,6 +6,7 @@ import { isPremiumUser } from "@/lib/ai/generate";
 import { loadDocumentGenerationContext } from "@/lib/documents/generation-context";
 import { generateExamQuiz } from "@/lib/learning/exam-quiz-generate";
 import { FREE_LESSON_CODE, freeLessonRefused } from "@/lib/billing/free-lesson-gate";
+import { hasChoiceAnswerKey } from "@/lib/learning/answer-key";
 
 const schema = z.object({
   topic: z.string().min(3).max(500),
@@ -122,7 +123,8 @@ export async function POST(request: Request) {
 
   try {
     const picked = outcome.questions
-      .filter((q) => !q.multi && q.correct.length === 1)
+      // Faz 2 (madde 7.2): tek doğru ve o doğru şıklardan biri; anahtarsız soru kaydedilmez.
+      .filter((q) => !q.multi && q.correct.length === 1 && hasChoiceAnswerKey(q.options, q.correct[0]))
       .slice(0, questionCount);
     const parsed = {
       title: topic.trim().slice(0, 120),

@@ -1,5 +1,18 @@
 import { CONTENT_STYLE } from "@/lib/ai/content-style";
-import { sourceText, type TeacherLessonMode } from "@/lib/learning/teacher-lesson";
+import { sourceText, visualSceneGrounded, type TeacherLessonMode } from "@/lib/learning/teacher-lesson";
+import { classifyAcademicDomain, DOMAIN_ARCHETYPE, type AcademicDomain, type DomainClassification, type VisualArchetype } from "@/lib/learning/visual-scenes/archetype";
+import {
+  REEL_BEATS,
+  REEL_BEAT_LABEL,
+  isReelBeat,
+  parseReelVisual,
+  readAcademicDomain,
+  readVisualArchetype,
+  reelKindForBeat,
+  type ReelBeat,
+  type ReelVisual,
+} from "@/lib/learning/visual-scenes/schema";
+import { archetypeSpecBlock, domainChoices, VISUAL_SCENE_COMMON_RULE } from "@/lib/learning/visual-scenes/prompt";
 import { examPointsBlock } from "@/lib/learning/exam-points";
 
 /**
@@ -84,10 +97,10 @@ export function videoStyleLabel(id: string | null | undefined): string {
 /** Çizimli özet: stil adı ya da resimsiz şema sahnesi. Eski CHECK beyaz tahtaya düşerse de tanınır. */
 export function isSketchStored(
   style: string | null | undefined,
-  scenes: { imagePath?: string; diagram?: unknown; visualSchema?: unknown }[] | null | undefined,
+  scenes: { imagePath?: string; diagram?: unknown; visualSchema?: unknown; reel?: unknown }[] | null | undefined,
 ): boolean {
   if (style === "sketch_reel") return true;
-  return (scenes ?? []).some((scene) => !scene.imagePath && Boolean(scene.diagram ?? scene.visualSchema));
+  return (scenes ?? []).some((scene) => !scene.imagePath && Boolean(scene.diagram ?? scene.visualSchema ?? scene.reel));
 }
 
 /**
@@ -141,6 +154,8 @@ export type VideoInput = {
    * `image`: mevcut gpt-image sahne resmi.
    */
   renderMode?: "image" | "sketch_reel";
+  /** Kapsam satırı: kardeş ünite sınır bloğu (19 Kasım 2026, Faz 1-A §1). Boşsa satır yok. */
+  scopeLine?: string;
 };
 
 const SCHEMA =
@@ -181,6 +196,7 @@ export function videoUserPrompt(input: VideoInput): string {
   return [
     `SINAV: ${input.prepTitle}`,
     `KONU: ${input.topicLabel}`,
+    input.mode === "topic" ? "" : (input.scopeLine ?? ""),
     examPointsBlock(input.examPoints, "video"),
     input.mode === "topic" ? "KAYNAK: (yok — belgesiz; konunun yerleşik bilgisiyle anlat)" : `KAYNAK:\n${sourceText(input.pages)}`,
   ]
@@ -335,7 +351,8 @@ export function captionChunks(
  */
 export const SKETCH_REEL_ID = "sketch_reel" as const;
 export { SKETCH_REEL_LABEL } from "@/lib/learning/video-lesson-labels";
-export const SKETCH_MIN_SCENES = 4;
+/** Faz 1-B (19 Kasım 2026): tam 5 sahne, sabit sırayla (kanca → ana çizim → karşılaştırma → tuzak → hafıza çivisi). */
+export const SKETCH_MIN_SCENES = 5;
 export const SKETCH_MAX_SCENES = 5;
 export const SKETCH_SCENE_MAX_WORDS = 26;
 export const SKETCH_TOTAL_WORDS = { min: 72, max: 110 } as const;
@@ -345,7 +362,7 @@ export const SKETCH_TOTAL_WORDS = { min: 72, max: 110 } as const;
  * her kısa senaryoda bir düzeltme turu (iki çağrı) açardı.
  */
 export const SKETCH_TARGET_WORDS = { min: 92, max: 110 } as const;
-export const SKETCH_HARD_LIMITS = { minScenes: 4, sceneWords: 34, totalWords: { min: 55, max: 140 } } as const;
+export const SKETCH_HARD_LIMITS = { minScenes: 5, sceneWords: 34, totalWords: { min: 55, max: 140 } } as const;
 
 export const SKETCH_DIAGRAM_KINDS = ["balance_scale", "number_line", "function_curve", "timeline", "process_network"] as const;
 export type SketchDiagramKind = (typeof SKETCH_DIAGRAM_KINDS)[number];
@@ -364,40 +381,67 @@ export type SketchDiagram = {
   items: SketchDiagramItem[];
 };
 
+/**
+ * Sahne: yeni kayıtlarda `beat` + `reel` (branşa özel SVG sahnesi, Faz 1-B); eski kayıtlarda `diagram`
+ * (parametrik kart). İkisinden biri mutlaka vardır.
+ */
 export type SketchScene = {
   narration: string;
   sceneTitle: string;
   formula?: string;
   keyFact?: string;
   voice: "ada" | "kerem";
-  diagram: SketchDiagram;
+  diagram?: SketchDiagram;
+  beat?: ReelBeat;
+  reel?: ReelVisual;
 };
 
-export type SketchScript = { title: string; scenes: SketchScene[] };
+export type SketchScript = {
+  title: string;
+  scenes: SketchScene[];
+  academicDomain?: AcademicDomain;
+  visualArchetype?: VisualArchetype;
+};
 
 const SKETCH_SCHEMA =
-  '{"title":"videonun kısa adı","scenes":[{"sceneTitle":"sahne başlığı","narration":"1-2 cümle anlatım","formula":"KaTeX, kaynaktaki kural","keyFact":"en çok 8 kelime","voice":"ada veya kerem","diagram":{"diagramKind":"balance_scale | number_line | function_curve | timeline | process_network","title":"şemanın adı","caption":"isteğe bağlı","items":[{"label":"kaynaktaki terim","value":"sayı ya da kısa değer","detail":"isteğe bağlı","highlight":false}]}}]}';
+  '{"title":"videonun kısa adı","academicDomain":"…","visualArchetype":"…","scenes":[' +
+  '{"beat":"hook","sceneTitle":"…","narration":"…","keyFact":"…","voice":"ada","visual":{"kind":"hook","question":"sınavda en çok çıkan kilit soru","visualTitle":"merak uyandıran görsel başlık"}},' +
+  '{"beat":"main_diagram","sceneTitle":"…","narration":"…","voice":"kerem","visual":{"kind":"archetype","scene":{…arketip JSON…}}},' +
+  '{"beat":"comparison","sceneTitle":"…","narration":"…","formula":"isteğe bağlı kısa kural","voice":"ada","visual":{"kind":"comparison","title":"…","mode":"concept|variable","left":"…","right":"…","rows":[{"label":"…","left":"…","right":"…","winner":"left|right|none"}]}},' +
+  '{"beat":"exam_trap","sceneTitle":"…","narration":"…","voice":"kerem","visual":{"kind":"exam_trap","title":"…","wrong":"öğrencinin en sık yaptığı hata","right":"doğrusu","tell":"ayırt ettiren ipucu"}},' +
+  '{"beat":"memory_nail","sceneTitle":"…","narration":"…","voice":"ada","visual":{"kind":"memory_nail","mnemonic":"akılda kalıcı kodlama","keys":[{"letter":"…","meaning":"…"}],"summary":"sınav sabahı tek cümlelik özet"}}]}';
 
-export function sketchSystem(mode: TeacherLessonMode): string {
+/** Video için disiplin sınıflandırması (model çağrısız). */
+export function videoDomain(input: Pick<VideoInput, "prepTitle" | "topicLabel" | "pages" | "mode">): DomainClassification {
+  return classifyAcademicDomain({ prepTitle: input.prepTitle, topicLabel: input.topicLabel, pages: input.pages, mode: input.mode });
+}
+
+/** Bu güvenin altında istem altı arketipi gösterir (ders tamamlamasıyla aynı eşik). */
+const SKETCH_CONFIDENT = 0.25;
+
+export function sketchSystem(mode: TeacherLessonMode, domain?: DomainClassification): string {
+  const classification = domain ?? { academicDomain: "general" as const, visualArchetype: DOMAIN_ARCHETYPE.general, confidence: 0, sourceTable: null };
   return (
-    "Sen Cortex Plus'ın usta öğretmenisin. Öğrenci konuyu yaklaşık 1 dakikalık çizimli bir video özette izleyecek. " +
-    "Ekranda sahne resmi yok: kara tahtada sahne başlığı, vurucu formül ve parametrik bir şema belirir; sen anlatırsın.\n\n" +
+    "Sen Cortex Plus'ın usta öğretmeni ve bilgi tasarımcısısın. Öğrenci konuyu yaklaşık 1 dakikalık çizimli bir video " +
+    "özette izleyecek. Ekranda sahne resmi yok: her sahnede branşa özel, animasyonla çizilen bir SVG sahnesi belirir; " +
+    "sen anlatırsın. Alt yazı ekranın altındaki şeritte akar, çizimin üstüne binmez.\n\n" +
     (mode === "topic" ? RULE_TOPIC : RULE_DOCUMENT) +
-    "AKIŞ:\n" +
-    `- ${SKETCH_MIN_SCENES}-${SKETCH_MAX_SCENES} sahne, toplam ${SKETCH_TARGET_WORDS.min}-${SKETCH_TARGET_WORDS.max} kelime (yaklaşık 60 saniye).\n` +
-    `- Her sahnenin anlatımı 1-2 kısa cümle, en çok ${SKETCH_SCENE_MAX_WORDS} kelime; konuşur gibi, 'sen' diye.\n` +
-    "- İlk sahne bir kanca; son sahne sınavda akılda kalacak tek cümle. Aradaki sahneler konunun en önemli 2-3 noktasını anlatır.\n" +
-    "- Boş cümle yok. Kaynağa atıf yok ('metne göre', 'belgede', 'bu videoda').\n" +
-    "- sceneTitle: o sahnenin tahta başlığı, en çok 6 kelime.\n" +
-    "- formula: sahnenin vurucu kuralı, KaTeX ile (ör. F_1 d_1 = F_2 d_2). Kaynakta formül yoksa kuralı kısa bir eşitlik ya da okla yaz " +
-    "(ör. sağa kayma \\rightarrow x artar). Dolar işareti koyma. Uydurma sayı yazma. Sözle yazılan kuralda KaTeX komutu " +
-    "kullanma; düz yazı ve ok işaretleri (→, ↑, ↓) yeter (ör. Genel fiyat düzeyi ↑ → paranın değeri ↓).\n" +
-    "- keyFact: sınavda sorulacak kilit ifade, en çok 8 kelime. Yoksa boş bırak.\n" +
+    "AKIŞ (tam 5 sahne, bu sırayla; beat alanı aynen):\n" +
+    `1) hook — ${REEL_BEAT_LABEL.hook}: konunun sınavda en çok çıkan kilit sorusu ve merak uyandıran görsel başlık.\n` +
+    `2) main_diagram — ${REEL_BEAT_LABEL.main_diagram}: disiplinin arketip çizimi (aşağıdaki ARKETİP JSON'u, kind "archetype").\n` +
+    `3) comparison — ${REEL_BEAT_LABEL.comparison}: iki kavramın ya da değişken etkisinin renk kodlu matrisi (2-4 satır).\n` +
+    `4) exam_trap — "${REEL_BEAT_LABEL.exam_trap}": öğrencilerin en sık yaptığı hata (✗) ve doğrusu (✓).\n` +
+    `5) memory_nail — ${REEL_BEAT_LABEL.memory_nail}: akılda kalıcı görsel kodlama (harf karoları) ve tek cümlelik sınav sabahı özeti.\n` +
+    `- Anlatım toplam ${SKETCH_TARGET_WORDS.min}-${SKETCH_TARGET_WORDS.max} kelime (yaklaşık 60 saniye). Her sahnenin anlatımı 1-2 kısa cümle, en çok ${SKETCH_SCENE_MAX_WORDS} kelime; konuşur gibi, 'sen' diye.\n` +
+    "- Anlatım o sahnenin çizimini anlatır (çizimde ne görülüyorsa onu söyle). Boş cümle yok. Kaynağa atıf yok ('metne göre', 'belgede', 'bu videoda').\n" +
+    "- sceneTitle: en çok 6 kelime. keyFact: sınavda sorulacak kilit ifade, en çok 8 kelime; yoksa boş bırak.\n" +
+    "- formula isteğe bağlı: varsa KaTeX ile kısa kural; dolar işareti yok, uydurma sayı yok. Sözle yazılan kuralda KaTeX " +
+    "komutu kullanma; düz yazı ve ok işaretleri (→, ↑, ↓) yeter.\n" +
     "- voice: sahneleri Ada (ada) ve Kerem (kerem) arasında dağıt; art arda aynı ses en çok iki sahne.\n" +
-    "- diagram.diagramKind yalnız şunlardan biri: number_line (sayı, eşitsizlik), balance_scale (iki kefeli denge, denklem), " +
-    "function_curve (eğri ve kritik nokta), timeline (zaman sırası), process_network (devre, evre, sistem). " +
-    "items 2-6 öğe. label kaynaktaki terimdir. Koordinat yazma. Kaynakta olmayan sayı ekleme.\n" +
-    "- Resim tarifi yazma. Yalnız şema verisi.\n\n" +
+    `- ${VISUAL_SCENE_COMMON_RULE}\n` +
+    "- Resim tarifi yazma. Yalnız sahne verisi.\n\n" +
+    `${archetypeSpecBlock(classification.visualArchetype, classification.confidence >= SKETCH_CONFIDENT)}\n\n` +
+    `academicDomain şunlardan biri: ${domainChoices()}. visualArchetype: ana çizimin arketipi.\n\n` +
     `${CONTENT_STYLE}\n\nYalnızca bu şemada JSON döndür:\n${SKETCH_SCHEMA}`
   );
 }
@@ -408,8 +452,8 @@ export function sketchVerifySystem(mode: TeacherLessonMode): string {
     "A) Kaynakta dayanağı olmayan ya da kaynakla çelişen olgu, sayı, tanım, kural.\n" +
     "B) Bozuk Türkçe.\n" +
     "C) Boş cümle ya da kaynağa atıf.\n" +
-    "D) formula ya da diagram.items kaynağın dışında sayı veya kural taşıyor.\n" +
-    "E) diagramKind izinli beş türden biri değil ya da öğe sayısı 2'nin altında.\n" +
+    "D) formula ya da sahne verisi (visual) kaynağın dışında sayı, tarih, kesir veya kural taşıyor.\n" +
+    "E) Sahne sırası hook, main_diagram, comparison, exam_trap, memory_nail değil ya da bir sahnenin çizim verisi eksik.\n" +
     "A, B ve D'deki yanlış bilgi 'high'; C ve E 'low'.\n" +
     (mode === "topic" ? "Belgesiz konuda emin olunmayan güncel eşiği high say.\n" : "") +
     'JSON döndür: {"issues":[{"scene":0,"severity":"high","problem":"…","fix":"…"}]}. Sorun yoksa boş dizi.'
@@ -467,18 +511,30 @@ export function readSketchDiagram(raw: unknown): SketchDiagram | null {
   return diagram && diagram.items.length >= 2 ? diagram : null;
 }
 
-/** Model çıktısını çizimli senaryoya oturtur. Resim tarifi aramaz. Geçersiz sahneyi düşürür. */
-export function parseSketchScript(raw: unknown, fallbackTitle: string): SketchScript | null {
+/**
+ * Model çıktısını çizimli senaryoya oturtur. Resim tarifi aramaz. Yeni biçim: her sahnede `beat` + `visual`
+ * (Faz 1-B); beat yoksa sıradan atanır. Eski biçim: `diagram`. Ne çizimi ne şeması olan sahne düşer.
+ */
+export function parseSketchScript(raw: unknown, fallbackTitle: string, domain?: Pick<DomainClassification, "visualArchetype">): SketchScript | null {
   const row = (raw ?? {}) as Record<string, unknown>;
   const list = Array.isArray(row.scenes) ? row.scenes : [];
+  const archetype = readVisualArchetype(row.visualArchetype) ?? domain?.visualArchetype;
+  const reelFormat = list.some((item) => {
+    const scene = (item ?? {}) as Record<string, unknown>;
+    return isReelBeat(scene.beat) || Boolean(scene.visual && typeof scene.visual === "object");
+  });
   const scenes = list.flatMap((item, index) => {
     const scene = (item ?? {}) as Record<string, unknown>;
     const narration = typeof scene.narration === "string" ? scene.narration.replace(/\s+/g, " ").trim() : "";
     const titleRaw = typeof scene.sceneTitle === "string" ? scene.sceneTitle : typeof scene.title === "string" ? scene.title : "";
     const sceneTitle = titleRaw.replace(/\s+/g, " ").trim().slice(0, 80);
     if (!narration || !sceneTitle) return [];
-    const diagram = sketchDiagram(scene.diagram ?? scene.visualSchema, sceneTitle);
-    if (!diagram) return [];
+    const beat: ReelBeat | undefined = isReelBeat(scene.beat) ? scene.beat : reelFormat ? REEL_BEATS[index] : undefined;
+    const reel = beat ? (parseReelVisual(scene.visual ?? scene.reel, beat, archetype) ?? undefined) : undefined;
+    // Sahne kendi beat'inin türünü taşımalı (ör. tuzak sahnesine kanca verisi gelmez).
+    const reelOk = reel && beat && reel.kind === reelKindForBeat(beat) ? reel : undefined;
+    const diagram = sketchDiagram(scene.diagram ?? scene.visualSchema, sceneTitle) ?? undefined;
+    if (!reelOk && !diagram) return [];
     const fact = typeof scene.keyFact === "string" ? scene.keyFact.replace(/\s+/g, " ").trim() : "";
     const keyFact = fact && words(fact) <= 12 ? fact.slice(0, 90) : undefined;
     const formulaRaw = typeof scene.formula === "string" ? scene.formula.replace(/^\$+|\$+$/g, "").trim() : "";
@@ -489,7 +545,8 @@ export function parseSketchScript(raw: unknown, fallbackTitle: string): SketchSc
         narration,
         sceneTitle,
         voice,
-        diagram,
+        ...(diagram ? { diagram } : {}),
+        ...(beat && reelOk ? { beat, reel: reelOk } : {}),
         ...(formula ? { formula } : {}),
         ...(keyFact ? { keyFact } : {}),
       } satisfies SketchScene,
@@ -497,16 +554,30 @@ export function parseSketchScript(raw: unknown, fallbackTitle: string): SketchSc
   });
   if (!scenes.length) return null;
   const title = typeof row.title === "string" && row.title.trim() ? row.title.trim().slice(0, 120) : fallbackTitle;
-  return { title, scenes: scenes.slice(0, SKETCH_MAX_SCENES) };
+  const mainScene = scenes.find((scene) => scene.reel?.kind === "archetype")?.reel;
+  const visualArchetype = mainScene?.kind === "archetype" ? mainScene.scene.archetype : archetype;
+  const domainRaw = readAcademicDomain(row.academicDomain);
+  const academicDomain = domainRaw && visualArchetype && DOMAIN_ARCHETYPE[domainRaw] === visualArchetype ? domainRaw : undefined;
+  return {
+    title,
+    scenes: scenes.slice(0, SKETCH_MAX_SCENES),
+    ...(academicDomain ? { academicDomain } : {}),
+    ...(visualArchetype ? { visualArchetype } : {}),
+  };
 }
 
-export function sketchStructureIssues(script: SketchScript): VideoStructureIssue[] {
+/** Senaryo yeni (5 sahneli çizim) biçiminde mi. */
+export function isReelScript(script: SketchScript): boolean {
+  return script.scenes.some((scene) => Boolean(scene.reel));
+}
+
+export function sketchStructureIssues(script: SketchScript, sourceCorpus?: string): VideoStructureIssue[] {
   const issues: VideoStructureIssue[] = [];
   const count = script.scenes.length;
   if (count < SKETCH_MIN_SCENES) {
     issues.push({
       severity: count < SKETCH_HARD_LIMITS.minScenes ? "high" : "low",
-      problem: `Sahne sayısı ${count}; ${SKETCH_MIN_SCENES}-${SKETCH_MAX_SCENES} olmalı.`,
+      problem: `Sahne sayısı ${count}; tam ${SKETCH_MIN_SCENES} olmalı (hook, main_diagram, comparison, exam_trap, memory_nail).`,
     });
   }
   const total = script.scenes.reduce((sum, scene) => sum + words(scene.narration), 0);
@@ -517,6 +588,15 @@ export function sketchStructureIssues(script: SketchScript): VideoStructureIssue
       problem: `Toplam ${total} kelime; ${SKETCH_TOTAL_WORDS.min}-${SKETCH_TOTAL_WORDS.max} olmalı (yaklaşık 1 dakika).`,
     });
   }
+  REEL_BEATS.forEach((beat, index) => {
+    const scene = script.scenes[index];
+    if (scene && (scene.beat !== beat || !scene.reel)) {
+      issues.push({
+        severity: "high",
+        problem: `scenes[${index}]: ${index + 1}. sahne "${beat}" (${REEL_BEAT_LABEL[beat]}) olmalı ve visual çizim verisini taşımalı.`,
+      });
+    }
+  });
   script.scenes.forEach((scene, index) => {
     const sceneWords = words(scene.narration);
     if (sceneWords > SKETCH_SCENE_MAX_WORDS) {
@@ -528,11 +608,9 @@ export function sketchStructureIssues(script: SketchScript): VideoStructureIssue
     if (/metne göre|belgede|kaynakta|bu videoda/i.test(scene.narration)) {
       issues.push({ severity: "low", problem: `scenes[${index}]: kaynağa atıf ya da boş giriş cümlesi; çıkar.` });
     }
-    if (!scene.formula) {
-      issues.push({ severity: "low", problem: `scenes[${index}]: vurucu formül ya da kural (formula) yok.` });
-    }
-    if (!SKETCH_KIND_SET.has(scene.diagram.diagramKind) || scene.diagram.items.length < 2) {
-      issues.push({ severity: "high", problem: `scenes[${index}]: parametrik şema eksik.` });
+    // Ana çizimin sayıları kaynakta geçmeli (belgeli videoda; kod denetimi, model çağrısız).
+    if (sourceCorpus && scene.reel?.kind === "archetype" && !visualSceneGrounded(scene.reel.scene, sourceCorpus)) {
+      issues.push({ severity: "high", problem: `scenes[${index}]: ana çizimde kaynakta geçmeyen sayı ya da terim var; yalnız kaynaktakini yaz.` });
     }
   });
   return issues;

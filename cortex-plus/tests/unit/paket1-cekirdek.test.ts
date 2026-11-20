@@ -44,7 +44,7 @@ describe("e-posta kaçışı", async () => {
     expect(mailer).toContain("${escapeHtml(who)}");
     expect(mailer).not.toMatch(/<strong>\$\{parentName\}<\/strong>/);
     expect(mailer).not.toMatch(/name\.split\(/);
-    const reminder = read("src/app/api/cron/study-reminders/route.ts");
+    const reminder = read("src/lib/notifications/jobs/daily-reminders.ts");
     // 7 Kasım 2026: hatırlatma gövdesi ortak şablondan çıkar; her dinamik değer orada kaçışlanır.
     expect(reminder).toContain("renderReminderMail(");
     const templates = read("src/lib/email/templates.ts");

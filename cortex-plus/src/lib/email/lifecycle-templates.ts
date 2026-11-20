@@ -1,6 +1,6 @@
 import { escapeHtml, personName } from "@/lib/email/escape";
 import { ctaButton, emailShell, footerHtml, footerText, paragraphsHtml, type RenderedMail } from "@/lib/email/templates";
-import { FREE_CHAT_PER_DAY, FREE_PHOTO_PER_DAY } from "@/lib/billing/free-meters";
+import { FREE_CHAT_PER_DAY, FREE_PHOTO_PER_MONTH } from "@/lib/billing/free-meters";
 import { FREE_FIRST_LESSON_SENTENCE, FREE_PAGE_TOTAL, PLUS_ONLY_SENTENCE } from "@/lib/billing/free-tier-copy";
 import { PLAN_WORK_BY_ID, workCount, type PlanWorkId } from "@/lib/billing/plan-value";
 import { allowanceWorkLine, sigmaBenefitLines } from "@/lib/billing/tier-presentation";
@@ -160,7 +160,7 @@ export function renderWelcomeMail(input: WelcomeMailInput): RenderedMail {
   // kalktı (ücretsiz hesap = tek ders). Cümleler tek kaynaktan (`free-tier-copy.ts`, `free-meters.ts`).
   const freeLines = [
     FREE_FIRST_LESSON_SENTENCE.replace(/\.$/, ""),
-    `Günde ${FREE_CHAT_PER_DAY} öğretmen mesajı ve günde ${FREE_PHOTO_PER_DAY} fotoğraftan çözüm`,
+    `Günde ${FREE_CHAT_PER_DAY} öğretmen mesajı ve ayda ${FREE_PHOTO_PER_MONTH} fotoğraftan çözüm`,
     `Tek sınav hazırlığı; belgelerin ${fmt(FREE_PAGE_TOTAL)} sayfasına kadar işlenir`,
   ];
   const moreLine = `${PLUS_ONLY_SENTENCE} İlk dersten sonraki konular, yeni anlatımlar ve Çalışma Stüdyosu'ndaki test, kart ve doğru/yanlış üretimi de Plus'ta açılır; hazır olduğunda Abonelik sayfasından bakabilirsin. Acelesi yok, önce ilk dersini dene.`;
@@ -458,11 +458,17 @@ export function purchaseKindFor(plan: {
 
 /** Bakım ekranı için: bu e-postaların adı ve ne zaman gittiği (yönetimdeki kart). */
 export const LIFECYCLE_MAILS = [
-  { id: "welcome", name: "Hoş geldin", when: "Kayıt ve kurulum tamamlanınca (e-posta ya da Google), bir kez." },
-  { id: "plus_monthly", name: "Plus (aylık)", when: "Ödeme kesinleşince, ödemenin yararlanıcısına." },
-  { id: "plus_weekly", name: "Sınav Haftası (7 günlük Plus)", when: "Ödeme kesinleşince." },
-  { id: "sigma", name: "Sigma", when: "Ödeme kesinleşince." },
-  { id: "addon", name: "Ek paket", when: "Ödeme kesinleşince." },
-  { id: "trial", name: "Plus denemesi (beta kodu)", when: "Kod kullanılıp deneme açılınca." },
+  { id: "welcome", templateKey: "welcome_onboarding", name: "Hoş geldin", when: "Kayıt ve kurulum tamamlanınca (e-posta ya da Google), bir kez." },
+  { id: "plus_monthly", templateKey: "payment_confirmed", name: "Plus (aylık)", when: "Ödeme kesinleşince, ödemenin yararlanıcısına." },
+  { id: "plus_weekly", templateKey: "payment_confirmed", name: "Sınav Haftası (7 günlük Plus)", when: "Ödeme kesinleşince." },
+  { id: "sigma", templateKey: "payment_confirmed", name: "Sigma", when: "Ödeme kesinleşince." },
+  { id: "addon", templateKey: "payment_confirmed", name: "Ek paket", when: "Ödeme kesinleşince." },
+  { id: "trial", templateKey: "trial", name: "Plus denemesi (beta kodu)", when: "Kod kullanılıp deneme açılınca." },
+  { id: "activation_24h", templateKey: "activation_24h", name: "İlk gün hatırlatması", when: "Kayıttan 24 saat sonra hazırlık kurulmadıysa, 19:00'da, bir kez." },
+  { id: "free_first_unit_completed", templateKey: "free_first_unit_completed", name: "İlk ders bitti (Plus daveti)", when: "Ücretsiz hesap ilk dersini bitirince, 19:30'da; yalnız kampanya izni verene ve kampanya anahtarı açıkken." },
+  { id: "smart_trap_nudge", templateKey: "smart_trap_nudge", name: "Sınav tuzağı hatırlatması", when: "Açık yanılgı varken 72 saat çalışılmadıysa, öğrencinin seçtiği saatte; haftada en çok bir." },
+  { id: "exam_eve_cheat_sheet", templateKey: "exam_eve_cheat_sheet", name: "Sınava 48 / 24 saat", when: "Sınavdan 2 gün ve 1 gün önce, 18:30'da." },
+  { id: "subscription_expiry_reminder", templateKey: "subscription_expiry_reminder", name: "Paket bitiyor", when: "Ücretli dönem bitmeden 3 gün ve 1 gün önce, 18:30'da." },
+  { id: "weekly_study_digest", templateKey: "weekly_study_digest", name: "Haftalık özet", when: "Pazar 19:00'da, son 7 günde çalışan öğrenciye." },
 ] as const;
 export type LifecycleMailId = (typeof LIFECYCLE_MAILS)[number]["id"];

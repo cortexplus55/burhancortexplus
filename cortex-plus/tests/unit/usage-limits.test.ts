@@ -45,7 +45,8 @@ describe("ücretsiz hesap", () => {
         free_usage: [
           { meter: "lesson", period_key: "2026-W38", used: 2 },
           { meter: "chat", period_key: "2026-09-18", used: 3 },
-          { meter: "photo", period_key: "2026-09-17", used: 1 },
+          // Faz 4: fotoğraf dönemi ay ("YYYY-MM"); geçen ayın satırı sayılmaz.
+          { meter: "photo", period_key: "2026-08", used: 1 },
         ],
       }),
       "u",
@@ -59,8 +60,8 @@ describe("ücretsiz hesap", () => {
     expect(limits[0]).toMatchObject({ used: 1, limit: 25, label: "Fotoğraf ve PDF sayfa" });
     expect(limits[0]?.hint).toContain("PDF sayfa: 25");
     expect(limits[1]).toMatchObject({ used: 3, limit: 3 });
-    // Dünün fotoğrafı bugünün hakkını yemez.
-    expect(limits[2]).toMatchObject({ used: 0, limit: 1 });
+    // Faz 4: fotoğraf hakkı aylık (ayda 7); geçen ayın fotoğrafı bu ayın hakkını yemez.
+    expect(limits[2]).toMatchObject({ used: 0, limit: 7 });
   });
 
   /* Zor soru yükseltmesi zaten yalnızca premium'da çalışıyor; ücretsiz

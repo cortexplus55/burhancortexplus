@@ -14,6 +14,7 @@ import { teachingActivityForKind } from "@/lib/learning/teaching-standards";
 import { quizOpenStagesLog } from "@/lib/learning/quiz-delivery";
 import { NodeGenerationError, actionForKind } from "./shared";
 import { prepTopicLabels, prepTopicScopeLine } from "@/lib/documents/generation-context";
+import { excludedSiblingBoundaryBlock, siblingsOutsideBoundary } from "@/lib/learning/sibling-topics";
 import { ALL_TOPICS_LABEL } from "@/lib/learning/prep-wide-target";
 import { narrowPagesToTopic } from "@/lib/learning/topic-section";
 import { withSupport, type LessonCore } from "./teacher-pages";
@@ -30,10 +31,14 @@ export async function teacherQuizPayload(
   input: NodePayloadInput,
   activity: ReturnType<typeof teachingActivityForKind>,
   /** null: belgesiz hazırlık; sorular konunun yerleşik bilgisinden. */
-  core: LessonCore | null,
+  coreIn: LessonCore | null,
   count: number,
 ) {
   const startedAt = input.requestStartedAt ?? Date.now();
+  // Kaynak araması yedeği (Faz 1-A §3.3): arama boş/düşmüş ve konunun sayfası da bulunamamışsa (belge var, sayfa yok)
+  // çekirdek boştur; test o zaman konunun kayıtlı dersinden / ünite özetinden yazılır. Sayfası bulunan konu yedeğe düşmez.
+  const fallbackBlock = input.sourceFallback && (!coreIn || !coreIn.pages.length) ? input.sourceBlock.trim() : "";
+  const core = fallbackBlock ? null : coreIn;
   // Konu yalıtımı (6 Kasım 2026): yalnız tek konulu konu testi; tuzak testi (gaps) hazırlık geneli olabilir.
   const siblingsEarly =
     core && input.kind === "quiz" && input.prepId && input.topicLabel !== ALL_TOPICS_LABEL
@@ -65,7 +70,15 @@ export async function teacherQuizPayload(
       : [];
   const siblings = await siblingsEarly;
   const scoped = narrowPagesToTopic<{ page: number; text: string; label?: string }>(withSupport(clean, core), input.topicLabel, siblings);
-  const scopeLine = prepTopicScopeLine(input.topicLabel, siblings);
+  // Kardeş ünite sınırı (19 Kasım 2026, Faz 1-A §1): aynı kaynak sayfalarını paylaşan üniteler katı blokta; kapsam
+  // satırı yalnız öbürlerini sayar.
+  const excluded = core ? (input.excludedSiblingTopics ?? []) : [];
+  const scopeLine = [
+    prepTopicScopeLine(input.topicLabel, siblingsOutsideBoundary(siblings, excluded)),
+    excludedSiblingBoundaryBlock(input.topicLabel, excluded),
+  ]
+    .filter(Boolean)
+    .join("\n");
   // Testin dilimi konunun kendi (daraltılmış) sayfalarından; yardımcı sayfalar omurgaya girmez.
   const ownPages = scoped.pages.filter((page) => !page.label);
   const variant = input.sessionMeta?.practiceVariant ?? practiceVariantFromTitle(input.nodeTitle);
@@ -73,8 +86,10 @@ export async function teacherQuizPayload(
     input.kind === "quiz"
       ? practiceCoverage(variant, lessonBackbone(ownPages, { topicLabel: input.topicLabel, runningHeaders: edges }))
       : undefined;
+  // Yedek kaynaklı test belgeli kipte yazılır (genel bilgiyle doldurma yok).
   const outcome = await runTeacherQuiz(input.service, {
-    mode: core ? "document" : "topic",
+    mode: core || fallbackBlock ? "document" : "topic",
+    ...(fallbackBlock ? { sourceBlock: fallbackBlock } : {}),
     focus: input.kind === "gaps" ? "gaps" : "practice",
     previousStems,
     ...(coverage ? { coverage } : {}),
@@ -93,8 +108,11 @@ export async function teacherQuizPayload(
     runningHeaders: edges,
     officialOutcome: await loadOfficialOutcome(input.service, input.prepId, input.topicLabel),
     difficulty: quizDifficulty(input.requestedDifficulty),
-    // Konu testinde bir soru çok cevaplı (17 Ekim 2026, kıyas ürünündeki gibi); tuzak testi tek cevaplı.
-    multi: input.kind === "quiz" && count >= 5,
+    // Kaynak düzeltmesi (Faz 1-A §2.1): yalnız belgeli testte.
+    ...(core && input.sourceCorrection ? { sourceCorrection: input.sourceCorrection } : {}),
+    // Tek doğru şık garantisi (19 Kasım 2026, Faz 1-A §3.1): konu testinin bütün soruları tek seçimli; çok cevaplı
+    // soru kipi kapalı (17 Ekim 2026'daki "son soru çok cevaplı" kuralı kalktı). Kayıt öncesi kapı `enforceSingleChoice`.
+    multi: false,
     // Yoldaki konu testinin kuralları ve dersi (20 Ekim 2026); tuzak testi (gaps) bugünkü gibi.
     scope: input.kind === "quiz" ? "topic_test" : undefined,
     lesson: input.kind === "quiz" ? (input.lessonQuiz ?? undefined) : undefined,

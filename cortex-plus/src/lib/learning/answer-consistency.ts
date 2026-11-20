@@ -14,6 +14,7 @@
  * yakınında olumsuzluk ("değil", "yanlış", "olmaz") varsa okunmaz; değer tam olarak BİR şıkta yoksa sorun yazılmaz.
  */
 
+import { computedOption, rationaleSupportedIndex } from "@/lib/learning/answer-key-consistency";
 import { chainsOf, firstResultSentence, normalizeNumberText, numbersIn, optionValueIndexes, optionValues, sameNumber } from "@/lib/learning/result-values";
 
 export type ConsistencyFields = {
@@ -39,6 +40,12 @@ export type FinalValue = {
 };
 
 export type AnswerMismatch = {
+  /**
+   * Neden (19 Kasım 2026, Faz 1-A §3 güçlendirmesi): "value" açıklamanın vardığı değer; "computed" birimiyle
+   * hesaplanan sonuç (ara sonuç değil); "rationale" anahtarlı şıkkın gerekçesi onu çürütüyor, gerekçeler tek bir
+   * başka şıkkı gösteriyor (değer yok: NaN). Alan yoksa "value".
+   */
+  reason?: "value" | "computed" | "rationale";
   value: number;
   /** Değeri taşıyan tek şık. */
   expected: string;
@@ -135,19 +142,43 @@ export function explanationFinalValue(fields: ConsistencyFields): FinalValue | n
  */
 export function explanationAnswerMismatch(fields: ConsistencyFields): AnswerMismatch | null {
   if (!fields.options.length || !fields.keyed.length) return null;
+  const keyedText = () => fields.keyed.map((index) => fields.options[index] ?? "").filter(Boolean);
+  // Birimiyle yazılmış hesap sonucu önce (19 Kasım 2026, Faz 1-A §3): ilk sonuç cümlesi bir ARA sonuca ("fark =
+  // …") varıp o sayıyı taşıyan yanlış şıkkı gösterebiliyordu; anahtar o ara sonuca hizalanıyordu. Şıklar "… birim"
+  // taşıyorsa sonuç da aynı birimle yazılmış olmalı; nitelikli bütün sonuçlar aynı tek şıkka varıyorsa karar odur.
+  const computed =
+    fields.keyed.length === 1
+      ? computedOption({ options: fields.options, answerIndex: fields.keyed[0]!, explanation: fields.explanation ?? "", steps: fields.steps ?? undefined })
+      : null;
+  if (computed !== null) {
+    if (fields.keyed.includes(computed)) return null;
+    const value = optionValues(fields.options[computed]!)[0] ?? Number.NaN;
+    return { reason: "computed", value, expected: fields.options[computed]!, expectedIndex: computed, keyed: keyedText(), source: "explanation" };
+  }
   const found = explanationFinalValue(fields);
-  if (!found) return null;
-  const indexes = optionValueIndexes(fields.options, found.value);
-  if (indexes.length !== 1) return null;
-  const expectedIndex = indexes[0]!;
-  if (fields.keyed.includes(expectedIndex)) return null;
-  return {
-    value: found.value,
-    expected: fields.options[expectedIndex]!,
-    expectedIndex,
-    keyed: fields.keyed.map((index) => fields.options[index] ?? "").filter(Boolean),
-    source: found.source,
-  };
+  if (found) {
+    const indexes = optionValueIndexes(fields.options, found.value);
+    if (indexes.length === 1 && !fields.keyed.includes(indexes[0]!)) {
+      const expectedIndex = indexes[0]!;
+      return { reason: "value", value: found.value, expected: fields.options[expectedIndex]!, expectedIndex, keyed: keyedText(), source: found.source };
+    }
+    if (indexes.length === 1) return null;
+  }
+  // Gerekçe kanıtı: anahtarlı şıkkın gerekçesi onu yanılgı diye anlatıyor ve gerekçeler tek bir başka şıkkı
+  // gösteriyor. Değer kanıtı anahtarı destekliyorsa buraya gelinmez.
+  if (fields.keyed.length !== 1) return null;
+  const supported = rationaleSupportedIndex(fields.options, fields.keyed[0]!, fields.optionWhy);
+  if (supported !== null) {
+    return { reason: "rationale", value: Number.NaN, expected: fields.options[supported]!, expectedIndex: supported, keyed: keyedText(), source: "optionWhy" };
+  }
+  return null;
+}
+
+/** Sorun metninde "… sonucuna varıyor" ya da gerekçe kanıtı; yapı denetimi ve kayıtlar aynı cümleyi kullanır. */
+export function mismatchEvidence(mismatch: AnswerMismatch): string {
+  if (mismatch.reason === "rationale") return "Şık gerekçeleri anahtarlı şıkkı yanılgı diye anlatıyor, başka bir şıkkı doğru gösteriyor";
+  const value = Number.isFinite(mismatch.value) ? String(Number(mismatch.value.toFixed(6))).replace(".", ",") : mismatch.expected;
+  return `Açıklama ${value} sonucuna varıyor`;
 }
 
 /** Tek doğrulu çoktan seçmeli: `explanationAnswerMismatch`'in kısa yolu; anahtarsız ya da şıksız soruda null. */

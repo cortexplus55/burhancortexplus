@@ -1,17 +1,31 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { getSessionUserContext } from "@/lib/auth/session-context";
 import { redirect } from "next/navigation";
 import { homePathForRole } from "@/lib/parity/signup";
 import { accountActiveOrUnknown } from "@/lib/auth/active-account";
 import { requireAdminPage } from "@/lib/auth/admin-guard";
 
-export async function requireUser() {
+/**
+ * İsteğin oturum kullanıcısı (Faz 2, madde 2.1): `React.cache` ile aynı istekte Auth'a bir kez gidilir; kabuk,
+ * sayfa ve alt bileşenler aynı sonucu paylaşır.
+ */
+export const getRequestUser = cache(async () => {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  return { supabase, user };
+});
+
+export async function requireUser() {
+  const { supabase, user } = await getRequestUser();
   if (!user) redirect("/giris");
   // Durum iki okumada da gelmezse sayfa 500 vermez, geçer (29 Ekim 2026); askı (`false`) aynen girişe.
-  const active = await accountActiveOrUnknown(supabase);
+  // Faz 2: durum, profil ve plan tek bağlam okumasından gelir (istek içinde bir kez, 45 sn paylaşımlı önbellek;
+  // yalnız etkin hesap önbelleğe girer, askı ve silinme önbelleği temizler).
+  const context = await getSessionUserContext(user.id, { client: supabase }).catch(() => null);
+  const active = context ? context.active : await accountActiveOrUnknown(supabase);
   if (active === false) redirect("/giris");
   if (active === null) console.warn("account_status_unavailable", { where: "requireUser" });
   return { supabase, user };
@@ -28,6 +42,8 @@ export async function getUserRoles(userId: string) {
 }
 
 export async function getPrimaryRole(userId: string) {
+  const context = await getSessionUserContext(userId).catch(() => null);
+  if (context?.profile?.primary_role) return context.profile.primary_role;
   const supabase = await createClient();
   const { data } = await supabase
     .from("profiles")

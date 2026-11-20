@@ -317,7 +317,7 @@ describe("C2 'Not yükle' kapısında çekirdek", () => {
     const handoff = read("src/lib/documents/guest-handoff.ts");
     expect(handoff).not.toMatch(/supabase|getUser|fetch\(/);
     const wizard = read("src/components/parity/exam-create-wizard.tsx");
-    expect(wizard).toContain('<GuestDocumentOffer variant="offer" disabled={uploading} onTake={(files) => takeFiles(files)} />');
+    expect(wizard).toContain('<GuestDocumentOffer variant="offer" auto disabled={uploading} onTake={(files) => takeFiles(files)} />');
   });
 });
 

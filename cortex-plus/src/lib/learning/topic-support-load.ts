@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { prepSourceDocumentIds } from "@/lib/learning/prep-source";
 import { loadPagedDocumentRows } from "@/lib/learning/paged-document-rows";
 import { parseTopicSourceRefs } from "@/lib/learning/topic-source-refs";
+import { pageUsableForLesson } from "@/lib/documents/page-analysis";
 import {
   assignSupportExcerpts,
   supportLabel,
@@ -140,4 +141,77 @@ export async function supportFilesForTopics(
 
 export function supportPagesForEngine(excerpts: SupportExcerpt[]): SupportPage[] {
   return excerpts.map((excerpt) => ({ page: excerpt.page, text: excerpt.text, label: supportLabel(excerpt) }));
+}
+
+/** Ana ünitenin öbür belgelerden gelen sayfalarının üst sınırı (öğretmen istemi şişmesin). */
+const UNIT_SUPPORT_MAX_PAGES = 12;
+const UNIT_SUPPORT_MAX_CHARS = 14_000;
+
+/**
+ * Ana ünitenin çekirdek belge dışındaki sayfaları (Faz 10, 20 Kasım 2026): aynı temanın slayttaki, Word notundaki ya da
+ * fotoğraftaki parçası. Oturumun kendi kaynağıdır (`unitSources`), benzerlikle seçilmez; yardımcı kaynak etiketiyle
+ * ("Ek kaynak · dosya s.N") gider. Yalnız sahibinin silinmemiş belgeleri; öğretilmeyen sayfa (kapak, kaynakça …) girmez.
+ * Okuma düşerse boş: ders çekirdek belgeyle yazılır.
+ */
+export async function loadUnitSourcePages(
+  service: SupabaseClient,
+  userId: string,
+  refs: readonly { documentId: string; pages: readonly number[] }[],
+): Promise<SupportExcerpt[]> {
+  const wanted = refs.filter((ref) => ref.documentId && ref.pages.length);
+  if (!wanted.length) return [];
+  try {
+    const { data: docs } = await service
+      .from("documents")
+      .select("id, file_name")
+      .eq("user_id", userId)
+      .is("deleted_at", null)
+      .in("id", [...new Set(wanted.map((ref) => ref.documentId))]);
+    const fileName = new Map((docs ?? []).map((row) => [row.id as string, (row.file_name as string | null) ?? "Belge"]));
+    const out: SupportExcerpt[] = [];
+    let used = 0;
+    for (const ref of wanted) {
+      if (!fileName.has(ref.documentId) || out.length >= UNIT_SUPPORT_MAX_PAGES) continue;
+      const pages = [...new Set(ref.pages)].sort((a, b) => a - b).slice(0, UNIT_SUPPORT_MAX_PAGES - out.length);
+      const { data: rows } = await service
+        .from("document_pages")
+        .select("page_number, text_content, page_kind")
+        .eq("document_id", ref.documentId)
+        .in("page_number", pages)
+        .order("page_number", { ascending: true });
+      const pageCount = Math.max(...pages);
+      for (const row of rows ?? []) {
+        if (!pageUsableForLesson(row)) continue;
+        const text = String(row.text_content ?? "").trim();
+        if (!text || (used > 0 && used + text.length > UNIT_SUPPORT_MAX_CHARS)) continue;
+        used += text.length;
+        out.push({
+          documentId: ref.documentId,
+          fileName: fileName.get(ref.documentId) ?? "Belge",
+          page: row.page_number as number,
+          part: null,
+          text,
+          similarity: 1,
+          pageCount,
+        });
+      }
+    }
+    return out;
+  } catch (error) {
+    console.error("unit_source_pages_failed", { message: error instanceof Error ? error.message : "unknown" });
+    return [];
+  }
+}
+
+/** İki yardımcı kaynak listesini birleştirir: aynı sayfa (ve parça) bir kez, öndeki liste önce. */
+export function mergeSupportExcerpts(first: readonly SupportExcerpt[], second: readonly SupportExcerpt[]): SupportExcerpt[] {
+  const seen = new Set<string>();
+  const out: SupportExcerpt[] = [];
+  for (const excerpt of [...first, ...second]) {
+    const key = `${excerpt.documentId}:${excerpt.page}:${excerpt.part ?? ""}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(excerpt);
+  }
+  return out;
 }

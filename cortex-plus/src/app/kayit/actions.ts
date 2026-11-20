@@ -10,6 +10,7 @@ import { resolveFullName } from "@/lib/auth/resolve-full-name";
 import { consentMoment, recordSignupConsent, requestIp } from "@/lib/legal/record-consent";
 import { ageDeclarationSchema, consentEvidenceSchema } from "@/lib/legal/consent-evidence";
 import { recordSignupMarketingConsent } from "@/lib/email/preferences";
+import { notifyInApp } from "@/lib/notifications/in-app";
 import { getParentLinkStatus } from "@/lib/parent/link-status";
 import {
   sendParentInviteEmail,
@@ -44,6 +45,11 @@ const payloadSchema = z.object({
   consentEvidence: consentEvidenceSchema.optional(),
   ageDeclaration: ageDeclarationSchema.optional(),
   marketingEmail: z.boolean().optional(),
+  // Faz 2 (madde 6): onay alanları gelirse yalnız `true` olabilir. Gelmezse (bağlantı başka tarayıcıda açıldı, yük
+  // yok) kayıt tamamlanır ve onay ekranı (`/onay`, onay kapısı) metinleri ister: öğrenci kilitlenmez.
+  termsAccepted: z.literal(true).optional(),
+  kvkkAccepted: z.literal(true).optional(),
+  ageConfirmed: z.literal(true).optional(),
 });
 
 /** Kayıtta hesaba yazılan okuma kanıtı ve yaş beyanı (bağlantı başka tarayıcıda açılınca yük yoktur). */
@@ -296,8 +302,9 @@ async function notifyStudentOfRequest(parentId: string, studentId: string) {
   const service = createServiceClient();
   const parentName = await displayName(parentId);
 
-  await service.from("notifications").insert({
-    user_id: studentId,
+  await notifyInApp(service, {
+    kind: "account",
+    userId: studentId,
     title: "Yeni veli bağlantı isteği",
     body: `${parentName} hesabına veli olarak bağlanmak istiyor. Profil sayfandan onaylayabilirsin.`,
   });
@@ -370,8 +377,9 @@ export async function requestParentPayment(planId: string, message?: string) {
   if (link?.parent_id) {
     const service = createServiceClient();
     const studentName = await displayName(user.id);
-    await service.from("notifications").insert({
-      user_id: link.parent_id,
+    await notifyInApp(service, {
+      kind: "account",
+      userId: link.parent_id,
       title: "Plus ödeme isteği",
       body: `${studentName} bir Plus paketi için ödeme desteği istiyor. Plus sekmesinden inceleyebilirsin.`,
     });

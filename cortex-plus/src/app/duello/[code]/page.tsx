@@ -12,6 +12,7 @@ import "@/styles/duel.css";
 import "@/styles/ui-v2-duello.css";
 import { uiV2 } from "@/lib/ui-v2/flags";
 import { UiScope } from "@/lib/ui-v2/scope";
+import { MAIN_CONTENT_ID } from "@/lib/ui/main-content";
 
 export const metadata = {
   title: "Düello",
@@ -84,7 +85,7 @@ export default async function DuelPage({
 
   return (
     <UiScope keys={duelloV2 ? ["duello"] : []}>
-    <main className="cp-duel-page">
+    <main id={MAIN_CONTENT_ID} className="cp-duel-page">
       <header className="cp-duel-top">
         <Link href="/" className="cp-duel-logo">
           cortex<span>plus</span>

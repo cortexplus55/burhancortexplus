@@ -12,10 +12,15 @@ export const dynamic = "force-dynamic";
 
 export default async function MockExamSetupPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ prepId: string }>;
+  searchParams: Promise<{ mod?: string | string[] }>;
 }) {
   const { prepId } = await params;
+  // Faz 5 §3.2: hazırlık ana sayfasındaki "Hocanın İkiz Sınavı (20 Soru)" girişi (`?mod=ikiz`).
+  const mod = (await searchParams).mod;
+  const initialTwin = (Array.isArray(mod) ? mod[0] : mod) === "ikiz";
   const { supabase, user } = await requireStudentArea();
   const shell = await loadParityShellProps(supabase, user.id, user.email);
   const admin = await isAdminUser(supabase, user.id);
@@ -71,6 +76,8 @@ export default async function MockExamSetupPage({
               }
             : null
         }
+        initialTwin={initialTwin}
+        uploadHref={`/deneme-sinavlari/${prepId}?kaynak=ekle`}
         isAdmin={admin}
       />
     </ParitySorShell>

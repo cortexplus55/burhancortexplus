@@ -3,6 +3,7 @@ import { AuthHeroRing, AuthLogo } from "@/components/layout/auth-brand";
 import { Check } from "lucide-react";
 import Link from "next/link";
 import "@/styles/cortex-premium.css";
+import { MAIN_CONTENT_ID } from "@/lib/ui/main-content";
 
 export function SignupPremiumShell({
   progress,
@@ -75,7 +76,7 @@ export function SignupPremiumShell({
             </span>
             <span className="cx-auth-step text-xs text-[var(--cpx-muted)]">{stepLabel}</span>
           </header>
-          <main className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pb-10 lg:px-8">
+          <main id={MAIN_CONTENT_ID} className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pb-10 lg:px-8">
             {/* Yeni 3B logo (9 Kasım 2026): formun üstünde ortalanmış işaret. Yeni görünümde logo üstte, bu gizli. */}
             <div className="cx-auth-mark mb-4 flex justify-center">
               <CortexMark size={56} priority />

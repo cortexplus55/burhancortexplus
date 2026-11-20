@@ -32,13 +32,12 @@ import {
 import { orderTopicsForPath } from "@/lib/learning/topic-order";
 import { remapPrerequisites, mergeTopicGroups, type MergeTopicInput, type MergedTopic } from "@/lib/learning/topic-merge";
 import type { ConsolidatedTopic, ExcludedTopicNote } from "@/lib/learning/cross-material-topics";
-import { splitExcludedTopics } from "@/lib/learning/topic-scope";
 import { readScopeExclusionPhrases } from "@/lib/learning/scope-exclusion-read";
 import { readVersionPairs } from "@/lib/learning/material-check-read";
 import { resolveAmbiguousMerges } from "@/lib/learning/topic-merge-model";
 import { consolidatePrepDocuments } from "@/lib/learning/consolidate-documents";
 import { formatContradictions } from "@/lib/learning/source-contradictions";
-import { loadOneshotIntakeTopics, type IntakeStudyUnit } from "@/lib/learning/intake-outline";
+import { loadIntakeMainUnits, type IntakeStudyUnit } from "@/lib/learning/intake-outline";
 import { supportFilesForTopics } from "@/lib/learning/topic-support-load";
 import { namePrepFromTopics } from "@/lib/learning/prep-title-run";
 import { prepTitleFromModel } from "@/lib/learning/prep-title";
@@ -311,14 +310,21 @@ export async function POST(request: Request) {
   let mergedTopics: Array<ConsolidatedTopic | MergedTopic> = [];
   let outlineExcluded: ExcludedTopicNote[] = [];
   let keepLlmOrder = false;
+  /** Ana ünite modeli (Faz 10): konu listesi ana üniteler, her birinin alt başlıkları. */
+  let mainSubtopics: string[][] | null = null;
 
   // Oneshot hierarchical maps: use LLM units/topics/order as-is.
   // Never consolidate or re-sort — that was the round-2 B1 failure mode.
   if (v2 && documentIds.length) {
-    const oneshot = await loadOneshotIntakeTopics(service, userId, documentIds);
+    // Belgenin "finalde yok / kapsam dışı" dediği ince konu üniteye girmez, kapsam dışı notuyla görünür (Paket I):
+    // harita belgeye ait kalır, kapsam hazırlığın bilgisi. İnce konular ana ünitelere toplanır (Faz 10); kurulum aynı
+    // işlevden yazar (`loadScheduleTopics` `mainUnits`).
+    const main = await loadIntakeMainUnits(service, userId, documentIds, {
+      exclusionPhrases: await readScopeExclusionPhrases(service, documentIds),
+    });
     // Several files not outlined together yet → the client runs the one course
     // outline (process route) and comes back. Maps in use are never rewritten.
-    if (!oneshot && documentIds.length > 1 && (await planCourseMap(service, documentIds)).length) {
+    if (!main && documentIds.length > 1 && (await planCourseMap(service, documentIds)).length) {
       return NextResponse.json(
         {
           error: "Belgenin konuları yeniden düzenleniyor. İşlem bitince tekrar dene.",
@@ -327,17 +333,11 @@ export async function POST(request: Request) {
         { status: 409 },
       );
     }
-    if (oneshot) {
-      // Belgenin "finalde yok / kapsam dışı" dediği konu listeye girmez, kapsam dışı notuyla görünür
-      // (Paket I): harita belgeye ait kalır, kapsam hazırlığın bilgisi.
-      const scoped = splitExcludedTopics(
-        oneshot.topics,
-        oneshot.units,
-        await readScopeExclusionPhrases(service, documentIds),
-      );
-      mergedTopics = scoped.topics;
-      intakeUnits = scoped.units;
-      outlineExcluded = scoped.excluded;
+    if (main) {
+      mergedTopics = main.topics;
+      mainSubtopics = main.topics.map((topic) => topic.subtopics);
+      intakeUnits = [];
+      outlineExcluded = main.excluded;
       intakeMode = "v2";
       keepLlmOrder = true;
     }
@@ -485,6 +485,8 @@ export async function POST(request: Request) {
             topicWeights: merged.topicWeights,
             topicSections: merged.topicSections,
             topicDescriptions: merged.topicDescriptions,
+            // Ana ünite modeli (Faz 10): her ünitenin alt başlıkları (sihirbaz ünitenin altında küçük gösterir).
+            ...(mainSubtopics ? { topicSubtopics: mainSubtopics } : {}),
             excluded: consolidated?.excluded ?? outlineExcluded,
             missingTopics: consolidated?.missingFromMaterials ?? [],
             suggestedExamDate: consolidated?.suggestedExamDate ?? null,

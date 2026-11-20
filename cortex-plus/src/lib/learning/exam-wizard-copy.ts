@@ -205,6 +205,8 @@ export const WIZARD_COPY = {
   topicCheckFailed: "Konu şu an doğrulanamadı. Tekrar dene.",
   examHeavy: "Sınavda sık çıkar",
   important: "Önemli",
+  /** Ana ünitenin alt başlık listesinin ekran okuyucu adı (Faz 10). */
+  subtopicsLabel: "alt başlıkları",
   missingMaterial: "materyalde yok",
   addMissing: "Ekle",
   useSyllabusDate: "Müfredattaki tarihi kullan",
@@ -236,6 +238,21 @@ const foldTitle = (text: string) =>
  */
 export function redundantUnitHeader(unitTitle: string, topicTitles: string[]): boolean {
   return topicTitles.length === 1 && foldTitle(unitTitle) === foldTitle(topicTitles[0] ?? "");
+}
+
+/**
+ * Ana ünitenin altında gösterilen alt başlıklar (Faz 10): yazı olanlar, tekrarsız; ünitenin kendi adıyla aynı olan
+ * yazılmaz (tek alt başlıklı ünitede liste tekrar gibi okunur).
+ */
+export function unitSubtopicsToShow(unitTitle: string, raw: readonly unknown[]): string[] {
+  const out: string[] = [];
+  for (const item of raw) {
+    if (typeof item !== "string") continue;
+    const title = item.trim();
+    if (!title || foldTitle(title) === foldTitle(unitTitle) || out.some((have) => foldTitle(have) === foldTitle(title))) continue;
+    out.push(title);
+  }
+  return out;
 }
 
 /**

@@ -31,11 +31,12 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-import { HOME_DUEL_ROW_IDS, LandingDuel } from "@/components/landing/landing-duel";
+import { LandingDuel } from "@/components/landing/landing-duel";
 import { isPlusOnlyAction } from "@/lib/billing/free-meters";
 import { PLUS_ONLY_FEATURES } from "@/lib/billing/free-tier-copy";
 import { WEEKLY_PLUS_PLAN_NAME } from "@/lib/billing/tier-presentation";
-import { ADVANTAGE_ROWS, FORBIDDEN_BRAND_NAMES, SAME_NOTE_CASE, allAdvantageCopy } from "@/lib/marketing/advantage-content";
+import { FORBIDDEN_BRAND_NAMES, SAME_NOTE_CASE, allAdvantageCopy } from "@/lib/marketing/advantage-content";
+import { FARK_ITEMS, FARK_LABELS, NOTE_SCENE } from "@/lib/marketing/fark-accordion";
 import { FAQ, HOME_COPY, WEEK_PLAN_POINTS } from "@/lib/marketing/landing-content";
 import { JOURNEY_PLUS_ALSO, JOURNEY_PLUS_PREVIEWS } from "@/lib/marketing/landing-journey";
 
@@ -54,6 +55,10 @@ describe("palet: mavi zemin ve mavi düğme geri gelmez", () => {
     "src/styles/cinematic-home.css",
     "src/styles/advantage.css",
     "src/styles/tour-previews.css",
+    // 20 Kasım 2026 (Faz 7): fark vitrini kartları.
+    "src/styles/fark-vitrini.css",
+    // 20 Kasım 2026 (Faz 9): fark akordeonu, güven satırı, SSS.
+    "src/styles/home-farklar.css",
   ];
 
   it("pazarlama stil dosyalarında mavi eylem rengi yok", () => {
@@ -90,27 +95,47 @@ describe("palet: mavi zemin ve mavi düğme geri gelmez", () => {
     for (const selector of gold) expect(selector).toMatch(/plus/);
   });
 
-  it("hedef kitle sekmeleri yüksek kontrastlı: seçili olmayan dolu koyu yüzey ve açık yazı, seçili kâğıt beyazı", () => {
+  it("kahramanın tek seçicisi yüksek kontrastlı: seçili olmayan koyu tepside tam açık yazı, seçili kâğıt beyazı", () => {
+    // Faz 9 (20 Kasım 2026): dört sekme ve turun branş şeridi tek seçicide birleşti; seçili olmayan seçeneğin sönük
+    // durduğu şerit ("Üniversite zayıf görünüyor") kalktı. Oranlar hesaplanır: her biri en az 4,5:1.
     const css = withoutComments(read("src/styles/landing-showcase.css"));
-    const base = css.match(/\.lp-aud-tab \{[^}]*\}/)?.[0] ?? "";
-    expect(base).toContain("background: #1e1813;");
+    const tray = css.match(/\.lp-pick \{[^}]*\}/)?.[0] ?? "";
+    expect(tray).toContain("background: #15110d;");
+    const base = css.match(/\.lp-pick-opt \{[^}]*\}/)?.[0] ?? "";
     expect(base).toContain("color: #f7f1e8;");
-    expect(base).toContain("border: 1px solid rgba(247, 241, 232, 0.42);");
-    expect(base).toContain("min-height: 2.75rem;");
-    const on = css.match(/\.lp-aud-tab\.is-on \{[^}]*\}/)?.[0] ?? "";
+    expect(base).toContain("min-height: 3.5rem;");
+    const field = css.match(/\.lp-pick-field \{[^}]*\}/)?.[0] ?? "";
+    expect(field).toContain("color: #c4b8aa;");
+    const on = css.match(/\.lp-pick-opt\.is-on \{[^}]*\}/)?.[0] ?? "";
     expect(on).toContain("background: #f6ecd9;");
     expect(on).toContain("color: #1b140d;");
-    // Seçili sekmenin halesi şeridin renklerinden; çivit ya da camgöbeği dolgu yok.
+    expect(css).toMatch(/\.lp-pick-opt\.is-on \.lp-pick-field \{\s*color: #5c4a37;/);
+    // Seçili seçeneğin halesi şeridin renklerinden; çivit ya da camgöbeği dolgu yok.
     expect(on).toMatch(/box-shadow:[\s\S]*rgba\(255, 178, 36/);
     expect(css).not.toMatch(/indigo|#6366f1|#4f46e5/i);
+    const lum = (hex: string) => {
+      const [r, g, b] = [1, 3, 5].map((at) => parseInt(hex.slice(at, at + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+      return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+    };
+    const ratio = (a: string, b: string) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a), lum(b)) + 0.05);
+    for (const [text, ground] of [
+      ["#f7f1e8", "#15110d"],
+      ["#c4b8aa", "#15110d"],
+      ["#f7f1e8", "#241c15"],
+      ["#1b140d", "#f6ecd9"],
+      ["#5c4a37", "#f6ecd9"],
+      ["#1b140d", "#fffaf0"],
+    ]) {
+      expect(ratio(text!, ground!), `${text} / ${ground}`).toBeGreaterThanOrEqual(4.5);
+    }
   });
 });
 
 describe("kahraman: söz kısa, kokpit ilk ekranda", () => {
-  it("durağan sahne kalktı; başlık, cümle, sekmeler ve düğmeden sonra kokpit gelir", () => {
+  it("durağan sahne kalktı; başlık, cümle, tek seçici ve düğmeden sonra kokpit, en altta tek satır gelir", () => {
     const hero = withoutComments(read("src/components/landing/audience-hero.tsx"));
     expect(hero).not.toMatch(/HeroScene|hero-scene/);
-    const order = ['className="hm-title"', 'className="hm-lead"', "<AudienceTabs", "segment.ctaLabel", "<FuturisticGuidedJourney", "HERO_FACTS.map"];
+    const order = ['className="hm-title"', 'className="hm-lead"', "<AudiencePicker", "segment.ctaLabel", "<FuturisticGuidedJourney", "HERO_FOOT.facts.map"];
     const at = order.map((mark) => hero.indexOf(mark));
     for (const index of at) expect(index).toBeGreaterThan(-1);
     expect([...at].sort((a, b) => a - b)).toEqual(at);
@@ -119,8 +144,11 @@ describe("kahraman: söz kısa, kokpit ilk ekranda", () => {
     expect(css).toMatch(/\.hm-hero-grid \{[^}]*grid-template-areas:\s*"copy"\s*"pick"\s*"cockpit"\s*"foot";/);
     // Tur kahramanın içinde: kendi zemini ve dış boşluğu yok.
     expect(css).toMatch(/\.hm-hero \.lj \{\s*padding: 0;\s*background: none;/);
-    // Geniş ekranda sekmeler ve kayıt düğmesi tek satırda: ilk ekranda kokpite yer kalır.
-    expect(css).toMatch(/@media \(min-width: 1024px\) \{[\s\S]*\.hm-hero-pick \{\s*display: flex;/);
+    // Geniş ekranda seçici ve kayıt düğmesi tek satırda, ortada: ilk ekranda kokpite yer kalır.
+    expect(css).toMatch(/@media \(min-width: 1100px\) \{\s*\.hm-hero-pick \{\s*display: flex;[^}]*justify-content: center;/);
+    // Söz ortada (Faz 9): başlık, cümle ve seçici.
+    expect(css).toMatch(/\.hm-hero-copy \{[^}]*text-align: center;/);
+    expect(css).toMatch(/\.hm-lead \{[^}]*margin: 0\.7rem auto 0;/);
   });
 
   it("hareket azaltmada başlığın çizgisi çizilmiş durur", () => {
@@ -138,11 +166,15 @@ describe("aynı not, iki ayrı sonuç", () => {
     const card = screen.getByTestId("same-note-case");
     expect(within(card).getByText(SAME_NOTE_CASE.input.file)).toBeTruthy();
     for (const line of SAME_NOTE_CASE.input.lines) expect(within(card).getByText(line)).toBeTruthy();
-    const them = within(card).getByRole("region", { name: HOME_COPY.duel.them });
-    const us = within(card).getByRole("region", { name: HOME_COPY.duel.us });
+    // Faz 9 (20 Kasım 2026): kart akordeonun 1. sahnesi; ilk yüklemede açık başlığın sahnesi.
+    expect(card.closest('[data-testid="fark-scene"]')?.getAttribute("data-scene")).toBe("notuna-sadik");
+    const them = within(card).getByRole("region", { name: FARK_LABELS.them });
+    const us = within(card).getByRole("region", { name: FARK_LABELS.us });
     for (const point of SAME_NOTE_CASE.others.points) expect(within(them).getByText(point)).toBeTruthy();
     for (const point of SAME_NOTE_CASE.cortex.points) expect(within(us).getByText(point.text)).toBeTruthy();
     expect(within(us).getByText(SAME_NOTE_CASE.cortex.badge)).toBeTruthy();
+    // Çift kontrolün üç halkası sahnede: yazar, ikinci çağrı, kod.
+    for (const step of NOTE_SCENE.checks) expect(within(us).getByText(step)).toBeTruthy();
   });
 
   it("Cortex tarafındaki her sözün kodda kanıtı var; tutulamayan söz yok", () => {
@@ -161,24 +193,19 @@ describe("aynı not, iki ayrı sonuç", () => {
     expect(allAdvantageCopy()).toContain(SAME_NOTE_CASE.cortex.points[0]!.text);
   });
 
-  it("fark satırları açılır; kartın anlattığı iki fark ikinci kez yazılmaz", () => {
+  it("Faz 9: üç düzenli on kartlık yığın tek akordeona indi; başlıklar emojisiz okunur, ilk başlık açık gelir", () => {
     render(<LandingDuel />);
-    expect([...HOME_DUEL_ROW_IDS]).toEqual(["ikiz-sinav", "sinav-sabahi", "ikiz-soru", "sessiz-sozlu", "velime-link"]);
-    const list = document.querySelector("ol.hm-duel-list") as HTMLElement;
-    const rows = within(list).getAllByRole("listitem");
-    expect(rows).toHaveLength(HOME_DUEL_ROW_IDS.length);
-    rows.forEach((row, at) => {
-      const data = ADVANTAGE_ROWS.find((item) => item.id === HOME_DUEL_ROW_IDS[at])!;
-      expect(within(row).getByText(data.cortex.body)).toBeTruthy();
-      expect(within(row).getByText(data.others.body)).toBeTruthy();
-      expect(within(row).getByText(`${HOME_COPY.duel.us}: ${data.cortex.verdict}`)).toBeTruthy();
-      expect(within(row).getByText(`${HOME_COPY.duel.them}: ${data.others.verdict}`)).toBeTruthy();
-      // Başlık emojisiz okunur; emoji süs olarak ayrı ve gizli.
-      const heading = within(row).getByRole("heading", { level: 3 });
-      expect(data.feature.endsWith(heading.textContent ?? "\u0000")).toBe(true);
-      expect(heading.textContent).not.toBe(data.feature);
-      // İlk satır açık gelir, ötekiler kapalı: sayfa kısa kalır, metin sayfada durur.
-      expect(row.querySelector("details")?.hasAttribute("open")).toBe(at === 0);
+    // Eski yığın yok: fark vitrini ızgarası ve açılır fark satırları.
+    expect(document.querySelector('[data-testid="fark-vitrini"], ol.hm-duel-list, details.hm-duel-item')).toBeNull();
+    const heads = [...document.querySelectorAll<HTMLElement>(".fk-head")];
+    expect(heads).toHaveLength(FARK_ITEMS.length);
+    heads.forEach((head, at) => {
+      const item = FARK_ITEMS[at]!;
+      // Emoji süs: ekran okuyucudan gizli, başlığın adı emojisiz.
+      expect(head.querySelector(".fk-node")?.getAttribute("aria-hidden")).toBe("true");
+      expect(head.querySelector(".fk-node")?.textContent).toBe(item.emoji);
+      expect(head.querySelector(".fk-title")?.textContent).toBe(item.title);
+      expect(head.querySelector("button")?.getAttribute("aria-expanded")).toBe(String(at === 0));
     });
     const text = document.body.textContent ?? "";
     for (const brand of FORBIDDEN_BRAND_NAMES) expect(text, brand).not.toMatch(new RegExp(`\\b${brand}\\b`));
@@ -187,14 +214,16 @@ describe("aynı not, iki ayrı sonuç", () => {
     expect(screen.getByRole("link", { name: HOME_COPY.duel.more }).getAttribute("href")).toBe("/ozellikler#farklar");
   });
 
-  it("bölüm #farklar çapasını taşır; kart geniş ekranda iki sütun, satırların omurgası solda", () => {
+  it("bölüm #farklar çapasını taşır; geniş ekranda başlıklar solda (5/12), sahne sağda (7/12); sahne kartı iki sütun", () => {
     render(<LandingDuel />);
     expect(document.querySelector("section#farklar")).toBeTruthy();
-    const css = read("src/styles/home-cinema.css");
-    expect(css).toMatch(/\.hm-duel-row \{[^}]*grid-template-columns: 3rem minmax\(0, 1fr\);/);
-    expect(css).toMatch(/\.hm-case-split \{[^}]*grid-template-columns: minmax\(0, 1fr\);/);
-    expect(css).toMatch(/@media \(min-width: 900px\) \{\s*\.hm-case-split \{\s*grid-template-columns: minmax\(0, 1fr\) minmax\(0, 1fr\);/);
-    expect(css).toMatch(/\.hm-duel-summary \{[^}]*min-height: 3rem;/);
+    const css = read("src/styles/home-farklar.css");
+    expect(css).toMatch(/@media \(min-width: 960px\) \{\s*\.fk \{\s*grid-template-columns: minmax\(0, 5fr\) minmax\(0, 7fr\);/);
+    expect(css).toMatch(/\.fk-split \{[^}]*grid-template-columns: minmax\(0, 1fr\);/);
+    expect(css).toMatch(/@container \(min-width: 34rem\) \{\s*\.fk-split \{\s*grid-template-columns: minmax\(0, 0\.85fr\) minmax\(0, 1\.15fr\);/);
+    expect(css).toMatch(/\.fk-trigger \{[^}]*min-height: 3\.5rem;/);
+    // Eski kurallar silindi (ölü CSS kalmadı).
+    expect(read("src/styles/home-cinema.css")).not.toMatch(/\.hm-duel|\.hm-case/);
   });
 });
 
@@ -247,10 +276,11 @@ describe("sayfa", () => {
     expect(page).not.toMatch(/FeatureReel|hm-reel|Bir nottan çıkan her şey/);
   });
 
-  it("SSS denetimi bugünkü motorla anlatır; geniş ekranda sorular iki sütun", () => {
-    const answer = FAQ.find((item) => item.q.startsWith("İçerik yanlış olursa"))!.a;
-    expect(answer).toMatch(/ikinci bir kontrol çağrısı/);
-    expect(answer).not.toMatch(/kavram kavram|Düzelmeyen kısım sana gösterilmiyor/);
+  it("denetim bugünkü motorla anlatılır (akordeonun 1. sahnesinde); SSS'de eski söz yok; geniş ekranda sorular iki sütun", () => {
+    // Faz 9 (20 Kasım 2026): "İçerik yanlış olursa" sorusu SSS'den çıktı; çift kontrol akordeonun 1. başlığında ve sahnesinde.
+    expect(FARK_ITEMS[0]!.body).toContain("Sorularını çift kontrolden geçirir.");
+    expect([...NOTE_SCENE.checks]).toEqual(["Model notundan yazar", "İkinci çağrı soruyu çözer", "Kod anahtarı hesapla denetler"]);
+    for (const item of FAQ) expect(`${item.q} ${item.a}`).not.toMatch(/kavram kavram|Düzelmeyen kısım sana gösterilmiyor/);
     const css = read("src/styles/home-cinema.css");
     expect(css).toMatch(/@media \(min-width: 900px\) \{[\s\S]*\.hm \.lp-faq \{\s*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
   });
@@ -261,7 +291,12 @@ describe("sayfa", () => {
     expect(sizes.length).toBeGreaterThanOrEqual(8);
     for (const size of sizes) expect(size).toBeGreaterThanOrEqual(0.75);
     expect(css).toMatch(/\.hm-cta \{[^}]*min-height: 3\.5rem;/);
-    expect(css).toMatch(/\.hm-duel-more a \{[^}]*min-height: 2\.75rem;/);
+    // Faz 9: bölümün ve SSS'nin altındaki bağlantılar `home-farklar.css`te.
+    const farklar = withoutComments(read("src/styles/home-farklar.css"));
+    expect(farklar).toMatch(/\.fk-more a,\s*\.lp-faq-more a \{[^}]*min-height: 2\.75rem;/);
+    for (const size of [...farklar.matchAll(/font-size: ([0-9.]+)rem;/g)].map((match) => Number(match[1]))) {
+      expect(size).toBeGreaterThanOrEqual(0.75);
+    }
   });
 });
 

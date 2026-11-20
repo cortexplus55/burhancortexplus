@@ -15,7 +15,7 @@
  *
  * | Kaynak                | Neden                                          |
  * |-----------------------|------------------------------------------------|
- * | fonts.googleapis.com  | `parity-app.css` ve `cortex-premium.css` @import |
+ * | fonts.googleapis.com  | `cortex-premium.css` @import                   |
  * | fonts.gstatic.com     | yukarıdaki stilin çektiği font dosyaları        |
  * | *.supabase.co         | tarayıcıdan giriş, veri ve depo (ses/görsel)    |
  * | videos.pexels.com     | `cinematic-hero.tsx` tanıtım videosu            |

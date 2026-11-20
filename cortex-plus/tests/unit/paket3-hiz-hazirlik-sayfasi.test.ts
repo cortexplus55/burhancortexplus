@@ -47,7 +47,7 @@ vi.mock("@/lib/admin/feature-flags", () => ({
   PDF_LEARNING_V2_FLAG: "pdf_learning_v2",
 }));
 vi.mock("@/lib/supabase/server", () => ({ createServiceClient: () => state.service }));
-vi.mock("@/lib/billing/node-free-meter", () => ({ pathSkipKinds: async () => new Set<string>() }));
+vi.mock("@/lib/billing/node-free-meter", () => ({ pathSkipKinds: async () => new Set<string>(), pathSkipKindsForView: async () => new Set<string>() }));
 vi.mock("@/lib/billing/free-topic-gate", () => ({ freeTopicLocks: async () => null }));
 vi.mock("@/lib/content-pool/lesson-preview", () => ({ poolLessonPreview: async () => null }));
 vi.mock("@/lib/billing/entitlements", () => ({ getUserEntitlements: async () => ({ showsUpgradeChrome: false }) }));
@@ -203,19 +203,24 @@ describe("hazırlık sayfası veritabanı gidiş-dönüşleri", () => {
   });
 
   it("hazırlık tek select'le, konu tablosu iki kez (liste + uyarılar), deneme kaydı tek okumayla", async () => {
-    const { count, home, userCalls } = await renderPage();
+    const { count, home, userCalls, serviceCalls } = await renderPage();
     expect(count("exam_preps")).toBe(1);
     expect(count("profiles")).toBe(1);
     expect(count("documents")).toBe(1);
     // loadOrBackfillTopics + loadTopicWarnings; etkin konu, planlanan konular ve seçenekler listeden.
     expect(count("exam_prep_topics")).toBe(2);
-    // Deneme puanı ilerleme kayıtlarından: ayrı "son deneme" okuması yok.
-    expect(count("exam_prep_node_attempts")).toBe(1);
+    // Deneme puanı ilerleme kayıtlarından: ayrı "son deneme" okuması yok. 19 Kasım 2026: kayıtların `payload`'ı cevap
+    // anahtarı taşıdığı için sunucu anahtarıyla okunur (göç 20261119150000); öğrenci istemcisi bu tabloyu hiç okumaz.
+    expect(count("exam_prep_node_attempts")).toBe(0);
+    expect(serviceCalls.filter((call) => call.table === "exam_prep_node_attempts").length).toBe(1);
     expect(count("exam_prep_nodes")).toBe(1);
     expect(count("exam_prep_topic_mastery")).toBe(1);
     // 10 Kasım 2026: notlanmış denemeler kendi kaydından (aynı paralel dalgada tek okuma; deneme yoksa ek okuma yok).
     expect(count("practice_exams")).toBe(1);
-    expect(userCalls.length).toBeLessThanOrEqual(12);
+    // Faz 2: okul bilgisi oturum bağlamından (kabukla aynı istek içi okuma; göçten sonra tek RPC). Göç öncesi yedek
+    // yolda bağlam kredi özetini de okur: o tek okuma kabukla paylaşılır, sayfaya ayrıca eklenmez.
+    expect(count("credit_wallets")).toBeLessThanOrEqual(1);
+    expect(userCalls.filter((call) => call.table !== "credit_wallets").length).toBeLessThanOrEqual(12);
 
     expect(home).not.toBeNull();
     expect(home!.activeTopicLabel).toBe(" Kalıtım ");

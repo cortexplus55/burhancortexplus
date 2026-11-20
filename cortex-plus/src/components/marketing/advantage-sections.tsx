@@ -142,8 +142,11 @@ export function PricingAdvantageStrip() {
   );
 }
 
-/** /ornek: aynı kaynaktan kısa sürüm (yalnız Cortex sütunu) + /ozellikler'deki tam tabloya bağlantı. */
-export function AdvantageCompact({ withLink = true }: { withLink?: boolean }) {
+/**
+ * /ornek: aynı kaynaktan kısa sürüm (yalnız Cortex sütunu) + /ozellikler'deki tam tabloya bağlantı. `omit`: aynı
+ * sayfada kartla gösterilen satırlar listede ikinci kez yazılmaz (20 Kasım 2026: radyo ve kırmızı kalem şeridi).
+ */
+export function AdvantageCompact({ withLink = true, omit = [] }: { withLink?: boolean; omit?: readonly string[] }) {
   return (
     <section className="cx-adv cx-adv-compact" aria-labelledby="cx-adv-compact-title" data-testid="advantage-compact">
       <p className="cx-adv-kicker">{ADVANTAGE_SECTION.kicker}</p>
@@ -151,7 +154,7 @@ export function AdvantageCompact({ withLink = true }: { withLink?: boolean }) {
         {ADVANTAGE_SECTION.title}
       </h2>
       <ul className="cx-adv-compact-list">
-        {ADVANTAGE_ROWS.map((row) => (
+        {ADVANTAGE_ROWS.filter((row) => !omit.includes(row.id)).map((row) => (
           <li key={row.id} className="cx-adv-compact-item">
             <h3 className="cx-adv-compact-feature">{row.feature}</h3>
             <p className="cx-adv-body">{row.cortex.body}</p>

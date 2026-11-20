@@ -25,6 +25,8 @@ import {
 import { searchDocumentChunksAcross } from "@/lib/rag/pipeline";
 import type { SessionTeachingMeta } from "@/lib/learning/teaching-standards";
 import { resolvePrepTopicRow } from "@/lib/learning/prep-topic-lookup";
+import type { UnitSubtopics } from "@/lib/learning/lesson-subtopics";
+import { loadUnitSubtopics } from "@/lib/learning/unit-subtopics-load";
 
 export type SourceUnavailableReason =
   | "no_prep_documents"
@@ -71,9 +73,11 @@ export type ResolveLessonSourceInput = {
   query?: string;
 };
 
-export type ResolveLessonSourceResult =
+/** `unitSubtopics`: ünite dersinin alt konuları (20 Kasım 2026); hazırlıkta alt konu yoksa alan yok. */
+export type ResolveLessonSourceResult = (
   | { context: SourceContext; trace: SourceTrace; unavailable?: undefined }
-  | { unavailable: SourceUnavailableReason; trace: SourceTrace; context?: undefined };
+  | { unavailable: SourceUnavailableReason; trace: SourceTrace; context?: undefined }
+) & { unitSubtopics?: UnitSubtopics };
 
 function meaningful(ctx: SourceContext | null | undefined): boolean {
   return Boolean(ctx?.block?.trim()) && (ctx?.block.trim().length ?? 0) >= Math.min(40, MIN_USABLE_LESSON_CHARS);
@@ -396,10 +400,21 @@ async function documentsProcessing(
 }
 
 /**
- * Ders için kaynak çözümle. İlk anlamlı kaynak kazanır; sonraki adım
- * hata fırlatarak öncekini silmez.
+ * Ders için kaynak ve kapsam çözümle: dersin sayfaları ve (ünite dersinde, 20 Kasım 2026) ünitenin alt konuları.
+ * Alt konu okuması sayfa çözümüyle paralel koşar, hiçbir durumda fırlatmaz; alt konu yoksa sonuç eskisi gibi
+ * (`unitSubtopics` alanı yok). Sayfa çözümünde ilk anlamlı kaynak kazanır; sonraki adım öncekini silmez.
  */
 export async function resolveLessonSource(
+  service: SupabaseClient,
+  input: ResolveLessonSourceInput,
+): Promise<ResolveLessonSourceResult> {
+  const unitEarly = loadUnitSubtopics(service, { prepId: input.prepId, topicId: input.topicId, topicLabel: input.topicLabel });
+  const resolved = await resolveLessonSourcePages(service, input);
+  const unitSubtopics = await unitEarly;
+  return unitSubtopics ? { ...resolved, unitSubtopics } : resolved;
+}
+
+async function resolveLessonSourcePages(
   service: SupabaseClient,
   input: ResolveLessonSourceInput,
 ): Promise<ResolveLessonSourceResult> {

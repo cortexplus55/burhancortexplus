@@ -241,13 +241,11 @@ describe("kredi v3 + ücretsiz sayaçlar: göçler canlıdaki sırayla", () => {
       expect(rows.rows.map((row) => row.version)).toEqual(["20261024120000", "20261024121000", "20261024123000"]);
     });
 
-    it("fiyatlar kredi tablosuyla aynı (ders 30, test 10, kart 4, sayfa 5, fotoğraf 4, mesaj 3)", async () => {
+    // Kredi v3 göçünün kendi fiyatları (ders 30, test 10, kart 4, mesaj 3). Bugünkü tablo Faz 4 göçüyle gelir
+    // (20261119120000; eşitliği `faz4-migrations.test.ts` denetler).
+    it("v3 göçünün fiyatları (ders 30, test 10, kart 4, sayfa 5, fotoğraf 4, mesaj 3)", async () => {
       const rules = await db.query<{ action_code: string; credit_cost: number }>(
         "SELECT action_code, credit_cost FROM credit_rules ORDER BY 1");
-      for (const { action_code, credit_cost } of rules.rows) {
-        const price = CREDIT_PRICE_TABLE[action_code as keyof typeof CREDIT_PRICE_TABLE];
-        if (price) expect(credit_cost, action_code).toBe(price.credits);
-      }
       const byCode = Object.fromEntries(rules.rows.map((row) => [row.action_code, row.credit_cost]));
       expect(byCode).toMatchObject({ STUDY_PLAN_GENERATE: 30, QUIZ_GENERATE: 10, FLASHCARD_GENERATE: 4, AI_CHAT_STANDARD: 3 });
     });
@@ -416,8 +414,9 @@ describe("kredi v3 + ücretsiz sayaçlar: göçler canlıdaki sırayla", () => {
     });
 
     it("davet: iki tarafa bir kez 3 ders kadar hediye; davet eden en çok 3 davetten alır", async () => {
-      const gift = REFERRAL_GIFT_LESSONS * CREDIT_PRICE_TABLE.STUDY_PLAN_GENERATE.credits;
-      expect(gift).toBe(90);
+      // Hediye SQL'de 90 kredi (grant_referral_gift); Faz 4 ders fiyatıyla da "3 ders" sözünü karşılar.
+      const gift = 90;
+      expect(gift).toBeGreaterThanOrEqual(REFERRAL_GIFT_LESSONS * CREDIT_PRICE_TABLE.STUDY_PLAN_GENERATE.credits);
       await metered(invitee, "AI_CHAT_STANDARD", "inv-c1", "chat");
       await metered(invitee, "AI_CHAT_STANDARD", "inv-c2", "chat");
       expect(await balance(invitee)).toBe(gift);

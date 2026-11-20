@@ -141,3 +141,24 @@ export async function completedAttemptBody(
     ...(await readWalletBalance(service, input.userId)),
   };
 }
+
+/**
+ * Faz 4 madde 3.4: "Öğrendin" konusundaki tekrar adımının 0 kredilik atlaması. Notlandırma, yol uyarlaması ve kanıt
+ * yok (`actions/skip-learned.ts`); tek öğeli bitiş (1/1) — yol yüzdesine sorusuz podcast gibi girmez.
+ */
+export async function completeSkippedNode(
+  service: SupabaseClient,
+  input: { userId: string; prepId: string; nodeId: string; attemptId: string },
+): Promise<{ ok: true; nextId: string | null } | { ok: false; message: string }> {
+  const { data, error } = await service.rpc("complete_exam_prep_node", {
+    p_user_id: input.userId,
+    p_prep_id: input.prepId,
+    p_node_id: input.nodeId,
+    p_attempt_id: input.attemptId,
+    p_score: 1,
+    p_total: 1,
+    p_answers: {},
+  });
+  if (error || !data) return { ok: false, message: error?.message ?? "empty" };
+  return { ok: true, nextId: (data as { nextId?: string | null }).nextId ?? null };
+}

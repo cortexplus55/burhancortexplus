@@ -1,5 +1,6 @@
 "use server";
 
+import { invalidateSessionUserContext } from "@/lib/auth/session-context";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
@@ -97,6 +98,7 @@ export async function updateProfile(formData: FormData) {
         phone: parsed.data.phone,
       })
       .eq("id", user.id);
+    if (!error) await invalidateSessionUserContext(user.id);
 
     revalidatePath("/profil");
     revalidatePath("/ayarlar");
@@ -123,6 +125,7 @@ export async function updateProfile(formData: FormData) {
         : {}),
     })
     .eq("id", user.id);
+  if (!error) await invalidateSessionUserContext(user.id);
 
   revalidatePath("/profil");
   return { ok: !error, error: error ? "Kaydedilemedi." : undefined };

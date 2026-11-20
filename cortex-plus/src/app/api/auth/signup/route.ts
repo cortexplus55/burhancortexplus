@@ -2,9 +2,16 @@ import { after, NextResponse } from "next/server";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/server";
 import { guestLimit } from "@/lib/api/guards";
+import { clientKey, peekCount, rateLimit } from "@/lib/rate-limit";
+import { CANONICAL_EMAIL_TAKEN_MESSAGE, normalizeCanonicalEmail } from "@/lib/auth/canonical-email";
+import {
+  FREE_SIGNUP_LIMIT_MESSAGE,
+  FREE_SIGNUP_PER_IP_HOUR,
+  FREE_SIGNUP_WINDOW_SECONDS,
+  SIGNUP_CONSENT_MESSAGE,
+} from "@/lib/auth/signup-limits";
 import { passwordIssues } from "@/lib/auth/password";
 import {
-  ALIAS_EMAIL_MESSAGE,
   DISPOSABLE_EMAIL_MESSAGE,
   emailDomain,
   isDisposableEmail,
@@ -12,7 +19,7 @@ import {
 import { UNVERIFIED_FLAG, sendVerification } from "@/lib/auth/email-verification";
 import { safeNextPath } from "@/lib/auth/safe-next-path";
 import { ageDeclarationSchema, ageProblem, consentEvidenceSchema } from "@/lib/legal/consent-evidence";
-import { recordSignupConsent } from "@/lib/legal/record-consent";
+import { consentMoment, recordSignupConsent, stampSignupAcceptance } from "@/lib/legal/record-consent";
 import { recordSignupMarketingConsent } from "@/lib/email/preferences";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +27,6 @@ export const dynamic = "force-dynamic";
 /** Bir IP'den 10 dakikada açılabilecek hesap: okulda bir sınıf aynı anda kayıt olur, bot sürüsü olmaz. */
 const SIGNUP_PER_IP_10_MIN = 30;
 const SIGNUP_PER_IP_DAY = 200;
-
 const bodySchema = z.object({
   email: z.string().trim().email().max(254),
   password: z.string().min(8).max(128),
@@ -37,7 +43,13 @@ const bodySchema = z.object({
   marketingEmail: z.boolean().optional(),
   next: z.string().max(400).optional(),
   referralCode: z.string().max(16).optional(),
+  // Faz 2 (madde 6): onaylar sunucuda zorunlu. Arayüzü atlayan istek (eski sekme, doğrudan çağrı) 400 alır.
+  termsAccepted: z.literal(true),
+  kvkkAccepted: z.literal(true),
+  ageConfirmed: z.literal(true),
 });
+
+const CONSENT_FIELDS = new Set(["termsAccepted", "kvkkAccepted", "ageConfirmed"]);
 
 /**
  * E-posta ve şifreyle kayıt — "hemen gir, içeride onayla" (31 Ekim 2026, Paket J1 #1).
@@ -58,9 +70,24 @@ export async function POST(request: Request) {
   if (daily) return daily;
 
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: "Bilgiler geçersiz." }, { status: 400 });
+  if (!parsed.success) {
+    const consentMissing = parsed.error.issues.some((issue) => CONSENT_FIELDS.has(String(issue.path[0] ?? "")));
+    return NextResponse.json(
+      consentMissing ? { error: SIGNUP_CONSENT_MESSAGE, reason: "consent_required" } : { error: "Bilgiler geçersiz." },
+      { status: 400 },
+    );
+  }
   const input = parsed.data;
   const email = input.email.toLowerCase();
+  const canonicalEmail = normalizeCanonicalEmail(email);
+
+  const hourKey = clientKey(request, "signup-free-hour");
+  if ((await peekCount(hourKey)) >= FREE_SIGNUP_PER_IP_HOUR) {
+    return NextResponse.json(
+      { error: FREE_SIGNUP_LIMIT_MESSAGE, reason: "signup_ip_hourly_limit" },
+      { status: 429, headers: { "Retry-After": String(FREE_SIGNUP_WINDOW_SECONDS) } },
+    );
+  }
 
   const issue = passwordIssues(input.password)[0];
   if (issue) return NextResponse.json({ error: issue }, { status: 400 });
@@ -79,8 +106,10 @@ export async function POST(request: Request) {
   if (isDisposableEmail(email) || (blockedRows ?? []).length > 0) {
     return NextResponse.json({ error: DISPOSABLE_EMAIL_MESSAGE }, { status: 400 });
   }
-  const { data: aliasTaken } = await service.rpc("email_alias_taken", { p_email: email });
-  if (aliasTaken === true) return NextResponse.json({ error: ALIAS_EMAIL_MESSAGE }, { status: 409 });
+  // Aynı kutunun başka yazımı: önce profildeki kanonik adres (Faz 2 göçü), sonra auth tablosu üzerinden (eski hesaplar).
+  if (await canonicalEmailTaken(service, email, canonicalEmail)) {
+    return NextResponse.json({ error: CANONICAL_EMAIL_TAKEN_MESSAGE, reason: "email_taken" }, { status: 409 });
+  }
 
   const { data, error } = await service.auth.admin.createUser({
     email,
@@ -106,13 +135,19 @@ export async function POST(request: Request) {
   if (error || !data.user) {
     const text = `${error?.message ?? ""} ${(error as { code?: string } | null)?.code ?? ""}`;
     if (/already|registered|exists|email_exists/i.test(text)) {
-      return NextResponse.json({ error: "Bu e-posta zaten kayıtlı. Giriş yap veya şifreni sıfırla." }, { status: 409 });
+      return NextResponse.json({ error: CANONICAL_EMAIL_TAKEN_MESSAGE, reason: "email_taken" }, { status: 409 });
+    }
+    // Eşzamanlı iki kayıt: veritabanının kanonik tekil indeksi ikincisini düşürür; öğrenci aynı cümleyi görür.
+    if (await canonicalEmailTaken(service, email, canonicalEmail)) {
+      return NextResponse.json({ error: CANONICAL_EMAIL_TAKEN_MESSAGE, reason: "email_taken" }, { status: 409 });
     }
     console.error("signup_create_failed", { status: (error as { status?: number } | null)?.status ?? null });
     return NextResponse.json({ error: "Kayıt şu an tamamlanamadı.", fallback: true }, { status: 503 });
   }
 
   const user = data.user;
+  // Saatlik IP sayacı yalnız açılan hesapla artar (kampüs dostu).
+  await rateLimit(hourKey, FREE_SIGNUP_PER_IP_HOUR, FREE_SIGNUP_WINDOW_SECONDS).catch(() => undefined);
   // Onay kaydı hesapla aynı anda (profil satırını auth tetikleyicisi açar): tamamla sayfasına ulaşılamasa da
   // kanıt kaybolmaz. Yazılamazsa kayıt yine biter; tamamlama ve onay kapısı eksiği kapatır.
   await recordSignupConsent(service, {
@@ -124,6 +159,8 @@ export async function POST(request: Request) {
   }).catch((error: unknown) => {
     console.error("signup_consent_record_failed", { userId: user.id, error: String(error) });
   });
+  // Üç onayın anı profilde (kanıtı eksik eski sekmede de): sunucu üçünü de zorunlu tuttu ve aldı. Yalnız boş alan.
+  await stampSignupAcceptance(service, user.id, consentMoment(input.consentAcceptedAt));
   // Kampanya e-postası izni (işaretlendiyse): hesapla aynı anda, kanıtıyla. Yazılamazsa kayıt yine biter.
   if (input.marketingEmail) {
     await recordSignupMarketingConsent(service, user.id, request.headers.get("x-forwarded-for")).catch(() => undefined);
@@ -134,4 +171,22 @@ export async function POST(request: Request) {
     if (!sent) console.warn("signup_verify_mail_failed", { userId: user.id });
   });
   return NextResponse.json({ ok: true });
+}
+
+/**
+ * Aynı kutuya düşen bir hesap var mı. Kanonik adres profilde (göç uygulandıysa) tekil indeksle tutulur; göçten önceki
+ * hesaplar ve göç öncesi şema için auth tablosundaki `email_alias_taken` da sorulur. Okuma düşerse "yok" denir:
+ * son kalkan veritabanındaki tekil indekstir.
+ */
+async function canonicalEmailTaken(
+  service: ReturnType<typeof createServiceClient>,
+  email: string,
+  canonicalEmail: string,
+): Promise<boolean> {
+  const [profiles, alias] = await Promise.all([
+    service.from("profiles").select("id").eq("canonical_email", canonicalEmail).limit(1),
+    service.rpc("email_alias_taken", { p_email: email }),
+  ]);
+  if (!profiles.error && (profiles.data ?? []).length > 0) return true;
+  return alias.data === true;
 }

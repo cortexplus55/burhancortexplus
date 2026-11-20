@@ -88,7 +88,10 @@ describe("tamamlamadan sonra yanılgı çözümü", () => {
   it("yanlış cevaplı bitiş çözüm aramaz", async () => {
     const fake = fakeSupabase(trackingHandler({ allCount: 1 }));
     await recordLearningTrackingAfterComplete(fake.service as never, { ...completeInput, answers: { "0": "B" } });
-    expect(fake.calls.some((call) => call.table === "exam_prep_answer_evidence" && call.op === "select")).toBe(false);
+    // Faz 4: politika okuması (bütün kanıt, `loadTopicPolicies`) olur; yanılgı çözümü için doğru-cevap okuması olmaz.
+    expect(
+      fake.calls.some((call) => call.table === "exam_prep_answer_evidence" && call.op === "select" && has(call, "eq", "correct", true)),
+    ).toBe(false);
   });
 });
 

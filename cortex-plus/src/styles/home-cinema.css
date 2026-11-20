@@ -101,10 +101,13 @@
 /* ---------- 1. Kahraman + kokpit ---------- */
 
 /*
-  Kokpit (11 Kasım 2026, gece): kahraman ile tur tek ekranda. Üstte söz kısa tutulur: başlık (geniş ekranda tek
-  satır), sekmenin cümlesi, sonra tek satırda dört sekme ve kayıt düğmesi; hemen altında tur konsolu. Kısa gerçekler
-  konsolun altında. Telefonda sıra aynı: başlık, cümle, sekmeler (iki sütun), düğme, konsol. Amaç: ziyaretçi sayfayı
-  kaydırmadan turun ilk adımını görsün (1366×768 dizüstünde görünen alan ~650 px).
+  Kokpit (11 Kasım 2026, gece): kahraman ile tur tek ekranda. Amaç: ziyaretçi sayfayı kaydırmadan turun ilk adımını
+  görsün (1366×768 dizüstünde görünen alan ~650 px).
+
+  Faz 9 (20 Kasım 2026, ürün sahibi: "sade, ortada, tek seçici"): söz ortada ve kısa. Başlık, seçimin cümlesi, tek
+  seçici (dört seçenek) ve kayıt düğmesi; geniş ekranda seçici ile düğme aynı satırda. Hemen altında turun birinci
+  adımı tek kart ("Akıllı Not Stüdyosu", `landing-journey.css`); en altta tek satır (iki gerçek ve iki bağlantı).
+  Telefonda sıra aynı: başlık, cümle, seçici (iki sütun), düğme, kart, satır.
 */
 .hm-hero {
   position: relative;
@@ -165,24 +168,20 @@
 .hm-hero-copy {
   grid-area: copy;
   min-width: 0;
+  text-align: center;
 }
 
 .hm-hero-pick {
   grid-area: pick;
+  display: grid;
+  justify-items: center;
+  gap: 0.75rem;
   min-width: 0;
 }
 
 .hm-hero-cockpit {
   grid-area: cockpit;
   min-width: 0;
-}
-
-.hm-hero-foot {
-  grid-area: foot;
-  display: grid;
-  justify-items: center;
-  min-width: 0;
-  text-align: center;
 }
 
 .hm-title {
@@ -199,12 +198,13 @@
   text-wrap: balance;
 }
 
-/* Geniş ekranda başlık tek satır: iki parça yan yana, şerit ikinci parçanın altında. */
+/* Geniş ekranda başlık tek satır: iki parça yan yana, şerit ikinci parçanın altında; hepsi ortada. */
 @media (min-width: 1024px) {
   .hm-title {
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
+    justify-content: center;
     column-gap: 0.28em;
   }
 
@@ -212,21 +212,57 @@
     display: inline;
   }
 
+  /* Şerit kendi satırında, başlığın altında ortada (tam satır değil). */
   .hm-title-under {
-    flex-basis: 100%;
+    flex: 0 0 100%;
+    max-width: 30rem;
   }
+}
 
+/* Çok geniş ekranda seçici ile kayıt düğmesi tek satır: ilk ekranda turun kartına yer kalır. */
+@media (min-width: 1100px) {
   .hm-hero-pick {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem 1.5rem;
+    justify-content: center;
+    gap: 0.75rem 1.25rem;
   }
 
-  .hm-hero .hm-hero-pick .lp-aud-tabs,
+  .hm-hero-pick .lp-pick {
+    margin-inline: 0;
+  }
+
   .hm-hero-pick .hm-cta-row {
     margin-top: 0;
+  }
+}
+
+/*
+  Dizüstü (geniş ama kısa ekran, ör. 1366×768; tarayıcının görünen alanı ~650 px): turun birinci adımı (ray, örnek not
+  ve ders çekirdeği; Faz 9.1) ilk ekranda kalsın diye kahramanın dikey boşlukları sıkılaşır. Linux'ta yazı bir satır
+  fazla kırılınca birinci adımın altı 658 px'e iniyordu (20 Kasım 2026, CI); bu blok ~50 px pay bırakır.
+*/
+@media (min-width: 1100px) and (max-height: 860px) {
+  .hm-hero {
+    padding-top: 1.25rem;
+  }
+
+  .hm-hero-grid {
+    gap: 0.75rem;
+  }
+
+  .hm-lead {
+    margin-top: 0.5rem;
+  }
+
+  /* Ders çekirdeği (Faz 9.1) biraz küçülür: örnek not ve çekirdek ilk ekranda kalır. */
+  .hm-hero .lj-core-stage {
+    --lj-core: 10.25rem;
+  }
+
+  .hm-hero .lj-core-stage:not([data-phase="idle"]) {
+    --lj-core: 7.25rem;
   }
 }
 
@@ -235,7 +271,7 @@
   display: block;
   width: min(100%, 19rem);
   height: 0.4em;
-  margin-top: 0.12em;
+  margin: 0.12em auto 0;
   overflow: visible;
 }
 
@@ -255,24 +291,33 @@
 }
 
 .hm-lead {
-  max-width: 62rem;
-  margin: 0.7rem 0 0;
+  max-width: 46rem;
+  margin: 0.7rem auto 0;
   font-size: clamp(1rem, 1.35vw, 1.1rem);
   line-height: 1.5;
   color: var(--hm-muted);
   text-wrap: pretty;
+  animation: hm-swap 0.4s var(--hm-ease) both;
 }
 
-.hm-hero .lp-aud-tabs {
-  margin-top: 0;
+/* Seçim değişince cümle ve düğmenin sözü yeniden belirir (anahtar animasyonu baştan başlatır). */
+@keyframes hm-swap {
+  from {
+    opacity: 0;
+    transform: translateY(0.3rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .hm-cta-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: center;
   gap: 0.75rem;
-  margin-top: 0.9rem;
 }
 
 /* Birincil eylem: kâğıt beyazı ışık; çevresinde şeridin renkleriyle bir hale. */
@@ -289,6 +334,10 @@
     0.9rem 0 2rem -0.9rem rgba(34, 211, 238, 0.6);
 }
 
+.hm-cta-label {
+  animation: hm-swap 0.4s var(--hm-ease) both;
+}
+
 .hm-cta:hover {
   box-shadow:
     0 0 0 1px #fff inset,
@@ -298,39 +347,54 @@
   transform: translateY(-1px);
 }
 
-.hm-hero .hm-facts {
-  justify-content: center;
-  margin-top: 0.25rem;
-}
-
-.hm-hero .lp-facts li {
-  border-color: var(--hm-line);
-  background: rgba(247, 241, 232, 0.035);
-}
-
-.hm-hero .lp-inputs {
-  margin-top: 0.5rem;
-  max-width: 46rem;
-}
-
-/* "Notun yok mu" ve "örnek ders" bağlantıları kendi satırında, yan yana; dokunma alanı 44 px. */
-.hm-foot-links {
+/*
+  Kahramanın altı tek satır (Faz 9): "Kart istemiyoruz · İlk dersin süresiz ücretsiz · Notun yoksa hazır müfredattan
+  başla → · Örnek dersi incele". Dar ekranda satır sarar; bağlantılar 44 px dokunma alanı (satırın içinde, ölçü
+  yalnız dikeyde büyür).
+*/
+.hm-hero-foot {
+  grid-area: foot;
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   justify-content: center;
-  gap: 0 1.5rem;
+  column-gap: 0.4rem;
+  min-width: 0;
   margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--hm-muted);
+  text-align: center;
 }
 
-.hm-foot-links a {
+.hm-foot-fact {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  column-gap: 0.3rem;
+}
+
+.hm-foot-sep {
+  padding-inline: 0.15rem;
+  color: rgba(247, 241, 232, 0.4);
+}
+
+.hm-foot-link {
   display: inline-flex;
   align-items: center;
+  gap: 0.3rem;
   min-height: 2.75rem;
   color: var(--lp-accent-text);
-  font-size: 0.875rem;
   font-weight: 600;
   text-decoration: underline;
   text-underline-offset: 0.2em;
+}
+
+.hm-foot-link:focus-visible {
+  outline: 2px solid var(--lp-accent-text);
+  outline-offset: 2px;
+  border-radius: 0.25rem;
 }
 
 /* ---------- Kokpit: tur kahramanın içinde ---------- */
@@ -347,7 +411,13 @@
   padding-inline: 0;
 }
 
-/* Konsolun çerçevesi şeritten: köşelerde renk, ortada sönük. */
+/* Akıllı Not Stüdyosu kartı ortada; ray ve iki düğme ferah dursun diye en çok 52 rem. */
+.hm-hero .lj-console {
+  max-width: 52rem;
+  margin-inline: auto;
+}
+
+/* Kartın çerçevesi şeritten: köşelerde renk, ortada sönük. */
 .hm .lj-console {
   border: 1px solid transparent;
   background:
@@ -358,410 +428,7 @@
     0 0 6rem -1rem rgba(255, 77, 141, 0.22);
 }
 
-/* ---------- 2. Aynı not, iki ayrı sonuç: somut karşılaştırma kartı ---------- */
-
-/*
-  Üstte ortak girdi (aynı ders notu), altında iki sonuç. Genel bot sönük ve kesik çizgili, Cortex Plus ışıkta ve
-  çerçevesi şeritten. Nottan iki yana inen çizgi aynı girdinin iki ayrı yere gittiğini gösterir.
-*/
-.hm-case {
-  position: relative;
-  display: grid;
-  gap: 1.1rem;
-  margin-bottom: clamp(1.25rem, 3vw, 2rem);
-}
-
-.hm-case-note {
-  position: relative;
-  justify-self: center;
-  display: grid;
-  gap: 0.45rem;
-  width: min(100%, 34rem);
-  padding: 0.9rem 1.1rem;
-  border: 1px solid var(--hm-line-strong);
-  border-radius: 1rem;
-  background: var(--hm-ink-3);
-  box-shadow: 0 1.2rem 3rem -1.6rem rgba(0, 0, 0, 0.9);
-}
-
-/* Nottan aşağı inen şerit: iki sonuca dağılır. */
-.hm-case-note::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  bottom: -1.1rem;
-  width: 0.2rem;
-  height: 1.1rem;
-  border-radius: 999px;
-  background: var(--hm-ribbon-down);
-  transform: translateX(-50%);
-}
-
-.hm-case-file {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  margin: 0;
-  font-size: 0.9375rem;
-  line-height: 1.3;
-  color: var(--hm-text);
-}
-
-.hm-case-file > span {
-  display: grid;
-  gap: 0.1rem;
-  min-width: 0;
-}
-
-.hm-case-file-icon {
-  width: 1.4rem;
-  height: 1.4rem;
-  flex: none;
-  color: var(--hm-amber);
-}
-
-.hm-case-file-name {
-  font-family: var(--font-mono);
-  font-size: 0.8125rem;
-  color: var(--hm-muted);
-  overflow-wrap: anywhere;
-}
-
-.hm-case-lines {
-  display: grid;
-  gap: 0.25rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: 0.875rem;
-  line-height: 1.5;
-  color: var(--hm-muted);
-}
-
-.hm-case-lines li {
-  padding-left: 0.8rem;
-  border-left: 2px solid rgba(255, 178, 36, 0.55);
-}
-
-.hm-case-split {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0.9rem;
-}
-
-.hm-case-side {
-  min-width: 0;
-  padding: 1rem 1.15rem 1.1rem;
-  border-radius: 1.15rem;
-}
-
-.hm-case-side--them {
-  border: 1px dashed rgba(247, 241, 232, 0.22);
-  background: rgba(247, 241, 232, 0.02);
-}
-
-.hm-case-side--us {
-  border: 1px solid transparent;
-  background:
-    linear-gradient(var(--hm-ink-2), var(--hm-ink-2)) padding-box,
-    var(--hm-ribbon) border-box;
-  box-shadow: 0 1.4rem 3.2rem -1.9rem rgba(255, 106, 77, 0.7);
-}
-
-.hm-case-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4rem 0.5rem;
-  margin: 0 0 0.6rem;
-  font-size: 1rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  line-height: 1.3;
-  color: var(--hm-text);
-}
-
-.hm-case-side--them .hm-case-head {
-  color: #fda4af;
-}
-
-.hm-case-side--us .hm-case-head .hm-duel-icon {
-  color: #6ee7b7;
-}
-
-.hm-case-badge {
-  padding: 0.15rem 0.6rem;
-  border-radius: 999px;
-  background: rgba(110, 231, 183, 0.14);
-  color: #6ee7b7;
-  font-size: 0.75rem;
-  font-weight: 700;
-}
-
-.hm-case-points {
-  display: grid;
-  gap: 0.45rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: 0.9375rem;
-  line-height: 1.5;
-  color: var(--hm-muted);
-}
-
-.hm-case-points li {
-  position: relative;
-  padding-left: 1.1rem;
-}
-
-.hm-case-points li::before {
-  content: "";
-  position: absolute;
-  left: 0.1rem;
-  top: 0.62em;
-  width: 0.4rem;
-  height: 0.4rem;
-  border-radius: 50%;
-  background: rgba(247, 241, 232, 0.35);
-}
-
-.hm-case-side--us .hm-case-points {
-  color: var(--hm-text);
-}
-
-.hm-case-side--us .hm-case-points li::before {
-  background: #6ee7b7;
-  box-shadow: 0 0 0.5rem rgba(110, 231, 183, 0.7);
-}
-
-@media (min-width: 900px) {
-  .hm-case-split {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 1.1rem;
-  }
-}
-
-/* ---------- 2b. Fark satırları: açılır düello ---------- */
-
-.hm-duel {
-  background:
-    radial-gradient(40rem 26rem at 100% 12%, rgba(255, 77, 141, 0.08), transparent 70%),
-    radial-gradient(36rem 24rem at 0% 80%, rgba(34, 211, 238, 0.06), transparent 70%);
-}
-
-.hm-duel-list {
-  position: relative;
-  display: grid;
-  gap: 0.6rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-/* Omurga: logonun şeridi yukarıdan aşağı iner; simgeler onun üstünde durur. */
-.hm-duel-list::before {
-  content: "";
-  position: absolute;
-  top: 1.5rem;
-  bottom: 1.5rem;
-  left: 1.5rem;
-  width: 0.2rem;
-  border-radius: 999px;
-  background: var(--hm-ribbon-down);
-  box-shadow: 0 0 1.25rem rgba(255, 77, 141, 0.5);
-  transform: translateX(-50%);
-}
-
-.hm-duel-row {
-  position: relative;
-  display: grid;
-  grid-template-columns: 3rem minmax(0, 1fr);
-  gap: 0.75rem;
-  align-items: start;
-}
-
-.hm-duel-node {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  place-items: center;
-  width: 3rem;
-  height: 3rem;
-  border: 1px solid var(--hm-line-strong);
-  border-radius: 50%;
-  background: var(--hm-ink);
-  font-size: 1.3rem;
-  line-height: 1;
-  box-shadow:
-    0 0 0 0.3rem var(--hm-ink),
-    0 0 1.4rem rgba(255, 178, 36, 0.3);
-}
-
-/* Satır: kapalıyken başlık ve iki hüküm; açılınca iki cevap. */
-.hm-duel-item {
-  min-width: 0;
-  border: 1px solid var(--hm-line-strong);
-  border-radius: 1.05rem;
-  background: var(--hm-ink-2);
-  transition: border-color 0.2s ease;
-}
-
-.hm-duel-item[open] {
-  border-color: rgba(255, 217, 160, 0.4);
-}
-
-.hm-duel-summary {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 0.4rem 0.75rem;
-  min-height: 3rem;
-  padding: 0.65rem 0.9rem 0.65rem 1rem;
-  cursor: pointer;
-  list-style: none;
-}
-
-.hm-duel-summary::-webkit-details-marker {
-  display: none;
-}
-
-.hm-duel-summary:focus-visible {
-  outline: 2px solid #ffdcae;
-  outline-offset: 2px;
-  border-radius: 1rem;
-}
-
-.hm-duel-title {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 700;
-  letter-spacing: -0.015em;
-  line-height: 1.3;
-  color: var(--hm-text);
-}
-
-.hm-duel-verdicts {
-  grid-column: 1;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem 0.9rem;
-}
-
-.hm-duel-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  margin: 0;
-  font-size: 0.8125rem;
-  font-weight: 700;
-  line-height: 1.2;
-}
-
-.hm-duel-tag--us {
-  color: #6ee7b7;
-}
-
-.hm-duel-tag--them {
-  color: #fda4af;
-}
-
-.hm-duel-icon {
-  width: 0.95rem;
-  height: 0.95rem;
-  flex: none;
-}
-
-.hm-duel-chevron {
-  grid-column: 2;
-  grid-row: 1 / span 2;
-  width: 1.25rem;
-  height: 1.25rem;
-  color: var(--hm-muted);
-  transition: transform 0.2s ease;
-}
-
-.hm-duel-item[open] .hm-duel-chevron {
-  transform: rotate(180deg);
-}
-
-.hm-duel-pair {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0.5rem;
-  padding: 0 0.9rem 0.9rem 1rem;
-}
-
-.hm-duel-body {
-  margin: 0;
-  font-size: 0.875rem;
-  line-height: 1.5;
-  color: var(--hm-muted);
-}
-
-/* Bizim cevap: ışıkta; solunda şeritten bir çizgi. Öbür cevap: sönük, kesik çizgili. */
-.hm-duel-us {
-  padding-left: 0.75rem;
-  border-left: 2px solid #6ee7b7;
-  color: var(--hm-text);
-}
-
-.hm-duel-them {
-  padding-left: 0.75rem;
-  border-left: 2px dashed rgba(253, 164, 175, 0.6);
-}
-
-/* Dar ekranda kapalı satır kısa kalsın: öbür tarafın hükmü satır açılınca görünür. */
-@media (max-width: 899px) {
-  .hm-duel-item:not([open]) .hm-duel-tag--them {
-    display: none;
-  }
-}
-
-@media (min-width: 900px) {
-  .hm-duel-summary {
-    grid-template-columns: minmax(0, 1fr) auto auto;
-  }
-
-  .hm-duel-verdicts {
-    grid-column: 2;
-    justify-content: flex-end;
-  }
-
-  .hm-duel-chevron {
-    grid-column: 3;
-    grid-row: 1;
-  }
-
-  .hm-duel-pair {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 1.25rem;
-  }
-}
-
-.hm-duel-more {
-  display: flex;
-  justify-content: center;
-  margin: 1.25rem 0 0;
-}
-
-.hm-duel-more a {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  min-height: 2.75rem;
-  padding: 0 1.1rem;
-  border: 1px solid var(--hm-line-strong);
-  border-radius: 999px;
-  color: var(--hm-text);
-  font-size: 0.9375rem;
-  font-weight: 650;
-  text-decoration: none;
-}
-
-.hm-duel-more a:hover {
-  border-color: rgba(247, 241, 232, 0.45);
-  background: rgba(247, 241, 232, 0.05);
-}
+/* ---------- 2. Aynı not, iki ayrı sonuç: Faz 9 akordeonu `home-farklar.css`te ---------- */
 
 /* ---------- 3. Planlar ve güvenceler ---------- */
 
@@ -877,6 +544,10 @@
 /* ---------- Telefon ---------- */
 
 @media (max-width: 640px) {
+  .hm-hero-pick {
+    justify-items: stretch;
+  }
+
   .hm-cta-row {
     flex-direction: column;
     align-items: stretch;
@@ -907,25 +578,6 @@
     line-height: 1.45;
   }
 
-  /* Dört sekme iki satır, iki sütun: ilk ekranda konsola yer kalsın. */
-  .hm-hero .lp-aud-tabs {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.4rem;
-    margin-top: 0;
-  }
-
-  .hm-hero .lp-aud-tab {
-    justify-content: center;
-    padding-inline: 0.4rem;
-    font-size: 0.8125rem;
-    text-align: center;
-  }
-
-  .hm-cta-row {
-    margin-top: 0.7rem;
-  }
-
   .hm-cta {
     min-height: 3.5rem;
     padding-inline: 1rem;
@@ -940,7 +592,10 @@
     stroke-dashoffset: 0;
   }
 
-  .hm-hero-light::after {
+  .hm-hero-light::after,
+  .hm-lead,
+  .hm-cta-label {
     animation: none;
   }
 }
+

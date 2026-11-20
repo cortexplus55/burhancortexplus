@@ -6,10 +6,11 @@ import { ExamLessonSteps } from "@/components/parity/exam-lesson-steps";
 import type { LessonCheckAnswer } from "@/lib/learning/lesson-play";
 import { NodeSources } from "@/components/parity/node-sources";
 import { readNoteWarnings } from "@/lib/learning/formula-typos";
+import { readSourceCorrectionWarning } from "@/lib/learning/source-correction";
 import type { NodeLifecycle } from "./use-node-lifecycle";
 
 export function LessonPlay({ life }: { life: NodeLifecycle }) {
-  const { prepId, language, sources, activityMinutes, router, stage, loading, payload, attemptId, finish, structuredLesson, lessonBuilding, gradeLessonCheck, reexplainStep } = life;
+  const { prepId, language, sources, activityMinutes, router, stage, loading, payload, attemptId, finish, structuredLesson, lessonBuilding, gradeLessonCheck, reexplainStep, reexplainBadge } = life;
   return (
     <>
       {stage === "play" && payload.type === "lesson" ? (
@@ -27,10 +28,16 @@ export function LessonPlay({ life }: { life: NodeLifecycle }) {
             plannedScreens={lessonBuilding ? (payload.plannedScreens ?? null) : null}
             writingDone={lessonBuilding && payload.writingDone === true}
             noteWarnings={readNoteWarnings(payload.noteWarnings)}
+            sourceCorrection={readSourceCorrectionWarning(
+              payload.sourceCorrectionWarning ??
+                (payload.lesson as { sourceCorrectionWarning?: unknown } | null | undefined)?.sourceCorrectionWarning ??
+                null,
+            )}
             plannedMinutes={activityMinutes}
             language={language}
             gradeCheck={attemptId ? gradeLessonCheck : undefined}
             onReexplain={reexplainStep}
+            reexplainBadge={reexplainBadge}
             onFinish={(missed, lessonAnswers, retryAnswers) => {
               const indexes = (missed ?? []).filter((index) => Number.isInteger(index));
               const payloadAnswers: Record<string, unknown> = {};

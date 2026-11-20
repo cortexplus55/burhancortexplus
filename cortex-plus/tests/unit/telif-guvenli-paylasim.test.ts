@@ -32,6 +32,33 @@ describe("çatallar belge taşımaz", () => {
     expect(forkInsert).not.toMatch(DOC_FIELDS);
   });
 
+  /*
+    Faz 7 (20 Kasım 2026, ürün sahibinin kararı): paylaşım koduyla klonlamada çatala ek olarak 1. konunun önceden
+    üretilmiş ders gövdesi de kopyalanır (bu özelliğe özgü, bilinçli istisna). Belge, depolama yolu, kaynak listesi,
+    cevap, hâkimiyet, yanılgı, yıldız ve sonuç yine kopyalanmaz.
+  */
+  it("sınıfla paylaşım klonu: konu haritası + 1. konunun ders gövdesi; belge alanı, cevap ve sonuç yok", () => {
+    const clone = read("src/lib/learning/viral-clone.ts");
+    expect(clone).toContain("copyInvitedPrep(service, {");
+    expect(clone).not.toMatch(DOC_FIELDS);
+    expect(clone).not.toMatch(/from\("documents"\)|document_pages|document_chunks|document_embeddings|createSignedUrl/);
+    expect(clone).not.toMatch(/exam_prep_topic_mastery|exam_prep_misconceptions|mistake_entries|star_events|practice_exam/);
+    // Ders: yalnız gövde alanları okunur; açık ders kaydına cevap ve puan yazılmaz.
+    expect(clone).toContain('.from("exam_prep_lessons")\n    .select("title, content_md, content_json")');
+    const attempt = clone.slice(clone.indexOf('.from("exam_prep_node_attempts").insert({'), clone.indexOf("updated_at: now,"));
+    expect(attempt).toContain('status: "active"');
+    expect(attempt).not.toMatch(/answers|score:|answer_meta/);
+    // Kopya satırı kaynağı ve IP özetini taşır, belge kimliği taşımaz (çatalın kendi denetimi yukarıda).
+    const store = read("src/lib/learning/prep-invite-store.ts");
+    expect(store).toContain("cloned_from_prep_id: source.id, share_ip_hash: input.clone.ipHash");
+    // Herkese açık sayfa ve paylaşılan yolun okuyucusu belgeye dokunmaz; paylaşanın yalnız maskeli ilk adı.
+    const shared = read("src/lib/learning/prep-share-code.ts");
+    expect(shared).not.toMatch(DOC_FIELDS);
+    expect(shared).toContain("maskFirstName(");
+    const page = read("src/app/davet/[shareCode]/page.tsx");
+    expect(page).not.toMatch(/storage_path|document_pages|createSignedUrl|from\("documents"\)/);
+  });
+
   it("davet açılış sayfası ve davet metni belgeye dokunmaz", () => {
     const page = read("src/app/hazirlik-davet/[token]/page.tsx");
     expect(page).not.toMatch(/storage_path|document_pages|createSignedUrl|from\("documents"\)/);

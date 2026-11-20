@@ -1,0 +1,183 @@
+/**
+ * Bildirim ve e-posta tercihleri paneli (Faz 6, 20 Kasım 2026): Ayarlar ve e-postadaki bağlantının sayfası. Değerler
+ * --cx-*'tan; açık ve koyu temada aynı kurallar. Saat seçimi metinli bölümlü seçici (skill §6 b). Dokunma hedefi
+ * 40 px, telefonda 44 px.
+ */
+
+.cx-np {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cx-space-16);
+  color: var(--cx-text-primary);
+}
+
+.cx-np-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cx-space-16);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cx-np-row,
+.cx-np-time {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cx-space-16);
+}
+.cx-np-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cx-space-4);
+  min-width: 0;
+}
+.cx-np-row-title {
+  font: 500 0.875rem / 1.3 var(--cx-font-sans);
+  color: var(--cx-text-primary);
+}
+.cx-np-row-hint {
+  font: 400 0.8125rem / 1.4 var(--cx-font-sans);
+  color: var(--cx-text-secondary);
+}
+
+.cx-np-time {
+  flex-wrap: wrap;
+}
+.cx-np-slots {
+  display: inline-flex;
+  flex: none;
+  gap: var(--cx-space-2);
+  padding: var(--cx-space-4);
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-bg-2);
+}
+.cx-np-slot {
+  min-width: 64px;
+  min-height: var(--cx-control-s);
+  padding-inline: var(--cx-space-12);
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  background: transparent;
+  color: var(--cx-text-secondary);
+  font: 600 0.8125rem / 1 var(--cx-font-mono);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: color var(--cx-dur-color) ease, background-color var(--cx-dur-color) ease;
+}
+.cx-np-slot:hover {
+  color: var(--cx-text-primary);
+}
+.cx-np-slot.is-active {
+  background: var(--cx-bg-4);
+  color: var(--cx-text-primary);
+}
+.cx-np-slot:disabled {
+  cursor: progress;
+}
+.cx-np-slot:focus-visible,
+.cx-np-alloff:focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}
+
+.cx-np-note {
+  margin: 0;
+  padding: var(--cx-space-12) var(--cx-space-14);
+  border-radius: var(--cx-radius-m);
+  background: var(--cx-bg-2);
+  font: 400 0.8125rem / 1.45 var(--cx-font-sans);
+  color: var(--cx-text-secondary);
+}
+
+.cx-np-alloff {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cx-space-8);
+  min-height: var(--cx-control-s);
+  padding-inline: var(--cx-space-18);
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  font: var(--cx-t-button-s);
+  cursor: pointer;
+}
+.cx-np-alloff svg {
+  width: 16px;
+  height: 16px;
+}
+.cx-np-alloff:disabled {
+  color: var(--cx-text-disabled);
+  cursor: default;
+}
+
+.cx-np-status {
+  margin: 0;
+  min-height: 1.25rem;
+  font: 400 0.8125rem / 1.4 var(--cx-font-sans);
+  color: var(--cx-text-secondary);
+}
+.cx-np-status:empty {
+  min-height: 0;
+}
+.cx-np-status.is-error {
+  color: var(--cx-danger);
+}
+
+/* E-postadaki bağlantının sayfası: pazarlama kabuğunun içinde koyu token'lı kart (kapsayıcıda `dark`). */
+.cx-np-guest {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cx-space-24);
+  padding: var(--cx-space-24);
+  border-radius: var(--cx-radius-l);
+  background: var(--cx-bg-1);
+  color: var(--cx-text-primary);
+  --cx-weak-fill: var(--cx-bg-2);
+}
+.cx-np-guest-marketing {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cx-space-8);
+  padding-top: var(--cx-space-16);
+  box-shadow: inset 0 1px 0 var(--cx-border);
+}
+.cx-np-marketing-text {
+  margin: 0;
+  font: 400 0.8125rem / 1.45 var(--cx-font-sans);
+  color: var(--cx-text-secondary);
+}
+.cx-np-marketing-btn {
+  align-self: flex-start;
+  min-height: var(--cx-control-s);
+  padding-inline: var(--cx-space-18);
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  font: var(--cx-t-button-s);
+  cursor: pointer;
+}
+.cx-np-marketing-btn:focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}
+
+@media (max-width: 767px) {
+  .cx-np-guest {
+    padding: var(--cx-space-16);
+  }
+  .cx-np-marketing-btn {
+    min-height: var(--cx-tap-min);
+  }
+  .cx-np-slots {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    width: 100%;
+  }
+  .cx-np-slot {
+    min-width: 0;
+    min-height: var(--cx-tap-min);
+  }
+  .cx-np-alloff {
+    min-height: var(--cx-tap-min);
+  }
+}

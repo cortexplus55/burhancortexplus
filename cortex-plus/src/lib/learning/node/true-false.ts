@@ -8,7 +8,7 @@ import { sessionSignalsPrompt } from "@/lib/learning/session-signals";
 import { dropNearDuplicatesKeepingCount } from "@/lib/learning/item-dedup";
 import { teachingActivityForKind } from "@/lib/learning/teaching-standards";
 import { NodeGenerationError, actionForKind } from "./shared";
-import { teacherPages, type LessonCore } from "./teacher-pages";
+import { siblingBoundaryLine, teacherPages, type LessonCore } from "./teacher-pages";
 import type { NodePayloadInput } from "./generate";
 
 /** Öğretmen doğru/yanlış motoru (2 Ekim 2026): her önerme belgeyle eşlenir. */
@@ -40,6 +40,7 @@ export async function teacherTrueFalsePayload(
     charge: input.charge,
     startedAt,
     label: "teacher_true_false",
+    prepTitle: input.prepTitle,
     topic: input.topicLabel,
     work: async (ask, started) => {
       const asked = 8;
@@ -51,6 +52,10 @@ export async function teacherTrueFalsePayload(
         learnerLine: sessionSignalsPrompt(input.familiarity, input.mood),
         examPoints: input.examPoints,
         examPointsUse: "true_false" as const,
+        // Kardeş ünite sınırı (Faz 1-A §1).
+        brief: siblingBoundaryLine(input, core),
+        // Kaynak düzeltmesi (Faz 1-A §2.1).
+        sourceCorrection: core ? (input.sourceCorrection ?? null) : null,
         count: asked,
         urgent: input.charge !== false,
         avoid,

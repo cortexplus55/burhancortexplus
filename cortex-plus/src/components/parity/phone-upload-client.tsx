@@ -2,11 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Upload } from "lucide-react";
-import { compressImageForUpload } from "@/lib/documents/image-compress";
+import { compressImageForUpload } from "@/lib/upload/compress-image";
 import { UploadError } from "@/lib/documents/upload-client";
 import { useUniversalDocumentUpload } from "@/lib/documents/use-universal-upload";
 import { photoSetProgressLine } from "@/lib/learning/exam-wizard-copy";
 import { PhotoQualityPrompt } from "@/components/parity/photo-quality-prompt";
+import { CameraCaptureInput, PhotoPageTray } from "@/components/parity/photo-page-tray";
+import { TRAY_COPY, photoOnlySelection } from "@/lib/upload/photo-tray";
+import { usePhotoTray } from "@/lib/upload/use-photo-tray";
 import { createClient } from "@/lib/supabase/client";
 import "@/styles/parity-shell.css";
 
@@ -19,14 +22,17 @@ const FORM_UPLOAD_MAX_BYTES = 4 * 1024 * 1024;
 
 /**
  * Telefondan yükleme sayfası (QR). 31 Ekim 2026: kod artık çok dosya alır (göç `20261031120000_phone_upload_many`);
- * öğrenci galeriden onlarca fotoğrafı birden seçer, her fotoğraf göndermeden önce küçültülür (`image-compress.ts`:
- * 3,5 MB → ~0,5 MB; sunucu gövde sınırı 4,5 MB) ve sayfa açık kaldıkça yenileri eklenebilir. Sunucu eski şemadaysa
- * ilk dosyadan sonra "kullanıldı" der; sayfa bunu eskisi gibi gösterir.
+ * öğrenci galeriden onlarca fotoğrafı birden seçer, her fotoğraf göndermeden önce küçültülür (tek küçültücü
+ * `@/lib/upload/compress-image`: 1600 piksel, JPEG %82; sunucu gövde sınırı 4,5 MB) ve sayfa açık kaldıkça yenileri
+ * eklenebilir. Sunucu eski şemadaysa ilk dosyadan sonra "kullanıldı" der; sayfa bunu eskisi gibi gösterir.
  *
  * Fotoğraf seti (31 Ekim 2026): hazırlık için seçilen fotoğraflar telefonda tek taranmış PDF'e girer
  * ("Ders Notu Fotoğrafları (N Sayfa)"); çok fotoğrafta ilk sayfalar ayrı küçük parça olarak hemen gider, bilgisayarda
  * öğrenci onlarla hemen ilerler. PDF 4,5 MB gövde sınırını aştığı için imzalı yüklemeyle doğrudan depoya gider.
  * Ödev (sohbet) amacında fotoğraflar eskisi gibi tek tek gider: sohbet görsel bekliyor.
+ *
+ * Sayfa tepsisi (20 Kasım 2026): hazırlıkta fotoğraflar (kamerayla çekilen ya da galeriden yalnız fotoğraf seçilen)
+ * gönderilmeden önce tepside bekler; öğrenci sırayı düzeltip "Sayfaları yükle"ye basınca aynı motorla gider.
  */
 export function PhoneUploadClient({
   token,
@@ -36,6 +42,10 @@ export function PhoneUploadClient({
   purpose?: "odev" | "hazirlik";
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
+  /** Sayfa tepsisi yalnız hazırlıkta: ödevde (sohbet) tek görsel hemen gider. */
+  const tray = usePhotoTray();
+  const usesTray = purpose === "hazirlik";
   const [status, setStatus] = useState<"loading" | "ready" | "used" | "expired" | "error">(
     "loading",
   );
@@ -159,7 +169,7 @@ export function PhoneUploadClient({
     { photoQuality: true },
   );
 
-  async function sendFiles(list: FileList | null) {
+  async function sendFiles(list: FileList | readonly File[] | null) {
     const files = list ? [...list] : [];
     if (!files.length) return;
     setBusy(true);
@@ -174,6 +184,7 @@ export function PhoneUploadClient({
   }
 
   const target = purpose === "hazirlik" ? "hazırlıkta" : "sohbette";
+  const trayOpen = usesTray && tray.pages.length > 0;
 
   return (
     <div className="cp-phone-page">
@@ -203,23 +214,39 @@ export function PhoneUploadClient({
                 ? "PDF, Word, PowerPoint, JPG, PNG veya HEIC seç; istediğin kadar dosyayı birden seçebilirsin, bilgisayardaki hazırlığa eklenir."
                 : "Kameradan veya galeriden görseli seç; masaüstündeki sohbete düşer."}
             </p>
-            <button
-              type="button"
-              className="cp-upload-pick"
-              disabled={busy}
-              onClick={() => inputRef.current?.click()}
-            >
-              <Upload className="mr-2 inline h-4 w-4" aria-hidden />
-              {busy && engine.photoProgress
-                ? photoSetProgressLine(engine.photoProgress)
-                : busy && engine.fileProgress
-                ? `Gönderiliyor… ${engine.fileProgress.done}/${engine.fileProgress.total}`
-                : busy
-                ? "Gönderiliyor…"
-                : sent.length
-                  ? "Daha fazla dosya seç"
-                  : "Dosya seç"}
-            </button>
+            {/* Tepside sayfa varken ana düğme tepsinin "Sayfaları yükle"si; gönderim sürerken ilerleme burada kalır. */}
+            {trayOpen && !busy ? null : (
+              <button
+                type="button"
+                className="cp-upload-pick"
+                disabled={busy}
+                onClick={() => inputRef.current?.click()}
+              >
+                <Upload className="mr-2 inline h-4 w-4" aria-hidden />
+                {busy && engine.photoProgress
+                  ? photoSetProgressLine(engine.photoProgress)
+                  : busy && engine.fileProgress
+                  ? `Gönderiliyor… ${engine.fileProgress.done}/${engine.fileProgress.total}`
+                  : busy
+                  ? "Gönderiliyor…"
+                  : sent.length
+                    ? "Daha fazla dosya seç"
+                    : "Dosya seç"}
+              </button>
+            )}
+            {usesTray && !trayOpen ? (
+              <button type="button" className="cp-phone-camera" onClick={() => cameraRef.current?.click()}>
+                {TRAY_COPY.camera}
+              </button>
+            ) : null}
+            {trayOpen ? (
+              <PhotoPageTray
+                tray={tray}
+                busy={busy}
+                onAddPage={() => cameraRef.current?.click()}
+                onUpload={(files) => void sendFiles(files)}
+              />
+            ) : null}
             <PhotoQualityPrompt request={engine.photoQuality} onAnswer={engine.answerPhotoQuality} />
             {sent.length ? (
               <p role="status" aria-live="polite">
@@ -238,12 +265,14 @@ export function PhoneUploadClient({
           className="hidden"
           accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.heic,.heif,application/pdf,text/plain,.docx,.pptx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation"
           onChange={(event) => {
-            const files = event.target.files;
-            void sendFiles(files).finally(() => {
-              event.target.value = "";
-            });
+            const files = event.target.files ? [...event.target.files] : [];
+            event.target.value = "";
+            // Hazırlıkta yalnız fotoğraf seçildiyse önce tepsi; belge (PDF, Word, sunu) bugünkü gibi hemen gider.
+            if (usesTray && photoOnlySelection(files)) tray.add(files);
+            else void sendFiles(files);
           }}
         />
+        {usesTray ? <CameraCaptureInput ref={cameraRef} onFiles={tray.add} /> : null}
       </div>
     </div>
   );

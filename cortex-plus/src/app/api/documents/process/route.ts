@@ -21,6 +21,7 @@ import {
 import { commitDocumentCredits, refundDocumentCredits } from "@/lib/documents/document-credits";
 import { HEAD_READ_AHEAD_PAGES } from "@/lib/documents/document-windows";
 import { chargeNow } from "@/lib/credits/charge-now";
+import { textPageUnits } from "@/lib/credits/price-table";
 import { freePagesRemaining } from "@/lib/documents/free-pages";
 import { FREE_PAGE_LIMIT_CODE, PHOTO_QUOTA_CODE } from "@/lib/documents/process-errors";
 import { photoPageLimit, planTier } from "@/lib/documents/photo-quota";
@@ -73,6 +74,14 @@ const bodySchema = z.object({
    * sürmez). Pencere işçisi bir sonraki pencereyi böyle okutur.
    */
   untilPage: z.number().int().positive().optional(),
+  /**
+   * Faz 2 (madde 5): öğrencinin yükleme penceresinde seçtiği sayfa aralığı. Yalnız okuma başlamadan yazılır
+   * (sonraki çağrılar imleçten sürer); bitiş başlangıçtan küçük olamaz.
+   */
+  pageRange: z
+    .object({ start: z.number().int().min(1), end: z.number().int().min(1) })
+    .refine((range) => range.end >= range.start, { message: "invalid_range" })
+    .optional(),
 });
 export const maxDuration = 300;
 /** Arka plan temizliği yeni parti başlatmayı bu süreden sonra bırakır (son parti en fazla ~90 sn). */
@@ -201,6 +210,10 @@ export async function POST(request: Request) {
   if (doc.user_id !== userId) return errorResponse(403, "forbidden");
   if (doc.status === "pending") {
     return NextResponse.json({ error: "Dosya yüklemesi henüz tamamlanmadı." }, { status: 409 });
+  }
+
+  if (parsed.data.pageRange && targetId === parsed.data.documentId && doc.mime_type === "application/pdf") {
+    await savePageRange(service, { documentId: doc.id as string, userId, range: parsed.data.pageRange });
   }
 
   const learningV2 = await isFeatureEnabled(service, PDF_LEARNING_V2_FLAG);
@@ -550,9 +563,8 @@ export async function POST(request: Request) {
   }
 
   // Ücretsiz hesapta belge işleme günlük ders hakkından yemez; sınırı
-  // toplam 5 sayfa koyar (3 Ekim 2026). Ücretlide sayfa başına kredi
-  // (8 Ekim 2026): ilk sayfa önden ayrılır, kalanı ve taranmış sayfalar
-  // işlendikten sonra sayılır.
+  // toplam 5 sayfa koyar (3 Ekim 2026). Ücretlide (Faz 4) ilk metin birimi (5 sayfa = 1 kredi) önden ayrılır,
+  // kalanı ve fotoğraf / taranmış sayfalar işlendikten sonra sayılır.
   const freeTier = (await freePagesRemaining(service, userId, doc.id)) !== null;
   const reservation = freeTier
     ? ({ ok: true, reservationId: "", cost: 0 } as const)
@@ -644,8 +656,15 @@ export async function POST(request: Request) {
   }
 
   if (!freeTier) {
-    await commitCredits(service, reservation.reservationId);
-    await chargeNow(service, userId, "DOCUMENT_PAGE_PROCESS", `document_pages_${doc.id}`, (result.pageCount ?? 1) - 1);
+    // Faz 4 (19 Kasım 2026): metin sayfaları ceil(n / 5) kredi (ilk birim önden ayrıldı), fotoğraf / taranmış sayfa
+    // 5 kredi. Yalnız fotoğraftan oluşan belgede (metin sayfası 0) önden ayrılan birim iade edilir.
+    const textUnits = textPageUnits(Math.max(0, (result.pageCount ?? 1) - (result.scannedPages ?? 0)));
+    if (textUnits >= 1) {
+      await commitCredits(service, reservation.reservationId);
+      await chargeNow(service, userId, "DOCUMENT_PAGE_PROCESS", `document_pages_${doc.id}`, textUnits - 1);
+    } else {
+      await refundCredits(service, reservation.reservationId);
+    }
     await chargeNow(service, userId, "DOCUMENT_SCAN_PAGE", `document_scan_${doc.id}`, result.scannedPages ?? 0);
   }
   cleanAfterResponse(service, { userId, documentId: doc.id, startedAt });
@@ -699,4 +718,27 @@ function processFailureMessage(error?: string): string {
     default:
       return userMessageForProcessError(error);
   }
+}
+
+/**
+ * Seçilen aralık yalnız okuma başlamadan (ingestion `initialized` değilken) yazılır; okunmaya başlamış belgenin aralığı
+ * değişmez (sayfalar yarım kalmasın). Sütunlar göçten önce yoksa sessizce atlanır: belge eskisi gibi baştan okunur ve
+ * kapsam rozeti kalan sayfaları yine gösterir.
+ */
+async function savePageRange(
+  service: Parameters<typeof processPdfDocumentStep>[0],
+  input: { documentId: string; userId: string; range: { start: number; end: number } },
+) {
+  const { data: state } = await service
+    .from("document_ingestion_state")
+    .select("initialized")
+    .eq("document_id", input.documentId)
+    .maybeSingle();
+  if (state?.initialized) return;
+  const { error } = await service
+    .from("documents")
+    .update({ page_range_start: input.range.start, page_range_end: input.range.end })
+    .eq("id", input.documentId)
+    .eq("user_id", input.userId);
+  if (error) console.warn("document_page_range_save_failed", { documentId: input.documentId, code: error.code ?? null });
 }

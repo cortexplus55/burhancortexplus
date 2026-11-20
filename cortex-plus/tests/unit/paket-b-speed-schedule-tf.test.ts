@@ -459,8 +459,11 @@ describe("Paket B · 5 telefona uygulama olarak kurulum", () => {
   it("/mobil-uygulama başlığı ve beforeinstallprompt tetiği", () => {
     const page = readSource("src/app/mobil-uygulama/page.tsx");
     expect(page).toContain("📲 Tek Tıkla Telefonuna Uygulama Olarak Kur (iOS & Android)");
-    const install = readSource("src/components/pwa/install-app.tsx");
-    expect(install).toContain('addEventListener("beforeinstallprompt"');
-    expect(install).toContain("await prompt.prompt()");
+    // 20 Kasım 2026 (Faz 8): olay ortak depoda (`install-prompt.ts`); /mobil-uygulama ve hazırlık sayfasındaki
+    // "Ana Ekrana Ekle" kartı aynı olayı okur.
+    expect(readSource("src/components/pwa/install-app.tsx")).toContain("await promptInstall()");
+    const store = readSource("src/lib/pwa/install-prompt.ts");
+    expect(store).toContain('addEventListener("beforeinstallprompt"');
+    expect(store).toContain("await prompt.prompt()");
   });
 });

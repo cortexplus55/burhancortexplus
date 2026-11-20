@@ -29,6 +29,20 @@ export async function loadFreeMeters(
   } catch {
     rows = [];
   }
+  return freeMetersFromRows(rows, now);
+}
+
+/** Bu dönemin sayaç anahtarları (tek bağlam RPC'si de aynı anahtarlarla okur). */
+export function visibleFreePeriodKeys(now: Date = new Date()): string[] {
+  return [...new Set(VISIBLE_FREE_METERS.map((meter) => freePeriodKey(meter, now)))];
+}
+
+/** Ham `free_usage` satırlarından görünür sayaçlar (saf). */
+export function freeMetersFromRows(
+  rows: { meter: string; period_key: string; used: number }[],
+  now: Date = new Date(),
+): FreeMeterView[] {
+  const keys = VISIBLE_FREE_METERS.map((meter) => ({ meter, key: freePeriodKey(meter, now) }));
   return keys.map(({ meter, key }) => {
     const row = rows.find((item) => item.meter === meter && item.period_key === key);
     return {

@@ -14,17 +14,25 @@ import { parseModelJson } from "@/lib/learning/teaching-standards";
 import { LESSON_V3_FORMAT, screenConcept, type LessonScreen, type LessonV3 } from "@/lib/learning/lesson-v3";
 import { LessonStreamReader } from "@/lib/learning/lesson-stream";
 import { runLessonSanity } from "@/lib/learning/lesson-sanity";
+import { guardLessonForCorrection, guardScreensForCorrection } from "@/lib/learning/lesson-correction-guard";
+import { levelFromCalibrationBlock, type PedagogicalLevel } from "@/lib/learning/pedagogical-profile";
 import {
-  COVERAGE_COMPLETION_SCREENS,
   DIAGRAM_COMPLETION_SYSTEM,
+  coverageCompletionScreens,
   coverageCompletionUserPrompt,
   coverageGapCount,
   dedupScreens,
   diagramCompletionUserPrompt,
+  hasVisualScene,
+  parseVisualSceneCompletion,
+  visualSceneSystem,
+  visualSceneUserPrompt,
+  type VisualSceneCompletion,
   dropRepeatedChecks,
   dropRepeatedScreens,
   fourPartGaps,
   isCoverageIssue,
+  lessonCorrectionNow,
   lessonCoverageGaps,
   lessonLevelStructureIssues,
   lessonTeachingFlags,
@@ -42,6 +50,8 @@ import {
   type TeacherIssue,
   type TeacherLessonInput,
 } from "@/lib/learning/teacher-lesson";
+import { classifyAcademicDomain, type DomainClassification } from "@/lib/learning/visual-scenes/archetype";
+import { uncoveredSubtopics } from "@/lib/learning/lesson-subtopics";
 
 /*
   Öğretmen ders motoru, akışlı (18 Ekim 2026, ürün sahibinin kararı: "ders ~10 sn'de açılsın,
@@ -59,6 +69,9 @@ import {
     çağrı (30 Ekim 2026, 30 sn tavan); açık azalmazsa ders aynen yayımlanır.
   - diagram_card yoksa yalnız kartı isteyen tek küçük çağrı (29 Ekim 2026, 25 sn tavan); kart derste ya da
     kaynakta geçen etiket ve sayılarla temellenmezse ders aynen yayımlanır.
+  - Branşa özel görsel sahne (19 Kasım 2026, Faz 1-B): disiplin kodla sınıflandırılır (model çağrısız), şema
+    tamamlamasıyla paralel tek küçük çağrı arketipin sahnesini ister (25 sn tavan); temellenmezse ders aynen yayımlanır,
+    disiplin ve arketip yine derse yazılır.
   - Yayımdan önce anahtar kapısı (29 Ekim 2026, model çağrısız): açıklamanın şıkkıyla çelişen answerIndex hizalanır,
     ekranda olmayan görsele gönderen soru çıkar (`settleCheckKeys`).
   - Öğrenci beklerken hızlı işlem (ürün sahibinin kararı: önce yalnız Plus, aynı gün herkese).
@@ -110,11 +123,69 @@ export async function completeLessonDiagram(io: LessonIo, lesson: LessonV3, inpu
   return verdict;
 }
 
+/** Görsel sahne çağrısının tavanı (şema tamamlamasıyla paralel koşar). */
+const VISUAL_SCENE_MS = 25_000;
+
+/** Dersin disiplini ve arketipi: hazırlık adı, konu ve kaynak örneğinden (model çağrısız). */
+export function lessonDomain(input: TeacherLessonInput): DomainClassification {
+  return classifyAcademicDomain({ prepTitle: input.prepTitle, topicLabel: input.topicLabel, pages: input.pages, mode: input.mode ?? "document" });
+}
+
+/**
+ * Branşa özel görsel sahne: tek küçük çağrı (aynı LessonIo). Ayrıştırma, temellendirme ve yerleşim koddadır;
+ * düşerse ya da zaman aşarsa ders aynen kalır.
+ */
+export async function completeLessonVisualScene(
+  io: LessonIo,
+  lesson: LessonV3,
+  input: TeacherLessonInput,
+  classification: DomainClassification,
+): Promise<VisualSceneCompletion> {
+  const started = Date.now();
+  let verdict: VisualSceneCompletion;
+  if (hasVisualScene(lesson)) verdict = { verdict: "exists", lesson: null };
+  else {
+    try {
+      const answer = await withDeadline(
+        io.write(visualSceneSystem(classification), visualSceneUserPrompt(lesson, input, classification), () => undefined),
+        VISUAL_SCENE_MS,
+      );
+      verdict = answer ? parseVisualSceneCompletion(parseModelJson(answer.text), lesson, input, classification) : { verdict: "timeout", lesson: null };
+    } catch {
+      verdict = { verdict: "error", lesson: null };
+    }
+  }
+  console.info("teacher_lesson_visual_scene", {
+    verdict: verdict.verdict,
+    domain: classification.academicDomain,
+    archetype: verdict.archetype ?? classification.visualArchetype,
+    confidence: Number(classification.confidence.toFixed(2)),
+    ms: Date.now() - started,
+  });
+  return verdict;
+}
+
 /** Kapsam tamamlama çağrısının tavanı: yalnız eksik kısımları öğreten en çok iki ekran. */
 const COVERAGE_COMPLETION_MS = 30_000;
+/**
+ * Ünite dersinde (20 Kasım 2026) eksik alt konu başına ekran payı ve süre: yazar istenen her ekran için zaman alır;
+ * süre ekran sayısıyla büyür, tavanı aşmaz. Dersin bütün ek çağrıları rota sınırına (300 sn) sığsın diye tamamlama
+ * dersin başlangıcından en geç `SUBTOPIC_COMPLETION_DEADLINE_MS` içinde biter; kalan süre azsa çağrı yapılmaz.
+ */
+const SUBTOPIC_COMPLETION_MS_PER_SCREEN = 12_000;
+const SUBTOPIC_COMPLETION_MAX_MS = 72_000;
+export const SUBTOPIC_COMPLETION_DEADLINE_MS = 240_000;
+const SUBTOPIC_COMPLETION_MIN_MS = 10_000;
+
+/** Tamamlama çağrısının süresi: alt konusuz derste 30 sn (eski); ünite dersinde ekran sayısıyla, kalan süreyle sınırlı. */
+export function coverageCompletionMs(gaps: LessonCoverageGaps, screens: number, remainingMs: number | null = null): number {
+  if (!gaps.subtopics?.length) return COVERAGE_COMPLETION_MS;
+  const scaled = Math.min(SUBTOPIC_COMPLETION_MAX_MS, Math.max(COVERAGE_COMPLETION_MS, screens * SUBTOPIC_COMPLETION_MS_PER_SCREEN));
+  return remainingMs === null ? scaled : Math.min(scaled, Math.max(0, remainingMs));
+}
 
 export type CoverageCompletion = {
-  verdict: "added" | "no_gain" | "unparsed" | "timeout" | "error";
+  verdict: "added" | "no_gain" | "unparsed" | "timeout" | "error" | "no_room" | "no_time";
   /** Eklenen ekranlar (yalnız `added`). Anahtar hizalı, tekrar düşmüş, şıkları karışık. */
   screens: LessonScreen[];
   before: number;
@@ -124,27 +195,34 @@ export type CoverageCompletion = {
 /**
  * Ders bitince kalan kapsam açıkları için tek küçük çağrı (30 Ekim 2026). Yazar aynı sistem istemiyle yalnız yeni ekran
  * yazar; ekranlar yayımlanan derse karşı tekrar süzgecinden ve anahtar kapısından geçer, hafif doğrulayıcı da bakar.
- * Açık azalmazsa, çağrı düşerse ya da zaman aşarsa ders aynen kalır.
+ * Açık azalmazsa, çağrı düşerse ya da zaman aşarsa ders aynen kalır. Ünite dersinde eksik alt konu sayısı kadar ekran
+ * istenir (`coverageCompletionScreens`); ders sert tavandaysa (`no_room`) ya da süre kalmadıysa (`no_time`) çağrı yok.
+ * `deadlineAt`: ünite dersinde tamamlamanın bitmesi gereken an (dersin başlangıcı + `SUBTOPIC_COMPLETION_DEADLINE_MS`).
  */
 export async function completeLessonCoverage(
   io: LessonIo,
   lesson: LessonV3,
   input: TeacherLessonInput,
   gaps: LessonCoverageGaps,
+  options: { deadlineAt?: number } = {},
 ): Promise<CoverageCompletion> {
   const before = coverageGapCount(gaps);
   const mode = input.mode ?? "document";
+  const allowance = coverageCompletionScreens(gaps, lesson.screens.length);
+  if (!allowance) return { verdict: "no_room", screens: [], before, after: before };
+  const ms = coverageCompletionMs(gaps, allowance, options.deadlineAt === undefined ? null : options.deadlineAt - Date.now());
+  if (gaps.subtopics?.length && ms < SUBTOPIC_COMPLETION_MIN_MS) return { verdict: "no_time", screens: [], before, after: before };
   try {
     const answer = await withDeadline(
       io.write(teacherSystem(mode), coverageCompletionUserPrompt(lesson, input, gaps), () => undefined),
-      COVERAGE_COMPLETION_MS,
+      ms,
     );
     if (!answer) return { verdict: "timeout", screens: [], before, after: before };
     const parsed = parseTeacherLesson(parseModelJson(answer.text), input.upcomingTopics);
     if (!parsed?.screens.length) return { verdict: "unparsed", screens: [], before, after: before };
     let extra = dedupScreens(
       settleCheckKeys(
-        dropRepeatedScreens(lesson.screens, dropRepeatedChecks(lesson.screens, parsed.screens.slice(0, COVERAGE_COMPLETION_SCREENS))),
+        dropRepeatedScreens(lesson.screens, dropRepeatedChecks(lesson.screens, parsed.screens.slice(0, allowance))),
       ),
     ).screens;
     if (extra.length && input.sanity !== false) {
@@ -346,6 +424,21 @@ export async function teacherLessonPipeline(
 ): Promise<PipelineResult> {
   const started = options.started ?? Date.now();
   const mode = input.mode ?? "document";
+  // Her yayım (ön yayım, nabız, kavram yayımı) kaynak düzeltme bekçisinden geçer: başlıktaki hedef ve genel bakış da.
+  // Ekranlar kavram yayımında zaten süzülüyor; burada ekran sayısı değişmez.
+  const rawPublish = options.onPublish;
+  if (rawPublish) {
+    options = {
+      ...options,
+      onPublish: (item) =>
+        rawPublish({
+          ...item,
+          lesson: guardLessonForCorrection(item.lesson, mode === "topic" ? null : lessonCorrectionNow(input), {
+            keepScreens: true,
+          }).lesson,
+        }),
+    };
+  }
   const fixTriggers: TeacherIssue[][] = [];
   const dropped: string[] = [];
   const teachingScores: number[] = [];
@@ -386,7 +479,9 @@ export async function teacherLessonPipeline(
     let preview: { screen: LessonScreen; sent: Promise<void> } | null = null;
     const sendPreview = (screen: LessonScreen) => {
       if (!options.onPublish || input.streamFirst === false || preview) return;
-      const shown = previewScreen(screen);
+      // Ön yayım da kaynak düzeltme bekçisinden geçer: denetlenmemiş ekran yanlış bağıntıyı bir an bile göstermesin.
+      const guarded = guardScreensForCorrection([screen], mode === "topic" ? null : lessonCorrectionNow(input)).screens[0];
+      const shown = guarded ? previewScreen(guarded) : null;
       if (!shown) return;
       const lesson = stripLessonIssueTags({
         format: LESSON_V3_FORMAT,
@@ -547,8 +642,14 @@ export async function teacherLessonPipeline(
         // Ders içi soru tekrarı yayımdan önce deterministik olarak düşer (25 Ekim 2026); anahtar açıklamasıyla
         // hizalanır, görsele gönderen soru çıkar (29 Ekim 2026) — karıştırmadan önce.
         // Ekran içi tekrar süzgeci (30 Ekim 2026): üçüncü kez geçen örnek ya da cümle süs kutusundan silinir.
+        // Kaynak düzeltme bekçisi (20 Kasım 2026): notun bilimsel olarak yanlış bağıntısını öğreten cümle, kutu ya da
+        // soru yayımdan önce düşer (yalnız siler). Düzeltme o anda bilinen (baştan ya da paralel denetimden gelen).
+        const corrected = guardScreensForCorrection(outcome.screens, mode === "topic" ? null : lessonCorrectionNow(input));
+        if (corrected.dropped) {
+          console.info("teacher_lesson_correction_guard", { concept: parts[index]?.concept?.slice(0, 60) ?? null, dropped: corrected.dropped });
+        }
         const deduped = dedupScreens(
-          settleCheckKeys(dropRepeatedScreens(published, dropRepeatedChecks(published, outcome.screens)), {
+          settleCheckKeys(dropRepeatedScreens(published, dropRepeatedChecks(published, corrected.screens)), {
             concept: parts[index]?.concept,
           }),
         );
@@ -662,11 +763,22 @@ export async function teacherLessonPipeline(
       }
     }
     // (2) Kapsam açığı kaldıysa yalnız eksikleri öğreten en çok iki ekran (30 Ekim 2026); düşerse ders aynen kalır.
+    // Ünite dersinde (20 Kasım 2026) kendi ekranında işlenmeyen alt konular da bu açıktır: tamamlama eksik alt konu sayısı
+    // kadar ekran ister (sert tavana ve süre bütçesine kadar), yalnız sona ekler; düşerse ders yine yayımlanır.
     const gapsLeft = lessonCoverageGaps(delivered, input);
+    let subtopicVerdict: CoverageCompletion["verdict"] | null = null;
+    const subtopicStarted = Date.now();
     if (coverageGapCount(gapsLeft) > 0) {
       const coverageStarted = Date.now();
-      const coverage = await completeLessonCoverage(io, delivered, input, gapsLeft);
+      const coverage = await completeLessonCoverage(
+        io,
+        delivered,
+        input,
+        gapsLeft,
+        gapsLeft.subtopics?.length ? { deadlineAt: started + SUBTOPIC_COMPLETION_DEADLINE_MS } : {},
+      );
       if (coverage.verdict === "added") delivered = { ...delivered, screens: [...delivered.screens, ...coverage.screens] };
+      if (gapsLeft.subtopics?.length) subtopicVerdict = coverage.verdict;
       console.info("teacher_lesson_coverage", {
         verdict: coverage.verdict,
         before: coverage.before,
@@ -676,10 +788,57 @@ export async function teacherLessonPipeline(
         ms: Date.now() - coverageStarted,
       });
     }
+    if (input.subtopics?.length) {
+      const missingAfter = uncoveredSubtopics(delivered.screens, input.subtopics, input.topicLabel);
+      console.info("teacher_lesson_subtopic_coverage", {
+        total: input.subtopics.length,
+        before: gapsLeft.subtopics?.length ?? 0,
+        after: missingAfter.length,
+        missing: missingAfter.slice(0, 8).map((item) => item.slice(0, 60)),
+        verdict: subtopicVerdict,
+        screens: delivered.screens.length,
+        ms: subtopicVerdict ? Date.now() - subtopicStarted : 0,
+      });
+    }
     // (3) diagram_card yoksa yalnız kartı isteyen tek küçük çağrı (29 Ekim 2026); düşerse ders aynen yayımlanır.
-    if (parametricDiagramIssue(delivered)) {
-      const completion = await completeLessonDiagram(io, delivered, input);
-      if (completion.lesson) delivered = completion.lesson;
+    // (4) Faz 1-B: branşa özel görsel sahne; (3) ile paralel, sahne (3)'ün sonucuna eklenir.
+    const domain = lessonDomain(input);
+    const base = delivered;
+    const [diagram, scene] = await Promise.all([
+      parametricDiagramIssue(base) ? completeLessonDiagram(io, base, input) : Promise.resolve(null),
+      input.visualScene === false ? Promise.resolve(null) : completeLessonVisualScene(io, base, input, domain),
+    ]);
+    if (diagram?.lesson) delivered = diagram.lesson;
+    if (scene?.verdict === "added") {
+      const block = scene.lesson.screens.flatMap((screen) => screen.blocks).find((item) => item.type === "visual_scene");
+      const target = scene.lesson.screens.findIndex((screen) => screen.blocks.some((item) => item.type === "visual_scene"));
+      if (block && target >= 0) {
+        // Ekran sırası (3) ile değişmez (kart yalnız ekranın bloklarına girer): aynı ekrana aynı kurala göre eklenir.
+        delivered = {
+          ...delivered,
+          screens: delivered.screens.map((screen, index) => {
+            if (index !== target) return screen;
+            const blocks = [...screen.blocks];
+            const last = blocks[blocks.length - 1];
+            if (last && last.type === "check" && blocks.length > 1) blocks.splice(blocks.length - 1, 0, block);
+            else blocks.push(block);
+            return { ...screen, blocks: blocks.slice(0, 12) };
+          }),
+        };
+      }
+    }
+    delivered = {
+      ...delivered,
+      academicDomain: scene?.verdict === "added" ? scene.domain : domain.academicDomain,
+      visualArchetype: scene?.verdict === "added" ? scene.archetype : domain.visualArchetype,
+    };
+    // Kapanış alanları ve sonradan eklenen ekranlar da (onarım, kapsam, şema) aynı bekçiden geçer.
+    if (mode !== "topic") {
+      const closing = guardLessonForCorrection(delivered, lessonCorrectionNow(input));
+      if (closing.dropped) {
+        console.info("teacher_lesson_correction_guard", { stage: "closing", dropped: closing.dropped });
+        delivered = closing.lesson;
+      }
     }
     const done = !lessonLevelStructureIssues(delivered, input).some(isCoverageIssue);
     return {
@@ -781,6 +940,26 @@ export function createLessonIo(
  * Kredi bir kez ayrılır; ders dönerse kesinleşir, dönmezse iade edilir.
  */
 /** Hafif doğrulayıcının kaynağı: belgeli derste sayfalar, belgesiz derste konunun onaylı havuz anlatımı (6 Kasım 2026). */
+/**
+ * Görsel sahnenin yoğunluk seviyesi öğrencinin çözülmüş profilinden (20 Kasım 2026): model alanı boş bırakabilir ya da
+ * başka seviye yazabilir; çizim etiket bütçesini ve yazı ölçeğini bu seviyeden alır. Seviye yoksa ders aynen döner.
+ */
+export function stampSceneLevel(lesson: LessonV3, level: PedagogicalLevel | null): LessonV3 {
+  if (!level) return lesson;
+  let changed = false;
+  const screens = lesson.screens.map((screen) => {
+    if (!screen.blocks.some((block) => block.type === "visual_scene")) return screen;
+    changed = true;
+    return {
+      ...screen,
+      blocks: screen.blocks.map((block) =>
+        block.type === "visual_scene" ? ({ ...block, scene: { ...block.scene, pedagogicalLevel: level } } as typeof block) : block,
+      ),
+    };
+  });
+  return changed ? { ...lesson, screens } : lesson;
+}
+
 export function sanitySource(input: Pick<TeacherLessonInput, "mode" | "pages" | "approvedFacts">): string {
   if (input.mode === "topic") return input.approvedFacts?.trim() ?? "";
   return input.pages.map((page) => page.text).join("\n");
@@ -857,7 +1036,7 @@ async function runTeacherLessonInner(
   const callMs: Record<string, number[]> = {};
   let firstTokenMs: number | undefined;
   // Hızlı işlem yalnız Plus/Sigma ve kurucuya (19 Ekim 2026, ürün sahibinin kararı; `fast-access.ts`).
-  const profileLoad = studentPedagogyBlock(service, input.userId, "lesson");
+  const profileLoad = studentPedagogyBlock(service, input.userId, "lesson", { prepTitle: input.prepTitle ?? null, subject: [input.prepTitle, input.topicLabel].filter(Boolean).join(" ") || null });
   const fast = Boolean(input.fast) && (await fastAllowedFor(service, input.userId));
   const profile = await profileLoad;
   const io = createLessonIo(openai, model, {
@@ -918,7 +1097,7 @@ async function runTeacherLessonInner(
     if (reservationId) await commitCredits(service, reservationId);
     return {
       ok: true,
-      lesson: result.lesson,
+      lesson: stampSceneLevel(result.lesson, levelFromCalibrationBlock(profile)),
       calls,
       ms: Date.now() - started,
       remainingLow: result.issues,

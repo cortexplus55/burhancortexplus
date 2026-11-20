@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { guestLimit } from "@/lib/api/guards";
 import { createServiceClient } from "@/lib/supabase/server";
-import { setMarketingPreference, setReminderPreference } from "@/lib/email/preferences";
+import { setMarketingPreference } from "@/lib/email/preferences";
 import { verifyUnsubscribeToken } from "@/lib/email/unsubscribe";
+import { applyPreferencePatch } from "@/lib/notifications/preference-api";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,9 @@ export const dynamic = "force-dynamic";
  * - GET: yalnız sayfaya yönlendirir; bağlantıyı önceden tarayan güvenlik yazılımları ya da posta önizlemeleri
  *   öğrenciyi sessizce çıkarmasın diye GET hiçbir şeyi değiştirmez.
  * Oturum gerekmez: bağlantı hesapla eşleşir ve yalnız o hesabın o kategorisini kapatır.
+ *
+ * Faz 6 (20 Kasım 2026): gönderilmiş e-postalardaki eski imzalı bağlantılar çalışmaya devam eder; "hatırlatma"
+ * kategorisi artık yeni tercih deposuna (`user_notification_preferences.study_reminders_email`) yazılır.
  */
 export async function POST(request: Request) {
   const limited = await guestLimit(request, { scope: "email-unsub", limit: 30 });
@@ -33,7 +37,7 @@ export async function POST(request: Request) {
           source: "unsubscribe_link",
           ip: request.headers.get("x-forwarded-for"),
         })
-      : await setReminderPreference(service, claims.userId, false);
+      : await applyPreferencePatch(service, claims.userId, { studyRemindersEmail: false });
   if (!done) return NextResponse.json({ ok: false, error: "Kaydedilemedi. Biraz sonra yeniden dene." }, { status: 503 });
   return NextResponse.json({ ok: true, category: claims.category });
 }

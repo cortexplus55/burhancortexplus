@@ -5,6 +5,8 @@ import { dedupePathLabels } from "@/lib/learning/path-labels";
 import { Star, Swords } from "lucide-react";
 import { ExamFinishButton } from "@/components/parity/exam-finish-button";
 import { ExamPodcastPlayer } from "@/components/parity/exam-podcast-player";
+import { PodcastStatusSteps, reportPodcastReady, usePodcastServerStatus } from "@/components/parity/podcast-status-steps";
+import { furtherPodcastStatus } from "@/lib/learning/podcast-status";
 import { TopicGainCard } from "@/components/parity/topic-gain-card";
 import { pathChangeLine } from "@/lib/learning/path-change";
 import { reviewScheduledLine } from "@/lib/learning/review-copy";
@@ -13,8 +15,10 @@ import { cn } from "@/lib/utils";
 import { resultMood } from "@/lib/learning/result-mood";
 import { LessonRatingCard } from "@/components/parity/lesson-rating-card";
 import { LevelSuggestCard } from "@/components/parity/level-suggest-card";
+import { InstallAppCard } from "@/components/pwa/install-app-card";
 import { repeatedCardsLine } from "@/lib/learning/flashcard-round";
 import { replayLabel } from "@/lib/learning/feedback-copy";
+import { CARD_DECK_KINDS, FREE_RESTUDY_KINDS, NEW_DECK_LABEL, RESTUDY_NEXT_LABEL, RESTUDY_STEP_LABEL } from "@/lib/learning/free-restudy";
 import Link from "next/link";
 import type { NodeLifecycle } from "./use-node-lifecycle";
 
@@ -55,8 +59,16 @@ export function WrittenExamResult({ life }: { life: NodeLifecycle }) {
 }
 
 export function ResultScreen({ life }: { life: NodeLifecycle }) {
-  const { prepId, kind, topicId, rewriteHref, beginRewrite, resumeEnabled, isOral, stage, setStage, payload, attemptId, setIndex, setAnswers, setCardOffer, setCardRepeat, cardSummary, setCardSummary, score, spentMinutes, oralGrade, nextHref, levelHint, topicGain, pathChange, reviewScheduled, gainOpen, setGainOpen, feedback, setFeedback, feedbackLoading, podcastLoading, setPodcastCheckOpen, lessonPodcast, setLessonPodcast, isTimedExam, start, loadLessonPodcast, loadFeedback, structuredLesson, unscored, heroScore, heroTotal, mood } = life;
-  const { rewritePending } = life;
+  const { prepId, kind, topicId, rewriteHref, beginRewrite, resumeEnabled, isOral, stage, setStage, payload, attemptId, setIndex, setAnswers, setCardOffer, setCardRepeat, cardSummary, setCardSummary, score, spentMinutes, oralGrade, nextHref, levelHint, topicGain, pathChange, reviewScheduled, gainOpen, setGainOpen, feedback, setFeedback, feedbackLoading, podcastLoading, setPodcastCheckOpen, lessonPodcast, setLessonPodcast, lessonPodcastStatusId, lessonPodcastAudioReady, setLessonPodcastAudioReady, isTimedExam, start, loadLessonPodcast, loadFeedback, structuredLesson, unscored, heroScore, heroTotal, mood } = life;
+  // Ders sonu "Şimdi dinle" adımları (Faz 1-A §4.2): sunucu adımı + oynatıcının bildiği aşama; geri gitmez.
+  const lessonPodcastServerStatus = usePodcastServerStatus(lessonPodcastStatusId, podcastLoading && !lessonPodcast);
+  const lessonPodcastStage = furtherPodcastStatus(
+    lessonPodcastServerStatus,
+    lessonPodcastAudioReady ? "ready" : lessonPodcast ? "synthesizing_audio" : null,
+  );
+  const { rewritePending, regenerateHref, restudyNextHref } = life;
+  // Faz 4: kayıtlı adım kayıttan, ücretsiz yeniden çözülür (sunucu kredi ayırmaz, model çağırmaz).
+  const freeRestudy = FREE_RESTUDY_KINDS.has(kind) && kind !== "lesson";
   return (
     <>
       {stage === "result" && gainOpen && topicGain ? <TopicGainCard gain={topicGain} nextHref={nextHref} /> : null}
@@ -189,11 +201,23 @@ export function ResultScreen({ life }: { life: NodeLifecycle }) {
               setCardRepeat(null);
               setCardSummary(null);
               setPodcastCheckOpen(false);
-              // Ders aynı haliyle yeniden açılır (anında, kredisiz); öbür etkinlikler yeniden kurulur.
+              // Ders aynı haliyle yeniden açılır (anında, kredisiz). Faz 4: test, doğru/yanlış, kart ve podcast da
+              // kayıttan, karışık sırayla ve ücretsiz açılır; öbür etkinlikler yeniden kurulur.
               if (kind === "lesson") void start({ replay: true });
+              else if (freeRestudy) void start({ review: true });
             }}>
-              {replayLabel(kind)}
+              {freeRestudy ? RESTUDY_STEP_LABEL : replayLabel(kind)}
             </button>
+            {CARD_DECK_KINDS.has(kind) && regenerateHref ? (
+              <a href={regenerateHref} className="cp-exam-continue">
+                {NEW_DECK_LABEL}
+              </a>
+            ) : null}
+            {restudyNextHref ? (
+              <a href={restudyNextHref} className="cp-exam-continue cp-exam-continue--primary">
+                {RESTUDY_NEXT_LABEL}
+              </a>
+            ) : null}
             {kind === "lesson" ? (
               <button type="button" className="cp-exam-continue" disabled={rewritePending} aria-busy={rewritePending} onClick={() => {
                 // İlk tık yerinde başlar (3 Kasım 2026): aynı rotaya router.push ekranı yeniden kurmuyordu (sonuç
@@ -236,17 +260,28 @@ export function ResultScreen({ life }: { life: NodeLifecycle }) {
               </button>
             ) : null}
           </div>
-          {/* Uzun üretimde ne olduğunu söyle (30 Ekim 2026, Paket I #9): konunun podcast'i hazırsa anında gelir. */}
-          {podcastLoading && !lessonPodcast ? (
-            <p className="cp-exam-card-hint" role="status">
-              Sesli tekrar konunun sayfalarından yazılıyor ve seslendiriliyor; ilk kez hazırlanıyorsa bir iki dakika sürebilir.
-            </p>
+          {/* Uzun üretimde ne olduğunu söyle (30 Ekim 2026, Paket I #9): konunun podcast'i hazırsa anında gelir.
+              19 Kasım 2026 (Faz 1-A §4.2): sunucudaki gerçek adım (sıraya alındı → senaryo → ses → hazır). */}
+          {(podcastLoading && !lessonPodcast) || (lessonPodcast && !lessonPodcastAudioReady) ? (
+            <PodcastStatusSteps
+              compact
+              status={lessonPodcastStage}
+              note={
+                lessonPodcast
+                  ? null
+                  : "Sesli tekrar konunun sayfalarından yazılıyor ve seslendiriliyor; ilk kez hazırlanıyorsa bir iki dakika sürebilir."
+              }
+            />
           ) : null}
           {lessonPodcast ? (
             <ExamPodcastPlayer
               title={lessonPodcast.title}
               chapters={lessonPodcast.chapters}
               embed
+              onAudioReady={() => {
+                setLessonPodcastAudioReady(true);
+                reportPodcastReady(lessonPodcastStatusId);
+              }}
               onClose={() => setLessonPodcast(null)}
               onFinish={() => setLessonPodcast(null)}
             />
@@ -307,6 +342,8 @@ export function ResultScreen({ life }: { life: NodeLifecycle }) {
           ) : null}
           {levelHint ? <LevelSuggestCard prepId={prepId} hint={levelHint} /> : null}
           {attemptId ? <LessonRatingCard attemptId={attemptId} kind={kind} /> : null}
+          {/* Ders bitti (20 Kasım 2026, Faz 8): telefonda "Ana Ekrana Ekle" kartı; kararı kart verir (30 günde bir). */}
+          {payload.type === "lesson" ? <InstallAppCard milestone="lesson_completed" placement="inline" /> : null}
           {/* kıyas ürünü her dersin sonunda "arkadaşına meydan oku" diyor (1 Ekim
               2026). Düello sayfasına gider; kurmak öğrencinin kararı. */}
           <Link href={`/deneme-sinavlari/${prepId}/duello`} className="cp-exam-challenge">

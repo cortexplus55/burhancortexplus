@@ -59,7 +59,7 @@ describe("öğretmen test motoru: biçim ve yapı", () => {
     const counting = parseTeacherQuiz({ questions: [raw("Hükümsüzlük kaç ana başlıkta incelenir?")] })![0];
     expect(quizStructureIssues(counting).join(" ")).toMatch(/Sayma/);
     const giveaway = parseTeacherQuiz({ questions: [raw("Tek taraflı bağlamazlık nedir, hangisi tek taraflı bağlamazlıktır?", "Tek taraflı bağlamazlık")] })![0];
-    expect(quizStructureIssues(giveaway).join(" ")).toMatch(/cevabı veriyor/);
+    expect(quizStructureIssues(giveaway).join(" ")).toMatch(/cevabı veriyor|Cevap sızıntısı/);
     const noWhy = parseTeacherQuiz({ questions: [{ ...raw("Nikâh memuru olmadan yapılan evlilik?"), optionWhy: ["tek satır gerekçe yazıldı"] }] })![0];
     expect(quizStructureIssues(noWhy).join(" ")).toMatch(/optionWhy/);
     const exponent = parseTeacherQuiz({
@@ -186,7 +186,8 @@ describe("öğretmen test motoru: döngü", () => {
 describe("şık karıştırma ve eski çağıranlar", () => {
   it("şıklar gerekçeleriyle birlikte sabit sırayla karışır; doğru cevap farklı konumlara düşer", () => {
     const questions = Array.from({ length: 12 }, (_, i) => parseTeacherQuiz({ questions: [raw(`Soru ${i}: nikâh memuru olmadan yapılan evlilik hangi durumdadır?`)] })![0]);
-    const shuffled = questions.map(shuffleOptions);
+    // Faz 4: ikinci bağımsız değişken karıştırma tuzu (`attemptId`); `.map` dizini tuza geçmesin.
+    const shuffled = questions.map((question) => shuffleOptions(question));
     for (const [index, question] of shuffled.entries()) {
       // Her şık kendi gerekçesiyle kalır.
       for (const option of question.options) {
@@ -328,7 +329,7 @@ describe("çok cevaplı soru", () => {
     optionWhy: ["Krupun tipik öksürüğüdür.", "Üst hava yolu daralmasının sesidir.", "Pnömonide duyulur.", "Alt hava yolu tıkanmasında görülür."],
   };
 
-  it("yalnız konu testi açar; yazar tam bir soru yazar, öteki testler tek cevaplı kalır", () => {
+  it("motor kipi yerinde kalır, ama konu testi artık çok cevaplı istemez (Faz 1-A §3.1)", () => {
     expect(quizSystem("document", "practice", true)).toContain("ÇOK CEVAPLI SORU: Bu testte tam bir soru çok cevaplıdır");
     expect(quizSystem("document", "practice")).not.toContain("ÇOK CEVAPLI SORU:");
     expect(quizSystem("topic", "practice", true)).toContain("2 ya da 3'ü doğru");
@@ -336,7 +337,8 @@ describe("çok cevaplı soru", () => {
       expect(quizVerifySystem(mode)).toContain("multi true olan soruda (çok cevaplı) birden fazla doğru şık olması B değildir");
     }
     const route = readSource("src/app/api/learning/exam-prep/node/route.ts");
-    expect(route).toContain('multi: input.kind === "quiz" && count >= 5,');
+    expect(route).not.toContain('multi: input.kind === "quiz" && count >= 5,');
+    expect(route).toContain("multi: false,");
   });
 
   it("yapı: izin varsa 2-3 doğru geçer; izin yoksa ya da doğru sayısı tutmazsa düzeltmeye gider", () => {

@@ -102,6 +102,8 @@ import { useOpenFromRefusal, useQuotaNotice } from "@/components/entitlements/en
 import { MessageQuota } from "@/components/entitlements/message-quota";
 import { Gate } from "@/components/entitlements/gate";
 import { gateFromRefusal } from "@/lib/entitlements/gate";
+import { useAutoGrow } from "@/lib/ui/use-auto-grow";
+import { createSendLock } from "@/lib/ui/send-lock";
 import "@/styles/parity-sor.css";
 import "@/styles/parity-shell.css";
 
@@ -526,6 +528,11 @@ function ChatPanelSession({
     (typeof COMPOSER_MODES)[number]["id"] | null
   >(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
+  // Faz 3 (20 Kasım 2026): yazma alanı Safari ve Firefox'ta da büyüsün (CSS `field-sizing` yalnız Chrome'da).
+  useAutoGrow(composerRef, input);
+  // Faz 3: durum (`loading`) bir sonraki çizimde gelir; arada ikinci Enter / çift tık ikinci isteği göndermesin.
+  const [sendLock] = useState(createSendLock);
+  const [composerLock] = useState(createSendLock);
   const viewRef = useRef<HTMLDivElement>(null);
   const composerZoneRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -928,7 +935,17 @@ function ChatPanelSession({
     }
   }
 
+  /** Yazma alanının gönderimi; eşzamanlı kilitle (çift Enter, Enter + düğme aynı anda) tek kez çalışır. */
   async function sendComposer() {
+    if (!composerLock.tryAcquire()) return;
+    try {
+      await sendComposerNow();
+    } finally {
+      composerLock.release();
+    }
+  }
+
+  async function sendComposerNow() {
     const file = pendingFile;
     const remote = pendingRemote;
     const text = input.trim();
@@ -1102,6 +1119,8 @@ function ChatPanelSession({
     allowWhileLoading = false,
   ) {
     if (!text.trim() || (loading && !allowWhileLoading)) return;
+    // Aynı anda ikinci istek yok (öneri çipine çift tık, art arda Enter): kilit istek bitince ya da hata olunca açılır.
+    if (!sendLock.tryAcquire()) return;
     const typed = typedRef.current;
     typedRef.current = null;
     if (imageDocumentId) activeDocumentId.current = imageDocumentId;
@@ -1305,6 +1324,7 @@ function ChatPanelSession({
     } finally {
       if (abortRef.current === controller) abortRef.current = null;
       setLoading(false);
+      sendLock.release();
     }
   }
 

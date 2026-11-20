@@ -4,6 +4,7 @@ import { priceForModel, usageCostUsd, type ModelPrice } from "@/lib/billing/mode
 import { recordUsage } from "@/lib/credits/service";
 import type { PoolStore, StoredContent, StoredItem } from "@/lib/content-pool/pool";
 import type { LessonBody } from "@/lib/content-pool/schema";
+import { isValidChoiceIndex, keepAnswerKeyed } from "@/lib/learning/answer-key";
 
 type ItemRow = StoredItem & { outcome_code?: string };
 
@@ -74,7 +75,8 @@ export function supabasePoolStore(service: SupabaseClient): PoolStore {
     },
     async writeVerified(id, unit, version, content) {
       const byCode = new Map(unit.outcomes.map((o) => [o.code, o.outcomeId]));
-      const rows = content.items.map((item) => ({
+      // Faz 2 (madde 7.2): anahtarı şıkların içinde olmayan öğe havuza yazılmaz.
+      const rows = keepAnswerKeyed(content.items, (item) => isValidChoiceIndex(item.choices, item.answer), "item_bank_verified").map((item) => ({
         content_id: id,
         unit_id: unit.unitId,
         outcome_id: byCode.get(item.outcome_code)!,
@@ -88,6 +90,7 @@ export function supabasePoolStore(service: SupabaseClient): PoolStore {
         status: "verified",
         qa: { outcome_code: item.outcome_code, verified_by: content.qa.verify_model },
       }));
+      if (!rows.length) throw new Error("item_bank insert: no answer-keyed items");
       const { data: inserted, error: itemError } = await service
         .from("item_bank")
         .insert(rows)

@@ -106,7 +106,8 @@ export async function spendBreakerBlocks(
   options: { meter?: FreeMeter | null } = {},
 ): Promise<boolean> {
   if (!breakerSwitch()) return false;
-  if (options.meter === "included") return false;
+  // Ders içi yardım ("included") ve sınırlı "Farklı anlat" denemesi (Faz 4: toplam 10) durdurulmaz.
+  if (options.meter === "included" || options.meter === "reexplain") return false;
   try {
     const state = await spendBreakerState();
     if (!state.tripped) return false;

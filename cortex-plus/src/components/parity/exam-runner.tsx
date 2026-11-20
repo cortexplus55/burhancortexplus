@@ -603,6 +603,8 @@ export function ParityExamRunner({
               inputMode="decimal"
               className="h-12 w-full rounded-xl border border-[color:var(--cp-border)] bg-[color:var(--cp-surface-2)] px-4 text-[15px]"
               placeholder="Sayısal cevap"
+              // Faz 3 (20 Kasım 2026): yer tutucu ad değildir; alanın adı hangi sorunun cevabı olduğunu söyler.
+              aria-label={`Soru ${index + 1} için sayısal cevabın`}
               value={typeof selected === "string" ? selected : ""}
               onChange={(e) => setAnswer(e.target.value)}
             />
@@ -616,6 +618,7 @@ export function ParityExamRunner({
                 value={typeof selected === "string" ? selected : ""}
                 onChange={(e) => setAnswer(e.target.value)}
                 placeholder="Cevabını yaz"
+                aria-label={`Soru ${index + 1} için cevabın`}
               />
               <div className="mt-1 flex justify-between text-xs text-[color:var(--cp-muted)]">
                 <span>

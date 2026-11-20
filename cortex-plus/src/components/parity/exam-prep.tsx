@@ -8,6 +8,7 @@ import { WeeklySurveyCard } from "@/components/feedback/weekly-survey-card";
 import { PageShell } from "@/components/parity/page-shell";
 import { cn } from "@/lib/utils";
 import { useDismiss } from "@/lib/ui/use-dismiss";
+import { WRITTEN_EXAM_AVAILABILITY } from "@/lib/marketing/plan-copy";
 import {
   draftStarted,
   dropExamWizardDraft,
@@ -197,7 +198,7 @@ export function ParityExamPrep({ cards, userId = null }: { cards: ExamPrepCard[]
               </li>
               <li>
                 <strong>Yolda ilerle</strong>
-                <span>Sıradaki adım öneridir. İstediğin konunun dersini veya etkinliğini şimdi açabilirsin; deneme sınavı her zaman açık.</span>
+                <span>Sıradaki adım öneridir. İstediğin konunun dersini veya etkinliğini şimdi açabilirsin. {WRITTEN_EXAM_AVAILABILITY}</span>
               </li>
               <li>
                 <strong>Ders bitince</strong>

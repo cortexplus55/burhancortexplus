@@ -1,3 +1,4 @@
+import { invalidateSessionUserContext } from "@/lib/auth/session-context";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { withUser } from "@/lib/api/guards";
@@ -5,8 +6,10 @@ import { awardStars } from "@/lib/stars/award";
 import { istanbulDay } from "@/lib/istanbul-day";
 import { checkReportedQuestion } from "@/lib/learning/question-report/check";
 import { loadReportTarget } from "@/lib/learning/question-report/apply";
+import { stripAnswerKeyFromQuestion } from "@/lib/learning/active-exam-seal";
 import {
   REPORT_ALREADY,
+  REPORT_BEFORE_ANSWER,
   REPORT_DAILY_REWARD_CAP,
   REPORT_GIFT_CREDITS,
   REPORT_REASON_IDS,
@@ -94,7 +97,8 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: true,
       verdict: "invalid",
-      message: decision.explanation ? `${REPORT_REJECTED} ${decision.explanation}` : REPORT_REJECTED,
+      // Cevaptan önce gerekçe yazılmaz (Faz 5 §3.1): denetçinin cümlesi doğru cevabı söyleyebilir.
+      message: decision.explanation && target.answerShown ? `${REPORT_REJECTED} ${decision.explanation}` : REPORT_REJECTED,
       rewarded: false,
     });
   }
@@ -135,12 +139,25 @@ export async function POST(request: Request) {
         p_meta: { reason: "question_report", report_id: report.id, source },
       })
       .then(
-        () => undefined,
+        () => invalidateSessionUserContext(userId),
         () => undefined,
       );
     await awardStars(service, { userId, source: "prep", ref: `report:${report.id}`, amount: REPORT_STARS });
   }
   console.info("question_report", JSON.stringify({ source, verdict: "valid", kind: decision.kind, action: decision.action, rewarded }));
+
+  if (!target.answerShown) {
+    // Cevaptan önce (Faz 5 §3.1): soru geçersiz/düzeltilmiş olarak işaretlenir ama anahtar ve açıklama ekrana gitmez;
+    // öğrenci cevabını verince "Kontrol et" sunucudan düzeltilmiş anahtarı alır.
+    return NextResponse.json({
+      ok: true,
+      verdict: "valid",
+      action: decision.action,
+      message: rewarded ? `${REPORT_THANKS}. ${REPORT_BEFORE_ANSWER}` : REPORT_BEFORE_ANSWER,
+      rewarded,
+      ...(fix.question ? { question: { ...stripAnswerKeyFromQuestion(fix.question), voidNote: undefined } } : {}),
+    });
+  }
 
   return NextResponse.json({
     ok: true,

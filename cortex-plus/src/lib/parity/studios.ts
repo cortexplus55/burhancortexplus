@@ -8,7 +8,7 @@ import { needsPlusOutsideFirstLesson } from "@/lib/billing/free-meters";
  * Kartlardaki iki kısa bilgi bugün çalışan özelliği anlatır (söz verme yok). Ücretsiz hesapta "Plus" rozeti tek
  * kuraldan okunur (`needsPlusOutsideFirstLesson`): Plus'a özel işler (`PLUS_ONLY_ACTIONS`) ve, 11 Kasım 2026
  * akşamından beri (ücretsiz hesap = tek ders), ders sayacına düşen üretimler: Konu Testi, Kartlar, Doğru / Yanlış.
- * Fotoğraftan Çözüm (günde 1) ve Anlatarak Öğren (günlük mesaj hakkı) ücretsizde açık. Açık liste, fiyattan türetilmez.
+ * Fotoğraftan Çözüm (ayda 7) ve Anlatarak Öğren (günlük mesaj hakkı) ücretsizde açık. Açık liste, fiyattan türetilmez.
  */
 export type Studio = {
   id: string;
@@ -64,8 +64,8 @@ export const STUDIOS: readonly Studio[] = [
     href: "/studio/dogru-yanlis",
     icon: "dogru-yanlis",
     accent: "#3fc56b",
-    // Doğru/yanlış test fiyatıyla yazılır (`true-false/generate`).
-    action: "QUIZ_GENERATE",
+    // Faz 4: doğru/yanlış testten ayrı fiyatlanır (`true-false/generate`, 3 kredi).
+    action: "TRUE_FALSE_GENERATE",
   },
   {
     id: "podcast",

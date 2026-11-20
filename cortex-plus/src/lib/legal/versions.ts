@@ -28,7 +28,9 @@ export const AGE_DECLARATION = { type: "yas_beyani", version: "2026-11-07" } as 
  * kutu yine işaretlenir (her satın alma ayrı sözleşme); bu sürümü daha önce sonuna kadar okumuş öğrenciye metin
  * zorla yeniden açtırılmaz. Metin `src/lib/legal/texts.ts`.
  */
-export const SALES_DOCS = { type: "satis_sozlesmeleri", version: "2026-11-07" } as const;
+// 19 Kasım 2026 (Faz 5 §4): "Hizmetin konusu" maddesinin kota cümlesi tek merkezden (`plan-copy.ts`);
+// ücretsiz hesaptaki eski haftalık sınır cümlesi kalktı, üç planın karşılığı eklendi.
+export const SALES_DOCS = { type: "satis_sozlesmeleri", version: "2026-11-19" } as const;
 
 /** Çerez politikası (`cookie-text.ts`). Değişince tercih yeniden sorulur. */
 export const COOKIE_POLICY_VERSION = "2026-11-07";

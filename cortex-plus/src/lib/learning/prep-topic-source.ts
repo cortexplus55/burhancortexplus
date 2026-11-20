@@ -3,9 +3,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 import { loadPrepDocumentIds } from "@/lib/documents/teacher-analysis-run";
 import { documentRunningHeaders, ensureCleanPages } from "@/lib/documents/clean-pages";
-import { corePageRun } from "@/lib/learning/core-pages";
+import { corePageRun, unitLessonPages } from "@/lib/learning/core-pages";
 import { loadSourceContext, pagesMarkedInSource } from "@/lib/learning/source-context";
 import { resolvePrepTopicRow } from "@/lib/learning/prep-topic-lookup";
+import { isUnitTopicRow, unitRowDocumentSources } from "@/lib/learning/unit-topic-row";
+import { mainSessionSource } from "@/lib/learning/topic-consolidation";
 
 /**
  * Hazırlıktaki bir konunun temiz kaynak sayfaları — hazırlık podcast'inin
@@ -23,14 +25,23 @@ export async function prepTopicSource(
   let documentId = input.prepDocumentId ?? prepDocs[0] ?? null;
   let pageNumbers: number[] = [];
 
-  const linked = await resolvePrepTopicRow<{ id: string; document_topic_node_id: string | null }>(
-    service,
-    input.prepId,
-    input.topicId,
-    "id, document_topic_node_id",
-  );
+  // Ana ünite satırı (Faz 10): ünitenin bütün yaprakları kaynağında; en çok sayfası olan belge çekirdek. Sütun yoksa
+  // (göç uygulanmadı) eski seçim: konunun belge düğümünün sayfaları.
+  type LinkedTopic = { id: string; document_topic_node_id: string | null; source_refs?: unknown; subtopics?: unknown };
+  const linked =
+    (await resolvePrepTopicRow<LinkedTopic>(
+      service,
+      input.prepId,
+      input.topicId,
+      "id, document_topic_node_id, source_refs, subtopics",
+    )) ??
+    (await resolvePrepTopicRow<LinkedTopic>(service, input.prepId, input.topicId, "id, document_topic_node_id"));
   const nodeId = typeof linked?.document_topic_node_id === "string" ? linked.document_topic_node_id : null;
-  if (nodeId) {
+  const unitMain = linked && isUnitTopicRow(linked) ? mainSessionSource(unitRowDocumentSources(linked)) : null;
+  if (unitMain) {
+    documentId = unitMain.documentId;
+    pageNumbers = [...unitMain.pages];
+  } else if (nodeId) {
     const { data: node } = await service.from("document_topic_nodes").select("document_id").eq("id", nodeId).maybeSingle();
     if (node?.document_id) documentId = node.document_id as string;
     const pages = await service.from("document_topic_page_links").select("page_number").eq("topic_id", nodeId);
@@ -52,7 +63,7 @@ export async function prepTopicSource(
   }
   if (!pageNumbers.length) return null;
   const edges = await documentRunningHeaders(service, documentId);
-  const clean = await ensureCleanPages(service, { userId: input.userId, documentId, pages: corePageRun(pageNumbers), edges });
+  const clean = await ensureCleanPages(service, { userId: input.userId, documentId, pages: unitMain ? unitLessonPages(pageNumbers) : corePageRun(pageNumbers), edges });
   if (!clean.length) return null;
   return { mode: "document", pages: clean.map((item) => ({ page: item.page, text: item.text })) };
 }

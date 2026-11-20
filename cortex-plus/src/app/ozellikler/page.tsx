@@ -1,23 +1,28 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
 import { AdvantageComparison, AdvantageShowcase } from "@/components/marketing/advantage-sections";
 import { ParityMarketingPage } from "@/components/parity/marketing";
 import { Icon3D, type Icon3DName } from "@/components/ui/icon-3d";
-import { FREE_PHOTO_PER_DAY, FREE_TIER_SENTENCE } from "@/lib/billing/free-meters";
+import { FREE_PHOTO_PER_MONTH, FREE_TIER_SENTENCE } from "@/lib/billing/free-meters";
 import { FREE_FIRST_LESSON_SENTENCE } from "@/lib/billing/free-tier-copy";
+import { PLAN_MARKETING_COPY } from "@/lib/marketing/plan-copy";
+import { FREE_RESTUDY_BAND } from "@/lib/credits/price-table";
 import "@/styles/landing.css";
+import { pageMetadata } from "@/lib/seo/page-metadata";
 
-export const metadata = {
+// Kanonik adres ve sayfaya özel paylaşım bilgisi (20 Kasım 2026, Faz 3).
+export const metadata = pageMetadata({
   title: "Özellikler",
   description:
     "Ders, podcast, video, kartlar, konu testi, yazılı ve sözlü deneme, yanlışlar defteri ve AI öğretmen — hepsi kendi notundan.",
-};
+  path: "/ozellikler",
+});
 
 /*
   19 Ekim 2026: sayfa "gelişmiş model", "çalışma planı ve günlük görevler", "her işlem öncesi kredi
   gösterilir" diyordu; üçü de yoktu. Her kart bugün çalışan bir araca karşılık gelir.
 
-  24 Ekim 2026 (kredi v3): ücretsiz hesap sayaçla — günde 3 mesaj, günde 1 fotoğraf
+  24 Ekim 2026 (kredi v3): ücretsiz hesap sayaçla — günde 3 mesaj, fotoğraf (Faz 4: ayda 7)
   (`free-meters.ts`). "Plus" etiketliler ücretsiz hesapta hiç açılmayan işler (`PLUS_ONLY_ACTIONS`:
   podcast, sözlü, yazılı deneme, video, ses); sayılar koddan okunur, sayfaya elle yazılmaz.
 
@@ -50,7 +55,7 @@ const GROUPS: { title: string; lead: string; items: Feature[] }[] = [
       { icon: "konu-testi", title: "Konu testi", body: "Her şıkkın neden doğru ya da yanlış olduğu ayrı ayrı açıklanır." },
       { icon: "dogru-yanlis", title: "Doğru / Yanlış", body: "Hızlı kontrol; yanlış cümlenin doğrusu yanında." },
       { icon: "tekrar", title: "Yanlışlar defteri", body: "Testlerde yanlış yaptığın soru konusuyla deftere yazılır; her gün defterinden 10 soruluk tur, üst üste iki doğruyla çıkar." },
-      { icon: "denklem", title: "Fotoğraftan çözüm", body: `Sorunun fotoğrafını çek ya da yaz; adım adım çözüm ve her şıkkın açıklaması. Ücretsiz hesapta günde ${FREE_PHOTO_PER_DAY}.` },
+      { icon: "denklem", title: "Fotoğraftan çözüm", body: `Sorunun fotoğrafını çek ya da yaz; adım adım çözüm ve her şıkkın açıklaması. Ücretsiz hesapta ayda ${FREE_PHOTO_PER_MONTH}.` },
     ],
   },
   {
@@ -132,6 +137,30 @@ export default function OzelliklerPage() {
         {/* 11 Kasım 2026: ana sayfa üç bölüme inince kanıt kartı ve tam karşılaştırma buraya taşındı (#farklar). */}
         <AdvantageShowcase />
         <AdvantageComparison />
+
+        {/* Faz 5 §4 (19 Kasım 2026): planların karşılığı fiyat sayfasıyla aynı tek merkezden (`plan-copy.ts`). */}
+        <section className="lp-section" aria-labelledby="oz-plans" data-testid="oz-plan-copy">
+          <div className="lp-wrap">
+            <p className="lp-kicker">Planlar</p>
+            <h2 id="oz-plans" className="lp-h2">
+              Aylık hakkın ne kadar iş eder
+            </h2>
+            <ul className="lp-trust">
+              {PLAN_MARKETING_COPY.plans.map((plan) => (
+                <li key={plan.id}>
+                  <Check className="lp-trust-icon" aria-hidden />
+                  <div>
+                    <h3 className="lp-h3">{plan.name}</h3>
+                    <p className="lp-muted">{plan.periodLine}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <p className="lp-muted">
+              Sayılar yaklaşıktır ve tek başınadır: hepsi aynı dönem hakkından düşer. {FREE_RESTUDY_BAND}.
+            </p>
+          </div>
+        </section>
 
         <section className="lp-final" aria-labelledby="oz-final">
           <div className="lp-wrap lp-final-inner">

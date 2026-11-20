@@ -201,7 +201,9 @@ describe("rota yalnız konu testine kapsam ve ders verir", () => {
   it("teacherQuizPayload: scope ve ders yalnız kind quiz; eski bekçi satırları yerinde", () => {
     expect(route).toContain('scope: input.kind === "quiz" ? "topic_test" : undefined,');
     expect(route).toContain('lesson: input.kind === "quiz" ? (input.lessonQuiz ?? undefined) : undefined,');
-    expect(route).toContain('multi: input.kind === "quiz" && count >= 5,');
+    // Faz 1-A §3.1: konu testi tek doğru şıklı; çok cevaplı soru kipi kapalı.
+    expect(route).toContain("multi: false,");
+    expect(route).not.toContain('multi: input.kind === "quiz" && count >= 5,');
     expect(route).toContain("return teacherQuizPayload(input, activity, core, Math.max(5, quizCount));");
     expect(route).toContain("lessonQuizContext(topicLessons.lessons, topicLessons.missing)");
     expect(route).toContain("lessonKey: quizLesson?.key ?? null,");

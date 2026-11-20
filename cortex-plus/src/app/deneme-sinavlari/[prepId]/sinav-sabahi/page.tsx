@@ -12,7 +12,9 @@ import { CRAM_SHEET_NAME, cramShareText, examPrepCramSheetHref } from "@/lib/lea
 import { createPrepInviteToken, prepInviteUrl } from "@/lib/learning/prep-invite";
 import { isAbsoluteHttpUrl } from "@/lib/learning/prep-share";
 import { whatsappShareHref } from "@/lib/learning/duel-share";
-import { qrDataUri } from "@/lib/qr";
+import { qrSvgDataUri } from "@/lib/utils/qr-svg";
+import { shareCodeUrl } from "@/lib/learning/class-share";
+import { ensurePrepShareCode } from "@/lib/learning/prep-share-code";
 import { loadCramSheet } from "@/lib/learning/cram-sheet-load";
 
 export const metadata = { title: "Sınav sabahı kâğıdı" };
@@ -57,7 +59,7 @@ export default async function CramSheetPage({ params }: { params: Promise<{ prep
   });
   const prepTitle = (prep.title as string | null) ?? (prep.exam_type as string | null) ?? "Sınav hazırlığı";
   const examDay = formatDayLong((prep.exam_date as string | null) ?? null);
-  const share = await cramShare(prepId, prepTitle);
+  const share = await cramShare(service, { prepId, userId: user.id, prepTitle });
 
   return (
     <ParitySorShell {...shell} chrome="focus" backHref={examPrepHomeHref(prepId)}>
@@ -68,15 +70,24 @@ export default async function CramSheetPage({ params }: { params: Promise<{ prep
 
 /**
  * Paylaşım (15 Kasım 2026, ürün sahibi: "WhatsApp'ta paylaş, bağlantıyı kopyala, baskıda imza ve QR"). Kâğıdın kendi
- * adresi yalnız sahibine açık; paylaşılan bağlantı hazırlığın imzalı davetidir (`prep-invite.ts`): arkadaş aynı konu
- * sırasıyla kendi kopyasını alır, kimse kimsenin sonucunu görmez, belge içeriği gitmez. QR sunucuda üretilir (veri
- * dışarı çıkmaz). İmza sırrı yoksa paylaşım düğmeleri görünmez.
+ * adresi yalnız sahibine açık; paylaşılan bağlantı hazırlığın paylaşım kodudur (Faz 7, 20 Kasım 2026: `/davet/<kod>`;
+ * arkadaş yolu ve 1. ünitenin dersini kendi hesabına klonlar, belge, cevap ve sonuç gitmez). Kod açılamazsa (göç
+ * henüz yok) bugünkü imzalı sınıf daveti (`/hazirlik-davet`). QR yerel üreticiyle çizilir (`qr-svg.ts`, ağ isteği
+ * yok, veri dışarı çıkmaz). İkisi de olmazsa paylaşım düğmeleri görünmez.
  */
-async function cramShare(prepId: string, prepTitle: string): Promise<CramShare | null> {
-  const token = createPrepInviteToken(prepId);
-  if (!token) return null;
-  const url = prepInviteUrl(token);
-  if (!isAbsoluteHttpUrl(url)) return null;
-  const qrSrc = await qrDataUri(url, 160).catch(() => null);
-  return { url, whatsappHref: whatsappShareHref(cramShareText(prepTitle), url), qrSrc };
+async function cramShare(
+  service: ReturnType<typeof createServiceClient>,
+  input: { prepId: string; userId: string; prepTitle: string },
+): Promise<CramShare | null> {
+  const code = await ensurePrepShareCode(service, { prepId: input.prepId, userId: input.userId }).catch(() => null);
+  const token = code?.ok ? null : createPrepInviteToken(input.prepId);
+  const url = code?.ok ? shareCodeUrl(code.code) : token ? prepInviteUrl(token) : null;
+  if (!url || !isAbsoluteHttpUrl(url)) return null;
+  let qrSrc: string | null = null;
+  try {
+    qrSrc = qrSvgDataUri(url, { size: 160, margin: 2, title: "Bu hazırlığı telefonunda açma bağlantısının QR kodu" });
+  } catch {
+    qrSrc = null;
+  }
+  return { url, whatsappHref: whatsappShareHref(cramShareText(input.prepTitle), url), qrSrc };
 }

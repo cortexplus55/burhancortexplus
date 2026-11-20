@@ -15,6 +15,8 @@ import { cn } from "@/lib/utils";
 import { rowVerdict, verdictCounts } from "@/lib/learning/mock-exam/verdict-counts";
 import { KEY_TERMS_TITLE } from "@/lib/learning/mock-exam/key-terms";
 import { firstErrorSentence, type WorkStepKind, type WorkStepVerdict } from "@/lib/learning/mock-exam/work-steps";
+import type { RedPen } from "@/lib/learning/mock-exam/red-pen";
+import { RedPenSheet } from "@/components/parity/red-pen-sheet";
 
 type ReviewFeedback = {
   met: string[];
@@ -23,7 +25,21 @@ type ReviewFeedback = {
   /** Çözümün satırları ve ilk hatalı satır (5 Kasım 2026); eski kayıtta yok. */
   steps?: WorkStepVerdict[];
   firstError?: { line: number; kind?: WorkStepKind; note?: string };
+  /** Kırmızı Kalemli Hoca (Faz 7, 20 Kasım 2026); eski kayıtta yok. */
+  redPen?: RedPen;
 };
+
+/**
+ * Kayıttaki kırmızı kalem satırları; soru sonradan geçersiz sayılıp tam puan aldıysa (🚩 bildirim) kırmızı satırlar
+ * artık doğru değildir, blok çizilmez.
+ */
+function liveRedPen(review: ReviewItem | undefined): RedPen | null {
+  const redPen = review?.feedback?.redPen;
+  if (!redPen) return null;
+  const full = review?.points_max != null && review.points_earned != null && review.points_earned >= review.points_max;
+  if (full && redPen.deductionAlerts.length) return null;
+  return redPen;
+}
 
 type ReviewItem = {
   id: string;
@@ -447,7 +463,12 @@ export function ExamQuestionReviewClient({
                       </div>
                     </div>
                   ) : null}
-                  {review?.feedback?.met.length ? (
+                  {/* Kırmızı Kalemli Hoca (Faz 7): puanın nereden geldiği ve nerede kırıldığı tek kâğıtta; o zaman
+                      ölçüt listeleri ikinci kez yazılmaz. Eski kayıtta blok yok, listeler bugünkü gibi. */}
+                  {liveRedPen(review) ? (
+                    <RedPenSheet redPen={liveRedPen(review)!} earned={review?.points_earned} max={review?.points_max} />
+                  ) : null}
+                  {!liveRedPen(review) && review?.feedback?.met.length ? (
                     <div>
                       <p className="text-xs font-bold uppercase tracking-wider text-emerald-400">Karşıladığın noktalar</p>
                       <ul className="mt-1.5 space-y-1 text-sm text-[var(--c-text-muted)]">
@@ -460,7 +481,7 @@ export function ExamQuestionReviewClient({
                       </ul>
                     </div>
                   ) : null}
-                  {review?.feedback?.missed.length ? (
+                  {!liveRedPen(review) && review?.feedback?.missed.length ? (
                     <div>
                       <p className="text-xs font-bold uppercase tracking-wider text-rose-400">Eksik kalanlar</p>
                       <ul className="mt-1.5 space-y-1 text-sm text-[var(--c-text-muted)]">

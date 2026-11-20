@@ -113,3 +113,32 @@ export function bestSourcePage<T extends { page: number; text: string }>(answer:
   }
   return best && best.score >= 2 ? best.page : null;
 }
+
+/**
+ * Yanılgı önce (19 Kasım 2026, Faz 1-A §2.2): öğrencinin mesajı yanlış bir bilgi, öncül ya da varsayım taşıyorsa
+ * öğretmen ilk cümlede onu nazik ama net düzeltir, sonra mekanizmayı açıklar. Yanlış öncül onaylanmaz, görmezden
+ * gelinmez. Düzeltme problemin cevabını vermek sayılmaz: Rehberli ve Sokratik tarzda da geçerli; problemin kendi
+ * cevabı tarzın kuralıyla verilir. Mesajda yanlış yoksa düzeltme uydurulmaz. Ders ve konu bağımsız.
+ */
+export const MISCONCEPTION_FIRST_RULE =
+  "YANILGI ÖNCE (kesin): Öğrencinin mesajında yanlış bir bilgi, öncül ya da varsayım varsa İLK CÜMLEDE onu nazik ama " +
+  "net biçimde düzelt ve doğrusunu söyle (ör. 'Aslında durum tam tersi: …' ya da 'Burada küçük bir yanılgı var: …'). " +
+  "Ardından NEDEN öyle olduğunu, işleyişi (mekanizmayı) adım adım açıkla. Yanlış öncülü onaylayarak, onun üzerine " +
+  "cevap kurarak ya da görmezden gelerek başlama; 'evet' ya da 'doğru' diye açma. Bu düzeltme problemin cevabını " +
+  "vermek sayılmaz; her öğretim tarzında geçerlidir. Mesajda yanlış yoksa düzeltme uydurma.";
+
+/** Öğrenci bir önermeyi onaylatmak istiyor mu ("… değil mi?", "… doğru mu?", "yani …", "çünkü …"). */
+const PREMISE_CHECK = wordPattern(
+  "değil\\s+mi(?:ydi)?|doğru\\s+mu(?:dur)?|öyle\\s+mi|yanlış\\s+mı(?:yım)?|haklı\\s+mıyım|di\\s+mi|yani|çünkü|bildiğim\\s+kadarıyla|diye\\s+biliyorum|diye\\s+öğrendim",
+);
+
+export function presentsPremise(message: string): boolean {
+  return PREMISE_CHECK.test(message.trim());
+}
+
+/** Sistem istemine giden yanılgı satırı: her mesajda; öncül taşıyan mesajda ek vurgu. */
+export function misconceptionFirstLine(message: string): string {
+  return presentsPremise(message)
+    ? `${MISCONCEPTION_FIRST_RULE} Bu mesaj bir önermeyi onaylatıyor: önce önermenin doğru mu yanlış mı olduğunu söyle; yanlışsa ilk cümle düzeltmedir.`
+    : MISCONCEPTION_FIRST_RULE;
+}

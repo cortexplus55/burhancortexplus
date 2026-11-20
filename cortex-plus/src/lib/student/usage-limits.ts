@@ -80,7 +80,8 @@ export async function loadUsageLimits(
   // 11 Kasım 2026 akşamı kalktı (ücretsiz hesap = tek ders; durumu /krediler'de `firstLessonStatus` gösterir).
   const meterRows: Record<string, { key: string; label: string; hint: string }> = {
     chat: { key: "daily-chat", label: "Bugünkü sohbet mesajı", hint: "Yazılı soru çözümü de mesaj sayılır. Gece yarısı yenilenir." },
-    photo: { key: "daily-photos", label: "Bugünkü fotoğraftan çözüm", hint: "Okunmayan fotoğraf haktan düşmez. Gece yarısı yenilenir." },
+    // Faz 4: fotoğraf hakkı aylık (ayda 7); anahtar adı ekranların eşleşmesi için aynı kaldı.
+    photo: { key: "daily-photos", label: "Bu ayki fotoğraftan çözüm", hint: "Okunmayan fotoğraf haktan düşmez. Ay başında yenilenir." },
   };
   for (const meter of meters) {
     const row = meterRows[meter.meter];

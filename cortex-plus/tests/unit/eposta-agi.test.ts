@@ -327,14 +327,19 @@ describe("davet hediyesi tavanı (kurucu formu)", () => {
 });
 
 describe("bağlantılar (kaynak denetimi)", () => {
-  const cron = read("src/app/api/cron/study-reminders/route.ts");
+  // Faz 6 (20 Kasım 2026): günlük hatırlatma iş modülünde, gönderim korumalı gönderici üzerinden.
+  const cron = read("src/lib/notifications/jobs/daily-reminders.ts");
+  const send = read("src/lib/notifications/send.ts");
 
   it("hatırlatma yalnız e-postası doğrulanmış hesaba, çıkış başlıklarıyla ve günde bir kez gider", () => {
     expect(cron).toContain("verifiedUserIds(");
-    expect(cron).toContain("unsubscribeHeaders(token)");
-    expect(cron).toContain("idempotencyKey: `reminder-${userId}-${today}`");
+    expect(cron).toContain('unsubscribe: "studyRemindersEmail"');
+    expect(cron).toContain("dedupeKey: dedupeKeys.studyReminder(userId, today)");
+    expect(send).toContain("oneClickHeaders(token, category, origin)");
+    expect(send).toContain("unsubscribeHeaders(legacy)");
+    expect(send).toContain("idempotencyKey: mail.dedupeKey.slice(0, 200)");
     // Çıkış bağlantısı üretilemiyorsa (anahtar yok) ileti gönderilmez.
-    expect(cron).toMatch(/if \(!token\)/);
+    expect(send).toContain('if (mail.unsubscribe && !unsubscribe) return "no_unsubscribe";');
   });
 
   it("davet ve hediye e-postaları aynı günlük turun içinde (üçüncü cron yok)", () => {
@@ -342,7 +347,9 @@ describe("bağlantılar (kaynak denetimi)", () => {
     expect(cron).toContain("sendReferralInviteMails(");
     const vercel = JSON.parse(read("vercel.json")) as { crons: { path: string; schedule: string }[] };
     expect(vercel.crons).toHaveLength(2);
-    for (const entry of vercel.crons) expect(entry.schedule).toMatch(/^\d+ \d+ \* \* \*$/);
+    for (const entry of vercel.crons) {
+      expect(entry.schedule).toMatch(entry.path === "/api/cron/lifecycle-notifications" ? /^\*\/30 \* \* \* \*$/ : /^\d+ \d+ \* \* \*$/);
+    }
   });
 
   it("davet e-postası yalnız kampanya izni verene gider; kampanya gönderimi anahtar kapalıyken açılmaz", () => {

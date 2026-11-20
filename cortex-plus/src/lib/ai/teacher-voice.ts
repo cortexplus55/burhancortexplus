@@ -1,3 +1,5 @@
+import { lineHasSymbolicEquation } from "@/lib/text/symbolic-math";
+
 /*
   PROMPT-V2 §7 (ses kılavuzu) ve PR-0 G-1 (ham işaret / üst-alt simge taraması), 15 Kasım 2026. teacher.v2 açıkken ana
   sohbetin bitmiş cevabına uygulanır; modelsiz, ek çağrı yok. Kod cümle YAZMAZ: yasak kalıbı siler ya da kırpar, fazla
@@ -133,8 +135,10 @@ export function settleVoice(input: string): VoiceResult {
     }
     text = kept.join("").trim();
     // G-1: formül dışındaki ham üs ve alt simge; tek kalmış "**".
-    text = mapOutside(text, (plain) => {
-      let next = plain.replace(/(?<=[\p{L}\p{N})])\^\(?([-+]?\d{1,3})\)?(?![\p{L}\p{N}])/gu, (_, exp: string) => {
+    text = mapOutside(text, (plain) => plain.split("\n").map((line) => {
+      // Faz 2 (madde 1): eşitlik/eşitsizlik/ok taşıyan sembolik ifade ("x^2 - 4 = 0") öğrenciye aktığı gibi kalır.
+      if (lineHasSymbolicEquation(line)) return line;
+      let next = line.replace(/(?<=[\p{L}\p{N})])\^\(?([-+]?\d{1,3})\)?(?![\p{L}\p{N}])/gu, (_, exp: string) => {
         result.rawFixed += 1;
         return [...exp].map((ch) => SUPERSCRIPT[ch] ?? ch).join("");
       });
@@ -144,7 +148,7 @@ export function settleVoice(input: string): VoiceResult {
       });
       result.rawLeft += (next.match(/\\(?:frac|sqrt|cdot|times|le|ge|neq|pm|alpha|beta|Delta)\b/g) ?? []).length;
       return next;
-    });
+    }).join("\n"));
     if (((text.match(/\*\*/g) ?? []).length) % 2 === 1) {
       const last = text.lastIndexOf("**");
       text = text.slice(0, last) + text.slice(last + 2);

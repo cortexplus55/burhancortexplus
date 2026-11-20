@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { TEXT_PAGES_PER_CREDIT, documentUploadCredits, textPageUnits } from "@/lib/credits/price-table";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { isOwnedDocumentStoragePath } from "@/lib/documents/storage-path";
@@ -61,11 +62,14 @@ export async function POST(request: Request) {
   const freePages = freeRemaining == null ? null : { total: FREE_PAGE_TOTAL, remaining: freeRemaining };
 
   if (doc.mime_type !== "application/pdf") {
+    // Faz 4: kamerayla çekilen fotoğraf fotoğraf sayfasıdır (5 kredi); öteki metin belgesi 1 sayfa sayılır (ön tahmin).
+    const photo = String(doc.mime_type ?? "").startsWith("image/");
     return NextResponse.json({
       freePages,
       pageCount: 1,
-      scannedPages: 0,
-      textPages: 1,
+      scannedPages: photo ? 1 : 0,
+      textPages: photo ? 0 : 1,
+      estimatedCredits: freePages ? 0 : documentUploadCredits({ textPages: photo ? 0 : 1, photoPages: photo ? 1 : 0 }),
       quota: {
         unlimited: limits.unlimited,
         limit: limits.scanPagesPerMonth,
@@ -136,6 +140,8 @@ export async function POST(request: Request) {
     // here but ingestion does not charge quota for them.
     scannedPages: counts.scannedPages,
     textPages: counts.textPages,
+    // Faz 4: tahmini kurulum kredisi (yalnız ilk yükleme): ceil(metin / 5) + fotoğraf × 5.
+    estimatedCredits: freePages ? 0 : documentUploadCredits({ textPages: counts.textPages, photoPages: counts.scannedPages }),
     scannedPagesNote:
       "Ön kontrol metin katmanı olmayan sayfaları tarama sayar; gerçekten boş sayfalar kota düşmez.",
     quota: {
@@ -162,11 +168,13 @@ async function documentCreditUse(
     getActionCost(service, "DOCUMENT_SCAN_PAGE"),
     getUserEntitlements(service, userId),
   ]);
-  const page = Math.max(1, pageCost ?? 2);
-  const cost = (counts.textPages + counts.scannedPages) * page + counts.scannedPages * (scanCost ?? 6);
+  // Faz 4: metin sayfası 5'te 1 kredi (`DOCUMENT_PAGE_PROCESS` birimi), fotoğraf / taranmış sayfa 5 kredi.
+  const unit = Math.max(1, pageCost ?? 1);
+  const scan = Math.max(1, scanCost ?? 5);
+  const cost = textPageUnits(counts.textPages) * unit + counts.scannedPages * scan;
   const allowance = entitlements.monthlyAllowance ?? 0;
   return {
     percent: allowance > 0 ? Math.max(1, Math.round((cost / allowance) * 100)) : 0,
-    pagesAffordable: spendable >= cost ? null : Math.floor(spendable / page),
+    pagesAffordable: spendable >= cost ? null : Math.floor(spendable / unit) * TEXT_PAGES_PER_CREDIT,
   };
 }

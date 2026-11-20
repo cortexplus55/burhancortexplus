@@ -4,7 +4,7 @@ import { errorResponse, withUser } from "@/lib/api/guards";
 import { getUserEntitlements, requireFeature } from "@/lib/billing/entitlements";
 import { countNewAudioChars, synthesizeCharged, synthesizeShared, type AudioTrack } from "@/lib/learning/audio-cache";
 import { isSharedPodcastScript, sharedBudgetAllows } from "@/lib/content-pool/shared-media";
-import { speakVerified } from "@/lib/learning/speech-normalizer";
+import { podcastLineSpeech } from "@/lib/learning/podcast-speech";
 import { flattenLines, normalizeChapters } from "@/lib/learning/podcast-script";
 import { MAX_PODCAST_AUDIO_CHARS, MAX_PODCAST_AUDIO_LINES, MAX_SPEECH_LINE_CHARS } from "@/lib/learning/podcast-audio-contract";
 import { durationVerdict, stampChapterDurations, sumDurationMs } from "@/lib/learning/podcast-duration";
@@ -51,10 +51,6 @@ function logMeasuredDuration(
   return { stamped, measuredMs };
 }
 
-function speechOf(line: { text: string; spoken?: string }): string {
-  return line.spoken?.trim() || speakVerified(line.text);
-}
-
 export async function POST(request: Request) {
   const guard = await withUser(request, { scope: "podcast-audio", limit: 12 });
   if (!guard.ok) return guard.response;
@@ -75,7 +71,7 @@ export async function POST(request: Request) {
     return errorResponse(400, "invalid_input");
   }
 
-  const speech = lines.map((line) => ({ text: speechOf(line), speaker: line.speaker }));
+  const speech = lines.map((line) => ({ text: podcastLineSpeech(line), speaker: line.speaker }));
   if (speech.some((line) => line.text.length > MAX_SPEECH_LINE_CHARS) ||
       speech.reduce((sum, line) => sum + line.text.length, 0) > MAX_PODCAST_AUDIO_CHARS) {
     return errorResponse(400, "invalid_input");
@@ -120,10 +116,23 @@ export async function POST(request: Request) {
   }
 
   const encoder = new TextEncoder();
+  // İstemci yavaş parçayı bırakıp yeniden isteyebilir (19 Kasım 2026, Faz 1-A §4.2). Akış kapandıktan sonra yazmak
+  // atar ve sentezi ortada düşürürdü; sentez sürer, satırlar önbelleğe girer, yeniden istek aynı anahtarla onları bekler
+  // (`waitForInFlightAudio`), kredi ikinci kez yazılmaz.
+  let streamOpen = true;
   const stream = new ReadableStream({
+    cancel() {
+      streamOpen = false;
+    },
     async start(controller) {
       const send = (payload: unknown) => {
-        controller.enqueue(encoder.encode(`${JSON.stringify(payload)}\n`));
+        if (!streamOpen) return;
+        try {
+          controller.enqueue(encoder.encode(`${JSON.stringify(payload)}\n`));
+        } catch (closed) {
+          streamOpen = false;
+          console.warn("podcast_audio_client_gone", { code: closed instanceof Error ? closed.name : "closed" });
+        }
       };
       let ready = 0;
       const result = await synthesize(guard.ctx.service, guard.ctx.userId, speech, {
@@ -169,7 +178,10 @@ export async function POST(request: Request) {
           })),
         });
       }
-      controller.close();
+      if (streamOpen) {
+        streamOpen = false;
+        controller.close();
+      }
     },
   });
 

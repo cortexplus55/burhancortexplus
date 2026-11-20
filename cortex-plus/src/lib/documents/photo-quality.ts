@@ -1,5 +1,5 @@
 import { isPhotoFile } from "@/lib/documents/photo-set-client";
-import { scaledSize } from "@/lib/documents/image-compress";
+import { scaledSize } from "@/lib/upload/compress-image";
 
 /**
  * Bulanık / karanlık fotoğraf uyarısı (31 Ekim 2026, Paket J3 #13, ürün sahibinin kararı). Yüklemeden önce cihazda,

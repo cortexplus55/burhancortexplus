@@ -1,0 +1,218 @@
+{
+  "note": "Ürünün podcast motoruyla branşın tur dersinden üretilen bölüm (20 Kasım 2026). Kesit: sample.lines.",
+  "model": "gpt-6-luna",
+  "length": "diyalog",
+  "episode": {
+    "title": "Kaldırma Kuvveti: Hangi Yoğunluk, Hangi Hacim?",
+    "chapters": [
+      {
+        "title": "Kaldırma kuvvetinin kaynağı",
+        "lines": [
+          {
+            "speaker": "ada",
+            "text": "Aynı suya batırılan ağır bir blokla hafif bir bloktan hangisine daha büyük kaldırma kuvveti etki eder?"
+          },
+          {
+            "speaker": "kerem",
+            "text": "İlk anda ağır olana derdim, çünkü ağırlığı daha fazla."
+          },
+          {
+            "speaker": "kerem",
+            "text": "Ama belki belirleyici olan, suyun ne kadar yer değiştirdiğidir."
+          },
+          {
+            "speaker": "ada",
+            "text": "Arşimet ilkesine göre kaldırma kuvveti, cismin yerini değiştirdiği sıvının ağırlığına eşittir."
+          },
+          {
+            "speaker": "ada",
+            "text": "Bu yüzden formül, F_k = V_batan · d_sıvı · g şeklindedir.",
+            "spoken": "Bu yüzden formül, F_k eşittir V_batan çarpı d_sıvı çarpı g şeklindedir."
+          },
+          {
+            "speaker": "kerem",
+            "text": "Yani kaldırma kuvvetini hesaplarken cismin yoğunluğunu değil, sıvının yoğunluğunu kullanıyorum."
+          },
+          {
+            "speaker": "ada",
+            "text": "Aynen öyle, cismin yoğunluğu cismin yüzüp batmasını belirler, kaldırma kuvvetinin hesabına giren yoğunluk ise sıvınınkidir."
+          }
+        ]
+      },
+      {
+        "title": "Batan hacim ve sıvı yoğunluğu",
+        "lines": [
+          {
+            "speaker": "kerem",
+            "text": "Batan hacim neden formülde yer alıyor?"
+          },
+          {
+            "speaker": "ada",
+            "text": "Çünkü cisim sıvının içinde ne kadar hacim kaplarsa o kadar sıvının yerini değiştirir, yer değiştiren sıvının ağırlığı da kaldırma kuvvetini belirler."
+          },
+          {
+            "speaker": "ada",
+            "text": "Cisim tamamen batmışsa batan hacim cismin hacminin tamamıdır, kısmen batmışsa yalnızca sıvı içinde kalan bölüm alınır."
+          },
+          {
+            "speaker": "kerem",
+            "text": "Demek ki aynı sıvıda batan hacim artarsa kaldırma kuvveti artar, hacim aynı kalıp sıvı yoğunluğu artarsa da kuvvet artar."
+          },
+          {
+            "speaker": "ada",
+            "text": "Doğru."
+          },
+          {
+            "speaker": "ada",
+            "text": "Yoğunluğu daha büyük sıvı, aynı hacim için daha ağır sıvı demektir, bu nedenle yer değiştiren sıvının ağırlığı ve kaldırma kuvveti büyür."
+          },
+          {
+            "speaker": "ada",
+            "text": "Bir cisim aynı hacimde tamamen batırıldığında, kaldırma kuvvetini bulmak için cismin mi sıvının mı yoğunluğunu kullanırsın?",
+            "beat": "ask"
+          },
+          {
+            "speaker": "kerem",
+            "text": "Sıvının yoğunluğunu kullanırım, çünkü kaldırma kuvveti, cismin yerini değiştirdiği sıvının ağırlığıdır.",
+            "beat": "reveal"
+          }
+        ]
+      },
+      {
+        "title": "Tamamen batmış blok örneği",
+        "lines": [
+          {
+            "speaker": "ada",
+            "text": "Şimdi dinamometreye asılı, hacmi 0,002 m³ ve yoğunluğu 2700 kg/m³ olan blok suya tamamen batıyor.",
+            "spoken": "Şimdi dinamometreye asılı, hacmi 0,002 metreküp ve yoğunluğu 2700 kg/ metreküp olan blok suya tamamen batıyor."
+          },
+          {
+            "speaker": "ada",
+            "text": "Suyun yoğunluğu 1000 kg/m³, g ise 10 m/s².",
+            "spoken": "Suyun yoğunluğu 1000 kg/ metreküp, g ise 10 metre bölü saniye kare."
+          },
+          {
+            "speaker": "kerem",
+            "text": "Önce bloğun ağırlığını bulurum: G = 2700 × 0,002 × 10 = 54 N.",
+            "spoken": "Önce bloğun ağırlığını bulurum: G eşittir 2700 çarpı 0,002 çarpı 10 eşittir 54 N."
+          },
+          {
+            "speaker": "kerem",
+            "text": "Burada cismin yoğunluğu ağırlık hesabında kullanılıyor."
+          },
+          {
+            "speaker": "ada",
+            "text": "Kaldırma kuvvetinde ise aynı blok hacmi ve suyun yoğunluğu kullanılır: F_k = 1000 × 0,002 × 10 = 20 N.",
+            "spoken": "Kaldırma kuvvetinde ise aynı blok hacmi ve suyun yoğunluğu kullanılır: F_k eşittir 1000 çarpı 0,002 çarpı 10 eşittir 20 N."
+          },
+          {
+            "speaker": "kerem",
+            "text": "O hâlde iki hesapta yoğunluklar farklı: ağırlıkta cismin, kaldırma kuvvetinde sıvının yoğunluğu var."
+          },
+          {
+            "speaker": "ada",
+            "text": "Sonuçların birimi newtondur, çünkü yoğunluk, hacim ve yer çekimi ivmesi birlikte kuvvet verir."
+          },
+          {
+            "speaker": "ada",
+            "text": "Bu örnekte bloğun ağırlığı 54 N, suyun uyguladığı kaldırma kuvveti 20 N olur."
+          }
+        ]
+      },
+      {
+        "title": "Dinamometrenin gösterdiği değer",
+        "lines": [
+          {
+            "speaker": "kerem",
+            "text": "Kaldırma kuvveti bloğu yukarı doğru desteklediği için dinamometrenin gösterdiği değer düşer."
+          },
+          {
+            "speaker": "kerem",
+            "text": "Neden dinamometre doğrudan kaldırma kuvvetini göstermiyor?"
+          },
+          {
+            "speaker": "ada",
+            "text": "Dinamometre ipteki gerilme kuvvetini, yani cismin görünür ağırlığını gösterir, kaldırma kuvvetini ayrı olarak ölçmez."
+          },
+          {
+            "speaker": "ada",
+            "text": "Dengedeki cisme yukarı yönde gerilme ve kaldırma kuvveti, aşağı yönde ağırlık etki eder, bu nedenle T + F_k = G ve T = G − F_k olur.",
+            "spoken": "Dengedeki cisme yukarı yönde gerilme ve kaldırma kuvveti, aşağı yönde ağırlık etki eder, bu nedenle T + F_k eşittir G ve T eşittir G − F_k olur."
+          },
+          {
+            "speaker": "kerem",
+            "text": "Ben dinamometrenin gösterdiği değerin kaldırma kuvveti olduğunu sanmışım, oysa bu örnekte gösterge 54 − 20 = 34 N olmalı.",
+            "spoken": "Ben dinamometrenin gösterdiği değerin kaldırma kuvveti olduğunu sanmışım, oysa bu örnekte gösterge 54 − 20 eşittir 34 N olmalı."
+          },
+          {
+            "speaker": "ada",
+            "text": "Doğru, çünkü su ağırlığın 20 N’luk bölümünü taşır ve dinamometrede kalan 34 N görünür."
+          },
+          {
+            "speaker": "ada",
+            "text": "Kaldırma kuvvetiyle dinamometre değerini karıştırmak, en sık yapılan hata: biri sıvının yukarı yönlü kuvveti, öteki ipteki gerilmedir."
+          }
+        ]
+      },
+      {
+        "title": "Sınavda ayırt edilecekler",
+        "lines": [
+          {
+            "speaker": "kerem",
+            "text": "Sınavda önce hangi hacmin battığına, sonra hangi sıvının yoğunluğunun kullanılacağına dikkat etmek gerekir."
+          },
+          {
+            "speaker": "kerem",
+            "text": "Dinamometre sorusunda da ağırlıktan kaldırma kuvvetini çıkarmalıyım."
+          },
+          {
+            "speaker": "ada",
+            "text": "Evet, özellikle cisim yoğunluğunu kaldırma kuvveti formülüne koyma ve dinamometre değerini kaldırma kuvveti sanma hataları birbirine karışır."
+          },
+          {
+            "speaker": "ada",
+            "text": "Sıvı yoğunluğu kuvvet hesabını, cismin yoğunluğu yüzme-batma durumunu belirler, bu ayrım sorunun kurulumunu doğru yapar."
+          },
+          {
+            "speaker": "kerem",
+            "text": "Kaldırma kuvvetinde sıvının yoğunluğu kullanılır."
+          },
+          {
+            "speaker": "kerem",
+            "text": "Batan hacim, yer değiştiren sıvının hacmidir."
+          },
+          {
+            "speaker": "kerem",
+            "text": "Dinamometre T = G − F_k değerini gösterir.",
+            "spoken": "Dinamometre T eşittir G − F_k değerini gösterir."
+          },
+          {
+            "speaker": "ada",
+            "text": "Bu üç ayrımı korursan Arşimet ilkesini ve dinamometre dengesini doğru kurarsın."
+          }
+        ]
+      }
+    ],
+    "length": "diyalog"
+  },
+  "sample": {
+    "src": "/ornek/podcast-muhendislik.mp3",
+    "durationMs": 16824,
+    "lines": [
+      {
+        "speaker": "ada",
+        "name": "Ada",
+        "text": "Bir cisim aynı hacimde tamamen batırıldığında, kaldırma kuvvetini bulmak için cismin mi sıvının mı yoğunluğunu kullanırsın?",
+        "startMs": 0,
+        "endMs": 8712
+      },
+      {
+        "speaker": "kerem",
+        "name": "Kerem",
+        "text": "Sıvının yoğunluğunu kullanırım, çünkü kaldırma kuvveti, cismin yerini değiştirdiği sıvının ağırlığıdır.",
+        "startMs": 8712,
+        "endMs": 16824
+      }
+    ]
+  }
+}

@@ -5,7 +5,7 @@ import { QuestionReportButton } from "@/components/learning/question-report-butt
 import { ExamQuizPlay } from "@/components/parity/exam-quiz-play";
 import { REPORT_THANKS, VOIDED_FIXED_LINE } from "@/lib/learning/question-report/copy";
 
-/* Paket J2 #10 (31 Ekim 2026): "🚩 Soruda hata bildir" ekranı. */
+/* Paket J2 #10 (31 Ekim 2026): "🚩 Soruda hata bildir" ekranı; Faz 5 §3.1 (19 Kasım 2026) ile modal ve üç neden. */
 
 afterEach(() => {
   cleanup();
@@ -21,10 +21,10 @@ describe("soruda hata bildir düğmesi", () => {
     vi.stubGlobal("fetch", fetch);
     const resolved = vi.fn();
     render(<QuestionReportButton source="node" targetId="11111111-1111-4111-8111-111111111111" questionRef="2" onResolved={resolved} />);
-    fireEvent.click(screen.getByRole("button", { name: /Soruda hata bildir/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Soruda Hata Bildir/ }));
     const send = screen.getByRole("button", { name: "Bildir" });
     expect((send as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.click(screen.getByRole("radio", { name: "Cevap anahtarı yanlış" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Cevap anahtarı hatalı" }));
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "Doğrusu B" } });
     await act(async () => {
       fireEvent.click(send);
@@ -46,8 +46,8 @@ describe("soruda hata bildir düğmesi", () => {
   it("sunucu hatasında kutu açık kalır ve nedeni yazar", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, json: async () => ({ error: "Test hâlâ hazırlanıyor." }) })));
     render(<QuestionReportButton source="mock" targetId="11111111-1111-4111-8111-111111111111" questionRef="q1" />);
-    fireEvent.click(screen.getByRole("button", { name: /Soruda hata bildir/ }));
-    fireEvent.click(screen.getByRole("radio", { name: "Yazım hatası" }));
+    fireEvent.click(screen.getByRole("button", { name: /Soruda Hata Bildir/ }));
+    fireEvent.click(screen.getByRole("radio", { name: "Soru kökü eksik" }));
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Bildir" }));
     });
@@ -56,8 +56,30 @@ describe("soruda hata bildir düğmesi", () => {
   });
 });
 
+describe("Faz 5 §3.1: modal ve tanıtım turu", () => {
+  it("modal üç nedeni gösterir; tanıtım turu kendi ucuna yazar, Escape kapatır", async () => {
+    const fetch = vi.fn(async () => ({ ok: true, json: async () => ({ verdict: "pending", message: "Teşekkürler", rewarded: false }) }));
+    vi.stubGlobal("fetch", fetch);
+    render(<QuestionReportButton source="demo" targetId="00000000-0000-4000-8000-000000000000" questionRef="q:0" />);
+    fireEvent.click(screen.getByRole("button", { name: /Soruda Hata Bildir/ }));
+    const dialog = screen.getByRole("dialog");
+    expect(dialog.getAttribute("aria-modal")).toBe("true");
+    expect(screen.getAllByRole("radio").map((node) => node.textContent?.trim())).toEqual(["Cevap anahtarı hatalı", "Soru kökü eksik", "Görsel-formül bozuk"]);
+    fireEvent.click(screen.getByRole("radio", { name: "Görsel-formül bozuk" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Bildir" }));
+    });
+    const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("/api/learning/question-report/demo");
+    expect(JSON.parse(String(init.body))).toEqual({ questionRef: "q:0", reason: "render", note: null });
+    expect(screen.getByRole("status").textContent).toBe("Teşekkürler");
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+});
+
 describe("testte düzeltilen soru", () => {
-  it("açıklamada 'tam puan' ve düzeltme satırı; bildir düğmesi açıklamanın altında", () => {
+  it("açıklamada 'tam puan' ve düzeltme satırı; bildir düğmesi kartın sağ üstünde baştan durur", () => {
     render(
       <ExamQuizPlay
         questions={[{ text: "Hangi element soy gazdır?", options: ["Sodyum", "Neon"], multi: false, correct: ["Neon"], voided: true, keyFixed: true }]}
@@ -69,7 +91,8 @@ describe("testte düzeltilen soru", () => {
         report={() => <span>bildir-yuvası</span>}
       />,
     );
-    expect(screen.queryByText("bildir-yuvası")).toBeNull();
+    // Faz 5 §3.1: bildir kartın sağ üst köşesinde (soru başlığının yanında), cevaptan önce de görünür.
+    expect(screen.getByText("bildir-yuvası").closest(".cp-quiz-report-slot")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Kontrol et" }));
     expect(screen.getByText(VOIDED_FIXED_LINE)).toBeTruthy();
     expect(screen.getByText("Tam puan")).toBeTruthy();

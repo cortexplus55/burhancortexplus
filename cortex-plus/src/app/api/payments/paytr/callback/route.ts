@@ -1,3 +1,4 @@
+import { invalidateSessionUserContext } from "@/lib/auth/session-context";
 import crypto from "crypto";
 import { after } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -7,6 +8,7 @@ import { sendPurchaseMail } from "@/lib/email/lifecycle";
 import { verifyPaytrCallbackHash } from "@/lib/payments/paytr";
 import { auditLog } from "@/lib/audit";
 import { awardInviteSubscribed } from "@/lib/stars/invite";
+import { confirmParentLinkPayment } from "@/lib/payments/parent-link-confirm";
 
 const OK = () => new Response("OK", { status: 200 });
 const RETRY = () => new Response("RETRY", { status: 500 });
@@ -71,6 +73,13 @@ export async function POST(request: Request) {
   }
 
   if (result.result === "completed" && result.payer_id) {
+    // Faz 2: ödeme onaylandı; plan ve kredi gösterimi bir sonraki açılışta taze (45 sn önbellek düşer).
+    await Promise.all([
+      invalidateSessionUserContext(result.payer_id),
+      result.beneficiary_id && result.beneficiary_id !== result.payer_id
+        ? invalidateSessionUserContext(result.beneficiary_id)
+        : Promise.resolve(),
+    ]);
     try {
       await auditLog(service, {
         actorId: result.payer_id,
@@ -85,6 +94,12 @@ export async function POST(request: Request) {
       });
     } catch (err) {
       console.error("paytr_callback_audit_failed", { merchantOid, message: errorMessage(err) });
+    }
+    try {
+      // Faz 5 §2: veli bağlantısıyla gelen ödeme — istek "paid", öğrenciye "Velin ödemeyi onayladı" bildirimi.
+      await confirmParentLinkPayment(service, merchantOid);
+    } catch (err) {
+      console.error("paytr_callback_parent_link_failed", { merchantOid, message: errorMessage(err) });
     }
     try {
       // Yıldızlar: davet edilen abone olunca davet edene 300, bir kez (17 Ekim 2026).

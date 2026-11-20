@@ -21,12 +21,12 @@ import { TourPlusPreview } from "@/components/landing/tour/plus-previews";
 import { TourProductScreen } from "@/components/landing/tour/product-screens";
 import { PLUS_ONLY_ACTIONS, PLUS_ONLY_NODE_KINDS } from "@/lib/billing/free-meters";
 import { FREE_PAGE_TOTAL } from "@/lib/billing/free-tier-copy";
+import { DEMO_PODCASTS } from "@/lib/demo/demo-podcasts";
 import tourPodcast from "@/lib/demo/tour-podcast.json";
 import { clearGuestDocuments } from "@/lib/documents/guest-handoff";
 import {
   TOUR_CARDS,
   TOUR_LESSON,
-  TOUR_PODCAST_SAMPLE,
   TOUR_QUIZ,
   TOUR_SKETCH,
   TOUR_TRUE_FALSE,
@@ -42,6 +42,7 @@ import { SKETCH_DIAGRAM_KINDS, sketchFormulaSteps } from "@/lib/learning/video-l
 import {
   GUEST_DOCUMENT_NEXT,
   JOURNEY_COPY,
+  JOURNEY_DATE,
   JOURNEY_FILE,
   JOURNEY_FINAL,
   JOURNEY_NEXT_LABEL,
@@ -51,19 +52,23 @@ import {
   JOURNEY_PLUS_PREVIEWS,
   JOURNEY_PRODUCT_STEPS,
   JOURNEY_RESULT,
-  JOURNEY_ROADMAP,
   JOURNEY_STEP_IDS,
   JOURNEY_STEPS,
   isProductStep,
+  journeyFile,
   journeyGoals,
   journeyGuideLine,
+  JOURNEY_OUTPUTS,
+  journeyPlusPreviews,
+  journeyRoadmap,
   journeyScore,
   journeySignupHref,
   nextJourneyStep,
   ownReadyTitle,
 } from "@/lib/marketing/landing-journey";
+import { GUEST_TRACK_IDS, guestDemoTrack, trackForSegment } from "@/lib/marketing/guest-demo-tracks";
 import { AUDIENCE_SEGMENTS, audienceSegment } from "@/lib/marketing/landing-showcase";
-import { FREE_PLAN_POINTS, HERO_FACTS, PLUS_PLAN_POINTS } from "@/lib/marketing/landing-content";
+import { FREE_PLAN_POINTS, HERO_FOOT, PLUS_PLAN_POINTS } from "@/lib/marketing/landing-content";
 
 /*
   11 Kasım 2026, ürün sahibi: misafir ana sayfada örnek bir notu tarama alanına bırakıp ürünü yedi adımda kendi
@@ -81,6 +86,9 @@ import { FREE_PLAN_POINTS, HERO_FACTS, PLUS_PLAN_POINTS } from "@/lib/marketing/
 
 const read = (path: string) => readFileSync(path, "utf8").replace(/\r\n/g, "\n");
 const withoutComments = (source: string) => source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+
+/** Lise branşının podcast kesiti: Faz 7'den beri kesitler tek yerde (`DEMO_PODCASTS`). */
+const PODCAST = DEMO_PODCASTS.lise!;
 
 Element.prototype.scrollIntoView = vi.fn();
 // jsdom ses oynatmayı uygulamaz; önizleme adımdan çıkarken sesi susturur (günlük kirlenmesin).
@@ -107,8 +115,8 @@ describe("turun örnek verisi ürünün veri biçiminde ve doğru", () => {
     expect(JOURNEY_STEPS.map((step) => step.id)).toEqual([...JOURNEY_STEP_IDS]);
     expect(journeyGuideLine("upload")).toMatch(/^Adım 1\/7: /);
     expect(journeyGuideLine("plus")).toMatch(/^Adım 7\/7: /);
-    // Misafirin kendi dosyası bekliyorken ekranda örnek not ve çekirdek yok: satır onu anlatmaz, dosyayı anlatır.
-    expect(journeyGuideLine("upload")).toContain("çekirdeğe");
+    // Faz 9.1: birinci adımın satırı notu çekirdeğe götürmeyi anlatır; misafirin kendi dosyası bekliyorken dosyayı anlatır.
+    expect(journeyGuideLine("upload")).toBe(`Adım 1/7: Örnek notu ders çekirdeğine götür ya da kendi notunu bırak`);
     expect(journeyGuideLine("upload", { ownDocument: true })).toBe(`Adım 1/7: ${JOURNEY_OWN.guide}`);
     expect(JOURNEY_OWN.guide).not.toMatch(/çekirde|sürükle/);
     expect(journeyGuideLine("roadmap", { ownDocument: true })).toBe(journeyGuideLine("roadmap"));
@@ -193,7 +201,7 @@ describe("turun örnek verisi ürünün veri biçiminde ve doğru", () => {
     expect(PLUS_ONLY_ACTIONS.some((action) => /VIDEO/.test(action))).toBe(true);
     // Önizlemesi olmayan Plus özellikleri tek satırda adıyla.
     for (const word of ["sözlü deneme", "yazılı deneme"]) expect(JOURNEY_PLUS_ALSO.toLocaleLowerCase("tr")).toContain(word);
-    const freeText = `${FREE_PLAN_POINTS.join(" ")} ${HERO_FACTS.join(" ")} ${JOURNEY_FINAL.title} ${JOURNEY_FINAL.body}`.toLocaleLowerCase("tr");
+    const freeText = `${FREE_PLAN_POINTS.join(" ")} ${HERO_FOOT.facts.join(" ")} ${JOURNEY_FINAL.title} ${JOURNEY_FINAL.body}`.toLocaleLowerCase("tr");
     expect(freeText).not.toMatch(/podcast|video|sözlü|yazılı deneme|ikiz sınav|sınav sabahı/);
     const plusText = PLUS_PLAN_POINTS.join(" ").toLocaleLowerCase("tr");
     for (const word of ["podcast", "video", "sözlü", "yazılı deneme", "sınav sabahı"]) expect(plusText).toContain(word);
@@ -217,27 +225,27 @@ describe("Plus önizlemelerinin verisi gerçek", () => {
     // 13 Kasım 2026: bölüm ürünün podcast döngüsüyle (senarist + denetçi) turdaki dersten üretildi; kesit hocanın
     // uyarısını (√(x²), x'in işareti) karşılayan iki satır. Bölümün tamamı ve ölçülen süreler kayıtta.
     const lines = tourPodcast.episode.chapters.flatMap((chapter: { lines: { speaker: string; text: string }[] }) => chapter.lines);
-    const start = lines.findIndex((line) => line.text === TOUR_PODCAST_SAMPLE.lines[0]!.text);
+    const start = lines.findIndex((line) => line.text === PODCAST.lines[0]!.text);
     expect(start).toBeGreaterThanOrEqual(0);
-    expect(TOUR_PODCAST_SAMPLE.lines).toHaveLength(2);
-    TOUR_PODCAST_SAMPLE.lines.forEach((line, at) => {
+    expect(PODCAST.lines).toHaveLength(2);
+    PODCAST.lines.forEach((line, at) => {
       expect(line.text).toBe(lines[start + at]!.text);
       expect(line.speaker).toBe(lines[start + at]!.speaker);
       expect(line).toEqual(tourPodcast.sample.lines[at]);
     });
-    expect(TOUR_PODCAST_SAMPLE.src).toBe(tourPodcast.sample.src);
-    expect(TOUR_PODCAST_SAMPLE.durationMs).toBe(tourPodcast.sample.durationMs);
+    expect(PODCAST.src).toBe(tourPodcast.sample.src);
+    expect(PODCAST.durationMs).toBe(tourPodcast.sample.durationMs);
     // Kesit hocanın uyarısının konusu: karenin karekökü ve işaret.
-    expect(TOUR_PODCAST_SAMPLE.lines[0]!.text).toContain("√(x²)");
+    expect(PODCAST.lines[0]!.text).toContain("√(x²)");
     expect(JOURNEY_PLUS_PREVIEWS[0]!.note).toContain("Köklü Sayılar");
-    expect(TOUR_PODCAST_SAMPLE.lines[0]!.startMs).toBe(0);
-    expect(TOUR_PODCAST_SAMPLE.lines[1]!.startMs).toBe(TOUR_PODCAST_SAMPLE.lines[0]!.endMs);
-    expect(TOUR_PODCAST_SAMPLE.durationMs).toBe(TOUR_PODCAST_SAMPLE.lines[1]!.endMs);
+    expect(PODCAST.lines[0]!.startMs).toBe(0);
+    expect(PODCAST.lines[1]!.startMs).toBe(PODCAST.lines[0]!.endMs);
+    expect(PODCAST.durationMs).toBe(PODCAST.lines[1]!.endMs);
     // Yaklaşık on beş saniye: düğmenin sözüyle aynı.
-    expect(TOUR_PODCAST_SAMPLE.durationMs).toBeGreaterThan(13_000);
-    expect(TOUR_PODCAST_SAMPLE.durationMs).toBeLessThan(16_000);
+    expect(PODCAST.durationMs).toBeGreaterThan(13_000);
+    expect(PODCAST.durationMs).toBeLessThan(16_000);
     expect(JOURNEY_PLUS_PLAY.podcast).toContain("15 saniyelik");
-    const file = `public${TOUR_PODCAST_SAMPLE.src}`;
+    const file = `public${PODCAST.src}`;
     expect(existsSync(file)).toBe(true);
     expect(statSync(file).size).toBeGreaterThan(50_000);
     expect(statSync(file).size).toBeLessThan(400_000);
@@ -293,8 +301,10 @@ describe("kurgu: tur ürünün kendi ekranlarını çalıştırır", () => {
       expect(screens, real).toContain(real);
     }
     expect(screens).toContain("gradeLessonSectionCheck(");
-    expect(screens).toContain("sealLessonV3ForPlay(TOUR_LESSON)");
-    expect(screens).toContain("resolve={tourTwoOptionHint}");
+    // Faz 7: veri seçili branşın (`guestTourContent`); ders yine mühürlü gider, ipucu yine örnek veriden.
+    expect(screens).toContain("const content = guestTourContent(props.track);");
+    expect(screens).toContain("sealLessonV3ForPlay(lesson)");
+    expect(screens).toContain("resolve={content.twoOptionHint}");
     // Uygulamanın kendi kabuk sınıfları: ekranlar üründeki renk ve ölçülerle çizilir.
     expect(screens).toContain('className="tp-app dark cp-sor-root cp-sor-root--session"');
     const journey = withoutComments(read("src/components/landing/futuristic-guided-journey.tsx"));
@@ -430,9 +440,9 @@ describe("Plus önizlemeleri canlı çalışır, istek atmaz", () => {
     const play = vi.spyOn(window.HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
     vi.spyOn(window.HTMLMediaElement.prototype, "pause").mockImplementation(noop);
     const { container } = render(<TourPlusPreview preview="podcast" />);
-    for (const line of TOUR_PODCAST_SAMPLE.lines) expect(screen.getByText(line.text)).toBeTruthy();
+    for (const line of PODCAST.lines) expect(screen.getByText(line.text)).toBeTruthy();
     const audio = container.querySelector("audio") as HTMLAudioElement;
-    expect(audio.getAttribute("src")).toBe(TOUR_PODCAST_SAMPLE.src);
+    expect(audio.getAttribute("src")).toBe(PODCAST.src);
     expect(audio.getAttribute("preload")).toBe("none");
     click(JOURNEY_PLUS_PLAY.podcast);
     expect(play).toHaveBeenCalledTimes(1);
@@ -487,26 +497,42 @@ describe("kokpit sırası", () => {
     const fetchSpy = vi.fn();
     vi.stubGlobal("fetch", fetchSpy);
     render(<FuturisticGuidedJourney segmentId="universite" />);
-    // Örnek nota dokununca tam ekran stüdyo açılır (13 Kasım 2026); stüdyo sayfanın gövdesine çizilir.
+    // Stüdyo sayfanın gövdesine çizilir (13 Kasım 2026). Faz 9.1: tarama ve dersin doğuşu ana sayfada, ders çekirdeğinde.
     const container = document.body;
+    // Faz 7: üniversite sekmesi mühendislik branşını açar; not, yol ve önizlemeler o branşın.
+    const file = journeyFile("muhendislik");
+    const roadmap = journeyRoadmap("muhendislik");
 
     expect(screen.getByRole("status").textContent).toContain("Adım 1/7");
-    click(new RegExp(JOURNEY_FILE.name));
-    expect(screen.getByText(JOURNEY_FILE.scanning[0]!)).toBeTruthy();
+    // Faz 9.1: örnek not kartı branşın notu; dokununca not ders çekirdeğine gider, tarama ana sayfada başlar.
+    expect(document.querySelector(".lj-note-name")?.textContent).toBe(file.name);
+    fireEvent.click(document.querySelector("[data-sample-start]")!);
     act(() => {
-      vi.advanceTimersByTime(JOURNEY_FILE.scanMs);
+      vi.advanceTimersByTime(file.absorbMs);
     });
-    expect(screen.getByRole("heading", { name: "Yol haritan çıktı" })).toBeTruthy();
-    for (const day of JOURNEY_ROADMAP.days) expect(screen.getByText(day.title)).toBeTruthy();
-    // Seçili sekmenin sınav sözü: üniversitede "Vizene".
-    expect(screen.getByText("Vizene 7 gün var")).toBeTruthy();
-    click(nextName(JOURNEY_ROADMAP.cta));
+    expect(screen.getByRole("status").textContent).toBe(JOURNEY_DATE.scanned);
+    fireEvent.click(screen.getByRole("radio", { name: "14 gün" }));
+    act(() => {
+      vi.advanceTimersByTime(file.findingsMs);
+    });
+    // Çekirdekten üç kart doğar; sayılar stüdyonun göstereceği örnek veriden.
+    const outputs = [...document.querySelectorAll(".lj-console [data-output]")].map((node) => node.textContent);
+    expect(outputs).toEqual(JOURNEY_OUTPUTS.map((output) => `${output.title}${output.meta}`));
+    click(/İlk ekranı aç/);
 
-    // Ürün ekranı ayrı parça: yüklenince çerçevenin içinde ürünün ders ekranı durur.
+    // Stüdyo dersin ilk ekranında açılır. Ürün ekranı ayrı parça: yüklenince çerçevenin içinde ürünün ders ekranı durur.
     expect(screen.getByText(JOURNEY_COPY.real)).toBeTruthy();
     await act(async () => {
       await vi.dynamicImportSettled();
     });
+    expect(container.querySelector(".tp-frame .tp-app .als")).toBeTruthy();
+
+    // Ray yol haritasına (2. adım) yine götürür: seçili sekmenin sınav sözü ve seçilen gün ("Vizene 14 gün var").
+    fireEvent.click(screen.getByRole("button", { name: /^Adım 2: / }));
+    expect(screen.getByRole("heading", { name: "Yol haritan çıktı" })).toBeTruthy();
+    for (const day of roadmap.days) expect(screen.getByText(day.title)).toBeTruthy();
+    expect(screen.getByText("Vizene 14 gün var")).toBeTruthy();
+    click(nextName(roadmap.cta));
     expect(container.querySelector(".tp-frame .tp-app .als")).toBeTruthy();
 
     // Adımlar oynanmadan da geçilir; her adımda çerçevenin içindeki ekran ve düğmenin sözü değişir.
@@ -518,19 +544,24 @@ describe("kokpit sırası", () => {
     expect(container.querySelector('.tp-frame[data-screen="check"]')).toBeTruthy();
     click(nextName(JOURNEY_NEXT_LABEL.check));
 
-    // Plus: stüdyoda üç önizleme seçiciyle tek tek (her genişlikte); ilk açılan podcast.
+    // Plus: stüdyoda önizlemeler seçiciyle tek tek (her genişlikte); ilk sekme seçili. Podcast sekmesi yalnız branşın
+    // kesiti varsa (`DEMO_PODCASTS`).
     await act(async () => {
       await vi.dynamicImportSettled();
     });
+    const previewList = journeyPlusPreviews("muhendislik");
     const tabs = screen.getAllByRole("tab");
-    expect(tabs.map((tab) => tab.textContent)).toEqual(JOURNEY_PLUS_PREVIEWS.map((item) => `${item.icon}${item.tab}`));
+    expect(tabs.map((tab) => tab.textContent)).toEqual(previewList.map((item) => `${item.icon}${item.tab}`));
     expect(tabs[0]!.getAttribute("aria-selected")).toBe("true");
     expect(container.querySelectorAll(".lj-plus-badge")).toHaveLength(1);
-    expect(container.querySelector('[data-plus-preview="podcast"] [data-preview="podcast"]')).toBeTruthy();
-    fireEvent.click(tabs[1]!);
-    expect(container.querySelector('[data-plus-preview="video"] [data-preview="video"]')).toBeTruthy();
-    fireEvent.click(tabs[2]!);
-    expect(container.querySelector('[data-plus-preview="sheet"] .tpp-paper')).toBeTruthy();
+    previewList.forEach((item, at) => {
+      fireEvent.click(tabs[at]!);
+      const inner = item.id === "sheet" ? ".tpp-paper" : `[data-preview="${item.id}"]`;
+      expect(container.querySelector(`[data-plus-preview="${item.id}"] ${inner}`), item.id).toBeTruthy();
+    });
+    // Mühendisliğin çizimli videosu ürünün branşa özel sahnesi: kuvvet diyagramı.
+    fireEvent.click(tabs[previewList.findIndex((item) => item.id === "video")]!);
+    expect(container.querySelector('[data-preview="video"][data-video="reel"] svg[data-archetype="ENGINEERING_PHYSICS_MECHANICS"]')).toBeTruthy();
     expect(screen.getByText(JOURNEY_PLUS_ALSO)).toBeTruthy();
 
     const signup = screen.getByRole("link", { name: new RegExp(JOURNEY_FINAL.cta) });
@@ -588,47 +619,67 @@ describe("kokpit sırası", () => {
     expect(screen.getByRole("status").textContent).toContain("Adım 1/7");
   });
 
-  it("sürükle-bırak da taramayı başlatır", () => {
+  it("çekirdek ve yuva yalnız dosya alır: dosyasız sürükle-bırak taramayı başlatmaz, çekirdeği de yakmaz", () => {
     vi.useFakeTimers();
-    render(<FuturisticGuidedJourney segmentId="lise" />);
-    const zone = screen.getByRole("button", { name: new RegExp(JOURNEY_FILE.zoneTitle) });
-    fireEvent.dragOver(zone);
-    fireEvent.drop(zone);
+    const { container } = render(<FuturisticGuidedJourney segmentId="lise" />);
+    const core = container.querySelector("[data-core]") as HTMLElement;
+    const slot = container.querySelector("[data-own-pick]") as HTMLElement;
+    const stage = () => container.querySelector(".lj-core-stage") as HTMLElement;
+    for (const target of [core, slot]) {
+      fireEvent.dragOver(target, { dataTransfer: { types: ["text/plain"], files: [] } });
+      expect(stage().hasAttribute("data-near")).toBe(false);
+      expect(slot.className).not.toContain("is-over");
+      fireEvent.drop(target, { dataTransfer: { types: ["text/plain"], files: [] } });
+    }
     act(() => {
-      vi.advanceTimersByTime(JOURNEY_FILE.scanMs);
+      vi.advanceTimersByTime(JOURNEY_FILE.absorbMs + JOURNEY_FILE.findingsMs);
     });
-    expect(screen.getByRole("heading", { name: "Yol haritan çıktı" })).toBeTruthy();
+    expect(stage().getAttribute("data-phase")).toBe("idle");
+    expect(document.querySelector(".lj-studio")).toBeNull();
+    expect(container.querySelector("[data-guest-document]")).toBeNull();
+    // Örnek not kartına (ya da çekirdeğe) dokununca not çekirdeğe gider.
+    fireEvent.click(core);
+    act(() => {
+      vi.advanceTimersByTime(JOURNEY_FILE.absorbMs);
+    });
+    expect(stage().getAttribute("data-phase")).toBe("scanning");
   });
 
-  it("seçili sekme turun bağlamını değiştirir: dört profil de kendi cümlesini ve sınav sözünü görür", () => {
+  it("seçili profil turun branşını değiştirir: her profil kendi branşının notunu ve sınav sözünü görür", () => {
+    // Faz 7 (20 Kasım 2026): örnek not artık tek değil. Faz 9: konsolun bağlam satırı kalktı. Faz 9.1: branşın notu
+    // örnek not kartında, profil kartın `data-segment`inde.
     for (const segment of AUDIENCE_SEGMENTS) {
-      expect(segment.tourContext, segment.id).toMatch(/^Örnek not matematik/);
-      expect(segment.tourContext.length, segment.id).toBeLessThanOrEqual(90);
       expect(journeyGoals(segment.examWord)[0]).toBe(`${segment.examWord} 7 gün var`);
     }
-    expect(new Set(AUDIENCE_SEGMENTS.map((segment) => segment.tourContext)).size).toBe(4);
+    expect(new Set(GUEST_TRACK_IDS.map((id) => guestDemoTrack(id).file)).size).toBe(4);
     expect(audienceSegment("universite").examWord).toBe("Vizene");
     const { container, rerender } = render(<FuturisticGuidedJourney segmentId="lise" />);
-    expect(container.querySelector(".lj-context")?.textContent).toBe(audienceSegment("lise").tourContext);
+    const card = () => container.querySelector(".lj-console") as HTMLElement;
+    expect(container.querySelector(".lj-note-name")?.textContent).toBe(guestDemoTrack("lise").file);
+    expect(card().getAttribute("data-segment")).toBe("lise");
     rerender(<FuturisticGuidedJourney segmentId="akademik" />);
-    const context = container.querySelector(".lj-context") as HTMLElement;
-    expect(context.textContent).toBe(audienceSegment("akademik").tourContext);
-    expect(context.getAttribute("data-segment")).toBe("akademik");
-    // Kokpitin kendi başlık bölümü yok: konsolun başında canlı etiketi ve turun adı.
-    expect(screen.getByRole("heading", { level: 2, name: JOURNEY_COPY.title })).toBeTruthy();
-    expect(container.querySelector(".lj-live")?.textContent).toContain(JOURNEY_COPY.live);
+    expect(card().getAttribute("data-segment")).toBe("akademik");
+    expect(container.querySelector("section#nasil")?.getAttribute("data-track")).toBe("hukuk");
+    // Örnek not kartı da branşın: hukukta anayasa notu.
+    expect(container.querySelector(".lj-note-name")?.textContent).toBe(journeyFile("hukuk").name);
+    rerender(<FuturisticGuidedJourney segmentId="tus" />);
+    expect(container.querySelector(".lj-note-name")?.textContent).toBe(journeyFile("tus").name);
+    expect(trackForSegment("tus")).toBe("tus");
+    // Kartın başlığı ekran okuyucuda; canlı etiketi ve görünen tur başlığı yok (Faz 9).
+    expect(screen.getByRole("heading", { level: 2, name: JOURNEY_COPY.card })).toBeTruthy();
+    expect(container.querySelector(".lj-live, .lj-context")).toBeNull();
   });
 });
 
 describe("birinci adım: misafirin kendi dosyası", () => {
   const pdf = () => new File([new Uint8Array(2048)], "Anatomi_vize_notu.pdf", { type: "application/pdf" });
 
-  it("iki kapı: hazır örnek not ve kendi dosyan; dosya seçici ürünün kabul ettiği türleri alır", () => {
+  it("iki yol: hazır örnek not ve kendi dosyan; dosya seçici ürünün kabul ettiği türleri alır", () => {
     const { container } = render(<FuturisticGuidedJourney segmentId="lise" />);
-    expect(screen.getByRole("button", { name: new RegExp(JOURNEY_FILE.sampleCta) })).toBeTruthy();
-    expect(screen.getByText(JOURNEY_FILE.meta).textContent).toMatch(/^Örnek not/);
-    expect(screen.getByText(JOURNEY_OWN.title)).toBeTruthy();
-    expect(screen.getByRole("button", { name: JOURNEY_OWN.pick })).toBeTruthy();
+    // Kartın adı ne yaptığını ve hazır bir örnek not olduğunu söyler.
+    expect(screen.getByRole("button", { name: `${JOURNEY_FILE.send}: Köklü_Sayılar_Ders_Notu.pdf, 6 sayfa` })).toBeTruthy();
+    expect(container.querySelector(".lj-note")?.textContent).toBe(`PDFKöklü_Sayılar_Ders_Notu.pdf6 sayfa${JOURNEY_FILE.grip}`);
+    expect(screen.getByRole("button", { name: new RegExp(`^${JOURNEY_OWN.pick}`) })).toBeTruthy();
     const input = container.querySelector("input[data-guest-input]") as HTMLInputElement;
     expect(input.type).toBe("file");
     expect(input.multiple).toBe(true);
@@ -665,14 +716,14 @@ describe("birinci adım: misafirin kendi dosyası", () => {
     click(JOURNEY_OWN.remove);
     expect(container.querySelector("[data-guest-document]")).toBeNull();
     expect(window.sessionStorage.getItem("cp:guest-doc")).toBeNull();
-    expect(screen.getByRole("button", { name: JOURNEY_OWN.pick })).toBeTruthy();
+    expect(screen.getByRole("button", { name: new RegExp(`^${JOURNEY_OWN.pick}`) })).toBeTruthy();
     fireEvent.change(container.querySelector("input[data-guest-input]") as HTMLInputElement, { target: { files: [pdf()] } });
     await screen.findByText(ownReadyTitle(["Anatomi_vize_notu.pdf"]));
+    // "Önce örnek turu oyna": örnek not doğrudan çekirdekte taranır, sınav günü sorulur.
     click(JOURNEY_OWN.playSample);
-    act(() => {
-      vi.advanceTimersByTime(JOURNEY_FILE.scanMs);
-    });
-    expect(screen.getByRole("heading", { name: "Yol haritan çıktı" })).toBeTruthy();
+    expect(container.querySelector(".lj-console [data-scan-findings]")).toBeTruthy();
+    expect(screen.getByRole("radiogroup", { name: JOURNEY_DATE.title })).toBeTruthy();
+    expect(container.querySelector("[data-guest-document]")).toBeNull();
   });
 
   it("okunamayan tür reddedilir ve nedeni söylenir", async () => {
@@ -738,8 +789,10 @@ describe("görünüm kuralları", () => {
     expect(read("src/components/landing/futuristic-guided-journey.tsx")).toContain('id="nasil" className="lj"');
     const hero = withoutComments(read("src/components/landing/audience-hero.tsx"));
     expect(hero).toContain('<div className="hm-hero-cockpit">');
-    expect(hero.indexOf("<AudienceTabs")).toBeLessThan(hero.indexOf("<FuturisticGuidedJourney"));
-    expect(hero.indexOf("<FuturisticGuidedJourney")).toBeLessThan(hero.indexOf("HERO_FACTS.map"));
+    // Faz 9: tek seçici turun üstünde, kahramanın altındaki tek satır turun altında.
+    expect(hero.indexOf("<AudiencePicker")).toBeLessThan(hero.indexOf("<FuturisticGuidedJourney"));
+    expect(hero.indexOf("<FuturisticGuidedJourney")).toBeLessThan(hero.indexOf("HERO_FOOT.facts.map"));
+    expect(existsSync("src/components/landing/audience-tabs.tsx")).toBe(false);
     // Durağan sahne ve film şeridi dosyaları silindi.
     expect(existsSync("src/components/landing/hero-scene.tsx")).toBe(false);
     expect(existsSync("src/components/landing/feature-reel.tsx")).toBe(false);
