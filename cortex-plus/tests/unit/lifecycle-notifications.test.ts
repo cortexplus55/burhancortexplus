@@ -220,6 +220,23 @@ describe("sekiz şablon: konu satırı, tek ana düğme, abonelikten çıkma yal
     // Sınav sabahı kâğıdı Plus'ta: ücretsiz hesaba vaat edilmez.
     expect(jobs).toContain("cramSheetAvailable: !locked");
   });
+  it("yönetimdeki önizleme gerçekte gönderilen şablonu çizer (sekiz şablon + deneme, kimseye gitmez)", async () => {
+    const { LIFECYCLE_MAILS } = await import("@/lib/email/lifecycle-templates");
+    const { renderLifecycleSample } = await import("@/lib/email/lifecycle");
+    const { renderWelcomeOnboarding } = await import("@/lib/email/templates/welcome-onboarding");
+    const { SAMPLE_WELCOME_ONBOARDING } = await import("@/lib/email/templates/sample-inputs");
+    const keys = new Set(LIFECYCLE_MAILS.map((mail) => mail.templateKey));
+    for (const key of ["welcome_onboarding", "payment_confirmed", "activation_24h", "free_first_unit_completed", "smart_trap_nudge", "exam_eve_cheat_sheet", "subscription_expiry_reminder", "weekly_study_digest"]) {
+      expect(keys.has(key)).toBe(true);
+    }
+    for (const mail of LIFECYCLE_MAILS) {
+      const rendered = renderLifecycleSample(mail.id, "https://cortexplus.app");
+      expect(rendered.subject.length).toBeGreaterThan(5);
+      expect(rendered.html).toContain("cortexplus.app");
+    }
+    expect(renderLifecycleSample("welcome", "https://cortexplus.app").subject).toBe(renderWelcomeOnboarding(SAMPLE_WELCOME_ONBOARDING).subject);
+    expect(renderLifecycleSample("plus_monthly", "https://cortexplus.app").html).toContain("Otomatik çekim yapılmaz");
+  });
 });
 
 /* ───────────── göç (PGlite) ───────────── */

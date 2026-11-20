@@ -8,13 +8,27 @@ import {
   allowanceForPurchase,
   purchaseKindFor,
   renderPurchaseMail,
-  renderWelcomeMail,
   type LifecycleMailId,
   type PurchaseKind,
   type PurchaseMailInput,
-  type WelcomeMailInput,
 } from "@/lib/email/lifecycle-templates";
 import { renderWelcomeOnboarding } from "@/lib/email/templates/welcome-onboarding";
+import { renderActivation24h } from "@/lib/email/templates/activation-24h";
+import { renderFreeFirstUnitCompleted } from "@/lib/email/templates/free-first-unit-completed";
+import { renderSmartTrapNudge } from "@/lib/email/templates/smart-trap-nudge";
+import { renderExamEveCheatSheet } from "@/lib/email/templates/exam-eve-cheat-sheet";
+import { renderSubscriptionExpiryReminder } from "@/lib/email/templates/subscription-expiry-reminder";
+import { renderWeeklyStudyDigest } from "@/lib/email/templates/weekly-study-digest";
+import {
+  SAMPLE_ACTIVATION_24H,
+  SAMPLE_EXAM_EVE_CHEAT_SHEET,
+  SAMPLE_FREE_FIRST_UNIT_COMPLETED,
+  SAMPLE_PAYMENT_CONFIRMED,
+  SAMPLE_SMART_TRAP_NUDGE,
+  SAMPLE_SUBSCRIPTION_EXPIRY_REMINDER,
+  SAMPLE_WEEKLY_STUDY_DIGEST,
+  SAMPLE_WELCOME_ONBOARDING,
+} from "@/lib/email/templates/sample-inputs";
 import { renderPaymentConfirmed, type PaymentConfirmedKind } from "@/lib/email/templates/payment-confirmed";
 import { PLAN_WORK_BY_ID, workCount, type PlanWorkId } from "@/lib/billing/plan-value";
 import { sigmaBenefitLines } from "@/lib/billing/tier-presentation";
@@ -310,28 +324,38 @@ export function renderLifecycleSample(id: LifecycleMailId, origin: string = appO
   const base = urls(origin);
   const exam = { daysLeft: 23, title: "TYT Biyoloji" };
   const next = { heading: "Hücre zarının yapısı ve seçici geçirgenliği", url: `${origin}/ogretmen` };
-  if (id === "welcome") {
-    const input: WelcomeMailInput = { firstName: "ayşe", via: "email", needsVerification: true, exam, next: null, ctaUrl: base.ctaUrl, createUrl: base.createUrl, solveUrl: base.solveUrl };
-    return renderWelcomeMail(input);
-  }
+  // Faz 6: önizleme gerçekte gönderilen şablonu çizer (bağlantılar bu sitenin adresiyle).
+  const withOrigin = <T extends { origin: string }>(input: T): T => ({ ...input, origin });
+  if (id === "welcome") return renderWelcomeOnboarding(withOrigin(SAMPLE_WELCOME_ONBOARDING));
+  if (id === "activation_24h") return renderActivation24h(withOrigin(SAMPLE_ACTIVATION_24H));
+  if (id === "free_first_unit_completed") return renderFreeFirstUnitCompleted(withOrigin(SAMPLE_FREE_FIRST_UNIT_COMPLETED));
+  if (id === "smart_trap_nudge") return renderSmartTrapNudge(withOrigin(SAMPLE_SMART_TRAP_NUDGE));
+  if (id === "exam_eve_cheat_sheet") return renderExamEveCheatSheet(withOrigin(SAMPLE_EXAM_EVE_CHEAT_SHEET));
+  if (id === "subscription_expiry_reminder") return renderSubscriptionExpiryReminder(withOrigin(SAMPLE_SUBSCRIPTION_EXPIRY_REMINDER));
+  if (id === "weekly_study_digest") return renderWeeklyStudyDigest(withOrigin(SAMPLE_WEEKLY_STUDY_DIGEST));
   const kind: PurchaseKind = id;
-  const names: Record<PurchaseKind, string> = {
-    plus_monthly: "Plus",
-    plus_weekly: "Plus",
-    plus_yearly: "Plus",
-    sigma: "Sigma",
-    addon: "Ek Kredi 150",
-    trial: "Plus",
-  };
-  const day = 86_400_000;
-  const days = kind === "plus_weekly" ? 7 : kind === "trial" ? 14 : 30;
+  if (kind !== "trial") {
+    const names: Record<PaymentConfirmedKind, string> = { plus_monthly: "Plus", plus_weekly: "Sınav Haftası", plus_yearly: "Plus", sigma: "Sigma", addon: "Ek Kredi 150" };
+    const amounts: Record<PaymentConfirmedKind, number> = { plus_monthly: 59900, plus_weekly: 34900, plus_yearly: 599000, sigma: 199900, addon: 14900 };
+    const days = kind === "plus_weekly" ? 7 : 30;
+    return renderPaymentConfirmed({
+      ...SAMPLE_PAYMENT_CONFIRMED,
+      kind,
+      planName: names[kind],
+      amountKurus: amounts[kind],
+      periodEnd: kind === "addon" ? null : new Date(Date.now() + days * 86_400_000).toISOString(),
+      benefits: purchaseBenefits(kind, allowanceForPurchase({ kind, addonCredits: kind === "addon" ? 2500 : null })),
+      origin,
+    });
+  }
+  // Deneme (beta kodu) eski şablonla gider: ödeme yok, kart istenmez.
   const input: PurchaseMailInput = {
     kind,
     firstName: "ayşe",
-    planName: names[kind],
-    endsAt: kind === "addon" ? null : new Date(Date.now() + days * day).toISOString(),
-    trialDays: kind === "trial" ? 14 : null,
-    addonCredits: kind === "addon" ? 2500 : null,
+    planName: "Plus",
+    endsAt: new Date(Date.now() + 14 * 86_400_000).toISOString(),
+    trialDays: 14,
+    addonCredits: null,
     exam,
     next,
     ...base,
