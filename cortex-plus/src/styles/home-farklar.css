@@ -228,6 +228,43 @@
 
 .fk-scene {
   min-width: 0;
+  container: fk-scene / inline-size;
+}
+
+/*
+  Sınıfla Paylaş sahnesi (6. öğe): geniş sahnede kâğıdın maddeleri başlığın hemen altında, QR'ın yanında. Önce maddeler
+  uzun QR sütununun altından başlıyor, başlığın altında büyük bir boşluk kalıyordu (20 Kasım 2026, gözle kontrol).
+  Dar sahnede (telefon) bugünkü düzen: başlık + QR, altında tam genişlik maddeler.
+*/
+@container fk-scene (min-width: 30rem) {
+  .fv-sheet {
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 1rem;
+    align-items: start;
+  }
+
+  .fv-sheet-top {
+    display: contents;
+  }
+
+  .fv-sheet-heading {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .fv-sheet .fv-qr {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+
+  .fv-sheet-lines {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .fv-sheet-sign {
+    grid-column: 1 / -1;
+  }
 }
 
 @keyframes fk-in {

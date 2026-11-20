@@ -113,11 +113,12 @@
   letter-spacing: 0.04em;
 }
 
+/* Dosya adı alt çizgilerden kırılır (`<wbr>`); ".pdf" kelimeden kopmaz. Tek parça sığmazsa son çare kırılır. */
 .lj-drop-name {
   min-width: 0;
   font-weight: 600;
   color: var(--lj-text);
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .lj-drop-pages {

@@ -188,6 +188,24 @@ function FitStage({ children, fitKey }: { children: ReactNode; fitKey: string })
  * tek cümle; bırakılan dosya misafirin kendi dosyasıdır), altta iki düğme: örnek notla turu izle (stüdyo + tarama anı)
  * ve kendi notunu seç. Canlı rozeti, konsol başlığı ve bağlam satırı kalktı; bölümün başlığı ekran okuyucuda.
  */
+/**
+ * Uzun dosya adı telefonda kelimenin ortasından ("…Notu.pd / f") kırılıyordu: alt çizgilerden sonra kırılma fırsatı
+ * (`<wbr>`) verilir, ".pdf" son parçada bütün kalır. Metin aynı (ekran okuyucu ve testler için).
+ */
+function breakableFileName(name: string): ReactNode {
+  const parts = name.split("_");
+  return parts.map((part, at) => (
+    <Fragment key={`${part}-${at}`}>
+      {part}
+      {at < parts.length - 1 ? (
+        <>
+          _<wbr />
+        </>
+      ) : null}
+    </Fragment>
+  ));
+}
+
 export function FuturisticGuidedJourney({
   segmentId,
   trackId: trackProp,
@@ -961,7 +979,7 @@ export function FuturisticGuidedJourney({
                       PDF
                     </span>
                     <span className="sr-only">Örnek not: </span>
-                    <span className="lj-drop-name">{file.name}</span>
+                    <span className="lj-drop-name">{breakableFileName(file.name)}</span>
                     <span className="lj-drop-pages">· {file.pagesLabel}</span>
                   </span>
                   <p className="lj-drop-line">{file.dropLine}</p>
