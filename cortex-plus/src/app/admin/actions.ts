@@ -1,6 +1,7 @@
 "use server";
 
 import { invalidateSessionUserContext } from "@/lib/auth/session-context";
+import { notifyInApp } from "@/lib/notifications/in-app";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -82,8 +83,9 @@ export async function reviewTeacherApplication(input: {
     });
   }
 
-  await service.from("notifications").insert({
-    user_id: application.user_id,
+  await notifyInApp(service, {
+    kind: "account",
+    userId: application.user_id,
     title:
       parsed.data.decision === "approved"
         ? "Öğretmen başvurun onaylandı"

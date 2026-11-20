@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { parentLinkPlanName } from "@/lib/payments/parent-link-plan";
+import { notifyInApp } from "@/lib/notifications/in-app";
 
 /** Öğrencinin bildirim başlığı: velisi bağlantıdan ödedi, paket hesabında (Faz 5 §2). */
 export const PARENT_LINK_PAID_TITLE = "Velin ödemeyi onayladı 🎉";
@@ -46,8 +47,9 @@ export async function confirmParentLinkPayment(service: SupabaseClient, merchant
     .eq("status", "pending")
     .eq("message", "link");
 
-  await service.from("notifications").insert({
-    user_id: row.user_id,
+  await notifyInApp(service, {
+    kind: "payment",
+    userId: row.user_id,
     title: PARENT_LINK_PAID_TITLE,
     body: parentLinkPaidBody(parentLinkPlanName(row.plans ?? {})),
   });

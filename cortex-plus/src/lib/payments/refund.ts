@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { auditLog } from "@/lib/audit";
 import { formatTry } from "@/lib/format";
+import { notifyInApp } from "@/lib/notifications/in-app";
 
 /** refunds.reason JSON — makine-okunur durum + defter özeti. */
 export type RefundReasonState = "pending" | "applying" | "applied" | "failed";
@@ -661,11 +662,7 @@ async function notifyRefund(
     body = `Ödemen (${amountLabel}) iade edildi.`;
   }
 
-  await service.from("notifications").insert({
-    user_id: opts.userId,
-    title,
-    body,
-  });
+  await notifyInApp(service, { kind: "refund", userId: opts.userId, title, body });
   await emailRefund(service, opts.userId, title, body);
 }
 

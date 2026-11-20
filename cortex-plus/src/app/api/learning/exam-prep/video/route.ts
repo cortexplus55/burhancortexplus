@@ -2,7 +2,8 @@ import { deterministicCreditKey } from "@/lib/credits/slot-key";
 import { excludedSiblingBoundaryBlock, loadExcludedSiblingTopics } from "@/lib/learning/sibling-topics";
 import { sourceCorrectionPromptBlock } from "@/lib/learning/source-correction";
 import { loadTopicSourceCorrection } from "@/lib/learning/node/lesson-store";
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
+import { notifyVideoReady } from "@/lib/notifications/events";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { shareInFlight } from "@/lib/ai/inflight-share";
@@ -185,5 +186,9 @@ export async function POST(request: Request) {
     if (made && String((made.scenes as { audioPath?: string }[] | null)?.[0]?.audioPath ?? "").startsWith("video/shared/"))
       await writeSharedMedia(service, poolUnit, sharedKind, made, userId);
   }
+  // Faz 6: öğrenci beklerken sayfadan ayrıldıysa çanda "video hazır" (0 maliyet; yanıtı bekletmez).
+  after(() =>
+    notifyVideoReady(service, { userId, prepId, topicId: topic.id as string, topicLabel: String(topic.label), videoId: outcome.videoId }),
+  );
   return NextResponse.json({ ok: true, videoId: outcome.videoId });
 }
