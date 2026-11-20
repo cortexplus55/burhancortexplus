@@ -47,7 +47,7 @@ import {
   journeyFile,
   journeyGoals,
   journeyGuideLine,
-  journeyOutputs,
+  JOURNEY_OUTPUTS,
   journeyPlusPreviews,
   journeyRoadmap,
   journeyScanFindings,
@@ -925,7 +925,7 @@ export function FuturisticGuidedJourney({
                 findings={journeyScanFindings(trackId).map((finding) => ({ id: finding.id, text: withSubscripts(finding.text) }))}
                 findingsShown={findingsShown}
                 examDays={examDays}
-                outputs={journeyOutputs(trackId)}
+                outputs={JOURNEY_OUTPUTS}
                 plan={examDays ? journeyDayPlan(examDays) : null}
                 holding={holding}
                 problems={ownProblems}

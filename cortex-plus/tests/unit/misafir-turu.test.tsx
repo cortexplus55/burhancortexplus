@@ -58,7 +58,7 @@ import {
   journeyFile,
   journeyGoals,
   journeyGuideLine,
-  journeyOutputs,
+  JOURNEY_OUTPUTS,
   journeyPlusPreviews,
   journeyRoadmap,
   journeyScore,
@@ -517,7 +517,7 @@ describe("kokpit sırası", () => {
     });
     // Çekirdekten üç kart doğar; sayılar stüdyonun göstereceği örnek veriden.
     const outputs = [...document.querySelectorAll(".lj-console [data-output]")].map((node) => node.textContent);
-    expect(outputs).toEqual(journeyOutputs("muhendislik").map((output) => `${output.title}${output.meta}`));
+    expect(outputs).toEqual(JOURNEY_OUTPUTS.map((output) => `${output.title}${output.meta}`));
     click(/İlk ekranı aç/);
 
     // Stüdyo dersin ilk ekranında açılır. Ürün ekranı ayrı parça: yüklenince çerçevenin içinde ürünün ders ekranı durur.

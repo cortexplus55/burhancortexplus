@@ -96,7 +96,7 @@ test.describe("ders çekirdeği", { tag: ["@public"] }, () => {
       await days.getByRole("radio", { name: "14 gün" }).click();
       const born = page.locator(".lj-console [data-born]");
       await expect(born).toBeVisible();
-      await expect(born.locator("[data-output]")).toHaveText([/^Ders\s*2 bölüm$/, /^Konu testi\s*1 soru$/, /^Kartlar\s*2 kart$/]);
+      await expect(born.locator("[data-output]")).toHaveText([/^Ders\s*Hazır · örnek bölüm$/, /^Konu testi\s*Hazır$/, /^Kartlar\s*Hazır$/]);
       await expect(born.getByText("14 günlük yolun")).toBeVisible();
       await expect(born.locator("[data-plan] li")).toHaveText([/Bugün\s*Ders/, /Yarın\s*Konu testi/, /6\. gün\s*Kartlar/, /10\. gün\s*Doğru\/Yanlış/, /Sınav sabahı\s*Kartlarla tekrar/]);
       const open = page.getByRole("button", { name: /İlk ekranı aç/ });

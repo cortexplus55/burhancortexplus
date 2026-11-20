@@ -92,7 +92,7 @@ export function LessonCore({
   /** Bulguların anı bitti mi (ya da atlandı): hepsi hemen görünür. */
   findingsShown: boolean;
   examDays: JourneyExamDays | null;
-  outputs: JourneyOutput[];
+  outputs: readonly JourneyOutput[];
   plan: JourneyDayRow[] | null;
   /** Misafirin dosyası tarayıcıya yazılırken: yuva ve kart beklemede. */
   holding: boolean;

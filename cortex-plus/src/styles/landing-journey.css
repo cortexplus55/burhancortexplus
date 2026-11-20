@@ -760,12 +760,17 @@
   padding: 0.35rem 0 0;
 }
 
+/*
+  Tarama ve doğuş: çekirdek solda. Yanlarda pay var: tarama anındaki ışık dalgası çekirdeği aşar, payı yokken konsolun
+  sol kenarında kesiliyordu (20 Kasım 2026, gözle kontrol).
+*/
 .lj-core-stage:not([data-phase="idle"]) {
   --lj-core: 8.25rem;
   grid-template-columns: auto minmax(0, 40rem);
   grid-template-areas: "core body";
   justify-content: center;
   gap: 1rem 1.75rem;
+  padding-inline: 1.75rem;
 }
 
 /* Sol: örnek not ve kendi notunun yuvası. */
@@ -1095,7 +1100,7 @@
   }
   to {
     opacity: 0;
-    scale: 1.55;
+    scale: 1.35;
   }
 }
 
@@ -1360,6 +1365,7 @@
     grid-template-areas:
       "core"
       "body";
+    padding-inline: 0;
   }
 
   .lj-core-arc {

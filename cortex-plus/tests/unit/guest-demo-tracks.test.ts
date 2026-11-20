@@ -128,13 +128,6 @@ describe("dört branş, yedi adım: her adım branşın kendi verisi", () => {
         // Ana sayfadaki örnek not kartı: dosya adı ve "N sayfa" (Faz 9.1: kart ders çekirdeğine götürülür).
         expect(file.pagesLabel).toBe(`${expected.pages} sayfa`);
         expect(file.send).toBe("Örnek notu çekirdeğe gönder");
-        // Çekirdekten doğan kartların sayıları stüdyonun göstereceği örnek veriyle aynı (uydurma sayı yok).
-        expect(meta.tour).toEqual({
-          sections: content.lesson.screens.length,
-          questions: content.quiz.length,
-          cards: content.cards.length,
-          statements: content.trueFalse.length,
-        });
       });
 
       it("2. yol: branşın konuları gün gün, ilk gün hazır ders; uyarının etiketi notun kendi satırından", () => {

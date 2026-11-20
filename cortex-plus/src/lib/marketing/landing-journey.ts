@@ -26,8 +26,8 @@
  *
  * Faz 9.1 (20 Kasım 2026, ürün sahibi tek kartı geri çevirdi): birinci adım "Çekirdeğe bırak". Kart ve iki düğme
  * kalktı; örnek not kâğıt kart olarak ders çekirdeğine sürüklenir (ya da dokunulur), tarama ana sayfada olur,
- * "Sınavın ne zaman?" sorulur (`JOURNEY_EXAM_DAYS`), gün seçilince çekirdekten ilk ders doğar: üç kart (`journeyOutputs`,
- * sayılar örnek veriden) ve günlere yayılmış küçük yol (`journeyDayPlan`). Bileşen `components/landing/lesson-core.tsx`.
+ * "Sınavın ne zaman?" sorulur (`JOURNEY_EXAM_DAYS`), gün seçilince çekirdekten ilk ders doğar: üç kart (`JOURNEY_OUTPUTS`,
+ * "hazır") ve günlere yayılmış küçük yol (`journeyDayPlan`). Bileşen `components/landing/lesson-core.tsx`.
  */
 
 import { FREE_PAGE_TOTAL } from "@/lib/billing/free-tier-copy";
@@ -230,18 +230,15 @@ export const JOURNEY_DATE = {
 export type JourneyOutput = { id: "lesson" | "question" | "cards"; title: string; meta: string };
 
 /**
- * Çekirdekten doğan üç kart. Her sayı stüdyonun gerçekten göstereceği örnek veriden (`GuestDemoTrack.tour`; bekçi
- * test sayıların `GUEST_TOUR_CONTENT` ile aynı olduğunu tutar): uydurma "5 soru" yok. Ders bölüm (ekran) sayısıyla,
- * konu testi soru, kartlar kart sayısıyla söylenir.
+ * Çekirdekten doğan üç kart (Faz 9.1, ürün sahibinin kararı: "sayı yerine hazır"). Örnek notun turdaki içeriği bir
+ * dilim (2 bölüm, 1 soru, 2 kart); o küçük sayılar yazılmaz, gerçek notta çıkacak bir sayı da iddia edilmez. Kartlar
+ * yalnız neyin hazır olduğunu söyler; ders, örnek bölüm olduğunu açıkça yazar.
  */
-export function journeyOutputs(track: GuestTrackId): JourneyOutput[] {
-  const tour = guestDemoTrack(track).tour;
-  return [
-    { id: "lesson", title: "Ders", meta: `${tour.sections} bölüm` },
-    { id: "question", title: "Konu testi", meta: `${tour.questions} soru` },
-    { id: "cards", title: "Kartlar", meta: `${tour.cards} kart` },
-  ];
-}
+export const JOURNEY_OUTPUTS: readonly JourneyOutput[] = [
+  { id: "lesson", title: "Ders", meta: "Hazır · örnek bölüm" },
+  { id: "question", title: "Konu testi", meta: "Hazır" },
+  { id: "cards", title: "Kartlar", meta: "Hazır" },
+];
 
 export type JourneyDayRow = { when: string; steps: string[] };
 

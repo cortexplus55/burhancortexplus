@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it } from "vitest";
 import { GUEST_TOUR_CONTENT } from "@/lib/demo/guest-tour-tracks";
-import { GUEST_DEMO_TRACKS, GUEST_TRACK_IDS } from "@/lib/marketing/guest-demo-tracks";
+import { GUEST_TRACK_IDS } from "@/lib/marketing/guest-demo-tracks";
 import { TOUR_EXAM_DAYS, readTourProgress, writeTourProgress } from "@/lib/marketing/guest-tour-progress";
 import {
   DEFAULT_EXAM_DAYS,
@@ -10,7 +10,7 @@ import {
   JOURNEY_EXAM_DAYS,
   journeyDayPlan,
   journeyGoals,
-  journeyOutputs,
+  JOURNEY_OUTPUTS,
 } from "@/lib/marketing/landing-journey";
 
 /*
@@ -82,16 +82,22 @@ describe("küçük yol: seçilen güne göre", () => {
   });
 });
 
-describe("çekirdekten doğan üç kart: sayılar örnek veriden", () => {
-  it("her branşta ders bölümü, soru ve kart sayısı stüdyonun göstereceği örnek veriyle aynı", () => {
+describe("çekirdekten doğan üç kart: sayı yerine hazır (ürün sahibinin kararı)", () => {
+  it("ders, konu testi ve kartlar 'hazır'; rakam yok, ders örnek bölüm olduğunu söyler", () => {
+    expect(JOURNEY_OUTPUTS).toEqual([
+      { id: "lesson", title: "Ders", meta: "Hazır · örnek bölüm" },
+      { id: "question", title: "Konu testi", meta: "Hazır" },
+      { id: "cards", title: "Kartlar", meta: "Hazır" },
+    ]);
+    for (const output of JOURNEY_OUTPUTS) expect(output.meta, output.id).not.toMatch(/d/);
+  });
+
+  it("stüdyo üç kartın söylediğini gerçekten gösterir: her branşta ders, konu testi sorusu ve kart var", () => {
     for (const id of GUEST_TRACK_IDS) {
       const content = GUEST_TOUR_CONTENT[id];
-      expect(journeyOutputs(id), id).toEqual([
-        { id: "lesson", title: "Ders", meta: `${content.lesson.screens.length} bölüm` },
-        { id: "question", title: "Konu testi", meta: `${content.quiz.length} soru` },
-        { id: "cards", title: "Kartlar", meta: `${content.cards.length} kart` },
-      ]);
-      expect(GUEST_DEMO_TRACKS[id].tour.statements, id).toBe(content.trueFalse.length);
+      expect(content.lesson.screens.length, id).toBeGreaterThan(0);
+      expect(content.quiz.length, id).toBeGreaterThan(0);
+      expect(content.cards.length, id).toBeGreaterThan(0);
     }
   });
 });
