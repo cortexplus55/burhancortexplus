@@ -11,6 +11,7 @@ import {
   effectiveUsdTry,
   FX_FLAG,
   marginPct,
+  PARENT_PAYMENT_VIAS,
   quarantineRow,
   reportRow,
   supersededRow,
@@ -87,7 +88,7 @@ export async function loadCockpit(service: SupabaseClient, now: Date = new Date(
   const windows = cockpitWindows(now);
   const failed: string[] = [];
 
-  const [profiles, totalUsers, attempts, payments, plans, fx, spendToday, spendMonth, reportRows, quarantineRows, supersededRows] = await Promise.all([
+  const [profiles, totalUsers, attempts, payments, plans, fx, spendToday, spendMonth, reportRows, quarantineRows, supersededRows, parentAudits] = await Promise.all([
     settle<Row[]>("kayıtlar", failed, () => service.from("profiles").select("id, created_at").gte("created_at", windows.month).limit(ROW_LIMIT), []),
     settle<number | null>(
       "toplam kullanıcı",
@@ -110,7 +111,7 @@ export async function loadCockpit(service: SupabaseClient, now: Date = new Date(
       () =>
         service
           .from("payments")
-          .select("user_id, beneficiary_user_id, plan_id, amount_try, status, created_at")
+          .select("merchant_oid, user_id, beneficiary_user_id, plan_id, amount_try, status, created_at")
           .gte("created_at", windows.month)
           .limit(ROW_LIMIT),
       [],
@@ -156,6 +157,21 @@ export async function loadCockpit(service: SupabaseClient, now: Date = new Date(
           .limit(SUPERSEDED_LIMIT),
       [],
     ),
+    // Hesapsız veli bağlantısının ödeme satırı öğrencinin adınadır; veli yolu yalnız denetim kaydında yazılı.
+    // Yalnız `via` okunur (kaydın öbür alanları — IP, onay metni — gerekmez). Okunamazsa null: satır eksik sayar.
+    settle<Row[] | null>(
+      "veli ödemesi kaydı",
+      failed,
+      () =>
+        service
+          .from("audit_logs")
+          .select("entity_id, via:metadata->>via")
+          .eq("action", "payment.token.created")
+          .in("metadata->>via", PARENT_PAYMENT_VIAS)
+          .gte("created_at", windows.month)
+          .limit(ROW_LIMIT),
+      null,
+    ),
   ]);
 
   // Eski sürüm sorusunun içeriği hâlâ yayındaysa (beklenmez) arşivlenmez: durumu birlikte okunur.
@@ -173,6 +189,7 @@ export async function loadCockpit(service: SupabaseClient, now: Date = new Date(
       amount_try: typeof row.amount_try === "number" ? row.amount_try : Number(row.amount_try ?? 0),
       status: String(row.status ?? ""),
       created_at: String(row.created_at ?? ""),
+      merchant_oid: typeof row.merchant_oid === "string" ? row.merchant_oid : null,
     }),
   );
   // Penceredeki ödeyenlerin daha önce ödemesi var mı: "ilk kez ödeyen" ancak onsuz doğru sayılır.
@@ -194,7 +211,8 @@ export async function loadCockpit(service: SupabaseClient, now: Date = new Date(
     : [];
   const earlierPayers = new Set(earlier.map((row) => String(row.beneficiary_user_id ?? row.user_id ?? "")));
   const planRows = plans.map((row): PlanRow => ({ id: String(row.id ?? ""), slug: String(row.slug ?? ""), name: String(row.name ?? "") }));
-  const conversions = conversionStats(paymentRows, planRows, earlierPayers, windows);
+  const parentOids = parentAudits ? new Set(parentAudits.map((row) => String(row.entity_id ?? "")).filter(Boolean)) : null;
+  const conversions = conversionStats(paymentRows, planRows, earlierPayers, windows, parentOids);
 
   const usdTry = effectiveUsdTry(fx?.metadata);
   const economics: CockpitEconomics = {

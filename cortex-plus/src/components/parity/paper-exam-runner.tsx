@@ -6,26 +6,41 @@ import { Camera, ImagePlus, Loader2, Printer, Smartphone, Trash2, X } from "luci
 import { toast } from "sonner";
 import { formatDayLong } from "@/lib/format";
 import { PAPER_LETTERS, PAPER_MAX_PHOTOS, isChoiceQuestion, type PaperQuestion } from "@/lib/learning/paper-exam";
+import { encodeImage } from "@/lib/upload/compress-image";
 import "@/styles/paper-exam.css";
 import { useDismiss } from "@/lib/ui/use-dismiss";
 
 type Stage = "sheet" | "solve" | "upload" | "reading";
 
-/** Bir fotoğrafı 1600 piksele indirip JPEG'e çevirir; gövde 4,5 MB sınırının altında kalsın. */
+/**
+ * Kâğıdın fotoğraf bütçesi: 10 fotoğraf tek gövdede gider (4,5 MB sınırı), fotoğraf başına en çok ~850 bin karakter.
+ * Küçültme tek kaynaktan (`@/lib/upload/compress-image`: döndürme düzeltilir, beyaz zemin, JPEG); yalnız basamaklar
+ * bu yüzeyin.
+ */
+const PAPER_PHOTO_STEPS = [
+  { maxSide: 1600, quality: 0.72 },
+  { maxSide: 1280, quality: 0.6 },
+  { maxSide: 1024, quality: 0.5 },
+] as const;
+const PAPER_PHOTO_MAX_CHARS = 850_000;
+
+function dataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error ?? new Error("read"));
+    reader.readAsDataURL(blob);
+  });
+}
+
 async function compressPhoto(file: File): Promise<string> {
-  const bitmap = await createImageBitmap(file);
-  const attempt = (edge: number, quality: number) => {
-    const scale = Math.min(1, edge / Math.max(bitmap.width, bitmap.height));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.round(bitmap.width * scale);
-    canvas.height = Math.round(bitmap.height * scale);
-    canvas.getContext("2d")?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    return canvas.toDataURL("image/jpeg", quality);
-  };
-  let url = attempt(1600, 0.72);
-  if (url.length > 850_000) url = attempt(1280, 0.6);
-  if (url.length > 850_000) url = attempt(1024, 0.5);
-  bitmap.close?.();
+  let url = "";
+  for (const step of PAPER_PHOTO_STEPS) {
+    const encoded = await encodeImage(file, step);
+    if (!encoded) throw new Error("Fotoğraf çözülemedi.");
+    url = await dataUrl(encoded.blob);
+    if (url.length <= PAPER_PHOTO_MAX_CHARS) break;
+  }
   return url;
 }
 

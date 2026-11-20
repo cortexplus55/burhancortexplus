@@ -2528,6 +2528,35 @@
   font-size: 0.875rem;
 }
 
+/* Telefon sayfasında dokunma hedefi en az 44 px; "Fotoğraf çek" ikincil (20 Kasım 2026, sayfa tepsisi). */
+.cp-phone-card .cp-upload-pick {
+  min-height: 44px;
+}
+
+.cp-phone-camera {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  margin: 0.55rem 0 0 0.5rem;
+  padding: 0 1.15rem;
+  border: 1px solid var(--c-border-strong);
+  border-radius: 9999px;
+  background: transparent;
+  color: inherit;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* Kart `bg-2` yüzey: tepsinin kartları ve araçları bir basamak yukarıda. */
+.cp-phone-card .cx-ptray {
+  --ptray-card: var(--cx-bg-3);
+  --ptray-tool: var(--cx-bg-4);
+  --ptray-tool-hover: var(--cx-bg-4);
+  margin-top: 0.85rem;
+}
+
 .cp-more-actions {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }

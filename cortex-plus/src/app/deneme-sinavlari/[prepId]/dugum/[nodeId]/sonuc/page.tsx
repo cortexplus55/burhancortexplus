@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { MessageCircle, RotateCcw, Sparkles, X } from "lucide-react";
 import { LessonRatingCard } from "@/components/parity/lesson-rating-card";
 import { LevelSuggestCard } from "@/components/parity/level-suggest-card";
+import { InstallAppCard } from "@/components/pwa/install-app-card";
 import { loadLevelHint } from "@/lib/learning/prep-level";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { requireStudentArea } from "@/lib/auth/session";
@@ -211,6 +212,8 @@ export default async function NodeResultPage({ params }: { params: Promise<{ pre
         <div className="cp-node-result-rating">
           {levelHint ? <LevelSuggestCard prepId={prepId} hint={levelHint} /> : null}
           <LessonRatingCard attemptId={attempt.id as string} kind={node.kind} />
+          {/* Bitmiş ders (20 Kasım 2026, Faz 8): telefonda "Ana Ekrana Ekle" kartı; kararı kart verir (30 günde bir). */}
+          {node.kind === "lesson" ? <InstallAppCard milestone="lesson_completed" placement="inline" /> : null}
         </div>
         <Link href={back} className="cp-node-result-go">
           Devam et

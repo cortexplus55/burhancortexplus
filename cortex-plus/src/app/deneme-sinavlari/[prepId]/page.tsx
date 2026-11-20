@@ -78,6 +78,7 @@ import { poolLessonPreview } from "@/lib/content-pool/lesson-preview";
 import { loadPlusPrices } from "@/lib/billing/plan-prices";
 import { campOffer } from "@/lib/camp/offer";
 import { CampCard } from "@/components/camp/camp-card";
+import { InstallAppCard } from "@/components/pwa/install-app-card";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const metadata = { title: "Sınav hazırlığı" };
@@ -873,6 +874,9 @@ export default async function ExamPrepDetailPage({
         dueReviews={dueReviews}
         radioItems={radioItems}
       />
+      {/* "Telefonuna Uygulama Gibi Ekle" (20 Kasım 2026, Faz 8): sahibinin hazırlık sayfası = ilk hazırlık kurulmuş.
+          Telefon, kurulu değil, 30 günde bir: kararı kart verir; alt çubuğun ve "Devam et" kartının üstünde. */}
+      <InstallAppCard milestone="prep_created" placement="dock" />
     </ParitySorShell>
   );
 }

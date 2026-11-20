@@ -8,7 +8,7 @@ import { notifyInApp } from "@/lib/notifications/in-app";
 /**
  * Klonlanan yolun ödülü (Faz 7, 20 Kasım 2026, ürün sahibinin kararı): arkadaş klonladığı hazırlığın 1. konusunun
  * konu testini bitirince paylaşana +50 kredi ve uygulama içi bildirim. Bütün kurallar (aylık 5 arkadaş, kendini
- * davet, aynı posta kutusu, aynı IP, doğrulanmış e-posta, davet hediyesiyle çift başına tek ödül) tek SQL işlevinde,
+ * davet, aynı posta kutusu, aynı IP'den günde en çok 3 ödül (Faz 8; önce katı aynı IP engeliydi), doğrulanmış e-posta, davet hediyesiyle çift başına tek ödül) tek SQL işlevinde,
  * kilit altında (`claim_clone_referral_reward`). Bu modül yalnız uygun olayı seçer ve işlevi çağırır.
  *
  * Tamamlama akışı bunu yanıttan sonra çağırır (`deferTask`): asla atmaz, tamamlamayı bekletmez ya da düşürmez. Göç
@@ -24,7 +24,9 @@ const CLAIM_STATUSES = [
   "already_rewarded",
   "unverified",
   "same_email",
+  // Eski işlev (göç 20261120140000) aynı IP'yi engelliyordu; Faz 8 göçünden (20261120160000) sonra yerine günlük tavan.
   "same_ip",
+  "ip_daily_cap",
   "wallet_missing",
   "referral_gift",
   "monthly_cap",

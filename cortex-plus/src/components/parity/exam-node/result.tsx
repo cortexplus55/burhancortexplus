@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { resultMood } from "@/lib/learning/result-mood";
 import { LessonRatingCard } from "@/components/parity/lesson-rating-card";
 import { LevelSuggestCard } from "@/components/parity/level-suggest-card";
+import { InstallAppCard } from "@/components/pwa/install-app-card";
 import { repeatedCardsLine } from "@/lib/learning/flashcard-round";
 import { replayLabel } from "@/lib/learning/feedback-copy";
 import { CARD_DECK_KINDS, FREE_RESTUDY_KINDS, NEW_DECK_LABEL, RESTUDY_NEXT_LABEL, RESTUDY_STEP_LABEL } from "@/lib/learning/free-restudy";
@@ -341,6 +342,8 @@ export function ResultScreen({ life }: { life: NodeLifecycle }) {
           ) : null}
           {levelHint ? <LevelSuggestCard prepId={prepId} hint={levelHint} /> : null}
           {attemptId ? <LessonRatingCard attemptId={attemptId} kind={kind} /> : null}
+          {/* Ders bitti (20 Kasım 2026, Faz 8): telefonda "Ana Ekrana Ekle" kartı; kararı kart verir (30 günde bir). */}
+          {payload.type === "lesson" ? <InstallAppCard milestone="lesson_completed" placement="inline" /> : null}
           {/* kıyas ürünü her dersin sonunda "arkadaşına meydan oku" diyor (1 Ekim
               2026). Düello sayfasına gider; kurmak öğrencinin kararı. */}
           <Link href={`/deneme-sinavlari/${prepId}/duello`} className="cp-exam-challenge">

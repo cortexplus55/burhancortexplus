@@ -17,7 +17,8 @@ export default function manifest(): MetadataRoute.Manifest {
     */
     id: "/",
     name: "Cortex Plus",
-    short_name: "Cortex+",
+    // Ana ekrandaki simgenin altındaki ad (20 Kasım 2026, Faz 8, ürün sahibi): markanın tam adı, "Cortex+" değil.
+    short_name: "Cortex Plus",
     description: "AI destekli öğrenme platformu",
     start_url: "/",
     // Kabuğun dışına çıkan bağlantı tarayıcıda açılsın diye kapsam kökte.

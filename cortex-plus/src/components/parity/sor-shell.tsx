@@ -27,6 +27,7 @@ import { formatDate } from "@/lib/format";
 import { ACCOUNT_REFRESH_EVENT } from "@/lib/credits/spendable";
 import { FreePreviewToggle } from "@/components/admin/free-preview-toggle";
 import { EmailVerifyBanner } from "@/components/auth/email-verify-banner";
+import { InstallPromptCapture } from "@/components/pwa/install-prompt-capture";
 import { profilePlanView } from "@/lib/billing/tier-presentation";
 import { ExamChatMenu } from "@/components/parity/exam-chat-menu";
 import { ExamCountdownBadge } from "@/components/parity/exam-countdown-badge";
@@ -317,6 +318,8 @@ export function ParitySorShell({
       ) : null}
       {/* Tek şerit, her öğrenci kabuğunda (Paket J takip #3): oturum ekranları dahil; kurucuda hiç. */}
       {account?.isAdmin ? null : <EmailVerifyBanner initialUnverified={emailUnverified} />}
+      {/* Telefona kurulum olayı (20 Kasım 2026, Faz 8): sayfa geçişlerinde de saklanır; "Ana Ekrana Ekle" kartı okur. */}
+      <InstallPromptCapture />
       {showTopBar ? (
         <header className="cx-home-top">
           {/* Logo (13 Kasım 2026, tasarım tahtası): depodaki dosya düz <img>; üstünde iki maskeli katman (parıltı, renk
