@@ -1,29 +1,19 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { CheckCircle2, Download, Smartphone } from "lucide-react";
 import { googleBlockedWebViewApp } from "@/lib/auth/in-app-browser";
 import { installPlatform, installSteps, type InstallPlatform } from "@/lib/pwa/install-platform";
-
-/** Tarayıcının kurulum olayı (standart tip kütüphanesinde yok). */
-type InstallPromptEvent = Event & {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-};
+import { isStandaloneDisplay, promptInstall, useInstallPrompt } from "@/lib/pwa/install-prompt";
 
 const subscribe = () => () => undefined;
-
-function standaloneNow(): boolean {
-  if (typeof window === "undefined") return false;
-  return (
-    window.matchMedia?.("(display-mode: standalone)").matches === true ||
-    (navigator as Navigator & { standalone?: boolean }).standalone === true
-  );
-}
 
 /**
  * "Tek tıkla kur" (28 Ekim 2026): Android ve masaüstü Chrome'da tarayıcının kurulum penceresini açar;
  * iOS'ta olay hiç gelmez, Safari'nin "Ana Ekrana Ekle" adımları gösterilir.
+ *
+ * Kurulum olayı ortak depodan (20 Kasım 2026, Faz 8, `install-prompt.ts`): öğrenci kabuğunda daha önce yakalanan olay
+ * bu sayfaya sayfa yenilenmeden gelinse de kullanılır; hazırlık sayfasındaki kartla aynı olay.
  */
 export function InstallApp() {
   const platform = useSyncExternalStore<InstallPlatform | null>(
@@ -32,41 +22,17 @@ export function InstallApp() {
     () => null,
   );
   const webviewApp = useSyncExternalStore(subscribe, () => googleBlockedWebViewApp(navigator.userAgent), () => null);
-  const [prompt, setPrompt] = useState<InstallPromptEvent | null>(null);
-  const [installed, setInstalled] = useState(false);
+  const standalone = useSyncExternalStore(subscribe, isStandaloneDisplay, () => false);
+  const { prompt, installed: installedNow } = useInstallPrompt();
+  const [accepted, setAccepted] = useState(false);
   const [declined, setDeclined] = useState(false);
-
-  useEffect(() => {
-    setInstalled(standaloneNow());
-    const onPrompt = (event: Event) => {
-      event.preventDefault();
-      setPrompt(event as InstallPromptEvent);
-    };
-    const onInstalled = () => {
-      setInstalled(true);
-      setPrompt(null);
-    };
-    window.addEventListener("beforeinstallprompt", onPrompt);
-    window.addEventListener("appinstalled", onInstalled);
-    return () => {
-      window.removeEventListener("beforeinstallprompt", onPrompt);
-      window.removeEventListener("appinstalled", onInstalled);
-    };
-  }, []);
+  const installed = standalone || installedNow || accepted;
 
   async function install() {
-    if (!prompt) return;
-    try {
-      await prompt.prompt();
-      const choice = await prompt.userChoice;
-      if (choice.outcome === "accepted") setInstalled(true);
-      else setDeclined(true);
-    } catch {
-      setDeclined(true);
-    } finally {
-      // Olay tek kullanımlık: aynı olayla ikinci kez pencere açılmaz.
-      setPrompt(null);
-    }
+    // Olay tek kullanımlık: depo pencereyi açmadan önce siler, aynı olayla ikinci kez pencere açılmaz.
+    const outcome = await promptInstall();
+    if (outcome === "accepted") setAccepted(true);
+    else if (outcome === "dismissed") setDeclined(true);
   }
 
   if (installed) {
