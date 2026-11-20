@@ -20,7 +20,15 @@ export type CoverageReport = {
   summary: string;
 };
 
-const SKIP_KINDS: PageKind[] = ["cover", "toc", "answer_key", "blank"];
+const SKIP_KINDS: PageKind[] = ["cover", "toc", "answer_key", "blank", "bibliography", "title_only"];
+
+const SKIP_REASON: Partial<Record<PageKind, string>> = {
+  cover: "Kapak sayfası — öğretim kapsamı dışı.",
+  toc: "İçindekiler — öğretim kapsamı dışı.",
+  answer_key: "Cevap anahtarı — öğretim kapsamı dışı.",
+  bibliography: "Kaynakça — öğretim kapsamı dışı.",
+  title_only: "Yalnız başlık sayfası — öğretim kapsamı dışı.",
+};
 
 export function buildCoverageReport(
   pages: PageAnalysis[],
@@ -51,14 +59,7 @@ export function buildCoverageReport(
       skippedPages.push({
         pageNumber: page.pageNumber,
         kind: page.pageKind,
-        reason:
-          page.pageKind === "cover"
-            ? "Kapak sayfası — öğretim kapsamı dışı."
-            : page.pageKind === "toc"
-              ? "İçindekiler — öğretim kapsamı dışı."
-              : page.pageKind === "answer_key"
-                ? "Cevap anahtarı — öğretim kapsamı dışı."
-                : "Boş sayfa.",
+        reason: SKIP_REASON[page.pageKind] ?? "Boş sayfa.",
       });
       continue;
     }

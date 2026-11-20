@@ -11,11 +11,14 @@ import { matchExclusion, type ExcludedTopicNote } from "@/lib/learning/cross-mat
  *
  * Bütün konuları düşürecek ifade yok sayılır (yanlış okunmuş bir cümle hazırlığı boşaltmasın).
  */
-export function splitExcludedTopics<T extends { title: string }>(
+export function splitExcludedTopics<
+  T extends { title: string },
+  U extends { title: string; topicIndexes: number[] } = { title: string; topicIndexes: number[] },
+>(
   topics: readonly T[],
-  units: readonly { title: string; topicIndexes: number[] }[],
+  units: readonly U[],
   phrases: readonly string[],
-): { topics: T[]; units: { title: string; topicIndexes: number[] }[]; excluded: ExcludedTopicNote[] } {
+): { topics: T[]; units: U[]; excluded: ExcludedTopicNote[] } {
   const hits = topics.map((topic) => phrases.find((phrase) => matchExclusion(phrase, topic.title) === "drop") ?? null);
   if (!hits.some(Boolean) || hits.every(Boolean)) {
     return { topics: [...topics], units: units.map((unit) => ({ ...unit })), excluded: [] };
@@ -34,7 +37,7 @@ export function splitExcludedTopics<T extends { title: string }>(
   });
   const remapped = units
     .map((unit) => ({
-      title: unit.title,
+      ...unit,
       topicIndexes: unit.topicIndexes.flatMap((index) => (newIndex.has(index) ? [newIndex.get(index)!] : [])),
     }))
     .filter((unit) => unit.topicIndexes.length);

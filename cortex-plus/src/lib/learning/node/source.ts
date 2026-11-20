@@ -8,6 +8,9 @@ import { REWRITE_SUMMARY_CHARS, rewriteBasisFrom } from "@/lib/learning/rewrite-
 import { errorResponse } from "@/lib/api/guards";
 import { EMPTY_SOURCE_CONTEXT, loadPageSourceAcrossDocuments, loadPageSourceContext, loadSourceContext, pagesMarkedInSource, widenSourcePages } from "@/lib/learning/source-context";
 import { enrichLessonSource, resolveLessonSource, type SourceTrace, type SourceUnavailableReason } from "@/lib/learning/lesson-source-resolver";
+import { allowedPrepDocumentIds } from "@/lib/learning/topic-source-refs";
+import { mainSessionSource } from "@/lib/learning/topic-consolidation";
+import { unitRowDocumentSources } from "@/lib/learning/unit-topic-row";
 import { recordLessonGenerationFailure } from "@/lib/learning/lesson-generation-failures";
 import { prepSourceDocumentIds, resolvePrepSourceMode, shouldSearchSources } from "@/lib/learning/prep-source";
 import { loadPodcastCorpus, mergePodcastSource } from "@/lib/learning/podcast-episode";
@@ -60,7 +63,26 @@ export async function resolveStartSource(context: NodeContext, state: Pick<Start
   }
 
   const prepDocs = teachingV2 ? await loadPrepDocumentIds(service, prepId) : [];
-  if (topicDocumentId) prepSource.document_id = topicDocumentId;
+  // Ana ünite oturumu (Faz 10): ders düğümü kendi grubunun belge başına sayfalarını taşır; öbür adımlar (test, kart,
+  // podcast …) ünitenin bugünkü kaynağını satırdan okur (materyal eklenince genişler, yeniden hedeflenen adım yeni
+  // konusunu okur). Çekirdek belge en çok sayfası olan belge, öbür belgelerin sayfaları yardımcı kaynak
+  // (`unitSupportRefs`). Yalnız hazırlığın belgeleri; geniş kapsamlı sözlüde ("Tüm sınav") yok.
+  const allowedDocs = allowedPrepDocumentIds({
+    primaryDocumentId: prepSource.document_id as string | null,
+    sourceDocumentIds: prepSource.source_document_ids,
+    extraDocumentIds: [topicDocumentId, ...prepDocs],
+  });
+  const unitSession = teachingV2 && !topicWiden && !voiceSession && Boolean(sessionMeta?.unitSources?.length);
+  const unitSources = unitSession
+    ? (kind === "lesson" ? (sessionMeta?.unitSources ?? []) : unitRowDocumentSources({ source_refs: topicSourceRefs })).filter(
+        (ref) => allowedDocs.has(ref.documentId),
+      )
+    : [];
+  const unitMain = mainSessionSource(unitSources);
+  const unitSupportRefs = unitMain ? unitSources.filter((ref) => ref !== unitMain) : [];
+  const sessionCorePages = unitMain ? unitMain.pages : (sessionMeta?.sourcePages ?? []);
+  if (unitMain) prepSource.document_id = unitMain.documentId;
+  else if (topicDocumentId) prepSource.document_id = topicDocumentId;
   const teachingPlan = teachingV2
     ? await loadTopicTeaching(
         service,
@@ -68,7 +90,7 @@ export async function resolveStartSource(context: NodeContext, state: Pick<Start
           ? [prepSource.document_id as string, ...prepDocs]
           : prepDocs,
         topicLabel,
-        sessionMeta?.sourcePages ?? [],
+        sessionCorePages,
       )
     : {
         brief: "",
@@ -160,7 +182,8 @@ export async function resolveStartSource(context: NodeContext, state: Pick<Start
       lessonTopicOnly = true;
       source = EMPTY_SOURCE_CONTEXT;
     } else if (kind === "lesson" && teachingV2 && !voiceSession) {
-      lessonCoreDocumentId = topicDocumentId ?? (prepSource.document_id as string | null) ?? prepDocs[0] ?? null;
+      lessonCoreDocumentId =
+        unitMain?.documentId ?? topicDocumentId ?? (prepSource.document_id as string | null) ?? prepDocs[0] ?? null;
       // Ders: birleşik çözücü. Sonraki adım önceki kaynağı silemez.
       const resolved = await resolveLessonSource(service, {
         userId,
@@ -182,8 +205,9 @@ export async function resolveStartSource(context: NodeContext, state: Pick<Start
       // Öğretmen motoru dersi yalnız konunun kendi sayfalarından yazar;
       // aşağıdaki zenginleştirmenin belgenin başka yerlerinden eklediği
       // parçalar (KPSS dersi s.5'ten s.28'e dağılmıştı) motora gitmez.
-      lessonCorePages =
-        !topicWiden && sessionMeta?.sourcePages?.length
+      lessonCorePages = unitMain
+        ? [...unitMain.pages]
+        : !topicWiden && sessionMeta?.sourcePages?.length
           ? sessionMeta.sourcePages
           : pagesMarkedInSource(resolved.context?.block ?? "");
       if (resolved.unavailable) {
@@ -331,10 +355,13 @@ export async function resolveStartSource(context: NodeContext, state: Pick<Start
   // Öğretmen test motoru: konu testi de konunun kendi sayfalarından yazılır;
   // belgesiz hazırlıkta konunun yerleşik bilgisinden.
   if (TEACHER_PAGE_KINDS.has(kind) && teachingV2 && !voiceSession && !lessonCoreDocumentId) {
-    const documentId = topicDocumentId ?? (prepSource.document_id as string | null) ?? prepDocs[0] ?? null;
+    const documentId =
+      unitMain?.documentId ?? topicDocumentId ?? (prepSource.document_id as string | null) ?? prepDocs[0] ?? null;
     if (documentId) {
       lessonCoreDocumentId = documentId;
-      if (!topicWiden && sessionMeta?.sourcePages?.length) {
+      if (unitMain) {
+        lessonCorePages = [...unitMain.pages];
+      } else if (!topicWiden && sessionMeta?.sourcePages?.length) {
         lessonCorePages = sessionMeta.sourcePages;
       } else {
         // Sayfa listesi yoksa dersin çözücüsü: test ve podcast dersle aynı
@@ -435,7 +462,7 @@ export async function resolveStartSource(context: NodeContext, state: Pick<Start
       refunded: false,
     });
   }
-  return { prepSource, prepDocs, teachingPlan, sourceBoundaryMode, sourceMode, source, sourceTrace, lessonCoreDocumentId, lessonCorePages, lessonTopicOnly, oralAllPlan, podcastSyllabus, alternativeOf, oralPoolDrafts, sourceFallback: sourceFallback as SourceFallbackKind | null, unitSubtopics: unitSubtopics as UnitSubtopics | null };
+  return { prepSource, prepDocs, teachingPlan, sourceBoundaryMode, sourceMode, source, sourceTrace, lessonCoreDocumentId, lessonCorePages, lessonTopicOnly, oralAllPlan, podcastSyllabus, alternativeOf, oralPoolDrafts, sourceFallback: sourceFallback as SourceFallbackKind | null, unitSubtopics: unitSubtopics as UnitSubtopics | null, unitSupportRefs };
 }
 
 /** Kaynak aşamasının erken yanıt dışındaki dönüşü. */

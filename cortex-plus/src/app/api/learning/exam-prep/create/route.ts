@@ -236,11 +236,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: grounded.message }, { status: 400 });
     }
     if (v2) {
+      // Ana ünite modeli (Faz 10, 20 Kasım 2026): yeni hazırlığın yolu ana ünitelerden; ince konular alt başlık.
       const loaded = await loadScheduleTopics(
         service,
         documentIds,
         parsed.data.hardTopics ?? [],
         userId,
+        { mainUnits: true },
       );
       if (loaded.titles.length || grounded.matches.length) {
         const applied = applyStudentTopicList({
@@ -475,6 +477,10 @@ export async function POST(request: Request) {
       measured_level: "unknown",
       diagnostic_status: "unmeasured",
       source_refs: scheduleTopics[topic.sort_order as number]?.sourceRefs ?? [],
+      // Ana ünitenin alt başlıkları (Faz 10); eski modelde alan gönderilmez.
+      ...(scheduleTopics[topic.sort_order as number]?.subtopics?.length
+        ? { subtopics: [...scheduleTopics[topic.sort_order as number]!.subtopics!] }
+        : {}),
     };
   });
   const setupSplit = splitSetupWrites(nodeWrites, topicWrites);

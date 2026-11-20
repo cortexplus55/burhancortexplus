@@ -20,6 +20,8 @@ export type SetupTopicWrite = {
   diagnostic_status?: string;
   source_refs?: TopicSourceRef[];
   contradictions?: TopicContradiction[];
+  /** Ana ünitenin alt başlıkları (Faz 10; göç 20261121120000 sütunu ve RPC alanını ekler). */
+  subtopics?: string[];
 };
 
 export type ContradictionInput = {

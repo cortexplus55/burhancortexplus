@@ -33,11 +33,14 @@ export function pagesForTopicMap(pages: PageAnalysis[]): PageAnalysis[] {
     if (page.extractionOk === false && page.extractionMethod === "ocr") return false;
     return true;
   });
+  // Yalnız başlık sayfası (bölüm ayıracı slaytı) içindekiler gibi yapı ipucudur (Faz 10): harita görür, ünite açmaz
+  // (`topic-consolidation.ts`). Kaynakça haritaya girmez.
   const rich = eligible.filter(
     (page) =>
       page.pageKind === "content" ||
       page.pageKind === "uncertain" ||
-      page.pageKind === "toc",
+      page.pageKind === "toc" ||
+      page.pageKind === "title_only",
   );
   if (rich.length > 0) return rich;
 

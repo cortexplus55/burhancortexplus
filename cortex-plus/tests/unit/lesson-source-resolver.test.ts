@@ -125,10 +125,14 @@ function mockService(handlers: Record<string, (args: unknown) => unknown> = {}) 
 
 describe("pageUsableForLesson — harita ve okuyucu aynı kural", () => {
   it("kısa slayt (unreadable, metin dolu) derste kullanılabilir", () => {
-    const slide = analyzePage(2, "Mol oranı denklemi");
+    // Bilgi taşıyan kısa slayt (bağıntı): öğretilir. Yalnız başlık taşıyan slayt (Faz 10) aşağıda.
+    const slide = analyzePage(2, "n = m / M (mol sayısı)");
     expect(slide.pageKind).toBe("unreadable");
     expect(slide.extractionOk).toBe(false);
     expect(pageUsableForLesson(slide)).toBe(true);
+    const titleSlide = analyzePage(3, "Mol oranı denklemi");
+    expect(titleSlide.pageKind).toBe("title_only");
+    expect(pageUsableForLesson(titleSlide)).toBe(false);
     // pagesForTopicMap aynı pageUsableForLesson kuralını kullanır (kısa slayt yolu).
     expect(
       [slide].filter(

@@ -52,6 +52,7 @@ import {
   listSegments,
   redundantUnitHeader,
   topicSourcesChip,
+  unitSubtopicsToShow,
 } from "@/lib/learning/exam-wizard-copy";
 import {
   dropExamWizardDraft,
@@ -184,6 +185,8 @@ type TopicMeta = {
   /** Short student-facing why/what line from oneshot outline. */
   description?: string | null;
   unitTitle?: string | null;
+  /** Ana ünitenin alt başlıkları (Faz 10): ünitenin altında küçük liste; ünite seçilince hepsi gelir. */
+  subtopics?: string[];
 };
 
 type TopicUnit = { title: string; topicIndexes: number[] };
@@ -979,6 +982,9 @@ export function ExamCreateWizard({
         const descriptions: unknown[] = Array.isArray(payload?.draft?.topicDescriptions)
           ? payload.draft.topicDescriptions
           : [];
+        const subtopicLists: unknown[] = Array.isArray(payload?.draft?.topicSubtopics)
+          ? payload.draft.topicSubtopics
+          : [];
         setTopicMeta(
           found.map((_, index) => ({
             sourceCount: typeof counts[index] === "number" ? counts[index] : 0,
@@ -992,6 +998,9 @@ export function ExamCreateWizard({
                 ? String(descriptions[index]).trim()
                 : null,
             unitTitle: unitTitleForIndex(units, index),
+            ...(Array.isArray(subtopicLists[index])
+              ? { subtopics: unitSubtopicsToShow(found[index] ?? "", subtopicLists[index] as unknown[]) }
+              : {}),
           })),
         );
         setExcludedTopics(
@@ -2827,6 +2836,13 @@ function TopicEditor({
           ) : null}
           {meta.description ? (
             <em className="apw-topic-desc">{meta.description}</em>
+          ) : null}
+          {meta.subtopics?.length ? (
+            <ul className="apw-topic-subtopics" aria-label={`${topic} ${WIZARD_COPY.subtopicsLabel}`}>
+              {meta.subtopics.map((subtopic) => (
+                <li key={subtopic}>{subtopic}</li>
+              ))}
+            </ul>
           ) : null}
           {topicWarnings[index] ? (
             <em className="apw-topic-warning">{topicWarnings[index]}</em>

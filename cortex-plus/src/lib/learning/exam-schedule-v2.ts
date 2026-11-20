@@ -9,6 +9,7 @@ import type { MeasuredLevel } from "@/lib/learning/diagnostic";
 import { extraPracticeForTopic } from "@/lib/learning/cross-material-topics";
 import { sourceCitation } from "@/lib/learning/path-source-label";
 import type { TopicSourceRef } from "@/lib/learning/topic-merge";
+import { mainSessionSource } from "@/lib/learning/topic-consolidation";
 import { addDays, istanbulDay, isoWeekday } from "@/lib/istanbul-day";
 import { SHORT_PLAN_DAYS, pinFinalSessionsInPlace } from "@/lib/learning/path-dates";
 import { HOLIDAY_LOAD_SHARE, turkishHolidayOn, type ScheduleCheckpoint } from "@/lib/learning/tr-calendar";
@@ -50,7 +51,38 @@ export type ScheduleTopicInput = {
    * ders olur ve adını taşır; yoksa mekanik 3 sayfalık bölme.
    */
   units?: { title: string; pages: number[] }[];
+  /**
+   * Ana ünite modeli (Faz 10, 20 Kasım 2026): konu bir ANA ÜNİTEDİR, ince konular alt başlıklarıdır. Varsa ünite tek
+   * ders alır (mekanik sayfa bölmesi yok); `lessonGroups` birden çoksa (ünite 12 öğretilebilir sayfayı aşıyor) her grup
+   * ardışık bir derstir. Yoksa (eski hazırlık) bugünkü kural.
+   */
+  subtopics?: string[];
+  lessonGroups?: ScheduleLessonGroup[];
 };
+
+/** Ana ünitenin bir dersi: alt başlıkları ve belge başına sayfaları (`topic-consolidation.ts` `unitLessonGroups`). */
+export type ScheduleLessonGroup = {
+  subtopics: string[];
+  sourceRefs: { documentId: string; pages: number[] }[];
+};
+
+/** Ünitenin belge başına sayfaları (aynı belgenin yaprakları birleşir, sıra korunur). */
+export function unitSourcesOf(topic: Pick<ScheduleTopicInput, "sourceRefs" | "pageNumbers">): { documentId: string; pages: number[] }[] {
+  const byDoc = new Map<string, Set<number>>();
+  for (const ref of topic.sourceRefs ?? []) {
+    if (!ref.documentId) continue;
+    const set = byDoc.get(ref.documentId) ?? new Set<number>();
+    for (const page of ref.pages ?? []) if (Number.isInteger(page) && page > 0) set.add(page);
+    byDoc.set(ref.documentId, set);
+  }
+  return [...byDoc].map(([documentId, pages]) => ({ documentId, pages: [...pages].sort((a, b) => a - b) }));
+}
+
+/** Ders adındaki alt başlıklar: ilk ikisi (bütün liste düğümün `lessonSubtopics` alanında). */
+function groupTitle(subtopics: readonly string[]): string | undefined {
+  const named = subtopics.map((title) => title.trim()).filter(Boolean);
+  return named.length ? named.slice(0, 2).join(" · ") : undefined;
+}
 
 export type ScheduleBuildInput = {
   daysToExam: number;
@@ -115,6 +147,13 @@ export type ScheduleSession = {
   lessonParts?: number;
   /** Kavram biriminin adı (birimli konuda). */
   unitTitle?: string;
+  /** Ana ünite dersinin alt başlıkları (Faz 10; yalnız ünite modelli hazırlığın ders oturumu). */
+  lessonSubtopics?: string[];
+  /**
+   * Ana ünite oturumunun belge başına sayfaları (Faz 10): dersin kendi grubu, öbür adımlarda ünitenin tamamı. Düğüm
+   * açılışı çekirdek belgeyi (`mainSessionSource`) ve öbür belgelerin yardımcı sayfalarını buradan alır.
+   */
+  unitSources?: { documentId: string; pages: number[] }[];
   /** Resmî tatile düşen oturum: tatilin adı (gün esnek, yük yarıya iner). */
   holiday?: string;
   /** MEB çalışma takvimindeki okul tatiline (ara tatil, yarıyıl) düşen oturum: tatilin adı. */
@@ -255,10 +294,45 @@ export function lessonPageChunks(pageNumbers: number[]): number[][] {
   return chunks;
 }
 
-type LessonChunk = { pages: number[]; part: number; parts: number; title?: string };
+type LessonChunk = {
+  pages: number[];
+  part: number;
+  parts: number;
+  title?: string;
+  subtopics?: string[];
+  sources?: { documentId: string; pages: number[] }[];
+};
 
-/** Konunun dersleri: kavram birimleri varsa onlar, yoksa mekanik sayfa dilimleri. */
-export function topicLessonChunks(topic: Pick<ScheduleTopicInput, "pageNumbers" | "units">): { pages: number[]; title?: string }[] {
+export type TopicLessonChunk = {
+  pages: number[];
+  title?: string;
+  /** Ana ünite dersinin alt başlıkları ve belge başına sayfaları (Faz 10). */
+  subtopics?: string[];
+  sources?: { documentId: string; pages: number[] }[];
+};
+
+/**
+ * Konunun dersleri: ana ünitede (Faz 10) ünitenin tek dersi ya da alt başlık grupları; eski konuda kavram birimleri
+ * varsa onlar, yoksa mekanik sayfa dilimleri.
+ */
+export function topicLessonChunks(
+  topic: Pick<ScheduleTopicInput, "pageNumbers" | "units" | "subtopics" | "lessonGroups" | "sourceRefs">,
+): TopicLessonChunk[] {
+  if (topic.subtopics?.length) {
+    const groups = (topic.lessonGroups ?? []).filter((group) => group.sourceRefs.some((ref) => ref.pages.length));
+    if (groups.length > 1) {
+      return groups.map((group) => {
+        const main = mainSessionSource(group.sourceRefs);
+        return {
+          pages: main ? [...main.pages] : [],
+          ...(groupTitle(group.subtopics) ? { title: groupTitle(group.subtopics) } : {}),
+          subtopics: [...group.subtopics],
+          sources: group.sourceRefs.map((ref) => ({ documentId: ref.documentId, pages: [...ref.pages] })),
+        };
+      });
+    }
+    return [{ pages: [...(topic.pageNumbers ?? [])], subtopics: [...topic.subtopics], sources: unitSourcesOf(topic) }];
+  }
   const units = (topic.units ?? []).filter((unit) => unit.pages.length && unit.title.trim());
   if (units.length > 1) return units.map((unit) => ({ pages: [...unit.pages], title: unit.title.trim() }));
   return lessonPageChunks(topic.pageNumbers ?? []).map((pages) => ({ pages }));
@@ -580,6 +654,19 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
   // Kavram birimi varsa dersin hedefi birimin adıdır; yoksa "(2/5)".
   const partObjective = (objective: string, chunk: LessonChunk | null) =>
     chunk && chunk.parts > 1 ? (chunk.title ? chunk.title : `${objective} (${chunk.part}/${chunk.parts})`) : objective;
+  /**
+   * Ana ünitenin oturum alanları (Faz 10): dersin alt başlıkları ve belge başına kaynağı (grubun ya da ünitenin
+   * tamamı). Eski konuda boş: düğüm açılışı bugünkü gibi konunun kaynağına bakar.
+   */
+  const unitFields = (topic: ScheduleTopicInput, role: ScheduleSessionRole, chunk: LessonChunk | null) => {
+    // Deneme hazırlığın geneli: bir ünitenin kaynağına bağlanmaz.
+    if (!topic.subtopics?.length || role === "mock") return {};
+    const sources = chunk?.sources ?? unitSourcesOf(topic);
+    return {
+      ...(role === "learn" ? { lessonSubtopics: [...(chunk?.subtopics ?? topic.subtopics)] } : {}),
+      ...(sources.length ? { unitSources: sources.map((ref) => ({ documentId: ref.documentId, pages: [...ref.pages] })) } : {}),
+    };
+  };
 
   /**
    * Oturumu günün bütçesine bakmadan yazar ve bütçeden düşer. Bütçe sıfırın altına inebilir: taşan gün
@@ -613,6 +700,7 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
       practiceVariant,
       sourceLabel: cited.label,
       ...partFields(chunk),
+      ...unitFields(topic, role, chunk),
       ...extra,
     };
     sessions.push(session);
@@ -651,6 +739,7 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
       sortOrder: sortOrder++,
       practiceVariant: null,
       sourceLabel: cited.label,
+      ...unitFields(topic, "practice", null),
     });
   };
 
@@ -713,7 +802,7 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
       const lessonM = parts > 1 ? Math.max(10, Math.round(learnM / parts)) : learnM;
       for (const [chunkIndex, chunkEntry] of chunks.entries()) {
         const chunk: LessonChunk | null =
-          parts > 1 ? { pages: chunkEntry.pages, part: chunkIndex + 1, parts, title: chunkEntry.title } : null;
+          parts > 1 ? { ...chunkEntry, part: chunkIndex + 1, parts } : null;
         pushSession(day, topic, "learn", lessonM, null, chunk);
         mark(topicIndex, chunkIndex);
       }
@@ -759,7 +848,7 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
     let chunkFrom = Math.max(preferredDay, earliestLearnDay);
     for (const [chunkIndex, chunkEntry] of chunks.entries()) {
       const chunk: LessonChunk | null =
-        parts > 1 ? { pages: chunkEntry.pages, part: chunkIndex + 1, parts, title: chunkEntry.title } : null;
+        parts > 1 ? { ...chunkEntry, part: chunkIndex + 1, parts } : null;
       let chunkDay = -1;
       const learnOrder: number[] = [];
       for (let d = chunkFrom; d < learnLimit; d += 1) learnOrder.push(d);
@@ -1248,6 +1337,9 @@ export function scheduleSessionsToNodeDrafts(sessions: ScheduleSession[]) {
         calendarDate: s.calendarDate,
         ...(s.lessonPart && s.lessonParts ? { lessonPart: s.lessonPart, lessonParts: s.lessonParts } : {}),
         ...(s.unitTitle ? { unitTitle: s.unitTitle } : {}),
+        // Ana ünite (Faz 10): dersin alt başlıkları ve belge başına kaynağı.
+        ...(s.lessonSubtopics?.length ? { lessonSubtopics: [...s.lessonSubtopics] } : {}),
+        ...(s.unitSources?.length ? { unitSources: s.unitSources.map((ref) => ({ ...ref, pages: [...ref.pages] })) } : {}),
         ...(practice ? { practiceVariant: Math.max(0, s.practiceVariant ?? 0) } : {}),
         ...(s.checkpoint ? { checkpoint: s.checkpoint } : {}),
         ...(s.longReview != null ? { longReview: s.longReview } : {}),

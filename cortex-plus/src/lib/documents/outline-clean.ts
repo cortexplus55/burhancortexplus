@@ -41,6 +41,8 @@ export type OutlineExamWeight = "high" | "medium" | "low";
 export type OutlineUnitDraft = {
   title: string;
   examWeight?: OutlineExamWeight;
+  /** Öğrenme basamağı 1–4 (Faz 10, `outline-topic-meta.ts` `UnitStage`); yoksa sıra değişmez. */
+  stage?: 1 | 2 | 3 | 4;
   topics: {
     /** Local id within the outline (for prerequisite refs). */
     id?: string;

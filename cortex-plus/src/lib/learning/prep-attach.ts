@@ -15,6 +15,82 @@ import { prepSourceDocumentIds } from "@/lib/learning/prep-source";
 import type { TopicSourceRef } from "@/lib/learning/topic-merge";
 import { EXTRA_TOPIC_PREFIX, matchUnit, type UnitCandidate } from "@/lib/content-pool/attach-match";
 import { poolUnitForTopic } from "@/lib/content-pool/serve";
+import { isUnitTopicRow, nodesUseUnits, parseSubtopics } from "@/lib/learning/unit-topic-row";
+import { mergeSubtopics } from "@/lib/learning/topic-consolidation";
+import { unitSourcesOf } from "@/lib/learning/exam-schedule-v2";
+import { parseUnitSources } from "@/lib/learning/teaching-standards";
+
+type AttachTopicRow = Record<string, unknown>;
+type AttachNodeRow = { id: unknown; sort_order: unknown; status: unknown; kind: unknown; session_meta?: unknown };
+
+/** Konu satırları: alt başlıklarla (Faz 10); sütunlar yoksa (göç uygulanmadı) eski seçimler sırayla. */
+async function loadAttachTopicRows(service: SupabaseClient, prepId: string): Promise<AttachTopicRow[] | null> {
+  const selects = [
+    "id, label, sort_order, status, source_refs, document_topic_node_id, subtopics",
+    "id, label, sort_order, status, source_refs, document_topic_node_id",
+    "id, label, sort_order, status, source_refs",
+    "id, label, sort_order, status",
+  ];
+  for (const [index, select] of selects.entries()) {
+    const result = await service.from("exam_prep_topics").select(select).eq("exam_prep_id", prepId).order("sort_order");
+    if (!result.error || index === selects.length - 1 || !missingColumn(result.error)) {
+      return (result.data ?? null) as AttachTopicRow[] | null;
+    }
+  }
+  return null;
+}
+
+/** Düğümün konu kimliği bu satırın mı (satır kimliği ya da belge konu düğümü). */
+function nodeOfTopic(row: AttachTopicRow | undefined, node: AttachNodeRow): boolean {
+  if (!row) return false;
+  const meta = node.session_meta && typeof node.session_meta === "object" ? (node.session_meta as { topicId?: unknown }) : null;
+  const topicId = typeof meta?.topicId === "string" ? meta.topicId : null;
+  return Boolean(topicId) && (topicId === row.id || topicId === row.document_topic_node_id);
+}
+
+/** Ünitenin alt başlıkları: satırdan; göçten önce kurulduysa ders düğümlerinden. */
+function unitSubtopicsOf(row: AttachTopicRow, nodes: readonly AttachNodeRow[]): string[] {
+  const own = parseSubtopics(row.subtopics);
+  if (own.length) return own;
+  return mergeSubtopics(
+    [],
+    nodes
+      .filter((node) => nodeOfTopic(row, node))
+      .flatMap((node) => parseSubtopics((node.session_meta as { lessonSubtopics?: unknown } | null)?.lessonSubtopics)),
+  );
+}
+
+/**
+ * Yeni kaynak alan ünitenin dersi (Faz 10): yeni alt başlıklar ve kaynak ünitenin SON bitmemiş dersine eklenir
+ * (öncekiler kendi gruplarını anlatır). Ders dışı adımlar (test, kart, podcast …) ünitenin kaynağını açılışta satırdan
+ * okur, güncelleme istemez. Bitmiş adım, puan ve hâkimiyet değişmez; bütün dersleri bitmiş ünitede yazım yok.
+ */
+export function unitNodeRefreshes(
+  row: AttachTopicRow | undefined,
+  nodes: readonly AttachNodeRow[],
+  added: readonly TopicSourceRef[],
+  subtopics: readonly string[],
+): { id: string; meta: Record<string, unknown> }[] {
+  const addedSources = unitSourcesOf({ sourceRefs: [...added] });
+  if (!addedSources.length) return [];
+  const lessons = nodes
+    .filter((node) => node.kind === "lesson" && nodeOfTopic(row, node))
+    .sort((a, b) => Number(a.sort_order) - Number(b.sort_order));
+  const last = [...lessons].reverse().find((node) => String(node.status) !== "done");
+  const meta = last?.session_meta && typeof last.session_meta === "object" ? { ...(last.session_meta as Record<string, unknown>) } : null;
+  if (!last || !meta || !Array.isArray(meta.unitSources)) return [];
+  meta.unitSources = unitSourcesOf({
+    sourceRefs: [...parseUnitSources(meta.unitSources), ...addedSources].map((ref) => ({ ...ref, fileName: "", nodeId: null })),
+  });
+  const taught = lessons
+    .filter((other) => other !== last)
+    .flatMap((other) => parseSubtopics((other.session_meta as { lessonSubtopics?: unknown } | null)?.lessonSubtopics));
+  meta.lessonSubtopics = mergeSubtopics(
+    parseSubtopics(meta.lessonSubtopics),
+    subtopics.filter((title) => !taught.includes(title)),
+  );
+  return [{ id: String(last.id), meta }];
+}
 
 /*
   Var olan hazırlığa okunmuş ve haritalanmış belge ekler (31 Ekim 2026). "Materyal ekle" ucu (add-source) ve büyük
@@ -97,36 +173,41 @@ export async function attachDocumentsToPrep(
   const analyses = ensureTeacherAnalyses(service, { userId, documentIds: newDocumentIds }).catch(() => undefined);
   after(() => analyses);
 
-  const loaded = await loadScheduleTopics(service, newDocumentIds, [], userId);
-  // Hızlı başlatma (31 Ekim 2026): hazırlık belgenin baş kopyasıyla kurulduysa o sayfaların konuları zaten yolda;
-  // ana belgeden yalnız sonraki sayfaların konuları eklenir.
-  const headCoverage = await headCoverageFor(service, { userId, sourceDocumentIds: existingDocumentIds, documentIds: newDocumentIds });
-  const scheduleTopics = headCoverage.size
-    ? loaded.scheduleTopics.filter((topic) => topicPastHead(topic, headCoverage))
-    : loaded.scheduleTopics;
   const readinessScore =
     typeof prepResult.data.readiness_score === "number" ? prepResult.data.readiness_score : 0;
 
-  const richTopics = await service
-    .from("exam_prep_topics")
-    .select("id, label, sort_order, status, source_refs")
-    .eq("exam_prep_id", prepId)
-    .order("sort_order");
-  const topicRows = richTopics.error && missingColumn(richTopics.error)
-    ? (
-        await service
-          .from("exam_prep_topics")
-          .select("id, label, sort_order, status")
-          .eq("exam_prep_id", prepId)
-          .order("sort_order")
-      ).data
-    : richTopics.data;
+  // Ana ünite satırı (Faz 10) alt başlıklarıyla; sütun yoksa (göç uygulanmadı) eski seçimler sırayla.
+  const topicRows = await loadAttachTopicRows(service, prepId);
 
   const { data: nodeRows } = await service
     .from("exam_prep_nodes")
-    .select("id, title, sort_order, status, kind, day_index")
+    .select("id, title, sort_order, status, kind, day_index, session_meta")
     .eq("exam_prep_id", prepId)
     .order("sort_order");
+
+  // Ana ünite modelli hazırlık (Faz 10): satırlarda alt başlık ya da düğümlerde ünite alanı. Eski hazırlık eski kuralla.
+  const unitModel = (topicRows ?? []).some((row) => isUnitTopicRow(row)) || nodesUseUnits(nodeRows ?? []);
+
+  // Hızlı başlatma (31 Ekim 2026): hazırlık belgenin baş kopyasıyla kurulduysa o sayfaların konuları zaten yolda;
+  // ana belgeden yalnız sonraki sayfaların konuları eklenir. Ünite modelinde süzgeç ince konu düzeyinde (üniteler
+  // kurulmadan önce): başın sayfalarındaki ince konu yeni üniteye girmez.
+  const headCoverage = await headCoverageFor(service, { userId, sourceDocumentIds: existingDocumentIds, documentIds: newDocumentIds });
+  const loaded = await loadScheduleTopics(
+    service,
+    newDocumentIds,
+    [],
+    userId,
+    unitModel
+      ? {
+          mainUnits: true,
+          ...(headCoverage.size ? { keepLeaf: (leaf: { sources: TopicSourceRef[] }) => topicPastHead({ sourceRefs: leaf.sources }, headCoverage) } : {}),
+        }
+      : {},
+  );
+  const scheduleTopics =
+    headCoverage.size && !loaded.mainUnits
+      ? loaded.scheduleTopics.filter((topic) => topicPastHead(topic, headCoverage))
+      : loaded.scheduleTopics;
 
   const contradictionDocs = await readContradictionDocuments(service, [
     ...existingDocumentIds,
@@ -138,6 +219,8 @@ export async function attachDocumentsToPrep(
     sources: topic.sourceRefs ?? [],
     prerequisites: topic.prerequisites ?? [],
     nodeIds: topic.sourceRefs?.map((source) => source.nodeId).filter((id): id is string => Boolean(id)) ?? [],
+    ...(topic.subtopics?.length ? { subtopics: [...topic.subtopics] } : {}),
+    ...(topic.lessonGroups?.length ? { lessonGroups: topic.lessonGroups } : {}),
   }));
   // Resmî kurulumlu hazırlık (2 Kasım 2026): belge konusu hazır üniteyle eşleşirse ayrı ücretli düğüm açılmaz,
   // kaynak o ünitenin konusuna bağlanır ("Senin belgenden ek"); eşleşmeyen konu "Belgendeki ek konu" diye eklenir.
@@ -188,6 +271,7 @@ export async function attachDocumentsToPrep(
       sortOrder: row.sort_order as number,
       status: String(row.status ?? "ready"),
       sourceRefs: asSources((row as { source_refs?: unknown }).source_refs),
+      ...(unitModel ? { subtopics: unitSubtopicsOf(row, nodeRows ?? []) } : {}),
     })),
     existingNodes: (nodeRows ?? []).map((row) => ({
       id: row.id as string,
@@ -198,6 +282,7 @@ export async function attachDocumentsToPrep(
       dayIndex: (row.day_index as number) ?? 0,
     })),
     incoming,
+    units: unitModel && loaded.mainUnits === true,
   });
 
   await service
@@ -218,6 +303,28 @@ export async function attachDocumentsToPrep(
     if (write.error && !missingColumn(write.error)) {
       console.error("add-source topic update", write.error.message);
     }
+    if (topic.subtopics?.length) {
+      // Alt başlıklar ayrı: sütun yoksa (göç uygulanmadı) kaynaklar yine yazılmış olur.
+      const subWrite = await service
+        .from("exam_prep_topics")
+        .update({ subtopics: topic.subtopics })
+        .eq("id", topic.id)
+        .eq("exam_prep_id", prepId);
+      if (subWrite.error && !missingColumn(subWrite.error)) console.error("add-source subtopics", subWrite.error.message);
+    }
+    // Ünitenin henüz bitmemiş adımları yeni kaynağı ve alt başlıkları görsün (bitmiş adıma, puana dokunulmaz).
+    if (topic.addedSources?.length) {
+      const row = (topicRows ?? []).find((item) => item.id === topic.id);
+      for (const update of unitNodeRefreshes(row, nodeRows ?? [], topic.addedSources, topic.subtopics ?? [])) {
+        const nodeWrite = await service
+          .from("exam_prep_nodes")
+          .update({ session_meta: update.meta })
+          .eq("id", update.id)
+          .eq("exam_prep_id", prepId)
+          .neq("status", "done");
+        if (nodeWrite.error) console.error("add-source unit node", nodeWrite.error.message);
+      }
+    }
   }
   for (const [topicId, sources] of unitLinks) {
     const row = (topicRows ?? []).find((r) => r.id === topicId);
@@ -233,16 +340,25 @@ export async function attachDocumentsToPrep(
       .eq("exam_prep_id", prepId);
   }
   if (plan.topicInserts.length) {
-    const rich = await service.from("exam_prep_topics").insert(
-      plan.topicInserts.map((topic) => ({
-        exam_prep_id: prepId,
-        label: topic.label,
-        sort_order: topic.sortOrder,
-        status: topic.status,
-        source_refs: topic.sourceRefs,
-        contradictions: topic.contradictions,
-      })),
-    );
+    const richRows = plan.topicInserts.map((topic) => ({
+      exam_prep_id: prepId,
+      label: topic.label,
+      sort_order: topic.sortOrder,
+      status: topic.status,
+      source_refs: topic.sourceRefs,
+      contradictions: topic.contradictions,
+    }));
+    const withSubtopics = plan.topicInserts.some((topic) => topic.subtopics?.length);
+    // Ana ünite (Faz 10) alt başlıklarıyla; sütun yoksa (göç uygulanmadı) alt başlıksız aynı satırlar.
+    const unitInsert = withSubtopics
+      ? await service
+          .from("exam_prep_topics")
+          .insert(richRows.map((row, index) => ({ ...row, subtopics: plan.topicInserts[index]!.subtopics ?? [] })))
+      : null;
+    const rich =
+      unitInsert && !(unitInsert.error && missingColumn(unitInsert.error))
+        ? unitInsert
+        : await service.from("exam_prep_topics").insert(richRows);
     if (rich.error) {
       if (!missingColumn(rich.error)) return { ok: false, status: 500, code: "generation_failed" };
       const plain = await service.from("exam_prep_topics").insert(
@@ -272,7 +388,14 @@ export async function attachDocumentsToPrep(
         day_index: node.dayIndex,
         sort_order: node.sortOrder,
         status: node.status,
-        session_meta: { topicTitle: node.topicTitle, role: "learn" },
+        session_meta: {
+          topicTitle: node.topicTitle,
+          role: "learn",
+          // Ana ünite dersi (Faz 10): alt başlıklar ve belge başına kaynak.
+          ...(node.lessonSubtopics?.length ? { lessonSubtopics: node.lessonSubtopics } : {}),
+          ...(node.unitSources?.length ? { unitSources: node.unitSources } : {}),
+          ...(node.lessonPart && node.lessonParts ? { lessonPart: node.lessonPart, lessonParts: node.lessonParts } : {}),
+        },
       })),
     );
     if (inserted.error) return { ok: false, status: 500, code: "generation_failed" };

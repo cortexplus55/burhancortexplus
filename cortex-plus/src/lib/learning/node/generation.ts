@@ -8,7 +8,12 @@ import { NextResponse, after } from "next/server";
 import { recordLessonTiming, recordOpenTiming } from "@/lib/admin/beta-metrics";
 import { adoptedPrefetchAttempt, dropPrefetch, publishPrefetchPartial, storePrefetchedLesson } from "@/lib/learning/lesson-prefetch";
 import { quizPrefetchStorable } from "@/lib/learning/topic-test-prefetch";
-import { loadTopicSupport, supportPagesForEngine } from "@/lib/learning/topic-support-load";
+import {
+  loadTopicSupport,
+  loadUnitSourcePages,
+  mergeSupportExcerpts,
+  supportPagesForEngine,
+} from "@/lib/learning/topic-support-load";
 import { loadExcludedSiblingTopics } from "@/lib/learning/sibling-topics";
 import { ALL_TOPICS_LABEL } from "@/lib/learning/prep-wide-target";
 import { fillPodcastCheckLater } from "@/lib/learning/podcast-check-later";
@@ -164,7 +169,7 @@ export async function runStartGeneration(
   const { userId, service, options, requestStarted, parsed, prepId, nodeId, lessonFormat, prefetch, teachingV2, prep, node, kind, oralCount, oralMultiTopic, difficulty, voiceMode, familiarity, mood, lessonReviewCards } = context;
   const { sessionMeta, topic, topicLabel, topicWiden, warm, refreshTopicQuiz, voiceSession, premium, freeMeter, practiceTopics, finalFill, retargetedTopic, quizLesson, variant, peekBuildingMs } = state;
   let { title } = state;
-  const { prepSource, prepDocs, teachingPlan, sourceMode, source, sourceTrace, lessonCoreDocumentId, lessonCorePages, lessonTopicOnly, oralAllPlan, podcastSyllabus, alternativeOf, sourceFallback, unitSubtopics } = sourced;
+  const { prepSource, prepDocs, teachingPlan, sourceMode, source, sourceTrace, lessonCoreDocumentId, lessonCorePages, lessonTopicOnly, oralAllPlan, podcastSyllabus, alternativeOf, sourceFallback, unitSubtopics, unitSupportRefs } = sourced;
   const { clientRequestId, generationId, creatingAttemptId } = reserved;
   // Kaydı önceden açılmayan yol (v1) da bilinen bir anahtarla ücretlensin: kayıt yazılamazsa iade bu anahtarı bulur.
   // Önceden yazım ücretsizdir, anahtarı motor kendisi verir.
@@ -231,8 +236,12 @@ export async function runStartGeneration(
   // okuma düşerse boş döner ve ders kendi sayfalarıyla yazılır.
   const teacherCore =
     (kind === "lesson" || TEACHER_PAGE_KINDS.has(kind)) && lessonCoreDocumentId && lessonCorePages.length && !voiceSession;
+  // Ana ünitenin öbür belgelerdeki parçaları (Faz 10, PDF + slayt + not aynı ünitede) önce, kendi etiketleriyle.
   const lessonSupport = teacherCore
-    ? loadTopicSupport(service, { userId, prepId, topicId: topic?.id ?? null })
+    ? Promise.all([
+        unitSupportRefs.length ? loadUnitSourcePages(service, userId, unitSupportRefs) : Promise.resolve([]),
+        loadTopicSupport(service, { userId, prepId, topicId: topic?.id ?? null }),
+      ]).then(([unitPages, support]) => mergeSupportExcerpts(unitPages, support))
     : Promise.resolve([]);
   // Kardeş ünite sınırı (19 Kasım 2026, Faz 1-A §1): aynı kaynak sayfalarını paylaşan üniteler; yalnız okuma, paralel.
   const excludedSiblingsEarly: Promise<string[]> =
