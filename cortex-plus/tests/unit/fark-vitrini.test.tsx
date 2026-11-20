@@ -338,10 +338,12 @@ describe("/ornek ve /ozellikler", () => {
     expect(ADVANTAGE_ROWS.map((row) => row.id)).toEqual(
       expect.arrayContaining([RADIO_SHOWCASE.id, RED_PEN_SHOWCASE.id, CLASS_SHARE_SHOWCASE.id]),
     );
-    // Ana sayfanın fark satırları değişmedi: yeni beşi orada kartla anlatılıyor.
+    // Ana sayfanın fark satırlarına yenileri girmez (orada kartla anlatılıyor); sınav sabahı kâğıdı satırı da çıktı:
+    // kâğıdı "Sınıfla paylaş" kartı ve turun Plus adımı anlatıyor (aynı özellik sayfada üç kez anlatılmaz).
     const home = render(<LandingDuel />);
     const rows = home.container.querySelectorAll("ol.hm-duel-list > li");
-    expect(rows).toHaveLength(5);
+    expect(rows).toHaveLength(4);
+    expect(home.container.querySelector("ol.hm-duel-list")?.textContent ?? "").not.toMatch(/Sınav Sabahı/i);
   });
 });
 

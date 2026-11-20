@@ -25,8 +25,8 @@ import { HOME_COPY } from "@/lib/marketing/landing-content";
  * `public/ornek/` altındaki kaydı çalar. Sahnenin geri kalanı yine istek ve hareket kodu taşımaz.
  */
 
-/** Ana sayfadaki düello satırları, sırayla. Kalan iki satırı "aynı not" kartı anlatır. */
-export const HOME_DUEL_ROW_IDS = ["ikiz-sinav", "sinav-sabahi", "ikiz-soru", "sessiz-sozlu", "velime-link"] as const;
+/** Ana sayfadaki düello satırları, sırayla. Kalan iki satırı "aynı not" kartı anlatır; sınav sabahı kâğıdını Faz 7 (20 Kasım 2026) fark vitrininin "Sınıfla paylaş" kartı ve turun Plus adımı anlatır (aynı özellik sayfada üç kez anlatılmaz). */
+export const HOME_DUEL_ROW_IDS = ["ikiz-sinav", "ikiz-soru", "sessiz-sozlu", "velime-link"] as const;
 
 /** "🎯 Başlık" → simge ve başlık. Simge süs; başlık ekran okuyucuya emojisiz okunur. */
 function splitFeature(feature: string): { emoji: string; title: string } {

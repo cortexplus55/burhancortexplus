@@ -165,7 +165,7 @@ describe("aynı not, iki ayrı sonuç", () => {
 
   it("fark satırları açılır; kartın anlattığı iki fark ikinci kez yazılmaz", () => {
     render(<LandingDuel />);
-    expect([...HOME_DUEL_ROW_IDS]).toEqual(["ikiz-sinav", "sinav-sabahi", "ikiz-soru", "sessiz-sozlu", "velime-link"]);
+    expect([...HOME_DUEL_ROW_IDS]).toEqual(["ikiz-sinav", "ikiz-soru", "sessiz-sozlu", "velime-link"]);
     const list = document.querySelector("ol.hm-duel-list") as HTMLElement;
     const rows = within(list).getAllByRole("listitem");
     expect(rows).toHaveLength(HOME_DUEL_ROW_IDS.length);
