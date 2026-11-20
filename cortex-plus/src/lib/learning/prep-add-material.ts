@@ -9,9 +9,12 @@ import {
   formatContradictions,
 } from "@/lib/learning/source-contradictions";
 import {
+  MAX_MAIN_UNITS,
+  UNIT_LESSON_MAX_PAGES,
   mergeSubtopics,
   mergeUnitSourceRefs,
   sameUnitTheme,
+  unitRelatedness,
 } from "@/lib/learning/topic-consolidation";
 import { unitSourcesOf, type ScheduleLessonGroup } from "@/lib/learning/exam-schedule-v2";
 
@@ -25,6 +28,11 @@ import { unitSourcesOf, type ScheduleLessonGroup } from "@/lib/learning/exam-sch
  * Ana ünite modeli (Faz 10, 20 Kasım 2026): yeni belgenin üniteleri var olan ünitelerle adından ya da alt başlık
  * örtüşmesinden eşlenir; eşleşen ünite yeni alt başlıkları ve kaynakları alır (küçük bir ünite açılmaz), eşleşmeyen
  * ünite önkoşul yerine yeni ünite olarak girer. Eski hazırlık (alt başlıksız) bugünkü kuralla.
+ *
+ * Ünite tavanı (Faz 10): hazırlıkta en çok `MAX_MAIN_UNITS` (15) ana ünite. Tavanı aşacak yeni ünite açılmaz, en ilgili
+ * üniteye (sözcük örtüşmesi; örtüşme yoksa yolun son ünitesine) katılır. Katılan içerik ünitenin açık son dersine ancak
+ * o dersin kaynağı `UNIT_LESSON_MAX_PAGES` (12) sayfayı geçmeyecekse eklenir; geçecekse ya da ünitenin bütün dersleri
+ * bitmişse ünitenin son dersinden (ve son bitmiş adımından) sonra yeni ders adımları açılır. Hiçbir sayfa düşmez.
  */
 
 export type ExistingPrepTopic = {
@@ -44,6 +52,10 @@ export type ExistingPrepNode = {
   status: string;
   kind: string;
   dayIndex: number;
+  /** Düğümün ana ünitesinin satır kimliği (Faz 10; çağıran düğümün konu kimliğinden ya da adından çözer). */
+  topicId?: string | null;
+  /** Ders düğümünün belge sayfası sayısı (`session_meta.unitSources`); yoksa yeni kaynak bu derse eklenmez. */
+  lessonPages?: number | null;
 };
 
 /** Gelen konu; ana ünite modelinde alt başlıkları ve dersleriyle. */
@@ -61,7 +73,9 @@ export type AddMaterialPlan = {
     warning: string;
     /** Ana ünite (Faz 10): ünitenin birleşmiş alt başlıkları ve bu eklemenin getirdiği kaynaklar. */
     subtopics?: string[];
+    /** Ünitenin açık son dersine eklenecek kaynak ve alt başlıklar (yalnız o derse sığanlar). */
     addedSources?: TopicSourceRef[];
+    refreshSubtopics?: string[];
   }[];
   topicInserts: {
     label: string;
@@ -80,6 +94,8 @@ export type AddMaterialPlan = {
     dayIndex: number;
     status: "locked" | "ready";
     topicTitle: string;
+    /** Var olan ünitenin yeni dersi (Faz 10): ünitenin satır kimliği. Yeni ünitede çağıran eklemeden sonra çözer. */
+    topicId?: string;
     /** Ana ünite dersinin alanları (Faz 10; `session_meta`). */
     lessonSubtopics?: string[];
     unitSources?: { documentId: string; pages: number[] }[];
@@ -139,6 +155,37 @@ function placeIncoming(
   return placed;
 }
 
+function pageCount(sources: readonly { pages: readonly number[] }[]): number {
+  return sources.reduce((sum, source) => sum + new Set(source.pages).size, 0);
+}
+
+/** Ünitenin bütün dersleri grup olarak (tek dersli ünitede tek grup); birleştirmede iki ünitenin dersleri uç uca. */
+function lessonGroupsOf(topic: IncomingPrepTopic): ScheduleLessonGroup[] {
+  const groups = (topic.lessonGroups ?? []).filter((group) => group.sourceRefs.some((ref) => ref.pages.length));
+  if (groups.length) {
+    return groups.map((group) => ({
+      subtopics: [...group.subtopics],
+      sourceRefs: group.sourceRefs.map((ref) => ({ ...ref, pages: [...ref.pages] })),
+    }));
+  }
+  const subtopics = topic.subtopics?.length ? [...topic.subtopics] : [topic.title];
+  return [{ subtopics, sourceRefs: unitSourcesOf({ sourceRefs: topic.sources }) }];
+}
+
+/** Tavanı aşan yeni üniteyi (`guest`) aynı eklemenin yeni ünitesine (`host`) katar: ad host'un, guest alt başlık olur. */
+function absorbIncoming(host: IncomingPrepTopic, guest: IncomingPrepTopic): IncomingPrepTopic {
+  const ownTitle = topicMatchKey(guest.title) === topicMatchKey(host.title) ? [] : [guest.title];
+  return {
+    ...host,
+    pages: [...new Set([...host.pages, ...guest.pages])].sort((a, b) => a - b),
+    sources: mergeUnitSourceRefs(host.sources, guest.sources),
+    prerequisites: [...new Set([...host.prerequisites, ...guest.prerequisites])],
+    nodeIds: [...new Set([...host.nodeIds, ...guest.nodeIds])],
+    subtopics: mergeSubtopics(host.subtopics ?? [], [...ownTitle, ...(guest.subtopics ?? [])]),
+    lessonGroups: [...lessonGroupsOf(host), ...lessonGroupsOf(guest)],
+  };
+}
+
 /** Ana ünitenin dersleri: alt başlık grupları (iki ya da daha çok) ya da ünitenin tek dersi. */
 function unitLessons(topic: IncomingPrepTopic): { subtopics: string[]; sources: { documentId: string; pages: number[] }[] }[] {
   const groups = (topic.lessonGroups ?? []).filter((group) => group.sourceRefs.some((ref) => ref.pages.length));
@@ -171,37 +218,99 @@ export function planAddedMaterial(input: {
   const topicUpdates: AddMaterialPlan["topicUpdates"] = [];
   /** Aynı eklemede iki ünite aynı var olan üniteye katılırsa ikinci güncelleme birincinin üstüne kurulur. */
   const updated = new Map<string, AddMaterialPlan["topicUpdates"][number]>();
+  /** Var olan ünitenin yeni dersleri: açık son dersine sığmayan (ya da bütün dersleri bitmiş ünitenin) içerik. */
+  const extraLessons = new Map<string, ScheduleLessonGroup[]>();
+  /** Bu eklemede ünitenin açık son dersine giden sayfa: iki ekleme o dersin sınırını birlikte aşmasın. */
+  const refreshPages = new Map<string, number>();
+  /** Tavan yüzünden bu eklemenin yeni ünitesine katılan ünitelerin çelişki notları (ünitenin adıyla). */
+  const absorbedContradictions = new Map<string, TopicContradiction[]>();
+  // Ünite tavanı (Faz 10): hazırlıkta en çok MAX_MAIN_UNITS ana ünite.
+  const capacity = input.units ? Math.max(0, MAX_MAIN_UNITS - input.existingTopics.length) : Number.POSITIVE_INFINITY;
+  const unitLessonNodes = (topicId: string) =>
+    input.existingNodes
+      .filter((node) => node.kind === "lesson" && node.topicId === topicId)
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+  const subtopicsOf = (topic: ExistingPrepTopic) => updated.get(topic.id)?.subtopics ?? topic.subtopics ?? [];
+
+  const mergeIntoExisting = (topic: IncomingPrepTopic, have: ExistingPrepTopic, contradictions: TopicContradiction[]) => {
+    const previous = updated.get(have.id);
+    const baseRefs = previous?.sourceRefs ?? have.sourceRefs;
+    const ownTitle = topicMatchKey(topic.title) === topicMatchKey(have.label) ? [] : [topic.title];
+    const added = [...ownTitle, ...(topic.subtopics ?? [])];
+    const groups = lessonGroupsOf(topic);
+    const lastOpen = [...unitLessonNodes(have.id)].reverse().find((node) => node.status !== "done");
+    const pending = refreshPages.get(have.id) ?? 0;
+    const addedPages = pageCount(groups.flatMap((group) => group.sourceRefs));
+    // Açık son derse yalnız tek dersi olan ve o dersin sınırını aşmayan içerik eklenir; bu eklemede ünitenin yeni dersi
+    // açıldıysa sonraki içerik de onların arkasına (sıra bozulmasın).
+    const fits =
+      !extraLessons.has(have.id) &&
+      groups.length === 1 &&
+      lastOpen != null &&
+      typeof lastOpen.lessonPages === "number" &&
+      lastOpen.lessonPages + pending + addedPages <= UNIT_LESSON_MAX_PAGES;
+    if (fits) refreshPages.set(have.id, pending + addedPages);
+    else extraLessons.set(have.id, [...(extraLessons.get(have.id) ?? []), ...groups]);
+    const refreshSources = [
+      ...(previous?.addedSources ?? []),
+      ...(fits ? topic.sources.map((source) => ({ ...source, pages: [...source.pages] })) : []),
+    ];
+    const allContradictions = [...(previous?.contradictions ?? []), ...contradictions];
+    const entry: AddMaterialPlan["topicUpdates"][number] = {
+      id: have.id,
+      sourceRefs: mergeUnitSourceRefs(baseRefs, topic.sources),
+      contradictions: allContradictions,
+      warning: formatContradictions(allContradictions),
+      subtopics: mergeSubtopics(subtopicsOf(have), added),
+      ...(refreshSources.length
+        ? { addedSources: refreshSources, refreshSubtopics: mergeSubtopics(previous?.refreshSubtopics ?? [], fits ? added : []) }
+        : {}),
+    };
+    if (!previous) topicUpdates.push(entry);
+    else topicUpdates.splice(topicUpdates.indexOf(previous), 1, entry);
+    updated.set(have.id, entry);
+  };
+
+  /** Tavanı aşan ünitenin yeri: sözcük örtüşmesi en yüksek ünite; eşitlikte (örtüşme yoksa da) yolun sonuna yakın olan. */
+  const closestUnit = (topic: IncomingPrepTopic): { fresh: number } | { existing: ExistingPrepTopic } | null => {
+    const subject = { title: topic.title, subtopics: topic.subtopics ?? [] };
+    let best: { score: number; pick: { fresh: number } | { existing: ExistingPrepTopic } } | null = null;
+    for (const existing of [...input.existingTopics].sort((a, b) => a.sortOrder - b.sortOrder)) {
+      const score = unitRelatedness(subject, { title: existing.label, subtopics: subtopicsOf(existing) });
+      if (!best || score >= best.score) best = { score, pick: { existing } };
+    }
+    fresh.forEach((unit, index) => {
+      const score = unitRelatedness(subject, { title: unit.title, subtopics: unit.subtopics ?? [] });
+      if (!best || score >= best.score) best = { score, pick: { fresh: index } };
+    });
+    return best?.pick ?? null;
+  };
 
   for (const topic of input.incoming) {
     const contradictions = input.contradictionsByTitle.get(topic.title) ?? [];
     if (input.units) {
       const incomingSubtopics = topic.subtopics ?? [];
-      const have = input.existingTopics.find((existing) => {
-        const merged = updated.get(existing.id);
-        return sameUnitTheme(
+      const have = input.existingTopics.find((existing) =>
+        sameUnitTheme(
           { title: topic.title, subtopics: incomingSubtopics },
-          { title: existing.label, subtopics: merged?.subtopics ?? existing.subtopics ?? [] },
-        );
-      });
-      if (!have) {
+          { title: existing.label, subtopics: subtopicsOf(existing) },
+        ),
+      );
+      if (have) {
+        mergeIntoExisting(topic, have, contradictions);
+        continue;
+      }
+      if (fresh.length < capacity) {
         fresh.push(topic);
         continue;
       }
-      const previous = updated.get(have.id);
-      const baseRefs = previous?.sourceRefs ?? have.sourceRefs;
-      const baseSubtopics = previous?.subtopics ?? have.subtopics ?? [];
-      const ownTitle = topicMatchKey(topic.title) === topicMatchKey(have.label) ? [] : [topic.title];
-      const entry = {
-        id: have.id,
-        sourceRefs: mergeUnitSourceRefs(baseRefs, topic.sources),
-        contradictions: [...(previous?.contradictions ?? []), ...contradictions],
-        warning: formatContradictions([...(previous?.contradictions ?? []), ...contradictions]),
-        subtopics: mergeSubtopics(baseSubtopics, [...ownTitle, ...incomingSubtopics]),
-        addedSources: [...(previous?.addedSources ?? []), ...topic.sources.map((source) => ({ ...source, pages: [...source.pages] }))],
-      };
-      if (!previous) topicUpdates.push(entry);
-      else topicUpdates.splice(topicUpdates.indexOf(previous), 1, entry);
-      updated.set(have.id, entry);
+      const target = closestUnit(topic);
+      if (target && "fresh" in target) {
+        const host = fresh[target.fresh]!;
+        absorbedContradictions.set(host.title, [...(absorbedContradictions.get(host.title) ?? []), ...contradictions]);
+        fresh[target.fresh] = absorbIncoming(host, topic);
+      } else if (target) mergeIntoExisting(topic, target.existing, contradictions);
+      else fresh.push(topic);
       continue;
     }
     const have = byKey.get(topicMatchKey(topic.title));
@@ -227,7 +336,10 @@ export function planAddedMaterial(input: {
 
   const topicInserts: AddMaterialPlan["topicInserts"] = fresh.map((topic) => {
     const row = placed.find((item) => item.id == null && item.label === topic.title);
-    const contradictions = input.contradictionsByTitle.get(topic.title) ?? [];
+    const contradictions = [
+      ...(input.contradictionsByTitle.get(topic.title) ?? []),
+      ...(absorbedContradictions.get(topic.title) ?? []),
+    ];
     return {
       label: topic.title,
       sortOrder: row?.sortOrder ?? placed.length,
@@ -250,6 +362,9 @@ export function planAddedMaterial(input: {
     sortOrder: number;
     fresh: boolean;
     topicTitle: string;
+    topicId?: string | null;
+    kind?: string;
+    done?: boolean;
     lesson?: { subtopics: string[]; sources: { documentId: string; pages: number[] }[]; part: number; parts: number };
   };
   const virtual: VirtualNode[] = input.existingNodes.map((node) => ({
@@ -258,6 +373,9 @@ export function planAddedMaterial(input: {
     sortOrder: node.sortOrder,
     fresh: false,
     topicTitle: node.title,
+    topicId: node.topicId ?? null,
+    kind: node.kind,
+    done: node.status === "done",
   }));
   const orderedFresh = orderTopicsForPath(fresh, { manualOrder: false });
   let readyGiven = false;
@@ -289,6 +407,45 @@ export function planAddedMaterial(input: {
       });
     });
   }
+  // Var olan ünitenin yeni dersleri: ünitenin son dersinden ve son bitmiş adımından sonra (bitmemiş testi, kartları
+  // yeni içeriğin arkasında kalır); ünitenin hiç adımı yoksa yolun sonunda.
+  for (const [unitId, groups] of extraLessons) {
+    const unit = input.existingTopics.find((topic) => topic.id === unitId);
+    if (!unit || !groups.length) continue;
+    const anchors = virtual
+      .filter((node) => !node.fresh && node.topicId === unitId && (node.kind === "lesson" || node.done))
+      .map((node) => node.sortOrder);
+    const at = anchors.length
+      ? Math.max(...anchors) + 1
+      : virtual.reduce((max, node) => Math.max(max, node.sortOrder), -1) + 1;
+    for (const node of virtual) {
+      if (node.sortOrder >= at) node.sortOrder += groups.length;
+    }
+    const before = unitLessonNodes(unitId).length;
+    const parts = before + groups.length;
+    groups.forEach((group, index) => {
+      const part = before + index + 1;
+      const named = group.subtopics.map((title) => title.trim()).filter(Boolean).slice(0, 2).join(" · ");
+      virtual.push({
+        id: null,
+        title: `${unit.label} · Ders ${part}${named ? `: ${named}` : ""}`.slice(0, 200),
+        sortOrder: at + index,
+        fresh: true,
+        topicTitle: unit.label,
+        topicId: unitId,
+        lesson: {
+          subtopics: [...group.subtopics],
+          sources: group.sourceRefs.map((ref) => ({ documentId: ref.documentId, pages: [...ref.pages] })),
+          part,
+          parts,
+        },
+      });
+    });
+  }
+  // Yol boşsa ya da bitmişse yolda en öndeki yeni ders açık başlar.
+  const firstFresh = virtual
+    .filter((node) => node.fresh)
+    .reduce<VirtualNode | null>((first, node) => (!first || node.sortOrder < first.sortOrder ? node : first), null);
   const nodeSortUpdates = input.existingNodes.flatMap((node) => {
     const next = virtual.find((item) => item.id === node.id);
     if (!next || next.sortOrder === node.sortOrder) return [];
@@ -298,7 +455,7 @@ export function planAddedMaterial(input: {
     .filter((node) => node.fresh)
     .map((node) => {
       const open = input.existingNodes.length === 0 || allDone;
-      const status = open && !readyGiven ? "ready" : "locked";
+      const status = open && !readyGiven && node === firstFresh ? "ready" : "locked";
       if (status === "ready") readyGiven = true;
       return {
         title: node.title,
@@ -307,6 +464,7 @@ export function planAddedMaterial(input: {
         dayIndex,
         status,
         topicTitle: node.topicTitle,
+        ...(node.topicId ? { topicId: node.topicId } : {}),
         ...(node.lesson
           ? {
               ...(node.lesson.subtopics.length ? { lessonSubtopics: node.lesson.subtopics } : {}),

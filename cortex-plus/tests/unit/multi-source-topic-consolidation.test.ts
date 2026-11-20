@@ -11,6 +11,8 @@ import {
   sameUnitTheme,
   unitCountBand,
   unitLessonGroups,
+  unitRelatedness,
+  UNIT_LESSON_MAX_PAGES,
   type ConsolidationDocument,
   type ConsolidationInput,
   type ConsolidationTopic,
@@ -453,8 +455,9 @@ describe("sonradan materyal ekleme (e)", () => {
     },
   ];
   const existingNodes = [
-    { id: "n0", title: "Topic Alpha · Ders", sortOrder: 0, status: "done", kind: "lesson", dayIndex: 1 },
-    { id: "n1", title: "Topic Beta · Ders", sortOrder: 1, status: "ready", kind: "lesson", dayIndex: 2 },
+    { id: "n0", title: "Topic Alpha · Ders", sortOrder: 0, status: "done", kind: "lesson", dayIndex: 1, topicId: "row-alpha", lessonPages: 1 },
+    { id: "n0b", title: "Topic Alpha · Ders 2", sortOrder: 1, status: "ready", kind: "lesson", dayIndex: 1, topicId: "row-alpha", lessonPages: 1 },
+    { id: "n1", title: "Topic Beta · Ders", sortOrder: 2, status: "ready", kind: "lesson", dayIndex: 2, topicId: "row-beta", lessonPages: 2 },
   ];
   const incoming: IncomingPrepTopic[] = [
     {
@@ -491,6 +494,9 @@ describe("sonradan materyal ekleme (e)", () => {
     expect(plan.topicUpdates[0]!.subtopics).toEqual(["subtopic-1", "subtopic-2", "Topic Alpha Extra", "subtopic-4"]);
     expect(plan.topicUpdates[0]!.sourceRefs.map((ref) => ref.nodeId)).toEqual(["a1", "b1"]);
     expect(plan.topicUpdates[0]!.addedSources?.map((ref) => ref.documentId)).toEqual(["slide-b"]);
+    // Açık son derse (1 sayfa) 2 sayfa eklenir: sınırın altında, yeni ders açılmaz; o derse yalnız yeni alt başlıklar.
+    expect(plan.topicUpdates[0]!.refreshSubtopics).toEqual(["Topic Alpha Extra", "subtopic-2", "subtopic-4"]);
+    expect(plan.nodeInserts.some((node) => node.topicId === "row-alpha")).toBe(false);
   });
 
   it("örtüşmeyen ünite önkoşulunun ardına yeni ünite olarak girer; ilerleme sıfırlanmaz", () => {
@@ -503,6 +509,7 @@ describe("sonradan materyal ekleme (e)", () => {
     expect(plan.nodeInserts[0]!.unitSources).toEqual([{ documentId: "slide-b", pages: [3, 4, 5] }]);
     expect(plan.keptNodeStatuses).toEqual([
       { id: "n0", status: "done" },
+      { id: "n0b", status: "ready" },
       { id: "n1", status: "ready" },
     ]);
     expect(plan.readinessScore).toBe(40);
@@ -536,6 +543,174 @@ describe("sonradan materyal ekleme (e)", () => {
     expect(sameUnitTheme({ title: "Topic Alpha", subtopics: [] }, { title: "topic alpha", subtopics: [] })).toBe(true);
     expect(sameUnitTheme({ title: "subtopic-1", subtopics: [] }, { title: "Topic Alpha", subtopics: ["subtopic-1"] })).toBe(true);
     expect(sameUnitTheme({ title: "Topic X", subtopics: ["subtopic-9"] }, { title: "Topic Y", subtopics: ["subtopic-8"] })).toBe(false);
+  });
+});
+
+describe("sonradan materyal ekleme (e2): ünite tavanı ve sayfa kaybı yok", () => {
+  /** n var olan ünite; her birinin tek, açık dersi (ilk ünite bitmiş). */
+  function existingPrep(n: number) {
+    const topics = Array.from({ length: n }, (_, index) => ({
+      id: `row-${index + 1}`,
+      label: `topic-${String.fromCharCode(97 + index)} unit`,
+      sortOrder: index,
+      status: "ready",
+      sourceRefs: [{ documentId: "doc-a", fileName: "doc-a.pdf", pages: [index + 1], nodeId: `a${index + 1}` }],
+      subtopics: [`subtopic-${index + 1}`],
+    }));
+    const nodes = topics.map((topic, index) => ({
+      id: `n${index + 1}`,
+      title: topic.label,
+      sortOrder: index,
+      status: index === 0 ? "done" : "ready",
+      kind: "lesson",
+      dayIndex: index,
+      topicId: topic.id,
+      lessonPages: 1,
+    }));
+    return { topics, nodes };
+  }
+  const incomingUnit = (title: string, pages: number[], subtopics: string[], documentId = "doc-big", groups?: number[][]): IncomingPrepTopic => ({
+    title,
+    pages,
+    sources: [{ documentId, fileName: "doc-big.pdf", pages, nodeId: `${title}-leaf` }],
+    prerequisites: [],
+    nodeIds: [`${title}-leaf`],
+    subtopics,
+    ...(groups
+      ? { lessonGroups: groups.map((group, index) => ({ subtopics: [subtopics[index] ?? title], sourceRefs: [{ documentId, pages: group }] })) }
+      : {}),
+  });
+  const allPages = (plan: ReturnType<typeof planAddedMaterial>, documentId: string) =>
+    [
+      ...new Set(
+        [...plan.topicUpdates.flatMap((topic) => topic.sourceRefs), ...plan.topicInserts.flatMap((topic) => topic.sourceRefs)]
+          .filter((ref) => ref.documentId === documentId)
+          .flatMap((ref) => ref.pages),
+      ),
+    ].sort((a, b) => a - b);
+
+  it("tavan: 14 ünitelik hazırlığa üç yeni ünite gelirse yalnız biri açılır, öbürleri en ilgili üniteye katılır; sayfa düşmez", () => {
+    const { topics, nodes } = existingPrep(14);
+    const plan = planAddedMaterial({
+      existingDocumentIds: ["doc-a"],
+      newDocumentIds: ["doc-big"],
+      readinessScore: 0,
+      contradictionsByTitle: new Map(),
+      existingTopics: topics,
+      existingNodes: nodes,
+      incoming: [
+        incomingUnit("Topic Omega", [41, 42], ["subtopic-omega-1"]),
+        incomingUnit("Omega Extension", [43, 44], ["subtopic-omega-2"]),
+        incomingUnit("topic-c unit continued", [45, 46], ["subtopic-c-more"]),
+      ],
+      units: true,
+    });
+    expect(topics.length + plan.topicInserts.length).toBe(MAX_MAIN_UNITS);
+    expect(plan.topicInserts.map((topic) => topic.label)).toEqual(["Topic Omega"]);
+    // "Omega Extension" yeni ünitenin sözcüğünü taşır: aynı eklemenin yeni ünitesine katılır, alt başlık olur.
+    expect(plan.topicInserts[0]!.subtopics).toEqual(["subtopic-omega-1", "Omega Extension", "subtopic-omega-2"]);
+    // "topic-c unit continued" var olan üçüncü üniteyle sözcük paylaşır: oraya katılır.
+    expect(plan.topicUpdates.map((topic) => topic.id)).toEqual(["row-3"]);
+    expect(allPages(plan, "doc-big")).toEqual([41, 42, 43, 44, 45, 46]);
+    // Yeni ünitenin iki dersi (kendi + katılan), ikisi de ünite adını taşır.
+    const omega = plan.nodeInserts.filter((node) => node.topicTitle === "Topic Omega");
+    expect(omega.map((node) => node.unitSources)).toEqual([
+      [{ documentId: "doc-big", pages: [41, 42] }],
+      [{ documentId: "doc-big", pages: [43, 44] }],
+    ]);
+  });
+
+  it("tavan dolu ve örtüşme yok: ünite yolun son ünitesine katılır", () => {
+    const { topics, nodes } = existingPrep(MAX_MAIN_UNITS);
+    const plan = planAddedMaterial({
+      existingDocumentIds: ["doc-a"],
+      newDocumentIds: ["doc-big"],
+      readinessScore: 0,
+      contradictionsByTitle: new Map(),
+      existingTopics: topics,
+      existingNodes: nodes,
+      incoming: [incomingUnit("Zeta Quantum", [50], ["zeta-leaf"])],
+      units: true,
+    });
+    expect(plan.topicInserts).toEqual([]);
+    expect(plan.topicUpdates.map((topic) => topic.id)).toEqual([`row-${MAX_MAIN_UNITS}`]);
+    expect(plan.topicUpdates[0]!.subtopics).toEqual([`subtopic-${MAX_MAIN_UNITS}`, "Zeta Quantum", "zeta-leaf"]);
+  });
+
+  it("katılan içerik açık son dersin sınırını aşarsa ünitenin son dersinden sonra yeni dersler açılır (bitmemiş test arkada kalır)", () => {
+    const topics = [
+      { id: "row-alpha", label: "Topic Alpha", sortOrder: 0, status: "ready", sourceRefs: [{ documentId: "doc-a", fileName: "doc-a.pdf", pages: [1, 2], nodeId: "a1" }], subtopics: ["subtopic-1"] },
+      { id: "row-beta", label: "Topic Beta", sortOrder: 1, status: "ready", sourceRefs: [{ documentId: "doc-a", fileName: "doc-a.pdf", pages: [3], nodeId: "a2" }], subtopics: ["subtopic-2"] },
+    ];
+    const nodes = [
+      { id: "l1", title: "Topic Alpha", sortOrder: 0, status: "done", kind: "lesson", dayIndex: 0, topicId: "row-alpha", lessonPages: 2 },
+      { id: "q1", title: "Topic Alpha · Konu testi", sortOrder: 1, status: "ready", kind: "quiz", dayIndex: 0, topicId: "row-alpha" },
+      { id: "l2", title: "Topic Beta", sortOrder: 2, status: "locked", kind: "lesson", dayIndex: 1, topicId: "row-beta", lessonPages: 1 },
+    ];
+    const big = incomingUnit("Topic Alpha", [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25], ["subtopic-1", "subtopic-1b"], "doc-big", [
+      [10, 11, 12, 13, 14, 15, 16, 17],
+      [18, 19, 20, 21, 22, 23, 24, 25],
+    ]);
+    const plan = planAddedMaterial({
+      existingDocumentIds: ["doc-a"],
+      newDocumentIds: ["doc-big"],
+      readinessScore: 55,
+      contradictionsByTitle: new Map(),
+      existingTopics: topics,
+      existingNodes: nodes,
+      incoming: [big],
+      units: true,
+    });
+    expect(plan.topicInserts).toEqual([]);
+    expect(plan.topicUpdates[0]!.addedSources).toBeUndefined();
+    expect(plan.nodeInserts.map((node) => ({ title: node.title, sortOrder: node.sortOrder, topicId: node.topicId, unitSources: node.unitSources, part: node.lessonPart }))).toEqual([
+      { title: "Topic Alpha · Ders 2: subtopic-1", sortOrder: 1, topicId: "row-alpha", unitSources: [{ documentId: "doc-big", pages: [10, 11, 12, 13, 14, 15, 16, 17] }], part: 2 },
+      { title: "Topic Alpha · Ders 3: subtopic-1b", sortOrder: 2, topicId: "row-alpha", unitSources: [{ documentId: "doc-big", pages: [18, 19, 20, 21, 22, 23, 24, 25] }], part: 3 },
+    ]);
+    // Bitmemiş konu testi yeni derslerin arkasına kayar; bitmiş ders yerinde, hiçbir durum değişmez.
+    expect(plan.nodeSortUpdates).toEqual([
+      { id: "q1", sortOrder: 3 },
+      { id: "l2", sortOrder: 4 },
+    ]);
+    expect(plan.keptNodeStatuses).toEqual([
+      { id: "l1", status: "done" },
+      { id: "q1", status: "ready" },
+      { id: "l2", status: "locked" },
+    ]);
+    expect(plan.nodeInserts.every((node) => node.status === "locked")).toBe(true);
+    expect(plan.readinessScore).toBe(55);
+  });
+
+  it("bütün dersleri bitmiş üniteye küçük ekleme yeni ders açar; açık dersi sınırına yakınsa da", () => {
+    const topics = [{ id: "row-alpha", label: "Topic Alpha", sortOrder: 0, status: "ready", sourceRefs: [{ documentId: "doc-a", fileName: "doc-a.pdf", pages: [1], nodeId: "a1" }], subtopics: ["subtopic-1"] }];
+    const small = incomingUnit("Topic Alpha", [30, 31], ["subtopic-1c"]);
+    const run = (status: string, lessonPages: number) =>
+      planAddedMaterial({
+        existingDocumentIds: ["doc-a"],
+        newDocumentIds: ["doc-big"],
+        readinessScore: 0,
+        contradictionsByTitle: new Map(),
+        existingTopics: topics,
+        existingNodes: [{ id: "l1", title: "Topic Alpha", sortOrder: 0, status, kind: "lesson", dayIndex: 0, topicId: "row-alpha", lessonPages }],
+        incoming: [small],
+        units: true,
+      });
+    const done = run("done", 1);
+    expect(done.nodeInserts).toHaveLength(1);
+    expect(done.nodeInserts[0]!.status).toBe("ready");
+    expect(done.nodeInserts[0]!.lessonSubtopics).toEqual(["subtopic-1c"]);
+    expect(done.topicUpdates[0]!.addedSources).toBeUndefined();
+    const nearLimit = run("ready", UNIT_LESSON_MAX_PAGES - 1);
+    expect(nearLimit.nodeInserts).toHaveLength(1);
+    expect(nearLimit.topicUpdates[0]!.addedSources).toBeUndefined();
+    const roomy = run("ready", 3);
+    expect(roomy.nodeInserts).toEqual([]);
+    expect(roomy.topicUpdates[0]!.addedSources?.map((ref) => ref.pages)).toEqual([[30, 31]]);
+  });
+
+  it("ilişki ölçüsü: ortak sözcük yoksa 0, ad ve alt başlık birlikte sayılır", () => {
+    expect(unitRelatedness({ title: "Zeta Quantum", subtopics: [] }, { title: "Topic Alpha", subtopics: ["subtopic-1"] })).toBe(0);
+    expect(unitRelatedness({ title: "Omega Extension", subtopics: [] }, { title: "Topic Omega", subtopics: [] })).toBeGreaterThan(0);
   });
 });
 

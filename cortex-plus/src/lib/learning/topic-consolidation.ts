@@ -464,6 +464,18 @@ export function consolidateFragmentedTopics(input: ConsolidationInput): Consolid
 }
 
 /**
+ * İki ünitenin sözcük örtüşmesi (ad + alt başlıklar; 0–1, birleştirmedeki ölçüyle aynı). Sonradan eklenen materyalde
+ * tavanı aşan ünitenin katılacağı üniteyi seçer.
+ */
+export function unitRelatedness(
+  left: { title: string; subtopics: readonly string[] },
+  right: { title: string; subtopics: readonly string[] },
+): number {
+  const vocabulary = (unit: { title: string; subtopics: readonly string[] }) => stems([unit.title, ...unit.subtopics].join(" "));
+  return jaccard(vocabulary(left), vocabulary(right));
+}
+
+/**
  * İki ünite aynı tema mı (Faz 10; birleştirmenin ve sonradan materyal eklemenin ortak ölçüsü): adlar aynı, biri öbürünün
  * alt başlığı, ya da alt başlıklarının yarısı (en az biri) ortak.
  */

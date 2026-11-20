@@ -12,7 +12,7 @@ import {
 } from "@/lib/learning/prep-contradiction-read";
 import { loadScheduleTopics } from "@/lib/learning/prep-schedule-topics";
 import { prepSourceDocumentIds } from "@/lib/learning/prep-source";
-import type { TopicSourceRef } from "@/lib/learning/topic-merge";
+import { topicMatchKey, type TopicSourceRef } from "@/lib/learning/topic-merge";
 import { EXTRA_TOPIC_PREFIX, matchUnit, type UnitCandidate } from "@/lib/content-pool/attach-match";
 import { poolUnitForTopic } from "@/lib/content-pool/serve";
 import { isUnitTopicRow, nodesUseUnits, parseSubtopics } from "@/lib/learning/unit-topic-row";
@@ -40,12 +40,27 @@ async function loadAttachTopicRows(service: SupabaseClient, prepId: string): Pro
   return null;
 }
 
-/** Düğümün konu kimliği bu satırın mı (satır kimliği ya da belge konu düğümü). */
+/**
+ * Düğüm bu satırın mı: konu kimliği satırın kimliği ya da belge konu düğümü; kimliği olmayan düğümde (eski "Materyal
+ * ekle" düğümü yalnız konu adını taşır) konu adı satırın adıyla eşleşir.
+ */
 function nodeOfTopic(row: AttachTopicRow | undefined, node: AttachNodeRow): boolean {
   if (!row) return false;
-  const meta = node.session_meta && typeof node.session_meta === "object" ? (node.session_meta as { topicId?: unknown }) : null;
+  const meta =
+    node.session_meta && typeof node.session_meta === "object"
+      ? (node.session_meta as { topicId?: unknown; topicTitle?: unknown })
+      : null;
   const topicId = typeof meta?.topicId === "string" ? meta.topicId : null;
-  return Boolean(topicId) && (topicId === row.id || topicId === row.document_topic_node_id);
+  if (topicId) return topicId === row.id || topicId === row.document_topic_node_id;
+  const title = typeof meta?.topicTitle === "string" ? meta.topicTitle : "";
+  return Boolean(title.trim()) && topicMatchKey(title) === topicMatchKey(String(row.label ?? ""));
+}
+
+/** Ders düğümünün belge sayfası sayısı (`unitSources`); alan yoksa null (yeni kaynak o derse eklenmez). */
+function lessonPageCount(node: AttachNodeRow): number | null {
+  const meta = node.session_meta && typeof node.session_meta === "object" ? (node.session_meta as { unitSources?: unknown }) : null;
+  if (!meta || !Array.isArray(meta.unitSources)) return null;
+  return parseUnitSources(meta.unitSources).reduce((sum, ref) => sum + new Set(ref.pages).size, 0);
 }
 
 /** Ünitenin alt başlıkları: satırdan; göçten önce kurulduysa ders düğümlerinden. */
@@ -273,14 +288,18 @@ export async function attachDocumentsToPrep(
       sourceRefs: asSources((row as { source_refs?: unknown }).source_refs),
       ...(unitModel ? { subtopics: unitSubtopicsOf(row, nodeRows ?? []) } : {}),
     })),
-    existingNodes: (nodeRows ?? []).map((row) => ({
-      id: row.id as string,
-      title: String(row.title),
-      sortOrder: row.sort_order as number,
-      status: String(row.status),
-      kind: String(row.kind),
-      dayIndex: (row.day_index as number) ?? 0,
-    })),
+    existingNodes: (nodeRows ?? []).map((row) => {
+      const unitRow = unitModel ? (topicRows ?? []).find((topic) => nodeOfTopic(topic, row)) : undefined;
+      return {
+        id: row.id as string,
+        title: String(row.title),
+        sortOrder: row.sort_order as number,
+        status: String(row.status),
+        kind: String(row.kind),
+        dayIndex: (row.day_index as number) ?? 0,
+        ...(unitRow ? { topicId: String(unitRow.id), lessonPages: lessonPageCount(row) } : {}),
+      };
+    }),
     incoming,
     units: unitModel && loaded.mainUnits === true,
   });
@@ -315,7 +334,7 @@ export async function attachDocumentsToPrep(
     // Ünitenin henüz bitmemiş adımları yeni kaynağı ve alt başlıkları görsün (bitmiş adıma, puana dokunulmaz).
     if (topic.addedSources?.length) {
       const row = (topicRows ?? []).find((item) => item.id === topic.id);
-      for (const update of unitNodeRefreshes(row, nodeRows ?? [], topic.addedSources, topic.subtopics ?? [])) {
+      for (const update of unitNodeRefreshes(row, nodeRows ?? [], topic.addedSources, topic.refreshSubtopics ?? [])) {
         const nodeWrite = await service
           .from("exam_prep_nodes")
           .update({ session_meta: update.meta })
@@ -372,6 +391,17 @@ export async function attachDocumentsToPrep(
       if (plain.error) return { ok: false, status: 500, code: "generation_failed" };
     }
   }
+  // Ana ünite modelinde (Faz 10) yeni ünitenin dersi ünitenin satır kimliğini taşır: düğüm kendi ünitesini (alt
+  // başlıklar, hâkimiyet, kaynak) kimlikle bulur, hazırlığın ilk konusuna düşmez. Okuma düşerse ad kalır (eski yol).
+  const insertedIds = new Map<string, string>();
+  if (unitModel && plan.nodeInserts.some((node) => !node.topicId)) {
+    for (const row of (await loadAttachTopicRows(service, prepId)) ?? []) {
+      const key = topicMatchKey(String(row.label ?? ""));
+      if (key && !insertedIds.has(key) && plan.topicInserts.some((topic) => topicMatchKey(topic.label) === key)) {
+        insertedIds.set(key, String(row.id));
+      }
+    }
+  }
   for (const node of plan.nodeSortUpdates) {
     await service
       .from("exam_prep_nodes")
@@ -390,6 +420,9 @@ export async function attachDocumentsToPrep(
         status: node.status,
         session_meta: {
           topicTitle: node.topicTitle,
+          ...((node.topicId ?? insertedIds.get(topicMatchKey(node.topicTitle)))
+            ? { topicId: node.topicId ?? insertedIds.get(topicMatchKey(node.topicTitle)) }
+            : {}),
           role: "learn",
           // Ana ünite dersi (Faz 10): alt başlıklar ve belge başına kaynak.
           ...(node.lessonSubtopics?.length ? { lessonSubtopics: node.lessonSubtopics } : {}),
