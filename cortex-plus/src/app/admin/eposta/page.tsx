@@ -44,10 +44,15 @@ export default async function AdminEpostaPage() {
 
   // Otomatik e-postaların gönderim sayıları (Faz 6: gönderim kaydı `email_dispatch_log`; tablo yoksa eski "once:" olayları).
   // Ödeme e-postası paket türüne göre ayrılmaz: dört ödeme satırı ortak sayıyı göstermez (null).
+  // Göç eski "bir kez" kayıtlarını kendi adlarıyla kopyaladı (welcome, purchase); sayıya onlar da girer.
+  const LEGACY_TEMPLATE_KEYS: Record<string, string[]> = { welcome_onboarding: ["welcome"], payment_confirmed: ["purchase"] };
   const templateKeys = [...new Set(LIFECYCLE_MAILS.map((mail) => mail.templateKey as string))];
   const logged = await Promise.all(
     templateKeys.map(async (key) => {
-      const { count, error } = await service.from("email_dispatch_log").select("id", { count: "exact", head: true }).eq("template_key", key);
+      const { count, error } = await service
+        .from("email_dispatch_log")
+        .select("id", { count: "exact", head: true })
+        .in("template_key", [key, ...(LEGACY_TEMPLATE_KEYS[key] ?? [])]);
       return [key, error ? null : (count ?? 0)] as const;
     }),
   );
