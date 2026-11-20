@@ -94,8 +94,8 @@ describe("üç kart ürün sahibinin başlık ve rozetleriyle", () => {
     expect(zero.textContent?.toLocaleUpperCase("tr")).toBe("0 KREDİ · KAYITLI PODCAST");
     expect(within(radio).getByRole("button", { name: RADIO_SHOWCASE.play }).textContent).toBe("▶ Örnek Radyo Akışını Dinle");
     expect(within(share).getByText("+50 Bonus Kredi")).toBeTruthy();
-    expect(within(pen).getByTestId("red-pen-earned").textContent).toBe("+15 Puan · Formül kurulumu tam");
-    expect(within(pen).getByTestId("red-pen-lost").textContent).toBe("-5 Puan · Hoca Buradan Kırar: Birim yazılmamış!");
+    expect(within(pen).getByTestId("red-pen-earned").textContent).toBe("+15 Puan · a) Denklem kurulumu ve çözüm tam");
+    expect(within(pen).getByTestId("red-pen-lost").textContent).toBe("-5 Puan · Hoca Buradan Kırar: Ara basamakta işaret / mutlak değer hatası");
     expect(within(pen).getByText(RED_PEN_SHOWCASE.paperLabel)).toBeTruthy();
 
     // Plus işleri etiketli (podcast üretimi ve "Kâğıtta çöz" Plus'ta); paylaşım kartında kâğıdın Plus olduğu yazılı.
@@ -238,10 +238,15 @@ describe("Kart B — Kırmızı Kalemli Hoca", () => {
       const marked = within(card).getByRole("button", { name: RED_PEN_SHOWCASE.views.marked });
       expect(marked.getAttribute("aria-pressed")).toBe("true");
       expect(within(card).getByText(RED_PEN_SHOWCASE.total)).toBeTruthy();
-      // Öğrencinin satırları sırayla; hesap doğru (1200 / 60 = 20), son satırda birim yok.
+      // Öğrencinin satırları sırayla. a doğru: 3(x − 2) = 12 → x = 6. b'de işaret / mutlak değer hatası: √((2 − 6)²) = |2 − 6| = 4,
+      // öğrenci −4 yazdı; hata b'nin sonucunu her zaman yanlış yapar (kırılan puan o şıkkın 5 puanı, toplam 15 / 20).
       const lines = [...card.querySelectorAll(".fv-ink")].map((node) => node.textContent);
       expect(lines).toEqual([...RED_PEN_SHOWCASE.lines]);
-      expect(1200 / 60).toBe(20);
+      const x = 12 / 3 + 2;
+      expect(x).toBe(6);
+      expect(Math.sqrt((2 - x) ** 2)).toBe(4);
+      expect(2 - x).toBe(-4);
+      expect(RED_PEN_SHOWCASE.total).toBe("Toplam 15 / 20 puan");
 
       fireEvent.click(plain);
       expect(plain.getAttribute("aria-pressed")).toBe("true");

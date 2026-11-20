@@ -19,6 +19,8 @@ const SHARE_CODE_PATTERN = new RegExp(`^[${SHARE_CODE_ALPHABET}]{${SHARE_CODE_LE
 
 export const CLONE_REWARD_CREDITS = 50;
 export const CLONE_REWARD_MONTHLY_CAP = 5;
+/** Faz 8 (20 Kasım 2026): aynı IP'den (klonlayan istek) İstanbul gününde en çok bu kadar ödül; katı "aynı IP" engelinin yerine. */
+export const CLONE_REWARD_IP_DAILY_CAP = 3;
 
 export const CLASS_SHARE_LABEL = "📲 Sınıfla Paylaş";
 export const CLONE_BUTTON_LABEL = "Bu Çalışma Yolunu Hesabıma Klonla (1. Ünite Ücretsiz)";

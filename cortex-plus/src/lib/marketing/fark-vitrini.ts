@@ -64,13 +64,18 @@ export const RED_PEN_SHOWCASE = {
   id: "kirmizi-kalem",
   title: "🖊️ Kırmızı Kalemli Hoca — Yazılı Kağıdını Fotoğrafla, Puan Kırılan Yeri Gör",
   paperLabel: "Örnek Çözüm Kağıdı",
-  question: "Soru 2 · 20 puan — 1200 m yolu 60 s'de alan aracın ortalama hızı kaç m/s'dir?",
-  /** Öğrencinin el yazısıyla çözümü: satır satır. Hesap doğru, son satırda birim yok. */
-  lines: ["v = x / t", "v = 1200 / 60", "v = 20"],
+  question: "Soru 2 · 20 puan — a) 3(x − 2) = 12 denklemini çözünüz (15 puan). b) Bulduğun x için √((2 − x)²) kaçtır? (5 puan)",
+  /*
+    Öğrencinin el yazısıyla çözümü, satır satır (Faz 8, 20 Kasım 2026, ürün sahibinin isteği): a şıkkı doğru (x = 6);
+    b şıkkında ara basamakta işaret / mutlak değer hatası: √((2 − 6)²) = |2 − 6| = 4 olmalıydı, öğrenci 2 − 6 = −4
+    yazdı. Bu hata b'nin sonucunu her zaman yanlış yapar, yani notlandırma o şıkkın puanını her zaman kırar (eski
+    örnekteki "birim yazılmamış" doğru sonuçta her zaman puan kırmıyordu: kısa ama doğru çözüm tam puan alır).
+  */
+  lines: ["a) 3x − 6 = 12", "3x = 18 → x = 6", "b) √((2 − 6)²) = 2 − 6 = −4"],
   /** Doğru kurulan satırlar (0'dan sayılır) ve kazandırdıkları. */
-  earned: { lines: [0, 1], badge: "+15 Puan · Formül kurulumu tam" },
+  earned: { lines: [0, 1], badge: "+15 Puan · a) Denklem kurulumu ve çözüm tam" },
   /** Hocanın kırdığı satır. */
-  lost: { line: 2, badge: "-5 Puan · Hoca Buradan Kırar: Birim yazılmamış!" },
+  lost: { line: 2, badge: "-5 Puan · Hoca Buradan Kırar: Ara basamakta işaret / mutlak değer hatası" },
   total: "Toplam 15 / 20 puan",
   views: { label: "Kâğıt görünümü", plain: "Öğrencinin kâğıdı", marked: "Kırmızı kalemle" },
   note: "Plus'ta, yazılı denemenin “Kâğıtta çöz” seçeneğiyle.",

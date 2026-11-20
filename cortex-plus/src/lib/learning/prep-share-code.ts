@@ -31,7 +31,7 @@ export async function ensurePrepShareCode(
 
   const existing = normalizeShareCode(prep.share_code as string | null);
   if (existing) {
-    // Kod durur; bayrak kapalıysa açılır, IP özeti en son paylaşımı tutar (aynı IP kuralı).
+    // Kod durur; bayrak kapalıysa açılır, IP özeti en son paylaşımı tutar (kayıt için; Faz 8'den beri ödül paylaşanın IP'sine bakmaz).
     const patch: Record<string, unknown> = {};
     if (prep.is_public_cloneable !== true) patch.is_public_cloneable = true;
     if (input.ipHash) patch.share_ip_hash = input.ipHash;

@@ -65,6 +65,7 @@ import {
   CLONE_BUTTON_LABEL,
   CLONE_REWARD_CREDITS,
   CLONE_REWARD_MONTHLY_CAP,
+  CLONE_REWARD_IP_DAILY_CAP,
   CLONE_REWARD_TITLE,
   SHARE_CODE_ALPHABET,
   classShareWhatsappHref,
@@ -81,6 +82,7 @@ import { POST as clonePost } from "@/app/api/learning/exam-prep/clone/route";
 
 const read = (path: string) => readFileSync(path, "utf8").replace(/\r\n/g, "\n");
 const MIGRATION = "supabase/migrations/20261120140000_faz7_sinif_klonlama.sql";
+const MIGRATION_IP = "supabase/migrations/20261120160000_faz8_davet_ip_gunluk.sql";
 
 const SHARER = "11111111-1111-4111-8111-111111111111";
 const FRIEND = "22222222-2222-4222-8222-222222222222";
@@ -234,6 +236,12 @@ describe("saf yardımcılar", () => {
     const sql = read(MIGRATION);
     expect(sql).toContain(`v_amount constant integer := ${CLONE_REWARD_CREDITS};`);
     expect(sql).toContain(`v_cap constant integer := ${CLONE_REWARD_MONTHLY_CAP};`);
+    const ipSql = read(MIGRATION_IP);
+    expect(ipSql).toContain(`v_ip_daily_cap constant integer := ${CLONE_REWARD_IP_DAILY_CAP};`);
+    expect(ipSql).toContain(`v_amount constant integer := ${CLONE_REWARD_CREDITS};`);
+    expect(ipSql).toContain(`v_cap constant integer := ${CLONE_REWARD_MONTHLY_CAP};`);
+    expect(ipSql).not.toMatch(/'same_ip'/);
+    expect(ipSql.replace(/^--.*$/gm, "")).not.toMatch(/(DROP|DELETE FROM|TRUNCATE)|^s*UPDATE/im);
   });
 });
 
@@ -475,6 +483,7 @@ describe("ödül işlevi (göç PGlite'ta)", () => {
       ${giftFn}
     `);
     await db.exec(read(MIGRATION));
+    await db.exec(read(MIGRATION_IP));
   }, 60_000);
   afterAll(() => db.close());
 
@@ -490,7 +499,8 @@ describe("ödül işlevi (göç PGlite'ta)", () => {
     await db.query("INSERT INTO exam_preps (id, user_id, share_code, is_public_cloneable, share_ip_hash) VALUES ($1, $2, $3, true, $4)", [id, owner, `kod${seq}`, ip]);
     return id;
   }
-  async function clonePrep(friend: string, source: string, ip: string | null = "ip-friend") {
+  // Her klon varsayılan olarak ayrı bir IP'den (Faz 8: aynı IP'den günde en çok 3 ödül); aynı IP gereken testler verir.
+  async function clonePrep(friend: string, source: string, ip: string | null = `ip-friend-${uuid()}`) {
     const id = uuid();
     await db.query("INSERT INTO exam_preps (id, user_id, cloned_from_prep_id, share_ip_hash) VALUES ($1, $2, $3, $4)", [id, friend, source, ip]);
     return id;
@@ -538,7 +548,7 @@ describe("ödül işlevi (göç PGlite'ta)", () => {
     expect(await balance(sharerB)).toBe(0);
   });
 
-  it("kendini davet, aynı posta kutusu (Gmail noktası/+etiket), aynı IP, doğrulanmamış hesap ödül almaz", async () => {
+  it("kendini davet, aynı posta kutusu (Gmail noktası/+etiket), doğrulanmamış hesap ödül almaz; aynı IP tek başına engel değil (Faz 8)", async () => {
     const self = await user("self@example.com");
     expect((await claim(await clonePrep(self, await sharedPrep(self)))).status).toBe("self");
 
@@ -548,14 +558,37 @@ describe("ödül işlevi (göç PGlite'ta)", () => {
 
     const home = await user("home@example.com");
     const sibling = await user("sibling@example.com");
-    expect((await claim(await clonePrep(sibling, await sharedPrep(home, "ayni-ip"), "ayni-ip"))).status).toBe("same_ip");
+    // Aynı yurt/okul Wi-Fi'ı: paylaşanla aynı IP'den klonlayan gerçek sınıf arkadaşı artık ödül getirir.
+    expect((await claim(await clonePrep(sibling, await sharedPrep(home, "ayni-ip"), "ayni-ip"))).status).toBe("granted");
 
     const sharer = await user("verify-sharer@example.com");
     const unverified = await user("unverified@example.com", { verified: false });
     expect((await claim(await clonePrep(unverified, await sharedPrep(sharer)))).status).toBe("unverified");
     expect(await balance(sharer)).toBe(0);
     expect(await balance(gmail)).toBe(0);
-    expect(await balance(home)).toBe(0);
+    expect(await balance(home)).toBe(50);
+  });
+
+  it("aynı IP'den İstanbul gününde en çok 3 ödül (farklı paylaşanlara da); ertesi gün yeniden", async () => {
+    const ip = `yurt-wifi-${uuid()}`;
+    const statuses: string[] = [];
+    for (let index = 0; index < 4; index += 1) {
+      const sharer = await user(`ip-sharer-${index}-${uuid()}@example.com`);
+      const friend = await user(`ip-friend-${index}-${uuid()}@example.com`);
+      statuses.push((await claim(await clonePrep(friend, await sharedPrep(sharer), ip))).status);
+    }
+    expect(statuses).toEqual(["granted", "granted", "granted", "ip_daily_cap"]);
+    // Ödül satırı klonlayan isteğin IP özetini taşır; gün değişince sayaç sıfırlanır.
+    const rows = await db.query<{ n: number }>("SELECT count(*)::int AS n FROM referral_credit_rewards WHERE referred_ip_hash = $1", [ip]);
+    expect(rows.rows[0].n).toBe(3);
+    await db.query("UPDATE referral_credit_rewards SET created_at = now() - interval '2 days' WHERE referred_ip_hash = $1", [ip]);
+    const lateSharer = await user(`ip-sharer-late-${uuid()}@example.com`);
+    const lateFriend = await user(`ip-friend-late-${uuid()}@example.com`);
+    expect((await claim(await clonePrep(lateFriend, await sharedPrep(lateSharer), ip))).status).toBe("granted");
+    // IP özeti olmayan (eski) klon günlük sayıma girmez.
+    const oldSharer = await user(`old-sharer-${uuid()}@example.com`);
+    const oldFriend = await user(`old-friend-${uuid()}@example.com`);
+    expect((await claim(await clonePrep(oldFriend, await sharedPrep(oldSharer), null))).status).toBe("granted");
   });
 
   it("davet hediyesiyle çift başına tek ödül: 90'lık hediye yazıldıysa ya da davet programı çifti kapsıyorsa +50 yok", async () => {

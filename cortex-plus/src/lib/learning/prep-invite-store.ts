@@ -85,7 +85,7 @@ export async function inviterReferralCode(service: SupabaseClient, userId: strin
  * Kopyayı kurar. Kaynağın sahibi ve önceki kopya çağıranda denetlenir.
  *
  * `clone` (Faz 7, 20 Kasım 2026): paylaşım koduyla klonlamada kopya kaynağını (`cloned_from_prep_id`) ve klonlayan
- * isteğin IP özetini taşır (ödülün aynı IP kuralı). İkisi de belge değil; konu kopyası aynı.
+ * isteğin IP özetini taşır (ödülün aynı IP'den günlük tavanı, Faz 8). İkisi de belge değil; konu kopyası aynı.
  */
 export async function copyInvitedPrep(
   service: SupabaseClient,
