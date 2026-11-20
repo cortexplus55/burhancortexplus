@@ -1,6 +1,6 @@
 "use client";
 
-import { placeBadge, placeText, type Rect, type SceneFrame, type SceneLayout, type TextBox } from "@/lib/learning/visual-scenes/layout";
+import { floorPlacer, placeBadge, type Rect, type SceneFrame, type SceneLayout, type TextBox } from "@/lib/learning/visual-scenes/layout";
 import type { ReelMemory } from "@/lib/learning/visual-scenes/schema";
 import { SceneBadge, SceneSvg, SceneText, delay, type SceneCommonProps } from "./scene-kit";
 
@@ -21,7 +21,8 @@ export type MemoryLayout = SceneLayout & {
 
 export function layoutMemoryNail(data: ReelMemory, frame: SceneFrame): MemoryLayout {
   const { content } = frame;
-  const kicker = placeBadge("kicker", "Hafıza çivisi", content.x + content.w, content.y, content.w * 0.6, 10.5);
+  const place = floorPlacer(frame);
+  const kicker = placeBadge("kicker", "Hafıza çivisi", content.x + content.w, content.y, content.w * 0.6, 10.5, 1, frame.text);
   const top = kicker.rect.y + kicker.rect.h + 10;
   const bottom = content.y + content.h;
   const leftW = frame.portrait ? content.w : content.w * 0.56;
@@ -30,7 +31,7 @@ export function layoutMemoryNail(data: ReelMemory, frame: SceneFrame): MemoryLay
     const y0 = top + offset;
     const nailSize = Math.round((frame.portrait ? 54 : 50) * k);
     const nail = { x: content.x, y: y0, size: nailSize };
-    const mnemonic = placeText("mnemonic", data.mnemonic, content.x + nailSize + 12, y0 + 2 + Math.max(0, (nailSize - 30 * k) / 2), { maxWidth: leftW - nailSize - 12, maxLines: 2, fontSize: 24 * k, minFontSize: 16, weight: 800 });
+    const mnemonic = place("mnemonic", data.mnemonic, content.x + nailSize + 12, y0 + 2 + Math.max(0, (nailSize - 30 * k) / 2), { maxWidth: leftW - nailSize - 12, maxLines: 2, fontSize: 24 * k, minFontSize: 16, weight: 800 });
     let y = Math.max(y0 + nailSize, mnemonic.rect.y + mnemonic.rect.h) + 16;
     const n = data.keys.length;
     const tiles: MemoryLayout["tiles"] = [];
@@ -42,8 +43,8 @@ export function layoutMemoryNail(data: ReelMemory, frame: SceneFrame): MemoryLay
       data.keys.forEach((key, index) => {
         const rect: Rect = { x: startX + index * (tileW + gap), y, w: tileW, h: tileW * 0.82 };
         const letterSize = Math.min(22 * k, rect.h * 0.55);
-        const letter = placeText(`tile${index}-letter`, key.letter, rect.x + rect.w / 2, rect.y + rect.h / 2 - (letterSize * 1.22) / 2, { maxWidth: rect.w - 8, maxLines: 1, fontSize: letterSize, minFontSize: 12, weight: 800, anchor: "middle", single: true });
-        const meaning = placeText(`tile${index}-meaning`, key.meaning, rect.x + rect.w / 2, rect.y + rect.h + 5, { maxWidth: tileW + gap - 2, maxLines: 3, fontSize: 9.5 * Math.min(k, 1.25), minFontSize: 8, anchor: "middle" });
+        const letter = place(`tile${index}-letter`, key.letter, rect.x + rect.w / 2, rect.y + rect.h / 2 - (letterSize * 1.22) / 2, { maxWidth: rect.w - 8, maxLines: 1, fontSize: letterSize, minFontSize: 12, weight: 800, anchor: "middle", single: true });
+        const meaning = place(`tile${index}-meaning`, key.meaning, rect.x + rect.w / 2, rect.y + rect.h + 5, { maxWidth: tileW + gap - 2, maxLines: 3, fontSize: 9.5 * Math.min(k, 1.25), minFontSize: 8, anchor: "middle" });
         tiles.push({ rect, letter, meaning });
       });
       y = Math.max(...tiles.map((tile) => tile.meaning.rect.y + tile.meaning.rect.h)) + 18;
@@ -51,10 +52,10 @@ export function layoutMemoryNail(data: ReelMemory, frame: SceneFrame): MemoryLay
     const summaryRect: Rect = frame.portrait
       ? { x: content.x, y, w: content.w, h: 0 }
       : { x: content.x + leftW + 18, y: y0, w: content.w - leftW - 18, h: 0 };
-    const sKicker = placeText("summary-kicker", "SINAV SABAHI ÖZETİ", summaryRect.x + 14, summaryRect.y + 14, { maxWidth: summaryRect.w - 28, maxLines: 1, fontSize: 10 * Math.min(k, 1.2), weight: 800, single: true });
+    const sKicker = place("summary-kicker", "SINAV SABAHI ÖZETİ", summaryRect.x + 14, summaryRect.y + 14, { maxWidth: summaryRect.w - 28, maxLines: 1, fontSize: 10 * Math.min(k, 1.2), weight: 800, single: true });
     const maxH = bottom - (sKicker.rect.y + sKicker.rect.h + 6) - 14;
     const fontSize = 16 * Math.min(k, 1.2);
-    const sText = placeText("summary-text", data.summary, summaryRect.x + 14, sKicker.rect.y + sKicker.rect.h + 6, {
+    const sText = place("summary-text", data.summary, summaryRect.x + 14, sKicker.rect.y + sKicker.rect.h + 6, {
       maxWidth: summaryRect.w - 28,
       maxLines: Math.max(2, Math.floor(maxH / (fontSize * 1.3))),
       fontSize,

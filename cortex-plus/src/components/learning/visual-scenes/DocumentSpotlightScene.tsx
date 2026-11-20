@@ -3,7 +3,6 @@
 import { ARCHETYPE_LABEL } from "@/lib/learning/visual-scenes/archetype";
 import {
   layoutHeader,
-  SCENE_FONT_FLOOR,
   labelBudget,
   textPlacer,
   segment,
@@ -278,6 +277,8 @@ function documentPass(raw: DocumentSpotlightData, frame: SceneFrame, pass: Docum
 
 export function DocumentSpotlightScene({ data, ...common }: SceneCommonProps & { data: DocumentSpotlightData }) {
   const layout = layoutDocumentSpotlight(data, common.frame);
+  // Pin numarası çerçevenin yazı tabanında (dikey videoda büyür).
+  const pinFont = layout.frame.text.floor;
   const id = useSceneIds("doc");
   const [badge, title] = layout.texts;
   const { paper } = layout;
@@ -357,13 +358,13 @@ export function DocumentSpotlightScene({ data, ...common }: SceneCommonProps & {
             />
             <g className="cp-vs-fade" style={delay(at + 0.3)}>
               <circle cx={spot.pin.x} cy={spot.pin.y} r={SPOT_PIN_R} fill={DOCUMENT_COLORS.spot} stroke={DOCUMENT_COLORS.bg} strokeWidth={1.5} />
-              <text x={spot.pin.x} y={spot.pin.y + SCENE_FONT_FLOOR * 0.36} fontSize={SCENE_FONT_FLOOR} fontWeight={800} textAnchor="middle" fill={DOCUMENT_COLORS.bg}>
+              <text x={spot.pin.x} y={spot.pin.y + pinFont * 0.36} fontSize={pinFont} fontWeight={800} textAnchor="middle" fill={DOCUMENT_COLORS.bg}>
                 {spot.n}
               </text>
             </g>
             <g className="cp-vs-fade" style={delay(at + 0.8)}>
               <circle cx={spot.callout.pinX} cy={spot.callout.pinY} r={PIN_R} fill={DOCUMENT_COLORS.spot} />
-              <text x={spot.callout.pinX} y={spot.callout.pinY + SCENE_FONT_FLOOR * 0.36} fontSize={SCENE_FONT_FLOOR} fontWeight={800} textAnchor="middle" fill={DOCUMENT_COLORS.bg}>
+              <text x={spot.callout.pinX} y={spot.callout.pinY + pinFont * 0.36} fontSize={pinFont} fontWeight={800} textAnchor="middle" fill={DOCUMENT_COLORS.bg}>
                 {spot.n}
               </text>
               <SceneText box={spot.callout.label} fill={DOCUMENT_COLORS.text} />

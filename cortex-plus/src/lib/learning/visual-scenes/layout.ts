@@ -1,5 +1,5 @@
 import { resolvePedagogicalProfile, type PedagogicalLevel, type VisualDensity } from "@/lib/learning/pedagogical-profile";
-import { fitSingleLine, fitText, type FitOptions, type FontWeight } from "@/lib/learning/visual-scenes/text-fit";
+import { fitSingleLine, fitText, measureText, type FitOptions, type FontWeight } from "@/lib/learning/visual-scenes/text-fit";
 
 /**
  * Sahne yerleşimi (Faz 1-B): her sahne bileşeni önce saf bir yerleşim kurar (metin kutuları + çizgi
@@ -35,6 +35,63 @@ export function sceneFontFloor(mode: SceneMode): number {
 /** İki oranın tabanından büyüğü: her `placeText` çağrısı bunun altına inmez (çerçevesiz sahneler dahil). */
 export const SCENE_FONT_FLOOR = Math.max(sceneFontFloor("9:16"), sceneFontFloor("16:9"));
 
+/**
+ * Dikey videonun telefondaki ölçeği (tabanın hedefi): oynatıcı 9:16 kareyi üst çubuğun altından başlatır, sahne
+ * yüksekliğe sığar (`xMidYMax meet`); 390 px telefonda 360 birimlik viewBox yaklaşık 0,85 ölçekte çizilir. Ölçüm
+ * (20 Kasım 2026, 390 px, Chromium): üst çubuk 96 px iken 0,84; ölçülen 135 px'lik üst çubukta 0,78.
+ */
+export const VIDEO_PORTRAIT_DISPLAY_SCALE = 0.85;
+
+/** Dikey videoda ekranda en küçük yazı (CSS px): telefonda sahne kartından küçük çizildiği için taban ayrıca yükselir. */
+export const MIN_VIDEO_PORTRAIT_TEXT_PX = 11.4;
+
+/**
+ * Dikey (9:16) videonun yazı tabanı (viewBox birimi): 0,85 ölçekte 13,5 birim ekranda 11,475 px. Yalnız video çerçevesinin
+ * dikey oranında; ders kartı ve yatay oran `SCENE_FONT_FLOOR`'da kalır. Yazı sığmayınca tabanın altına inilmez, sahneler
+ * ikincil ayrıntıyı bırakır ya da satır sarar.
+ */
+export const VIDEO_PORTRAIT_FONT_FLOOR = 13.5;
+
+/** Çerçevenin yazı tabanı: dikey videoda `VIDEO_PORTRAIT_FONT_FLOOR`, öbür yerlerde oranın tabanı. */
+export function frameFontFloor(mode: SceneMode, chrome: SceneChrome = "lesson"): number {
+  const base = Math.max(SCENE_FONT_FLOOR, sceneFontFloor(mode));
+  return chrome === "video" && mode === "9:16" ? Math.max(base, VIDEO_PORTRAIT_FONT_FLOOR) : base;
+}
+
+/**
+ * Çerçevenin tabanı ortak tabandan kaç kat büyük (ders kartı ve yatayda 1). Tabandaki yazıya göre ölçülmüş sütun ve
+ * etiket genişlikleri bununla büyür: dikey videoda satır kırılımı ders kartındakiyle aynı kalır, etiket uzamaz.
+ */
+export function floorGrowth(frame: Pick<SceneFrame, "text">): number {
+  return frame.text.floor / SCENE_FONT_FLOOR;
+}
+
+/** Genişlik payı: yerleşim yazıyı tahminin bu katı geniş sayar (normal ve kalın yazı ayrı). */
+export type WidthSafety = { regular: number; bold: number };
+
+/**
+ * Dikey videonun yedek yazı tipi payı. Figtree yüklenmeyen tarayıcıda (CI, eski Android) yazı Verdana / DejaVu Sans gibi
+ * geniş bir yedek yazı tipiyle çizilir: genişlik tahmininden normal yazıda %8'e, kalın (600+) yazıda %18'e kadar geniş
+ * (20 Kasım 2026, Chromium'da Verdana, Arial ve Tahoma ile ölçüldü). Kalın başlık ve kutu yazısı tam satır genişliğinde
+ * viewBox'tan taşıyordu. Dikey videoda saran yazı bu payla kırılır: kalında 1,18 tam pay; normal yazıda 1,05, kalan ~%3
+ * içerik alanının kenar boşluğunda (16 birim) kalır. Ders kartı ve yatay oranda pay yok.
+ */
+export const VIDEO_PORTRAIT_WIDTH_SAFETY: WidthSafety = { regular: 1.05, bold: 1.18 };
+
+/** Yazının genişlik çarpanı: pay yoksa 1, varsa kalınlığa göre (600 ve üstü kalın sayılır). */
+export function widthFactor(safety: WidthSafety | undefined, weight: FontWeight = 400): number {
+  if (!safety) return 1;
+  return weight >= 600 ? safety.bold : safety.regular;
+}
+
+/**
+ * Saran yazının sözcüğünü yerleşimden önce ölçer (kutu boyu buna göre seçilir): `placeText` saran yazıyı çerçevenin
+ * genişlik payıyla kırdığı için ölçüm de aynı payla yapılır; yoksa sözcük kutuya sığmayıp bölünür.
+ */
+export function measureForFrame(frame: Pick<SceneFrame, "text">, text: string, fontSize: number, weight: FontWeight = 400): number {
+  return measureText(text, fontSize, weight) * widthFactor(frame.text.widthSafety, weight);
+}
+
 export type SceneTextProfile = {
   level?: PedagogicalLevel;
   density: VisualDensity;
@@ -43,6 +100,8 @@ export type SceneTextProfile = {
   /** Yazı ölçeği: seviye 1'de büyük, 3-4'te biraz küçük (taban yine geçerli). */
   fontScale: number;
   floor: number;
+  /** Yedek yazı tipi payı: yalnız dikey videoda (`VIDEO_PORTRAIT_WIDTH_SAFETY`), öbür yerlerde yok. */
+  widthSafety?: WidthSafety;
 };
 
 /** Seviyeyi tek kaynaktan (`pedagogical-profile.ts`) okumak için temsilî sınıf / sınav metni. */
@@ -53,11 +112,12 @@ const LEVEL_PROBE: Record<PedagogicalLevel, [string | null, string | null]> = {
   4: [null, "KPSS"],
 };
 
-export function sceneTextProfile(mode: SceneMode, level?: PedagogicalLevel | null): SceneTextProfile {
-  const floor = Math.max(SCENE_FONT_FLOOR, sceneFontFloor(mode));
-  if (!level) return { density: "standard", maxLabels: Number.POSITIVE_INFINITY, fontScale: 1, floor };
+export function sceneTextProfile(mode: SceneMode, level?: PedagogicalLevel | null, chrome: SceneChrome = "lesson"): SceneTextProfile {
+  const floor = frameFontFloor(mode, chrome);
+  const safety = chrome === "video" && mode === "9:16" ? { widthSafety: VIDEO_PORTRAIT_WIDTH_SAFETY } : {};
+  if (!level) return { density: "standard", maxLabels: Number.POSITIVE_INFINITY, fontScale: 1, floor, ...safety };
   const visual = resolvePedagogicalProfile(...LEVEL_PROBE[level]).visual;
-  return { level, density: visual.density, maxLabels: visual.maxLabels, fontScale: visual.fontScale, floor };
+  return { level, density: visual.density, maxLabels: visual.maxLabels, fontScale: visual.fontScale, floor, ...safety };
 }
 
 /** Teknik ayrıntı (kot, katman kalınlığı, ölçü çentikleri) yalnız üniversite ve uzmanlık düzeyinde. */
@@ -102,7 +162,7 @@ export function sceneFrame(mode: SceneMode, chrome: SceneChrome = "lesson", leve
     pad,
     portrait,
     content: { x: pad, y: safeTop, w: width - pad * 2, h: height - safeTop - safeBottomMargin },
-    text: sceneTextProfile(mode, level),
+    text: sceneTextProfile(mode, level, chrome),
   };
 }
 
@@ -141,6 +201,8 @@ export type PlaceOptions = Omit<FitOptions, "maxWidth"> & {
   single?: boolean;
   /** Yazı tabanı (viewBox birimi); verilmezse `SCENE_FONT_FLOOR`. */
   floor?: number;
+  /** Yedek yazı tipi payı: yazı bu kat geniş sayılır (satır erken kırılır, kutu payı kapsar); verilmezse yok. */
+  widthSafety?: WidthSafety;
 };
 
 /** Metni yerleştirir: x çapa, y üst kenar. Yazı ve en küçük boy tabanın altına inmez. */
@@ -163,11 +225,15 @@ export function placeText(id: string, text: string, x: number, y: number, raw: P
     width = fitted.width;
     truncated = fitted.text.endsWith("…") && !text.trim().endsWith("…");
   } else {
-    const fitted = fitText(text, { ...options, weight });
+    // Yedek yazı tipi payı yalnız saran yazıda: sarma her satırı kutunun kenarına kadar doldurur, geniş yedek yazı tipinde
+    // kutudan (kenardaysa viewBox'tan) taşan da bu satırlar. Satır payın küçülttüğü genişlikte kırılır, kaplanan genişlik
+    // pay kadar büyür (en çok kutu kadar). Tek satırlık etiket içeriği kadar ölçülür ve yeri ona göre seçilir; pay almaz.
+    const factor = widthFactor(raw.widthSafety, weight);
+    const fitted = fitText(text, { ...options, maxWidth: options.maxWidth / factor, weight });
     lines = fitted.lines;
     fontSize = fitted.fontSize;
     lineHeightPx = fitted.lineHeightPx;
-    width = fitted.width;
+    width = fitted.width * factor;
     truncated = fitted.truncated;
   }
   const left = anchor === "start" ? x : anchor === "middle" ? x - width / 2 : x - width;
@@ -192,9 +258,24 @@ export type TextPlacer = (id: string, text: string, x: number, y: number, option
  * ölçeklenmez (büyük yazı sığmazsa yine tabana kadar küçülür); her arketip sahnesi yazılarını bununla koyar.
  */
 export function textPlacer(frame: Pick<SceneFrame, "text">): TextPlacer {
-  const { fontScale, floor } = frame.text;
+  const { fontScale, floor, widthSafety } = frame.text;
   return (id, text, x, y, options) =>
-    placeText(id, text, x, y, { ...options, fontSize: Math.round(options.fontSize * fontScale * 10) / 10, floor: Math.max(floor, options.floor ?? 0) });
+    placeText(id, text, x, y, {
+      ...options,
+      fontSize: Math.round(options.fontSize * fontScale * 10) / 10,
+      floor: Math.max(floor, options.floor ?? 0),
+      widthSafety: options.widthSafety ?? widthSafety,
+    });
+}
+
+/**
+ * Yalnız çerçevenin yazı tabanını uygulayan yerleştirici (seviye ölçeği yok): kendi ölçek aramasını yapan akış sahneleri
+ * (kanca, karşılaştırma, tuzak, hafıza çivisi) yazılarını bununla koyar; dikey videoda taban yükselir, yatayda aynen.
+ */
+export function floorPlacer(frame: Pick<SceneFrame, "text">): TextPlacer {
+  const { floor, widthSafety } = frame.text;
+  return (id, text, x, y, options) =>
+    placeText(id, text, x, y, { ...options, floor: Math.max(floor, options.floor ?? 0), widthSafety: options.widthSafety ?? widthSafety });
 }
 
 /**
@@ -305,11 +386,20 @@ export const BADGE_PAD = { x: 9, y: 4 } as const;
 
 /**
  * Rozet: `right` sağ kenar, `top` üst kenar. Dönen kutunun `rect`'i dolguyu da kapsar (rozet zemini bu
- * kutuya çizilir), metin çapası dolgunun içindedir.
+ * kutuya çizilir), metin çapası dolgunun içindedir. `fit`: çerçevenin yazı tabanı ve genişlik payı (`frame.text`).
  */
-export function placeBadge(id: string, text: string, right: number, top: number, maxWidth: number, fontSize = 10, maxLines = 1): TextBox {
+export function placeBadge(
+  id: string,
+  text: string,
+  right: number,
+  top: number,
+  maxWidth: number,
+  fontSize = 10,
+  maxLines = 1,
+  fit: Pick<SceneTextProfile, "floor" | "widthSafety"> = { floor: SCENE_FONT_FLOOR },
+): TextBox {
   const upper = text.toLocaleUpperCase("tr");
-  const options = { maxWidth: maxWidth - BADGE_PAD.x * 2, fontSize, minFontSize: 8, weight: 700 as const, anchor: "end" as const };
+  const options = { maxWidth: maxWidth - BADGE_PAD.x * 2, fontSize, minFontSize: 8, weight: 700 as const, anchor: "end" as const, floor: fit.floor, widthSafety: fit.widthSafety };
   let inner = placeText(id, upper, right - BADGE_PAD.x, top + BADGE_PAD.y, { ...options, maxLines: 1, single: true });
   // Yazı tabanında tek satıra sığmayan rozet (dar dikey kart) kesilmez, iki satıra sarılır.
   if (inner.truncated && maxLines > 1) inner = placeText(id, upper, right - BADGE_PAD.x, top + BADGE_PAD.y, { ...options, maxLines });
@@ -338,8 +428,9 @@ export const HEADER_BADGE_GAP = 26;
 export function layoutHeader(frame: SceneFrame, title: string, badge: string): { texts: TextBox[]; bottom: number } {
   const { content } = frame;
   const place = textPlacer(frame);
+  const fit = frame.text;
   if (frame.portrait) {
-    const badgeBox = placeBadge("badge", badge, content.x + content.w, content.y, content.w, 10, 2);
+    const badgeBox = placeBadge("badge", badge, content.x + content.w, content.y, content.w, 10, 2, fit);
     const titleBox = place("title", title, content.x, badgeBox.rect.y + badgeBox.rect.h + 8, {
       maxWidth: content.w,
       maxLines: 2,
@@ -349,10 +440,10 @@ export function layoutHeader(frame: SceneFrame, title: string, badge: string): {
     });
     return { texts: [badgeBox, titleBox], bottom: titleBox.rect.y + titleBox.rect.h };
   }
-  const badgeBox = placeBadge("badge", badge, content.x + content.w, content.y, Math.min(260, content.w * 0.44));
+  const badgeBox = placeBadge("badge", badge, content.x + content.w, content.y, Math.min(260, content.w * 0.44), 10, 1, fit);
   if (badgeBox.truncated) {
     // Rozet yan yuvaya sığmıyorsa kesilmez: kendi satırına (sağa yaslı) iner, başlık altında tam genişlik alır.
-    const ownRow = placeBadge("badge", badge, content.x + content.w, content.y, content.w, 10, 2);
+    const ownRow = placeBadge("badge", badge, content.x + content.w, content.y, content.w, 10, 2, fit);
     const titleBelow = place("title", title, content.x, ownRow.rect.y + ownRow.rect.h + 6, {
       maxWidth: content.w,
       maxLines: 2,

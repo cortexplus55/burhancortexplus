@@ -4,8 +4,12 @@ import { cleanup, render } from "@testing-library/react";
 import { resolvePedagogicalProfile, type PedagogicalLevel } from "@/lib/learning/pedagogical-profile";
 import {
   MIN_SCREEN_TEXT_PX,
+  MIN_VIDEO_PORTRAIT_TEXT_PX,
   REFERENCE_DISPLAY_WIDTH,
   SCENE_FONT_FLOOR,
+  VIDEO_PORTRAIT_DISPLAY_SCALE,
+  VIDEO_PORTRAIT_FONT_FLOOR,
+  frameFontFloor,
   inflate,
   labelBudget,
   layoutIssues,
@@ -25,7 +29,7 @@ import {
   type VisualScene,
 } from "@/lib/learning/visual-scenes/schema";
 import { ARCHETYPE_SPEC, VISUAL_SCENE_COMMON_RULE, archetypeSpecBlock, visualSceneStrings, visualSceneText } from "@/lib/learning/visual-scenes/prompt";
-import { CONCEPT_STRUCTURES, sceneArchetypeLabel, type VisualArchetype } from "@/lib/learning/visual-scenes/archetype";
+import { CONCEPT_STRUCTURES, DOMAIN_ARCHETYPE, sceneArchetypeLabel, type AcademicDomain, type VisualArchetype } from "@/lib/learning/visual-scenes/archetype";
 import { VisualSceneRenderer } from "@/components/learning/visual-scenes";
 import { layoutBlueprint, type BlueprintLayout } from "@/components/learning/visual-scenes/ArchitecturalBlueprintScene";
 import { layoutLawDecision } from "@/components/learning/visual-scenes/LawDecisionScene";
@@ -345,6 +349,95 @@ describe("yazı tabanı: ekranda en az 11 px", () => {
       }
     }
     expect(problems).toEqual([]);
+  });
+});
+
+describe("dikey video: yazı tabanı 13,5 birim (telefonda sahne ~0,85 ölçekte)", () => {
+  type DomainLayout = (scene: VisualScene, frame: ReturnType<typeof sceneFrame>, domain?: AcademicDomain) => SceneLayout;
+  const WITH_DOMAIN: Record<VisualArchetype, DomainLayout> = {
+    MEDICAL_BIOLOGY_PATHWAY: (s, f, d) => layoutMedicalPathway(s as never, f, d),
+    ENGINEERING_PHYSICS_MECHANICS: (s, f, d) => layoutMechanics(s as never, f, d),
+    ARCHITECTURE_SPATIAL_BLUEPRINT: (s, f, d) => layoutBlueprint(s as never, f, d),
+    LAW_SOCIAL_FLOWCHART: (s, f, d) => layoutLawDecision(s as never, f, d),
+    MATH_ALGORITHMIC_GRAPH: (s, f, d) => layoutMathGraph(s as never, f, d),
+    DOCUMENT_FIGURE_SPOTLIGHT: (s, f) => layoutDocumentSpotlight(s as never, f),
+    CONCEPT_STRUCTURE_VISUALIZER: (s, f, d) => layoutConceptStructure(s as never, f, d),
+  };
+  const domainsOf = (archetype: VisualArchetype) => (Object.keys(DOMAIN_ARCHETYPE) as AcademicDomain[]).filter((domain) => DOMAIN_ARCHETYPE[domain] === archetype);
+
+  it("taban: dikey videoda 13,5 (0,85 ölçekte ≥ 11,4 px); ders kartı ve yatay oran eski tabanında", () => {
+    expect(VIDEO_PORTRAIT_FONT_FLOOR).toBe(13.5);
+    expect(VIDEO_PORTRAIT_FONT_FLOOR * VIDEO_PORTRAIT_DISPLAY_SCALE).toBeGreaterThanOrEqual(MIN_VIDEO_PORTRAIT_TEXT_PX);
+    expect(MIN_VIDEO_PORTRAIT_TEXT_PX).toBeGreaterThan(MIN_SCREEN_TEXT_PX);
+    expect(frameFontFloor("9:16", "video")).toBe(VIDEO_PORTRAIT_FONT_FLOOR);
+    expect(SCENE_FONT_FLOOR).toBe(11.6);
+    for (const level of LEVELS) {
+      expect(sceneFrame("9:16", "video", level).text.floor).toBe(VIDEO_PORTRAIT_FONT_FLOOR);
+      expect(sceneFrame("9:16", "lesson", level).text.floor).toBe(SCENE_FONT_FLOOR);
+      expect(sceneFrame("16:9", "lesson", level).text.floor).toBe(SCENE_FONT_FLOOR);
+      expect(sceneFrame("16:9", "video", level).text.floor).toBe(SCENE_FONT_FLOOR);
+    }
+  });
+
+  it("her arketip, her seviye ve her disiplin rozetiyle: her yazı kutusu ≥ 13,5, sıfır taşma, çakışma ve kesik yazı", () => {
+    const problems: string[] = [];
+    for (const [name, raw] of Object.entries(ALL)) {
+      const parsed = scene(raw);
+      for (const level of LEVELS) {
+        for (const domain of [undefined, ...domainsOf(parsed.archetype)]) {
+          const layout = WITH_DOMAIN[parsed.archetype](parsed, sceneFrame("9:16", "video", level), domain);
+          const small = layout.texts.filter((box) => box.fontSize < VIDEO_PORTRAIT_FONT_FLOOR).map((box) => `${box.id}:${box.fontSize}`);
+          const cut = layout.texts.filter((box) => box.truncated).map((box) => `kesik ${box.id}`);
+          const issues = layoutIssues(layout).map((issue) => `${issue.kind} ${issue.detail}`);
+          if (small.length || cut.length || issues.length) problems.push(`${name} L${level ?? "-"} ${domain ?? "-"}: ${[...small, ...cut, ...issues].join("; ")}`);
+        }
+      }
+    }
+    expect(problems).toEqual([]);
+  });
+
+  it("çizilen her <text> öğesinin font-size değeri ≥ 13,5 (rozet, pin numarası, aks balonu, adım numarası dahil)", () => {
+    const problems: string[] = [];
+    for (const [name, raw] of Object.entries(ALL)) {
+      const parsed = scene(raw);
+      for (const level of LEVELS) {
+        const { container } = render(<VisualSceneRenderer scene={parsed} mode="9:16" chrome="video" level={level} animate="none" />);
+        const nodes = [...container.querySelectorAll("svg text")];
+        expect(nodes.length, name).toBeGreaterThan(4);
+        for (const node of nodes) {
+          const size = Number(node.getAttribute("font-size"));
+          if (!(size >= VIDEO_PORTRAIT_FONT_FLOOR)) problems.push(`${name} L${level ?? "-"}: ${node.textContent} ${size}`);
+        }
+        cleanup();
+      }
+    }
+    expect(problems).toEqual([]);
+  });
+
+  it("ders kartı ve yatay oran değişmedi: taban 11,6'da çalışıyor (en küçük yazı tam tabanda), dikey videoda bu boy yok", () => {
+    const smallest = (mode: SceneMode, chrome: SceneChrome) => {
+      let min = Number.POSITIVE_INFINITY;
+      for (const raw of Object.values(ALL)) {
+        const parsed = scene(raw);
+        for (const level of LEVELS) for (const box of LAYOUT[parsed.archetype](parsed, mode, chrome, level).texts) min = Math.min(min, box.fontSize);
+      }
+      return min;
+    };
+    expect(smallest("9:16", "lesson")).toBe(SCENE_FONT_FLOOR);
+    expect(smallest("16:9", "lesson")).toBe(SCENE_FONT_FLOOR);
+    expect(smallest("16:9", "video")).toBe(SCENE_FONT_FLOOR);
+    expect(smallest("9:16", "video")).toBe(VIDEO_PORTRAIT_FONT_FLOOR);
+  });
+
+  it("sığmayan ikincil ayrıntı kesilmez, düşer: tıpta uzun açıklama dikey videoda gizlenir, basamak adları kalır", () => {
+    const parsed = scene(MEDICAL);
+    const lesson = layoutMedicalPathway(parsed as never, sceneFrame("9:16", "lesson"));
+    const video = layoutMedicalPathway(parsed as never, sceneFrame("9:16", "video"));
+    expect(lesson.steps.every((step) => step.detail !== null)).toBe(true);
+    expect(video.steps.map((step) => step.label.lines.join(" "))).toEqual(lesson.steps.map((step) => step.label.lines.join(" ")));
+    expect(video.steps.filter((step) => step.detail === null)).toHaveLength(1);
+    expect(video.steps[2]!.detail).toBeNull();
+    expect(video.texts.some((box) => box.truncated)).toBe(false);
   });
 });
 

@@ -214,15 +214,26 @@ export function layoutMedicalPathway(raw: MedicalPathwayData, frame: SceneFrame,
     const textW = chainArea.x + chainArea.w - textX;
     // Satır yüksekliği basamağın ihtiyacına göre: kısa basamak kısa satır, uzun açıklama daha geniş satır alır (eşit satırda
     // yazı tabanıyla uzun açıklama kesiliyordu). Hepsi sığmazsa eşit satırlara dönülür.
-    const blocks = data.steps.map((step, index) => stepTexts(place, index, step, textX, 0, textW, "start", Number.POSITIVE_INFINITY, true).height);
+    let shown = data.steps;
+    const blockOf = (step: MedicalPathwayData["steps"][number], index: number) =>
+      stepTexts(place, index, step, textX, 0, textW, "start", Number.POSITIVE_INFINITY, true).height;
+    const blocks = shown.map(blockOf);
     const needsFor = (margin: number) => blocks.map((h) => Math.max(NODE_R * 2 + 6, h + margin));
     const sum = (list: number[]) => list.reduce((total, h) => total + h, 0);
+    // Sıkı payla da sığmıyor ve eşit satıra da sığmayan basamak varsa (dikey videonun büyük yazı tabanı) açıklama kesilmez:
+    // en çok yer tutan basamağın açıklaması (ikincil ayrıntı) düşer, basamak adları ve rolleri hep kalır; sığana kadar sürer.
+    while (sum(needsFor(3)) > chainArea.h && Math.max(...blocks) > chainArea.h / n - 3) {
+      const tallest = shown.reduce((best, step, index) => (step.detail && (best < 0 || blocks[index]! >= blocks[best]!) ? index : best), -1);
+      if (tallest < 0) break;
+      shown = shown.map((step, index) => (index === tallest ? { ...step, detail: undefined } : step));
+      blocks[tallest] = blockOf(shown[tallest]!, tallest);
+    }
     const margin = sum(needsFor(8)) <= chainArea.h ? 8 : 3;
     const needs = needsFor(margin);
     const needTotal = sum(needs);
     const rowHs = needTotal <= chainArea.h ? needs.map((h) => h + (chainArea.h - needTotal) / n) : needs.map(() => chainArea.h / n);
     let rowCursor = chainArea.y;
-    data.steps.forEach((step, index) => {
+    shown.forEach((step, index) => {
       const rowH = rowHs[index]!;
       const rowTop = rowCursor;
       rowCursor += rowH;

@@ -1,6 +1,6 @@
 "use client";
 
-import { SCENE_FONT_FLOOR, layoutHeader, placeText, segment, type Rect, type SceneFrame, type SceneLayout, type TextBox } from "@/lib/learning/visual-scenes/layout";
+import { floorPlacer, layoutHeader, segment, type Rect, type SceneFrame, type SceneLayout, type TextBox } from "@/lib/learning/visual-scenes/layout";
 import type { ReelComparison } from "@/lib/learning/visual-scenes/schema";
 import { SceneBadge, SceneSvg, SceneText, delay, type SceneCommonProps } from "./scene-kit";
 
@@ -19,6 +19,7 @@ export type ComparisonLayout = SceneLayout & {
 
 export function layoutComparison(data: ReelComparison, frame: SceneFrame): ComparisonLayout {
   const { content } = frame;
+  const place = floorPlacer(frame);
   const header = layoutHeader(frame, data.title, data.mode === "variable" ? "Formül mantığı" : "Karşılaştırma tablosu");
   const texts: TextBox[] = [...header.texts];
   const segments: SceneLayout["segments"] = [];
@@ -35,17 +36,17 @@ export function layoutComparison(data: ReelComparison, frame: SceneFrame): Compa
   const build = (k: number, lines: number, offset: number) => {
     const y0 = top + offset;
     const headOpts = { maxWidth: cellW - 30, maxLines: 2, fontSize: 13 * Math.min(k, 1.3), minFontSize: 9.5, weight: 800 as const, anchor: "middle" as const };
-    const probeL = placeText("head-left", data.left, 0, 0, headOpts);
-    const probeR = placeText("head-right", data.right, 0, 0, headOpts);
+    const probeL = place("head-left", data.left, 0, 0, headOpts);
+    const probeR = place("head-right", data.right, 0, 0, headOpts);
     const headH = Math.max(34, Math.max(probeL.rect.h, probeR.rect.h) + 14);
-    const left = placeText("head-left", data.left, leftX + cellW / 2, y0 + (headH - probeL.rect.h) / 2, headOpts);
-    const right = placeText("head-right", data.right, rightX + cellW / 2, y0 + (headH - probeR.rect.h) / 2, headOpts);
+    const left = place("head-left", data.left, leftX + cellW / 2, y0 + (headH - probeL.rect.h) / 2, headOpts);
+    const right = place("head-right", data.right, rightX + cellW / 2, y0 + (headH - probeR.rect.h) / 2, headOpts);
     const pad = Math.round(8 * k);
     let y = y0 + headH + 10;
     const rows = data.rows.map((row, index) => {
-      const labelBox = placeText(`row${index}-label`, row.label, content.x + 4, y + pad, { maxWidth: labelW - 8, maxLines: lines, fontSize: 11.5 * k, minFontSize: 9, weight: 800 });
-      const leftBox = placeText(`row${index}-left`, row.left, leftX + 8, y + pad, { maxWidth: cellW - 30, maxLines: lines, fontSize: 11.5 * k, minFontSize: 9 });
-      const rightBox = placeText(`row${index}-right`, row.right, rightX + 8, y + pad, { maxWidth: cellW - 30, maxLines: lines, fontSize: 11.5 * k, minFontSize: 9 });
+      const labelBox = place(`row${index}-label`, row.label, content.x + 4, y + pad, { maxWidth: labelW - 8, maxLines: lines, fontSize: 11.5 * k, minFontSize: 9, weight: 800 });
+      const leftBox = place(`row${index}-left`, row.left, leftX + 8, y + pad, { maxWidth: cellW - 30, maxLines: lines, fontSize: 11.5 * k, minFontSize: 9 });
+      const rightBox = place(`row${index}-right`, row.right, rightX + 8, y + pad, { maxWidth: cellW - 30, maxLines: lines, fontSize: 11.5 * k, minFontSize: 9 });
       const h = Math.max(labelBox.rect.h, leftBox.rect.h, rightBox.rect.h) + pad * 2;
       const out = { y, h, label: labelBox, left: leftBox, right: rightBox, leftRect: { x: leftX, y, w: cellW, h }, rightRect: { x: rightX, y, w: cellW, h }, winner: row.winner };
       y += h + 6;
@@ -55,15 +56,27 @@ export function layoutComparison(data: ReelComparison, frame: SceneFrame): Compa
     return { headH, left, right, rows, height, y0 };
   };
   const scales = frame.portrait ? [1.5, 1.4, 1.3, 1.2, 1.1, 1] : [1.15, 1.1, 1.05, 1];
-  let pick = { k: 1, lines: 1 };
-  search: for (const k of scales) {
-    for (const lines of [3, 2, 1]) {
-      if (build(k, lines, 0).height <= room) {
-        pick = { k, lines };
-        break search;
+  const whole = (built: ReturnType<typeof build>) =>
+    [built.left, built.right, ...built.rows.flatMap((row) => [row.label, row.left, row.right])].every((box) => !box.truncated);
+  // Sığan ve hiçbir yazısı kesilmeyen en büyük ölçek seçilir. Dikeyde (videonun yazı tabanı büyük, hücre dar) kesilmeyen
+  // biçim yoksa hücre satırı 5'e kadar uzar; o da olmazsa eski seçim: sığan ilk biçim.
+  const passes = frame.portrait ? [[3, 2, 1], [4, 5]] : [[3, 2, 1]];
+  let pick: { k: number; lines: number } | null = null;
+  let firstFit: { k: number; lines: number } | null = null;
+  search: for (const [pass, lineChoices] of passes.entries()) {
+    for (const k of scales) {
+      for (const lines of lineChoices) {
+        const built = build(k, lines, 0);
+        if (built.height > room) continue;
+        if (pass === 0) firstFit ??= { k, lines };
+        if (whole(built)) {
+          pick = { k, lines };
+          break search;
+        }
       }
     }
   }
+  pick ??= firstFit ?? { k: 1, lines: 1 };
   const probe = build(pick.k, pick.lines, 0);
   const offset = Math.max(0, Math.round((room - probe.height) * 0.4));
   const { headH, left, right, rows, y0 } = build(pick.k, pick.lines, offset);
@@ -102,6 +115,8 @@ function Check({ x, y, color }: { x: number; y: number; color: string }) {
 
 export function ComparisonMatrixScene({ data, ...common }: SceneCommonProps & { data: ReelComparison }) {
   const layout = layoutComparison(data, common.frame);
+  // "VS" çerçevenin yazı tabanında (dikey videoda büyür).
+  const vsFont = layout.frame.text.floor;
   const [badge, title] = layout.texts;
   const { heads } = layout;
   return (
@@ -116,7 +131,7 @@ export function ComparisonMatrixScene({ data, ...common }: SceneCommonProps & { 
       </g>
       <g className="cp-vs-fade" style={delay(0.4)}>
         <circle cx={heads.vs.cx} cy={heads.vs.cy} r={13} fill={COMPARE_COLORS.bg} stroke={COMPARE_COLORS.vs} strokeWidth={2} />
-        <text x={heads.vs.cx} y={heads.vs.cy + SCENE_FONT_FLOOR * 0.36} fontSize={SCENE_FONT_FLOOR} fontWeight={800} textAnchor="middle" fill={COMPARE_COLORS.vs}>
+        <text x={heads.vs.cx} y={heads.vs.cy + vsFont * 0.36} fontSize={vsFont} fontWeight={800} textAnchor="middle" fill={COMPARE_COLORS.vs}>
           VS
         </text>
       </g>

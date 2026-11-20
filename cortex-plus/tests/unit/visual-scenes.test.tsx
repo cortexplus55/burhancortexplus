@@ -9,7 +9,15 @@ import {
   detectSourceTable,
   type VisualArchetype,
 } from "@/lib/learning/visual-scenes/archetype";
-import { layoutIssues, sceneFrame, SAFE_BOTTOM_MARGIN, type SceneChrome, type SceneMode } from "@/lib/learning/visual-scenes/layout";
+import {
+  SCENE_FONT_FLOOR,
+  VIDEO_PORTRAIT_FONT_FLOOR,
+  layoutIssues,
+  sceneFrame,
+  SAFE_BOTTOM_MARGIN,
+  type SceneChrome,
+  type SceneMode,
+} from "@/lib/learning/visual-scenes/layout";
 import { fitText, measureText } from "@/lib/learning/visual-scenes/text-fit";
 import { parseReelVisual, parseVisualScene, type ReelVisual, type VisualScene } from "@/lib/learning/visual-scenes/schema";
 import { ReelSceneRenderer, VisualSceneRenderer } from "@/components/learning/visual-scenes";
@@ -350,6 +358,47 @@ describe("sketch_reel 5 sahneli akış sahneleri", () => {
     expect(container.querySelector('[data-panel="wrong"]')).not.toBeNull();
     expect(container.querySelector('[data-panel="right"]')).not.toBeNull();
     expect(container.textContent).toContain("SAKIN BUNA DÜŞME!");
+  });
+});
+
+describe("dikey video yazı tabanı (13,5 birim; yatay video ve ders kartı 11,6)", () => {
+  it("yedi arketip (uzun metin) ve dört akış sahnesi: dikey videoda her yazı kutusu ve çizilen her <text> ≥ 13,5, sıfır taşma ve çakışma", () => {
+    const problems: string[] = [];
+    const small = (name: string, sizes: number[]) => {
+      for (const size of sizes) if (!(size >= VIDEO_PORTRAIT_FONT_FLOOR)) problems.push(`${name}: ${size}`);
+    };
+    const drawn = (container: HTMLElement) => [...container.querySelectorAll("svg text")].map((node) => Number(node.getAttribute("font-size")));
+    for (const archetype of VISUAL_ARCHETYPES) {
+      const scene = parseVisualScene(RAW[archetype])!;
+      const layout = ARCHETYPE_LAYOUTS[archetype](scene, "9:16", "video");
+      small(`${archetype} yerleşim`, layout.texts.map((box) => box.fontSize));
+      for (const issue of layoutIssues(layout)) problems.push(`${archetype} ${issue.kind} ${issue.detail}`);
+      const { container } = render(<VisualSceneRenderer scene={scene} mode="9:16" chrome="video" animate="none" />);
+      small(`${archetype} çizim`, drawn(container));
+      cleanup();
+    }
+    for (const [kind, raw] of Object.entries(REEL)) {
+      const visual = parseReelVisual(raw)!;
+      const layout = REEL_LAYOUTS[kind as keyof typeof REEL_LAYOUTS](visual, "9:16");
+      small(`${kind} yerleşim`, layout.texts.map((box) => box.fontSize));
+      for (const issue of layoutIssues(layout)) problems.push(`${kind} ${issue.kind} ${issue.detail}`);
+      const { container } = render(<ReelSceneRenderer visual={visual} mode="9:16" animate="none" />);
+      small(`${kind} çizim`, drawn(container));
+      cleanup();
+    }
+    expect(problems).toEqual([]);
+  });
+
+  it("yatay videoda akış sahnelerinin tabanı değişmedi (en küçük yazı 11,6)", () => {
+    for (const [kind, raw] of Object.entries(REEL)) {
+      const layout = REEL_LAYOUTS[kind as keyof typeof REEL_LAYOUTS](parseReelVisual(raw)!, "16:9");
+      expect(layout.frame.text.floor, kind).toBe(SCENE_FONT_FLOOR);
+      expect(Math.min(...layout.texts.map((box) => box.fontSize)), kind).toBeGreaterThanOrEqual(SCENE_FONT_FLOOR);
+    }
+    const smallest = Math.min(
+      ...Object.entries(REEL).flatMap(([kind, raw]) => REEL_LAYOUTS[kind as keyof typeof REEL_LAYOUTS](parseReelVisual(raw)!, "16:9").texts.map((box) => box.fontSize)),
+    );
+    expect(smallest).toBe(SCENE_FONT_FLOOR);
   });
 });
 

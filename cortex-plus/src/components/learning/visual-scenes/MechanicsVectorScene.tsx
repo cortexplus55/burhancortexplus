@@ -4,10 +4,12 @@ import { DOMAIN_LABEL, sceneArchetypeLabel, type AcademicDomain } from "@/lib/le
 import { withTrend } from "@/lib/learning/visual-scenes/direction-semantics";
 import { measureText } from "@/lib/learning/visual-scenes/text-fit";
 import {
+  floorGrowth,
   inflate,
   layoutHeader,
-  SCENE_FONT_FLOOR,
+  layoutIssues,
   labelBudget,
+  measureForFrame,
   textPlacer,
   rectsOverlap,
   segment,
@@ -116,7 +118,13 @@ function driverCaption(data: MechanicsData, driver: MechanicsData["logic"]["driv
   return data.setting === "trend" ? withTrend(driver.label, driver.effect === "up" ? "increase" : "decrease") : driver.label;
 }
 
-function layoutPanel(place: TextPlacer, data: MechanicsData, rect: Rect, labelLines: number): { kicker: TextBox; formula: TextBox; rows: LogicRow[]; height: number } {
+function layoutPanel(
+  place: TextPlacer,
+  data: MechanicsData,
+  rect: Rect,
+  labelLines: number,
+  frame: SceneFrame,
+): { kicker: TextBox; formula: TextBox; rows: LogicRow[]; height: number } {
   const pad = 10;
   const x0 = rect.x + pad;
   const w = rect.w - pad * 2;
@@ -133,7 +141,7 @@ function layoutPanel(place: TextPlacer, data: MechanicsData, rect: Rect, labelLi
   // Simge çipi en geniş simgeye göre (8 karaktere kadar simge kesilmeden sığsın).
   const symbols = [...data.logic.drivers.map((driver) => driver.symbol), ...data.logic.distractors.map((item) => item.symbol)];
   // Çip en geniş simgeye göre, yazı tabanında ölçülür (8 karakterlik simge kesilmeden sığar).
-  const chipW = Math.max(38, Math.min(92, Math.max(0, ...symbols.map((symbol) => measureText(symbol, Math.max(11, SCENE_FONT_FLOOR), 800))) + 14));
+  const chipW = Math.max(38, Math.min(92, Math.max(0, ...symbols.map((symbol) => measureText(symbol, Math.max(11, frame.text.floor), 800))) + 14));
   const labelX = x0 + chipW + 30;
   const miniW = 44;
   const labelW = w - chipW - 30 - miniW - 8;
@@ -177,15 +185,53 @@ function layoutPanel(place: TextPlacer, data: MechanicsData, rect: Rect, labelLi
   return { kicker, formula, rows, height: y - rect.y + pad - 4 };
 }
 
+/**
+ * Yerleşim basamağı. `trim` (yalnız dikeyde): 0 panelin hepsi, 1 çeldirici satırları düşer, 2 tek sürücü satırı kalır;
+ * panel küçüldükçe çizim alanı büyür, kuvvetler ve formül hiç düşmez. `far`: ok etiketi için yakın ızgarada temiz yer
+ * yoksa arama genişler (etiket okundan uzaklaşabilir, bu yüzden panel sadeleşmesinden sonra denenir).
+ */
+type MechanicsStep = { trim: 0 | 1 | 2; far: boolean };
+
+const PORTRAIT_STEPS: MechanicsStep[] = [
+  { trim: 0, far: false },
+  { trim: 1, far: false },
+  { trim: 2, far: false },
+  { trim: 0, far: true },
+  { trim: 1, far: true },
+  { trim: 2, far: true },
+];
+const LANDSCAPE_STEPS: MechanicsStep[] = [
+  { trim: 0, far: false },
+  { trim: 0, far: true },
+];
+
+/**
+ * Ok etiketleri çizim alanına temiz yerleşemezse (özellikle dikey videonun büyük yazı tabanında) yerleşim basamak
+ * basamak sadeleşir: dikeyde önce çeldirici, sonra fazla sürücü satırı (etiket bütçesiyle aynı sıra), en son geniş arama.
+ * İlk temiz yerleşim döner; hiçbiri temiz değilse en az sorunlu olan (eşitlikte daha önceki basamak).
+ */
 export function layoutMechanics(raw: MechanicsData, frame: SceneFrame, domain?: AcademicDomain): MechanicsLayout {
+  let best: { layout: MechanicsLayout; issues: number } | null = null;
+  for (const step of frame.portrait ? PORTRAIT_STEPS : LANDSCAPE_STEPS) {
+    const layout = buildMechanics(raw, frame, domain, step);
+    const issues = layoutIssues(layout).length;
+    if (!best || issues < best.issues) best = { layout, issues };
+    if (!issues) break;
+  }
+  return best!.layout;
+}
+
+function buildMechanics(raw: MechanicsData, frame: SceneFrame, domain: AcademicDomain | undefined, { trim, far: reachFar }: MechanicsStep): MechanicsLayout {
   const { content } = frame;
   const place = textPlacer(frame);
   // Etiket bütçesi (seviye): kuvvetler hep kalır (biri düşerse denge yanlış okunur); önce çeldirici, sonra sürücü düşer.
-  const [, driverN, distractorN] = labelBudget(frame.text.maxLabels, [
+  const [, budgetDrivers, budgetDistractors] = labelBudget(frame.text.maxLabels, [
     { count: raw.vectors.length + 1, keep: raw.vectors.length + 1 },
     { count: raw.logic.drivers.length, keep: 1 },
     { count: raw.logic.distractors.length, keep: 0 },
   ]);
+  const driverN = trim >= 2 ? Math.min(1, budgetDrivers) : budgetDrivers;
+  const distractorN = trim >= 1 ? 0 : budgetDistractors;
   const data: MechanicsData = { ...raw, logic: { ...raw.logic, drivers: raw.logic.drivers.slice(0, driverN), distractors: raw.logic.distractors.slice(0, distractorN) } };
   const badge = `${domain ? DOMAIN_LABEL[domain] : "Fizik · Mühendislik"} · ${sceneArchetypeLabel(data)}`;
   const header = layoutHeader(frame, data.title, badge);
@@ -199,18 +245,18 @@ export function layoutMechanics(raw: MechanicsData, frame: SceneFrame, domain?: 
   let panel: ReturnType<typeof layoutPanel>;
   if (frame.portrait) {
     // Satır sayısı içerik kadar (en çok 3): kesmek yerine sarılır; çizim alanı çok daralırsa 2 satır.
-    const probe = layoutPanel(place, data, { x: content.x, y: 0, w: content.w, h: 0 }, 3);
+    const probe = layoutPanel(place, data, { x: content.x, y: 0, w: content.w, h: 0 }, 3, frame);
     const lines = bottom - top - probe.height < 170 ? 2 : 3;
-    const height = lines === 3 ? probe.height : layoutPanel(place, data, { x: content.x, y: 0, w: content.w, h: 0 }, 2).height;
+    const height = lines === 3 ? probe.height : layoutPanel(place, data, { x: content.x, y: 0, w: content.w, h: 0 }, 2, frame).height;
     panelRect = { x: content.x, y: bottom - height, w: content.w, h: height };
-    panel = layoutPanel(place, data, panelRect, lines);
+    panel = layoutPanel(place, data, panelRect, lines, frame);
   } else {
     // Panel sığana ve yazı kesilmeyene kadar genişler (yazı tabanı yüzünden dar panelde etiket bölünüyordu).
     const tries = [0.42, 0.46, 0.5].flatMap((ratio) => [3, 2].map((lines) => ({ ratio, lines })));
     const build = ({ ratio, lines }: { ratio: number; lines: number }) => {
       const w = Math.round(content.w * ratio);
       const rect = { x: content.x + content.w - w, y: top, w, h: bottom - top };
-      return { rect, panel: layoutPanel(place, data, rect, lines) };
+      return { rect, panel: layoutPanel(place, data, rect, lines, frame) };
     };
     const built = tries.map(build);
     const whole = (item: (typeof built)[number]) => [item.panel.kicker, item.panel.formula, ...item.panel.rows.flatMap((row) => [row.symbol, row.label, ...(row.tag ? [row.tag] : [])])].every((box) => !box.truncated);
@@ -226,7 +272,11 @@ export function layoutMechanics(raw: MechanicsData, frame: SceneFrame, domain?: 
     : { x: content.x, y: top, w: panelRect.x - 16 - content.x, h: bottom - top };
 
   // Cisim
-  const bodySize = Math.max(44, Math.min(70, Math.min(plane.w, plane.h) * 0.24));
+  // Cisim kutusu en az etiketinin en uzun sözcüğü kadar: dikey videonun yazı tabanında dar çizim alanı kutuyu küçültünce
+  // sözcük bölünüp kesiliyordu (sözcük sığıyorsa boyut eskisi gibi).
+  const bodyFont = Math.max(frame.text.floor, 11 * frame.text.fontScale);
+  const longestWord = Math.max(0, ...data.body.label.split(/\s+/).map((word) => measureForFrame(frame, word, bodyFont, 700)));
+  const bodySize = Math.max(44, Math.min(70, Math.min(plane.w, plane.h) * 0.24), Math.min(96, longestWord + 10));
   const cx = plane.x + plane.w / 2;
   const cy = plane.y + plane.h / 2 + (data.setting === "fluid" ? bodySize * 0.12 : 0);
   const body: Rect = { x: cx - bodySize / 2, y: cy - bodySize / 2, w: bodySize, h: bodySize };
@@ -297,7 +347,8 @@ export function layoutMechanics(raw: MechanicsData, frame: SceneFrame, domain?: 
     const color = MECHANICS_COLORS.vectors[index % MECHANICS_COLORS.vectors.length]!;
     const symbolRaw = place(`vector${index}-symbol`, vector.symbol, 0, 0, { maxWidth: 84, maxLines: 1, fontSize: 15, minFontSize: 10, weight: 800, single: true });
     const caption = vectorCaption(vector);
-    const labelW = Math.round(Math.max(92, Math.min(124, bounds.w * 0.36)));
+    // Etiket genişliği yazı tabanıyla büyür (dikey videoda satır kırılımı ders kartındakiyle aynı, etiket uzamaz).
+    const labelW = Math.round(Math.max(92, Math.min(124, bounds.w * 0.36)) * floorGrowth(frame));
     const labelRaw = place(`vector${index}-label`, caption, 0, 0, { maxWidth: labelW, maxLines: 4, fontSize: 9.5, minFontSize: 8 });
     const blockW = Math.max(symbolRaw.rect.w, labelRaw.rect.w);
     // Alt/üst simge (F_1, v^2) yazının kutusunu aşağı uzatır; Türkçe şapkalı harfler (ğ, Ü) etiketi yukarı. Etiket bu pay kadar aşağı iner.
@@ -335,14 +386,23 @@ export function layoutMechanics(raw: MechanicsData, frame: SceneFrame, domain?: 
   const offsets: [number, number][] = [];
   for (let ox = -84; ox <= 84; ox += 6) for (let oy = -84; oy <= 84; oy += 6) offsets.push([ox, oy]);
   offsets.sort((a, b) => Math.hypot(a[0], a[1]) - Math.hypot(b[0], b[1]));
+  // Geniş arama basamağında (yakın ızgarada temiz yer kalmadıysa) ızgara ±156 px'e uzar. Yakın adaylar hep önce denenir:
+  // yakın ızgarada bulunan yer değişmez.
+  const far: [number, number][] = [];
+  if (reachFar) {
+    for (let ox = -156; ox <= 156; ox += 6) for (let oy = -156; oy <= 156; oy += 6) if (Math.abs(ox) > 84 || Math.abs(oy) > 84) far.push([ox, oy]);
+    far.sort((a, b) => Math.hypot(a[0], a[1]) - Math.hypot(b[0], b[1]));
+  }
   vectors.forEach((vector, index) => {
     const side = sides[index];
-    const ordered = side
-      ? [...offsets].sort((a, b) => {
-          const cost = ([ox, oy]: [number, number]) => Math.hypot(ox, oy) + (ox * side.x + oy * side.y < 0 ? 60 : 0);
-          return cost(a) - cost(b);
-        })
-      : offsets;
+    const bySide = (list: [number, number][]) =>
+      side
+        ? [...list].sort((a, b) => {
+            const cost = ([ox, oy]: [number, number]) => Math.hypot(ox, oy) + (ox * side.x + oy * side.y < 0 ? 60 : 0);
+            return cost(a) - cost(b);
+          })
+        : list;
+    const ordered = [...bySide(offsets), ...bySide(far)];
     const origin = { symbol: vector.symbol, label: vector.label };
     const clean = (symbol: TextBox, label: TextBox) =>
       [symbol.rect, label.rect].every(
