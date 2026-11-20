@@ -70,7 +70,7 @@ describe("dosya kurucusu (saf)", () => {
       },
       "2026-11-15",
     );
-    expect(behind).toEqual({ topic: "Hücre zarı ve osmoz", days: 2 });
+    expect(behind).toMatchObject({ topic: "Hücre zarı ve osmoz", days: 2, nodeId: "n2" });
   });
 
   it("her satır kaynağına bağlı; istem bloğu uydurma süreklilik yasağıyla ve ~300 jetonla sınırlı", () => {
