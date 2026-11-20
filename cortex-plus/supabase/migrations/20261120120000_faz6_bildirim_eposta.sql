@@ -1,4 +1,4 @@
--- YAZILDI, UYGULANMADI: kod yayına çıktıktan sonra SQL ekranında, kayıt satırıyla (docs/operasyon/goc-kayitlari.md).
+-- UYGULANDI: 20 Kasım 2026, #710 yayınından sonra SQL ekranında, kayıt satırıyla (docs/operasyon/goc-kayitlari.md).
 --
 -- Faz 6 (20 Kasım 2026): bildirim merkezi ve yaşam döngüsü e-postaları için üç tablo. Ürün sahibinin kararı: yeni
 -- tablolar kurulur, eski kayıtlar bunlara KOPYALANIR (eski tablolar silinmez, yalnız okunmaz olur):

@@ -98,6 +98,25 @@ düğüm sonucu (yeni Öğrendin / Gelişiyor / Zayıf / Ölçülmedi sayımı),
 
 **Geri alma:** gerekmez (canlıda değişiklik yok).
 
+## 20261120120000 · faz6_bildirim_eposta (PR #710)
+
+| | |
+|---|---|
+| Onaylayan | Burhan (Faz 6 istemi, 20 Kasım 2026: "ardından ekleyici göçü uygula"; tablolar için karar "Yeni tablolar, eskileri taşı") |
+| Uygulama | 20 Kasım 2026, TR ~10:00; #710 birleşme commit'i `1fc3c48b` Vercel'de "success" ve üretim duman testi 7/7 geçtikten sonra. Supabase SQL ekranı, tek çalıştırma + kayıt satırı |
+| Uygulayan | Claude, Burhan'ın onayıyla |
+| Değişen | Üç yeni tablo: `user_notification_preferences`, `in_app_notifications`, `email_dispatch_log` (satır güvenliği açık, `anon` / `authenticated` izni yok, yalnız `service_role`). Eski satırlar yalnız eklenerek kopyalandı; eski tablolar (`notifications`, `profiles.study_reminder_email`, `email_events`) silinmedi, değişmedi |
+
+**Doğrulama:** hatırlatmayı kapatan 8 öğrencinin 8'i tercih tablosunda (8 anahtarın 8'i 64 onaltılık karakter); 159 eski
+bildirimin 159'u `in_app_notifications`ta (kimlik aynı, okundu bilgisi korunmuş); gönderilmiş 28 "bir kez" e-postanın
+28'i `email_dispatch_log`ta. Üç tabloda `relrowsecurity` true, tarayıcı rollerine izin 0. Kayıt satırı 1. Canlıda
+kurucu oturumuyla `/api/notifications` ve `/api/notification-preferences` 200 (abonelik anahtarı cevapta yok), çan
+penceresi kopyalanan bildirimleri gösteriyor, `/ayarlar` ve `/bildirim-tercihleri` 200.
+
+**Geri alma:** gerekmez ve önerilmez. Kod tablolar yokken eski tablolara düşer; tablolar kalırsa zarar yok. Silmek yıkıcı
+işlemdir (yalnız Burhan'ın kararıyla): göçten sonra yazılan bildirim, tercih ve gönderim kaydı kaybolur, gönderim kilidi
+tekilliği unutur.
+
 ## İstatistik işlemleri (göç değil)
 
 | Zaman (UTC) | İşlem | Onay | Sonuç |
