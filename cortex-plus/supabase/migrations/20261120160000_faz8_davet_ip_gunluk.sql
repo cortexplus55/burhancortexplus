@@ -1,4 +1,4 @@
--- YAZILDI, UYGULANMADI.
+-- UYGULANDI: 20 Kasım 2026, #714 yayınından sonra (Supabase SQL ekranı + kayıt satırı; docs/operasyon/goc-kayitlari.md).
 --
 -- Faz 8 (20 Kasım 2026, ürün sahibinin kararı): sınıf klonlama ödülünde (+50 kredi) katı "aynı IP" engeli kalkar; yerine
 -- "aynı IP'den günde en çok 3 davet ödülü" gelir. Aynı yurt ya da okul Wi-Fi'ındaki gerçek sınıf arkadaşları artık ödül
