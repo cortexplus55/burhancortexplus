@@ -118,6 +118,7 @@ import {
   type TutorSession,
 } from "@/lib/ai/teacher-v2-session";
 import { settleVoice } from "@/lib/ai/teacher-voice";
+import { loadStudentDossier } from "@/lib/teacher/dossier-load";
 import { dropSourceLabels, settlePedagogicalLabels, stripOrphanCitations } from "@/lib/ai/chat-answer-settle";
 import { createChatDraft } from "@/lib/ai/chat-draft";
 import { logOpsEvent } from "@/lib/observability/ops-log";
@@ -349,6 +350,9 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
     const isBlocked = (v: Verdict): v is Extract<Verdict, { message: string }> => v.action === "block" || v.action === "support";
     // teacher.v2 (EK-6): ana sohbette de denetim modelle paralel; ilk metin denetimi beklemez (canlıda 0,6-1,7 sn).
     const teacherV2 = await teacherV2Early;
+    // PR-2 (PROMPT-V2 §3): Öğrenci Dosyası yalnız ana sohbette ve bayrak açıkken; öbür hazırlıklarla aynı anda okunur,
+    // 10 dk önbellekte. Okunamazsa öğretmen dosyasız konuşur (iddia kurmaz).
+    const dossierEarly = teacherV2 && !rest.prepId ? loadStudentDossier(service, userId).catch(() => null) : null;
     const parallelModeration = (Boolean(rest.prepId) || teacherV2) && !imageUrl;
     const modelAbort = new AbortController();
     const abortModel = () => modelAbort.abort();
@@ -571,9 +575,12 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
         turnLines.push(...teacherV2SessionLines({ session: v2Session, style: teachStyle, plan: turn.plan, message }));
       }
       const moodLine = turn.mood === "neutral" ? "" : ` ${moodPrompt(turn.mood)}`;
+      // Dosya bloğu tur satırlarından önce (son söz turun kuralı); kriz ve yalnız duygu turunda yok.
+      const dossierBlock =
+        v2Session && dossierEarly && !turn.crisis && !turn.feelingOnly ? ((await dossierEarly)?.promptBlock ?? "") : "";
       const calibrationLine = await calibrationEarly.then((block) => (block ? PARAGRAPH + block : ""));
       const requestMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-        { role: "system", content: `${SYSTEM_GUARDRAIL} ${studentInstruction} ${teacherTurn} ${(v2Session && v2StyleLine(teachStyle)) || teacherStyleLine(tutorStyle)} ${CHAT_NATURAL_VOICE}${rest.prepId && prepGrounding ? "" : `\n\n${teacherV2 ? ONE_MOVE_MARKUP : CHAT_TEACHING_MARKUP}\n\n`} ${v2Session ? v2AnswerFirstLine({ message, style: teachStyle, base: tutorStyle, session: v2Session, plan: turn.plan }) : answerFirstLine(message, tutorStyle)} ${misconceptionFirstLine(message)}${moodLine}${examContext?.block ?? ""}${attachedBrief ? `\n${SOURCE_PAGE_FORMULA_RULE}\n${attachedBrief}` : ""}${contextBlock}${tutorAddendum ? `\n\n${tutorAddendum}` : ""}${calibrationLine}${simplifyLine(message) ? `\n\n${simplifyLine(message)}` : ""}${chatTurnBlock(turnLines)}` },
+        { role: "system", content: `${SYSTEM_GUARDRAIL} ${studentInstruction} ${teacherTurn} ${(v2Session && v2StyleLine(teachStyle)) || teacherStyleLine(tutorStyle)} ${CHAT_NATURAL_VOICE}${rest.prepId && prepGrounding ? "" : `\n\n${teacherV2 ? ONE_MOVE_MARKUP : CHAT_TEACHING_MARKUP}\n\n`} ${v2Session ? v2AnswerFirstLine({ message, style: teachStyle, base: tutorStyle, session: v2Session, plan: turn.plan }) : answerFirstLine(message, tutorStyle)} ${misconceptionFirstLine(message)}${moodLine}${examContext?.block ?? ""}${attachedBrief ? `\n${SOURCE_PAGE_FORMULA_RULE}\n${attachedBrief}` : ""}${contextBlock}${tutorAddendum ? `\n\n${tutorAddendum}` : ""}${calibrationLine}${simplifyLine(message) ? `\n\n${simplifyLine(message)}` : ""}${dossierBlock ? `\n\n${dossierBlock}` : ""}${chatTurnBlock(turnLines)}` },
         ...history,
         { role: "user", content: imageUrl ? [{ type: "text", text: message }, { type: "image_url", image_url: visionImage(imageUrl) }] : message },
       ];

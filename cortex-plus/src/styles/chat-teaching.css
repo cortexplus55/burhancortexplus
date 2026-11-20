@@ -562,6 +562,57 @@ mark.cp-key {
   color: var(--cp-muted);
 }
 
+/* "Neye baktım" (teacher.v2 PR-2): kaynak menüsünün kabı; içerik okunur liste, her satır kaynağına bağlı. */
+.cp-dossier-panel {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem 0.85rem;
+}
+
+.cp-dossier-title {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--cp-text);
+}
+
+.cp-dossier-list {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-dossier-list li {
+  display: grid;
+  gap: 0.1rem;
+  font-size: 0.875rem;
+  line-height: 1.35;
+  color: var(--cp-text);
+}
+
+.cp-dossier-note,
+.cp-dossier-foot {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: var(--cp-muted);
+}
+
+.cp-dossier-link {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--c-action);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
 /* Telefonda haplar kısalır (kaynak hapı yalnız simge); sığmazsa en çok iki sıra, hiçbiri kesilmez. */
 @media (max-width: 480px) {
   .cp-sor-controls {
