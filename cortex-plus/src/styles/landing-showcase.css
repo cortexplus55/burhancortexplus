@@ -1,55 +1,81 @@
 /*
-  Ana sayfa: hedef kitle sekmeleri (7 Kasım 2026). Ana sayfanın paletini (`.lp` değişkenleri) kullanır; her sekme en
-  az 44 px yüksek; hiçbir kutu ekrandan geniş değil (telefon 360 / 375 px).
+  Ana sayfa: kahramanın TEK seçicisi (Faz 9, 20 Kasım 2026). Önce kahramanda dört sekme (`.lp-aud-tab`), turun üstünde
+  ayrıca dört seçenekli bir branş şeridi vardı; ikisi tek bölümlü seçicide birleşti. Seçili olmayan seçeneğin sönük
+  durduğu şerit ("Üniversite zayıf görünüyor", ürün sahibi) kalktı.
 
-  11 Kasım 2026, kokpit (canlı denetim: "seçili olmayan sekmeler soluk, okunmuyor"): seçili olmayan sekme artık
-  dolu koyu yüzey, belirgin çerçeve ve tam açık yazı (zemine karşı 15:1). Seçili sekme sayfanın birincil eylemiyle
-  aynı dilde: kâğıt beyazı zemin, mürekkep yazı ve çevresinde logonun şeridinden bir hale. Mavi vurgu yok.
+  Pazarlama paleti (11 Kasım 2026): tepsi koyu sıcak yüzey, seçili olmayan seçenek tam açık yazı (zemine karşı 16,7:1,
+  alt satır 9,6:1), seçili seçenek sayfanın birincil eylemiyle aynı dilde: kâğıt beyazı zemin, mürekkep yazı (15,5:1;
+  alt satır 7,2:1) ve çevresinde logonun şeridinden bir hale. Mavi yok. Her seçenek en az 56 px; dar ekranda iki
+  sütun, iç kaydırma yok, sayfa yana taşmaz.
 */
 
-.lp-aud-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin: 1.25rem 0 0;
+.lp-pick {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.25rem;
+  width: min(100%, 44rem);
+  margin-inline: auto;
+  padding: 0.3rem;
+  border-radius: 1.5rem;
+  background: #15110d;
+  box-shadow:
+    0 0 0 1px rgba(247, 241, 232, 0.16) inset,
+    0 1.2rem 2.4rem -1.6rem rgba(0, 0, 0, 0.9);
 }
 
-.lp-aud-tabs--compact {
-  margin: 1.1rem 0 1.4rem;
-}
-
-.lp-aud-tab {
-  display: inline-flex;
-  align-items: center;
-  min-height: 2.75rem;
-  padding: 0 0.95rem;
-  border: 1px solid rgba(247, 241, 232, 0.42);
-  border-radius: 999px;
-  background: #1e1813;
+.lp-pick-opt {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 0.15rem;
+  min-width: 0;
+  min-height: 3.5rem;
+  padding: 0.45rem 0.5rem;
+  border: 0;
+  border-radius: 1.2rem;
+  background: transparent;
   color: #f7f1e8;
-  font-size: 0.9rem;
-  font-weight: 650;
-  line-height: 1.2;
+  font: inherit;
+  text-align: center;
   cursor: pointer;
   transition:
-    border-color 0.2s ease,
-    background 0.2s ease,
-    box-shadow 0.2s ease,
-    color 0.2s ease;
+    background 0.16s ease,
+    color 0.16s ease,
+    box-shadow 0.22s ease;
 }
 
-.lp-aud-tab:hover {
-  border-color: #f6ecd9;
-  background: #2a2119;
+.lp-pick-name {
+  max-width: 100%;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
-.lp-aud-tab:focus-visible {
-  outline: 2px solid var(--lp-accent-text);
+/* Alt satır: örnek notun alanı (büyük harfli mono; `text-transform` ile, `lang="tr"` İ'yi doğru yazar). */
+.lp-pick-field {
+  max-width: 100%;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  color: #c4b8aa;
+  overflow-wrap: anywhere;
+}
+
+.lp-pick-opt:not(.is-on):hover {
+  background: #241c15;
+}
+
+.lp-pick-opt:focus-visible {
+  outline: 2px solid #ffdcae;
   outline-offset: 2px;
 }
 
-.lp-aud-tab.is-on {
-  border-color: transparent;
+.lp-pick-opt.is-on {
   background: #f6ecd9;
   color: #1b140d;
   box-shadow:
@@ -59,6 +85,24 @@
     0.7rem 0 1.5rem -0.8rem rgba(34, 211, 238, 0.7);
 }
 
-.lp-aud-tab.is-on:hover {
+.lp-pick-opt.is-on .lp-pick-field {
+  color: #5c4a37;
+}
+
+.lp-pick-opt.is-on:hover {
   background: #fffaf0;
+}
+
+/* Dar ekran: iki sütun, iki satır (dört seçenek yan yana sığmaz). */
+@media (max-width: 599px) {
+  .lp-pick {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.3rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-pick-opt {
+    transition: none;
+  }
 }

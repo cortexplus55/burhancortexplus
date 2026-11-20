@@ -1,7 +1,7 @@
 import { isAudienceSegmentId, type AudienceSegmentId } from "@/lib/marketing/landing-showcase";
 
 /**
- * Kayıt ön seçimi (7 Kasım 2026): ana sayfadaki hedef kitle sekmesi `/kayit?hedef=…` ile gelir; sınıf ve hedef sınav
+ * Kayıt ön seçimi (7 Kasım 2026): ana sayfadaki hedef kitle seçimi `/kayit?hedef=…` ile gelir; sınıf ve hedef sınav
  * adımı ilgili seçenekleri önceden seçer ya da öne çıkarır, öğrenci yalnız doğrular.
  *
  * Seçilen değerler kayıt seçeneklerinin kendi etiketleridir (`GRADE_OPTIONS`, `GOAL_OPTIONS`); yeni bir alan yok.
@@ -39,5 +39,8 @@ export function signupPresetFor(hedef: string | null | undefined): SignupPreset 
       return { hedef: id, gradeLevel: "Üniversite", learningGoal: "Üniversite vize ve final", suggestedGrades: ["Üniversite"] };
     case "akademik":
       return { hedef: id, gradeLevel: "Mezun", learningGoal: "KPSS hazırlık", suggestedGrades: ["Mezun", "Üniversite"] };
+    // Faz 9 (20 Kasım 2026): TUS kendi profili (önce akademik sekmenin içindeydi ve kayıtta KPSS'ye düşüyordu).
+    case "tus":
+      return { hedef: id, gradeLevel: "Mezun", learningGoal: "TUS hazırlık", suggestedGrades: ["Mezun", "Üniversite"] };
   }
 }

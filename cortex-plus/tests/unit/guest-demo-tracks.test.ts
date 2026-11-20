@@ -99,10 +99,13 @@ describe("dört branş, yedi adım: her adım branşın kendi verisi", () => {
     expect(isGuestTrackId("ortaokul")).toBe(false);
     expect(guestDemoTrack(null).id).toBe("lise");
     expect(guestTourContent(undefined)).toBe(GUEST_TOUR_CONTENT.lise);
-    expect(GUEST_DEMO_TRACKS.lise.label).toBe("Lise & YKS · Matematik");
-    expect(GUEST_DEMO_TRACKS.muhendislik.label).toBe("Üniversite · Mühendislik");
-    expect(GUEST_DEMO_TRACKS.tus.label).toBe("TUS / Tıp · Farmakoloji");
-    expect(GUEST_DEMO_TRACKS.hukuk.label).toBe("KPSS / Hukuk · Anayasa");
+    // Kahramanın seçicisindeki ad ve alt satır (Faz 9).
+    expect(TRACKS.map((id) => [GUEST_DEMO_TRACKS[id].pickLabel, GUEST_DEMO_TRACKS[id].field])).toEqual([
+      ["Lise & YKS", "Matematik"],
+      ["Üniversite", "Mühendislik"],
+      ["TUS / Tıp", "Farmakoloji"],
+      ["KPSS / Hukuk", "Anayasa"],
+    ]);
   });
 
   for (const id of TRACKS) {
@@ -123,10 +126,9 @@ describe("dört branş, yedi adım: her adım branşın kendi verisi", () => {
         expect(findings[1]!.text).toBe(`${meta.units.length} konu`);
         expect(findings[2]!.text).toBe(meta.warning);
         expect(findings[3]!.text).toBe(meta.figure);
-        // Bağlam satırı branşın: kısa, "Örnek not" ile başlar, dört branşta dört ayrı cümle.
-        expect(meta.context).toMatch(/^Örnek not /);
-        expect(meta.context.length).toBeLessThanOrEqual(90);
-        expect(meta.context).not.toMatch(/podcast|video|sözlü|yazılı deneme|ikiz sınav|sınav sabahı/i);
+        // Ana sayfadaki bırakma alanının rozeti: dosya adı ve "N sayfa" (Faz 9; konsolun bağlam satırı kalktı).
+        expect(file.pagesLabel).toBe(`${expected.pages} sayfa`);
+        expect(file.start).toBe("Örnek Notla 7 Adımı İzle");
       });
 
       it("2. yol: branşın konuları gün gün, ilk gün hazır ders; uyarının etiketi notun kendi satırından", () => {
@@ -278,21 +280,22 @@ describe("dört branş, yedi adım: her adım branşın kendi verisi", () => {
   }
 });
 
-describe("kahraman sekmesi ↔ branş: tek durum", () => {
-  it("sekme branşı açar: lise ve YKS/LGS matematik, üniversite mühendislik, akademik hukuk", () => {
-    expect(AUDIENCE_SEGMENT_IDS.map((segment) => trackForSegment(segment))).toEqual(["lise", "lise", "muhendislik", "hukuk"]);
+describe("kahramanın tek seçicisi ↔ branş: tek durum (Faz 9)", () => {
+  it("profil branşı açar: lise ve YKS/LGS matematik, üniversite mühendislik, akademik hukuk, TUS farmakoloji", () => {
+    expect(AUDIENCE_SEGMENT_IDS.map((segment) => trackForSegment(segment))).toEqual(["lise", "lise", "muhendislik", "hukuk", "tus"]);
   });
 
-  it("branş sekmeyi eşler; lise branşı lise ya da YKS/LGS sekmesinde yerinde kalır, TUS akademik sekmede", () => {
+  it("branş profili eşler; lise branşı lise ya da YKS/LGS profilinde yerinde kalır, TUS kendi profilinde", () => {
     expect(segmentForTrack("lise", "yks-lgs")).toBe("yks-lgs");
     expect(segmentForTrack("lise", "lise")).toBe("lise");
     expect(segmentForTrack("lise", "akademik")).toBe("lise");
     expect(segmentForTrack("muhendislik", "lise")).toBe("universite");
-    expect(segmentForTrack("tus", "lise")).toBe("akademik");
+    expect(segmentForTrack("tus", "lise")).toBe("tus");
     expect(segmentForTrack("hukuk", "universite")).toBe("akademik");
-    expect(segmentForTrack("tus", "akademik")).toBe("akademik");
-    // Eşlenen sekme branşı geri açar (TUS dışında: akademik sekme hukukla açılır, TUS şeritten seçilir).
-    for (const track of ["lise", "muhendislik", "hukuk"] as const) {
+    expect(segmentForTrack("tus", "akademik")).toBe("tus");
+    expect(segmentForTrack("hukuk", "tus")).toBe("akademik");
+    // Eşlenen profil branşı geri açar: dört branşın dördünde de (önce TUS akademik sekmede hukukla açılıyordu).
+    for (const track of GUEST_TRACK_IDS) {
       for (const segment of AUDIENCE_SEGMENT_IDS) expect(trackForSegment(segmentForTrack(track, segment))).toBe(track);
     }
   });

@@ -95,27 +95,47 @@ describe("palet: mavi zemin ve mavi düğme geri gelmez", () => {
     for (const selector of gold) expect(selector).toMatch(/plus/);
   });
 
-  it("hedef kitle sekmeleri yüksek kontrastlı: seçili olmayan dolu koyu yüzey ve açık yazı, seçili kâğıt beyazı", () => {
+  it("kahramanın tek seçicisi yüksek kontrastlı: seçili olmayan koyu tepside tam açık yazı, seçili kâğıt beyazı", () => {
+    // Faz 9 (20 Kasım 2026): dört sekme ve turun branş şeridi tek seçicide birleşti; seçili olmayan seçeneğin sönük
+    // durduğu şerit ("Üniversite zayıf görünüyor") kalktı. Oranlar hesaplanır: her biri en az 4,5:1.
     const css = withoutComments(read("src/styles/landing-showcase.css"));
-    const base = css.match(/\.lp-aud-tab \{[^}]*\}/)?.[0] ?? "";
-    expect(base).toContain("background: #1e1813;");
+    const tray = css.match(/\.lp-pick \{[^}]*\}/)?.[0] ?? "";
+    expect(tray).toContain("background: #15110d;");
+    const base = css.match(/\.lp-pick-opt \{[^}]*\}/)?.[0] ?? "";
     expect(base).toContain("color: #f7f1e8;");
-    expect(base).toContain("border: 1px solid rgba(247, 241, 232, 0.42);");
-    expect(base).toContain("min-height: 2.75rem;");
-    const on = css.match(/\.lp-aud-tab\.is-on \{[^}]*\}/)?.[0] ?? "";
+    expect(base).toContain("min-height: 3.5rem;");
+    const field = css.match(/\.lp-pick-field \{[^}]*\}/)?.[0] ?? "";
+    expect(field).toContain("color: #c4b8aa;");
+    const on = css.match(/\.lp-pick-opt\.is-on \{[^}]*\}/)?.[0] ?? "";
     expect(on).toContain("background: #f6ecd9;");
     expect(on).toContain("color: #1b140d;");
-    // Seçili sekmenin halesi şeridin renklerinden; çivit ya da camgöbeği dolgu yok.
+    expect(css).toMatch(/\.lp-pick-opt\.is-on \.lp-pick-field \{\s*color: #5c4a37;/);
+    // Seçili seçeneğin halesi şeridin renklerinden; çivit ya da camgöbeği dolgu yok.
     expect(on).toMatch(/box-shadow:[\s\S]*rgba\(255, 178, 36/);
     expect(css).not.toMatch(/indigo|#6366f1|#4f46e5/i);
+    const lum = (hex: string) => {
+      const [r, g, b] = [1, 3, 5].map((at) => parseInt(hex.slice(at, at + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+      return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+    };
+    const ratio = (a: string, b: string) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a), lum(b)) + 0.05);
+    for (const [text, ground] of [
+      ["#f7f1e8", "#15110d"],
+      ["#c4b8aa", "#15110d"],
+      ["#f7f1e8", "#241c15"],
+      ["#1b140d", "#f6ecd9"],
+      ["#5c4a37", "#f6ecd9"],
+      ["#1b140d", "#fffaf0"],
+    ]) {
+      expect(ratio(text!, ground!), `${text} / ${ground}`).toBeGreaterThanOrEqual(4.5);
+    }
   });
 });
 
 describe("kahraman: söz kısa, kokpit ilk ekranda", () => {
-  it("durağan sahne kalktı; başlık, cümle, sekmeler ve düğmeden sonra kokpit gelir", () => {
+  it("durağan sahne kalktı; başlık, cümle, tek seçici ve düğmeden sonra kokpit, en altta tek satır gelir", () => {
     const hero = withoutComments(read("src/components/landing/audience-hero.tsx"));
     expect(hero).not.toMatch(/HeroScene|hero-scene/);
-    const order = ['className="hm-title"', 'className="hm-lead"', "<AudienceTabs", "segment.ctaLabel", "<FuturisticGuidedJourney", "HERO_FACTS.map"];
+    const order = ['className="hm-title"', 'className="hm-lead"', "<AudiencePicker", "segment.ctaLabel", "<FuturisticGuidedJourney", "HERO_FOOT.facts.map"];
     const at = order.map((mark) => hero.indexOf(mark));
     for (const index of at) expect(index).toBeGreaterThan(-1);
     expect([...at].sort((a, b) => a - b)).toEqual(at);
@@ -124,8 +144,11 @@ describe("kahraman: söz kısa, kokpit ilk ekranda", () => {
     expect(css).toMatch(/\.hm-hero-grid \{[^}]*grid-template-areas:\s*"copy"\s*"pick"\s*"cockpit"\s*"foot";/);
     // Tur kahramanın içinde: kendi zemini ve dış boşluğu yok.
     expect(css).toMatch(/\.hm-hero \.lj \{\s*padding: 0;\s*background: none;/);
-    // Geniş ekranda sekmeler ve kayıt düğmesi tek satırda: ilk ekranda kokpite yer kalır.
-    expect(css).toMatch(/@media \(min-width: 1024px\) \{[\s\S]*\.hm-hero-pick \{\s*display: flex;/);
+    // Geniş ekranda seçici ve kayıt düğmesi tek satırda, ortada: ilk ekranda kokpite yer kalır.
+    expect(css).toMatch(/@media \(min-width: 1100px\) \{\s*\.hm-hero-pick \{\s*display: flex;[^}]*justify-content: center;/);
+    // Söz ortada (Faz 9): başlık, cümle ve seçici.
+    expect(css).toMatch(/\.hm-hero-copy \{[^}]*text-align: center;/);
+    expect(css).toMatch(/\.hm-lead \{[^}]*margin: 0\.7rem auto 0;/);
   });
 
   it("hareket azaltmada başlığın çizgisi çizilmiş durur", () => {

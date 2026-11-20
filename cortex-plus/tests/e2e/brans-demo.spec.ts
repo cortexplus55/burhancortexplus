@@ -1,10 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
 
 /*
-  Faz 7 (20 Kasım 2026): ana sayfanın 7 adımlı turu seçilen branşın örnek notuyla oynanır. Branş şeridi turun hemen
-  üstünde; kahramanın sekmesiyle tek durum. Matematik dışındaki bir branş (mühendislik) telefonda ve geniş ekranda
-  baştan sona oynanır: yana taşma yok, dokunma alanı 44 px, hiç ağ isteği yok, formül ve alt simge karakterleri
-  ekranda. Şerit daha geniş bir yedek yazı tipiyle (Verdana) de üst üste binmez.
+  Faz 7 (20 Kasım 2026): ana sayfanın 7 adımlı turu seçilen branşın örnek notuyla oynanır. Matematik dışındaki bir
+  branş (mühendislik) telefonda ve geniş ekranda baştan sona oynanır: yana taşma yok, dokunma alanı 44 px, hiç ağ
+  isteği yok, formül ve alt simge karakterleri ekranda.
+
+  Faz 9 (20 Kasım 2026): branş şeridi ve kahramanın sekmeleri TEK seçicide birleşti (kahramanda, dört seçenek). Seçici
+  daha geniş bir yedek yazı tipiyle (Verdana) de üst üste binmez, kesilmez, taşmaz; seçili seçenek yüksek kontrastlı.
 */
 
 async function overflow(page: Page): Promise<number> {
@@ -39,11 +41,26 @@ async function studioScrolls(page: Page): Promise<boolean> {
   });
 }
 
-/** Şeridin düğmeleri: üst üste binen çift, kesilen yazı, 44 px'ten kısa düğme. */
+/**
+ * Kahramanın tek seçicisi: üst üste binen çift, kesilen yazı (seçeneğin kendisi ya da iki satırından biri), 44 px'ten
+ * kısa seçenek, seçicinin dışına taşan seçenek; seçili seçeneğin yazı/zemin kontrastı (ad ve alt satır).
+ */
 async function stripLayout(page: Page) {
   return page.evaluate(() => {
-    const chips = [...document.querySelectorAll<HTMLElement>("[data-tracks] .lj-track")];
+    const chips = [...document.querySelectorAll<HTMLElement>("[data-hero-pick] .lp-pick-opt")];
     const boxes = chips.map((chip) => chip.getBoundingClientRect());
+    const lum = (color: string) => {
+      const [r, g, b] = (color.match(/\d+(\.\d+)?/g) ?? []).slice(0, 3).map(Number).map((v) => v / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+      return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+    };
+    const ratio = (a: string, b: string) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a), lum(b)) + 0.05);
+    const on = chips.find((chip) => chip.getAttribute("aria-checked") === "true")!;
+    const ground = getComputedStyle(on).backgroundColor;
+    const onContrast = Math.min(
+      ratio(getComputedStyle(on.querySelector(".lp-pick-name")!).color, ground),
+      ratio(getComputedStyle(on.querySelector(".lp-pick-field")!).color, ground),
+    );
+    const lines = chips.flatMap((chip) => [...chip.querySelectorAll<HTMLElement>(".lp-pick-name, .lp-pick-field")]);
     let overlaps = 0;
     for (let a = 0; a < boxes.length; a += 1) {
       for (let b = a + 1; b < boxes.length; b += 1) {
@@ -52,18 +69,25 @@ async function stripLayout(page: Page) {
         if (x > 0.5 && y > 0.5) overlaps += 1;
       }
     }
-    const strip = document.querySelector<HTMLElement>("[data-tracks]")!.getBoundingClientRect();
+    const strip = document.querySelector<HTMLElement>("[data-hero-pick]")!.getBoundingClientRect();
     return {
       count: chips.length,
+      checked: chips.filter((chip) => chip.getAttribute("aria-checked") === "true").length,
       overlaps,
-      clipped: chips.filter((chip) => chip.scrollWidth > chip.clientWidth + 1).length,
+      clipped:
+        chips.filter((chip) => chip.scrollWidth > chip.clientWidth + 1).length +
+        lines.filter((line) => line.scrollWidth > line.clientWidth + 1).length,
       minHeight: Math.min(...boxes.map((box) => Math.round(box.height * 10) / 10)),
       outside: boxes.filter((box) => box.left < strip.left - 0.5 || box.right > strip.right + 0.5).length,
+      onContrast: Math.round(onContrast * 100) / 100,
       stripRight: strip.right,
       viewport: document.documentElement.clientWidth,
     };
   });
 }
+
+/** Turun birinci adımının birincil düğmesi (örnek notla turu izle): stüdyoyu açar ve tarama anını oynatır. */
+const SAMPLE_START = "[data-sample-start]";
 
 const SIZES = [
   { width: 390, height: 844 },
@@ -85,18 +109,22 @@ test.describe("branşa özel misafir demosu", { tag: ["@public"] }, () => {
       });
       await page.setViewportSize(size);
       await page.goto("/?hedef=universite");
-      await expect(page.getByRole("tab", { name: /Üniversite/ })).toHaveAttribute("aria-selected", "true");
       const home = page.locator("section.lj");
-      // Şerit turun hemen üstünde; üniversite sekmesi mühendislik branşını seçer.
+      // Eski bağlantı ?hedef=universite: kahramanın tek seçicisinde "Üniversite" seçili, tur mühendislik notuyla.
       await expect(page.getByRole("radio", { name: "Üniversite · Mühendislik" })).toHaveAttribute("aria-checked", "true");
-      await expect(home.locator(".lj-file")).toContainText("Akiskanlar_ve_Termodinamik_Vize_Notu.pdf");
-      await expect(home.locator(".lj-file")).toContainText("14 sayfa");
-      await expect(home.locator(".lj-context")).toContainText("mühendislik");
+      await expect(page.getByRole("link", { name: /Vize-final kampını ücretsiz başlat/ })).toHaveAttribute("href", "/kayit?hedef=universite");
+      await expect(home.locator(".lj-drop-badge")).toContainText("Akiskanlar_ve_Termodinamik_Vize_Notu.pdf");
+      await expect(home.locator(".lj-drop-badge")).toContainText("14 sayfa");
+      // Turun içinde ikinci bir seçici yok.
+      await expect(page.getByRole("radiogroup")).toHaveCount(1);
+      await expect(home.locator("[data-tracks], .lj-track")).toHaveCount(0);
       expect(await overflow(page)).toBeLessThanOrEqual(1);
       expect(await smallestTouchTarget(page, "section.lj")).toBeGreaterThanOrEqual(44);
       const strip = await stripLayout(page);
-      expect(strip).toMatchObject({ count: 4, overlaps: 0, clipped: 0, outside: 0 });
+      expect(strip).toMatchObject({ count: 4, checked: 1, overlaps: 0, clipped: 0, outside: 0 });
       expect(strip.minHeight).toBeGreaterThanOrEqual(44);
+      // Adresteki seçim açılışta uygulanır; renk geçişi (160 ms) bitince ölçülür.
+      await expect.poll(async () => (await stripLayout(page)).onContrast).toBeGreaterThanOrEqual(4.5);
 
       const tour = page.locator(".lj-studio");
       const fit = () =>
@@ -114,8 +142,8 @@ test.describe("branşa özel misafir demosu", { tag: ["@public"] }, () => {
 
       // 1-2. Not ve yol: tarama bulguları ve yol haritası branşın.
       await expect(async () => {
-        const zone = home.locator("button.lj-zone");
-        if ((await zone.count()) && (await zone.isEnabled({ timeout: 500 }).catch(() => false))) await zone.click();
+        const start = home.locator(SAMPLE_START);
+        if ((await tour.count()) === 0 && (await start.isEnabled({ timeout: 500 }).catch(() => false))) await start.click();
         await expect(tour.getByRole("button", { name: "Şimdi 1. dersi aç" })).toBeVisible({ timeout: 4000 });
       }).toPass({ timeout: 25_000 });
       await expect(tour.getByText("Kaldırma Kuvveti Vektörleri")).toBeVisible();
@@ -213,7 +241,7 @@ test.describe("branşa özel misafir demosu", { tag: ["@public"] }, () => {
     });
   }
 
-  test("şeritten TUS: sekme akademiğe geçer, tur TUS notuyla baştan kurulur; Na⁺ ve K⁺ ekranda", async ({ page }) => {
+  test("seçiciden TUS: TUS profili (kayıt bağlantısı ve adres), tur TUS notuyla baştan kurulur; Na⁺ ve K⁺ ekranda", async ({ page }) => {
     const apiCalls: string[] = [];
     page.on("request", (request) => {
       if (/\/api\//.test(new URL(request.url()).pathname) && !/\/api\/(health|consent|csp-report)/.test(request.url())) apiCalls.push(request.url());
@@ -224,9 +252,12 @@ test.describe("branşa özel misafir demosu", { tag: ["@public"] }, () => {
       await page.getByRole("radio", { name: "TUS / Tıp · Farmakoloji" }).click();
       await expect(page.getByRole("radio", { name: "TUS / Tıp · Farmakoloji" })).toHaveAttribute("aria-checked", "true", { timeout: 1500 });
     }).toPass({ timeout: 20_000 });
-    await expect(page.getByRole("tab", { name: /KPSS · TUS/ })).toHaveAttribute("aria-selected", "true");
-    expect(page.url()).toContain("hedef=akademik");
-    await expect(page.locator(".lj-file")).toContainText("Kardiyoloji_Antiaritmikler_TUS_Notu.pdf");
+    // Faz 9: TUS kendi profili (önce akademik sekmenin içindeydi).
+    expect(page.url()).toContain("hedef=tus");
+    await expect(page.getByRole("link", { name: /TUS kampını ücretsiz başlat/ })).toHaveAttribute("href", "/kayit?hedef=tus");
+    await expect(page.locator(".lj-drop-badge")).toContainText("Kardiyoloji_Antiaritmikler_TUS_Notu.pdf");
+    // Seçili seçenek yüksek kontrastlı (seçili olmayan sönük şerit kalktı); renk geçişi bitince ölçülür.
+    await expect.poll(async () => (await stripLayout(page)).onContrast).toBeGreaterThanOrEqual(4.5);
     // Konu testine raydan gidilir: TUS sorusu, K⁺ karakteri düşmeden.
     await page.getByRole("button", { name: /^Adım 4: / }).click();
     const app = page.locator(".lj-studio .tp-app");
@@ -266,23 +297,30 @@ test.describe("branşa özel misafir demosu", { tag: ["@public"] }, () => {
     expect(await overflow(page)).toBeLessThanOrEqual(1);
   });
 
-  // Yedek yazı tipi stres testi: Figtree yüklenmezse (ya da daha geniş bir yazı tipiyle) şerit düğmeleri üst üste binmez,
-  // yazı kesilmez, şerit ekrandan taşmaz.
+  // Yedek yazı tipi stres testi: Figtree yüklenmezse (ya da daha geniş bir yazı tipiyle) seçicinin seçenekleri üst üste
+  // binmez, yazı kesilmez, seçici ekrandan taşmaz; her genişlikte her seçenek seçildiğinde seçili olan okunur kalır.
   for (const width of [390, 820, 1440]) {
-    test(`şerit Verdana ile ${width}px: binme, kesilme, taşma yok`, async ({ page }) => {
+    test(`seçici Verdana ile ${width}px: binme, kesilme, taşma yok; her seçenek seçiliyken kontrast 4,5:1`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
       await page.goto("/?hedef=lise");
       await page.addStyleTag({ content: "* { font-family: Verdana, sans-serif !important; }" });
-      await expect(page.locator("[data-tracks] .lj-track")).toHaveCount(4);
+      await expect(page.locator("[data-hero-pick] .lp-pick-opt")).toHaveCount(4);
       const strip = await stripLayout(page);
-      expect(strip).toMatchObject({ count: 4, overlaps: 0, clipped: 0, outside: 0 });
+      expect(strip).toMatchObject({ count: 4, checked: 1, overlaps: 0, clipped: 0, outside: 0 });
       expect(strip.minHeight).toBeGreaterThanOrEqual(44);
       expect(strip.stripRight).toBeLessThanOrEqual(strip.viewport + 0.5);
       expect(await overflow(page)).toBeLessThanOrEqual(1);
-      // Branş değişince de aynı.
-      await page.getByRole("radio", { name: "TUS / Tıp · Farmakoloji" }).click();
-      expect(await stripLayout(page)).toMatchObject({ overlaps: 0, clipped: 0, outside: 0 });
-      expect(await overflow(page)).toBeLessThanOrEqual(1);
+      // Branş değişince de aynı; seçili seçenek her durumda okunur (ürün sahibi "Üniversite" seçiliyken zayıf gördü).
+      for (const name of ["Üniversite · Mühendislik", "TUS / Tıp · Farmakoloji", "KPSS / Hukuk · Anayasa", "Lise & YKS · Matematik"]) {
+        await expect(async () => {
+          await page.getByRole("radio", { name }).click();
+          await expect(page.getByRole("radio", { name })).toHaveAttribute("aria-checked", "true", { timeout: 1500 });
+        }).toPass({ timeout: 20_000 });
+        // Renk geçişi (160 ms) bitince ölçülür.
+        await expect.poll(async () => (await stripLayout(page)).onContrast, { message: name }).toBeGreaterThanOrEqual(4.5);
+        expect(await stripLayout(page), name).toMatchObject({ checked: 1, overlaps: 0, clipped: 0, outside: 0 });
+        expect(await overflow(page)).toBeLessThanOrEqual(1);
+      }
     });
   }
 });

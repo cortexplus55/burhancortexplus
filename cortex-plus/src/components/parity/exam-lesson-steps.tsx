@@ -37,6 +37,7 @@ import {
   type BoardLine,
 } from "@/lib/learning/lesson-board";
 import { RichBody } from "@/components/parity/lesson-rich-text";
+import { warmMathFonts } from "@/lib/learning/math-fonts";
 import { rejoinIntervalCells } from "@/lib/learning/interval-text";
 import { sanitizeStudentContent } from "@/lib/learning/student-safe-text";
 import { NOTE_WARNING_TITLE, formulaTypoBody, type FormulaTypo } from "@/lib/learning/formula-typos";
@@ -874,6 +875,11 @@ export function ExamLessonSteps({
     const observer = new ResizeObserver(publish);
     observer.observe(top);
     return () => observer.disconnect();
+  }, []);
+  // Formül yazı tipleri ders açılır açılmaz istenir: ilk formül kartı geldiğinde harfler görünmez kalıp yalnız √ çizilmesin
+  // (KaTeX `font-display: block`; Faz 9, 20 Kasım 2026, `math-fonts.ts`).
+  useEffect(() => {
+    warmMathFonts();
   }, []);
   useEffect(() => {
     if (shownIndex.current === index) return;

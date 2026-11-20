@@ -24,7 +24,6 @@ export const HERO = {
   /** Başlığın iki parçası: ikincisi ışıklı yazılır. Alt cümle seçili sekmeden gelir (`landing-showcase.ts`). */
   titleLead: "Notunu yükle,",
   titleAccent: "sınava hazır bir yol çıksın.",
-  secondary: { label: "Önce örnek bir dersi incele", href: "/ornek" },
 } as const;
 
 /** Bölüm başlıkları: her bölümde tek başlık, en çok tek cümle. */
@@ -46,10 +45,16 @@ export const HOME_COPY = {
 } as const;
 
 /**
- * Kahramanın altındaki üç gerçek (11 Kasım 2026, "kısa ve net"). Üçü de bugün doğru: kayıt kart istemez, ilk dersin
- * temel adımları süre sınırı olmadan açık, abonelik kendiliğinden yenilenmez (`AUTO_RENEW_SUPPORTED = false`).
+ * Kahramanın altındaki TEK satır (Faz 9, 20 Kasım 2026; önce üç hap, kabul edilen türler satırı ve iki bağlantı alt alta
+ * duruyordu). İki gerçek bugün doğru: kayıt kart istemez, ilk dersin temel adımları süre sınırı olmadan açık. Notu
+ * olmayan öğrencinin yolu (hazır müfredat) ve örnek ders aynı satırda bağlantı. Kabul edilen türler artık birinci
+ * adımın bırakma alanında yazılı (`JOURNEY_FILE.dropLine`).
  */
-export const HERO_FACTS = ["Kart istemiyoruz", "İlk dersin süresiz ücretsiz", "Otomatik yenileme yok"] as const;
+export const HERO_FOOT = {
+  facts: ["Kart istemiyoruz", "İlk dersin süresiz ücretsiz"],
+  noNotes: { lead: "Notun yoksa", label: "hazır müfredattan başla", href: "/mufredat" },
+  sample: { label: "Örnek dersi incele", href: "/ornek" },
+} as const;
 
 /**
  * Ücretsiz ile Plus'ın tek ekranda karşılaştırması (11 Kasım 2026). Sayılar sabitlerden; Plus sütununda yalnız
@@ -81,12 +86,6 @@ export const WEEK_PLAN_POINTS = [
  * iFrame'iyle alınır (kart bilgisi bize gelmez). Simgeler `landing-page.tsx`te, sırayla.
  */
 export const TRUST_LINE = ["Notuna sadık", "Otomatik yenileme yok", "PayTR ile güvenli ödeme"] as const;
-
-/** Kabul edilen kaynaklar ve notu olmayan öğrencinin yolu: en sık itirazın ("notum yok") tek satırlık cevabı. */
-export const HERO_INPUTS = {
-  accepts: "PDF, slayt, Word, fotoğraf, yapıştırılan metin ya da bağlantı.",
-  noNotes: { label: "Notun yok mu? Hazır müfredattan başla", href: "/mufredat" },
-} as const;
 
 export type FaqItem = { q: string; a: string; link?: { label: string; href: string } };
 

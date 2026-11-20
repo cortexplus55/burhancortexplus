@@ -24,13 +24,15 @@ import { DEMO_PODCASTS } from "@/lib/demo/demo-podcasts";
 import { GUEST_TOUR_CONTENT } from "@/lib/demo/guest-tour-tracks";
 import { clearGuestDocuments } from "@/lib/documents/guest-handoff";
 import { TWO_OPTION_CHIP } from "@/lib/learning/twin-question-copy";
-import { GUEST_DEMO_TRACKS, GUEST_TRACK_IDS } from "@/lib/marketing/guest-demo-tracks";
-import { JOURNEY_TRACKS_COPY, journeyFile, journeyRoadmap, journeyWarning } from "@/lib/marketing/landing-journey";
+import { GUEST_DEMO_TRACKS, GUEST_TRACK_IDS, HERO_PICK_ARIA, heroPickName } from "@/lib/marketing/guest-demo-tracks";
+import { JOURNEY_FILE, journeyFile, journeyRoadmap, journeyWarning } from "@/lib/marketing/landing-journey";
 
 /*
-  Faz 7 (20 Kasım 2026): kahramanın sekmeleri ve turun branş şeridi tek durum. Şeritten branş seçilince tur o branşın
-  notuyla birinci adımdan kurulur ve sekme eşlenir; sekme seçilince tur sekmenin branşına geçer. Ürün ekranları ve Plus
-  önizlemeleri branşın verisini çizer; hiç ağ isteği atılmaz.
+  Faz 7 (20 Kasım 2026): tur seçilen branşın örnek notuyla oynanır; ürün ekranları ve Plus önizlemeleri branşın
+  verisini çizer; hiç ağ isteği atılmaz.
+
+  Faz 9 (20 Kasım 2026): kahramanın dört sekmesi ile turun branş şeridi TEK seçicide birleşti. Seçici kahramanda;
+  seçilen branş kahramanın cümlesini, kayıt düğmesini ve turu birlikte değiştirir. Turun kendisinde seçici yok.
 */
 
 Element.prototype.scrollIntoView = vi.fn();
@@ -47,37 +49,117 @@ afterEach(async () => {
 });
 
 const noop = () => undefined;
-const strip = () => screen.getByRole("radiogroup", { name: JOURNEY_TRACKS_COPY.aria });
-const chip = (label: string) => within(strip()).getByRole("radio", { name: label });
+const picker = () => screen.getByRole("radiogroup", { name: HERO_PICK_ARIA });
+const option = (track: (typeof GUEST_TRACK_IDS)[number]) => within(picker()).getByRole("radio", { name: heroPickName(track) });
+const start = () => screen.getByRole("button", { name: JOURNEY_FILE.start });
+/** Ana sayfadaki bırakma alanının rozeti: seçili branşın örnek notu. */
+const badge = (container: HTMLElement) => container.querySelector(".lj-drop-badge") as HTMLElement;
 
-describe("branş şeridi", () => {
-  it("turun üstünde dört branş; seçili olan sekmenin branşı; tek seçimli grup ve ok tuşları", () => {
-    render(<FuturisticGuidedJourney segmentId="universite" />);
-    const radios = within(strip()).getAllByRole("radio");
-    expect(radios.map((radio) => radio.textContent)).toEqual(Object.values(GUEST_DEMO_TRACKS).map((track) => track.label));
-    expect(chip("Üniversite · Mühendislik").getAttribute("aria-checked")).toBe("true");
+describe("tek seçici: kahramanda dört seçenek, turda seçici yok", () => {
+  it("dört seçenek sırayla; tek seçimli grup; ok tuşları, Home ve End seçimi ve odağı birlikte kaydırır", () => {
+    render(<AudienceHero />);
+    const radios = within(picker()).getAllByRole("radio");
+    expect(radios.map((radio) => radio.getAttribute("aria-label"))).toEqual([
+      "Lise & YKS · Matematik",
+      "Üniversite · Mühendislik",
+      "TUS / Tıp · Farmakoloji",
+      "KPSS / Hukuk · Anayasa",
+    ]);
+    // Görünen iki satır: seçeneğin adı ve örnek notun alanı.
+    expect(radios.map((radio) => radio.querySelector(".lp-pick-name")?.textContent)).toEqual(["Lise & YKS", "Üniversite", "TUS / Tıp", "KPSS / Hukuk"]);
+    expect(radios.map((radio) => radio.querySelector(".lp-pick-field")?.textContent)).toEqual(["Matematik", "Mühendislik", "Farmakoloji", "Anayasa"]);
     expect(radios.filter((radio) => radio.getAttribute("aria-checked") === "true")).toHaveLength(1);
-    // Şerit konsolun hemen üstünde (turun kartı).
-    const wrap = document.querySelector(".lj-wrap")!;
-    expect(wrap.firstElementChild?.getAttribute("role")).toBe("radiogroup");
-    expect(wrap.firstElementChild?.nextElementSibling?.className).toContain("lj-console");
-    // Ok tuşu seçimi ve odağı kaydırır.
-    fireEvent.keyDown(strip(), { key: "ArrowRight" });
-    expect(chip("TUS / Tıp · Farmakoloji").getAttribute("aria-checked")).toBe("true");
-    expect(document.activeElement).toBe(chip("TUS / Tıp · Farmakoloji"));
-    expect(screen.getByRole("button", { name: new RegExp(journeyFile("tus").name) })).toBeTruthy();
+    expect(option("lise").getAttribute("aria-checked")).toBe("true");
+    // Yalnız seçili seçenek sekmeyle odak alır.
+    expect(radios.map((radio) => radio.tabIndex)).toEqual([0, -1, -1, -1]);
+    fireEvent.keyDown(picker(), { key: "ArrowRight" });
+    expect(option("muhendislik").getAttribute("aria-checked")).toBe("true");
+    expect(document.activeElement).toBe(option("muhendislik"));
+    fireEvent.keyDown(picker(), { key: "End" });
+    expect(option("hukuk").getAttribute("aria-checked")).toBe("true");
+    expect(document.activeElement).toBe(option("hukuk"));
+    fireEvent.keyDown(picker(), { key: "ArrowRight" });
+    expect(option("lise").getAttribute("aria-checked")).toBe("true");
+    fireEvent.keyDown(picker(), { key: "ArrowLeft" });
+    expect(option("hukuk").getAttribute("aria-checked")).toBe("true");
+    fireEvent.keyDown(picker(), { key: "Home" });
+    expect(option("lise").getAttribute("aria-checked")).toBe("true");
+    // Seçici kahramanda; turun içinde ikinci bir seçici (eski branş şeridi) yok.
+    expect(screen.getAllByRole("radiogroup")).toHaveLength(1);
+    expect(document.querySelector("[data-tracks], .lj-tracks, .lj-track")).toBeNull();
+    expect(document.querySelector("section#nasil")?.contains(picker())).toBe(false);
   });
 
-  it("şerit dokunma alanı 44 px, dar ekranda sarar; mavi yok", () => {
-    const css = readFileSync("src/styles/landing-journey.css", "utf8").replace(/\r\n/g, "\n");
-    expect(css).toMatch(/\.lj-track \{[^}]*min-height: 2\.75rem;/);
-    expect(css).toMatch(/\.lj-tracks \{[^}]*flex-wrap: wrap;/);
-    const block = css.slice(css.indexOf(".lj-tracks {"), css.indexOf("/* ---------- Konsol ---------- */"));
-    expect(block).not.toMatch(/overflow-x|#4353f3|#6366f1|#4f46e5/i);
+  it("seçim kahramanın cümlesini, kayıt düğmesini, adresi ve turun örnek notunu birlikte değiştirir", () => {
+    const { container } = render(<AudienceHero />);
+    const cta = () => container.querySelector("[data-hero-cta]") as HTMLAnchorElement;
+    expect(cta().getAttribute("href")).toBe("/kayit?hedef=lise");
+    expect(badge(container).textContent).toContain(journeyFile("lise").name);
+
+    fireEvent.click(option("muhendislik"));
+    expect(cta().getAttribute("href")).toBe("/kayit?hedef=universite");
+    expect(cta().textContent).toContain("Vize-final kampını ücretsiz başlat");
+    expect(container.querySelector(".hm-lead")?.textContent).toContain("vizeden önce");
+    expect(badge(container).textContent).toContain(journeyFile("muhendislik").name);
+    expect(badge(container).textContent).toContain("14 sayfa");
+    expect(window.location.search).toBe("?hedef=universite");
+
+    // TUS kendi profili: kendi cümlesi, kendi düğmesi, kayıtta TUS.
+    fireEvent.click(option("tus"));
+    expect(cta().getAttribute("href")).toBe("/kayit?hedef=tus");
+    expect(cta().textContent).toContain("TUS kampını ücretsiz başlat");
+    expect(container.querySelector(".hm-lead")?.textContent).toContain("TUS");
+    expect(badge(container).textContent).toContain("Kardiyoloji_Antiaritmikler_TUS_Notu.pdf");
+    expect(window.location.search).toBe("?hedef=tus");
+
+    fireEvent.click(option("hukuk"));
+    expect(cta().getAttribute("href")).toBe("/kayit?hedef=akademik");
+    expect(badge(container).textContent).toContain("Anayasa_Yasama_Sureci_Notu.pdf");
+    expect(window.location.search).toBe("?hedef=akademik");
+    // Bırakma alanının rozeti branş değişince yeniden belirir (ilk yükte hareket yok).
+    expect(badge(container).className).toContain("is-switched");
+  });
+
+  it("eski bağlantı ?hedef=yks-lgs: 'Lise & YKS' seçili, kayıt bağlantısında yks-lgs kalır; seçeneğe yeniden basmak profili ezmez", () => {
+    window.history.replaceState(null, "", "/?hedef=yks-lgs");
+    const { container } = render(<AudienceHero />);
+    expect(option("lise").getAttribute("aria-checked")).toBe("true");
+    const cta = () => container.querySelector("[data-hero-cta]") as HTMLAnchorElement;
+    expect(cta().getAttribute("href")).toBe("/kayit?hedef=yks-lgs");
+    fireEvent.click(option("lise"));
+    expect(cta().getAttribute("href")).toBe("/kayit?hedef=yks-lgs");
+    // Başka branşa gidip dönünce seçeneğin varsayılan profili (lise).
+    fireEvent.click(option("tus"));
+    fireEvent.click(option("lise"));
+    expect(cta().getAttribute("href")).toBe("/kayit?hedef=lise");
+    expect(window.location.search).toBe("?hedef=lise");
+  });
+
+  it("eski bağlantılar: universite → Üniversite, akademik → KPSS / Hukuk, tus → TUS / Tıp; utm'de dus → TUS", () => {
+    for (const [query, track] of [
+      ["?hedef=universite", "muhendislik"],
+      ["?hedef=akademik", "hukuk"],
+      ["?hedef=tus", "tus"],
+      ["?hedef=lise", "lise"],
+      ["?utm_campaign=dus-2027", "tus"],
+      ["?utm_campaign=kpss_2027", "hukuk"],
+    ] as const) {
+      window.history.replaceState(null, "", `/${query}`);
+      render(<AudienceHero />);
+      expect(option(track).getAttribute("aria-checked"), query).toBe("true");
+      cleanup();
+    }
+  });
+
+  it("seçici dokunma alanı 56 px, dar ekranda iki sütun; seçili seçenek kâğıt beyazı, mavi yok", () => {
+    const css = readFileSync("src/styles/landing-showcase.css", "utf8").replace(/\r\n/g, "\n");
+    expect(css).toMatch(/\.lp-pick-opt \{[^}]*min-height: 3\.5rem;/);
+    expect(css).toMatch(/@media \(max-width: 599px\) \{\s*\.lp-pick \{\s*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
+    expect(css).not.toMatch(/overflow-x|#4353f3|#6366f1|#4f46e5|indigo/i);
   });
 
   it("branş değişince tur birinci adımdan, o branşın notuyla yeniden kurulur; eski cevaplar silinir", async () => {
-    const { container } = render(<FuturisticGuidedJourney segmentId="lise" />);
+    const { container, rerender } = render(<FuturisticGuidedJourney segmentId="lise" />);
     // Lise turunda doğru/yanlış oynanır, sonuç halkası çizilir; stüdyo kapanır, ilerleme korunur.
     fireEvent.click(screen.getAllByRole("button", { name: /^Adım \d: / })[5]!);
     await act(async () => {
@@ -93,12 +175,11 @@ describe("branş şeridi", () => {
     const homeStops = () => within(container.querySelector(".lj-console") as HTMLElement).getAllByRole("button", { name: /^Adım \d: / });
     expect(homeStops()[5]!.getAttribute("aria-current")).toBe("step");
 
-    // Hukuk seçilir: tur başa döner, örnek not anayasa notu, bağlam satırı hukukun.
-    fireEvent.click(chip("KPSS / Hukuk · Anayasa"));
+    // Kahramanda KPSS / Hukuk seçilir: tur başa döner, örnek not anayasa notu.
+    rerender(<FuturisticGuidedJourney segmentId="akademik" />);
     expect(homeStops()[0]!.getAttribute("aria-current")).toBe("step");
-    expect(container.querySelector(".lj-context")?.textContent).toBe(GUEST_DEMO_TRACKS.hukuk.context);
-    expect(screen.getByRole("button", { name: new RegExp(journeyFile("hukuk").name) })).toBeTruthy();
-    expect(container.querySelector(".lj-file-text.is-switched")).toBeTruthy();
+    expect(badge(container).textContent).toContain(journeyFile("hukuk").name);
+    expect(badge(container).className).toContain("is-switched");
 
     // Doğru/yanlışa dönülünce hukukun önermeleri, sonuç yok (lise cevapları karışmaz).
     fireEvent.click(homeStops()[5]!);
@@ -112,10 +193,9 @@ describe("branş şeridi", () => {
 
   it("taramada branşın bulguları, yol haritasında branşın konuları, üst çubukta branşın uyarısı", () => {
     vi.useFakeTimers();
-    render(<FuturisticGuidedJourney segmentId="akademik" />);
-    fireEvent.click(chip("TUS / Tıp · Farmakoloji"));
+    render(<FuturisticGuidedJourney segmentId="tus" />);
     const file = journeyFile("tus");
-    fireEvent.click(screen.getByRole("button", { name: new RegExp(file.name) }));
+    fireEvent.click(start());
     const finds = [...document.body.querySelectorAll(".lj-studio [data-scan-findings] [data-finding]")].map((node) => node.textContent);
     expect(finds[0]).toBe("18 sayfa");
     expect(finds[1]).toBe("4 konu");
@@ -124,14 +204,14 @@ describe("branş şeridi", () => {
       vi.advanceTimersByTime(file.scanMs);
     });
     for (const day of journeyRoadmap("tus").days) expect(screen.getByText(day.title)).toBeTruthy();
-    const badge = document.body.querySelector<HTMLElement>(".lj-studio [data-warning]")!;
-    expect(badge.textContent).toContain(journeyWarning("tus").label);
-    expect(badge.getAttribute("title")).toBe(GUEST_DEMO_TRACKS.tus.warning);
+    const warn = document.body.querySelector<HTMLElement>(".lj-studio [data-warning]")!;
+    expect(warn.textContent).toContain(journeyWarning("tus").label);
+    expect(warn.getAttribute("title")).toBe(GUEST_DEMO_TRACKS.tus.warning);
   });
 
   it("mühendislik uyarısının alt simgesi turun yazısında da düşmez (d_sıvı → d<sub>sıvı</sub>)", () => {
     render(<FuturisticGuidedJourney segmentId="universite" />);
-    fireEvent.click(screen.getByRole("button", { name: new RegExp(journeyFile("muhendislik").name) }));
+    fireEvent.click(start());
     const warning = document.body.querySelector(".lj-studio [data-finding='warning']")!;
     expect(warning.querySelector("sub")?.textContent).toBe("sıvı");
     expect(warning.textContent).not.toContain("_");
@@ -143,42 +223,8 @@ describe("branş şeridi", () => {
       vi.fn((query: string) => ({ matches: query.includes("reduce"), media: query, addEventListener: noop, removeEventListener: noop })),
     );
     render(<FuturisticGuidedJourney segmentId="universite" />);
-    fireEvent.click(screen.getByRole("button", { name: new RegExp(journeyFile("muhendislik").name) }));
+    fireEvent.click(start());
     expect(window.sessionStorage.getItem("cp:guest-tour")).toBeNull();
-  });
-});
-
-describe("kahraman sekmesi ↔ branş şeridi: tek durum", () => {
-  const tab = (name: RegExp) => screen.getByRole("tab", { name });
-
-  it("sekme seçilince tur sekmenin branşına geçer; şeritten seçilen branş sekmeyi eşler", () => {
-    render(<AudienceHero />);
-    expect(tab(/Lise & Yazılı/).getAttribute("aria-selected")).toBe("true");
-    expect(chip("Lise & YKS · Matematik").getAttribute("aria-checked")).toBe("true");
-
-    fireEvent.click(tab(/Üniversite/));
-    expect(chip("Üniversite · Mühendislik").getAttribute("aria-checked")).toBe("true");
-    expect(screen.getByRole("button", { name: new RegExp(journeyFile("muhendislik").name) })).toBeTruthy();
-
-    // TUS akademik sekmenin kapsamında; adres de güncellenir.
-    fireEvent.click(chip("TUS / Tıp · Farmakoloji"));
-    expect(tab(/KPSS · TUS/).getAttribute("aria-selected")).toBe("true");
-    expect(window.location.search).toContain("hedef=akademik");
-    expect(screen.getByRole("link", { name: /Sınav kampını ücretsiz başlat/ }).getAttribute("href")).toBe("/kayit?hedef=akademik");
-
-    // Akademik sekme seçiliyken hukuk seçilirse sekme yerinde kalır.
-    fireEvent.click(chip("KPSS / Hukuk · Anayasa"));
-    expect(tab(/KPSS · TUS/).getAttribute("aria-selected")).toBe("true");
-
-    // YKS/LGS sekmesi lise branşını açar; şeritten lise seçilince YKS/LGS sekmesi yerinde kalır.
-    fireEvent.click(tab(/YKS & LGS/));
-    expect(chip("Lise & YKS · Matematik").getAttribute("aria-checked")).toBe("true");
-    fireEvent.click(chip("Lise & YKS · Matematik"));
-    expect(tab(/YKS & LGS/).getAttribute("aria-selected")).toBe("true");
-
-    // Mühendislik seçilince sekme üniversiteye geçer.
-    fireEvent.click(chip("Üniversite · Mühendislik"));
-    expect(tab(/Üniversite/).getAttribute("aria-selected")).toBe("true");
   });
 });
 
