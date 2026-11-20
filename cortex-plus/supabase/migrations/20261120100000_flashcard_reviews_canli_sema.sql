@@ -1,4 +1,4 @@
--- YAZILDI, UYGULANMADI: kod yayına çıktıktan sonra SQL ekranında, kayıt satırıyla birlikte.
+-- UYGULANDI: 20 Kasım 2026, #708 yayınından sonra, Burhan onayıyla SQL ekranında (kayıt satırıyla); canlıda no-op.
 --
 -- flashcard_reviews: depodaki tanımı canlı tabloyla eşitler (20 Kasım 2026, yalnız ekleme).
 --

@@ -84,6 +84,20 @@ birebir aynı içerikle açıldı; inceleme doğru yanıtları ve çözüm açı
 
 **Geri alma:** `supabase/rollback/20261119_cevap_anahtari_okuma_geri_al.sql` (göç değil; açığı yeniden açar, yalnız Burhan'ın kararıyla).
 
+## 20261120100000 · flashcard_reviews_canli_sema (PR #708)
+
+| | |
+|---|---|
+| Onaylayan | Burhan (sohbette, 20 Kasım 2026: "Ekleyici bir migration gerekiyorsa bunu kodun canlıya çıkmasından sonra uygula") |
+| Uygulama | 20 Kasım 2026, TR ~03:20; #708 birleşme commit'i `1c0fd4fc` Vercel'de "success" ve üretim duman testi 7/7 geçtikten sonra. Supabase SQL ekranı, tek çalıştırma + kayıt satırı |
+| Uygulayan | Claude, Burhan'ın onayıyla |
+| Değişen | Canlıda hiçbir şey (no-op): depodaki eski `flashcard_reviews` tanımını canlı biçimle eşitleyen yalnız ekleme; bütün satırlar `IF NOT EXISTS` ya da adla korumalı |
+
+**Doğrulama:** öncesi ve sonrası aynı: 15 sütun, 5 dizin, 7 kısıt, 0 satır. Kayıt satırı 1. #708 yayınından sonra ders,
+düğüm sonucu (yeni Öğrendin / Gelişiyor / Zayıf / Ölçülmedi sayımı), deneme sonucu, inceleme ve sınav sabahı sayfaları 200.
+
+**Geri alma:** gerekmez (canlıda değişiklik yok).
+
 ## İstatistik işlemleri (göç değil)
 
 | Zaman (UTC) | İşlem | Onay | Sonuç |
