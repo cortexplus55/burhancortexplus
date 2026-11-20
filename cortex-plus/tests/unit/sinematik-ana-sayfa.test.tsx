@@ -54,6 +54,8 @@ describe("palet: mavi zemin ve mavi düğme geri gelmez", () => {
     "src/styles/cinematic-home.css",
     "src/styles/advantage.css",
     "src/styles/tour-previews.css",
+    // 20 Kasım 2026 (Faz 7): fark vitrini kartları.
+    "src/styles/fark-vitrini.css",
   ];
 
   it("pazarlama stil dosyalarında mavi eylem rengi yok", () => {

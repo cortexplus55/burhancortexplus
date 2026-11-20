@@ -42,6 +42,12 @@ const SURFACES = [
   "src/lib/student/first-step.ts",
   "src/lib/marketing/advantage-content.ts",
   "src/components/marketing/advantage-sections.tsx",
+  // 20 Kasım 2026 (Faz 7): fark vitrini (radyo, kırmızı kalem, sınıfla paylaş + QR'lı kâğıt).
+  "src/lib/marketing/fark-vitrini.ts",
+  "src/components/landing/fark-vitrini.tsx",
+  "src/components/landing/fark-vitrini-radio.tsx",
+  "src/components/landing/fark-vitrini-red-pen.tsx",
+  "src/components/landing/fark-vitrini-parts.tsx",
   "src/app/page.tsx",
   "src/app/ozellikler/page.tsx",
   "src/app/fiyatlandirma/page.tsx",

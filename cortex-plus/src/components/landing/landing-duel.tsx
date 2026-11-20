@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, Check, ChevronDown, FileText, X } from "lucide-react";
+import { FarkVitrini } from "@/components/landing/fark-vitrini";
 import { ADVANTAGE_ROWS, SAME_NOTE_CASE } from "@/lib/marketing/advantage-content";
 import { HOME_COPY } from "@/lib/marketing/landing-content";
 
@@ -18,6 +19,10 @@ import { HOME_COPY } from "@/lib/marketing/landing-content";
  * Metnin tamamı `advantage-content.ts`ten: Cortex tarafındaki her satırın kodda kanıtı var, rakip adı geçmez (bekçi
  * `advantage-content.test.ts`). Solda logonun şeridi bir omurga gibi iner, satırların simgeleri onun üstünde durur;
  * açılan satırda Cortex Plus'ın cevabı ışıkta, genel botlarınki sönük. Sunucu bileşeni: istek ve hareket kodu yok.
+ *
+ * 20 Kasım 2026 (Faz 7): karşılaştırma kartının altında fark vitrini (`FarkVitrini`): Sınav Radyosu, Kırmızı Kalemli
+ * Hoca, sınıfla paylaş + QR'lı sınav sabahı kâğıdı. Radyo ve kırmızı kalem istemci kartı; radyo yalnız tıklamada
+ * `public/ornek/` altındaki kaydı çalar. Sahnenin geri kalanı yine istek ve hareket kodu taşımaz.
  */
 
 /** Ana sayfadaki düello satırları, sırayla. Kalan iki satırı "aynı not" kartı anlatır. */
@@ -93,6 +98,9 @@ export function LandingDuel() {
         </div>
 
         <SameNoteCase />
+
+        {/* Faz 7 (20 Kasım 2026): misafirin kayıt olmadan dokunduğu üç kart (radyo, kırmızı kalem, sınıfla paylaş). */}
+        <FarkVitrini />
 
         <ol className="hm-duel-list">
           {rows.map((row, at) => {

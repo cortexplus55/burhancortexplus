@@ -249,8 +249,10 @@ test.describe("dönüşüm paketi", { tag: ["@public"] }, () => {
     await expect(page.locator("#planlar").getByText("Otomatik yenileme yok")).toBeVisible();
     // Eski sayfa bu genişlikte ~5.000 px idi. 13 Kasım 2026 (A1, sabit sahne): turun sahnesi adımdan adıma değişmeyen,
     // ekrana sığan bir yüksekliğe sabitlendi; not adımı ~350 px'ten ~600 px'e çıktı, sayfa ~4.340 px.
+    // 20 Kasım 2026 (Faz 7): ürün sahibinin istediği üç kartlık fark vitrini "Aynı not" bölümüne girdi (+~530 px),
+    // sayfa ~4.870 px; yine eski 5.000 px'in altında.
     const height = await page.evaluate(() => document.documentElement.scrollHeight);
-    expect(height).toBeLessThan(4600);
+    expect(height).toBeLessThan(5000);
     expect(await overflow(page)).toBeLessThanOrEqual(1);
   });
 
