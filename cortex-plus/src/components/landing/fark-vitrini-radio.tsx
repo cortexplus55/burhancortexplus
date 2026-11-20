@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Lock, SkipForward } from "lucide-react";
-import { ShowcaseCompareBlock, ShowcaseHead } from "@/components/landing/fark-vitrini-parts";
+import { ShowcaseChips, ShowcaseCompareBlock, ShowcaseHead } from "@/components/landing/fark-vitrini-parts";
 import { demoRadioPlaylist, type DemoPodcast } from "@/lib/demo/demo-podcasts";
 import { RADIO_SHOWCASE } from "@/lib/marketing/fark-vitrini";
 import { cn } from "@/lib/utils";
@@ -35,7 +35,11 @@ function unitLabel(at: number, item: DemoPodcast): string {
   return `${RADIO_SHOWCASE.unitPrefix} ${at + 1} · ${item.unit}`;
 }
 
-export function RadioShowcaseCard({ playlist = DEFAULT_PLAYLIST }: { playlist?: readonly DemoPodcast[] }) {
+/**
+ * `compact` (Faz 9, 20 Kasım 2026): ana sayfadaki "Aynı not, iki ayrı sonuç" akordeonunun sahnesi. Başlık ve fark satırı
+ * akordeonun kendi başlığında; kart yalnız rozetleri, oynatıcıyı ve akışı çizer. /ornek'teki şerit tam kartı kullanır.
+ */
+export function RadioShowcaseCard({ playlist = DEFAULT_PLAYLIST, compact = false }: { playlist?: readonly DemoPodcast[]; compact?: boolean }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   /** Şu an `<audio>`a atanmış kesit (−1: hiçbiri; ilk tıklamaya kadar kaynak yok). */
   const loadedRef = useRef(-1);
@@ -169,13 +173,20 @@ export function RadioShowcaseCard({ playlist = DEFAULT_PLAYLIST }: { playlist?: 
   return (
     <article
       className={cn("fv-card fv-card--radio", playing && "is-playing")}
-      aria-labelledby={titleId}
+      aria-labelledby={compact ? undefined : titleId}
+      aria-label={compact ? RADIO_SHOWCASE.stationLine : undefined}
       data-testid="showcase-radio"
       data-state={state}
     >
-      <ShowcaseHead id={titleId} title={RADIO_SHOWCASE.title} plus>
-        <span className="fv-badge fv-badge--ok">{RADIO_SHOWCASE.badge}</span>
-      </ShowcaseHead>
+      {compact ? (
+        <ShowcaseChips plus>
+          <span className="fv-badge fv-badge--ok">{RADIO_SHOWCASE.badge}</span>
+        </ShowcaseChips>
+      ) : (
+        <ShowcaseHead id={titleId} title={RADIO_SHOWCASE.title} plus>
+          <span className="fv-badge fv-badge--ok">{RADIO_SHOWCASE.badge}</span>
+        </ShowcaseHead>
+      )}
 
       <div className="fv-stage">
         <div className="fv-lock">
@@ -242,7 +253,7 @@ export function RadioShowcaseCard({ playlist = DEFAULT_PLAYLIST }: { playlist?: 
         </p>
       ) : null}
 
-      <ShowcaseCompareBlock compare={RADIO_SHOWCASE.compare} />
+      {compact ? null : <ShowcaseCompareBlock compare={RADIO_SHOWCASE.compare} />}
 
       <audio
         ref={audioRef}

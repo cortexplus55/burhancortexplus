@@ -55,7 +55,7 @@ import {
 import { tierComparisonRows } from "@/lib/billing/tier-presentation";
 import { beyondFreeMessage } from "@/lib/billing/free-reach";
 import { CRAM_SHEET_NAME, CRAM_SHEET_TITLE, examPrepCramSheetHref } from "@/lib/learning/cram-sheet";
-import { FAQ } from "@/lib/marketing/landing-content";
+import { FAQ, PLUS_PLAN_POINTS, WEEK_PLAN_POINTS } from "@/lib/marketing/landing-content";
 import { homeLine } from "@/lib/companion/voice";
 import { renderWelcomeMail } from "@/lib/email/lifecycle-templates";
 
@@ -257,9 +257,11 @@ describe("metinler gerçek davranışı söyler", () => {
     expect(read("src/app/yardim/page.tsx")).toContain("${PLUS_ONLY_SENTENCE}");
   });
 
-  it("SSS: 'Ücretsiz neler yapabilirim?' ve 'Plus'ta ne değişiyor?' Plus'a özel her maddeyi adıyla söyler", () => {
+  it("SSS 'Ücretsiz neler yapabilirim?' ve ana sayfanın Plus kartı Plus'a özel her maddeyi adıyla söyler", () => {
     const free = FAQ.find((item) => item.q === "Ücretsiz neler yapabilirim?")!.a;
-    const plus = FAQ.find((item) => item.q === "Plus'ta ne değişiyor?")!.a;
+    // Faz 9 (20 Kasım 2026): "Plus'ta ne değişiyor?" SSS'den çıktı (beş soru); Plus'ta neyin açıldığını ana sayfada
+    // Plus kartı ve Sınav Haftası kartı söyler.
+    const plus = `${PLUS_PLAN_POINTS.join(" ")} ${WEEK_PLAN_POINTS.join(" ")}`;
     expect(free).toContain(`${lower(FREE_TIER_SENTENCE.charAt(0))}${FREE_TIER_SENTENCE.slice(1)}`);
     expect(free).toContain(`toplam ${FREE_PAGE_TOTAL} sayfa belge`);
     expect(free).toContain("Bir sınav hazırlığı");

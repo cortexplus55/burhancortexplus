@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ShowcaseCompareBlock, ShowcaseHead } from "@/components/landing/fark-vitrini-parts";
+import { ShowcaseChips, ShowcaseCompareBlock, ShowcaseHead } from "@/components/landing/fark-vitrini-parts";
 import { RED_PEN_SHOWCASE } from "@/lib/marketing/fark-vitrini";
 import { startMoment, type MomentHandle } from "@/lib/ui/moment";
 import { cn } from "@/lib/utils";
@@ -50,7 +50,11 @@ function PenSquiggle() {
   );
 }
 
-export function RedPenShowcaseCard() {
+/**
+ * `compact` (Faz 9, 20 Kasım 2026): ana sayfadaki akordeonun sahnesi; başlık ve fark satırı akordeonda, kart yalnız
+ * "Plus" etiketini, görünüm seçicisini ve kâğıdı çizer. /ornek'teki şerit tam kartı kullanır.
+ */
+export function RedPenShowcaseCard({ compact = false }: { compact?: boolean }) {
   const data = RED_PEN_SHOWCASE;
   const [view, setView] = useState<View>("marked");
   const [drawing, setDrawing] = useState(false);
@@ -73,8 +77,14 @@ export function RedPenShowcaseCard() {
   const titleId = `${data.id}-title`;
 
   return (
-    <article className="fv-card fv-card--pen" aria-labelledby={titleId} data-testid="showcase-red-pen" data-view={view}>
-      <ShowcaseHead id={titleId} title={data.title} plus />
+    <article
+      className="fv-card fv-card--pen"
+      aria-labelledby={compact ? undefined : titleId}
+      aria-label={compact ? data.paperLabel : undefined}
+      data-testid="showcase-red-pen"
+      data-view={view}
+    >
+      {compact ? <ShowcaseChips plus /> : <ShowcaseHead id={titleId} title={data.title} plus />}
 
       <div className="fv-stage">
         <div className="fv-seg" role="group" aria-label={data.views.label}>
@@ -130,7 +140,7 @@ export function RedPenShowcaseCard() {
       </div>
 
       <p className="fv-note">{data.note}</p>
-      <ShowcaseCompareBlock compare={data.compare} />
+      {compact ? null : <ShowcaseCompareBlock compare={data.compare} />}
     </article>
   );
 }

@@ -18,6 +18,11 @@
  * Faz 7 (20 Kasım 2026): tur seçilen branşın örnek notuyla oynanır (`guest-demo-tracks.ts`). Branşa bağlı sözler
  * (dosya, sayfa, bulgular, yol, uyarı, Plus önizlemelerinin notu) branş alan işlevlerden gelir; `JOURNEY_FILE`,
  * `JOURNEY_ROADMAP`, `JOURNEY_WARNING` ve `JOURNEY_PLUS_PREVIEWS` lise branşının değerleridir (öteden beri oynanan örnek).
+ *
+ * Faz 9 (20 Kasım 2026, ürün sahibi: "birinci adımda üç kutu yarışıyor"): ana sayfadaki birinci adım TEK kart ("Akıllı
+ * Not Stüdyosu"): üstte yedi adımlık ray, ortada bırakma alanı (örnek notun rozeti + tek cümle), altta iki düğme
+ * (örnek notla turu izle / kendi notunu seç). Canlı rozeti, konsol başlığı, bağlam satırı ve branş şeridi kalktı; branş
+ * kahramanın tek seçicisinden gelir.
  */
 
 import { FREE_PAGE_TOTAL } from "@/lib/billing/free-tier-copy";
@@ -48,7 +53,7 @@ export type JourneyStep = {
 };
 
 export const JOURNEY_STEPS: JourneyStep[] = [
-  { id: "upload", short: "Not", title: "Notunu tarama çekirdeğine bırak", guide: "Örnek notu çekirdeğe sürükle ya da dokun" },
+  { id: "upload", short: "Not", title: "Notunu tarama çekirdeğine bırak", guide: "Örnek notla yedi adımı izle ya da kendi notunu seç" },
   { id: "roadmap", short: "Yol", title: "Yol haritan çıktı", guide: "1. dersi aç" },
   { id: "lesson", short: "Ders", title: "Ders ekranın", guide: "Önce dene, sonra kuralı oku; dersi sonuna kadar ilerlet" },
   { id: "question", short: "Soru", title: "Konu testi", guide: "Bir şık seç ve kontrol et; takılırsan iki şık ipucunu aç" },
@@ -66,11 +71,9 @@ export function isProductStep(id: JourneyStepId): id is JourneyProductStep {
 }
 
 export const JOURNEY_COPY = {
-  /** Konsolun köşesindeki canlı etiketi. */
-  live: "Canlı tur",
-  kicker: "Kayıt olmadan dene",
-  /** Rozetin ekran okuyucu adı (Faz 5 §1.2): dokununca demonun 1. adımına götürür. */
-  liveAction: "Canlı tur · Kayıt olmadan dene: 7 adımlı demonun 1. adımına git",
+  /** Ana sayfadaki birinci adım kartının adı (Faz 9): bölümün başlığı, ekranda gizli, ekran okuyucuda okunur. */
+  card: "Akıllı Not Stüdyosu",
+  /** Tam ekran stüdyonun adı (iletişim penceresinin ekran okuyucu adı). */
   title: "Bir not, yedi adımda derse dönüşsün",
   restart: "Turu baştan oyna",
   /** Tam ekran stüdyonun kapatma düğmesi (ekran okuyucu adı; görünen ✕). */
@@ -111,21 +114,22 @@ export const JOURNEY_WARNING = journeyWarning(DEFAULT_GUEST_TRACK);
  */
 export const JOURNEY_WARNING_STEPS: readonly JourneyStepId[] = ["lesson", "question", "cards", "check"];
 
-/* ---------- 0. Branş şeridi (Faz 7) ---------- */
+/* ---------- 1. Not: Akıllı Not Stüdyosu kartı ---------- */
 
-/** Turun üstündeki branş şeridi: seçilen branşın örnek notuyla yedi adım baştan kurulur. */
-export const JOURNEY_TRACKS_COPY = {
-  label: "Branşını seç",
-  aria: "Turun örnek notu: branş seç",
-} as const;
-
-/* ---------- 1. Not: iki kapı ---------- */
-
-/** A kapısı: hazır örnek not. Kart çekirdeğe sürüklenir ya da dokunulur; tarama anı oynar ve yol açılır. */
+/**
+ * A: hazır örnek not. Ana sayfada kartın birincil düğmesi (`start`) stüdyoyu açar, tarama anı oynar ve yol açılır.
+ * Stüdyodaki tarama anında örnek notun kartı ve çekirdek görünür (`meta`, `sampleCta`, `zone*`).
+ */
 export const JOURNEY_FILE = {
   name: GUEST_DEMO_TRACKS.lise.file,
   /** "Örnek not" yazılı: ziyaretçi bunun hazır bir örnek olduğunu bilir. */
   meta: `Örnek not · ${GUEST_DEMO_TRACKS.lise.subject} · ${GUEST_DEMO_TRACKS.lise.pages} sayfa`,
+  /** Bırakma alanındaki rozetin sayfa satırı ("6 sayfa"). */
+  pagesLabel: `${GUEST_DEMO_TRACKS.lise.pages} sayfa`,
+  /** Kartın birincil düğmesi (ekranda önünde ✨, arkasında ok; ikisi ekran okuyucuda okunmaz). */
+  start: "Örnek Notla 7 Adımı İzle",
+  /** Bırakma alanının tek cümlesi: kabul edilen türler ve vaadi. */
+  dropLine: "PDF, slayt, Word ya da defter fotoğrafını bırak; 7 adımda sınava hazır yolun çıksın.",
   sampleCta: "Örnek notla başlat",
   zoneTitle: "Cortex tarama çekirdeği",
   zoneHint: "Örnek notu ya da kendi dosyanı buraya bırak",
@@ -140,18 +144,22 @@ export const JOURNEY_FILE = {
 /** Seçili branşın örnek notu: dosya adı ve kartın alt satırı ("Örnek not · {ders} · N sayfa"). */
 export function journeyFile(track: GuestTrackId): typeof JOURNEY_FILE {
   const item = guestDemoTrack(track);
-  return { ...JOURNEY_FILE, name: item.file, meta: `Örnek not · ${item.subject} · ${item.pages} sayfa` };
+  return {
+    ...JOURNEY_FILE,
+    name: item.file,
+    meta: `Örnek not · ${item.subject} · ${item.pages} sayfa`,
+    pagesLabel: `${item.pages} sayfa`,
+  };
 }
 
 /**
- * B kapısı: misafirin kendi dosyası. Dosya sunucuya GÖNDERİLMEZ: tarayıcıda (sekme oturumu + IndexedDB) bekler,
- * kayıttan sonra kurulumun materyal adımında "Bu dosyayı ekle" diye sunulur. Tarayıcı saklamaya izin vermezse
- * kart bunu söyler (verilmeyen söz yok).
+ * B: misafirin kendi dosyası (kartın ikinci düğmesi ya da bırakma alanı). Dosya sunucuya GÖNDERİLMEZ: tarayıcıda
+ * (sekme oturumu + IndexedDB) bekler, kayıttan sonra kurulumun materyal adımında "Bu dosyayı ekle" diye sunulur.
+ * Tarayıcı saklamaya izin vermezse kart bunu söyler (verilmeyen söz yok).
  */
 export const JOURNEY_OWN = {
-  title: "Kendi notun mu var?",
-  hint: "PDF, Word, slayt ya da fotoğrafını bırak; dosyan cihazından çıkmaz.",
-  pick: "Kendi notunu seç",
+  /** Kartın ikinci düğmesi (ekranda önünde 📎; ekran okuyucuda okunmaz). */
+  pick: "Kendi Notunu Seç",
   kept: "Dosyan bu cihazda bekliyor; hiçbir yere gönderilmedi. Hesabını açınca ya da giriş yapınca kurulum sihirbazına kendiliğinden aktarılır.",
   notKept: "Dosyan seçildi ama tarayıcın saklamaya izin vermedi; hesabını açınca aynı dosyayı bir kez daha seçeceksin.",
   body: `Bu belgeden ilk dersin, akıllı kartların ve konu testin yazılsın. İlk dersin süre sınırı olmadan ücretsiz; ücretsiz hesapta toplam ${FREE_PAGE_TOTAL} sayfa belge işlenir.`,

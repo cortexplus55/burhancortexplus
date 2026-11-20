@@ -75,7 +75,7 @@ describe("A2 tarama anı", () => {
     vi.useFakeTimers();
     motion(false);
     render(<FuturisticGuidedJourney segmentId="lise" />);
-    fireEvent.click(screen.getByRole("button", { name: new RegExp(JOURNEY_FILE.name) }));
+    fireEvent.click(screen.getByRole("button", { name: JOURNEY_FILE.start }));
     // Tarama tam ekran stüdyoda oynar (sayfanın gövdesine çizilir).
     const finds = document.body.querySelectorAll(".lj-studio [data-scan-findings] [data-finding]");
     expect([...finds].map((node) => node.textContent)).toEqual(journeyScanFindings().map((finding) => finding.text));
@@ -92,7 +92,7 @@ describe("A2 tarama anı", () => {
   it("tıklama anı atlar ve yol hemen açılır; başlatan dokunuş atlatmaz", async () => {
     motion(false);
     render(<FuturisticGuidedJourney segmentId="lise" />);
-    fireEvent.click(screen.getByRole("button", { name: new RegExp(JOURNEY_FILE.name) }));
+    fireEvent.click(screen.getByRole("button", { name: JOURNEY_FILE.start }));
     expect(screen.getByText(JOURNEY_FILE.scanning[0]!)).toBeTruthy();
     await act(async () => {
       await nextFrame();
@@ -107,7 +107,7 @@ describe("A2 tarama anı", () => {
   it("Escape de atlar", async () => {
     motion(false);
     render(<FuturisticGuidedJourney segmentId="lise" />);
-    fireEvent.click(screen.getByRole("button", { name: new RegExp(JOURNEY_FILE.name) }));
+    fireEvent.click(screen.getByRole("button", { name: JOURNEY_FILE.start }));
     await act(async () => {
       await nextFrame();
     });
@@ -120,7 +120,7 @@ describe("A2 tarama anı", () => {
   it("hareket azaltmada an oynamaz: yol hemen açılır", () => {
     motion(true);
     render(<FuturisticGuidedJourney segmentId="lise" />);
-    fireEvent.click(screen.getByRole("button", { name: new RegExp(JOURNEY_FILE.name) }));
+    fireEvent.click(screen.getByRole("button", { name: JOURNEY_FILE.start }));
     expect(screen.getByRole("heading", { name: "Yol haritan çıktı" })).toBeTruthy();
   });
 });
@@ -146,7 +146,7 @@ describe("A4 hoca uyarısının izi", () => {
     render(<FuturisticGuidedJourney segmentId="lise" />);
     const badge = () => document.body.querySelector<HTMLElement>(".lj-studio [data-warning]");
     expect(badge()).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: new RegExp(JOURNEY_FILE.name) }));
+    fireEvent.click(screen.getByRole("button", { name: JOURNEY_FILE.start }));
     act(() => {
       vi.advanceTimersByTime(JOURNEY_FILE.scanMs);
     });
@@ -167,7 +167,7 @@ describe("A4 hoca uyarısının izi", () => {
   it("hareket azaltmada etiket durağan, parlamaz", () => {
     motion(true);
     render(<FuturisticGuidedJourney segmentId="lise" />);
-    fireEvent.click(screen.getByRole("button", { name: new RegExp(JOURNEY_FILE.name) }));
+    fireEvent.click(screen.getByRole("button", { name: JOURNEY_FILE.start }));
     fireEvent.click(screen.getByRole("button", { name: /^Adım 4: / }));
     const badge = document.body.querySelector<HTMLElement>(".lj-studio [data-warning]")!;
     expect(badge).toBeTruthy();
@@ -185,8 +185,8 @@ describe("tam ekran stüdyo", () => {
     motion(true);
     render(<FuturisticGuidedJourney segmentId="lise" />);
     expect(document.querySelector(".lj-studio")).toBeNull();
-    expect(document.querySelector(".lj-door [data-step]") ?? document.querySelector('.lj-door[data-step="upload"]')).toBeTruthy();
-    const sample = screen.getByRole("button", { name: new RegExp(JOURNEY_FILE.name) });
+    expect(document.querySelector('.lj-console .lj-door[data-step="upload"] [data-sample-start]')).toBeTruthy();
+    const sample = screen.getByRole("button", { name: JOURNEY_FILE.start });
     sample.focus();
     fireEvent.click(sample);
     const studio = screen.getByRole("dialog", { name: "Bir not, yedi adımda derse dönüşsün" });
@@ -203,7 +203,7 @@ describe("tam ekran stüdyo", () => {
   it("Escape stüdyoyu kapatır; tarama anı sürerken yalnız anı atlatır", async () => {
     motion(false);
     render(<FuturisticGuidedJourney segmentId="lise" />);
-    fireEvent.click(screen.getByRole("button", { name: new RegExp(JOURNEY_FILE.name) }));
+    fireEvent.click(screen.getByRole("button", { name: JOURNEY_FILE.start }));
     await act(async () => {
       await nextFrame();
     });
@@ -251,7 +251,7 @@ describe("C3 turdan kayda süreklilik: tur yazar", () => {
     motion(true);
     render(<FuturisticGuidedJourney segmentId="yks-lgs" />);
     expect(window.sessionStorage.getItem("cp:guest-tour")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: new RegExp(JOURNEY_FILE.name) }));
+    fireEvent.click(screen.getByRole("button", { name: JOURNEY_FILE.start }));
     fireEvent.click(screen.getByRole("button", { name: /^Adım 4: / }));
     const saved = JSON.parse(window.sessionStorage.getItem("cp:guest-tour")!);
     expect(saved.steps).toEqual(["roadmap", "question"]);

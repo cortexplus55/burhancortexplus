@@ -57,3 +57,65 @@ test.describe("Resmî müfredat", { tag: ["@public"] }, () => {
     await expect(page.getByTestId("resmi-excluded")).toContainText("felsefe-grubu");
   });
 });
+
+/*
+  Faz 9 (20 Kasım 2026, canlı misafir denetimi): /mufredat'ta DGS bölümünün son kartlarının sağ alt kenarı koyu bir
+  katmanın arkasında kalıyordu. Neden sabit çerez bandı (opak zemin + yukarı gölge); sayfada başka katman ya da kırpma yok.
+  Bant açıkken (tercih verilmemiş tarayıcı) her sınav bölümünün son kartı ekrana getirilince (`scrollIntoView`: klavye
+  odağı ve bağlantı atlamasıyla aynı kaydırma) sağ alt köşesi ve kenarlarının ortası kartın kendisine düşer; sayfa sonunda
+  son kartla altbilgi arasında en az 96 px boşluk kalır.
+*/
+test.describe("Resmî müfredat: son kartlar bandın arkasında kalmaz", { tag: ["@public"] }, () => {
+  test.use({ storageState: { cookies: [], origins: [] } });
+
+  for (const size of [
+    { width: 360, height: 800 },
+    { width: 390, height: 844 },
+    { width: 820, height: 900 },
+    { width: 1440, height: 900 },
+  ]) {
+    test(`${size.width}px: her bölümün son kartı tam görünür, sayfa sonunda boşluk`, async ({ page }) => {
+      await page.setViewportSize(size);
+      await page.goto("/mufredat");
+      await expect(page.getByRole("region", { name: "Çerez tercihi" })).toBeVisible();
+      await expect(page.getByTestId("mufredat-list").first()).toBeVisible();
+      const report = await page.evaluate(async () => {
+        document.documentElement.style.scrollBehavior = "auto";
+        const frame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const lists = [...document.querySelectorAll<HTMLElement>('[data-testid="mufredat-list"]')];
+        const problems: string[] = [];
+        for (const list of lists) {
+          const section = list.closest("section")?.querySelector("h2")?.textContent ?? "?";
+          const card = list.lastElementChild as HTMLElement;
+          card.scrollIntoView({ block: "end" });
+          await frame();
+          const box = card.getBoundingClientRect();
+          // Köşe yuvarlak: noktalar yuvarlamanın içinde, kenarların düz kısmında.
+          const radius = parseFloat(getComputedStyle(card).borderBottomRightRadius) || 0;
+          const points: [string, number, number][] = [
+            ["sağ alt", box.right - radius - 2, box.bottom - 2],
+            ["sağ alt (yan)", box.right - 2, box.bottom - radius - 2],
+            ["alt orta", box.left + box.width / 2, box.bottom - 2],
+            ["sağ orta", box.right - 2, box.top + box.height / 2],
+          ];
+          for (const [name, x, y] of points) {
+            const hit = document.elementFromPoint(x, y);
+            if (!hit || !card.contains(hit)) {
+              const cover = hit ? `${hit.tagName.toLowerCase()}${hit.closest("[data-cookie-banner]") ? " (çerez bandı)" : ""}` : "yok";
+              problems.push(`${section}: ${name} → ${cover}`);
+            }
+          }
+        }
+        window.scrollTo(0, document.documentElement.scrollHeight);
+        await frame();
+        const last = lists[lists.length - 1]!.lastElementChild as HTMLElement;
+        const footer = document.querySelector("footer")!;
+        return { problems, sections: lists.length, endGap: footer.getBoundingClientRect().top - last.getBoundingClientRect().bottom };
+      });
+      expect(report.sections).toBeGreaterThan(10);
+      expect(report.problems).toEqual([]);
+      expect(report.endGap).toBeGreaterThanOrEqual(96);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+    });
+  }
+});

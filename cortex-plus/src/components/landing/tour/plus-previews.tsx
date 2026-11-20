@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Maximize2, Minimize2, Pause, Play, RotateCcw } from "lucide-react";
 import { ReelSceneRenderer } from "@/components/learning/visual-scenes";
@@ -296,6 +296,12 @@ function enlargeScale(): number {
 function EnlargeOverlay({ open, onClose, trigger, title, children }: { open: boolean; onClose: () => void; trigger: HTMLButtonElement | null; title: string; children: ReactNode }) {
   const [scale, setScale] = useState(1);
   const closeRef = useRef<HTMLButtonElement>(null);
+  // Esc en son verilen kapatma işlevini çağırır; etki yalnız açılıp kapanınca kurulur (her çizimde odak arkadaki
+  // düğmeye gidip geri gelmesin).
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -305,7 +311,7 @@ function EnlargeOverlay({ open, onClose, trigger, title, children }: { open: boo
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.stopPropagation();
-        onClose();
+        onCloseRef.current();
       }
     };
     window.addEventListener("resize", fit);
@@ -315,7 +321,7 @@ function EnlargeOverlay({ open, onClose, trigger, title, children }: { open: boo
       window.removeEventListener("keydown", onKey, true);
       trigger?.focus();
     };
-  }, [open, onClose, trigger]);
+  }, [open, trigger]);
 
   if (!open || typeof document === "undefined") return null;
   return createPortal(
@@ -337,15 +343,14 @@ function EnlargeOverlay({ open, onClose, trigger, title, children }: { open: boo
 function useEnlarge() {
   const [open, setOpen] = useState(false);
   const [trigger, setTrigger] = useState<HTMLButtonElement | null>(null);
-  return {
-    open,
-    trigger,
-    show: (button: HTMLButtonElement) => {
-      setTrigger(button);
-      setOpen(true);
-    },
-    hide: () => setOpen(false),
-  };
+  // Kararlı işlevler: eskiden her çizimde yeni işlev pencerenin etkisini yeniden kuruyor, odak oynarken saniyede birkaç
+  // kez arkadaki düğmeye gidip geri geliyordu (pencere artık Esc için son işlevi ref'ten okur).
+  const show = useCallback((button: HTMLButtonElement) => {
+    setTrigger(button);
+    setOpen(true);
+  }, []);
+  const hide = useCallback(() => setOpen(false), []);
+  return { open, trigger, show, hide };
 }
 
 /** Lise: ürünün çizim tahtası. Şema `--draw` ile çizilir, formül adımları sırayla belirir. */
@@ -391,6 +396,11 @@ function VideoPreview({ sketch }: { sketch: TourBoardSketch }) {
 /**
  * Mühendislik, TUS ve hukuk: ürünün çizimli video oynatıcısındaki branşa özel SVG sahnesi (`ReelSceneRenderer`).
  * Sahne verisi ürünün ayrıştırıcısından geçer (`parseReelVisual`); her sahne değişiminde çizim baştan akar.
+ *
+ * Büyüt ve küçült çerçeveyi başka bir kaba taşır, sahne yeniden kurulur ve CSS çizim animasyonu baştan başlar. Duraklatılmış
+ * önizlemede animasyon ilk karede donuyordu: büyütülen sahne boştu (yazılar görünmez, ortası karanlık), oynarken de
+ * çizim altyazının ortasında yeniden akıyordu (Faz 9, 20 Kasım 2026, canlı misafir denetimi). Taşınan sahne bu yüzden
+ * tam çizilmiş hâliyle açılır (`animate="none"`); sıradaki sahne yine çizilerek gelir.
  */
 function ReelPreview({ sketch }: { sketch: TourReelSketch }) {
   const { scenes, sceneMs } = sketch;
@@ -399,6 +409,16 @@ function ReelPreview({ sketch }: { sketch: TourReelSketch }) {
   const scene = scenes[index]!;
   const visual = visuals[index];
   const enlarge = useEnlarge();
+  /** Büyüt/küçült ile yeniden kurulan sahnenin sırası: o sahne animasyonsuz, tam çizilmiş açılır. */
+  const [moved, setMoved] = useState<number | null>(null);
+  const openEnlarge = (button: HTMLButtonElement) => {
+    setMoved(index);
+    enlarge.show(button);
+  };
+  const closeEnlarge = () => {
+    setMoved(index);
+    enlarge.hide();
+  };
   const frame = (
     <div
       className="cp-video-frame is-portrait is-reel tpp-video-frame"
@@ -407,7 +427,7 @@ function ReelPreview({ sketch }: { sketch: TourReelSketch }) {
     >
       {visual ? (
         <div className="cp-video-reel" data-beat={scene.beat}>
-          <ReelSceneRenderer key={index} visual={visual} mode="9:16" domain={sketch.domain} animate="sync" playing={playing} />
+          <ReelSceneRenderer key={index} visual={visual} mode="9:16" domain={sketch.domain} animate={moved === index ? "none" : "sync"} playing={playing} />
         </div>
       ) : null}
       <SceneCaption narration={scene.narration} sceneMs={sceneMs} within={within} />
@@ -417,8 +437,8 @@ function ReelPreview({ sketch }: { sketch: TourReelSketch }) {
   return (
     <div className="tpp-video" data-preview="video" data-video="reel">
       <div className="tpp-video-slot">{enlarge.open ? null : frame}</div>
-      <VideoControls playing={playing} onToggle={() => setPlaying((current) => !current)} index={index} count={scenes.length} onEnlarge={enlarge.show} />
-      <EnlargeOverlay open={enlarge.open} onClose={enlarge.hide} trigger={enlarge.trigger} title={scene.narration.slice(0, 80)}>
+      <VideoControls playing={playing} onToggle={() => setPlaying((current) => !current)} index={index} count={scenes.length} onEnlarge={openEnlarge} />
+      <EnlargeOverlay open={enlarge.open} onClose={closeEnlarge} trigger={enlarge.trigger} title={scene.narration.slice(0, 80)}>
         {frame}
       </EnlargeOverlay>
     </div>

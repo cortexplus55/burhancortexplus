@@ -14,7 +14,8 @@ const STEP_IDS = ["upload", "roadmap", "lesson", "question", "cards", "check", "
 
 /**
  * Raydan adıma geç; geliştirme sunucusunda ilk tıklama sayfa canlanmadan düşebilir: adım açılana kadar yeniden dene.
- * 1. durak ana sayfadaki iki kapıya döner (stüdyo kapanır); öbür duraklar tam ekran stüdyoyu o adımda açar.
+ * 1. durak ana sayfadaki birinci adıma (Akıllı Not Stüdyosu kartı) döner, stüdyo kapanır; öbür duraklar tam ekran
+ * stüdyoyu o adımda açar.
  */
 async function goStep(page: Page, at: number) {
   await expect(async () => {
@@ -105,8 +106,8 @@ for (const size of SIZES) {
       };
       requestAnimationFrame(tick);
     });
-    await page.locator("button.lj-zone").evaluate((zone) => zone.scrollIntoView({ block: "center" }));
-    await page.locator("button.lj-zone").click();
+    await page.locator("[data-sample-start]").evaluate((start) => start.scrollIntoView({ block: "center" }));
+    await page.locator("[data-sample-start]").click();
     const finds = page.locator("[data-scan-findings] [data-finding]");
     await expect(finds).toHaveCount(4);
     await expect(finds.nth(0)).toHaveText("6 sayfa");
@@ -119,8 +120,8 @@ for (const size of SIZES) {
 
     // İkinci tur: dokunuş anı atlar, yol 2,4 sn beklemeden açılır.
     await goStep(page, 1);
-    await page.locator("button.lj-zone").evaluate((zone) => zone.scrollIntoView({ block: "center" }));
-    await page.locator("button.lj-zone").click();
+    await page.locator("[data-sample-start]").evaluate((start) => start.scrollIntoView({ block: "center" }));
+    await page.locator("[data-sample-start]").click();
     await expect(finds).toHaveCount(4);
     const t0 = Date.now();
     await page.locator(".lj-studio .lj-stage-head").click();
@@ -200,8 +201,8 @@ for (const size of SIZES) {
     await page.goto("/");
     const badge = page.locator(".lj-studio [data-warning]");
     await expect(badge).toHaveCount(0);
-    await page.locator("button.lj-zone").evaluate((zone) => zone.scrollIntoView({ block: "center" }));
-    await page.locator("button.lj-zone").click();
+    await page.locator("[data-sample-start]").evaluate((start) => start.scrollIntoView({ block: "center" }));
+    await page.locator("[data-sample-start]").click();
     await expect(page.getByRole("heading", { name: "Yol haritan çıktı" })).toBeVisible({ timeout: 4000 });
     await expect(badge).toBeVisible();
     await expect(badge).toContainText("Hoca uyarısı");
@@ -252,8 +253,8 @@ test("A3: hareket azaltmada tur düğmesi geçişsiz ana düğme olur", { tag: [
 test("A2: hareket azaltmada tarama anı oynamaz, yol hemen açılır", { tag: ["@public"] }, async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
-  await page.locator("button.lj-zone").evaluate((zone) => zone.scrollIntoView({ block: "center" }));
-  await page.locator("button.lj-zone").click();
+  await page.locator("[data-sample-start]").evaluate((start) => start.scrollIntoView({ block: "center" }));
+  await page.locator("[data-sample-start]").click();
   await expect(page.getByRole("heading", { name: "Yol haritan çıktı" })).toBeVisible({ timeout: 800 });
 });
 

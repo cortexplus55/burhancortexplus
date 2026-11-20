@@ -6,7 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 /*
   Fark vitrini (20 Kasım 2026, Faz 7). Ürün sahibi: ana sayfadaki "Aynı not, iki ayrı sonuç" bölümünde misafirin kayıt
   olmadan kullanabildiği üç kart (Sınav Radyosu, Kırmızı Kalemli Hoca, Sınıfla Paylaş + QR'lı sınav sabahı kâğıdı);
-  /ornek'in sonunda ikisi; /ozellikler tablosunda beş yeni satır.
+  /ornek'in sonunda ikisi; /ozellikler tablosunda beş yeni satır. Faz 9 (aynı gün): ana sayfada kartlar akordeonun
+  sahneleri (`compact`; başlık ve fark satırı akordeonda).
 
   Bu test şunları tutar:
   - Kartlar ürün sahibinin başlık ve rozetleriyle çizilir.
@@ -71,47 +72,77 @@ afterEach(() => {
 const title = (card: HTMLElement) => within(card).getByRole("heading", { level: 3 }).textContent;
 
 describe("üç kart ürün sahibinin başlık ve rozetleriyle", () => {
-  it("ana sayfada 'Aynı not, iki ayrı sonuç' bölümünün içinde, karşılaştırma kartının altında", () => {
+  /*
+    Faz 9 (20 Kasım 2026): ana sayfada üç kartlık ızgara kalktı; kartlar "Aynı not, iki ayrı sonuç" akordeonunun sahneleri
+    (başlık ve fark satırı akordeonda, kart `compact`). /ornek şeridi tam kartları kullanır. Akordeonun kendisi
+    `fark-akordeon.test.tsx`te.
+  */
+  const openItem = (id: string) => fireEvent.click(document.getElementById(`fk-trigger-${id}`) as HTMLElement);
+  const sceneOf = (id: string) => document.querySelector(`[data-testid="fark-scene"][data-scene="${id}"]`) as HTMLElement;
+
+  it("ana sayfada 'Aynı not, iki ayrı sonuç' akordeonunun sahneleri: rozetler, Plus etiketi, canlı içerik", () => {
     render(<LandingDuel />);
     const section = document.querySelector("section#farklar") as HTMLElement;
-    const vitrin = within(section).getByTestId("fark-vitrini");
-    // Sıra: aynı not kartı → vitrin → fark satırları.
-    const caseCard = within(section).getByTestId("same-note-case");
-    const list = section.querySelector("ol.hm-duel-list") as HTMLElement;
-    expect(caseCard.compareDocumentPosition(vitrin) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(vitrin.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(within(vitrin).getByText(FARK_VITRINI.kicker)).toBeTruthy();
+    expect(section.querySelector('[data-testid="fark-vitrini"]')).toBeNull();
 
-    const radio = within(vitrin).getByTestId("showcase-radio");
-    const pen = within(vitrin).getByTestId("showcase-red-pen");
-    const share = within(vitrin).getByTestId("showcase-class-share");
-    expect(title(radio)).toBe("🎧 Otobüste / Yolda Kesintisiz Sınav Radyosu");
-    expect(title(pen)).toBe("🖊️ Kırmızı Kalemli Hoca — Yazılı Kağıdını Fotoğrafla, Puan Kırılan Yeri Gör");
-    expect(title(share)).toBe("📲 Sınıfla Paylaş (+50 Kredi) & QR Kodlu Sınav Sabahı Kağıdı");
+    const cards: HTMLElement[] = [];
+    for (const [id, testId] of [
+      ["sinav-radyosu", "showcase-radio"],
+      ["kirmizi-kalem", "showcase-red-pen"],
+      ["sinifla-paylas", "showcase-class-share"],
+    ] as const) {
+      openItem(id);
+      const card = within(sceneOf(id)).getByTestId(testId);
+      expect(section.contains(card), testId).toBe(true);
+      // Sahnede kartın kendi başlığı ve fark bloğu yok: ikisi akordeonun başlığında.
+      expect(card.querySelector("h3"), testId).toBeNull();
+      expect(card.querySelector(".fv-compare"), testId).toBeNull();
+      // Bir anda tek sahne.
+      expect(document.querySelectorAll('[data-testid="fark-scene"]'), testId).toHaveLength(1);
+      cards.push(card);
+    }
+    const share = cards[2]!;
+    // Rozetler: +50 Bonus Kredi; paylaşım kartında kâğıdın Plus olduğu yazılı.
+    expect(within(share).getByText("+50 Bonus Kredi")).toBeTruthy();
+    expect(within(share).getByText(CLASS_SHARE_SHOWCASE.note)).toBeTruthy();
+    expect(share.getAttribute("aria-label")).toBe(CLASS_SHARE_SHOWCASE.label);
+  });
 
-    // Rozetler: zümrüt "0 KREDİ · KAYITLI PODCAST" (büyük harf CSS ile), +50 Bonus Kredi, kırmızı kalemin iki rozeti.
+  it("sahne kartları (compact): radyonun zümrüt rozeti ve Plus'u, kırmızı kalemin iki rozeti ve Plus'u", () => {
+    const radioView = render(<RadioShowcaseCard compact />);
+    const radio = radioView.getByTestId("showcase-radio");
     const zero = radio.querySelector(".fv-badge--ok") as HTMLElement;
     expect(zero.textContent?.toLocaleUpperCase("tr")).toBe("0 KREDİ · KAYITLI PODCAST");
+    expect(within(radio).getByText(FARK_VITRINI.plus)).toBeTruthy();
     expect(within(radio).getByRole("button", { name: RADIO_SHOWCASE.play }).textContent).toBe("▶ Örnek Radyo Akışını Dinle");
-    expect(within(share).getByText("+50 Bonus Kredi")).toBeTruthy();
+    expect(radio.getAttribute("aria-label")).toBe(RADIO_SHOWCASE.stationLine);
+    radioView.unmount();
+
+    render(<RedPenShowcaseCard compact />);
+    const pen = screen.getByTestId("showcase-red-pen");
+    expect(within(pen).getByText(FARK_VITRINI.plus)).toBeTruthy();
     expect(within(pen).getByTestId("red-pen-earned").textContent).toBe("+15 Puan · a) Denklem kurulumu ve çözüm tam");
     expect(within(pen).getByTestId("red-pen-lost").textContent).toBe("-5 Puan · Hoca Buradan Kırar: Ara basamakta işaret / mutlak değer hatası");
     expect(within(pen).getByText(RED_PEN_SHOWCASE.paperLabel)).toBeTruthy();
+    expect(pen.getAttribute("aria-label")).toBe(RED_PEN_SHOWCASE.paperLabel);
+  });
 
-    // Plus işleri etiketli (podcast üretimi ve "Kâğıtta çöz" Plus'ta); paylaşım kartında kâğıdın Plus olduğu yazılı.
+  it("tam kartlar (/ornek şeridi): ürün sahibinin başlıkları ve karşılaştırma bloğu yerinde", () => {
+    render(<SuperGuclerStrip />);
+    const radio = screen.getByTestId("showcase-radio");
+    const pen = screen.getByTestId("showcase-red-pen");
+    expect(title(radio)).toBe("🎧 Otobüste / Yolda Kesintisiz Sınav Radyosu");
+    expect(title(pen)).toBe("🖊️ Kırmızı Kalemli Hoca — Yazılı Kağıdını Fotoğrafla, Puan Kırılan Yeri Gör");
     expect(within(radio).getByText(FARK_VITRINI.plus)).toBeTruthy();
     expect(within(pen).getByText(FARK_VITRINI.plus)).toBeTruthy();
-    expect(within(share).getByText(CLASS_SHARE_SHOWCASE.note)).toBeTruthy();
-
-    // Her kartta karşılaştırma: Cortex Plus ve Genel yapay zekâ botları (düello etiketleriyle aynı).
-    for (const card of [radio, pen, share]) {
+    // Her kartta karşılaştırma: Cortex Plus ve Genel yapay zekâ botları (ana sayfanın etiketleriyle aynı).
+    for (const card of [radio, pen]) {
       expect(within(card).getByText(SHOWCASE_COMPARE_LABELS.us)).toBeTruthy();
       expect(within(card).getByText(SHOWCASE_COMPARE_LABELS.them)).toBeTruthy();
     }
     expect(SHOWCASE_COMPARE_LABELS).toEqual({ us: HOME_COPY.duel.us, them: HOME_COPY.duel.them });
     expect(within(radio).getByText(RADIO_SHOWCASE.compare.cortex)).toBeTruthy();
     expect(within(pen).getByText(RED_PEN_SHOWCASE.compare.others)).toBeTruthy();
-    expect(within(share).getByText(CLASS_SHARE_SHOWCASE.compare.cortex)).toBeTruthy();
   });
 
   it("CSS: zümrüt rozet anlamsal belirteçle, büyük harf yalnız CSS'te; yazı 12 px, dokunma 44 px; mavi yok", () => {
@@ -343,12 +374,14 @@ describe("/ornek ve /ozellikler", () => {
     expect(ADVANTAGE_ROWS.map((row) => row.id)).toEqual(
       expect.arrayContaining([RADIO_SHOWCASE.id, RED_PEN_SHOWCASE.id, CLASS_SHARE_SHOWCASE.id]),
     );
-    // Ana sayfanın fark satırlarına yenileri girmez (orada kartla anlatılıyor); sınav sabahı kâğıdı satırı da çıktı:
-    // kâğıdı "Sınıfla paylaş" kartı ve turun Plus adımı anlatıyor (aynı özellik sayfada üç kez anlatılmaz).
+    // Faz 9 (20 Kasım 2026): ana sayfada fark tablosunun satırları yok; altı başlıklı akordeon var, sınav sabahı kâğıdı
+    // ayrı bir başlık değil (paylaşım sahnesinin kâğıdı ve turun Plus adımı anlatıyor; aynı özellik üç kez anlatılmaz).
     const home = render(<LandingDuel />);
-    const rows = home.container.querySelectorAll("ol.hm-duel-list > li");
-    expect(rows).toHaveLength(4);
-    expect(home.container.querySelector("ol.hm-duel-list")?.textContent ?? "").not.toMatch(/Sınav Sabahı/i);
+    expect(home.container.querySelector("ol.hm-duel-list")).toBeNull();
+    expect(home.container.querySelector('[role="table"], table')).toBeNull();
+    const heads = [...home.container.querySelectorAll(".fk-head .fk-title")].map((node) => node.textContent ?? "");
+    expect(heads).toHaveLength(6);
+    for (const head of heads) expect(head).not.toMatch(/Sınav Sabahı/i);
   });
 });
 

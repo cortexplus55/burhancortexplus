@@ -6,17 +6,15 @@ import {
   startTransition,
   useCallback,
   useEffect,
-  useId,
   useLayoutEffect,
   useRef,
   useState,
   type ComponentType,
   type DragEvent,
-  type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import { AlertTriangle, ArrowRight, Check, FileText, Lock, Upload, X } from "lucide-react";
+import { AlertTriangle, ArrowRight, Check, FileText, Lock, X } from "lucide-react";
 import { CortexMark } from "@/components/brand/cortex-mark";
 import type { TourPlusPreviewProps } from "@/components/landing/tour/plus-previews";
 import type { TourScreenProps } from "@/components/landing/tour/product-screens";
@@ -31,13 +29,8 @@ import {
 } from "@/lib/documents/guest-handoff";
 import { DOCUMENT_UPLOAD_ACCEPT } from "@/lib/documents/upload-accept";
 import { streakBadge } from "@/lib/learning/coach-reactions";
-import {
-  GUEST_DEMO_TRACKS,
-  GUEST_TRACK_IDS,
-  guestDemoTrack,
-  trackForSegment,
-  type GuestTrackId,
-} from "@/lib/marketing/guest-demo-tracks";
+import { warmMathFonts } from "@/lib/learning/math-fonts";
+import { trackForSegment, type GuestTrackId } from "@/lib/marketing/guest-demo-tracks";
 import {
   JOURNEY_COPY,
   JOURNEY_FINAL,
@@ -46,7 +39,6 @@ import {
   JOURNEY_PLUS_ALSO,
   JOURNEY_RESULT,
   JOURNEY_STEPS,
-  JOURNEY_TRACKS_COPY,
   JOURNEY_WARNING_STEPS,
   isProductStep,
   journeyFile,
@@ -187,23 +179,42 @@ function FitStage({ children, fitKey }: { children: ReactNode; fitKey: string })
  * `loadScreens` notu). Tur model çağırmaz, sunucuya istek atmaz. Hareket yalnız CSS'te ve `prefers-reduced-motion`da
  * durur; tarama beklemesi de o zaman atlanır.
  *
- * Faz 7 (20 Kasım 2026): tur seçilen branşın örnek notuyla oynanır. Konsolun üstündeki branş şeridi (lise, mühendislik,
- * TUS, hukuk) ve kahramanın sekmesi tek durumdur (`AudienceHero` tutar; sekme branşı, branş sekmeyi eşler). Branş
- * değişince tur notun kendisinden, birinci adımdan yeniden kurulur: cevaplar o notun sorularınındı.
+ * Faz 7 (20 Kasım 2026): tur seçilen branşın örnek notuyla oynanır. Branş değişince tur notun kendisinden, birinci
+ * adımdan yeniden kurulur: cevaplar o notun sorularınındı.
+ *
+ * Faz 9 (20 Kasım 2026, ürün sahibi: "birinci adımda üç kutu yarışıyor, iki seçici kafa karıştırıyor"): branş şeridi
+ * kalktı; branş kahramanın tek seçicisinden gelir (`AudienceHero` → `trackId`). Ana sayfadaki birinci adım TEK kart
+ * ("Akıllı Not Stüdyosu"): üstte yedi adımlık ray (her durak tıklanır), ortada bırakma alanı (örnek notun rozeti +
+ * tek cümle; bırakılan dosya misafirin kendi dosyasıdır), altta iki düğme: örnek notla turu izle (stüdyo + tarama anı)
+ * ve kendi notunu seç. Canlı rozeti, konsol başlığı ve bağlam satırı kalktı; bölümün başlığı ekran okuyucuda.
  */
+/**
+ * Uzun dosya adı telefonda kelimenin ortasından ("…Notu.pd / f") kırılıyordu: alt çizgilerden sonra kırılma fırsatı
+ * (`<wbr>`) verilir, ".pdf" son parçada bütün kalır. Metin aynı (ekran okuyucu ve testler için).
+ */
+function breakableFileName(name: string): ReactNode {
+  const parts = name.split("_");
+  return parts.map((part, at) => (
+    <Fragment key={`${part}-${at}`}>
+      {part}
+      {at < parts.length - 1 ? (
+        <>
+          _<wbr />
+        </>
+      ) : null}
+    </Fragment>
+  ));
+}
+
 export function FuturisticGuidedJourney({
   segmentId,
   trackId: trackProp,
-  onTrackChange,
 }: {
   segmentId: AudienceSegmentId;
-  /** Seçili branş; verilmezse sekmenin branşı (ve şerit kendi durumunu tutar). */
+  /** Seçili branş; verilmezse profilin branşı. */
   trackId?: GuestTrackId;
-  onTrackChange?: (id: GuestTrackId) => void;
 }) {
-  /** Şeritten seçilen branş, branşı dışarıdan verilmeyen kullanımda (sekme değişince sekmenin branşına döner). */
-  const [localTrack, setLocalTrack] = useState<GuestTrackId | null>(null);
-  const trackId = trackProp ?? localTrack ?? trackForSegment(segmentId);
+  const trackId = trackProp ?? trackForSegment(segmentId);
   const [step, setStep] = useState<JourneyStepId>("upload");
   /** Tam ekran stüdyo açık mı. */
   const [studio, setStudio] = useState(false);
@@ -233,10 +244,6 @@ export function FuturisticGuidedJourney({
   const [warningGlow, setWarningGlow] = useState(false);
   const stageRef = useRef<HTMLDivElement>(null);
   const studioRef = useRef<HTMLDivElement>(null);
-  /** Faz 5 §1.2: "Canlı tur · Kayıt olmadan dene" rozeti 1. adımın kapısına kaydırır ve onu kısa süre vurgular. */
-  const doorRef = useRef<HTMLDivElement>(null);
-  const [spotlight, setSpotlight] = useState(false);
-  const spotlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ownInput = useRef<HTMLInputElement>(null);
   const scanMoment = useRef<MomentHandle | null>(null);
   /** Stüdyoyu açan öğe: kapanınca odak ona döner. */
@@ -248,12 +255,10 @@ export function FuturisticGuidedJourney({
   const alive = useRef(true);
   const loadingScreens = useRef(false);
   const loadingPreviews = useRef(false);
-  const tracksId = useId();
-  /** Branş bu ziyarette en az bir kez değişti mi: örnek notun kartı yalnız o zaman yeniden belirir (ilk yükte hareket yok). */
+  /** Branş bu ziyarette en az bir kez değişti mi: örnek notun rozeti yalnız o zaman yeniden belirir (ilk yükte hareket yok). */
   const [switched, setSwitched] = useState(false);
 
   const segment = audienceSegment(segmentId);
-  const track = guestDemoTrack(trackId);
   const file = journeyFile(trackId);
   const warning = journeyWarning(trackId);
   const roadmap = journeyRoadmap(trackId);
@@ -331,20 +336,6 @@ export function FuturisticGuidedJourney({
     setStudio(false);
   }, []);
 
-  /** Şeritten branş seçimi: durum kahramandaysa ona bildirilir (sekme de eşlenir), değilse burada tutulur. */
-  const pickTrack = useCallback(
-    (id: GuestTrackId) => {
-      if (onTrackChange) onTrackChange(id);
-      else setLocalTrack(id);
-    },
-    [onTrackChange],
-  );
-
-  // Branşı dışarıdan verilmeyen kullanımda sekme değişince şerit sekmenin branşına döner.
-  useEffect(() => {
-    setLocalTrack(null);
-  }, [segmentId]);
-
   /*
     Branş değişince tur o branşın notundan yeniden kurulur: birinci adım (yeni not, yeni tarama), cevaplar ve
     sonuç sıfır, ürün ekranları baştan. Tur ortadaysa (stüdyo kapatılıp ilerleme korunmuşsa) ray da başa döner; eski
@@ -365,18 +356,6 @@ export function FuturisticGuidedJourney({
     go("upload");
   }, [trackId, go]);
 
-  /** Şeritte ok tuşlarıyla gezinme (tek seçimli grup): seçim de odakla birlikte kayar. */
-  function onTracksKey(event: ReactKeyboardEvent<HTMLDivElement>) {
-    const keys: Record<string, number> = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
-    const delta = keys[event.key];
-    if (!delta) return;
-    event.preventDefault();
-    const at = GUEST_TRACK_IDS.indexOf(trackId);
-    const next = GUEST_TRACK_IDS[(at + delta + GUEST_TRACK_IDS.length) % GUEST_TRACK_IDS.length]!;
-    pickTrack(next);
-    document.getElementById(`${tracksId}-${next}`)?.focus();
-  }
-
   // Bu sekmede bekleyen dosya varsa (kayıttan dönen ziyaretçi) kart yeniden görünür; süresi geçmiş kayıt silinir.
   useEffect(() => {
     setGuest(readGuestMarker());
@@ -390,6 +369,14 @@ export function FuturisticGuidedJourney({
     // Önizlemeler Plus adımından iki adım önce yüklenmeye başlar: ziyaretçi geldiğinde hazır olur.
     if (step === "cards" || step === "check" || step === "plus") loadPreviews();
   }, [product, step, loadScreens, loadPreviews]);
+
+  /*
+    Ürün ekranları hazır olunca (stil dosyaları, dolayısıyla KaTeX'in yazı tipi tanımları yüklendi) formül yazı tipleri
+    hemen istenir: derste ilk formül kartı geldiğinde harfler görünmez kalıp yalnız √ çizilmesin (Faz 9, `math-fonts.ts`).
+  */
+  useEffect(() => {
+    if (screens.status === "ready") warmMathFonts();
+  }, [screens.status]);
 
   /*
     Stüdyo açıkken sayfa arkada kilitli (kaydırma yalnız stüdyoda da yok), odak stüdyoya gelir; Escape ve ✕ kapatır,
@@ -494,13 +481,13 @@ export function FuturisticGuidedJourney({
     void clearGuestDocuments();
   }
 
-  function onZoneDrop(event: DragEvent<HTMLElement>) {
+  /** Ana sayfadaki bırakma alanı: yalnız misafirin kendi dosyalarını alır (örnek not birincil düğmeyle açılır). */
+  function onDropAreaDrop(event: DragEvent<HTMLElement>) {
     event.preventDefault();
     event.stopPropagation();
     setDragOver(false);
     const files = Array.from(event.dataTransfer?.files ?? []);
     if (files.length) void takeOwn(files);
-    else startScan();
   }
 
   function restart() {
@@ -528,36 +515,6 @@ export function FuturisticGuidedJourney({
   const signupHref = journeySignupHref(segmentId, { withDocument: Boolean(guest) });
   const shownPreviews = plusPreviews.filter((item) => item.id === activePreview);
 
-  /**
-   * "Canlı tur · Kayıt olmadan dene" (Faz 5 §1.2): rozet 7 adımlı demonun 1. adımına yumuşakça kaydırır
-   * (`scrollIntoView({ behavior: "smooth" })`; hareket azaltma açıksa sıçrayarak), odağı oraya taşır ve 1. adımı
-   * (raydaki durak + iki kapı) birkaç saniye vurgular. Tur başka bir adımdaysa önce 1. adıma döner.
-   */
-  function spotlightFirstStep() {
-    if (step !== "upload") goStep("upload");
-    const target = doorRef.current;
-    if (target) {
-      const reduce =
-        typeof window !== "undefined" &&
-        typeof window.matchMedia === "function" &&
-        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      target.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "center" });
-      target.focus({ preventScroll: true });
-    }
-    setSpotlight(false);
-    if (spotlightTimer.current) clearTimeout(spotlightTimer.current);
-    // Bir sonraki karede yeniden açılır: art arda dokunuşta parlama baştan oynar.
-    requestAnimationFrame(() => setSpotlight(true));
-    spotlightTimer.current = setTimeout(() => setSpotlight(false), 2800);
-  }
-
-  useEffect(
-    () => () => {
-      if (spotlightTimer.current) clearTimeout(spotlightTimer.current);
-    },
-    [],
-  );
-
   /** İlerleme rayı: logonun şeridi. Her durak tıklanır; dolan kısım geçilen adımlardır. */
   const rail = (
     <ol className="lj-rail" style={{ ["--lj-progress" as string]: index / (JOURNEY_STEPS.length - 1) }}>
@@ -565,7 +522,7 @@ export function FuturisticGuidedJourney({
         <li key={item.id} className="lj-rail-item">
           <button
             type="button"
-            className={cn("lj-stop", at < index && "is-done", at === index && "is-on", at === 0 && spotlight && "is-spotlight")}
+            className={cn("lj-stop", at < index && "is-done", at === index && "is-on")}
             aria-current={at === index ? "step" : undefined}
             aria-label={`Adım ${at + 1}: ${item.title}`}
             onClick={() => goStep(item.id)}
@@ -583,58 +540,19 @@ export function FuturisticGuidedJourney({
   );
 
   /**
-   * Branş şeridi (Faz 7): turun kartının hemen üstünde dört branş; seçilen branşın örnek notuyla yedi adım baştan
-   * kurulur. Tek seçimli grup (ok tuşlarıyla gezilir); her düğme en az 44 px; dar ekranda satır sarar, iç kaydırma yok.
+   * Stüdyodaki tarama anı (birinci adım stüdyoda yalnız tarama sürerken görünür): örnek notun kartı çekirdeğe kayar,
+   * halkalar atar, bulgular sırayla belirir. Ana sayfadaki birinci adım ayrı bir kart (aşağıda, "Akıllı Not Stüdyosu").
+   * An sürerken kart ve çekirdek basılmaz; dokunuş ya da tuş anı atlar (`startMoment`).
    */
-  const tracks = (
-    <div className="lj-tracks" role="radiogroup" aria-label={JOURNEY_TRACKS_COPY.aria} onKeyDown={onTracksKey} data-tracks>
-      <span className="lj-tracks-label" aria-hidden>
-        {JOURNEY_TRACKS_COPY.label}
-      </span>
-      {GUEST_TRACK_IDS.map((id) => {
-        const on = id === trackId;
-        return (
-          <button
-            key={id}
-            id={`${tracksId}-${id}`}
-            type="button"
-            role="radio"
-            aria-checked={on}
-            tabIndex={on ? 0 : -1}
-            className={cn("lj-track", on && "is-on")}
-            data-track={id}
-            onClick={() => pickTrack(id)}
-          >
-            {GUEST_DEMO_TRACKS[id].label}
-          </button>
-        );
-      })}
-    </div>
-  );
-
-  /** Birinci adımın iki kapısı. Ana sayfada çağrılır; tarama sırasında aynı düzen stüdyoda oynar. */
-  function renderDoors(inStudio: boolean) {
-    const scanningHere = inStudio && scanning;
+  function renderScan() {
     return (
-      <div className={cn("lj-upload", scanningHere && "is-scanning")}>
-        <button
-          type="button"
-          className="lj-file"
-          draggable={!scanningHere}
-          disabled={scanningHere}
-          data-track={trackId}
-          onDragStart={(event) => {
-            event.dataTransfer.setData("text/plain", file.name);
-            event.dataTransfer.effectAllowed = "copy";
-          }}
-          onClick={startScan}
-        >
+      <div className={cn("lj-upload", scanning && "is-scanning")}>
+        <button type="button" className="lj-file" disabled={scanning} data-track={trackId} onClick={startScan}>
           <span className="lj-file-sheet" aria-hidden>
             <FileText className="h-6 w-6" />
             <span className="lj-file-badge">PDF</span>
           </span>
-          {/* Branş değişince notun yazısı yeniden belirir (yalnız değişimden sonra; ilk yükte hareket yok). */}
-          <span key={trackId} className={cn("lj-file-text", switched && "is-switched")}>
+          <span className="lj-file-text">
             <strong>{file.name}</strong>
             <span>{file.meta}</span>
             <span className="lj-file-go">
@@ -648,16 +566,10 @@ export function FuturisticGuidedJourney({
 
         <button
           type="button"
-          className={cn("lj-zone", dragOver && "is-over")}
-          disabled={scanningHere}
+          className="lj-zone"
+          disabled={scanning}
           aria-label={`${file.zoneTitle}: ${file.zoneHint}`}
           onClick={startScan}
-          onDragOver={(event) => {
-            event.preventDefault();
-            setDragOver(true);
-          }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={onZoneDrop}
         >
           <span className="lj-zone-rings" aria-hidden>
             <span />
@@ -667,7 +579,7 @@ export function FuturisticGuidedJourney({
           <span className="lj-zone-core" aria-hidden>
             <CortexMark size={56} />
           </span>
-          {scanningHere ? (
+          {scanning ? (
             <span className="lj-scan" role="status" aria-live="polite">
               <span className="lj-scan-sheet" aria-hidden>
                 <span className="lj-scan-laser" />
@@ -689,24 +601,6 @@ export function FuturisticGuidedJourney({
             </span>
           )}
         </button>
-
-        {inStudio ? null : (
-          <div className="lj-own">
-            <p className="lj-own-title">{JOURNEY_OWN.title}</p>
-            <p className="lj-own-hint">{JOURNEY_OWN.hint}</p>
-            <button type="button" className="lj-ghost lj-own-pick" disabled={holding} onClick={() => ownInput.current?.click()}>
-              <Upload className="h-4 w-4" aria-hidden />
-              {JOURNEY_OWN.pick}
-            </button>
-            {ownProblems.length ? (
-              <ul className="lj-own-problems" role="alert">
-                {ownProblems.map((problem) => (
-                  <li key={problem}>{problem}</li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-        )}
       </div>
     );
   }
@@ -715,7 +609,7 @@ export function FuturisticGuidedJourney({
   function renderStudioStep() {
     return (
       <>
-        {step === "upload" ? renderDoors(true) : null}
+        {step === "upload" ? renderScan() : null}
 
         {step === "roadmap" ? (
           <div className="lj-road" data-track={trackId}>
@@ -989,9 +883,10 @@ export function FuturisticGuidedJourney({
   return (
     <section id="nasil" className="lj" aria-labelledby="lj-title" data-track={trackId}>
       <div className="lj-wrap" inert={studio || undefined} aria-hidden={studio || undefined}>
-        {tracks}
+        {/* Akıllı Not Stüdyosu (Faz 9): tek kart; ray, bırakma alanı ve iki düğme. İç kaydırma yok; sayfa tek parça kayar. */}
         <div
           className="lj-console"
+          data-segment={segmentId}
           onPointerEnter={loadScreens}
           onPointerDown={loadScreens}
           onFocusCapture={loadScreens}
@@ -1005,52 +900,19 @@ export function FuturisticGuidedJourney({
             void takeOwn(Array.from(event.dataTransfer.files));
           }}
         >
-          <div className="lj-console-head">
-            {/* Faz 5 §1.2 (19 Kasım 2026): statik etiket değil; dokununca 7 adımlı demoya yumuşakça kayar, 1. adım parlar. */}
-            <button
-              type="button"
-              className="lj-live lj-live--button"
-              onClick={spotlightFirstStep}
-              aria-label={JOURNEY_COPY.liveAction}
-              data-testid="journey-live-badge"
-            >
-              <span className="lj-live-dot" aria-hidden />
-              {JOURNEY_COPY.live}
-              <span className="lj-live-sep" aria-hidden>
-                ·
-              </span>
-              {JOURNEY_COPY.kicker}
-              <span className="lj-live-arrow" aria-hidden>
-                ↓
-              </span>
-            </button>
-            <h2 id="lj-title" className="lj-title">
-              {JOURNEY_COPY.title}
-            </h2>
-            {/* Seçili branşın bağlamı: örnek not ve cümle branşla değişir (anahtar animasyonu yeniden başlatır). */}
-            <p key={trackId} className="lj-context" data-segment={segmentId} data-track={trackId}>
-              {track.context}
-            </p>
-          </div>
+          <h2 id="lj-title" className="sr-only">
+            {JOURNEY_COPY.card}
+          </h2>
 
           {rail}
 
-          {/* Birinci adım ana sayfada: iki kapı. İç kaydırma yok; sayfa tek parça kayar. */}
-          <div
-            ref={doorRef}
-            className={cn("lj-door", spotlight && "is-spotlight")}
-            data-step="upload"
-            data-spotlight={spotlight ? "" : undefined}
-            tabIndex={-1}
-          >
-            <div className="lj-stage-head">
-              <h3 className="lj-step-title">{JOURNEY_STEPS[0]!.title}</h3>
-              <p className="lj-guide" role="status" aria-live="polite">
-                <span aria-hidden>{ownReady ? "👇" : "👆"}</span> {journeyGuideLine("upload", { ownDocument: ownReady })}
-              </p>
-            </div>
+          <div className="lj-door" data-step="upload">
+            {/* Adımın yönlendirmesi ekran okuyucuda (görünen yerde ray ve iki düğme var). */}
+            <p className="sr-only" role="status" aria-live="polite">
+              {journeyGuideLine("upload", { ownDocument: ownReady })}
+            </p>
 
-            {/* B kapısı sonrası: misafirin kendi dosyası tarayıcıda bekliyor. */}
+            {/* Kendi dosyası seçildikten sonra: dosya tarayıcıda bekliyor. */}
             {ownReady && guest ? (
               <div className="lj-ready" data-guest-document>
                 <p className="lj-ready-title">
@@ -1094,10 +956,62 @@ export function FuturisticGuidedJourney({
                 ) : null}
               </div>
             ) : (
-              renderDoors(false)
+              <>
+                {/*
+                  Bırakma alanı: misafirin kendi dosyası buraya bırakılır (sunucuya gitmez, `takeOwn`). İçinde seçili
+                  branşın örnek notunun rozeti; örnek not birincil düğmeyle açılır.
+                */}
+                <div
+                  className={cn("lj-drop", dragOver && "is-over")}
+                  data-drop
+                  onDragOver={(event) => {
+                    if (!isFileDrag(event)) return;
+                    event.preventDefault();
+                    setDragOver(true);
+                  }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={onDropAreaDrop}
+                >
+                  {/* Branş değişince rozet yeniden belirir (yalnız değişimden sonra; ilk yükte hareket yok). */}
+                  <span key={trackId} className={cn("lj-drop-badge", switched && "is-switched")} data-track={trackId}>
+                    <span className="lj-drop-tag" aria-hidden>
+                      <FileText className="h-4 w-4" />
+                      PDF
+                    </span>
+                    <span className="sr-only">Örnek not: </span>
+                    <span className="lj-drop-name">{breakableFileName(file.name)}</span>
+                    <span className="lj-drop-pages">· {file.pagesLabel}</span>
+                  </span>
+                  <p className="lj-drop-line">{file.dropLine}</p>
+                  {ownProblems.length ? (
+                    <ul className="lj-own-problems" role="alert">
+                      {ownProblems.map((problem) => (
+                        <li key={problem}>{problem}</li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
+                <div className="lj-door-actions">
+                  <button type="button" className="lj-cta lj-door-start" disabled={holding} onClick={startScan} data-sample-start>
+                    <span aria-hidden>✨</span>
+                    {file.start}
+                    <ArrowRight className="h-4 w-4" aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    className="lj-ghost lj-door-pick"
+                    disabled={holding}
+                    onClick={() => ownInput.current?.click()}
+                    data-own-pick
+                  >
+                    <span aria-hidden>📎</span>
+                    {JOURNEY_OWN.pick}
+                  </button>
+                </div>
+              </>
             )}
 
-            {/* B kapısının dosya seçicisi: görünmez; düğme açar. Dosya yalnız tarayıcıda tutulur. */}
+            {/* Kendi dosyasının seçicisi: görünmez; düğme açar. Dosya yalnız tarayıcıda tutulur. */}
             <input
               ref={ownInput}
               type="file"

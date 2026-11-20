@@ -33,10 +33,12 @@ export default function MufredatPage() {
     groups.set(key, [...(groups.get(key) ?? []), p]);
   }
   const outcomeTotal = programs.reduce((n, p) => n + p.outcomeCount, 0);
+  // Uzun liste: son bölümün kartları altbilgiye ve çerez bandına yapışmasın (Faz 9, 20 Kasım 2026; pb-16 → pb-24).
   return (
     <MarketingPage
       title="Resmî Müfredat"
       description={`${programs.length} program, ${outcomeTotal} kazanım. Veri sürümü ${CURRICULUM.version}; kaynaklar MEB, ÖDSGM ve ÖSYM belgeleri.`}
+      contentClassName="pb-24"
     >
       <p className="mk-eyebrow">
         <Link href="/resmi">Resmî takvim, sınav yapıları ve eksik veri →</Link>

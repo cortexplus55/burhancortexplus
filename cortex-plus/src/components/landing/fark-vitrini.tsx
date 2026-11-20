@@ -1,5 +1,5 @@
 import { ChevronDown } from "lucide-react";
-import { ShowcaseCompareBlock, ShowcaseHead } from "@/components/landing/fark-vitrini-parts";
+import { ShowcaseChips } from "@/components/landing/fark-vitrini-parts";
 import { RadioShowcaseCard } from "@/components/landing/fark-vitrini-radio";
 import { RedPenShowcaseCard } from "@/components/landing/fark-vitrini-red-pen";
 import { demoRadioPlaylist } from "@/lib/demo/demo-podcasts";
@@ -9,14 +9,15 @@ import { qrSvgMarkup } from "@/lib/utils/qr-svg";
 import "@/styles/fark-vitrini.css";
 
 /**
- * Fark vitrini (20 Kasım 2026, Faz 7): misafirin kayıt olmadan dokunabildiği üç kart.
+ * Fark vitrini kartları (20 Kasım 2026, Faz 7): misafirin kayıt olmadan dokunabildiği kartlar.
  *
- *   A — Sınav Radyosu: kayıtlı ünite podcastleri sırayla çalar (istemci kartı, `fark-vitrini-radio.tsx`)
+ *   A — Sınav Radyosu: kayıtlı ünite podcastlerini sırayla çalar (istemci kartı, `fark-vitrini-radio.tsx`)
  *   B — Kırmızı Kalemli Hoca: örnek çözüm kâğıdında kazanılan ve kırılan puan (istemci kartı, `fark-vitrini-red-pen.tsx`)
  *   C — Sınıfla paylaş + QR'lı sınav sabahı kâğıdı (bu dosya, sunucu bileşeni)
  *
- * Ana sayfada "Aynı not, iki ayrı sonuç" bölümünün içinde, karşılaştırma kartının hemen altında (`LandingDuel`);
- * /ornek sayfasının sonunda A ve B "Kayıtlı Hesapta Açılan Süper Güçler" şeridinde. Kartlar aynı bileşenler.
+ * Faz 9 (20 Kasım 2026): ana sayfadaki üç kartlık ızgara kalktı; kartlar "Aynı not, iki ayrı sonuç" akordeonunun
+ * sahneleri oldu (`landing-duel.tsx`, `compact`: başlık ve fark satırı akordeonda). /ornek sayfasının sonunda A ve B
+ * "Kayıtlı Hesapta Açılan Süper Güçler" şeridinde, tam kartlarıyla.
  *
  * Sıfır istek: radyo yalnız tıklamada `public/ornek/` altındaki kaydı çalar; QR kodu sunucuda çizilir (`qrSvgMarkup`,
  * ağ yok) ve sayfaya SVG olarak gömülür, `qrcode` paketi istemci paketine girmez. Model, ses üretimi, kredi yok.
@@ -26,15 +27,14 @@ import "@/styles/fark-vitrini.css";
 /** Örnek QR, sunucuda bir kez: aynı adres her zaman aynı çizim. */
 const SAMPLE_QR = qrSvgMarkup(SHARE_SAMPLE_URL, { size: 96, margin: 2, title: CLASS_SHARE_SHOWCASE.qrTitle });
 
-/** Kart C: mini sınav sabahı kâğıdı (köşesinde QR), +50 kredi rozeti ve paylaşımın üç adımı. */
+/** Kart C (akordeon sahnesi): +50 kredi rozeti, köşesinde QR olan mini sınav sabahı kâğıdı ve paylaşımın üç adımı. */
 export function ClassShareShowcaseCard() {
   const data = CLASS_SHARE_SHOWCASE;
-  const titleId = `${data.id}-title`;
   return (
-    <article className="fv-card fv-card--share" aria-labelledby={titleId} data-testid="showcase-class-share">
-      <ShowcaseHead id={titleId} title={data.title}>
+    <article className="fv-card fv-card--share" aria-label={data.label} data-testid="showcase-class-share">
+      <ShowcaseChips>
         <span className="fv-badge fv-badge--bonus">{data.bonus}</span>
-      </ShowcaseHead>
+      </ShowcaseChips>
 
       <div className="fv-stage">
         <div className="fv-sheet">
@@ -88,39 +88,14 @@ export function ClassShareShowcaseCard() {
       </div>
 
       <p className="fv-note">{data.note}</p>
-      <ShowcaseCompareBlock compare={data.compare} />
     </article>
   );
 }
 
 /** Kayıtlı radyo kesiti yoksa radyo kartı hiç çizilmez (boş liste öğesi de kalmaz). */
-const HAS_RADIO = demoRadioPlaylist().length > 0;
+export const HAS_RADIO = demoRadioPlaylist().length > 0;
 
-/** Ana sayfa: üç kart, "Aynı not, iki ayrı sonuç" bölümünün içinde. */
-export function FarkVitrini() {
-  return (
-    <div className="fv" data-testid="fark-vitrini">
-      <p className="fv-kicker" id="fv-kicker">
-        {FARK_VITRINI.kicker}
-      </p>
-      <ul className="fv-grid" aria-labelledby="fv-kicker">
-        {HAS_RADIO ? (
-          <li className="fv-cell">
-            <RadioShowcaseCard />
-          </li>
-        ) : null}
-        <li className="fv-cell">
-          <RedPenShowcaseCard />
-        </li>
-        <li className="fv-cell fv-cell--share">
-          <ClassShareShowcaseCard />
-        </li>
-      </ul>
-    </div>
-  );
-}
-
-/** /ornek sayfasının sonu: kayıtlı hesapta açılan iki araç, aynı kartlarla. */
+/** /ornek sayfasının sonu: kayıtlı hesapta açılan iki araç, tam kartlarıyla. */
 export function SuperGuclerStrip() {
   return (
     <section className="fv fv--strip" aria-labelledby="fv-strip-title" data-testid="super-gucler">

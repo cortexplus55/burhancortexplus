@@ -237,11 +237,14 @@ export const SAME_NOTE_CASE = {
     file: "Köklü_Sayılar_Ders_Notu.pdf",
     lines: ["Hoca uyarısı: “√(x²) sorusunda x'in işaretine dikkat edin.”", "3. sayfada şekil ve tablo"],
   },
+  /*
+    Faz 9 (20 Kasım 2026): kart ana sayfadaki akordeonun 1. sahnesi oldu (`fark-scenes.tsx`); sahne yalnız gösterdiğini
+    taşır. Şekil okuma cümlesi akordeonun başlık metninde ("sayfadaki şekil ve tabloyu derse alır"), çift kontrolün
+    açıklaması sahnenin üç halkasında (`NOTE_SCENE.checks`); kanıtları `FARK_ITEMS`te.
+  */
   others: {
     points: [
       "Notu sıradan metin gibi okur; hocanın uyarısını ayrı bir kural olarak tutmaz.",
-      "Sayfadaki şekil ve tablo değerlerini göremeyebilir.",
-      "Sorduğunda yalnız cevabı gösterip geçer.",
       "Soruları sabit 4 şıkla (A–D) üretir.",
     ],
   },
@@ -249,16 +252,8 @@ export const SAME_NOTE_CASE = {
     badge: "Çift kontrollü yazım",
     points: [
       {
-        text: "Bir model dersi ve soruyu notundan yazar; ikinci bir kontrol çağrısı soruyu kendisi çözer, kod da anahtarı hesapla karşılaştırır.",
-        evidence: ["src/lib/learning/lesson-sanity.ts", "src/lib/learning/quiz-sanity.ts", "src/lib/learning/question-integrity.ts"],
-      },
-      {
         text: "Hocanın nota yazdığı özel kural ve değer derste de testte de esas alınır.",
         evidence: ["src/lib/learning/source-rules.ts", "src/lib/learning/teaching-rubric.ts (SOURCE_NUMBER_PRIORITY)"],
-      },
-      {
-        text: "Şekilli sayfa “Belgedeki Şema” kartıyla dersin içine gelir.",
-        evidence: ["src/lib/learning/figure-pages.ts"],
       },
       {
         text: "Lise, YKS, KPSS ve vizede 5 şık (A–E), LGS'de 4 şık (A–D).",

@@ -8,7 +8,7 @@ import {
   WEEKLY_PLUS_PLAN_NAME,
   tierComparisonRows,
 } from "@/lib/billing/tier-presentation";
-import { HERO } from "@/lib/marketing/landing-content";
+import { HERO_FOOT } from "@/lib/marketing/landing-content";
 import { PLAN_ALLOWANCES, allowanceInWork } from "@/lib/credits/price-table";
 
 const read = (path: string) => readFileSync(path, "utf8").replace(/\r\n/g, "\n");
@@ -48,8 +48,8 @@ describe("misafir ön izleme şöleni", () => {
   });
 
   it("kayıt adım 1 ve 3 ile ana sayfa kahramanı /ornek'e gider", () => {
-    expect(HERO.secondary.href).toBe("/ornek");
-    expect(HERO.secondary.label).toMatch(/örnek bir dersi incele/i);
+    expect(HERO_FOOT.sample.href).toBe("/ornek");
+    expect(HERO_FOOT.sample.label).toMatch(/örnek dersi incele/i);
     const wizard = read("src/app/kayit/signup-wizard.tsx");
     expect(wizard.match(/href=\"\/ornek\"/g)?.length).toBeGreaterThanOrEqual(1);
     expect(wizard).toContain("PreviewLessonLink");

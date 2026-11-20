@@ -1,6 +1,7 @@
 /*
-  Ana sayfanın 7 adımlı canlı kokpiti (11 Kasım 2026). Tur kahramanın içinde, ilk ekranda durur: kendi başlık
-  bölümü yok, konsolun başında küçük bir canlı etiketi, turun adı ve seçili sekmenin bağlam satırı var.
+  Ana sayfanın 7 adımlı canlı kokpiti (11 Kasım 2026). Tur kahramanın içinde, ilk ekranda durur. Faz 9 (20 Kasım 2026):
+  ana sayfada yalnız birinci adımın tek kartı ("Akıllı Not Stüdyosu": ray, bırakma alanı, iki düğme); canlı etiketi,
+  görünen başlık, bağlam satırı ve branş şeridi kalktı. Öbür adımlar tam ekran stüdyoda.
 
   Dil (ikinci tur, aynı gün; ürün sahibi: "mavi zemin, mavi düğme klasik yapay zekâ sitesi gibi"): sıcak siyah zemin,
   koyu sıcak cam, kâğıt beyazı ışık ve logonun şeridi (kehribar → gül → mor → camgöbeği). Çivit ve camgöbeği vurgu
@@ -51,65 +52,86 @@
   padding-inline: 1rem;
 }
 
-/* ---------- Konsol başı: canlı etiketi, turun adı, sekmenin bağlamı ---------- */
+/*
+  ---------- Akıllı Not Stüdyosu: ana sayfadaki birinci adım (Faz 9, 20 Kasım 2026) ----------
+  Ürün sahibi: "birinci adımda üç kutu yarışıyor" (örnek not kartı, tarama çekirdeği, "Kendi notun mu var?" kutusu;
+  üstünde canlı rozeti, başlık ve bağlam satırı). Şimdi tek kart: üstte yedi adımlık ray, ortada bırakma alanı (seçili
+  branşın örnek notunun rozeti ve tek cümle), altta yan yana iki düğme (telefonda alt alta). Bırakılan dosya misafirin
+  kendi dosyasıdır; örnek not birincil düğmeyle açılır. Branş seçimi kahramanın tek seçicisinde (`landing-showcase.css`).
+  Kontrast: alan cümlesi 9,7:1, rozetin adı 15:1; düğmeler en az 52 px.
+*/
 
-.lj-console-head {
+.lj-drop {
+  position: relative;
   display: grid;
-  gap: 0.15rem 1.25rem;
-  padding: 0.9rem clamp(1rem, 3.2vw, 2rem) 0;
+  justify-items: center;
+  gap: 0.7rem;
+  padding: clamp(1.1rem, 3vw, 1.6rem) clamp(1rem, 3vw, 1.75rem);
+  border: 1.5px dashed rgba(247, 241, 232, 0.28);
+  border-radius: 1.25rem;
+  background:
+    radial-gradient(28rem 10rem at 50% 0%, rgba(255, 178, 36, 0.07), transparent 70%),
+    #120e0b;
+  text-align: center;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
-.lj-live {
+.lj-drop.is-over {
+  border-color: var(--lj-beam);
+  box-shadow: 0 0 0 4px rgba(255, 217, 160, 0.12);
+}
+
+/* Örnek notun rozeti: "PDF · dosya adı · N sayfa". Uzun dosya adı satır sarar; rozet kartın dışına taşmaz. */
+.lj-drop-badge {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem 0.5rem;
+  max-width: 100%;
+  padding: 0.45rem 0.85rem 0.45rem 0.45rem;
+  border-radius: 1.25rem;
+  background: #1e1813;
+  box-shadow: 0 0 0 1px var(--lj-line-strong) inset;
+  font-size: 0.875rem;
+  line-height: 1.3;
+}
+
+.lj-drop-tag {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  margin: 0;
+  gap: 0.3rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: var(--lj-paper);
+  color: var(--lj-paper-ink);
   font-family: var(--font-mono);
   font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--lj-beam-text);
-}
-
-.lj-live-dot {
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 50%;
-  background: var(--lj-ok);
-  animation: lj-live 1.8s ease-out infinite;
-}
-
-@keyframes lj-live {
-  from {
-    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.6);
-  }
-  to {
-    box-shadow: 0 0 0 0.6rem rgba(52, 211, 153, 0);
-  }
-}
-
-.lj-live-sep {
-  opacity: 0.5;
-}
-
-.lj-title {
-  margin: 0;
-  font-size: clamp(1.05rem, 2vw, 1.3rem);
   font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1.25;
-  text-wrap: balance;
+  letter-spacing: 0.04em;
 }
 
-/* Sekme değişince cümle yeniden belirir: örnek not aynı, bağlam seçilen sınava göre. */
-.lj-context {
-  margin: 0;
-  font-size: 0.875rem;
-  line-height: 1.5;
+/* Dosya adı alt çizgilerden kırılır (`<wbr>`); ".pdf" kelimeden kopmaz. Tek parça sığmazsa son çare kırılır. */
+.lj-drop-name {
+  min-width: 0;
+  font-weight: 600;
+  color: var(--lj-text);
+  overflow-wrap: break-word;
+}
+
+.lj-drop-pages {
   color: var(--lj-muted);
-  animation: lj-context 0.5s var(--lj-ease) both;
+  white-space: nowrap;
 }
 
-@keyframes lj-context {
+/* Branş değişince rozet yeniden belirir (ilk yükte değil). */
+.lj-drop-badge.is-switched {
+  animation: lj-swap 0.45s var(--lj-ease) both;
+}
+
+@keyframes lj-swap {
   from {
     opacity: 0;
     transform: translateY(0.3rem);
@@ -120,120 +142,50 @@
   }
 }
 
-@media (min-width: 900px) {
-  .lj-console-head {
-    grid-template-columns: auto minmax(0, 1fr);
-    align-items: baseline;
-  }
-
-  .lj-live {
-    grid-column: 1 / -1;
-  }
-
-  .lj-context {
-    text-align: right;
-  }
-}
-
-/*
-  ---------- Branş şeridi (Faz 7, 20 Kasım 2026) ----------
-  Konsolun hemen üstünde dört branş: tur seçilen branşın örnek notuyla kurulur. Metinli bölümlü seçici (tasarım
-  sistemi §6 b) pazarlama paletinde: tepsi koyu yüzey, seçili öğe bir basamak açık yüzey + logonun şeridinden bir
-  nokta; mavi yok. Her öğe en az 44 px; dar ekranda satır sarar (iç kaydırma yok, sayfa yana taşmaz).
-*/
-.lj-tracks {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.35rem;
-  margin: 0 0 0.75rem;
-  padding: 0.3rem;
-  border-radius: 1.6rem;
-  background: #15110d;
-  box-shadow: 0 0 0 1px var(--lj-line) inset;
-}
-
-.lj-tracks-label {
-  padding: 0 0.55rem 0 0.7rem;
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  font-weight: 500;
+.lj-drop-line {
+  max-width: 34rem;
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.5;
   color: var(--lj-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  white-space: nowrap;
+  text-wrap: pretty;
 }
 
-.lj-track {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  min-height: 2.75rem;
-  padding: 0 0.95rem;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: #d9cebf;
-  font: inherit;
-  font-size: 0.875rem;
-  font-weight: 600;
-  line-height: 1.2;
-  text-align: left;
-  cursor: pointer;
-  transition:
-    background 0.16s ease,
-    color 0.16s ease,
-    box-shadow 0.16s ease;
+/* İki düğme yan yana: birincil (kâğıt beyazı) örnek notla turu açar, ikincil kendi dosyasını seçtirir. */
+.lj-door-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+  margin-top: 0.85rem;
 }
 
-/* Seçili branşın noktası: logonun şeridi. Seçili olmayanlarda sönük. */
-.lj-track::before {
-  content: "";
-  flex: none;
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 50%;
-  background: var(--lj-line-strong);
-  transition: background 0.16s ease;
+.lj-door-actions > .lj-cta,
+.lj-door-actions > .lj-ghost {
+  width: 100%;
+  min-height: 3.25rem;
+  margin: 0;
+  padding-inline: 1rem;
+  font-size: 1rem;
+  text-align: center;
 }
 
-.lj-track:hover {
-  background: #1e1813;
-  color: var(--lj-text);
+.lj-door-start {
+  font-weight: 700;
 }
 
-.lj-track:focus-visible {
-  outline: 2px solid var(--lj-beam-text);
-  outline-offset: 2px;
+.lj-cta:disabled,
+.lj-cta:disabled:hover {
+  opacity: 0.6;
+  cursor: default;
+  transform: none;
 }
 
-.lj-track.is-on {
-  background: #29211a;
-  color: var(--lj-text);
-  box-shadow: 0 0 0 1px var(--lj-line-strong) inset;
-}
-
-.lj-track.is-on::before {
-  background: var(--lj-ribbon);
-}
-
-@media (max-width: 760px) {
-  .lj-tracks-label {
-    flex-basis: 100%;
-    padding: 0.35rem 0.7rem 0.1rem;
-  }
-
-  .lj-track {
-    flex: 1 1 calc(50% - 0.35rem);
-    padding: 0 0.75rem;
-    font-size: 0.8125rem;
+@media (max-width: 560px) {
+  .lj-door-actions {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
-/* Branş değişince örnek notun yazısı yeniden belirir (ilk yükte değil). */
-.lj-file-text.is-switched {
-  animation: lj-context 0.5s var(--lj-ease) both;
-}
 
 /* ---------- Konsol ---------- */
 
@@ -391,11 +343,18 @@
   Örnek nota dokununca tam ekran açılır; sayfa arkada kilitli. Üstte ray, hoca uyarısı ve kapatma; ortada adım;
   altta tek ilerleme düğmesi. Hiçbir adımda kaydırma yok: sahne ekrana sığar, sığmayan içerik orantılı küçülür
   (`.lj-fit`). Zemin sabit ve koyu: bulanıklaştırma yok.
+
+  Faz 9 (20 Kasım 2026, ürün sahibi: "stüdyo açılırken arkası bir an görünüyor, menü ve sekmeler üstüne biniyor"):
+  zemin İLK KAREDEN opak. Önce bütün katman saydamdan beliriyor ve 12 px aşağıdan kayıyordu: ilk karelerde sayfa
+  içinden okunuyor, üst kenarda menü görünüyordu. Şimdi katman hiç canlanmaz: taban opak sıcak siyah (bulanık yarı
+  saydam örtü yerine opak taban; arkadan hiçbir şey okunmadığı için bulanıklaştırma işe yaramaz ve kaydırmayı
+  yavaşlatır, 13 Kasım kararı); yalnız içi (üst çubuk ve sahne) belirir. Katman pazarlama menüsünün (z-index 50) ve
+  çerez şeridinin (70) üstünde: 100.
 */
 .lj-studio {
   position: fixed;
   inset: 0;
-  z-index: 80;
+  z-index: 100;
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -408,7 +367,6 @@
     var(--lj-bg);
   color: var(--lj-text);
   outline: none;
-  animation: lj-studio-in 0.28s var(--lj-ease) both;
 }
 
 @supports (height: 100dvh) {
@@ -417,14 +375,20 @@
   }
 }
 
+/*
+  Yalnız içerik canlanır (solarak belirir); zemin ilk karede yerinde ve opak. Kayma yok: kayan çocuk stüdyonun
+  kaydırma alanını bir an büyütüyordu (stüdyo kaydırmasız kalmalı, anlar A1).
+*/
+.lj-studio > * {
+  animation: lj-studio-in 0.28s var(--lj-ease) both;
+}
+
 @keyframes lj-studio-in {
   from {
     opacity: 0;
-    transform: translateY(0.75rem);
   }
   to {
     opacity: 1;
-    transform: none;
   }
 }
 
@@ -899,15 +863,13 @@
 /* ---------- 1. Not ---------- */
 
 /*
-  İki kapı: solda üstte hazır örnek not (A), altında misafirin kendi dosyası (B); sağda tarama çekirdeği. Örnek not
-  çekirdeğe sürüklenir ya da dokunulur; kendi dosya çekirdeğe bırakılır ya da düğmeyle seçilir.
+  Stüdyodaki tarama anı: solda örnek not, sağda tarama çekirdeği; not çekirdeğe kayar, bulgular çekirdekte belirir.
+  (Faz 9: ana sayfadaki birinci adım artık ayrı bir kart, yukarıda "Akıllı Not Stüdyosu"; kendi dosya kapısı orada.)
 */
 .lj-upload {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 3.5rem minmax(0, 1.15fr);
-  grid-template-areas:
-    "file flight zone"
-    "own flight zone";
+  grid-template-areas: "file flight zone";
   align-items: center;
   gap: 0.75rem 0.5rem;
   min-height: 14rem;
@@ -915,7 +877,6 @@
 
 .lj-upload .lj-file {
   grid-area: file;
-  align-self: end;
 }
 
 .lj-upload .lj-flight {
@@ -927,36 +888,7 @@
   align-self: stretch;
 }
 
-.lj-own {
-  grid-area: own;
-  align-self: start;
-  display: grid;
-  gap: 0.3rem;
-  padding: 0.8rem 1rem 0.9rem;
-  border: 1px dashed var(--lj-line-strong);
-  border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.025);
-}
-
-.lj-own-title {
-  margin: 0;
-  font-size: 0.9375rem;
-  font-weight: 650;
-}
-
-.lj-own-hint {
-  margin: 0;
-  font-size: 0.8125rem;
-  line-height: 1.45;
-  color: var(--lj-muted);
-}
-
-.lj-own-pick {
-  justify-self: start;
-  margin-top: 0.35rem;
-}
-
-/* Dosya seçici görünmez; "Kendi notunu seç" düğmesi açar. */
+/* Dosya seçici görünmez; "Kendi Notunu Seç" düğmesi açar. */
 .lj-own-input {
   position: absolute;
   width: 1px;
@@ -1056,16 +988,12 @@
   color: var(--lj-text);
   font: inherit;
   text-align: left;
-  cursor: grab;
+  cursor: pointer;
   box-shadow: 0 1rem 2.5rem rgba(0, 0, 0, 0.55);
   animation: lj-float 3.6s ease-in-out infinite;
   transition:
     opacity 0.35s ease,
     transform 0.5s var(--lj-ease);
-}
-
-.lj-file:active {
-  cursor: grabbing;
 }
 
 @keyframes lj-float {
@@ -1166,7 +1094,6 @@
     background 0.2s ease;
 }
 
-.lj-zone.is-over,
 .lj-zone:hover {
   border-color: var(--lj-beam-text);
   background: radial-gradient(closest-side, rgba(255, 217, 160, 0.149), rgba(22, 17, 12, 0.35));
@@ -1717,8 +1644,7 @@
     grid-template-areas:
       "file"
       "flight"
-      "zone"
-      "own";
+      "zone";
     gap: 0.6rem;
     min-height: 0;
   }
@@ -1742,10 +1668,6 @@
 
   .lj-zone {
     min-height: 10.5rem;
-  }
-
-  .lj-console-head {
-    padding-top: 0.75rem;
   }
 
   .lj-rail {
@@ -1824,9 +1746,8 @@
   .lj-flight,
   .lj-zone-rings span,
   .lj-scan-laser,
-  .lj-live-dot,
-  .lj-context,
-  .lj-file-text.is-switched,
+  .lj-drop-badge.is-switched,
+  .lj-studio > *,
   .lj-next,
   .lj-warn,
   .lj-warn::after,
@@ -1959,92 +1880,5 @@
     grid-area: final;
     align-self: center;
     margin-top: 0;
-  }
-}
-
-/* ---------- Faz 5 §1.2 (19 Kasım 2026): tıklanır "Canlı tur · Kayıt olmadan dene" rozeti ---------- */
-
-.lj-live--button {
-  justify-self: start;
-  width: fit-content;
-  min-height: 2.75rem;
-  padding: 0.35rem 0.85rem 0.35rem 0.7rem;
-  border: 1px solid color-mix(in srgb, var(--lj-ok) 45%, transparent);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--lj-ok) 10%, transparent);
-  cursor: pointer;
-  transition:
-    background 0.2s ease,
-    border-color 0.2s ease,
-    transform 0.2s var(--lj-ease);
-}
-
-.lj-live--button:hover {
-  background: color-mix(in srgb, var(--lj-ok) 18%, transparent);
-  border-color: var(--lj-ok);
-}
-
-.lj-live--button:active {
-  transform: scale(0.97);
-}
-
-.lj-live--button:focus-visible {
-  outline: 2px solid var(--lj-ok);
-  outline-offset: 3px;
-}
-
-.lj-live-arrow {
-  font-size: 0.85rem;
-  animation: lj-live-arrow 1.6s ease-in-out infinite;
-}
-
-@keyframes lj-live-arrow {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(0.18rem);
-  }
-}
-
-/* Rozetten gelen vurgu: 1. adımın durağı ve iki kapısı kısa süre parlar. */
-.lj-stop.is-spotlight .lj-stop-dot {
-  border-color: var(--lj-ok);
-  box-shadow:
-    0 0 0 0.3rem color-mix(in srgb, var(--lj-ok) 28%, transparent),
-    0 0 1.4rem color-mix(in srgb, var(--lj-ok) 55%, transparent);
-  transform: scale(1.08);
-}
-
-.lj-door.is-spotlight {
-  border-radius: 1.25rem;
-  animation: lj-spotlight 1.4s var(--lj-ease) 2;
-}
-
-.lj-door:focus {
-  outline: none;
-}
-
-@keyframes lj-spotlight {
-  0% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--lj-ok) 55%, transparent);
-  }
-  60% {
-    box-shadow: 0 0 0 0.55rem color-mix(in srgb, var(--lj-ok) 0%, transparent);
-  }
-  100% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--lj-ok) 0%, transparent);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .lj-live-arrow,
-  .lj-door.is-spotlight {
-    animation: none;
-  }
-
-  .lj-door.is-spotlight {
-    box-shadow: 0 0 0 0.25rem color-mix(in srgb, var(--lj-ok) 40%, transparent);
   }
 }

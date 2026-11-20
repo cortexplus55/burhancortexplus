@@ -1,6 +1,7 @@
 import { FREE_LIMITS, FREE_TIER_SENTENCE } from "@/lib/billing/free-meters";
-import { FREE_PAGE_TOTAL } from "@/lib/billing/free-tier-copy";
-import { PLAN_MARKETING_COPY } from "@/lib/marketing/plan-copy";
+import { FREE_PAGE_TOTAL, PLUS_ONLY_FEATURES } from "@/lib/billing/free-tier-copy";
+import { PARENT_LINK_TTL_HOURS } from "@/lib/payments/parent-link-ttl";
+import { PARENT_WHATSAPP_BUTTON } from "@/lib/payments/parent-whatsapp-copy";
 
 /**
  * Ana sayfanın bütün cümleleri (19 Ekim 2026, ürün sahibi: "misafire sistemimizde olmayan bir şey
@@ -23,7 +24,6 @@ export const HERO = {
   /** Başlığın iki parçası: ikincisi ışıklı yazılır. Alt cümle seçili sekmeden gelir (`landing-showcase.ts`). */
   titleLead: "Notunu yükle,",
   titleAccent: "sınava hazır bir yol çıksın.",
-  secondary: { label: "Önce örnek bir dersi incele", href: "/ornek" },
 } as const;
 
 /** Bölüm başlıkları: her bölümde tek başlık, en çok tek cümle. */
@@ -33,7 +33,8 @@ export const HOME_COPY = {
     lead: "Genel bir yapay zekâ botuna da sorabilirsin. Fark, sınav haftasında ortaya çıkar.",
     us: "Cortex Plus",
     them: "Genel yapay zekâ botları",
-    more: "Tüm farkları gör",
+    /** Faz 9 (20 Kasım 2026): akordeonun altındaki tek bağlantı (tam tablo Özellikler sayfasında). */
+    more: "Tüm özellikleri karşılaştır",
   },
   plans: {
     title: "Ücretsiz başla, sınav döneminde büyüt",
@@ -44,10 +45,16 @@ export const HOME_COPY = {
 } as const;
 
 /**
- * Kahramanın altındaki üç gerçek (11 Kasım 2026, "kısa ve net"). Üçü de bugün doğru: kayıt kart istemez, ilk dersin
- * temel adımları süre sınırı olmadan açık, abonelik kendiliğinden yenilenmez (`AUTO_RENEW_SUPPORTED = false`).
+ * Kahramanın altındaki TEK satır (Faz 9, 20 Kasım 2026; önce üç hap, kabul edilen türler satırı ve iki bağlantı alt alta
+ * duruyordu). İki gerçek bugün doğru: kayıt kart istemez, ilk dersin temel adımları süre sınırı olmadan açık. Notu
+ * olmayan öğrencinin yolu (hazır müfredat) ve örnek ders aynı satırda bağlantı. Kabul edilen türler artık birinci
+ * adımın bırakma alanında yazılı (`JOURNEY_FILE.dropLine`).
  */
-export const HERO_FACTS = ["Kart istemiyoruz", "İlk dersin süresiz ücretsiz", "Otomatik yenileme yok"] as const;
+export const HERO_FOOT = {
+  facts: ["Kart istemiyoruz", "İlk dersin süresiz ücretsiz"],
+  noNotes: { lead: "Notun yoksa", label: "hazır müfredattan başla", href: "/mufredat" },
+  sample: { label: "Örnek dersi incele", href: "/ornek" },
+} as const;
 
 /**
  * Ücretsiz ile Plus'ın tek ekranda karşılaştırması (11 Kasım 2026). Sayılar sabitlerden; Plus sütununda yalnız
@@ -73,56 +80,53 @@ export const WEEK_PLAN_POINTS = [
   "Sınav sabahı kâğıdı ve ikiz sınav dahil",
 ] as const;
 
-/** Karşılaştırmanın altındaki üç güven cümlesi; üçü de bugün doğru. */
-export const TRUST_FACTS = [
-  { title: "Notuna sadık", body: "Ders ve test notundaki sayfalardan yazılır; notunda olmayan sayı uydurulmaz." },
-  { title: "Otomatik yenileme yok", body: "Dönem bitmeden hatırlatırız; yenilemezsen ücretsize dönersin." },
-  { title: "Kart bilgisi bize gelmez", body: "Ödeme PayTR ile alınır; velinin kartıyla da ödenir." },
-] as const;
+/**
+ * Plan kartlarının altındaki tek güven satırı (Faz 9, 20 Kasım 2026; eski üç paragraflık liste kalktı). Üçü de bugün
+ * doğru: ders ve test notundaki sayfalardan yazılır (kaynak sayı önceliği), `AUTO_RENEW_SUPPORTED = false`, ödeme PayTR
+ * iFrame'iyle alınır (kart bilgisi bize gelmez). Simgeler `landing-page.tsx`te, sırayla.
+ */
+export const TRUST_LINE = ["Notuna sadık", "Otomatik yenileme yok", "PayTR ile güvenli ödeme"] as const;
 
-/** Kabul edilen kaynaklar ve notu olmayan öğrencinin yolu: en sık itirazın ("notum yok") tek satırlık cevabı. */
-export const HERO_INPUTS = {
-  accepts: "PDF, slayt, Word, fotoğraf, yapıştırılan metin ya da bağlantı.",
-  noNotes: { label: "Notun yok mu? Hazır müfredattan başla", href: "/mufredat" },
-} as const;
+export type FaqItem = { q: string; a: string; link?: { label: string; href: string } };
 
-export const FAQ: { q: string; a: string }[] = [
+/** "podcast, video, sözlü, yazılı deneme ve sınav sabahı kâğıdı": Plus'a özel işler, tek kaynaktan, küçük harfle. */
+const PLUS_ONLY_LIST = (() => {
+  const names = PLUS_ONLY_FEATURES.map((name) => name.toLocaleLowerCase("tr"));
+  return `${names.slice(0, -1).join(", ")} ve ${names[names.length - 1]}`;
+})();
+
+const lowerFirst = (text: string) => `${text.charAt(0).toLocaleLowerCase("tr")}${text.slice(1)}`;
+
+/**
+ * Ana sayfanın sık sorulanları (Faz 9, 20 Kasım 2026, ürün sahibi: "beş soru, kısa ve samimi; gerisi Yardım Merkezi'nde").
+ * Aynı dizi sayfada çizilir ve FAQPage yapılandırılmış verisine gider (`src/app/page.tsx`). Sayılar sabitlerden:
+ * ücretsiz hak (`FREE_TIER_SENTENCE`, `FREE_PAGE_TOTAL`), Plus'a özel işler (`PLUS_ONLY_FEATURES`), veli linkinin süresi
+ * (`PARENT_LINK_TTL_HOURS`), düğmenin adı (`PARENT_WHATSAPP_BUTTON`). Otomatik yenileme yok (`AUTO_RENEW_SUPPORTED`);
+ * bitişten 3 gün önce hatırlatma bildirimi gider.
+ */
+export const FAQ: FaqItem[] = [
   {
     q: "Cortex Plus tam olarak ne yapıyor?",
-    a: "Ders notunu yüklüyorsun; içinden çalışılacak konular çıkarılıyor ve her konu için ders, podcast, test, kartlar ve sözlü pratik hazırlanıyor. Hepsi senin notuna dayanır; genel bir ders anlatımı değil.",
+    a: "Ders notunu ya da kitabını yüklüyorsun; içinden konular çıkarılır ve sınav tarihine göre bir çalışma yolu kurulur. Her konunun dersi, kartları, doğru/yanlışı ve konu testi senin notundan hazırlanır; Plus'ta podcast, çizimli video, sözlü ve yazılı deneme de açılır.",
   },
   {
     q: "Ücretsiz neler yapabilirim?",
-    // 11 Kasım 2026 (ürün sahibinin kararları): ücretsiz hesap yalnız ilk dersi dener (süre sınırı yok); haftalık ders
-    // hakkı kalktı. Plus'a özel olanlar adıyla (bekçi test listeyi `PLUS_ONLY_FEATURES` ile karşılaştırır).
-    a: `Kart istemiyoruz. Ücretsiz hesapta ${FREE_TIER_SENTENCE.charAt(0).toLocaleLowerCase("tr")}${FREE_TIER_SENTENCE.slice(1)} var. Bir sınav hazırlığı kurabilir, toplam ${FREE_PAGE_TOTAL} sayfa belge işletebilirsin. İlk dersten sonraki konular, yeni anlatımlar ve Çalışma Stüdyosu'ndaki test, kart ve doğru/yanlış üretimi Plus'ta açılır. Podcast, video, sözlü, yazılı deneme ve sınav sabahı kâğıdı Plus'a özeldir; sesli dinleme de Plus'ta.`,
+    a: `Kart istemiyoruz. Ücretsiz hesapta ${lowerFirst(FREE_TIER_SENTENCE)} var. Bir sınav hazırlığı kurup toplam ${FREE_PAGE_TOTAL} sayfa belge işletebilirsin. Sonraki konular Plus'ta açılır; ${PLUS_ONLY_LIST} Plus'a özeldir.`,
   },
   {
-    q: "Plus'ta ne değişiyor?",
-    a: `${PLAN_MARKETING_COPY.plus.periodLine}; bütün konular, podcast, video ders, sözlü ve yazılı deneme, sınav sabahı kâğıdı; belgenin tamamı, birden çok hazırlık ve hazır içerik yokken daha hızlı yazım. Yapay zekâ modeli aynı; fark neyin açık olduğunda, ne kadar ve ne kadar hızlı çalışabildiğinde.`,
+    q: "Ders notum yoksa kullanabilir miyim?",
+    a: "Evet. Hazır müfredattan başlayabilirsin: MEB kazanımlarına ve ÖSYM kılavuzlarına dayalı, doğrulanmış konu anlatımları ve sorular hazır. İstersen kurulumda sınavını ve konularını yazarak da yolunu kurabilirsin.",
+    link: { label: "Hazır müfredata göz at", href: "/mufredat" },
   },
   {
-    q: "Notumda olmayan bir şeyi sorarsam?",
-    a: "Varsayılan modda cevap önce notundan gelir; notunda yoksa \"Genel bilgiden:\" diye ayrı yazılır. \"Yalnızca belgem\" modunu seçersen notunun dışına hiç çıkmaz.",
-  },
-  {
-    q: "Ders notum yok, yine de kullanabilir miyim?",
-    a: "Evet. Kurulumda \"Belgem yok\" de, sınavını ve konularını anlat; aynı yol konudan kurulur ve içeriğin belgenden gelmediği ekranda yazar.",
-  },
-  {
-    q: "İçerik yanlış olursa ne oluyor?",
-    a: "Dersi ve testi bir model notundan yazar; ikinci bir kontrol çağrısı soruları kendisi çözer, kod da anahtarı hesapla karşılaştırır ve tutmayan soruyu düzeltir ya da eler. Yine de hata görürsen soruda \"Soruda hata bildir\"e bas ya da Destek ile bize ilet; 24 saat içinde dönüyoruz.",
-  },
-  {
-    q: "Kartım yok, nasıl ödeme yaparım?",
-    a: "Ödeme PayTR ile banka kartı ya da kredi kartıyla alınır; velinin kartıyla da ödeyebilirsin, hesap senin kalır. Kart bilgisi bize gelmez.",
+    q: "Kartım yok, velim nasıl ödeyebilir?",
+    a: `Paket kartındaki “${PARENT_WHATSAPP_BUTTON.replace(/^\S+\s/, "")}” düğmesiyle planını veline gönder. Velin hesap açmadan ve şifre girmeden linki açıp PayTR ile öder; link ${PARENT_LINK_TTL_HOURS} saat geçerli ve paket senin hesabına tanımlanır.`,
   },
   {
     q: "Abonelik kendiliğinden yenilenir mi?",
-    a: "Hayır. Dönem bitmeden hatırlatırız; yenilemezsen hesabın ücretsize döner, çalışmaların yerinde kalır.",
-  },
-  {
-    q: "Telefondan çalışır mı?",
-    a: "Evet, tarayıcıdan. İndirmen gereken bir uygulama yok; ders, podcast ve testler telefonda da çalışıyor.",
+    a: "Hayır, otomatik yenileme yok. Dönemin bitmesine 3 gün kala hatırlatırız; yenilemezsen hesabın ücretsize döner, çalışmaların yerinde kalır.",
   },
 ];
+
+/** Sık sorulanların altındaki tek bağlantı: bütün sorular Yardım sayfasında. */
+export const FAQ_MORE = { label: "Tüm sorular için Yardım Merkezi", href: "/yardim" } as const;

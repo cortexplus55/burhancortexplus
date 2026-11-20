@@ -1,6 +1,7 @@
 /**
- * Fark vitrini (20 Kasım 2026, Faz 7): ana sayfadaki "Aynı not, iki ayrı sonuç" bölümünün içinde, misafirin kayıt
- * olmadan dokunabildiği üç kart; /ornek sayfasının sonunda ikisi ("Kayıtlı Hesapta Açılan Süper Güçler").
+ * Fark vitrini (20 Kasım 2026, Faz 7): misafirin kayıt olmadan dokunabildiği üç kart; /ornek sayfasının sonunda ikisi
+ * ("Kayıtlı Hesapta Açılan Süper Güçler"). Faz 9 (aynı gün): ana sayfada kartlar "Aynı not, iki ayrı sonuç"
+ * akordeonunun sahneleri (`fark-accordion.ts`); başlık ve fark satırı orada, kart yalnız canlı içeriği çizer.
  *
  * Kart başlıkları ve rozetler ürün sahibinin metni. Karşılaştırma cümleleri onun cümleleridir; yalnız tutulamayacak
  * kısmı yumuşatıldı:
@@ -31,8 +32,6 @@ export function splitShowcaseTitle(title: string): { emoji: string; text: string
 }
 
 export const FARK_VITRINI = {
-  /** Ana sayfadaki kart grubunun üst etiketi. */
-  kicker: "Kayıt olmadan dene",
   /** /ornek sayfasının sonundaki şerit. */
   stripTitle: "Kayıtlı Hesapta Açılan Süper Güçler",
   stripLead: "Hazırlığının içinde açılan iki araç; burada örnek içerikle, kayıt olmadan ve kredi harcamadan dene.",
@@ -91,7 +90,8 @@ export const SHARE_SAMPLE_URL = "https://cortexplus.app/davet/ORNEK";
 
 export const CLASS_SHARE_SHOWCASE = {
   id: "sinif-klonlama",
-  title: "📲 Sınıfla Paylaş (+50 Kredi) & QR Kodlu Sınav Sabahı Kağıdı",
+  /** Kartın ekran okuyucu adı: başlığı ana sayfada akordeonun kendi başlığı taşır (Faz 9). */
+  label: "Sınıfla paylaş ve QR kodlu sınav sabahı kâğıdı",
   bonus: "+50 Bonus Kredi",
   sheetTopic: "Köklü Sayılar",
   /** Mini kâğıdın satırları: etiket ürünün kâğıt etiketlerinden (`CRAM_KIND_LABEL`). */
@@ -110,11 +110,6 @@ export const CLASS_SHARE_SHOWCASE = {
     "Arkadaşın 1. ünitenin konu testini bitirince sen +50 kredi kazanırsın (ayda en çok 5 arkadaş).",
   ],
   note: "Sınav sabahı kâğıdı Plus'ta; paylaşım bağlantısı her hesapta.",
-  compare: {
-    cortex:
-      "Tek dokunuşla hazırladığın yolu WhatsApp sınıf grubuna at; arkadaşın 1. üniteyi ücretsiz klonlasın, konu testini bitirince sen +50 kredi kazan.",
-    others: "Kişiye özel sohbette hapis kalır, sınıfla klonlanamaz.",
-  } satisfies ShowcaseCompare,
 } as const;
 
 /** Bekçi testlerinin taradığı bütün vitrin metni. */
@@ -143,7 +138,7 @@ export function allShowcaseCopy(): string {
     ...Object.values(RED_PEN_SHOWCASE.views),
     RED_PEN_SHOWCASE.note,
     ...Object.values(RED_PEN_SHOWCASE.compare),
-    CLASS_SHARE_SHOWCASE.title,
+    CLASS_SHARE_SHOWCASE.label,
     CLASS_SHARE_SHOWCASE.bonus,
     CLASS_SHARE_SHOWCASE.sheetTopic,
     ...CLASS_SHARE_SHOWCASE.sheetLines.map((line) => line.text),
@@ -152,6 +147,5 @@ export function allShowcaseCopy(): string {
     CLASS_SHARE_SHOWCASE.stepsSummary,
     ...CLASS_SHARE_SHOWCASE.steps,
     CLASS_SHARE_SHOWCASE.note,
-    ...Object.values(CLASS_SHARE_SHOWCASE.compare),
   ].join("\n");
 }

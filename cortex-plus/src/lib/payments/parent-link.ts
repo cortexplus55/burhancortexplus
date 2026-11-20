@@ -1,6 +1,7 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { env } from "@/lib/env";
 import { parentPackageLabel } from "@/lib/payments/parent-link-plan";
+import { PARENT_LINK_TTL_MS } from "@/lib/payments/parent-link-ttl";
 
 /**
  * Velime ödeme linki (29 Ekim 2026, ürün sahibinin kararı). Kartı yanında olmayan öğrenci, seçtiği
@@ -12,7 +13,7 @@ import { parentPackageLabel } from "@/lib/payments/parent-link-plan";
  * Faz 5 §2 (19 Kasım 2026, Burhan'ın kararı): bağlantı 48 saat geçerli; adres `/veli-odeme/<belirteç>`; WhatsApp
  * metni öğrencinin ağzından, harfiyen `parentShareText`te.
  */
-export const PARENT_LINK_TTL_MS = 48 * 60 * 60 * 1000;
+export { PARENT_LINK_TTL_MS };
 /** Velinin herkese açık ödeme sayfası. Eski `/odeme/veli/<belirteç>` adresi buraya yönlenir. */
 export const PARENT_PAY_PATH = "/veli-odeme";
 const PREFIX = "veli";

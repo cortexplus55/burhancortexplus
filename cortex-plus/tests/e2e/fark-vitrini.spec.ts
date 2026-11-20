@@ -2,7 +2,8 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 
 /*
   Fark vitrini (20 Kasım 2026, Faz 7): ana sayfadaki "Aynı not, iki ayrı sonuç" bölümünde üç kart, /ornek'in sonunda
-  ikisi, /ozellikler tablosunda beş yeni satır. 390 / 820 / 1440 px'te: kartlar görünür, sayfa yana taşmaz, dokunma
+  ikisi, /ozellikler tablosunda beş yeni satır. Faz 9 (aynı gün): ana sayfada kartlar akordeonun sahneleri; akordeonun
+  yerleşimi ve klavyesi `ana-sayfa-akordeon.spec.ts`te. 390 / 820 / 1440 px'te: kartlar görünür, sayfa yana taşmaz, dokunma
   alanı 44 px, yazı 12 px; radyo düğmesi çalma durumunu değiştirir ve ses yalnız tıklamadan sonra yüklenir; üçüncü
   taraf hiçbir adrese istek gitmez. 390 px'te daha geniş bir yedek yazı tipiyle (Verdana) yazılar üst üste binmez.
 */
@@ -101,26 +102,38 @@ for (const width of WIDTHS) {
   test.describe(`fark vitrini · ${width}px`, { tag: ["@public"] }, () => {
     test.use({ viewport: { width, height: 900 } });
 
-    test("ana sayfa: üç kart görünür, taşma yok, 44 px, radyo çalar, üçüncü taraf istek yok", async ({ page, baseURL }) => {
+    test("ana sayfa: akordeonun sahneleri (radyo, kırmızı kalem, sınıfla paylaş) görünür, taşma yok, 44 px, radyo çalar, üçüncü taraf istek yok", async ({
+      page,
+      baseURL,
+    }) => {
       test.setTimeout(90_000);
       const origin = new URL(baseURL!).origin;
       const requests = watchRequests(page, origin);
       await page.goto("/", { waitUntil: "domcontentloaded" });
 
-      const vitrin = page.getByTestId("fark-vitrini");
-      await vitrin.scrollIntoViewIfNeeded();
-      await expect(vitrin).toBeVisible();
-      // "Aynı not, iki ayrı sonuç" bölümünün içinde.
-      await expect(page.locator("section#farklar").getByTestId("fark-vitrini")).toHaveCount(1);
-
+      // Faz 9 (20 Kasım 2026): kartlar "Aynı not, iki ayrı sonuç" akordeonunun sahneleri; bir anda tek sahne açık.
+      const section = page.locator("section#farklar");
+      await section.scrollIntoViewIfNeeded();
+      await expect(section.getByTestId("fark-vitrini")).toHaveCount(0);
       const cards = {
-        radio: vitrin.getByTestId("showcase-radio"),
-        pen: vitrin.getByTestId("showcase-red-pen"),
-        share: vitrin.getByTestId("showcase-class-share"),
+        radio: { id: "sinav-radyosu", card: section.getByTestId("showcase-radio") },
+        pen: { id: "kirmizi-kalem", card: section.getByTestId("showcase-red-pen") },
+        share: { id: "sinifla-paylas", card: section.getByTestId("showcase-class-share") },
       };
-      for (const [name, card] of Object.entries(cards)) {
+      // Ses yalnız tıklamadan sonra: açılışta hiçbir .mp3 isteği yok.
+      expect(requests.audio()).toEqual([]);
+
+      for (const [name, { id, card }] of Object.entries(cards)) {
+        const trigger = page.locator(`#fk-trigger-${id}`);
+        await trigger.scrollIntoViewIfNeeded();
+        // Geliştirme sunucusunda sayfa canlanmadan gelen tıklama boşa gider: açılana kadar tıklanır.
+        await expect(async () => {
+          if ((await trigger.getAttribute("aria-expanded")) !== "true") await trigger.click();
+          await expect(trigger).toHaveAttribute("aria-expanded", "true", { timeout: 1500 });
+        }).toPass({ timeout: 30_000 });
         await card.scrollIntoViewIfNeeded();
         await expect(card, name).toBeVisible();
+        await expect(section.locator('[data-testid="fark-scene"]'), name).toHaveCount(1);
         const box = (await card.boundingBox())!;
         expect(box.x, name).toBeGreaterThanOrEqual(-1);
         expect(box.x + box.width, name).toBeLessThanOrEqual(width + 1);
@@ -128,49 +141,48 @@ for (const width of WIDTHS) {
         expect(inner, `${name} iç taşma`).toBeLessThanOrEqual(0);
         await expectTargets(card, name);
         await expectTextFloor(card, name);
+        expect(await overflow(page), name).toBeLessThanOrEqual(0);
+        if (name === "pen") await expect(card.getByTestId("red-pen-lost")).toBeVisible();
+        if (name === "share") {
+          await expect(card.locator('[data-testid="share-qr"] svg')).toBeVisible();
+          await expect(card.getByText("+50 Bonus Kredi")).toBeVisible();
+        }
       }
-      await expect(cards.share.locator('[data-testid="share-qr"] svg')).toBeVisible();
-      await expect(cards.pen.getByTestId("red-pen-lost")).toBeVisible();
-      await expect(cards.share.getByText("+50 Bonus Kredi")).toBeVisible();
+      // Paylaşımın adımları açılır.
+      await cards.share.card.getByText("Paylaşınca ne olur?").click();
+      await expect(cards.share.card.getByText(/konu testini bitirince sen \+50 kredi kazanırsın/)).toBeVisible();
       expect(await overflow(page)).toBeLessThanOrEqual(0);
 
-      // Geniş ekranda üç kart yan yana; ortada ilk ikisi yan yana, paylaş kartı tam satır; telefonda alt alta.
-      const tops = await Promise.all(Object.values(cards).map(async (card) => (await card.boundingBox())!.y));
-      if (width >= 1440) expect(new Set(tops.map(Math.round)).size).toBe(1);
-      if (width === 820) {
-        expect(Math.round(tops[0]!)).toBe(Math.round(tops[1]!));
-        expect(tops[2]!).toBeGreaterThan(tops[0]!);
-      }
-      if (width === 390) expect(tops[1]!).toBeGreaterThan(tops[0]!);
+      // Kırmızı kalem: öğrencinin kâğıdına geç, geri dön.
+      const penTrigger = page.locator("#fk-trigger-kirmizi-kalem");
+      await penTrigger.click();
+      await expect(penTrigger).toHaveAttribute("aria-expanded", "true");
+      await cards.pen.card.getByRole("button", { name: "Öğrencinin kâğıdı" }).click();
+      await expect(cards.pen.card.getByTestId("red-pen-lost")).toHaveCount(0);
+      await cards.pen.card.getByRole("button", { name: "Kırmızı kalemle" }).click();
+      await expect(cards.pen.card.getByTestId("red-pen-lost")).toBeVisible();
 
-      // Ses yalnız tıklamadan sonra: açılışta hiçbir .mp3 isteği yok.
+      // Radyo: sahne açılınca da ses yüklenmez; yalnız düğmeye basınca.
+      const radioTrigger = page.locator("#fk-trigger-sinav-radyosu");
+      await radioTrigger.click();
+      await expect(radioTrigger).toHaveAttribute("aria-expanded", "true");
       expect(requests.audio()).toEqual([]);
-      const toggle = cards.radio.getByTestId("radio-toggle");
+      const radioCard = cards.radio.card;
+      const toggle = radioCard.getByTestId("radio-toggle");
       await toggle.scrollIntoViewIfNeeded();
       await expect(toggle).toHaveText(/Örnek Radyo Akışını Dinle/);
       // Geliştirme sunucusunda sayfa sunucu çiziminden sonra canlanır; canlanmadan gelen tıklama boşa gider. Durum
       // değişene kadar tıklanır (çalınca düğme "Duraklat"a döner, sonraki tur tıklamaz).
       await expect(async () => {
-        if ((await cards.radio.getAttribute("data-state")) !== "playing") await toggle.click();
-        await expect(cards.radio).toHaveAttribute("data-state", "playing", { timeout: 1500 });
+        if ((await radioCard.getAttribute("data-state")) !== "playing") await toggle.click();
+        await expect(radioCard).toHaveAttribute("data-state", "playing", { timeout: 1500 });
       }).toPass({ timeout: 30_000 });
       await expect(toggle).toHaveText(/Duraklat/);
       await expect.poll(() => requests.audio().length).toBeGreaterThan(0);
       for (const url of requests.audio()) expect(new URL(url).origin).toBe(origin);
       await toggle.click();
-      await expect(cards.radio).toHaveAttribute("data-state", "paused");
+      await expect(radioCard).toHaveAttribute("data-state", "paused");
       await expect(toggle).toHaveText(/Örnek Radyo Akışını Dinle/);
-
-      // Kırmızı kalem: öğrencinin kâğıdına geç, geri dön.
-      await cards.pen.getByRole("button", { name: "Öğrencinin kâğıdı" }).click();
-      await expect(cards.pen.getByTestId("red-pen-lost")).toHaveCount(0);
-      await cards.pen.getByRole("button", { name: "Kırmızı kalemle" }).click();
-      await expect(cards.pen.getByTestId("red-pen-lost")).toBeVisible();
-
-      // Paylaşımın adımları açılır.
-      await cards.share.getByText("Paylaşınca ne olur?").click();
-      await expect(cards.share.getByText(/konu testini bitirince sen \+50 kredi kazanırsın/)).toBeVisible();
-      expect(await overflow(page)).toBeLessThanOrEqual(0);
 
       expect(requests.thirdParty()).toEqual([]);
     });
@@ -217,21 +229,28 @@ for (const width of WIDTHS) {
 test.describe("fark vitrini · geniş yedek yazı tipi", { tag: ["@public"] }, () => {
   test.use({ viewport: { width: 390, height: 900 } });
 
-  test("390 px + Verdana: yazılar üst üste binmez, kartlar taşmaz", async ({ page }) => {
-    test.setTimeout(90_000);
+  test("390 px + Verdana: altı başlığın metni ve sahnesi üst üste binmez, taşmaz", async ({ page }) => {
+    test.setTimeout(120_000);
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await page.addStyleTag({ content: "*, *::before, *::after { font-family: Verdana, sans-serif !important; }" });
-    const vitrin = page.getByTestId("fark-vitrini");
-    await vitrin.scrollIntoViewIfNeeded();
-    // Adımlar açıkken de ölç.
-    await vitrin.getByText("Paylaşınca ne olur?").click();
-    for (const id of ["showcase-radio", "showcase-red-pen", "showcase-class-share"]) {
-      const card = vitrin.getByTestId(id);
-      await card.scrollIntoViewIfNeeded();
-      expect(await textOverlaps(card), id).toEqual([]);
-      const inner = await card.evaluate((node) => node.scrollWidth - node.clientWidth);
+    const section = page.locator("section#farklar");
+    await section.scrollIntoViewIfNeeded();
+    // Faz 9: her başlık açılır; açık başlığın kendisi (başlık + metin + sahne) ölçülür.
+    for (const id of ["notuna-sadik", "sinav-radyosu", "kirmizi-kalem", "ikiz-soru", "ikiz-sinav", "sinifla-paylas"]) {
+      const trigger = page.locator(`#fk-trigger-${id}`);
+      await trigger.scrollIntoViewIfNeeded();
+      await expect(async () => {
+        if ((await trigger.getAttribute("aria-expanded")) !== "true") await trigger.click();
+        await expect(trigger).toHaveAttribute("aria-expanded", "true", { timeout: 1500 });
+      }).toPass({ timeout: 30_000 });
+      const item = page.locator(`.fk-item[data-item="${id}"]`);
+      // Paylaşımın adımları açıkken de ölç.
+      if (id === "sinifla-paylas") await item.getByText("Paylaşınca ne olur?").click();
+      await item.scrollIntoViewIfNeeded();
+      expect(await textOverlaps(item), id).toEqual([]);
+      const inner = await item.evaluate((node) => node.scrollWidth - node.clientWidth);
       expect(inner, `${id} iç taşma`).toBeLessThanOrEqual(0);
-      const box = (await card.boundingBox())!;
+      const box = (await item.boundingBox())!;
       expect(box.x + box.width, id).toBeLessThanOrEqual(391);
     }
     expect(await overflow(page)).toBeLessThanOrEqual(0);

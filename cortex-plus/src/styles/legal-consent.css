@@ -418,14 +418,31 @@
   }
 }
 
-/* Bant açıkken pazarlama sayfasının sonu (altbilgi) şeridin arkasında kalmasın. */
+/*
+  Bant açıkken pazarlama sayfasının sonu (altbilgi) şeridin arkasında kalmasın.
+
+  Faz 9 (20 Kasım 2026, canlı misafir denetimi, /mufredat'ta DGS kartları): sabit bant (opak zemin + yukarı 30 px'lik
+  koyu gölge) ekranın altındaki kartların alt kenarını örtüyordu; sayfada başka katman, maske ya da kırpma yok. Klavye
+  odağı, bağlantı (#) atlaması ve `scrollIntoView` hedefi bandın üstünde bıraksın diye kök kaydırıcıya bandın yüksekliği
+  kadar kaydırma payı verilir. Ölçülen bant: 320–360 px'te 124 px (metin üç satır), 390 px'te 106, 768 px ve üstünde 59.
+  Telefonda sayfa sonu boşluğu 7 rem'di (112 px): 360 px'te altbilginin son satırı bandın arkasında kalıyordu; ikisi de
+  8,5 rem (136 px, uyum testinin izin verdiği en yüksek bant 132 px).
+*/
 body:has([data-cookie-banner]) .cinematic-marketing {
-  padding-bottom: 7rem;
+  padding-bottom: 8.5rem;
+}
+
+:root:has([data-cookie-banner]):has(.cinematic-marketing) {
+  scroll-padding-bottom: calc(8.5rem + env(safe-area-inset-bottom, 0px));
 }
 
 @media (min-width: 768px) {
   body:has([data-cookie-banner]) .cinematic-marketing {
     padding-bottom: 4rem;
+  }
+
+  :root:has([data-cookie-banner]):has(.cinematic-marketing) {
+    scroll-padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
   }
 }
 

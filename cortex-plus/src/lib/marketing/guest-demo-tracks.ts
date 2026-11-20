@@ -4,12 +4,14 @@
  * Ana sayfanın 7 adımlı turu artık tek bir matematik notuyla değil, seçilen branşın örnek notuyla oynanır: dosya adı,
  * sayfa sayısı, tarama bulguları, yol haritası, hoca uyarısı, ders, konu testi, kartlar, doğru/yanlış ve Plus
  * önizlemeleri branşa göre değişir. Bu dosya ilk yükte gereken HAFİF bilgiyi tutar (1. ve 2. adım, uyarı etiketi,
- * bağlam satırı, kahraman sekmesiyle eşleme). Ders, soru, kart ve sahnelerin kendisi ürünün veri biçiminde
+ * kahramanın seçicisi ve profil eşlemesi). Ders, soru, kart ve sahnelerin kendisi ürünün veri biçiminde
  * `lib/demo/guest-tour-tracks.ts`te, ayrı parça olarak yüklenen ürün ekranlarında.
  *
- * Kahraman sekmesi ve branş tek durum: lise ve YKS/LGS sekmeleri lise branşını, üniversite sekmesi mühendisliği,
- * akademik sekme (KPSS · TUS · DUS · ALES) hukuku açar. Branş şeridinden seçilen branş da sekmeyi eşler: TUS ve hukuk
- * akademik sekmede, mühendislik üniversitede, lise o an lise ya da YKS/LGS sekmesindeyse yerinde kalır.
+ * Faz 9 (20 Kasım 2026, ürün sahibi: "iki ayrı seçici kafa karıştırıyor"): kahramanın sekmeleri ve turun branş şeridi
+ * TEK seçicide birleşti (`HERO_PICKS`). Dört seçenek dört branştır: "Lise & YKS" (matematik), "Üniversite"
+ * (mühendislik), "TUS / Tıp" (farmakoloji), "KPSS / Hukuk" (anayasa). Seçenek kahramanın profilini de belirler
+ * (`trackForSegment`, `segmentForTrack`): lise ve YKS/LGS profilleri aynı seçeneğe düşer, eski bağlantının profili
+ * kayıt bağlantısı için korunur.
  *
  * Pazarlama kuralı (19 Ekim 2026) burada da geçerli: her cümle bugün üründe çalışan bir şeyi anlatır.
  */
@@ -26,15 +28,15 @@ export type GuestDemoRoadmapDay = { day: string; title: string; ready: boolean; 
 
 export type GuestDemoTrack = {
   id: GuestTrackId;
-  /** Branş şeridindeki ad. */
-  label: string;
+  /** Kahramanın seçicisindeki ad ("Lise & YKS"). */
+  pickLabel: string;
+  /** Seçeneğin alt satırı: örnek notun alanı ("Matematik"). */
+  field: string;
   /** Örnek notun kartındaki ders adı ("Örnek not · {subject} · N sayfa"). */
   subject: string;
   /** Örnek notun dosya adı. */
   file: string;
   pages: number;
-  /** Konsolun bağlam satırı: örnek notun bu branş için ne anlama geldiği (en çok 90 karakter). */
-  context: string;
   /** Örnek notun uyarı satırı: "{etiket}: “…”" (etiket üst çubukta kalır, satırın tamamı tarama bulgusu). */
   warning: string;
   /** Tarama anının son bulgusu: notta şekil ya da tablo nerede. */
@@ -75,11 +77,11 @@ const HUKUK_UNITS = ["TBMM Toplantı/Karar Yeter Sayıları", "Nitelikli Çoğun
 export const GUEST_DEMO_TRACKS: Record<GuestTrackId, GuestDemoTrack> = {
   lise: {
     id: "lise",
-    label: "Lise & YKS · Matematik",
+    pickLabel: "Lise & YKS",
+    field: "Matematik",
     subject: "Matematik",
     file: SAME_NOTE_CASE.input.file,
     pages: 6,
-    context: "Örnek not matematik; yazılı, TYT, AYT ve LGS notlarında da aynı yedi adım kurulur.",
     warning: SAME_NOTE_CASE.input.lines[0],
     figure: SAME_NOTE_CASE.input.lines[1],
     units: LISE_DAYS.map((day) => day.title),
@@ -87,11 +89,11 @@ export const GUEST_DEMO_TRACKS: Record<GuestTrackId, GuestDemoTrack> = {
   },
   muhendislik: {
     id: "muhendislik",
-    label: "Üniversite · Mühendislik",
+    pickLabel: "Üniversite",
+    field: "Mühendislik",
     subject: "Akışkanlar Mekaniği",
     file: "Akiskanlar_ve_Termodinamik_Vize_Notu.pdf",
     pages: 14,
-    context: "Örnek not mühendislik vizesi; hocanın slaytı ya da PDF'i için de adımlar aynı.",
     warning: "Hoca uyarısı: “Kaldırma kuvvetinde cismin değil sıvının yoğunluğu (d_sıvı) alınır; SI birimi (N / Pa) yazılmazsa −5 puan kırılır!”",
     figure: "5. sayfada kuvvet diyagramı ve tablo",
     units: MUHENDISLIK_UNITS,
@@ -99,11 +101,11 @@ export const GUEST_DEMO_TRACKS: Record<GuestTrackId, GuestDemoTrack> = {
   },
   tus: {
     id: "tus",
-    label: "TUS / Tıp · Farmakoloji",
+    pickLabel: "TUS / Tıp",
+    field: "Farmakoloji",
     subject: "Farmakoloji",
     file: "Kardiyoloji_Antiaritmikler_TUS_Notu.pdf",
     pages: 18,
-    context: "Örnek not TUS farmakolojisi; DUS ve tıp fakültesi notlarında da adımlar aynı.",
     warning: "TUS spotu: “Amiodaron Sınıf III olmasına rağmen tüm sınıfların özelliğini taşır; tiroid ve akciğer toksisitesi mutlaka sorulur.”",
     figure: "4. sayfada Vaughan-Williams tablosu",
     units: TUS_UNITS,
@@ -111,11 +113,11 @@ export const GUEST_DEMO_TRACKS: Record<GuestTrackId, GuestDemoTrack> = {
   },
   hukuk: {
     id: "hukuk",
-    label: "KPSS / Hukuk · Anayasa",
+    pickLabel: "KPSS / Hukuk",
+    field: "Anayasa",
     subject: "Anayasa Hukuku",
     file: "Anayasa_Yasama_Sureci_Notu.pdf",
     pages: 12,
-    context: "Örnek not KPSS anayasa hukuku; hukuk fakültesi vizesinde de aynı yedi adım kurulur.",
     warning: "Sınav tuzağı: “Geri gönderilen kanunu TBMM üye tamsayısının salt çoğunluğu (301) ile aynen kabul edebilir.”",
     figure: "6. sayfada yeter sayı tablosu",
     units: HUKUK_UNITS,
@@ -138,27 +140,43 @@ export function trackWarningLabel(track: GuestTrackId): string {
   return guestDemoTrack(track).warning.split(":")[0]!.trim();
 }
 
-/** Kahraman sekmesi → branş: lise ve YKS/LGS lise, üniversite mühendislik, akademik hukuk. */
+/** Profil → branş: lise ve YKS/LGS lise, üniversite mühendislik, akademik (KPSS) hukuk, TUS TUS. */
 const SEGMENT_TRACK: Record<AudienceSegmentId, GuestTrackId> = {
   lise: "lise",
   "yks-lgs": "lise",
   universite: "muhendislik",
   akademik: "hukuk",
+  tus: "tus",
 };
 
 export function trackForSegment(segment: AudienceSegmentId): GuestTrackId {
   return SEGMENT_TRACK[segment];
 }
 
+/** Kahramanın tek seçicisi: dört seçenek sırayla, her biri bir branş ve o branşın varsayılan profili. */
+export const HERO_PICKS: readonly { track: GuestTrackId; segment: AudienceSegmentId }[] = [
+  { track: "lise", segment: "lise" },
+  { track: "muhendislik", segment: "universite" },
+  { track: "tus", segment: "tus" },
+  { track: "hukuk", segment: "akademik" },
+];
+
+/** Seçicinin ekran okuyucu adı. */
+export const HERO_PICK_ARIA = "Hangi sınava hazırlanıyorsun?";
+
+/** Seçeneğin tam adı ("Lise & YKS · Matematik"): ekran okuyucu bu adı okur. */
+export function heroPickName(track: GuestTrackId): string {
+  const item = guestDemoTrack(track);
+  return `${item.pickLabel} · ${item.field}`;
+}
+
 /**
- * Branş → kahraman sekmesi. Lise branşı o an lise ya da YKS/LGS sekmesindeyse sekme yerinde kalır; TUS akademik
- * sekmenin kapsamındadır (KPSS · TUS · DUS · ALES).
+ * Branş seçilince profil: o anki profil zaten bu branşınsa yerinde kalır (eski `?hedef=yks-lgs` bağlantısının kayıttaki
+ * YKS ön seçimi korunur); değilse seçeneğin varsayılan profili.
  */
 export function segmentForTrack(track: GuestTrackId, current: AudienceSegmentId): AudienceSegmentId {
   if (trackForSegment(current) === track) return current;
-  if (track === "lise") return "lise";
-  if (track === "muhendislik") return "universite";
-  return "akademik";
+  return HERO_PICKS.find((pick) => pick.track === track)?.segment ?? "lise";
 }
 
 /** Branşın Plus adımında podcast kesiti var mı (`DEMO_PODCASTS`); yoksa o branşta podcast önizlemesi gösterilmez. */

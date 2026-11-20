@@ -12,6 +12,8 @@
  *   şey değişmez.
  */
 
+import { AUDIENCE_SEGMENT_IDS } from "@/lib/marketing/landing-showcase";
+
 export const TOUR_PROGRESS_KEY = "cp:guest-tour";
 
 /** Turda ulaşılan adım kimlikleri ("upload" … "plus") ve seçili hedef kitle sekmesi. */
@@ -21,7 +23,8 @@ export type TourProgress = { steps: string[]; segment: string; at: number };
 export const TOUR_PROGRESS_TTL_MS = 24 * 60 * 60 * 1000;
 
 const STEP_IDS = ["upload", "roadmap", "lesson", "question", "cards", "check", "plus"] as const;
-const SEGMENT_IDS = ["lise", "yks-lgs", "universite", "akademik"] as const;
+/** Profiller tek kaynaktan (Faz 9: TUS kendi profili oldu). */
+const SEGMENT_IDS = AUDIENCE_SEGMENT_IDS;
 
 function isStep(value: unknown): value is string {
   return typeof value === "string" && (STEP_IDS as readonly string[]).includes(value);

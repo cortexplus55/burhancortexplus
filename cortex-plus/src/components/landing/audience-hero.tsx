@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { ArrowRight } from "lucide-react";
-import { AudienceTabs } from "@/components/landing/audience-tabs";
+import { AudiencePicker } from "@/components/landing/audience-picker";
 import { FuturisticGuidedJourney } from "@/components/landing/futuristic-guided-journey";
 import { segmentForTrack, trackForSegment, type GuestTrackId } from "@/lib/marketing/guest-demo-tracks";
-import { HERO, HERO_FACTS, HERO_INPUTS } from "@/lib/marketing/landing-content";
+import { HERO, HERO_FOOT } from "@/lib/marketing/landing-content";
 import {
   audienceSegment,
   DEFAULT_SEGMENT,
@@ -14,54 +14,44 @@ import {
   type AudienceSegmentId,
 } from "@/lib/marketing/landing-showcase";
 
-/** Sekme adreste kalır (`?hedef=`): paylaşılan bağlantı aynı sekmeyi açar. Gezinme yok. */
+/** Profil adreste kalır (`?hedef=`): paylaşılan bağlantı aynı seçimi açar. Gezinme yok. */
 function writeSegmentToUrl(id: AudienceSegmentId) {
   try {
     const url = new URL(window.location.href);
     url.searchParams.set("hedef", id);
     window.history.replaceState(window.history.state, "", url);
   } catch {
-    /* adres güncellenemezse sekme yine değişir */
+    /* adres güncellenemezse seçim yine değişir */
   }
 }
 
 /**
- * Kahraman + hedef kitle sekmeleri + 7 adımlı canlı kokpit tek durumda ve TEK EKRANDA. Sayfa önbellekten gelir
- * (5 dk); `?hedef=` ve `utm_campaign` tarayıcıda okunur, sekme ona göre açılır. Sekme değişince adres de değişir
- * (`replaceState`, gezinme yok): paylaşılan bağlantı aynı sekmeyi açar.
+ * Kahraman + tek seçici + 7 adımlı turun birinci adımı TEK EKRANDA. Sayfa önbellekten gelir (5 dk); `?hedef=` ve
+ * `utm_*` tarayıcıda okunur, seçim ona göre açılır. Seçim değişince adres de değişir (`replaceState`, gezinme yok).
  *
- * 11 Kasım 2026, kokpit (canlı denetim: "ilk ekranda tıklanamayan bir şema var, hemen altında aynı akış tur
- * olarak tekrar ediyor"): sağdaki durağan sahne kalktı. Üstte söz (başlık ve sekmenin cümlesi), altında tek satırda
- * dört sekme ve kayıt düğmesi; hemen altında tur konsolu. Ziyaretçi sayfayı kaydırmadan turun ilk adımını görür ve oynar.
- * Kısa gerçekler ve "notun yok mu" satırı konsolun altında: ilk ekrandaki yeri tura bırakırlar.
- *
+ * 11 Kasım 2026, kokpit: kahraman ile tur tek ekranda; sağdaki durağan sahne kalktı.
  * Renk mavi değil: zemin sıcak siyah, eylem kâğıt beyazı, vurgu logonun şeridi (aynı gün, ikinci tur).
  *
- * Faz 7 (20 Kasım 2026): sekme ve turun branşı tek durum. Sekme seçilince tur o sekmenin branşına geçer (lise ve
- * YKS/LGS → matematik, üniversite → mühendislik, akademik → hukuk); turun branş şeridinden seçilen branş da sekmeyi
- * eşler (TUS ve hukuk akademik, mühendislik üniversite; lise branşı lise ya da YKS/LGS sekmesinde kalır).
+ * Faz 9 (20 Kasım 2026, ürün sahibi: "sade, ortada, tek seçici"): kahramandaki dört sekme ile turun branş şeridi tek
+ * seçicide birleşti (`AudiencePicker`). Seçenek bir branştır; profil (cümle, kayıt bağlantısı) ondan gelir. Eski
+ * bağlantılar çalışır: `?hedef=yks-lgs` "Lise & YKS" seçeneğini açar ve kayıt bağlantısında `yks-lgs` kalır. Kahramanın
+ * altı tek satır (`HERO_FOOT`). Söz ortada: başlık, cümle, seçici ve kayıt düğmesi; hemen altında turun birinci adımı.
  */
 export function AudienceHero() {
-  const [{ segmentId, trackId }, setPick] = useState<{ segmentId: AudienceSegmentId; trackId: GuestTrackId }>({
-    segmentId: DEFAULT_SEGMENT,
-    trackId: trackForSegment(DEFAULT_SEGMENT),
-  });
+  const [segmentId, setSegmentId] = useState<AudienceSegmentId>(DEFAULT_SEGMENT);
+  const trackId = trackForSegment(segmentId);
 
   useEffect(() => {
     const fromUrl = resolveSegmentParam(window.location.search);
-    if (fromUrl) setPick({ segmentId: fromUrl, trackId: trackForSegment(fromUrl) });
-  }, []);
-
-  const pick = useCallback((id: AudienceSegmentId) => {
-    setPick({ segmentId: id, trackId: trackForSegment(id) });
-    writeSegmentToUrl(id);
+    if (fromUrl) setSegmentId(fromUrl);
   }, []);
 
   const pickTrack = useCallback(
-    (id: GuestTrackId) => {
-      const nextSegment = segmentForTrack(id, segmentId);
-      setPick({ segmentId: nextSegment, trackId: id });
-      if (nextSegment !== segmentId) writeSegmentToUrl(nextSegment);
+    (track: GuestTrackId) => {
+      const next = segmentForTrack(track, segmentId);
+      if (next === segmentId) return;
+      setSegmentId(next);
+      writeSegmentToUrl(next);
     },
     [segmentId],
   );
@@ -88,38 +78,53 @@ export function AudienceHero() {
               <path d="M4 14 C60 2 110 20 168 10 S270 4 316 12" pathLength={1} stroke="url(#hm-under)" />
             </svg>
           </h1>
-          <p className="hm-lead" aria-live="polite">
+          {/* Seçim değişince cümle yeniden belirir (anahtar animasyonu baştan başlatır). */}
+          <p key={segment.id} className="hm-lead" aria-live="polite">
             {segment.lead}
           </p>
         </div>
 
         <div className="hm-hero-pick">
-          <AudienceTabs value={segmentId} onChange={pick} controls="nasil" />
+          <AudiencePicker value={trackId} onChange={pickTrack} controls="nasil" />
           <div className="hm-cta-row">
-            <Link href={segment.signupHref} className="lp-btn lp-btn--primary hm-cta">
-              {segment.ctaLabel}
+            <Link href={segment.signupHref} className="lp-btn lp-btn--primary hm-cta" data-hero-cta>
+              <span key={segment.id} className="hm-cta-label">
+                {segment.ctaLabel}
+              </span>
               <ArrowRight className="h-4 w-4" aria-hidden />
             </Link>
           </div>
         </div>
 
-        {/* Kokpit: turun kendisi. Sekme ve branş buradan iner; tur kayıt bağlantısını, örnek notu ve yedi adımı ona göre kurar. */}
+        {/* Turun birinci adımı: profil ve branş buradan iner; tur kayıt bağlantısını, örnek notu ve yedi adımı ona göre kurar. */}
         <div className="hm-hero-cockpit">
-          <FuturisticGuidedJourney segmentId={segmentId} trackId={trackId} onTrackChange={pickTrack} />
+          <FuturisticGuidedJourney segmentId={segmentId} trackId={trackId} />
         </div>
 
-        <div className="hm-hero-foot">
-          <ul className="lp-facts hm-facts" aria-label="Kısaca">
-            {HERO_FACTS.map((fact) => (
-              <li key={fact}>{fact}</li>
-            ))}
-          </ul>
-          <p className="lp-inputs">{HERO_INPUTS.accepts}</p>
-          <p className="hm-foot-links">
-            <Link href={HERO_INPUTS.noNotes.href}>{HERO_INPUTS.noNotes.label}</Link>
-            <Link href={HERO.secondary.href}>{HERO.secondary.label}</Link>
-          </p>
-        </div>
+        {/* Kahramanın altı tek satır: iki gerçek ve iki bağlantı; ayraçlar ekran okuyucuda okunmaz. */}
+        <p className="hm-hero-foot" data-hero-foot>
+          {HERO_FOOT.facts.map((fact) => (
+            <Fragment key={fact}>
+              <span className="hm-foot-fact">{fact}</span>{" "}
+              <span className="hm-foot-sep" aria-hidden>
+                ·
+              </span>{" "}
+            </Fragment>
+          ))}
+          <span className="hm-foot-fact">
+            {HERO_FOOT.noNotes.lead}{" "}
+            <Link href={HERO_FOOT.noNotes.href} className="hm-foot-link">
+              {HERO_FOOT.noNotes.label}
+              <span aria-hidden>→</span>
+            </Link>
+          </span>{" "}
+          <span className="hm-foot-sep" aria-hidden>
+            ·
+          </span>{" "}
+          <Link href={HERO_FOOT.sample.href} className="hm-foot-link">
+            {HERO_FOOT.sample.label}
+          </Link>
+        </p>
       </div>
     </section>
   );
