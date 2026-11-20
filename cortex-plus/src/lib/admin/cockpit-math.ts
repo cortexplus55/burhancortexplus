@@ -70,6 +70,8 @@ export type PaymentRow = {
   amount_try: number | null;
   status: string;
   created_at: string;
+  /** Sipariş numarası; veli ödemesi denetim kaydından tanınırken gerekir. */
+  merchant_oid?: string | null;
 };
 export type PlanRow = { id: string; slug: string; name: string };
 
@@ -81,10 +83,16 @@ export type ConversionStats = {
   revenueKurus: WindowCounts;
   /** İlk kez ödeyen öğrenci: ücretsizden ücretliye geçiş. */
   firstTime: WindowCounts;
-  /** Velime ödeme linki ile yapılan ödeme (ödeyen ≠ yararlanan). */
+  /**
+   * Veli ödemesi: velime ödeme bağlantısı ya da veli hesabıyla. Hesapsız veli bağlantısında ödeme satırı öğrencinin
+   * adınadır (`user_id` = `beneficiary_user_id`); onu yalnız denetim kaydının `via` alanı tanır (`parentOids`).
+   */
   parentLink: WindowCounts;
   byPlan: PlanConversion[];
 };
+
+/** Velinin ödediği yollar (`checkout.ts` `via`): hesapsız velime ödeme bağlantısı ve veli hesabı. */
+export const PARENT_PAYMENT_VIAS = ["parent_link", "parent_account"];
 
 const PLAN_LABEL: Record<string, string> = {
   "plus-aylik": "Plus (aylık)",
@@ -101,12 +109,19 @@ export function conversionStats(
   plans: readonly PlanRow[],
   earlierPayers: ReadonlySet<string>,
   windows: Windows,
+  /** Veli yoluyla açılan ödemelerin sipariş numaraları (denetim kaydı `payment.token.created`, `via` veli). */
+  parentOids?: ReadonlySet<string> | null,
 ): ConversionStats {
   const paidRows = payments.filter((row) => row.status === "paid");
   const paid = countByWindow(paidRows.map((row) => row.created_at), windows);
   const revenueKurus = sumByWindow(paidRows.map((row) => ({ at: row.created_at, value: row.amount_try ?? 0 })), windows);
   const parentLink = countByWindow(
-    paidRows.filter((row) => row.beneficiary_user_id && row.beneficiary_user_id !== row.user_id).map((row) => row.created_at),
+    paidRows
+      .filter(
+        (row) =>
+          (row.beneficiary_user_id && row.beneficiary_user_id !== row.user_id) || Boolean(row.merchant_oid && parentOids?.has(row.merchant_oid)),
+      )
+      .map((row) => row.created_at),
     windows,
   );
   // İlk ödeme: pencere içindeki en erken başarılı ödeme; pencereden önce ödemişse ilk değildir.
