@@ -292,12 +292,14 @@
   }
   /* Faz 2 (13 Kasım 2026): sağ taraf (Başla, seri, Plus, kapsül) eşit yan sütuna sığmıyordu; yan sütunlar içerik
      kadar, sekmeler kalan boşluğun ortasında. Plus hapı kısa adıyla, seri koruma rozeti telefondaki gibi gizli. */
+  /* Faz 6 (20 Kasım 2026): sağa bildirim çanı (40 px) eklendi; 768 px'te kapsül sağ boşluğa taşmasın diye aralıklar
+     bir basamak dar (öğeler ve boyları aynı). */
   .cx-home-top {
     grid-template-columns: auto 1fr auto;
-    column-gap: var(--cx-space-12);
+    column-gap: var(--cx-space-8);
   }
   .cx-home-actions {
-    gap: var(--cx-space-6);
+    gap: var(--cx-space-4);
   }
   .cx-home-buy-full,
   .cx-home-streak .cp-streak-freeze {

@@ -86,6 +86,9 @@ export const ABUSE_SCOPE_LABELS: Record<string, string> = {
   "parent-pay-checkout": "Veli ödemesi",
   "parent-pay-status": "Veli ödeme durumu",
   "question-report-demo": "Tanıtım turunda hata bildirme",
+  // Faz 6 (20 Kasım 2026): e-postadaki anahtarlı tercih bağlantıları (oturumsuz, IP başına sınır).
+  "notification-prefs-token": "Bildirim tercihleri (e-postadaki bağlantı)",
+  "notification-unsub": "Tek tıkla abonelikten çıkma",
 };
 
 /** Ön ek → bölüm (bilinmeyen uç için). Sıra önemli: uzun ön ek önce. */
@@ -114,6 +117,8 @@ const ABUSE_SCOPE_PREFIXES: [string, string][] = [
   // 7 Kasım 2026 (uyum paketi): metin onayı ve çerez tercihi uçları.
   ["consent-", "Metin onayı"],
   ["cookie-consent", "Çerez tercihi"],
+  // Faz 6 (20 Kasım 2026): bildirim çanı ve bildirim tercihleri uçları.
+  ["notification", "Bildirimler"],
 ];
 
 export const UNKNOWN_SCOPE_LABEL = "Diğer bir uç";

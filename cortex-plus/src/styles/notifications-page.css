@@ -1,0 +1,153 @@
+/**
+ * /bildirimler (Faz 6, 20 Kasım 2026): satır kartları kenarsız, basamak rengiyle (`bg-1`, köşe 24); okunmamış satırda
+ * marka-zayıf simge ve nokta. Değerler --cx-*'tan; açık ve koyu temada aynı kurallar. Dokunma hedefi 40 px,
+ * telefonda 44 px.
+ */
+
+.cx-nl {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cx-space-12);
+}
+.cx-nl-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cx-space-12);
+}
+.cx-nl-count {
+  font: var(--cx-t-meta-s);
+  letter-spacing: var(--cx-ls-label);
+  text-transform: uppercase;
+  color: var(--cx-text-secondary);
+}
+.cx-nl-markall,
+.cx-nl-open,
+.cx-nl-read {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cx-space-6);
+  min-height: var(--cx-control-s);
+  padding-inline: var(--cx-space-14);
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  font: var(--cx-t-button-s);
+  text-decoration: none;
+  cursor: pointer;
+}
+.cx-nl-markall svg,
+.cx-nl-open svg {
+  width: 16px;
+  height: 16px;
+}
+.cx-nl-markall:disabled {
+  color: var(--cx-text-disabled);
+  cursor: default;
+}
+.cx-nl-error {
+  margin: 0;
+  font: var(--cx-t-body-14);
+  color: var(--cx-danger);
+}
+
+.cx-nl-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cx-space-8);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cx-nl-item {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cx-space-14);
+  padding: var(--cx-space-16) var(--cx-space-20);
+  border-radius: var(--cx-radius-l);
+  background: var(--cx-bg-1);
+  --cx-weak-fill: var(--cx-bg-2);
+}
+.cx-nl-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-bg-2);
+  color: var(--cx-text-secondary);
+}
+.cx-nl-icon svg {
+  width: 18px;
+  height: 18px;
+}
+.cx-nl-item.is-unread .cx-nl-icon {
+  background: var(--cx-brand-weak);
+  color: var(--cx-text-brand);
+}
+.cx-nl-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cx-space-4);
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.cx-nl-text p {
+  margin: 0;
+}
+.cx-nl-title {
+  font: 500 0.9375rem / 1.3 var(--cx-font-sans);
+  color: var(--cx-text-secondary);
+  overflow-wrap: anywhere;
+}
+.cx-nl-item.is-unread .cx-nl-title {
+  font-weight: 600;
+  color: var(--cx-text-primary);
+}
+.cx-nl-body {
+  font: var(--cx-t-body-14);
+  color: var(--cx-text-secondary);
+  overflow-wrap: anywhere;
+}
+.cx-nl-time {
+  font: var(--cx-t-meta-s);
+  letter-spacing: var(--cx-ls-label);
+  text-transform: uppercase;
+  color: var(--cx-text-tertiary);
+}
+.cx-nl-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cx-space-8);
+  margin-top: var(--cx-space-8);
+}
+.cx-nl-dot {
+  position: absolute;
+  top: 24px;
+  right: var(--cx-space-20);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--cx-brand);
+}
+.cx-nl-item.is-unread .cx-nl-text {
+  padding-right: var(--cx-space-16);
+}
+.cx-nl :focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}
+
+@media (max-width: 767px) {
+  .cx-nl-item {
+    padding: var(--cx-space-14) var(--cx-space-16);
+  }
+  .cx-nl-markall,
+  .cx-nl-open,
+  .cx-nl-read {
+    min-height: var(--cx-tap-min);
+  }
+}
