@@ -1,0 +1,185 @@
+{
+  "note": "Ürünün podcast motoruyla branşın tur dersinden üretilen bölüm (20 Kasım 2026). Kesit: sample.lines.",
+  "model": "gpt-6-luna",
+  "length": "diyalog",
+  "episode": {
+    "title": "200, 151, 301: Üç Yeter Sayısı",
+    "chapters": [
+      {
+        "title": "200, 151 ve 301’in ayrı işleri",
+        "lines": [
+          {
+            "speaker": "ada",
+            "text": "420 milletvekilinin katıldığı bir oturumda geri gönderilen kanun 290 oyla aynen kabul edilirse, oturum geçerli olduğu hâlde kanun neden kabul edilmiş sayılmaz?"
+          },
+          {
+            "speaker": "kerem",
+            "text": "Çünkü oturumun geçerliliği ile geri gönderilen kanunun kabulü farklı yeter sayılara bağlı."
+          },
+          {
+            "speaker": "kerem",
+            "text": "420 kişiyle toplantı yapılabilir ama 290 oy, gereken 301’e ulaşmaz."
+          },
+          {
+            "speaker": "ada",
+            "text": "Aynen öyle."
+          },
+          {
+            "speaker": "ada",
+            "text": "TBMM 600 üyeden oluşur ve bu sayı üye tamsayısıdır."
+          },
+          {
+            "speaker": "ada",
+            "text": "Toplantı yeter sayısı, oturumun başlayıp çalışabilmesi için gereken en az katılımcı sayısıdır, 600’ün üçte biri olan 200’dür."
+          },
+          {
+            "speaker": "kerem",
+            "text": "Yani 200, salonda bulunması gereken alt sınır, tek başına bir kanunun kabul edildiğini göstermez."
+          },
+          {
+            "speaker": "kerem",
+            "text": "Neden karar yeter sayısında ayrıca 151 alt sınırı var?"
+          },
+          {
+            "speaker": "ada",
+            "text": "Karar yeter sayısı, bir kararın alınabilmesi için gereken oy sayısıdır."
+          },
+          {
+            "speaker": "ada",
+            "text": "Genel kural, toplantıya katılanların salt çoğunluğudur, fakat karar yeter sayısı 151’in altına inemez."
+          },
+          {
+            "speaker": "ada",
+            "text": "Bu alt sınır, katılanların sayısı düşük olduğunda kararın çok az oyla alınmasını önler."
+          },
+          {
+            "speaker": "kerem",
+            "text": "Demek ki katılanların salt çoğunluğu hesabı ile 151 alt sınırı birlikte uygulanıyor, sonuç 151’den az olamıyor."
+          }
+        ]
+      },
+      {
+        "title": "Toplantı ve karar yeter sayısı",
+        "lines": [
+          {
+            "speaker": "ada",
+            "text": "Burada birbirine karışan iki kapı var: 200, toplantının yapılabilmesini, karar yeter sayısı ise kararın kabulünü belirler."
+          },
+          {
+            "speaker": "ada",
+            "text": "Örneğin 200 üye katılmışsa, katılanların salt çoğunluğu 151’den düşük çıksa bile karar için 151 alt sınırı geçerlidir."
+          },
+          {
+            "speaker": "kerem",
+            "text": "200 kişinin katıldığı durumda yarıdan fazlası 101 oy eder, ama 101 karar için yetmez, çünkü asgari sayı 151’dir."
+          },
+          {
+            "speaker": "kerem",
+            "text": "Katılım artınca genel kural, katılanların salt çoğunluğuna göre işler."
+          },
+          {
+            "speaker": "ada",
+            "text": "Evet, burada “salt çoğunluk”, sayının yarısından fazla demektir."
+          },
+          {
+            "speaker": "ada",
+            "text": "Katılanların salt çoğunluğu ile üye tamsayısının salt çoğunluğu aynı şey değildir, birinde katılanlar, diğerinde 600 üyelik toplam esas alınır."
+          },
+          {
+            "speaker": "kerem",
+            "text": "Üye tamsayısının salt çoğunluğu 301 oluyor, geri gönderilen kanunda neden katılanların çoğunluğuna bakmıyoruz?"
+          },
+          {
+            "speaker": "ada",
+            "text": "Çünkü geri gönderilen kanunun aynen kabulünde aranan ölçü, oturuma katılanların değil üye tamsayısının salt çoğunluğudur."
+          },
+          {
+            "speaker": "ada",
+            "text": "600’ün yarısından bir fazla olan 301 oy gerekir, katılımın yüksek olması bu eşiği düşürmez."
+          }
+        ]
+      },
+      {
+        "title": "Cumhurbaşkanının geri gönderdiği kanun",
+        "lines": [
+          {
+            "speaker": "kerem",
+            "text": "O hâlde geri gönderilmiş kanun için 400 oy gerektiğini sanmak yanlış, aranan sayı 301 ve kanun aynen kabul edilmeli."
+          },
+          {
+            "speaker": "ada",
+            "text": "Doğru."
+          },
+          {
+            "speaker": "ada",
+            "text": "Cumhurbaşkanı kanunu 15 gün içinde TBMM’ye geri gönderebilir."
+          },
+          {
+            "speaker": "ada",
+            "text": "TBMM kanunu üye tamsayısının salt çoğunluğuyla, yani 301 oyla aynen kabul ederse Cumhurbaşkanı kanunu yayımlar."
+          },
+          {
+            "speaker": "kerem",
+            "text": "420 milletvekilinin katıldığı örnekte 290 oy, toplantı bakımından sorun yaratmıyor, çünkü 200 katılımcı sınırı aşılmış."
+          },
+          {
+            "speaker": "kerem",
+            "text": "Fakat 290, 301’den az olduğu için geri gönderilen kanunun aynen kabulü için yeterli olmuyor."
+          },
+          {
+            "speaker": "ada",
+            "text": "Sınavda özellikle oturumun toplantı yeter sayısını karşılamasıyla kanunun kabul yeter sayısını karıştırmamaya dikkat et."
+          },
+          {
+            "speaker": "ada",
+            "text": "200 toplantıyı, 151 kararın asgari alt sınırını, 301 ise geri gönderilen kanunun aynen kabulünü anlatır."
+          }
+        ]
+      },
+      {
+        "title": "Üç sayıyı ayırt et",
+        "lines": [
+          {
+            "speaker": "ada",
+            "text": "200 milletvekilinin katıldığı bir oturumda genel karar yeter sayısı hesabı hangi iki ölçüyü dikkate alır?",
+            "beat": "ask"
+          },
+          {
+            "speaker": "kerem",
+            "text": "Katılanların salt çoğunluğu hesaplanır, ayrıca karar yeter sayısı 151’in altında olamaz.",
+            "beat": "reveal"
+          },
+          {
+            "speaker": "kerem",
+            "text": "200 toplantı yeter sayısıdır, 151 karar yeter sayısının alt sınırıdır, 301 geri gönderilen kanunun aynen kabulü için gerekir."
+          },
+          {
+            "speaker": "ada",
+            "text": "Üç sayıyı görevleriyle eşleştir: 200 toplar, 151 kararın alt sınırını çizer, 301 geri gönderilen kanunu aynen kabul ettirir."
+          }
+        ]
+      }
+    ],
+    "length": "diyalog"
+  },
+  "sample": {
+    "src": "/ornek/podcast-hukuk.mp3",
+    "durationMs": 17160,
+    "lines": [
+      {
+        "speaker": "kerem",
+        "name": "Kerem",
+        "text": "Üye tamsayısının salt çoğunluğu 301 oluyor, geri gönderilen kanunda neden katılanların çoğunluğuna bakmıyoruz?",
+        "startMs": 0,
+        "endMs": 8808
+      },
+      {
+        "speaker": "ada",
+        "name": "Ada",
+        "text": "Çünkü geri gönderilen kanunun aynen kabulünde aranan ölçü, oturuma katılanların değil üye tamsayısının salt çoğunluğudur.",
+        "startMs": 8808,
+        "endMs": 17160
+      }
+    ]
+  }
+}

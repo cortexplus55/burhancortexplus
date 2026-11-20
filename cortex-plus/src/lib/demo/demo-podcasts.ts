@@ -48,6 +48,72 @@ export const DEMO_PODCASTS: Partial<Record<GuestTrackId, DemoPodcast>> = {
       },
     ],
   },
+  muhendislik: {
+    src: "/ornek/podcast-muhendislik.mp3",
+    source: "Akışkanlar ve Termodinamik vize notu",
+    unit: "Kaldırma Kuvveti",
+    durationMs: 16824,
+    lines: [
+      {
+        speaker: "ada",
+        name: "Ada",
+        text: "Bir cisim aynı hacimde tamamen batırıldığında, kaldırma kuvvetini bulmak için cismin mi sıvının mı yoğunluğunu kullanırsın?",
+        startMs: 0,
+        endMs: 8712,
+      },
+      {
+        speaker: "kerem",
+        name: "Kerem",
+        text: "Sıvının yoğunluğunu kullanırım, çünkü kaldırma kuvveti, cismin yerini değiştirdiği sıvının ağırlığıdır.",
+        startMs: 8712,
+        endMs: 16824,
+      },
+    ],
+  },
+  tus: {
+    src: "/ornek/podcast-tus.mp3",
+    source: "Kardiyoloji Antiaritmikler TUS notu",
+    unit: "Antiaritmik İlaçlar",
+    durationMs: 15360,
+    lines: [
+      {
+        speaker: "kerem",
+        name: "Kerem",
+        text: "Hipokalemi neden riski daha da artırıyor?",
+        startMs: 0,
+        endMs: 4152,
+      },
+      {
+        speaker: "ada",
+        name: "Ada",
+        text: "Potasyumun düşmesi repolarizasyonu daha da geciktirebilir, Sınıf III etkisiyle uzamış QT’nin üzerine bu gecikme eklenince torsades de pointes riski artar.",
+        startMs: 4152,
+        endMs: 15360,
+      },
+    ],
+  },
+  hukuk: {
+    src: "/ornek/podcast-hukuk.mp3",
+    source: "Anayasa Yasama Süreci notu",
+    unit: "TBMM Yeter Sayıları",
+    durationMs: 17160,
+    lines: [
+      {
+        speaker: "kerem",
+        name: "Kerem",
+        text: "Üye tamsayısının salt çoğunluğu 301 oluyor, geri gönderilen kanunda neden katılanların çoğunluğuna bakmıyoruz?",
+        startMs: 0,
+        endMs: 8808,
+      },
+      {
+        speaker: "ada",
+        name: "Ada",
+        text: "Çünkü geri gönderilen kanunun aynen kabulünde aranan ölçü, oturuma katılanların değil üye tamsayısının salt çoğunluğudur.",
+        startMs: 8808,
+        endMs: 17160,
+      },
+    ],
+  },
 };
 
 /** Radyo önizlemesinin çalma listesi: kesiti olan branşlar, sabit sırayla. */
