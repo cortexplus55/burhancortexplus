@@ -31,7 +31,8 @@ describe("metin sürümleri: metin değişince sürüm de değişir", async () =
   const FINGERPRINTS = {
     // 8 Kasım 2026: IP'nin hangi kayıtta nasıl tutulduğu düzeltildi (hız sınırı ve ödeme kaydında ham). Eski satır kalır.
     kvkk: { "2026-11-07": "9446ec8ca66fe40e", "2026-11-08": "a226f4fe8e30a3c2" } as Record<string, string>,
-    terms: { "2026-11-07": "65eb7f7261e5a0c4" } as Record<string, string>,
+    // 21 Kasım 2026: ücretsiz hesabın kapsamı merkezi plan metninden (haftalık ders sınırı kalkmıştı). Eski satır kalır.
+    terms: { "2026-11-07": "65eb7f7261e5a0c4", "2026-11-21": "40830910a1d0b03f" } as Record<string, string>,
     cookie: { "2026-11-07": "6942f7aaf4fcbb7f" } as Record<string, string>,
     // 19 Kasım 2026 (Faz 5 §4): "Hizmetin konusu" kota cümlesi merkezi plan metninden.
     sales: { "2026-11-07": "b97ee8662442fa45", "2026-11-19": "a4c379a5e9b68c38" } as Record<string, string>,
@@ -95,7 +96,7 @@ describe("okuma kanıtı ve onay durumu (saf kurallar)", async () => {
 
     const done = consentStatusFrom([
       { consent_type: "kvkk_aydinlatma", version: "2026-11-08" },
-      { consent_type: "kullanim_kosullari", version: "2026-11-07" },
+      { consent_type: "kullanim_kosullari", version: "2026-11-21" },
       { consent_type: "yas_beyani", version: "2026-11-07" },
       { consent_type: "satis_sozlesmeleri", version: "2026-11-07" },
     ]);

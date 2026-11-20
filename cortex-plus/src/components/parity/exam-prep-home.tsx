@@ -94,6 +94,7 @@ import { MOMENT_MS, startMoment } from "@/lib/ui/moment";
 import { isPathMemory, pathMemoryKey, readMoment, writeMoment, type PathMemory } from "@/lib/ui/moment-memory";
 import { formatDayLong } from "@/lib/format";
 import { PrepBasicsPanel } from "@/components/parity/prep-basics-panel";
+import { PrepDeleteButton } from "@/components/parity/prep-delete-button";
 import {
   buildPrepRadarView,
   tempoFromProgress,
@@ -1162,6 +1163,15 @@ export function ExamPrepHome({
                       <Settings className="h-4 w-4" aria-hidden />
                       Ayarlar
                     </button>
+                  </li>
+                  {/* 21 Kasım 2026: silme Ayarlar sekmesinin dibindeydi, bulunmuyordu; listenin sonunda, onay penceresiyle. */}
+                  <li>
+                    <PrepDeleteButton
+                      prepId={prepId}
+                      title={title}
+                      variant="row"
+                      redirectTo="/deneme-sinavlari"
+                    />
                   </li>
                 </ul>
               </>

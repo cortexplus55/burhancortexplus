@@ -1,4 +1,4 @@
--- YAZILDI, UYGULANMADI.
+-- UYGULANDI: 21 Kasım 2026, #720 yayınından sonra (Supabase SQL ekranı + kayıt satırı; docs/operasyon/goc-kayitlari.md).
 -- Faz 10 (20 Kasım 2026, ürün sahibinin kararı): yeni hazırlığın yolu az sayıda ANA ÜNİTEDEN kurulur; konu haritasının
 -- bulduğu ince konular o ünitenin alt başlıklarıdır. `exam_prep_topics.subtopics` ünitenin alt başlıklarını taşır
 -- (jsonb string[]). Eski satırlar boş dizi alır ve bugünkü gibi çalışır (alt başlıksız satır = eski konu).

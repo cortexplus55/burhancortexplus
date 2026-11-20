@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
+// Kartta "Hazırlığı sil" (21 Kasım 2026) yönlendiriciyi kullanır.
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn(), replace: vi.fn() }), usePathname: () => "/deneme-sinavlari", useSearchParams: () => new URLSearchParams() }));
 vi.mock("server-only", () => ({}));
 
 import { toPrepCard } from "@/lib/learning/prep-cards";

@@ -16611,3 +16611,59 @@ a.cp-exam-search {
     box-shadow: var(--glass-inset);
   }
 }
+
+/*
+  Hazırlığı sil (21 Kasım 2026, `prep-delete-button.tsx`): Sınavlar kartının köşesinde simge düğme, hazırlık sayfasının
+  Seçenekler listesinde tehlike satırı. Renkler token'dan; dokunma alanı 40 px (telefonda 44).
+*/
+.cp-prep-card-top {
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cp-prep-card-top--bare {
+  margin-bottom: -0.25rem;
+}
+
+.cp-prep-card-delete {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin-left: auto;
+  border: 0;
+  border-radius: 999px;
+  color: var(--cx-text-secondary);
+  cursor: pointer;
+  transition: color 160ms ease, scale 220ms var(--cx-ease-out, ease);
+}
+
+.cp-prep-card-delete:hover,
+.cp-prep-card-delete:focus-visible {
+  color: var(--cx-danger);
+}
+
+.cp-prep-card-delete:focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}
+
+@media (max-width: 767px) {
+  .cp-prep-card-delete {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+.cp-prep-sheet-list button.cp-prep-sheet-danger {
+  color: var(--cx-danger);
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-prep-card-delete {
+    transition: color 160ms ease;
+  }
+}
