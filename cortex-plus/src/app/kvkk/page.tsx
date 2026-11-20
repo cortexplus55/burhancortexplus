@@ -1,5 +1,5 @@
 import { LegalDocument } from "@/components/layout/legal-document";
-import { KVKK_SECTIONS, KVKK_SUMMARY, KVKK_VERSION } from "@/lib/legal/kvkk-text";
+import { KVKK_SECTIONS, KVKK_SUMMARY, KVKK_VERSION_LABEL } from "@/lib/legal/kvkk-text";
 
 export const metadata = {
   title: "KVKK aydınlatma metni",
@@ -15,7 +15,7 @@ export default function KvkkPage() {
     <LegalDocument
       title="KVKK aydınlatma metni"
       description="6698 sayılı Kişisel Verilerin Korunması Kanunu kapsamında hazırlanmıştır."
-      version={KVKK_VERSION}
+      version={KVKK_VERSION_LABEL}
       summary={KVKK_SUMMARY}
       sections={KVKK_SECTIONS}
     />

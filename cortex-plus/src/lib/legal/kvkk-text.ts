@@ -1,6 +1,6 @@
 import { SELLER, sellerField } from "@/lib/legal/seller";
 import { CROSS_BORDER_SCC_NOTIFIED } from "@/lib/legal/compliance-flags";
-import { LEGAL_VERSIONS } from "@/lib/legal/versions";
+import { KVKK_TEXT_DATE, LEGAL_VERSIONS } from "@/lib/legal/versions";
 import type { LegalSection } from "@/lib/legal/legal-types";
 
 /**
@@ -18,6 +18,10 @@ import type { LegalSection } from "@/lib/legal/legal-types";
  */
 
 export const KVKK_VERSION = LEGAL_VERSIONS.kvkk_aydinlatma;
+
+/** Sayfa başındaki satır: onay sürümü, metin ondan sonra açıklandıysa son güncelleme tarihi de. */
+export const KVKK_VERSION_LABEL =
+  KVKK_TEXT_DATE === KVKK_VERSION ? KVKK_VERSION : `${KVKK_VERSION} · son güncelleme ${KVKK_TEXT_DATE}`;
 
 /** Kısaca — 12 yaşındaki bir öğrencinin bir dakikada okuyabileceği özet. Asıl metnin yerini tutmaz. */
 export const KVKK_SUMMARY: string[] = [
@@ -63,6 +67,7 @@ export const KVKK_SECTIONS: LegalSection[] = [
     body: [
       "Hesabını açmak ve korumak; seni tanımak ve giriş yapmanı sağlamak.",
       "Yüklediğin notlardan ya da seçtiğin konudan ders, test, kart, podcast, sözlü pratik ve çalışma planı hazırlamak; cevaplarını değerlendirmek ve ilerlemeni göstermek.",
+      "Çalışma, soru çözümü ve hata kayıtlarını sana özel anlatım hazırlamak ve eksik kaldığın konuları bulmak için kullanmak: öğretmen sohbeti, dersler ve çalışma yolu bu kayıtlara göre sana uyarlanır.",
       "Ödemeleri almak, aboneliğini yönetmek, iade ve itirazları sonuçlandırmak, fatura ve muhasebe yükümlülüklerini yerine getirmek.",
       "Destek taleplerini cevaplamak, sana hizmetle ilgili bildirim ve hatırlatma göndermek.",
       "Hizmetin güvenliğini sağlamak: kötüye kullanımı, sahte hesabı ve otomatik saldırıları önlemek, hataları bulup düzeltmek.",
@@ -73,7 +78,7 @@ export const KVKK_SECTIONS: LegalSection[] = [
   {
     heading: "Hukuki sebepler",
     body: [
-      "Sözleşmenin kurulması ve ifası (KVKK m.5/2-c): hesap, ders ve içerik üretimi, ilerleme, ödeme, destek.",
+      "Sözleşmenin kurulması ve ifası (KVKK m.5/2-c): hesap, ders ve içerik üretimi, çalışma ve hata kayıtlarına göre kişiye özel anlatım ve eksik analizi, ilerleme, ödeme, destek.",
       "Hukuki yükümlülük (m.5/2-ç): vergi ve ticaret mevzuatı gereği ödeme kayıtları, elektronik ticaret mevzuatındaki yükümlülükler, yetkili kurumların talepleri.",
       "Bir hakkın tesisi, kullanılması veya korunması (m.5/2-e): bir uyuşmazlıkta kanıt olacak onay ve ödeme kayıtları.",
       "Meşru menfaat (m.5/2-f): güvenlik, kötüye kullanımın önlenmesi, hız sınırı, cihaz sınırı ve hata izleme; temel haklarına zarar vermeyecek ölçüde.",
@@ -154,7 +159,7 @@ export const KVKK_SECTIONS: LegalSection[] = [
   {
     heading: "Bu metindeki değişiklikler",
     body: [
-      `Metni güncellersek sürüm tarihi değişir; önemli değişikliklerde bir sonraki girişinde yeni metni gösterir ve okuduğunu yeniden onaylamanı isteriz. Bu metnin sürümü: ${KVKK_VERSION}.`,
+      `Metni güncellersek tarihi değişir. Yeni bir veri, amaç, alıcı ya da hukuki sebep eklersek bir sonraki girişinde yeni metni gösterir ve okuduğunu yeniden onaylamanı isteriz; yalnız var olan bir maddeyi daha açık yazdığımızda yeniden onay istemeyiz. Son güncelleme: ${KVKK_TEXT_DATE}; onay sürümü: ${KVKK_VERSION}.`,
     ],
   },
 ];
