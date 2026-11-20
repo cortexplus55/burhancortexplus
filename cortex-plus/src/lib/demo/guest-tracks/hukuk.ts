@@ -186,8 +186,11 @@ export const HUKUK_TRUE_FALSE: TourTrueFalse[] = [
 ];
 
 /**
- * Çizimli video önizlemesi: ürünün karar akışı sahnesi. Anayasa değişikliği üç kademeli karar ağacı ve çoğunluk
- * barometresi; örnek oylamada 380 kabul oyu 3/5'i (360) geçer, 2/3'ü (400) geçmez: değişiklik halkoyuna gider.
+ * Çizimli video önizlemesi: ürünün karar akışı sahnesi. Anayasa değişikliği (m. 175) üç basamaklı merdiven: teklif
+ * (1/3 = 200 imza) → gizli oyla kabul (3/5 = 360) → kabul oyunun büyüklüğü: 360–399 oyla kabul edilen değişiklik halkoyuna
+ * sunulur; 400 (2/3) ve üstünde Cumhurbaşkanı yayımlar ya da halkoyuna sunar. Altta 600 sandalyelik çoğunluk
+ * barometresi: örnek oylamada 380 kabul oyu 3/5'i geçer, 2/3'ü geçmez, yani değişiklik halkoyuna gider. Sayılar dersin,
+ * konu testinin ve doğru/yanlışın sayılarıyla aynı (200, 360, 400; 600 üye).
  */
 export const HUKUK_SKETCH: TourReelSketch = {
   kind: "reel",
@@ -207,16 +210,27 @@ export const HUKUK_SKETCH: TourReelSketch = {
           archetype: "LAW_SOCIAL_FLOWCHART",
           title: "Anayasa değişikliği: teklif, oylama, sonuç",
           pedagogicalLevel: 4,
-          // Dikey videoda ağaç üç kademe iç içe daralır: düğüm ve sonuç metinleri kısa (kesilmeden sığsın).
+          // Usul akışı: her basamakta "hayır" sonuca çıkar, "evet" sonraki basamağa iner (sahne merdiven çizer). Son
+          // basamakta iki kabul yolu da olumlu sonuç (halkoyu bir ret değil).
           nodes: [
             { id: "teklif", text: "En az 200 (1/3) imzalı teklif mi?", yes: "oylama", no: "Teklif yapılamaz" },
             { id: "oylama", text: "Gizli oyla 360 (3/5) kabul mü?", yes: "sonuc", no: "Reddedilir" },
-            { id: "sonuc", text: "Kabul 400 (2/3) ya da üstü mü?", yes: "Yayım ya da halkoyu", no: "Halkoyuna gider" },
+            {
+              id: "sonuc",
+              text: "Kabul oyu kaç?",
+              branches: [
+                { label: "360–399 oy", to: "halkoyu" },
+                { label: "400 ve üstü", to: "yayim" },
+              ],
+            },
+            { id: "halkoyu", text: "Halkoyuna sunulur", tone: "positive" },
+            { id: "yayim", text: "Yayım ya da halkoyu", tone: "positive" },
           ],
-          // Etiket bütçesi dar ekranda satır düşürür: önce 3/5 ve 2/3 (örnek oylama 380: biri geçilir, biri geçilmez).
+          // Tek sandalye ölçeği (600 üye): eşikler 200, 360, 400; gerçekleşen örnek oylama 380 (teklif imzası ayrı bir
+          // sayı olduğu için onun satırında gerçekleşen yok, eşik nötr çizilir).
           majority: [
-            { label: "Kabul (gizli oy)", fraction: "3/5", count: 360, total: 600, actual: 380 },
-            { label: "Doğrudan yayım", fraction: "2/3", count: 400, total: 600, actual: 380 },
+            { label: "Halkoyu", fraction: "3/5", count: 360, total: 600, actual: 380 },
+            { label: "Yayım ya da halkoyu", fraction: "2/3", count: 400, total: 600, actual: 380 },
             { label: "Teklif", fraction: "1/3", count: 200, total: 600 },
           ],
         },

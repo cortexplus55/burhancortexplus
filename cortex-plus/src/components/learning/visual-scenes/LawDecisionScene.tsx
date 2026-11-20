@@ -5,6 +5,7 @@ import {
   labelBudget,
   layoutHeader,
   segment,
+  shiftBox,
   textPlacer,
   type Rect,
   type SceneFrame,
@@ -22,6 +23,12 @@ import { SceneBadge, SceneSvg, SceneText, delay, type SceneCommonProps } from ".
  * sonuçtur. Dar alanda ve çok yapraklı ağaçta girintili ağaç çizilir. Çoğunluk barometresi eşiği, toplamı ve
  * gerçekleşeni gösterir (eşik geçildiyse yeşil, geçilmediyse kırmızı). Kronolojik zaman çizgisi ve isteğe bağlı
  * "Genel Kural vs. İstisna" tablosu (kaynak istisna söylemiyorsa tablo ya da istisna sütunu çizilmez).
+ *
+ * Merdiven ve sandalye ölçeği (Faz 9, 20 Kasım 2026; misafir turunda hukuk sahnesinin yaprakları kesiliyor, barometre
+ * tek satıra düşüyordu): her soruda en çok bir alt soru varsa (usul akışı: teklif → oylama → sonuç) ağaç merdiven
+ * çizilir; sorular tam genişlikte alt alta, öbür dallar sağdaki kartlara çıkar, girinti birikmez. Eşiklerin hepsi aynı
+ * toplamdaysa (ör. 600 üye) ve gerçekleşen tek bir sayıysa barometre tek sandalye ölçeğinde birleşir: dolgu
+ * gerçekleşeni, çentikler her eşiği gösterir (durum yeşil onay / kırmızı çarpı ve renk). Biçim veriden seçilir.
  */
 
 export const LAW_COLORS = {
@@ -33,6 +40,8 @@ export const LAW_COLORS = {
   question: "#c4b5fd",
   yes: "#22c55e",
   no: "#ef4444",
+  /** Yazıda kırmızı: renkli kartın zemininde de AA (4,5:1) tutan açık ton; çizgi ve dolgu `no`. */
+  noText: "#f87171",
   branch: "#38bdf8",
   rule: "#60a5fa",
   exception: "#f59e0b",
@@ -43,22 +52,51 @@ export const LAW_COLORS = {
 
 type Tone = LawTreeNode["tone"];
 const TONE_COLOR: Record<Tone, string> = { positive: LAW_COLORS.yes, negative: LAW_COLORS.no, neutral: LAW_COLORS.branch };
+/** Yazı rengi (dal etiketi, eşik değeri): kırmızı yazıda açık ton. */
+export const TONE_TEXT: Record<Tone, string> = { positive: LAW_COLORS.yes, negative: LAW_COLORS.noText, neutral: LAW_COLORS.branch };
+/** Sonuç kartının zemini: tonun bu kadar opaklığı sahne zemininin üstünde (yazı kontrastı bununla ölçülür). */
+export const LEAF_FILL_OPACITY = 0.12;
 
 type Section = { texts: TextBox[]; segments: Segment[]; markers: SceneLayout["markers"]; height: number };
 
-export type TreeNodeBox = { key: string; depth: number; leaf: boolean; tone: Tone; rect: Rect; text: TextBox };
+export type TreeNodeBox = { key: string; depth: number; leaf: boolean; tone: Tone; rect: Rect; text: TextBox; icon?: { cx: number; cy: number } };
 export type TreeEdge = { tone: Tone; points: [number, number][] };
 export type TreeLayout = Section & {
-  mode: "tidy" | "indent";
+  mode: "tidy" | "indent" | "ladder";
   depth: number;
   nodes: TreeNodeBox[];
   edges: TreeEdge[];
   tags: { tone: Tone; box: TextBox }[];
 };
-export type MajorityLayout = Section & {
+export type MajorityRowsLayout = Section & {
+  kind: "rows";
   kicker: TextBox;
   rows: { label: TextBox; value: TextBox; note: TextBox | null; track: Rect; ratio: number; fill: number; pass: boolean | null }[];
 };
+export type MeterTick = {
+  x: number;
+  ratio: number;
+  count: number;
+  pass: boolean | null;
+  side: "above" | "below";
+  value: TextBox;
+  name: TextBox | null;
+  status: { cx: number; cy: number; r: number } | null;
+  tick: Segment;
+  leader: Segment;
+};
+export type MeterLayout = Section & {
+  kind: "meter";
+  kicker: TextBox;
+  legend: TextBox;
+  total: number;
+  actual: number | null;
+  bar: Rect;
+  /** `zone`: bloğun önünde kalan eşik sayısı (gerçekleşen yoksa bölge tonu bununla). */
+  blocks: { x: number; w: number; filled: boolean; zone: number }[];
+  ticks: MeterTick[];
+};
+export type MajorityLayout = MajorityRowsLayout | MeterLayout;
 export type TimelineLayout = Section & {
   kicker: TextBox;
   vertical: boolean;
@@ -157,7 +195,8 @@ function tidyTree(place: TextPlacer, root: LawTreeNode, x: number, y: number, w:
       const rect: Rect = { x: item.cx - item.boxW / 2, y: rowTop[d]!, w: item.boxW, h };
       const text = { ...item.text, x: rect.x + ICON, y: rect.y + pad, rect: { ...item.text.rect, x: rect.x + ICON, y: rect.y + pad } };
       boxOf.set(item, rect);
-      nodes.push({ key: item.node.key, depth: d, leaf: item.leaf, tone: item.leaf ? item.tone : "neutral", rect, text });
+      // Yaprağın tonu düğümün kendi tonu (verideki `tone`; yoksa dalın tonu, `lawTreeOf`).
+      nodes.push({ key: item.node.key, depth: d, leaf: item.leaf, tone: item.leaf ? item.node.tone : "neutral", rect, text });
       texts.push(text);
     }),
   );
@@ -190,7 +229,7 @@ function indentTree(place: TextPlacer, root: LawTreeNode, x: number, y: number, 
   const edges: TreeEdge[] = [];
   const tags: TreeLayout["tags"] = [];
   let cursor = y;
-  const visit = (node: LawTreeNode, tone: Tone, label: { label: string; tone: Tone } | null, parentRect: Rect | null) => {
+  const visit = (node: LawTreeNode, label: { label: string; tone: Tone } | null, parentRect: Rect | null) => {
     // Çocuk ebeveynin kutusuna göre girer: omurga (kutunun 8 px içi) hep çocuk satırlarının solunda kalır.
     const left = parentRect ? parentRect.x + indent : x;
     let tagW = 0;
@@ -210,7 +249,7 @@ function indentTree(place: TextPlacer, root: LawTreeNode, x: number, y: number, 
     });
     const h = Math.max(text.rect.h, tagBox?.rect.h ?? 0) + pad * 2;
     const rect: Rect = { x: boxX, y: cursor, w: x + w - boxX, h };
-    nodes.push({ key: node.key, depth: node.depth, leaf, tone: leaf ? tone : "neutral", rect, text });
+    nodes.push({ key: node.key, depth: node.depth, leaf, tone: leaf ? node.tone : "neutral", rect, text });
     texts.push(text);
     if (tagBox && label) {
       tags.push({ tone: label.tone, box: tagBox });
@@ -222,18 +261,122 @@ function indentTree(place: TextPlacer, root: LawTreeNode, x: number, y: number, 
       edges.push({ tone: label.tone, points: [[spineX, parentRect.y + parentRect.h], [spineX, midY], [left - 1, midY]] });
     }
     cursor += h + rowGap;
-    for (const child of node.children) visit(child.node, child.tone, { label: child.label, tone: child.tone }, rect);
+    for (const child of node.children) visit(child.node, { label: child.label, tone: child.tone }, rect);
   };
-  visit(root, "neutral", null, null);
+  visit(root, null, null);
   return { mode: "indent", depth: lawTreeDepth(root), nodes, edges, tags, texts, segments: pathSegments("tree-edge", edges), markers: [], height: cursor - rowGap - y };
 }
 
-/** İki biçimden kesik yazı bırakmayanı seçer: önce katmanlı (yaprak sütuna sığıyorsa), sonra girintili. */
+/** Merdiven basamağı: soru, sonraki soruya giden dal (yoksa son basamak) ve sonuca çıkan öbür dallar. */
+export type LawSpineStep = { node: LawTreeNode; next: LawTreeNode["children"][number] | null; exits: LawTreeNode["children"] };
+
+/**
+ * Omurga biçimli ağaç (usul akışı): her soruda en çok bir alt soru, öbür dallar sonuç; en az iki soru kademesi. Değilse
+ * (iki alt soru, tek kademe) null: ağaç katmanlı ya da girintili çizilir.
+ */
+export function lawSpine(root: LawTreeNode | null): LawSpineStep[] | null {
+  const steps: LawSpineStep[] = [];
+  let node: LawTreeNode | null = root;
+  while (node && node.children.length) {
+    const inner = node.children.filter((child) => child.node.children.length > 0);
+    if (inner.length > 1) return null;
+    const next = inner[0] ?? null;
+    steps.push({ node, next, exits: node.children.filter((child) => child !== next) });
+    node = next?.node ?? null;
+  }
+  return steps.length >= 2 ? steps : null;
+}
+
+/** Sonuç kartındaki durum simgesinin yarıçapı. */
+const LEAF_ICON_R = 7.5;
+
+/**
+ * Merdiven: sorular tam genişlikte alt alta, aralarında omurga (devam dalı, etiketi omurganın yanında). Öbür dallar
+ * sağdaki sonuç kartlarına çıkar: kart dal etiketini, durum simgesini ve sonucu taşır; ray kartın solundan iner. Son
+ * sorunun bütün dalları omurgadan kartlara çıkar. Girinti birikmediği için yaprak yazısı derinlikle daralmaz.
+ */
+function ladderTree(place: TextPlacer, steps: LawSpineStep[], depth: number, x: number, y: number, w: number, lines: number, compact: boolean): TreeLayout {
+  const pad = compact ? 6 : 7;
+  const chipPadX = 8;
+  const chipPadY = compact ? 4 : 5;
+  const band = compact ? 6 : 7;
+  const stack = compact ? 4 : 5;
+  const spineX = x + 13;
+  const nodes: TreeNodeBox[] = [];
+  const texts: TextBox[] = [];
+  const edges: TreeEdge[] = [];
+  const tags: TreeLayout["tags"] = [];
+  let cursor = y;
+  for (const step of steps) {
+    const text = place(`tree-${step.node.key}`, step.node.text, x + ICON, cursor + pad, { maxWidth: w - ICON - 10, maxLines: lines, fontSize: 12.5, minFontSize: 10, weight: 700 });
+    const rect: Rect = { x, y: cursor, w, h: text.rect.h + pad * 2 };
+    nodes.push({ key: step.node.key, depth: step.node.depth, leaf: false, tone: "neutral", rect, text });
+    texts.push(text);
+    const boxBottom = rect.y + rect.h;
+    const bandTop = boxBottom + band;
+    // Devam dalının etiketi omurganın sağında; kartlar ve ray onun sağından başlar (çizgi yazıya binmez).
+    const cont = step.next ? place(`tree-tag-${step.next.node.key}`, step.next.label, spineX + 7, 0, { maxWidth: 90, maxLines: 2, fontSize: 10, weight: 800 }) : null;
+    const chipX = cont ? Math.max(spineX + 16, cont.rect.x + cont.rect.w + 14) : spineX + 16;
+    const railX = cont ? chipX - 8 : spineX;
+    let rowY = bandTop;
+    let from = boxBottom;
+    let firstMid: number | null = null;
+    // Aynı basamağın kartları hizalı: etiket sütunu en geniş etikete göre, kart genişliği en geniş sonuca göre.
+    const tags0 = step.exits.map((exit) =>
+      place(`tree-tag-${exit.node.key}`, exit.label, chipX + chipPadX, 0, { maxWidth: Math.min(130, (x + w - chipX) * 0.45), maxLines: 2, fontSize: 10, weight: 800 }),
+    );
+    const iconCx = chipX + chipPadX + Math.max(0, ...tags0.map((tag) => tag.rect.w)) + 8 + LEAF_ICON_R;
+    const textX = iconCx + LEAF_ICON_R + 6;
+    const texts0 = step.exits.map((exit) =>
+      place(`tree-${exit.node.key}`, exit.node.text, textX, 0, { maxWidth: x + w - chipPadX - textX, maxLines: 2, fontSize: 11.5, minFontSize: 10, weight: 600 }),
+    );
+    const chipW = Math.min(x + w - chipX, textX + Math.max(0, ...texts0.map((text) => text.rect.w)) + chipPadX - chipX);
+    step.exits.forEach((exit, at) => {
+      const tag0 = tags0[at]!;
+      const text0 = texts0[at]!;
+      const h = Math.max(text0.rect.h, tag0.rect.h, LEAF_ICON_R * 2) + chipPadY * 2;
+      const mid = rowY + h / 2;
+      const tag = shiftBox(tag0, 0, mid - tag0.rect.h / 2);
+      const leafText = shiftBox(text0, 0, mid - text0.rect.h / 2);
+      const chip: Rect = { x: chipX, y: rowY, w: chipW, h };
+      nodes.push({ key: exit.node.key, depth: exit.node.depth, leaf: true, tone: exit.node.tone, rect: chip, text: leafText, icon: { cx: iconCx, cy: mid } });
+      texts.push(leafText, tag);
+      tags.push({ tone: exit.tone, box: tag });
+      edges.push({ tone: exit.tone, points: [[railX, from], [railX, mid], [chipX, mid]] });
+      from = mid;
+      firstMid ??= mid;
+      rowY += h + stack;
+    });
+    let bottom = step.exits.length ? rowY - stack : bandTop;
+    if (cont && step.next) {
+      const tag = shiftBox(cont, 0, firstMid !== null ? firstMid - cont.rect.h / 2 : bandTop);
+      texts.push(tag);
+      tags.push({ tone: step.next.tone, box: tag });
+      bottom = Math.max(bottom, tag.rect.y + tag.rect.h);
+      const nextTop = bottom + band;
+      edges.push({ tone: step.next.tone, points: [[spineX, boxBottom], [spineX, nextTop]] });
+      cursor = nextTop;
+    } else {
+      cursor = bottom;
+    }
+  }
+  return { mode: "ladder", depth, nodes, edges, tags, texts, segments: pathSegments("tree-edge", edges), markers: [], height: cursor - y };
+}
+
+/**
+ * Biçimi veriden seçer, kesik yazı bırakmayanı alır: omurga biçimli ağaç merdiven, değilse önce katmanlı (yaprak
+ * sütuna sığıyorsa), sonra girintili.
+ */
 function layoutTree(place: TextPlacer, root: LawTreeNode, x: number, y: number, w: number, density: number, portrait: boolean): TreeLayout {
   const lines = density >= 2 ? 2 : 3;
   const compact = density >= 2;
   const maxCols = portrait ? 3 : w >= 420 ? 4 : 3;
   const whole = (tree: TreeLayout) => tree.texts.every((box) => !box.truncated);
+  const spine = lawSpine(root);
+  if (spine) {
+    const ladder = ladderTree(place, spine, lawTreeDepth(root), x, y, w, lines, compact);
+    if (whole(ladder)) return ladder;
+  }
   if (leafCount(root) <= maxCols) {
     const tidy = tidyTree(place, root, x, y, w, lines, compact);
     if (whole(tidy)) return tidy;
@@ -241,8 +384,181 @@ function layoutTree(place: TextPlacer, root: LawTreeNode, x: number, y: number, 
   return indentTree(place, root, x, y, w, lines, compact);
 }
 
-function layoutMajority(place: TextPlacer, rows: LawDecisionData["majority"], x: number, y: number, w: number, notes = true): MajorityLayout | null {
+/** Sandalye ölçeğinde en çok bu kadar blok: toplam büyükse her blok birden çok sandalyeyi gösterir. */
+export const METER_MAX_BLOCKS = 60;
+
+/**
+ * Eşikler tek ölçekte birleşir mi: en az iki satır, hepsi aynı toplamda ve gerçekleşen (varsa) tek bir sayı. Satırların
+ * gerçekleşenleri farklıysa (oy ve katılım gibi) ayrı satırlar kalır.
+ */
+export function sharedMajority(rows: LawDecisionData["majority"]): { total: number; actual: number | null } | null {
+  if (rows.length < 2) return null;
+  const total = rows[0]!.total;
+  if (!total || rows.some((row) => row.total !== total)) return null;
+  const actuals = [...new Set(rows.map((row) => row.actual).filter((value): value is number => value !== undefined))];
+  if (actuals.length > 1) return null;
+  const actual = actuals[0] ?? null;
+  if (actual !== null && actual > total) return null;
+  if (rows.some((row) => row.count !== undefined && row.count > total)) return null;
+  return { total, actual };
+}
+
+/** Etiket bloklarını çentiklerinin ortasına koyar; çakışırsa yana kaydırır. Sığmazsa null. */
+function packBlocks(items: { tick: number; width: number }[], minX: number, maxX: number, gap: number): number[] | null {
+  const lefts = items.map((item) => item.tick - item.width / 2);
+  for (let index = 0; index < items.length; index += 1) {
+    const prev = index ? lefts[index - 1]! + items[index - 1]!.width + gap : minX;
+    lefts[index] = Math.max(lefts[index]!, minX, prev);
+  }
+  for (let index = items.length - 1; index >= 0; index -= 1) {
+    const limit = index === items.length - 1 ? maxX : lefts[index + 1]! - gap;
+    if (lefts[index]! + items[index]!.width > limit) lefts[index] = limit - items[index]!.width;
+  }
+  return lefts.length && lefts[0]! < minX - 0.5 ? null : lefts;
+}
+
+/**
+ * Sandalye ölçeği: başlık satırında "ÇOĞUNLUK BAROMETRESİ" ve sağda gerçekleşen (ya da toplam), altında toplamı bloklara
+ * bölen şerit (gerçekleşen kadar dolu). Her eşik şeridi bir çentikle keser; etiketi (kesir = sayı, altında ad) sırayla
+ * üstte ve altta durur, çakışırsa yana kayar ve kısa bir bağlantı çizgisiyle çentiğe bağlanır. Durum renkle ve
+ * simgeyle (onay / çarpı) verilir; gerçekleşeni olmayan eşik nötr. Etiketler sığmazsa null (satırlı barometreye dönülür).
+ */
+function layoutMeter(place: TextPlacer, rows: LawDecisionData["majority"], x: number, y: number, w: number, names: boolean, compact: boolean): MeterLayout | null {
+  const shared = sharedMajority(rows);
+  if (!shared) return null;
+  const { total, actual } = shared;
+  const legendRaw = place("majority-legend", actual !== null ? `${actual}/${total}` : `Toplam ${total}`, x + w, y, { maxWidth: w * 0.45, maxLines: 1, fontSize: 10.5, weight: 800, anchor: "end", single: true });
+  if (legendRaw.truncated) return null;
+  let kicker = place("majority-kicker", "ÇOĞUNLUK BAROMETRESİ", x, y, { maxWidth: w - legendRaw.rect.w - 10, maxLines: 1, fontSize: 9.5, weight: 800, single: true });
+  let legend = legendRaw;
+  if (kicker.truncated) {
+    // Dar sütunda gerçekleşen kendi satırına iner.
+    kicker = place("majority-kicker", "ÇOĞUNLUK BAROMETRESİ", x, y, { maxWidth: w, maxLines: 1, fontSize: 9.5, weight: 800, single: true });
+    if (kicker.truncated) return null;
+    legend = shiftBox(legendRaw, 0, kicker.rect.h + 2);
+  }
+  const head = Math.max(kicker.rect.y + kicker.rect.h, legend.rect.y + legend.rect.h);
+  const lead = 9;
+  const iconR = 5.5;
+
+  type Item = { index: number; ratio: number; count: number; pass: boolean | null; tick: number; valueText: string; label: string };
+  const items: Item[] = rows
+    .map((row, index) => {
+      const fraction = parseFraction(row.fraction)!;
+      const ratio = fraction.num / fraction.den;
+      const count = row.count ?? Math.ceil(total * ratio);
+      return {
+        index,
+        ratio,
+        count,
+        pass: actual !== null && row.actual !== undefined ? actual >= count : null,
+        tick: x + w * Math.min(1, count / total),
+        valueText: `${fraction.num}/${fraction.den}${row.count ? ` = ${row.count}` : ""}`,
+        label: row.label,
+      };
+    })
+    .sort((a, b) => a.tick - b.tick);
+
+  const measure = (item: Item, withName: boolean) => {
+    const value = place(`majority${item.index}-value`, item.valueText, 0, 0, { maxWidth: w, maxLines: 1, fontSize: 11, weight: 800, single: true });
+    const name = withName ? place(`majority${item.index}-label`, item.label, 0, 0, { maxWidth: Math.max(96, w * 0.45), maxLines: 2, fontSize: 10.5, weight: 400 }) : null;
+    const iconW = item.pass === null ? 0 : iconR * 2 + 5;
+    return { value, name, iconW, width: Math.max(value.rect.w + iconW, name?.rect.w ?? 0) };
+  };
+
+  // Sırayla üst ve alt yuva; önce adlarla, sığmazsa yalnız değerle.
+  type Placed = { item: Item; side: "above" | "below"; left: number; m: ReturnType<typeof measure> };
+  let plan: Placed[] | null = null;
+  for (const withName of names ? [true, false] : [false]) {
+    const measured = items.map((item, order) => ({ item, side: (order % 2 === 0 ? "above" : "below") as "above" | "below", m: measure(item, withName) }));
+    const placed: Placed[] = [];
+    let ok = true;
+    for (const side of ["above", "below"] as const) {
+      const slot = measured.filter((entry) => entry.side === side);
+      const lefts = packBlocks(slot.map((entry) => ({ tick: entry.item.tick, width: entry.m.width })), x, x + w, 10);
+      if (!lefts) {
+        ok = false;
+        break;
+      }
+      slot.forEach((entry, at) => placed.push({ ...entry, left: lefts[at]! }));
+      if (slot.some((entry) => entry.m.value.truncated || entry.m.name?.truncated)) ok = false;
+    }
+    if (ok) {
+      plan = placed;
+      break;
+    }
+  }
+  if (!plan) return null;
+
+  const blockH = (entry: Placed) => entry.m.value.rect.h + (entry.m.name ? entry.m.name.rect.h + 2 : 0);
+  const aboveH = Math.max(0, ...plan.filter((entry) => entry.side === "above").map(blockH));
+  const belowH = Math.max(0, ...plan.filter((entry) => entry.side === "below").map(blockH));
+  const barH = compact ? 12 : 14;
+  const barTop = head + 6 + (aboveH ? aboveH + lead : 4);
+  const barBottom = barTop + barH;
+  const bar: Rect = { x, y: barTop, w, h: barH };
+
+  const ticks: MeterTick[] = plan.map((entry) => {
+    const { m, item } = entry;
+    const center = entry.left + m.width / 2;
+    const lineW = m.value.rect.w + m.iconW;
+    const lineLeft = center - lineW / 2;
+    const above = entry.side === "above";
+    const valueY = above ? barTop - lead - m.value.rect.h : barBottom + lead;
+    const nameY = above ? valueY - 2 - (m.name?.rect.h ?? 0) : valueY + m.value.rect.h + 2;
+    const value = place(`majority${item.index}-value`, item.valueText, lineLeft + m.iconW, valueY, { maxWidth: w, maxLines: 1, fontSize: 11, weight: 800, single: true });
+    const name = m.name
+      ? place(`majority${item.index}-label`, item.label, center, nameY, { maxWidth: Math.max(96, w * 0.45), maxLines: 2, fontSize: 10.5, weight: 400, anchor: "middle" })
+      : null;
+    const status = item.pass === null ? null : { cx: lineLeft + iconR, cy: valueY + value.rect.h / 2, r: iconR };
+    const tick = segment(`majority${item.index}-tick`, item.tick, barTop - 4, item.tick, barBottom + 4);
+    const leader = above
+      ? segment(`majority${item.index}-leader`, item.tick, barTop - 4, center, barTop - lead + 1)
+      : segment(`majority${item.index}-leader`, item.tick, barBottom + 4, center, barBottom + lead - 1);
+    return { x: item.tick, ratio: item.ratio, count: item.count, pass: item.pass, side: entry.side, value, name, status, tick, leader };
+  });
+
+  const step = Math.max(1, Math.ceil(total / METER_MAX_BLOCKS));
+  const count = Math.ceil(total / step);
+  const cell = w / count;
+  const gap = cell >= 3.5 ? Math.min(1.4, cell * 0.25) : 0;
+  const filledBlocks = actual === null ? 0 : Math.round(actual / step);
+  // Gerçekleşen yoksa bloklar eşik bölgelerine göre koyulaşır (her eşikten sonrası bir kademe): ölçek boş görünmesin.
+  const thresholds = items.map((item) => item.count).sort((a, b) => a - b);
+  const blocks = Array.from({ length: count }, (_, index) => ({
+    x: x + index * cell + gap / 2,
+    w: cell - gap,
+    filled: index < filledBlocks,
+    zone: thresholds.filter((seat) => index * step >= seat - step / 2).length,
+  }));
+
+  const bottom = belowH ? barBottom + lead + belowH : barBottom + 4;
+  return {
+    kind: "meter",
+    texts: [kicker, legend, ...ticks.flatMap((tick) => [tick.value, ...(tick.name ? [tick.name] : [])])],
+    segments: ticks.flatMap((tick) => [tick.tick, tick.leader]),
+    markers: [
+      { id: "majority-bar", rect: bar },
+      ...ticks.filter((tick) => tick.status).map((tick, index) => ({ id: `majority-status${index}`, rect: { x: tick.status!.cx - tick.status!.r, y: tick.status!.cy - tick.status!.r, w: tick.status!.r * 2, h: tick.status!.r * 2 } })),
+    ],
+    height: bottom - y,
+    kicker,
+    legend,
+    total,
+    actual,
+    bar,
+    blocks,
+    ticks,
+  };
+}
+
+/** Ortak toplamlı eşikler sandalye ölçeğinde, değilse (ya da etiketler sığmazsa) satır satır. */
+function layoutMajority(place: TextPlacer, rows: LawDecisionData["majority"], x: number, y: number, w: number, notes = true, compact = false): MajorityLayout | null {
   if (!rows.length) return null;
+  return layoutMeter(place, rows, x, y, w, notes, compact) ?? layoutMajorityRows(place, rows, x, y, w, notes);
+}
+
+function layoutMajorityRows(place: TextPlacer, rows: LawDecisionData["majority"], x: number, y: number, w: number, notes: boolean): MajorityRowsLayout {
   const kicker = place("majority-kicker", "ÇOĞUNLUK BAROMETRESİ", x, y, { maxWidth: w, maxLines: 1, fontSize: 9.5, weight: 800, single: true });
   let rowY = kicker.rect.y + kicker.rect.h + 6;
   const labelW = Math.round(w * 0.3);
@@ -271,6 +587,7 @@ function layoutMajority(place: TextPlacer, rows: LawDecisionData["majority"], x:
     return { label, value: valueBox, note, track, ratio, fill, pass };
   });
   return {
+    kind: "rows",
     texts: [kicker, ...out.flatMap((row) => [row.label, row.value, ...(row.note ? [row.note] : [])])],
     segments: [],
     markers: out.map((row, index) => ({ id: `majority-track${index}`, rect: row.track })),
@@ -427,7 +744,7 @@ export function layoutLawDecision(data: LawDecisionData, frame: SceneFrame, doma
   type At = { tree: number; majority: number; timeline: number; table: number };
   const make = (step: Step, at: At) => ({
     tree: layoutTree(place, root, content.x, at.tree, leftW, step.density, frame.portrait),
-    majority: layoutMajority(place, majorityRows.slice(0, step.majorityMax), frame.portrait || !hasRight ? content.x : rightX, at.majority, frame.portrait || !hasRight ? content.w : rightW, step.notes),
+    majority: layoutMajority(place, majorityRows.slice(0, step.majorityMax), frame.portrait || !hasRight ? content.x : rightX, at.majority, frame.portrait || !hasRight ? content.w : rightW, step.notes, step.density >= 2),
     timeline: step.timeline ? layoutTimeline(place, stops, content.x, at.timeline, leftW, step.density) : null,
     table: layoutTable(place, ruleRows, step.exceptions ? exceptionRows : [], rightX, at.table, rightW, step.density),
   });
@@ -494,12 +811,106 @@ function edgePath(points: [number, number][]): string {
   return points.map(([x, y], index) => `${index ? "L" : "M"}${Math.round(x * 10) / 10},${Math.round(y * 10) / 10}`).join(" ");
 }
 
+/** Dalın ucundaki ok başı: son parçanın yönünde, ucu dalın bittiği noktada (merdivende). */
+function arrowHead(points: [number, number][], size = 6): string | null {
+  if (points.length < 2) return null;
+  const [x1, y1] = points[points.length - 2]!;
+  const [x2, y2] = points[points.length - 1]!;
+  const length = Math.hypot(x2 - x1, y2 - y1);
+  if (length < size) return null;
+  const ux = (x2 - x1) / length;
+  const uy = (y2 - y1) / length;
+  const bx = x2 - ux * size;
+  const by = y2 - uy * size;
+  const half = size * 0.6;
+  const r = (value: number) => Math.round(value * 10) / 10;
+  return `M${r(x2)},${r(y2)} L${r(bx - uy * half)},${r(by + ux * half)} L${r(bx + uy * half)},${r(by - ux * half)} z`;
+}
+
+/** Durum simgesi: onay, çarpı ya da (nötr) kısa çizgi; daire tonun renginde, işaret zemin renginde. */
+function StatusIcon({ cx, cy, r, tone }: { cx: number; cy: number; r: number; tone: Tone }) {
+  const k = r / 7.5;
+  return (
+    <>
+      <circle cx={cx} cy={cy} r={r} fill={TONE_COLOR[tone]} />
+      <path
+        d={
+          tone === "positive"
+            ? `M${cx - 3.5 * k},${cy} l${2.5 * k},${2.8 * k} l${4.5 * k},${-5 * k}`
+            : tone === "negative"
+              ? `M${cx - 3 * k},${cy - 3 * k} l${6 * k},${6 * k} M${cx + 3 * k},${cy - 3 * k} l${-6 * k},${6 * k}`
+              : `M${cx - 3 * k},${cy} h${6 * k}`
+        }
+        stroke={LAW_COLORS.bg}
+        strokeWidth={2}
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </>
+  );
+}
+
+const passTone = (pass: boolean | null): Tone => (pass === null ? "neutral" : pass ? "positive" : "negative");
+
+/** Sandalye ölçeği: bloklar (gerçekleşen kadar dolu), eşik çentikleri ve etiketleri. */
+function MeterView({ meter }: { meter: MeterLayout }) {
+  const valueColor = (pass: boolean | null) => (pass === null ? LAW_COLORS.question : TONE_TEXT[passTone(pass)]);
+  const lineColor = (pass: boolean | null) => (pass === null ? LAW_COLORS.question : TONE_COLOR[passTone(pass)]);
+  let filled = 0;
+  return (
+    <g data-section="majority" data-majority="meter" data-total={meter.total} data-actual={meter.actual ?? undefined} className="cp-vs-fade" style={delay(1.7)}>
+      <SceneText box={meter.kicker} fill={LAW_COLORS.bar} />
+      <SceneText box={meter.legend} fill={meter.actual !== null ? LAW_COLORS.bar : LAW_COLORS.muted} />
+      <g data-seats={meter.blocks.length}>
+        {meter.blocks.map((block, index) => (
+          <rect
+            key={index}
+            x={block.x}
+            y={meter.bar.y}
+            width={block.w}
+            height={meter.bar.h}
+            rx={Math.min(1.6, block.w / 2)}
+            fill={block.filled || (meter.actual === null && block.zone) ? LAW_COLORS.bar : LAW_COLORS.track}
+            fillOpacity={!block.filled && meter.actual === null && block.zone ? 0.25 + (0.5 * block.zone) / Math.max(1, meter.ticks.length) : undefined}
+            data-filled={block.filled ? "1" : undefined}
+            data-zone={block.zone || undefined}
+            className={block.filled ? "cp-vs-fade" : undefined}
+            style={block.filled ? delay(1.9 + filled++ * 0.02) : undefined}
+          />
+        ))}
+      </g>
+      {meter.ticks.map((tick, index) => (
+        <g
+          key={index}
+          data-ratio={tick.ratio.toFixed(3)}
+          data-count={tick.count}
+          data-side={tick.side}
+          data-pass={tick.pass === null ? undefined : tick.pass ? "1" : "0"}
+          data-threshold="1"
+          className="cp-vs-fade"
+          style={delay(2.6 + index * 0.15)}
+        >
+          <line x1={tick.tick.x1} y1={tick.tick.y1} x2={tick.tick.x2} y2={tick.tick.y2} stroke={lineColor(tick.pass)} strokeWidth={2.2} strokeLinecap="round" />
+          <line x1={tick.leader.x1} y1={tick.leader.y1} x2={tick.leader.x2} y2={tick.leader.y2} stroke={lineColor(tick.pass)} strokeWidth={1.2} strokeOpacity={0.85} />
+          {tick.status ? <StatusIcon cx={tick.status.cx} cy={tick.status.cy} r={tick.status.r} tone={passTone(tick.pass)} /> : null}
+          <SceneText box={tick.value} fill={valueColor(tick.pass)} />
+          {tick.name ? <SceneText box={tick.name} fill={LAW_COLORS.muted} /> : null}
+        </g>
+      ))}
+    </g>
+  );
+}
+
 export function LawDecisionScene({ data, domain, ...common }: SceneCommonProps & { data: LawDecisionData; domain?: AcademicDomain }) {
   const layout = layoutLawDecision(data, common.frame, domain);
   const [badge, title] = layout.texts;
   const { tree, majority, timeline, table } = layout;
   const root = lawTreeOf(data)!;
   const iconFont = layout.frame.text.floor;
+  const arrows = tree.mode === "ladder";
+  // Düğümler yukarıdan aşağı belirir; dal etiketi kendi düğümüyle birlikte (kartın içindeki etiket karttan önce görünmesin).
+  const nodeDelay = new Map(tree.nodes.map((node, index) => [node.key, 0.3 + node.depth * 0.5 + index * 0.05]));
   return (
     <SceneSvg
       {...common}
@@ -528,18 +939,21 @@ export function LawDecisionScene({ data, domain, ...common }: SceneCommonProps &
             data-edge={edge.tone}
           />
         ))}
-        {tree.tags.map((tag, index) => (
-          <SceneText key={`tag${index}`} box={tag.box} fill={TONE_COLOR[tag.tone]} className="cp-vs-fade" style={delay(0.8 + index * 0.1)} />
-        ))}
+        {arrows
+          ? tree.edges.map((edge, index) => {
+              const head = arrowHead(edge.points);
+              return head ? <path key={`head${index}`} d={head} fill={TONE_COLOR[edge.tone]} className="cp-vs-fade" style={delay(1 + index * 0.12)} data-arrow={edge.tone} /> : null;
+            })
+          : null}
         {tree.nodes.map((node, index) => {
           const color = node.leaf ? TONE_COLOR[node.tone] : LAW_COLORS.question;
-          const iconX = node.rect.x + 13;
-          const iconY = node.rect.y + Math.min(node.rect.h / 2, 15);
+          const iconX = node.icon?.cx ?? node.rect.x + 13;
+          const iconY = node.icon?.cy ?? node.rect.y + Math.min(node.rect.h / 2, 15);
           return (
             <g
               key={node.key}
               className="cp-vs-fade"
-              style={delay(0.3 + node.depth * 0.5 + index * 0.05)}
+              style={delay(nodeDelay.get(node.key) ?? 0.3 + index * 0.05)}
               data-node={node.leaf ? "leaf" : "question"}
               data-depth={node.depth}
               data-branch={node.leaf ? (node.tone === "positive" ? "yes" : node.tone === "negative" ? "no" : "branch") : undefined}
@@ -551,39 +965,40 @@ export function LawDecisionScene({ data, domain, ...common }: SceneCommonProps &
                 height={node.rect.h}
                 rx={node.leaf ? 10 : Math.min(node.rect.h / 2, 16)}
                 fill={node.leaf ? color : LAW_COLORS.panel}
-                fillOpacity={node.leaf ? 0.12 : 1}
+                fillOpacity={node.leaf ? LEAF_FILL_OPACITY : 1}
                 stroke={color}
                 strokeWidth={node.leaf ? 1.6 : 1.8}
               />
-              <circle cx={iconX} cy={iconY} r={7.5} fill={color} />
               {node.leaf ? (
-                <path
-                  d={
-                    node.tone === "positive"
-                      ? `M${iconX - 3.5},${iconY} l2.5,2.8 l4.5,-5`
-                      : node.tone === "negative"
-                        ? `M${iconX - 3},${iconY - 3} l6,6 M${iconX + 3},${iconY - 3} l-6,6`
-                        : `M${iconX - 3},${iconY} h6`
-                  }
-                  stroke={LAW_COLORS.bg}
-                  strokeWidth={2}
-                  fill="none"
-                  strokeLinecap="round"
-                />
+                <StatusIcon cx={iconX} cy={iconY} r={LEAF_ICON_R} tone={node.tone} />
               ) : (
-                <text x={iconX} y={iconY + iconFont * 0.36} fontSize={iconFont} fontWeight={800} textAnchor="middle" fill={LAW_COLORS.bg}>
-                  ?
-                </text>
+                <>
+                  <circle cx={iconX} cy={iconY} r={LEAF_ICON_R} fill={color} />
+                  <text x={iconX} y={iconY + iconFont * 0.36} fontSize={iconFont} fontWeight={800} textAnchor="middle" fill={LAW_COLORS.bg}>
+                    ?
+                  </text>
+                </>
               )}
               <SceneText box={node.text} fill={LAW_COLORS.text} />
             </g>
           );
         })}
+        {/* Dal etiketleri kartların üstünde (merdivende etiket kartın içinde; kartın dolgusu yazıyı soldurmasın). */}
+        {tree.tags.map((tag, index) => (
+          <SceneText
+            key={`tag${index}`}
+            box={tag.box}
+            fill={TONE_TEXT[tag.tone]}
+            className="cp-vs-fade"
+            style={delay((nodeDelay.get(tag.box.id.replace(/^tree-tag-/, "")) ?? 0.75 + index * 0.1) + 0.05)}
+          />
+        ))}
       </g>
 
       {/* Çoğunluk barometresi */}
-      {majority ? (
-        <g data-section="majority" className="cp-vs-fade" style={delay(1.7)}>
+      {majority?.kind === "meter" ? <MeterView meter={majority} /> : null}
+      {majority?.kind === "rows" ? (
+        <g data-section="majority" data-majority="rows" className="cp-vs-fade" style={delay(1.7)}>
           <SceneText box={majority.kicker} fill={LAW_COLORS.bar} />
           {majority.rows.map((row, index) => {
             const color = row.pass === null ? LAW_COLORS.bar : row.pass ? LAW_COLORS.yes : LAW_COLORS.no;
@@ -612,7 +1027,7 @@ export function LawDecisionScene({ data, domain, ...common }: SceneCommonProps &
                   </g>
                 )}
                 <SceneText box={row.value} fill={LAW_COLORS.text} />
-                {row.note ? <SceneText box={row.note} fill={row.pass === null ? LAW_COLORS.muted : color} /> : null}
+                {row.note ? <SceneText box={row.note} fill={row.pass === null ? LAW_COLORS.muted : TONE_TEXT[passTone(row.pass)]} /> : null}
               </g>
             );
           })}
