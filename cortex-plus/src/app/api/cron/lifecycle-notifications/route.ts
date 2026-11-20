@@ -4,6 +4,7 @@ import { cronAuthorized } from "@/lib/notifications/cron-auth";
 import { istanbulClock, isQuietHour } from "@/lib/notifications/schedule";
 import { jobsForSlot } from "@/lib/notifications/jobs/plan";
 import { runDailyReminders } from "@/lib/notifications/jobs/daily-reminders";
+import { sweepQuotaAlerts } from "@/lib/notifications/quota-alert";
 import {
   runActivation,
   runExamEve,
@@ -34,11 +35,13 @@ export async function GET(request: Request) {
   const startedAt = Date.now();
   const now = new Date(startedAt);
   const clock = istanbulClock(now);
-  if (isQuietHour(now)) return NextResponse.json({ ok: true, slot: `${clock.hour}:${clock.minute}`, quiet: true, jobs: [] });
-
   const service = createServiceClient();
+  // Hakkın %80'i: yalnız uygulama içi bildirim (e-posta değil), bu yüzden gece de koşar; en çok 20 sn.
+  const quota = await sweepQuotaAlerts(service, { now, deadline: startedAt + 20_000 });
+  if (isQuietHour(now)) return NextResponse.json({ ok: true, slot: `${clock.hour}:${clock.minute}`, quiet: true, quota, jobs: [] });
+
   const context: JobContext = { service, now, deadline: startedAt + RUN_BUDGET_MS };
-  const results: Record<string, unknown> = {};
+  const results: Record<string, unknown> = { quota };
   for (const job of jobsForSlot(clock)) {
     if (Date.now() >= context.deadline) {
       results[job.kind] = "budget";

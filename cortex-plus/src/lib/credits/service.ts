@@ -10,8 +10,6 @@ import { parseDocumentReservationKey } from "@/lib/documents/document-reservatio
 import { SPEND_CAP_CODE, spendBreakerBlocks } from "@/lib/billing/spend-breaker";
 import { PHOTO_ABUSE_CODE, photoAbuseBlocked } from "@/lib/billing/photo-abuse-guard";
 import { freeLessonGate, type FreeLessonGate } from "@/lib/billing/free-lesson-gate";
-import { after } from "next/server";
-import { notifyQuotaIfCrossed } from "@/lib/notifications/quota-alert";
 
 /**
  * Ücretsiz hesabın reddi (24 Ekim 2026): sayaç doldu ya da iş Plus'ta. Sebep yine
@@ -263,20 +261,6 @@ export async function commitCredits(
   if (error) {
     console.error("credit_transaction_failed", { operation: "commit", reservationId, code: error.code });
     throw new Error("credit_commit_failed");
-  }
-  scheduleQuotaAlert(service, reservationId);
-}
-
-/**
- * Hakkın %80 bildirimi (Faz 6, 20 Kasım 2026): kesinleşmeden SONRA, yanıtı bekletmeden. Yalnız okur; kota kuralı
- * değişmez. İstek bağlamı yoksa (cron) arka planda koşar, hatası kesinleştirmeyi etkilemez.
- */
-function scheduleQuotaAlert(service: SupabaseClient, reservationId: string): void {
-  const task = () => notifyQuotaIfCrossed(service, reservationId).catch(() => null);
-  try {
-    after(task);
-  } catch {
-    void task();
   }
 }
 

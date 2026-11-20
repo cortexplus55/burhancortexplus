@@ -10333,7 +10333,6 @@ exports[`yol etkinliği rotası: start × tür > önceden yazılmış test hazı
   "status": 200,
   "tables": {
     "admin_free_preview": [],
-    "credit_reservations": [],
     "credit_rules": [
       {
         "action_code": "QUIZ_GENERATE",
@@ -10555,7 +10554,6 @@ exports[`yol etkinliği rotası: start × tür > önceden yazılmış test hazı
     "db delete exam_prep_prefetch eq(node_id,"00000000-0000-4000-8000-0000000000b1") eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(status,"ready") maybe",
     "db insert exam_prep_node_attempts payload={"node_id":"00000000-0000-4000-8000-0000000000b1","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","user_id":"00000000-0000-4000-8000-00000000aaaa","topic_id":"00000000-0000-4000-8000-0000000000c1","difficulty":"orta","voice_mode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"correct":["Değişmez"],"multi":false,"explanation":"Mitozda kromozom sayısı korunur."},{"text":"Mayozun sonunda kaç hücre oluşur?","options":["1","2","3","4","8"],"correct":["4"],"multi":false,"explanation":"Mayoz dört hücre verir."}]},"total":2,"status":"active","generation_id":"00000000-0000-4000-8000-900000000001","client_request_id":"00000000-0000-4000-8000-0000000000f1","familiarity":"basics","mood":"neutral","content_version":1,"updated_at":"2026-10-30T09:00:00.000Z"} one",
     "rpc credit_commit {"p_reservation_id":"reservation-1"}",
-    "after:scheduled",
     "db upsert exam_prep_generation_jobs payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","attempt_id":"exam_prep_node_attempts-1","client_request_id":"00000000-0000-4000-8000-0000000000f1","generation_id":"00000000-0000-4000-8000-900000000001","credit_idempotency_key":"exam_node_start_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_00000000-0000-4000-8000-0000000000f1","status":"ready","error_code":null,"updated_at":"2026-10-30T09:00:00.000Z"}",
     "db update exam_prep_topics eq(id,"00000000-0000-4000-8000-0000000000c1") payload={"familiarity":"basics"}",
     "db insert study_session_moods payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","mood":"neutral"}",
@@ -10571,8 +10569,6 @@ exports[`yol etkinliği rotası: start × tür > önceden yazılmış test hazı
     "db select exam_prep_nodes [id, kind, status, session_meta, sort_order] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") neq(status,"done") gt(sort_order,1) order(sort_order,asc) limit(40)",
     "db select exam_prep_node_attempts [id] eq(node_id,"00000000-0000-4000-8000-0000000000b2") limit(1)",
     "db select exam_prep_prefetch [node_id, status, updated_at] eq(node_id,"00000000-0000-4000-8000-0000000000b2") maybe",
-    "after:run",
-    "db select credit_reservations [user_id] eq(id,"reservation-1") maybe",
     "after:run",
     "db insert open_timings payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","kind":"quiz","path":"ready","ms":0}",
     "after:run",

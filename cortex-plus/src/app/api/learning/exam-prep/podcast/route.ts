@@ -1,6 +1,7 @@
 import { deterministicCreditKey } from "@/lib/credits/slot-key";
 import { NextResponse, after } from "next/server";
 import { notifyPodcastReady } from "@/lib/notifications/events";
+import { notifyAfterResponse } from "@/lib/notifications/defer";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { shareInFlight } from "@/lib/ai/inflight-share";
@@ -361,7 +362,7 @@ export async function POST(request: Request) {
     }
 
     // Faz 6: yeni yazılan podcast için çanda "podcast hazır" (0 maliyet; yanıtı bekletmez).
-    after(() => notifyPodcastReady(service, { userId, prepId, topicId: String(topic.id), topicLabel: String(topic.label), length }));
+    notifyAfterResponse(() => notifyPodcastReady(service, { userId, prepId, topicId: String(topic.id), topicLabel: String(topic.label), length }));
     return NextResponse.json({
       ok: true,
       title: outcome.episode.title,

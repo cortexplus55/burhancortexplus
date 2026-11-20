@@ -34,7 +34,13 @@ describe("Plus bitiş hatırlatması e-postayla da gider", () => {
     const cron = read("src/app/api/cron/subscription-renewal/route.ts");
     expect(cron).toContain('pushNotice(sub, "expired", trialNotice("expired"))');
     expect(cron).toContain('pushNotice(sub, "reminder", trialNotice("reminder", whenText))');
-    expect(cron).toContain("planMails = await sendPlanNoticeMails(service, mails, now);");
+    // Faz 6 (20 Kasım 2026): bitiş günü ve deneme e-postası burada; ücretli dönemin "3 gün / 24 saat kala" e-postası
+    // yaşam döngüsü motorunda (18:30, gönderim kilidiyle). İkisi birlikte her bitişi e-postayla da haber verir.
+    expect(cron).toContain("planMails = await sendPlanNoticeMails(");
+    expect(cron).toContain(`mails.filter((mail) => mail.kind === "expired" || trialSubscriptions.has(mail.subscriptionId))`);
+    const engine = read("src/lib/notifications/jobs/lifecycle.ts");
+    expect(engine).toContain(`templateKey: "subscription_expiry_reminder"`);
+    expect(engine).toContain("dedupeKeys.expiry(sub.id, window)");
     expect(cron).not.toMatch(/notices\.push\(\{\s*user_id: sub\.user_id,\s*title:/);
   });
 

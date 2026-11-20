@@ -165,6 +165,47 @@ describe("abonelikten çıkma ve bağlantılar", () => {
     expect(quotaCrossed({ period_allowance: 7200, free_allowance_remaining: 1441 })).toBe(false);
     expect(quotaCrossed({ period_allowance: 0, free_allowance_remaining: 0 })).toBe(false);
   });
+
+  it("kota süpürmesi: kredi servisine dokunmaz, göçten önce yazmaz, eşiği geçene dönem başına bir bildirim", async () => {
+    const { sweepQuotaAlerts, quotaDedupeKey } = await import("@/lib/notifications/quota-alert");
+    const writes: unknown[] = [];
+    const chain = (result: unknown) => {
+      const q: Record<string, unknown> = {};
+      for (const m of ["select", "gte", "gt", "order", "in", "limit", "eq"]) q[m] = () => q;
+      q.range = () => Promise.resolve(result);
+      q.then = (resolve: (v: unknown) => unknown) => resolve(result);
+      return q;
+    };
+    const fake = (tableMissing: boolean) => ({
+      from(table: string) {
+        if (table === "in_app_notifications") {
+          const q = chain(tableMissing ? { error: { code: "42P01", message: 'relation "in_app_notifications" does not exist' } } : { error: null, count: 0 });
+          q.upsert = (rows: unknown[]) => {
+            writes.push(...rows);
+            return { select: () => Promise.resolve({ data: rows.map((_, i) => ({ id: String(i) })), error: null }) };
+          };
+          return q;
+        }
+        if (table === "credit_wallets") {
+          return chain({
+            data: [
+              { user_id: "u1", period_allowance: 7200, free_allowance_remaining: 1000, period_ends_at: "2026-12-20T09:00:00Z" },
+              { user_id: "u2", period_allowance: 7200, free_allowance_remaining: 5000, period_ends_at: "2026-12-20T09:00:00Z" },
+            ],
+            error: null,
+          });
+        }
+        if (table === "user_notification_preferences") return chain({ data: [], error: null });
+        throw new Error("beklenmeyen tablo " + table);
+      },
+    });
+    const now = new Date("2026-11-20T10:00:00Z");
+    expect(await sweepQuotaAlerts(fake(true) as never, { now, deadline: Date.now() + 5_000 })).toBe("no_table");
+    expect(writes).toHaveLength(0);
+    expect(await sweepQuotaAlerts(fake(false) as never, { now, deadline: Date.now() + 5_000 })).toEqual({ checked: 2, crossed: 1, written: 1 });
+    expect(writes).toEqual([expect.objectContaining({ user_id: "u1", kind: "quota_80_pct", dedupe_key: quotaDedupeKey("2026-12-20T09:00:00Z") })]);
+    expect(readFileSync("src/lib/credits/service.ts", "utf8")).not.toContain("quota-alert");
+  });
 });
 
 /* ───────────── şablon üretimleri ───────────── */
@@ -225,7 +266,7 @@ describe("sekiz şablon: konu satırı, tek ana düğme, abonelikten çıkma yal
     const { renderLifecycleSample } = await import("@/lib/email/lifecycle");
     const { renderWelcomeOnboarding } = await import("@/lib/email/templates/welcome-onboarding");
     const { SAMPLE_WELCOME_ONBOARDING } = await import("@/lib/email/templates/sample-inputs");
-    const keys = new Set(LIFECYCLE_MAILS.map((mail) => mail.templateKey));
+    const keys = new Set<string>(LIFECYCLE_MAILS.map((mail) => mail.templateKey));
     for (const key of ["welcome_onboarding", "payment_confirmed", "activation_24h", "free_first_unit_completed", "smart_trap_nudge", "exam_eve_cheat_sheet", "subscription_expiry_reminder", "weekly_study_digest"]) {
       expect(keys.has(key)).toBe(true);
     }
