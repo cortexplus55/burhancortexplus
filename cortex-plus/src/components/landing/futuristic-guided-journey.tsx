@@ -2,14 +2,17 @@
 
 import Link from "next/link";
 import {
+  Fragment,
   startTransition,
   useCallback,
   useEffect,
+  useId,
   useLayoutEffect,
   useRef,
   useState,
   type ComponentType,
   type DragEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
@@ -29,26 +32,34 @@ import {
 import { DOCUMENT_UPLOAD_ACCEPT } from "@/lib/documents/upload-accept";
 import { streakBadge } from "@/lib/learning/coach-reactions";
 import {
+  GUEST_DEMO_TRACKS,
+  GUEST_TRACK_IDS,
+  guestDemoTrack,
+  trackForSegment,
+  type GuestTrackId,
+} from "@/lib/marketing/guest-demo-tracks";
+import {
   JOURNEY_COPY,
-  JOURNEY_FILE,
   JOURNEY_FINAL,
   JOURNEY_NEXT_LABEL,
   JOURNEY_OWN,
   JOURNEY_PLUS_ALSO,
-  JOURNEY_PLUS_PREVIEWS,
   JOURNEY_RESULT,
-  JOURNEY_ROADMAP,
   JOURNEY_STEPS,
-  JOURNEY_WARNING,
+  JOURNEY_TRACKS_COPY,
   JOURNEY_WARNING_STEPS,
   isProductStep,
+  journeyFile,
   journeyGoals,
   journeyGuideLine,
+  journeyPlusPreviews,
+  journeyRoadmap,
   journeyScanFindings,
   journeyScore,
   journeyLoginHref,
   journeySignupHref,
   journeyStepIndex,
+  journeyWarning,
   nextJourneyStep,
   ownReadyTitle,
   type JourneyPlusPreviewId,
@@ -66,6 +77,16 @@ const RING = 2 * Math.PI * 34;
 
 /** Stüdyoda içerik ekrana sığmazsa küçültülür; bunun altına inmez (çok kısa ekran). */
 const FIT_MIN = 0.5;
+
+/**
+ * Turun kendi yazılarında (tarama bulguları, uyarı) alt simge: "d_sıvı" → d<sub>sıvı</sub>. Ürün ekranlarında aynı
+ * gösterimi ürünün metin bileşeni kurar; tur çerçevesi KaTeX yüklemez.
+ */
+function withSubscripts(text: string): ReactNode {
+  const parts = text.split(/(?<=\p{L})_([\p{L}\p{N}]{1,8})/u);
+  if (parts.length === 1) return text;
+  return parts.map((part, at) => (at % 2 ? <sub key={at}>{part}</sub> : <Fragment key={at}>{part}</Fragment>));
+}
 
 /** Sürüklenen şey işletim sisteminden bir dosya mı (örnek not kartı değil)? */
 function isFileDrag(event: DragEvent<HTMLElement>): boolean {
@@ -165,8 +186,24 @@ function FitStage({ children, fitKey }: { children: ReactNode; fitKey: string })
  * sayfayı boşaltıyor). `import()` bir geçişin içinde çağrılır: stil dosyaları inerken tıklamalar donmasın (aşağıdaki
  * `loadScreens` notu). Tur model çağırmaz, sunucuya istek atmaz. Hareket yalnız CSS'te ve `prefers-reduced-motion`da
  * durur; tarama beklemesi de o zaman atlanır.
+ *
+ * Faz 7 (20 Kasım 2026): tur seçilen branşın örnek notuyla oynanır. Konsolun üstündeki branş şeridi (lise, mühendislik,
+ * TUS, hukuk) ve kahramanın sekmesi tek durumdur (`AudienceHero` tutar; sekme branşı, branş sekmeyi eşler). Branş
+ * değişince tur notun kendisinden, birinci adımdan yeniden kurulur: cevaplar o notun sorularınındı.
  */
-export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegmentId }) {
+export function FuturisticGuidedJourney({
+  segmentId,
+  trackId: trackProp,
+  onTrackChange,
+}: {
+  segmentId: AudienceSegmentId;
+  /** Seçili branş; verilmezse sekmenin branşı (ve şerit kendi durumunu tutar). */
+  trackId?: GuestTrackId;
+  onTrackChange?: (id: GuestTrackId) => void;
+}) {
+  /** Şeritten seçilen branş, branşı dışarıdan verilmeyen kullanımda (sekme değişince sekmenin branşına döner). */
+  const [localTrack, setLocalTrack] = useState<GuestTrackId | null>(null);
+  const trackId = trackProp ?? localTrack ?? trackForSegment(segmentId);
   const [step, setStep] = useState<JourneyStepId>("upload");
   /** Tam ekran stüdyo açık mı. */
   const [studio, setStudio] = useState(false);
@@ -211,8 +248,18 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
   const alive = useRef(true);
   const loadingScreens = useRef(false);
   const loadingPreviews = useRef(false);
+  const tracksId = useId();
+  /** Branş bu ziyarette en az bir kez değişti mi: örnek notun kartı yalnız o zaman yeniden belirir (ilk yükte hareket yok). */
+  const [switched, setSwitched] = useState(false);
 
   const segment = audienceSegment(segmentId);
+  const track = guestDemoTrack(trackId);
+  const file = journeyFile(trackId);
+  const warning = journeyWarning(trackId);
+  const roadmap = journeyRoadmap(trackId);
+  const plusPreviews = journeyPlusPreviews(trackId);
+  /** Branşın podcast kesiti yoksa seçici o kartı hiç göstermez; seçim ilk gösterilen önizlemeye düşer. */
+  const activePreview = plusPreviews.some((item) => item.id === preview) ? preview : plusPreviews[0]!.id;
   const index = journeyStepIndex(step);
   const score = journeyScore({ questionCorrect, truth });
   const product = isProductStep(step);
@@ -284,6 +331,52 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
     setStudio(false);
   }, []);
 
+  /** Şeritten branş seçimi: durum kahramandaysa ona bildirilir (sekme de eşlenir), değilse burada tutulur. */
+  const pickTrack = useCallback(
+    (id: GuestTrackId) => {
+      if (onTrackChange) onTrackChange(id);
+      else setLocalTrack(id);
+    },
+    [onTrackChange],
+  );
+
+  // Branşı dışarıdan verilmeyen kullanımda sekme değişince şerit sekmenin branşına döner.
+  useEffect(() => {
+    setLocalTrack(null);
+  }, [segmentId]);
+
+  /*
+    Branş değişince tur o branşın notundan yeniden kurulur: birinci adım (yeni not, yeni tarama), cevaplar ve
+    sonuç sıfır, ürün ekranları baştan. Tur ortadaysa (stüdyo kapatılıp ilerleme korunmuşsa) ray da başa döner; eski
+    notun cevapları yeni notun sonucuna karışmaz.
+  */
+  const shownTrack = useRef(trackId);
+  useEffect(() => {
+    if (shownTrack.current === trackId) return;
+    shownTrack.current = trackId;
+    scanMoment.current?.end();
+    scanMoment.current = null;
+    setQuestionCorrect(null);
+    setTruth(null);
+    setRun((current) => current + 1);
+    setPreview("podcast");
+    setStudio(false);
+    setSwitched(true);
+    go("upload");
+  }, [trackId, go]);
+
+  /** Şeritte ok tuşlarıyla gezinme (tek seçimli grup): seçim de odakla birlikte kayar. */
+  function onTracksKey(event: ReactKeyboardEvent<HTMLDivElement>) {
+    const keys: Record<string, number> = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
+    const delta = keys[event.key];
+    if (!delta) return;
+    event.preventDefault();
+    const at = GUEST_TRACK_IDS.indexOf(trackId);
+    const next = GUEST_TRACK_IDS[(at + delta + GUEST_TRACK_IDS.length) % GUEST_TRACK_IDS.length]!;
+    pickTrack(next);
+    document.getElementById(`${tracksId}-${next}`)?.focus();
+  }
+
   // Bu sekmede bekleyen dosya varsa (kayıttan dönen ziyaretçi) kart yeniden görünür; süresi geçmiş kayıt silinir.
   useEffect(() => {
     setGuest(readGuestMarker());
@@ -325,10 +418,11 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
   }, [studio, closeStudio]);
 
   // Turdan kayda süreklilik (C3): stüdyoda ulaşılan adım bu sekmenin oturumuna yazılır; kayıttan sonra ana ekran
-  // "turda denemiştin" kartını yalnız buna bakarak gösterir. Sunucuya gitmez; cevaplar ölçüm sayılmaz.
+  // "turda denemiştin" kartını yalnız buna bakarak gösterir. Sunucuya gitmez; cevaplar ölçüm sayılmaz. Kart turdaki
+  // konuyu (Köklü Sayılar) resmî kurulumda açar: yalnız lise branşı yazar, öbür branşların notu o kurulumda yok.
   useEffect(() => {
-    if (studio && step !== "upload") writeTourProgress({ step, segment: segmentId });
-  }, [studio, step, segmentId]);
+    if (studio && step !== "upload" && trackId === "lise") writeTourProgress({ step, segment: segmentId });
+  }, [studio, step, segmentId, trackId]);
 
   // Adım değişince sahne odağa gelir (ekran okuyucu yeni adımı okur); sayfa kaymaz.
   useEffect(() => {
@@ -373,7 +467,7 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
     loadScreens();
     openStudio("upload");
     setScanning(true);
-    const handle = startMoment(JOURNEY_FILE.scanMs, () => {
+    const handle = startMoment(file.scanMs, () => {
       scanMoment.current = null;
       if (alive.current) go("roadmap");
     });
@@ -432,7 +526,7 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
   const streak = allRight ? streakBadge(score.correct) : null;
   const following = nextJourneyStep(step);
   const signupHref = journeySignupHref(segmentId, { withDocument: Boolean(guest) });
-  const shownPreviews = JOURNEY_PLUS_PREVIEWS.filter((item) => item.id === preview);
+  const shownPreviews = plusPreviews.filter((item) => item.id === activePreview);
 
   /**
    * "Canlı tur · Kayıt olmadan dene" (Faz 5 §1.2): rozet 7 adımlı demonun 1. adımına yumuşakça kaydırır
@@ -488,6 +582,36 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
     </ol>
   );
 
+  /**
+   * Branş şeridi (Faz 7): turun kartının hemen üstünde dört branş; seçilen branşın örnek notuyla yedi adım baştan
+   * kurulur. Tek seçimli grup (ok tuşlarıyla gezilir); her düğme en az 44 px; dar ekranda satır sarar, iç kaydırma yok.
+   */
+  const tracks = (
+    <div className="lj-tracks" role="radiogroup" aria-label={JOURNEY_TRACKS_COPY.aria} onKeyDown={onTracksKey} data-tracks>
+      <span className="lj-tracks-label" aria-hidden>
+        {JOURNEY_TRACKS_COPY.label}
+      </span>
+      {GUEST_TRACK_IDS.map((id) => {
+        const on = id === trackId;
+        return (
+          <button
+            key={id}
+            id={`${tracksId}-${id}`}
+            type="button"
+            role="radio"
+            aria-checked={on}
+            tabIndex={on ? 0 : -1}
+            className={cn("lj-track", on && "is-on")}
+            data-track={id}
+            onClick={() => pickTrack(id)}
+          >
+            {GUEST_DEMO_TRACKS[id].label}
+          </button>
+        );
+      })}
+    </div>
+  );
+
   /** Birinci adımın iki kapısı. Ana sayfada çağrılır; tarama sırasında aynı düzen stüdyoda oynar. */
   function renderDoors(inStudio: boolean) {
     const scanningHere = inStudio && scanning;
@@ -498,8 +622,9 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
           className="lj-file"
           draggable={!scanningHere}
           disabled={scanningHere}
+          data-track={trackId}
           onDragStart={(event) => {
-            event.dataTransfer.setData("text/plain", JOURNEY_FILE.name);
+            event.dataTransfer.setData("text/plain", file.name);
             event.dataTransfer.effectAllowed = "copy";
           }}
           onClick={startScan}
@@ -508,11 +633,12 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
             <FileText className="h-6 w-6" />
             <span className="lj-file-badge">PDF</span>
           </span>
-          <span className="lj-file-text">
-            <strong>{JOURNEY_FILE.name}</strong>
-            <span>{JOURNEY_FILE.meta}</span>
+          {/* Branş değişince notun yazısı yeniden belirir (yalnız değişimden sonra; ilk yükte hareket yok). */}
+          <span key={trackId} className={cn("lj-file-text", switched && "is-switched")}>
+            <strong>{file.name}</strong>
+            <span>{file.meta}</span>
             <span className="lj-file-go">
-              {JOURNEY_FILE.sampleCta}
+              {file.sampleCta}
               <ArrowRight className="h-4 w-4" aria-hidden />
             </span>
           </span>
@@ -524,7 +650,7 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
           type="button"
           className={cn("lj-zone", dragOver && "is-over")}
           disabled={scanningHere}
-          aria-label={`${JOURNEY_FILE.zoneTitle}: ${JOURNEY_FILE.zoneHint}`}
+          aria-label={`${file.zoneTitle}: ${file.zoneHint}`}
           onClick={startScan}
           onDragOver={(event) => {
             event.preventDefault();
@@ -546,20 +672,20 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
               <span className="lj-scan-sheet" aria-hidden>
                 <span className="lj-scan-laser" />
               </span>
-              <span className="lj-scan-line">{JOURNEY_FILE.scanning[0]}</span>
+              <span className="lj-scan-line">{file.scanning[0]}</span>
               <span className="lj-scan-finds" data-scan-findings>
-                {journeyScanFindings().map((finding, at) => (
+                {journeyScanFindings(trackId).map((finding, at) => (
                   <span key={finding.id} className="lj-scan-find" data-finding={finding.id} style={{ ["--lj-i" as string]: at }}>
                     <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden />
-                    {finding.text}
+                    {withSubscripts(finding.text)}
                   </span>
                 ))}
               </span>
             </span>
           ) : (
             <span className="lj-zone-copy">
-              <strong>{JOURNEY_FILE.zoneTitle}</strong>
-              <span>{JOURNEY_FILE.zoneHint}</span>
+              <strong>{file.zoneTitle}</strong>
+              <span>{file.zoneHint}</span>
             </span>
           )}
         </button>
@@ -592,14 +718,14 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
         {step === "upload" ? renderDoors(true) : null}
 
         {step === "roadmap" ? (
-          <div className="lj-road">
+          <div className="lj-road" data-track={trackId}>
             <ul className="lj-goals" aria-label="Hedef">
               {journeyGoals(segment.examWord).map((goal) => (
                 <li key={goal}>{goal}</li>
               ))}
             </ul>
             <ol className="lj-days">
-              {JOURNEY_ROADMAP.days.map((day, at) => (
+              {roadmap.days.map((day, at) => (
                 <li key={day.day} className={cn("lj-day", day.ready && "is-ready")} style={{ ["--lj-i" as string]: at }}>
                   <span className="lj-day-node" aria-hidden />
                   <div className="lj-day-body">
@@ -621,8 +747,9 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
             <p className="lj-real">{JOURNEY_COPY.real}</p>
             {screens.status === "ready" ? (
               <screens.View
-                key={`${run}:${step}`}
+                key={`${run}:${trackId}:${step}`}
                 screen={step}
+                track={trackId}
                 onDone={() => {
                   if (step !== "check" && following) go(following);
                 }}
@@ -689,15 +816,15 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
         {step === "plus" ? (
           <div className="lj-plus">
             <div className="lj-plus-tabs" role="tablist" aria-label="Plus önizlemeleri">
-              {/* Seçici aşağıdaki kart listesini yönetir. */}
-              {JOURNEY_PLUS_PREVIEWS.map((item) => (
+              {/* Seçici aşağıdaki kart listesini yönetir. Branşın podcast kesiti yoksa podcast sekmesi yok. */}
+              {plusPreviews.map((item) => (
                 <button
                   key={item.id}
                   type="button"
                   role="tab"
-                  aria-selected={item.id === preview}
+                  aria-selected={item.id === activePreview}
                   aria-controls="lj-plus-previews"
-                  className={cn("lj-plus-tab", item.id === preview && "is-on")}
+                  className={cn("lj-plus-tab", item.id === activePreview && "is-on")}
                   onClick={() => setPreview(item.id)}
                 >
                   <span aria-hidden>{item.icon}</span>
@@ -720,7 +847,7 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
                   </p>
                   <p className="lj-plus-body">{item.body}</p>
                   {previews.status === "ready" ? (
-                    <previews.View key={`${run}:${item.id}`} preview={item.id} />
+                    <previews.View key={`${run}:${trackId}:${item.id}`} preview={item.id} track={trackId} />
                   ) : (
                     <div className="lj-plus-wait">
                       {previews.status === "failed" ? (
@@ -769,7 +896,7 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
         <div className="lj-stage-foot">
           <button type="button" className="lj-cta lj-cta--pulse lj-cta--wide" onClick={() => go("lesson")}>
             <span aria-hidden>👉</span>
-            {JOURNEY_ROADMAP.cta}
+            {roadmap.cta}
             <ArrowRight className="h-4 w-4" aria-hidden />
           </button>
         </div>
@@ -830,10 +957,10 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
               {rail}
               {/* Taramadan sonra (2-7. adımlar) örnek notun hoca uyarısı üst çubukta kalır (A4). */}
               {step !== "upload" ? (
-                <span className={cn("lj-warn", warningGlow && "is-glow")} title={JOURNEY_WARNING.line} data-warning>
+                <span className={cn("lj-warn", warningGlow && "is-glow")} title={warning.line} data-warning data-track={trackId}>
                   <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
-                  {JOURNEY_WARNING.label}
-                  <span className="sr-only">{JOURNEY_WARNING.line.slice(JOURNEY_WARNING.label.length)}</span>
+                  {warning.label}
+                  <span className="sr-only">{withSubscripts(warning.line.slice(warning.label.length))}</span>
                 </span>
               ) : (
                 <span className="lj-warn-slot" aria-hidden />
@@ -849,7 +976,7 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
                   <span aria-hidden>{step === "upload" || step === "cards" ? "👆" : "👉"}</span> {journeyGuideLine(step)}
                 </p>
               </div>
-              <FitStage fitKey={`${run}:${step}:${showResult ? "r" : ""}:${screens.status}:${previews.status}:${preview}`}>
+              <FitStage fitKey={`${run}:${trackId}:${step}:${showResult ? "r" : ""}:${screens.status}:${previews.status}:${activePreview}`}>
                 {renderStudioStep()}
               </FitStage>
               {renderFoot()}
@@ -860,8 +987,9 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
       : null;
 
   return (
-    <section id="nasil" className="lj" aria-labelledby="lj-title">
+    <section id="nasil" className="lj" aria-labelledby="lj-title" data-track={trackId}>
       <div className="lj-wrap" inert={studio || undefined} aria-hidden={studio || undefined}>
+        {tracks}
         <div
           className="lj-console"
           onPointerEnter={loadScreens}
@@ -899,9 +1027,9 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
             <h2 id="lj-title" className="lj-title">
               {JOURNEY_COPY.title}
             </h2>
-            {/* Seçili sekmenin bağlamı: örnek not aynı kalır, cümle sekmeyle değişir (anahtar animasyonu yeniden başlatır). */}
-            <p key={segmentId} className="lj-context" data-segment={segmentId}>
-              {segment.tourContext}
+            {/* Seçili branşın bağlamı: örnek not ve cümle branşla değişir (anahtar animasyonu yeniden başlatır). */}
+            <p key={trackId} className="lj-context" data-segment={segmentId} data-track={trackId}>
+              {track.context}
             </p>
           </div>
 

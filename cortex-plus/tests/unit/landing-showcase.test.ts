@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { guestDemoTrack, trackForSegment } from "@/lib/marketing/guest-demo-tracks";
 import {
   AUDIENCE_SEGMENT_IDS,
   AUDIENCE_SEGMENTS,
@@ -59,7 +60,10 @@ describe("kahraman ve tur aynı sekme durumunu paylaşır", () => {
     const hero = read("src/components/landing/audience-hero.tsx");
     expect(hero).toContain("resolveSegmentParam(window.location.search)");
     expect(hero).toContain("replaceState");
-    expect(hero).toContain("<FuturisticGuidedJourney segmentId={segmentId} />");
+    // Faz 7 (20 Kasım 2026): sekme ve turun branşı tek durum; şeritten seçilen branş sekmeyi eşler.
+    expect(hero).toContain("<FuturisticGuidedJourney segmentId={segmentId} trackId={trackId} onTrackChange={pickTrack} />");
+    expect(hero).toContain("setPick({ segmentId: id, trackId: trackForSegment(id) });");
+    expect(hero).toContain("segmentForTrack(id, segmentId)");
     expect(hero).toContain("href={segment.signupHref}");
     const page = read("src/components/landing/landing-page.tsx");
     expect(page).toContain("<AudienceHero />");
@@ -67,16 +71,19 @@ describe("kahraman ve tur aynı sekme durumunu paylaşır", () => {
     expect(read("src/app/page.tsx")).not.toContain("searchParams");
   });
 
-  // 11 Kasım 2026, kokpit: örnek not tek, bağlam sekmeye göre. Dört profil de turun kendi sınavı için geçerli
-  // olduğunu okur; cümleler üründe bugün çalışan şeyleri söyler.
-  it("her sekmenin turda bir bağlam cümlesi ve sınav sözü var", () => {
+  // 11 Kasım 2026, kokpit: bağlam sekmeye göre. Faz 7 (20 Kasım 2026): örnek not artık tek değil; her sekme kendi
+  // branşının notunu açar ve bağlam satırı o branşın. Cümleler üründe bugün çalışan şeyleri söyler.
+  it("her sekmenin turda bir branşı, bağlam cümlesi ve sınav sözü var", () => {
     for (const segment of AUDIENCE_SEGMENTS) {
-      expect(segment.tourContext, segment.id).toMatch(/^Örnek not matematik; /);
+      const track = guestDemoTrack(trackForSegment(segment.id));
+      expect(track.context, segment.id).toMatch(/^Örnek not /);
       expect(segment.examWord, segment.id).toMatch(/^(Yazılına|Sınavına|Vizene)$/);
-      expect(segment.tourContext).not.toMatch(/podcast|video|sözlü|yazılı deneme|ikiz sınav|sınav sabahı/i);
+      expect(track.context).not.toMatch(/podcast|video|sözlü|yazılı deneme|ikiz sınav|sınav sabahı/i);
     }
     expect(audienceSegment("akademik").tab).toBe("⚖️ KPSS · TUS · DUS · ALES");
-    expect(audienceSegment("akademik").tourContext).toContain("hazır müfredattan");
-    expect(audienceSegment("universite").tourContext).toContain("vize");
+    expect(guestDemoTrack(trackForSegment("akademik")).context).toContain("KPSS");
+    expect(guestDemoTrack(trackForSegment("universite")).context).toContain("vize");
+    expect(guestDemoTrack(trackForSegment("lise")).context).toMatch(/^Örnek not matematik; /);
+    expect(guestDemoTrack(trackForSegment("yks-lgs")).context).toContain("TYT, AYT ve LGS");
   });
 });

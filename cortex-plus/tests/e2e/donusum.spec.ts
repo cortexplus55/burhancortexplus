@@ -68,10 +68,13 @@ test.describe("dönüşüm paketi", { tag: ["@public"] }, () => {
         if (/\/api\//.test(url.pathname) && !/\/api\/(health|consent|csp-report)/.test(url.pathname)) apiCalls.push(request.url());
       });
       await page.setViewportSize(phone);
-      await page.goto("/?hedef=universite");
+      // Faz 7 (20 Kasım 2026): YKS/LGS sekmesi matematik branşını açar (üniversite sekmesi artık mühendislik notuyla
+      // oynar; o branşın turu `brans-demo.spec.ts`te).
+      await page.goto("/?hedef=yks-lgs");
       await expect(page.getByRole("tab")).toHaveCount(4);
-      await expect(page.getByRole("tab", { name: /Üniversite/ })).toHaveAttribute("aria-selected", "true");
-      await expect(page.getByRole("link", { name: /Vize-final kampını ücretsiz başlat/ })).toHaveAttribute("href", "/kayit?hedef=universite");
+      await expect(page.getByRole("tab", { name: /YKS/ })).toHaveAttribute("aria-selected", "true");
+      await expect(page.getByRole("link", { name: /YKS \/ LGS kampını ücretsiz başlat/ })).toHaveAttribute("href", "/kayit?hedef=yks-lgs");
+      await expect(page.getByRole("radio", { name: "Lise & YKS · Matematik" })).toHaveAttribute("aria-checked", "true");
       // Üst menüdeki kayıt düğmesi telefonda da görünür.
       await expect(page.locator("header.mkh").getByRole("link", { name: "Ücretsiz dene" })).toBeVisible();
 
@@ -102,7 +105,7 @@ test.describe("dönüşüm paketi", { tag: ["@public"] }, () => {
         await expect(tour.getByRole("button", { name: "Şimdi 1. dersi aç" })).toBeVisible({ timeout: 4000 });
       }).toPass({ timeout: 25_000 });
       // Seçili sekmenin sınav sözü yol haritasında.
-      await expect(tour.getByText("Vizene 7 gün var")).toBeVisible();
+      await expect(tour.getByText("Sınavına 7 gün var")).toBeVisible();
       await check("yol");
       await tour.getByRole("button", { name: "Şimdi 1. dersi aç" }).click();
       // 3. Ders: çerçevenin içinde ürünün kendi ders ekranı (ayrı parça olarak yüklenir).
@@ -172,7 +175,7 @@ test.describe("dönüşüm paketi", { tag: ["@public"] }, () => {
       await previews.nth(2).click();
       await expect(tour.locator('[data-preview="sheet"] .cp-cram-preview .cp-cram-item').first()).toBeVisible();
       await check("plus: kâğıt");
-      await expect(tour.getByRole("link", { name: /Şimdi kendi notunla başla/ })).toHaveAttribute("href", "/kayit?hedef=universite");
+      await expect(tour.getByRole("link", { name: /Şimdi kendi notunla başla/ })).toHaveAttribute("href", "/kayit?hedef=yks-lgs");
       expect(apiCalls).toEqual([]);
     });
   }
@@ -184,8 +187,10 @@ test.describe("dönüşüm paketi", { tag: ["@public"] }, () => {
       await expect(page.getByRole("link", { name: /Sınav kampını ücretsiz başlat/ })).toHaveAttribute("href", "/kayit?hedef=akademik", { timeout: 1500 });
     }).toPass({ timeout: 20_000 });
     expect(page.url()).toContain("hedef=akademik");
-    // Turun bağlam satırı seçilen sınava göre değişir; örnek not aynı kalır.
-    await expect(page.locator(".lj-context")).toContainText("KPSS, TUS, DUS ve ALES");
+    // Faz 7: akademik sekme hukuk branşını açar; bağlam satırı ve örnek not o branşın.
+    await expect(page.getByRole("radio", { name: "KPSS / Hukuk · Anayasa" })).toHaveAttribute("aria-checked", "true");
+    await expect(page.locator(".lj-context")).toContainText("KPSS anayasa hukuku");
+    await expect(page.locator(".lj-file")).toContainText("Anayasa_Yasama_Sureci_Notu.pdf");
     await page.getByRole("button", { name: /^Adım 7: / }).click();
     await expect(page.getByRole("link", { name: /Şimdi kendi notunla başla/ })).toHaveAttribute("href", "/kayit?hedef=akademik");
   });

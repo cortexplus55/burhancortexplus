@@ -135,6 +135,106 @@
   }
 }
 
+/*
+  ---------- Branş şeridi (Faz 7, 20 Kasım 2026) ----------
+  Konsolun hemen üstünde dört branş: tur seçilen branşın örnek notuyla kurulur. Metinli bölümlü seçici (tasarım
+  sistemi §6 b) pazarlama paletinde: tepsi koyu yüzey, seçili öğe bir basamak açık yüzey + logonun şeridinden bir
+  nokta; mavi yok. Her öğe en az 44 px; dar ekranda satır sarar (iç kaydırma yok, sayfa yana taşmaz).
+*/
+.lj-tracks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0 0 0.75rem;
+  padding: 0.3rem;
+  border-radius: 1.6rem;
+  background: #15110d;
+  box-shadow: 0 0 0 1px var(--lj-line) inset;
+}
+
+.lj-tracks-label {
+  padding: 0 0.55rem 0 0.7rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--lj-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.lj-track {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.75rem;
+  padding: 0 0.95rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #d9cebf;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 0.16s ease,
+    color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+/* Seçili branşın noktası: logonun şeridi. Seçili olmayanlarda sönük. */
+.lj-track::before {
+  content: "";
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--lj-line-strong);
+  transition: background 0.16s ease;
+}
+
+.lj-track:hover {
+  background: #1e1813;
+  color: var(--lj-text);
+}
+
+.lj-track:focus-visible {
+  outline: 2px solid var(--lj-beam-text);
+  outline-offset: 2px;
+}
+
+.lj-track.is-on {
+  background: #29211a;
+  color: var(--lj-text);
+  box-shadow: 0 0 0 1px var(--lj-line-strong) inset;
+}
+
+.lj-track.is-on::before {
+  background: var(--lj-ribbon);
+}
+
+@media (max-width: 760px) {
+  .lj-tracks-label {
+    flex-basis: 100%;
+    padding: 0.35rem 0.7rem 0.1rem;
+  }
+
+  .lj-track {
+    flex: 1 1 calc(50% - 0.35rem);
+    padding: 0 0.75rem;
+    font-size: 0.8125rem;
+  }
+}
+
+/* Branş değişince örnek notun yazısı yeniden belirir (ilk yükte değil). */
+.lj-file-text.is-switched {
+  animation: lj-context 0.5s var(--lj-ease) both;
+}
+
 /* ---------- Konsol ---------- */
 
 /*
@@ -1726,6 +1826,7 @@
   .lj-scan-laser,
   .lj-live-dot,
   .lj-context,
+  .lj-file-text.is-switched,
   .lj-next,
   .lj-warn,
   .lj-warn::after,

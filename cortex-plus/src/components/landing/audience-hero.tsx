@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { AudienceTabs } from "@/components/landing/audience-tabs";
 import { FuturisticGuidedJourney } from "@/components/landing/futuristic-guided-journey";
+import { segmentForTrack, trackForSegment, type GuestTrackId } from "@/lib/marketing/guest-demo-tracks";
 import { HERO, HERO_FACTS, HERO_INPUTS } from "@/lib/marketing/landing-content";
 import {
   audienceSegment,
@@ -12,6 +13,17 @@ import {
   resolveSegmentParam,
   type AudienceSegmentId,
 } from "@/lib/marketing/landing-showcase";
+
+/** Sekme adreste kalır (`?hedef=`): paylaşılan bağlantı aynı sekmeyi açar. Gezinme yok. */
+function writeSegmentToUrl(id: AudienceSegmentId) {
+  try {
+    const url = new URL(window.location.href);
+    url.searchParams.set("hedef", id);
+    window.history.replaceState(window.history.state, "", url);
+  } catch {
+    /* adres güncellenemezse sekme yine değişir */
+  }
+}
 
 /**
  * Kahraman + hedef kitle sekmeleri + 7 adımlı canlı kokpit tek durumda ve TEK EKRANDA. Sayfa önbellekten gelir
@@ -24,25 +36,35 @@ import {
  * Kısa gerçekler ve "notun yok mu" satırı konsolun altında: ilk ekrandaki yeri tura bırakırlar.
  *
  * Renk mavi değil: zemin sıcak siyah, eylem kâğıt beyazı, vurgu logonun şeridi (aynı gün, ikinci tur).
+ *
+ * Faz 7 (20 Kasım 2026): sekme ve turun branşı tek durum. Sekme seçilince tur o sekmenin branşına geçer (lise ve
+ * YKS/LGS → matematik, üniversite → mühendislik, akademik → hukuk); turun branş şeridinden seçilen branş da sekmeyi
+ * eşler (TUS ve hukuk akademik, mühendislik üniversite; lise branşı lise ya da YKS/LGS sekmesinde kalır).
  */
 export function AudienceHero() {
-  const [segmentId, setSegmentId] = useState<AudienceSegmentId>(DEFAULT_SEGMENT);
+  const [{ segmentId, trackId }, setPick] = useState<{ segmentId: AudienceSegmentId; trackId: GuestTrackId }>({
+    segmentId: DEFAULT_SEGMENT,
+    trackId: trackForSegment(DEFAULT_SEGMENT),
+  });
 
   useEffect(() => {
     const fromUrl = resolveSegmentParam(window.location.search);
-    if (fromUrl) setSegmentId(fromUrl);
+    if (fromUrl) setPick({ segmentId: fromUrl, trackId: trackForSegment(fromUrl) });
   }, []);
 
   const pick = useCallback((id: AudienceSegmentId) => {
-    setSegmentId(id);
-    try {
-      const url = new URL(window.location.href);
-      url.searchParams.set("hedef", id);
-      window.history.replaceState(window.history.state, "", url);
-    } catch {
-      /* adres güncellenemezse sekme yine değişir */
-    }
+    setPick({ segmentId: id, trackId: trackForSegment(id) });
+    writeSegmentToUrl(id);
   }, []);
+
+  const pickTrack = useCallback(
+    (id: GuestTrackId) => {
+      const nextSegment = segmentForTrack(id, segmentId);
+      setPick({ segmentId: nextSegment, trackId: id });
+      if (nextSegment !== segmentId) writeSegmentToUrl(nextSegment);
+    },
+    [segmentId],
+  );
 
   const segment = audienceSegment(segmentId);
 
@@ -81,9 +103,9 @@ export function AudienceHero() {
           </div>
         </div>
 
-        {/* Kokpit: turun kendisi. Sekme durumu buradan iner; tur kayıt bağlantısını ve bağlam satırını ona göre kurar. */}
+        {/* Kokpit: turun kendisi. Sekme ve branş buradan iner; tur kayıt bağlantısını, örnek notu ve yedi adımı ona göre kurar. */}
         <div className="hm-hero-cockpit">
-          <FuturisticGuidedJourney segmentId={segmentId} />
+          <FuturisticGuidedJourney segmentId={segmentId} trackId={trackId} onTrackChange={pickTrack} />
         </div>
 
         <div className="hm-hero-foot">

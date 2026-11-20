@@ -33,6 +33,13 @@ const SURFACES = [
   "src/components/landing/futuristic-guided-journey.tsx",
   // Turun ürün ekranlarında gösterilen örnek veri de misafire gösterilen sözdür.
   "src/lib/demo/guest-tour.ts",
+  // Faz 7 (20 Kasım 2026): turun dört branşı (örnek not, yol, uyarı, ders, soru, kart, önerme, sahne).
+  "src/lib/marketing/guest-demo-tracks.ts",
+  "src/lib/demo/guest-tour-tracks.ts",
+  "src/lib/demo/guest-tracks/muhendislik.ts",
+  "src/lib/demo/guest-tracks/tus.ts",
+  "src/lib/demo/guest-tracks/hukuk.ts",
+  "src/components/landing/tour/product-screens.tsx",
   // 11 Kasım 2026, kokpit: karşılaştırma düellosu, Plus önizlemeleri ve misafirin dosya kartları.
   "src/components/landing/landing-duel.tsx",
   "src/components/landing/tour/plus-previews.tsx",

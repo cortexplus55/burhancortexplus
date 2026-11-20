@@ -14,11 +14,24 @@
  * çalışır ve örnek veri ürünün veri biçiminde `lib/demo/guest-tour.ts`te durur. Üründe olmayan bir şey gösterilmez.
  * Plus'ta olan her şey "Plus" diye etiketlenir (bekçi `marketing-claims.test.ts`). Tur model çağırmaz ve hiçbir
  * dosyayı sunucuya göndermez.
+ *
+ * Faz 7 (20 Kasım 2026): tur seçilen branşın örnek notuyla oynanır (`guest-demo-tracks.ts`). Branşa bağlı sözler
+ * (dosya, sayfa, bulgular, yol, uyarı, Plus önizlemelerinin notu) branş alan işlevlerden gelir; `JOURNEY_FILE`,
+ * `JOURNEY_ROADMAP`, `JOURNEY_WARNING` ve `JOURNEY_PLUS_PREVIEWS` lise branşının değerleridir (öteden beri oynanan örnek).
  */
 
 import { FREE_PAGE_TOTAL } from "@/lib/billing/free-tier-copy";
+import { DEMO_PODCASTS } from "@/lib/demo/demo-podcasts";
 import { GUEST_DOCUMENT_NEXT } from "@/lib/documents/guest-handoff";
-import { SAME_NOTE_CASE } from "@/lib/marketing/advantage-content";
+import {
+  DEFAULT_GUEST_TRACK,
+  GUEST_DEMO_TRACKS,
+  guestDemoTrack,
+  trackHasPodcast,
+  trackWarningLabel,
+  type GuestDemoRoadmapDay,
+  type GuestTrackId,
+} from "@/lib/marketing/guest-demo-tracks";
 import type { AudienceSegmentId } from "@/lib/marketing/landing-showcase";
 
 export const JOURNEY_STEP_IDS = ["upload", "roadmap", "lesson", "question", "cards", "check", "plus"] as const;
@@ -82,30 +95,37 @@ export const JOURNEY_NEXT_LABEL: Record<JourneyProductStep, string> = {
 
 /**
  * Hoca uyarısının izi (A4, 13 Kasım 2026). Taramadan sonra (2-7. adımlar) başlığın yanında kalıcı bir etiket durur;
- * yeni söz yok: etiket ve açıklaması örnek notun uyarı satırından (`SAME_NOTE_CASE`).
+ * yeni söz yok: etiket ve açıklaması örnek notun uyarı satırından (lise: `SAME_NOTE_CASE`). Faz 7: her branşın
+ * örnek notunun kendi uyarısı ("Hoca uyarısı", "TUS spotu", "Sınav tuzağı").
  */
-export const JOURNEY_WARNING = {
-  label: SAME_NOTE_CASE.input.lines[0].split(":")[0]!.trim(),
-  line: SAME_NOTE_CASE.input.lines[0],
-} as const;
+export function journeyWarning(track: GuestTrackId): { label: string; line: string } {
+  return { label: trackWarningLabel(track), line: guestDemoTrack(track).warning };
+}
+
+export const JOURNEY_WARNING = journeyWarning(DEFAULT_GUEST_TRACK);
 
 /**
  * Uyarıdan çıkan adımlar: bu adıma girilince etiketin çerçevesi logonun şeridiyle bir kez (600 ms) parlar. Liste
- * örnek veriden türetilir (`tourWarningSteps`, `guest-tour.ts`); örnek veri ilk yükte olmasın diye burada sabit
- * durur, bekçi test ikisinin aynı olduğunu tutar.
+ * örnek veriden türetilir (`guestTourWarningSteps`, `guest-tour-tracks.ts`); örnek veri ilk yükte olmasın diye burada
+ * sabit durur, bekçi test dört branşta da ikisinin aynı olduğunu tutar.
  */
 export const JOURNEY_WARNING_STEPS: readonly JourneyStepId[] = ["lesson", "question", "cards", "check"];
 
-/* ---------- 1. Not: iki kapı ---------- */
+/* ---------- 0. Branş şeridi (Faz 7) ---------- */
 
-/** Örnek notun sayfa sayısı: kartın alt satırı ve tarama anının ilk bulgusu aynı sayıdan. */
-const SAMPLE_PAGES = 6;
+/** Turun üstündeki branş şeridi: seçilen branşın örnek notuyla yedi adım baştan kurulur. */
+export const JOURNEY_TRACKS_COPY = {
+  label: "Branşını seç",
+  aria: "Turun örnek notu: branş seç",
+} as const;
+
+/* ---------- 1. Not: iki kapı ---------- */
 
 /** A kapısı: hazır örnek not. Kart çekirdeğe sürüklenir ya da dokunulur; tarama anı oynar ve yol açılır. */
 export const JOURNEY_FILE = {
-  name: SAME_NOTE_CASE.input.file,
+  name: GUEST_DEMO_TRACKS.lise.file,
   /** "Örnek not" yazılı: ziyaretçi bunun hazır bir örnek olduğunu bilir. */
-  meta: `Örnek not · Matematik · ${SAMPLE_PAGES} sayfa`,
+  meta: `Örnek not · ${GUEST_DEMO_TRACKS.lise.subject} · ${GUEST_DEMO_TRACKS.lise.pages} sayfa`,
   sampleCta: "Örnek notla başlat",
   zoneTitle: "Cortex tarama çekirdeği",
   zoneHint: "Örnek notu ya da kendi dosyanı buraya bırak",
@@ -116,6 +136,12 @@ export const JOURNEY_FILE = {
    */
   scanMs: 2400,
 } as const;
+
+/** Seçili branşın örnek notu: dosya adı ve kartın alt satırı ("Örnek not · {ders} · N sayfa"). */
+export function journeyFile(track: GuestTrackId): typeof JOURNEY_FILE {
+  const item = guestDemoTrack(track);
+  return { ...JOURNEY_FILE, name: item.file, meta: `Örnek not · ${item.subject} · ${item.pages} sayfa` };
+}
 
 /**
  * B kapısı: misafirin kendi dosyası. Dosya sunucuya GÖNDERİLMEZ: tarayıcıda (sekme oturumu + IndexedDB) bekler,
@@ -146,32 +172,30 @@ export function ownReadyTitle(names: readonly string[]): string {
 }
 
 /**
- * Tarama anında sırayla belirenler (A2). Yeni cümle yok: sayfa sayısı kartın alt satırından, konu sayısı yol
- * haritasının satır sayısından, hocanın uyarısı ve şekil satırı "Aynı not" kartındaki aynı notun satırlarından
- * (`SAME_NOTE_CASE`). Bekçi test sayıların fikstürle aynı olduğunu tutar.
+ * Tarama anında sırayla belirenler (A2). Yeni cümle yok: sayfa sayısı kartın alt satırından, konu sayısı yolun
+ * konularından, uyarı ve şekil satırı örnek notun satırlarından (lise: "Aynı not" kartındaki aynı notun satırları,
+ * `SAME_NOTE_CASE`). Bekçi test sayıların fikstürle aynı olduğunu tutar.
  */
-export function journeyScanFindings(): { id: "pages" | "topics" | "warning" | "figure"; text: string }[] {
-  const [warning, figure] = SAME_NOTE_CASE.input.lines;
+export function journeyScanFindings(track: GuestTrackId = DEFAULT_GUEST_TRACK): { id: "pages" | "topics" | "warning" | "figure"; text: string }[] {
+  const item = guestDemoTrack(track);
   return [
-    { id: "pages", text: `${SAMPLE_PAGES} sayfa` },
-    { id: "topics", text: `${JOURNEY_ROADMAP.days.length} konu` },
-    { id: "warning", text: warning },
-    { id: "figure", text: figure },
+    { id: "pages", text: `${item.pages} sayfa` },
+    { id: "topics", text: `${item.units.length} konu` },
+    { id: "warning", text: item.warning },
+    { id: "figure", text: item.figure },
   ];
 }
 
 /* ---------- 2. Yol haritası ---------- */
 
-export const JOURNEY_ROADMAP = {
-  days: [
-    { day: "1. gün", title: "Köklü ifadelerin tanımı ve çift derece kuralı", ready: true, meta: "Hazır · 5 dk" },
-    { day: "2. gün", title: "Sayıyı kök dışına çıkarma ve kök içine alma", ready: false, meta: "" },
-    { day: "3. gün", title: "Köklü sayılarda toplama, çıkarma ve çarpma", ready: false, meta: "" },
-    { day: "4. gün", title: "Eşlenik ve paydayı rasyonel yapma", ready: false, meta: "" },
-    { day: "5–7. gün", title: "İç içe kökler, konu testi ve genel tekrar", ready: false, meta: "" },
-  ],
-  cta: "Şimdi 1. dersi aç",
-} as const;
+const ROADMAP_CTA = "Şimdi 1. dersi aç";
+
+/** Seçili branşın yol haritası: konular gün gün, ilk gün hazır ders. */
+export function journeyRoadmap(track: GuestTrackId): { days: readonly GuestDemoRoadmapDay[]; cta: string } {
+  return { days: guestDemoTrack(track).days, cta: ROADMAP_CTA };
+}
+
+export const JOURNEY_ROADMAP = journeyRoadmap(DEFAULT_GUEST_TRACK);
 
 /** Yol haritasının hedef çipleri: ilk çip seçili sekmenin sınav sözüyle başlar ("Vizene 7 gün var"). */
 export function journeyGoals(examWord: string): string[] {
@@ -233,6 +257,30 @@ export const JOURNEY_PLUS_PREVIEWS: JourneyPlusPreview[] = [
     note: "Bu kâğıt turdaki örnek dersten, ürünün kendi derleyicisiyle çıkarıldı.",
   },
 ];
+
+/** Çizimli video önizlemesinin gövdesi, branşın sahnesine göre (lise: ürünün çizim tahtası; öbürleri branşa özel şema). */
+const VIDEO_BODY: Record<GuestTrackId, string> = {
+  lise: JOURNEY_PLUS_PREVIEWS[1]!.body,
+  muhendislik: "Kuvvet diyagramı adım adım çizilir, alt yazı anlatımla birlikte akar.",
+  tus: "Kanal blokajının mekanizma zinciri adım adım çizilir, alt yazı anlatımla birlikte akar.",
+  hukuk: "Karar ağacı ve çoğunluk barometresi adım adım çizilir, alt yazı anlatımla birlikte akar.",
+};
+
+/**
+ * Seçili branşın Plus önizlemeleri. Podcast kesitleri yalnız `DEMO_PODCASTS`tan: kesiti olmayan branşta podcast
+ * önizlemesi hiç gösterilmez (yer tutucu ya da "yakında" yazısı yok). Podcast notu kesitin ünitesini anar.
+ */
+export function journeyPlusPreviews(track: GuestTrackId): JourneyPlusPreview[] {
+  const [podcast, video, sheet] = JOURNEY_PLUS_PREVIEWS as [JourneyPlusPreview, JourneyPlusPreview, JourneyPlusPreview];
+  const clip = DEMO_PODCASTS[track];
+  return [
+    ...(clip && trackHasPodcast(track)
+      ? [{ ...podcast, note: `Gerçek bir bölümden kesit (bu turdaki ${clip.unit} dersi). Senin notundan da böyle bir bölüm yazılır ve seslendirilir.` }]
+      : []),
+    { ...video, body: VIDEO_BODY[track] },
+    sheet,
+  ];
+}
 
 /** Önizlemesi olmayan öbür Plus özellikleri: tek satır. */
 export const JOURNEY_PLUS_ALSO = "Plus'ta ayrıca: sözlü deneme, yazılı deneme, bütün konular ve belgenin tamamı.";

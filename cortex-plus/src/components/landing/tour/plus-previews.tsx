@@ -3,12 +3,16 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Pause, Play, RotateCcw } from "lucide-react";
+import { ReelSceneRenderer } from "@/components/learning/visual-scenes";
 import { CramSheetView } from "@/components/parity/cram-sheet-view";
 import { PodcastKaraokeLine } from "@/components/parity/podcast-karaoke";
 import { SketchBoard } from "@/components/parity/video-lesson";
-import { TOUR_LESSON, TOUR_PODCAST_SAMPLE, TOUR_PREP, TOUR_SKETCH } from "@/lib/demo/guest-tour";
+import { DEMO_PODCASTS, type DemoPodcast, type GuestTrackId } from "@/lib/demo/demo-podcasts";
+import { guestTourContent } from "@/lib/demo/guest-tour-tracks";
+import type { GuestTourContent, TourBoardSketch, TourReelSketch } from "@/lib/demo/guest-tour-types";
 import { buildCramSheet } from "@/lib/learning/cram-sheet";
 import { captionChunks, sketchFormulaSteps } from "@/lib/learning/video-lesson";
+import { parseReelVisual } from "@/lib/learning/visual-scenes/schema";
 import { JOURNEY_PLUS_PLAY, type JourneyPlusPreviewId } from "@/lib/marketing/landing-journey";
 import { cn } from "@/lib/utils";
 import "@/styles/parity-shell.css";
@@ -19,22 +23,29 @@ import "@/styles/tour-previews.css";
  * Kokpitin Plus adımındaki canlı önizlemeler (11 Kasım 2026). Kuru metin kutuları yerine ürünün kendi parçaları:
  *
  *   podcast → gerçek bir bölümün sesinden kısa bir kesit; kelime vurgusunu ürünün karaoke bileşeni çizer
- *   video   → ürünün çizim tahtası (`SketchBoard`) ve alt yazı parçalayıcısı; ses yerine bir sayaç sürer
+ *   video   → ürünün çizim tahtası (`SketchBoard`) ya da branşa özel sahnesi (`ReelSceneRenderer`) ve alt yazı
+ *             parçalayıcısı; ses yerine bir sayaç sürer
  *   kâğıt   → ürünün derleyicisi (`buildCramSheet`) turdaki örnek dersten çıkarır, ürünün görünümü çizer
  *
  * Hiçbiri model çağırmaz, sunucuya istek atmaz: ses depoda sabit bir dosyadır, tahta ve kâğıt tarayıcıda hesaplanır.
  * Dosya ana sayfanın ilk yükünde yoktur; ziyaretçi Plus adımına yaklaşınca ayrı parça olarak yüklenir.
+ *
+ * Faz 7 (20 Kasım 2026): önizlemeler seçili branşın (`track`): podcast kesiti yalnız `DEMO_PODCASTS`tan (kesiti olmayan
+ * branşta tur podcast sekmesini hiç göstermez); lise ürünün çizim tahtasıyla, öbür branşlar ürünün branşa özel
+ * sahneleriyle (mühendislikte kuvvet diyagramı, TUS'ta kanal blokajı, hukukta karar ağacı ve çoğunluk barometresi).
  */
 
-export type TourPlusPreviewProps = { preview: JourneyPlusPreviewId };
+export type TourPlusPreviewProps = { preview: JourneyPlusPreviewId; track?: GuestTrackId };
 
 /** Önizleme uygulamanın kendi kabuk sınıflarının içinde çizilir: parçalar üründeki renk ve ölçüleri alır. */
-export function TourPlusPreview({ preview }: TourPlusPreviewProps) {
+export function TourPlusPreview({ preview, track = "lise" }: TourPlusPreviewProps) {
+  const content = guestTourContent(track);
+  const podcast = DEMO_PODCASTS[track];
   return (
-    <div className="tp-app dark cp-sor-root cp-sor-root--session tpp-shell" data-preview-shell={preview}>
-      {preview === "podcast" ? <PodcastPreview /> : null}
-      {preview === "video" ? <VideoPreview /> : null}
-      {preview === "sheet" ? <SheetPreview /> : null}
+    <div className="tp-app dark cp-sor-root cp-sor-root--session tpp-shell" data-preview-shell={preview} data-track={track}>
+      {preview === "podcast" && podcast ? <PodcastPreview sample={podcast} /> : null}
+      {preview === "video" ? content.sketch.kind === "board" ? <VideoPreview sketch={content.sketch} /> : <ReelPreview sketch={content.sketch} /> : null}
+      {preview === "sheet" ? <SheetPreview content={content} /> : null}
     </div>
   );
 }
@@ -58,8 +69,7 @@ const WAVE_BARS = 28;
  * Gerçek bölümden kesit. Ses çalarken saat sesin konumudur; ses yüklenemezse (ağ, engellenen oynatma) kelimeler
  * duvar saatiyle sessiz akar ve ekran bunu söyler: ziyaretçi boş bir düğmeye bakmaz.
  */
-function PodcastPreview() {
-  const sample = TOUR_PODCAST_SAMPLE;
+function PodcastPreview({ sample }: { sample: DemoPodcast }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const position = useRef(0);
   const wall = useRef({ startedAt: 0, base: 0 });
@@ -192,12 +202,11 @@ const VIDEO_TICK_MS = 100;
 const DRAW_SHARE = 0.7;
 
 /**
- * Sessiz önizleme: ürünün çizim tahtası, sesin yerine bir sayaçla. Kendiliğinden başlar ve iki sahne arasında döner;
- * hareket azaltmada çizilmiş hâliyle durur ve düğmeyle oynatılır.
+ * Sessiz önizlemenin saati: sesin yerine bir sayaç. Kendiliğinden başlar ve sahneler arasında döner; hareket
+ * azaltmada ilk sahne çizilmiş hâliyle durur ve düğmeyle oynatılır.
  */
-function VideoPreview() {
-  const { scenes, sceneMs } = TOUR_SKETCH;
-  const total = scenes.length * sceneMs;
+function useSceneClock(count: number, sceneMs: number) {
+  const total = count * sceneMs;
   const [reduced] = useState(prefersReducedMotion);
   const position = useRef(reduced ? sceneMs - 1 : 0);
   const [elapsed, setElapsed] = useState(position.current);
@@ -215,17 +224,53 @@ function VideoPreview() {
     return () => window.clearInterval(timer);
   }, [playing, total]);
 
-  const index = Math.min(scenes.length - 1, Math.floor(elapsed / sceneMs));
-  const scene = scenes[index]!;
+  const index = Math.min(count - 1, Math.floor(elapsed / sceneMs));
   const within = elapsed - index * sceneMs;
   const draw = Math.max(0, Math.min(1, within / (sceneMs * DRAW_SHARE)));
+  return { index, within, draw, playing, setPlaying };
+}
+
+/** Alt yazı: anlatım ürünün parçalayıcısıyla 2-4 kelimelik parçalara bölünür; anahtar kelime vurgulu. */
+function SceneCaption({ narration, sceneMs, within }: { narration: string; sceneMs: number; within: number }) {
+  const chunks = useMemo(() => captionChunks(narration, sceneMs), [narration, sceneMs]);
+  const chunk = chunks.find((item) => within >= item.startMs && within < item.endMs) ?? chunks.at(-1);
+  if (!chunk) return null;
+  return (
+    <p className="cp-video-caption" aria-live="off">
+      {chunk.words.map((item, at) => (
+        <span key={at} className={item.key ? "cp-video-key" : undefined}>
+          {at ? " " : ""}
+          {item.word}
+        </span>
+      ))}
+    </p>
+  );
+}
+
+function VideoControls({ playing, onToggle, index, count }: { playing: boolean; onToggle: () => void; index: number; count: number }) {
+  return (
+    <div className="tpp-controls">
+      <button type="button" className="tpp-play" onClick={onToggle}>
+        {playing ? <Pause className="h-4 w-4" aria-hidden /> : <Play className="h-4 w-4" aria-hidden />}
+        {playing ? JOURNEY_PLUS_PLAY.pause : JOURNEY_PLUS_PLAY.video}
+      </button>
+      <span className="tpp-time">
+        Sahne {index + 1}/{count}
+      </span>
+    </div>
+  );
+}
+
+/** Lise: ürünün çizim tahtası. Şema `--draw` ile çizilir, formül adımları sırayla belirir. */
+function VideoPreview({ sketch }: { sketch: TourBoardSketch }) {
+  const { scenes, sceneMs } = sketch;
+  const { index, within, draw, playing, setPlaying } = useSceneClock(scenes.length, sceneMs);
+  const scene = scenes[index]!;
   const steps = useMemo(() => (scene.formula ? sketchFormulaSteps(scene.formula) : []), [scene.formula]);
   const shown = steps.length ? Math.max(1, Math.ceil(draw * steps.length)) : 0;
-  const chunks = useMemo(() => captionChunks(scene.narration, sceneMs), [scene.narration, sceneMs]);
-  const chunk = chunks.find((item) => within >= item.startMs && within < item.endMs) ?? chunks.at(-1);
 
   return (
-    <div className="tpp-video" data-preview="video">
+    <div className="tpp-video" data-preview="video" data-video="board">
       <div className="tpp-video-slot">
         <div
           className="cp-video-frame is-portrait is-sketch tpp-video-frame"
@@ -243,27 +288,42 @@ function VideoPreview() {
             formulaShown={shown}
             keyFact={scene.keyFact}
           />
-          {chunk ? (
-            <p className="cp-video-caption" aria-live="off">
-              {chunk.words.map((item, at) => (
-                <span key={at} className={item.key ? "cp-video-key" : undefined}>
-                  {at ? " " : ""}
-                  {item.word}
-                </span>
-              ))}
-            </p>
-          ) : null}
+          <SceneCaption narration={scene.narration} sceneMs={sceneMs} within={within} />
         </div>
       </div>
-      <div className="tpp-controls">
-        <button type="button" className="tpp-play" onClick={() => setPlaying((current) => !current)}>
-          {playing ? <Pause className="h-4 w-4" aria-hidden /> : <Play className="h-4 w-4" aria-hidden />}
-          {playing ? JOURNEY_PLUS_PLAY.pause : JOURNEY_PLUS_PLAY.video}
-        </button>
-        <span className="tpp-time">
-          Sahne {index + 1}/{scenes.length}
-        </span>
+      <VideoControls playing={playing} onToggle={() => setPlaying((current) => !current)} index={index} count={scenes.length} />
+    </div>
+  );
+}
+
+/**
+ * Mühendislik, TUS ve hukuk: ürünün çizimli video oynatıcısındaki branşa özel SVG sahnesi (`ReelSceneRenderer`).
+ * Sahne verisi ürünün ayrıştırıcısından geçer (`parseReelVisual`); her sahne değişiminde çizim baştan akar.
+ */
+function ReelPreview({ sketch }: { sketch: TourReelSketch }) {
+  const { scenes, sceneMs } = sketch;
+  const visuals = useMemo(() => scenes.map((scene) => parseReelVisual(scene.visual, scene.beat)), [scenes]);
+  const { index, within, playing, setPlaying } = useSceneClock(scenes.length, sceneMs);
+  const scene = scenes[index]!;
+  const visual = visuals[index];
+
+  return (
+    <div className="tpp-video" data-preview="video" data-video="reel">
+      <div className="tpp-video-slot">
+        <div
+          className="cp-video-frame is-portrait is-reel tpp-video-frame"
+          data-ratio="9:16"
+          style={{ ["--cp-top-h" as string]: "0.4rem" }}
+        >
+          {visual ? (
+            <div className="cp-video-reel" data-beat={scene.beat}>
+              <ReelSceneRenderer key={index} visual={visual} mode="9:16" domain={sketch.domain} animate="sync" playing={playing} />
+            </div>
+          ) : null}
+          <SceneCaption narration={scene.narration} sceneMs={sceneMs} within={within} />
+        </div>
       </div>
+      <VideoControls playing={playing} onToggle={() => setPlaying((current) => !current)} index={index} count={scenes.length} />
     </div>
   );
 }
@@ -271,15 +331,16 @@ function VideoPreview() {
 /* ---------- Sınav sabahı kâğıdı ---------- */
 
 /** Kâğıt turdaki örnek dersten, ürünün derleyicisiyle; baskıdaki gibi açık zeminde gösterilir. */
-function SheetPreview() {
+function SheetPreview({ content }: { content: GuestTourContent }) {
+  const { prep, lesson } = content;
   const sheet = useMemo(
-    () => buildCramSheet({ topics: [{ key: "tur", label: TOUR_PREP.topic }], lessons: [{ topicKey: "tur", lesson: TOUR_LESSON }] }),
-    [],
+    () => buildCramSheet({ topics: [{ key: "tur", label: prep.topic }], lessons: [{ topicKey: "tur", lesson }] }),
+    [prep.topic, lesson],
   );
   return (
     <div className="tpp-sheet" data-preview="sheet">
       <div className="tpp-paper">
-        <CramSheetView preview sheet={sheet} prepTitle={TOUR_PREP.title} examDay={null} homeHref="/kayit" />
+        <CramSheetView preview sheet={sheet} prepTitle={prep.title} examDay={null} homeHref="/kayit" />
       </div>
     </div>
   );
