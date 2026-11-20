@@ -9,6 +9,7 @@
 import { foldTr } from "@/lib/documents/page-analysis";
 import { exclusionPhrases } from "@/lib/learning/cross-material-topics";
 import type { TeacherAnalysis } from "@/lib/learning/teacher-brain";
+import { splitTurkishSentences } from "@/lib/text/turkish-sentences";
 
 export type CorpusDoc = {
   documentId: string;
@@ -355,7 +356,7 @@ function readLooseAnalysis(raw: unknown, documentName: string, scope: SyllabusSc
 }
 
 function readProse(text: string, documentName: string, pageNumber: number | null, scope: SyllabusScope) {
-  const sentences = text.split(/(?<=[.!?])\s+|\n+/);
+  const sentences = splitTurkishSentences(text);
   for (const sentence of sentences) {
     const excluded = sentence.match(/(.{3,80}?)\s+sınav kapsamı dışındadır/i)
       ?? sentence.match(/(.{3,80}?)\s+kapsam dışındadır/i);

@@ -1,39 +1,33 @@
 /**
- * Ana sayfanın hedef kitle sekmeleri (7 Kasım 2026).
+ * Ana sayfanın hedef kitle profilleri (7 Kasım 2026).
  *
- * Dört öğrenci profili (lise yazılısı, YKS/LGS, üniversite vize-final, KPSS/TUS/ALES) reklamdan ya da aramadan
- * gelince ilk üç saniyede "burası benim için" demeli. Sekme kahramanın cümlesini ve kayıt bağlantısını
- * (`/kayit?hedef=…`) değiştirir; aşağıdaki 7 adımlı tur (`landing-journey.ts`, 11 Kasım 2026) aynı bağlantıyı kullanır.
- * Eski kayıtsız vitrin (sekmeye göre dört örnek soru) turla birleşti ve kaldırıldı.
+ * Bir öğrenci profili reklamdan ya da aramadan gelince ilk üç saniyede "burası benim için" demeli. Profil kahramanın
+ * cümlesini ve kayıt bağlantısını (`/kayit?hedef=…`) değiştirir; 7 adımlı tur (`landing-journey.ts`) aynı bağlantıyı
+ * kullanır.
  *
- * 11 Kasım 2026, kokpit: kahraman ile tur tek ekranda birleşti. Tur tek bir örnek notla (matematik) oynanır; seçili
- * sekme turun bağlam satırını (`tourContext`) ve yol haritasındaki sınav sözünü (`examWord`) değiştirir ki dört
- * profil de "bu tur benim sınavım için de geçerli" desin. Bağlam cümleleri de bugün üründe çalışan şeyleri söyler.
+ * Faz 7 (20 Kasım 2026): tur profilin branşıyla oynanır (`guest-demo-tracks.ts`).
+ *
+ * Faz 9 (20 Kasım 2026, ürün sahibi: "iki ayrı seçici kafa karıştırıyor"): kahramandaki dört sekme ile turun branş
+ * şeridi TEK seçicide birleşti (`HERO_PICKS`, `guest-demo-tracks.ts`). Seçicide dört seçenek var, profil beş: lise ve
+ * YKS/LGS aynı seçeneğe ("Lise & YKS") düşer ama eski bağlantının profili (`?hedef=yks-lgs`) kayıt bağlantısında korunur.
+ * TUS kendi profili oldu (önce akademik sekmenin içindeydi): kendi cümlesi, kendi düğmesi, kayıtta "TUS hazırlık".
  *
  * Pazarlama kuralı (19 Ekim 2026): her cümle bugün üründe çalışan bir şeyi anlatır. Kahraman cümleleri yalnız
  * ücretsiz hesapta da açık olanları sayar; Plus'ta olan özellik turun Plus adımında "Plus" rozetiyle gösterilir
  * (bekçi `marketing-claims.test.ts`).
  */
 
-export const AUDIENCE_SEGMENT_IDS = ["lise", "yks-lgs", "universite", "akademik"] as const;
+export const AUDIENCE_SEGMENT_IDS = ["lise", "yks-lgs", "universite", "akademik", "tus"] as const;
 export type AudienceSegmentId = (typeof AUDIENCE_SEGMENT_IDS)[number];
 
 export type AudienceSegment = {
   id: AudienceSegmentId;
-  /** Sekme etiketi (emoji + kısa ad). */
-  tab: string;
-  /** Kahramanın üst rozeti. */
-  badge: string;
   /** Kahramanın alt cümlesi: bu profilin üründe bugün yapabildiği şeyler. */
   lead: string;
   /** Birincil düğme: "{kamp} ücretsiz başlat". */
   ctaLabel: string;
-  /** Dönüşüm köprüsündeki kısa ad ("Lise kampını"). */
-  campName: string;
   /** Kayıt sayfası bu değeri alınca sınıf ve hedef sınavı önceden seçer (`signup-preset.ts`). */
   signupHref: `/kayit?hedef=${AudienceSegmentId}`;
-  /** Kokpitteki bağlam satırı: örnek notun bu profil için ne anlama geldiği. */
-  tourContext: string;
   /** Yol haritasındaki hedef çipinin ilk sözcüğü: "Yazılına 7 gün var". */
   examWord: string;
 };
@@ -41,46 +35,37 @@ export type AudienceSegment = {
 export const AUDIENCE_SEGMENTS: AudienceSegment[] = [
   {
     id: "lise",
-    tab: "🎒 Lise & Yazılı",
-    badge: "9, 10, 11 ve 12. sınıf · Okul yazılıları ve ortak sınav senaryoları",
     lead: "Hocanın notunu ya da slaytını yükle; yazılıdan önce notuna sadık ders, kartlar ve konu testi hazır olsun.",
     ctaLabel: "Lise kampını ücretsiz başlat",
-    campName: "lise kampını",
     signupHref: "/kayit?hedef=lise",
-    tourContext: "Örnek not matematik; kendi yazılı notunu yüklediğinde aynı yedi adım kurulur.",
     examWord: "Yazılına",
   },
   {
     id: "yks-lgs",
-    tab: "🔥 YKS & LGS Kampı",
-    badge: "TYT · AYT · LGS",
     lead: "Konu testleri, sınav tuzağı kartları ve \"İki şık arasında kaldım\" ipucuyla her yanlışın nedenini şık şık gör.",
     ctaLabel: "YKS / LGS kampını ücretsiz başlat",
-    campName: "YKS / LGS kampını",
     signupHref: "/kayit?hedef=yks-lgs",
-    tourContext: "Örnek not matematik; TYT, AYT ve LGS konularında da yol aynı.",
     examWord: "Sınavına",
   },
   {
     id: "universite",
-    tab: "🎓 Üniversite Vize & Final",
-    badge: "Tıp · Mühendislik · Hukuk · İİBF · Hocanın slaytı ve PDF'i",
     lead: "Hocanın slaytını ya da PDF'ini yükle; vizeden önce hocanın kendi kuralına sadık anlatım, kartlar ve konu testi çıksın.",
     ctaLabel: "Vize-final kampını ücretsiz başlat",
-    campName: "vize-final kampını",
     signupHref: "/kayit?hedef=universite",
-    tourContext: "Örnek not matematik; vize slaytın ya da hocanın PDF'i için de adımlar aynı.",
     examWord: "Vizene",
   },
   {
     id: "akademik",
-    tab: "⚖️ KPSS · TUS · DUS · ALES",
-    badge: "KPSS · TUS · DUS · ALES · DGS · YDS · Doğrulanmış hazır müfredat",
     lead: "Dosya yüklemeden, doğrulanmış hazır müfredattan başla: kilit bilgiler, vaka soruları ve hafıza çivileri.",
     ctaLabel: "Sınav kampını ücretsiz başlat",
-    campName: "sınav kampını",
     signupHref: "/kayit?hedef=akademik",
-    tourContext: "Örnek not matematik; KPSS, TUS, DUS ve ALES'te hazır müfredattan da başlarsın.",
+    examWord: "Sınavına",
+  },
+  {
+    id: "tus",
+    lead: "Tıp notunu ya da ders slaytını yükle; TUS'tan önce notuna sadık anlatım, sınav tuzağı kartları ve vaka soruları hazır olsun.",
+    ctaLabel: "TUS kampını ücretsiz başlat",
+    signupHref: "/kayit?hedef=tus",
     examWord: "Sınavına",
   },
 ];
@@ -96,8 +81,9 @@ export function audienceSegment(id: AudienceSegmentId): AudienceSegment {
 }
 
 /**
- * Adresten sekme: `?hedef=lise|yks-lgs|universite|akademik`; yoksa `utm_campaign` / `utm_content` içindeki anahtar
- * kelime ("yks", "lgs", "tyt", "vize", "kpss", "tus", "lise"…). Hiçbiri yoksa `null` (varsayılan sekme açılır).
+ * Adresten profil: `?hedef=lise|yks-lgs|universite|akademik|tus`; yoksa `utm_campaign` / `utm_content` / `utm_term`
+ * içindeki anahtar kelime ("yks", "lgs", "tyt", "tus", "dus", "kpss", "vize", "lise"…). Hiçbiri yoksa `null`
+ * (varsayılan profil açılır). Eski bağlantılar çalışmaya devam eder: dört eski profil aynı adla duruyor.
  */
 export function resolveSegmentParam(search: string | null | undefined): AudienceSegmentId | null {
   if (!search) return null;
@@ -117,7 +103,8 @@ export function resolveSegmentParam(search: string | null | undefined): Audience
     .replace(/[_\-.:/]+/g, " ");
   if (!hint.trim()) return null;
   if (/\b(yks|tyt|ayt|lgs)\b/.test(hint)) return "yks-lgs";
-  if (/\b(kpss|tus|dus|ales|dgs|yds)\b/.test(hint)) return "akademik";
+  if (/\b(tus|dus)\b/.test(hint)) return "tus";
+  if (/\b(kpss|ales|dgs|yds)\b/.test(hint)) return "akademik";
   if (/(vize|final|universite|üniversite|fakulte|fakülte)/.test(hint)) return "universite";
   if (/\b(lise|yazili|yazılı|maarif)\b/.test(hint)) return "lise";
   return null;

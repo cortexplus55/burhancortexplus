@@ -2,13 +2,17 @@ import Link from "next/link";
 import { ArrowRight, Check } from "lucide-react";
 import { ParityMarketingPage } from "@/components/parity/marketing";
 import { Icon3D, type Icon3DName } from "@/components/ui/icon-3d";
+import { PLAN_MARKETING_COPY, WRITTEN_EXAM_AVAILABILITY } from "@/lib/marketing/plan-copy";
 import "@/styles/landing.css";
+import { pageMetadata } from "@/lib/seo/page-metadata";
 
-export const metadata = {
+// Kanonik adres ve sayfaya özel paylaşım bilgisi (20 Kasım 2026, Faz 3).
+export const metadata = pageMetadata({
   title: "Sınav hazırlığı",
   description:
     "Notunu ya da sınavını ver; konular sırayla bir yola dizilir. Sıradaki adımın, hazırlık puanın ve sınav günü tahminin hep görünür.",
-};
+  path: "/sinav-hazirligi",
+});
 
 /*
   19 Ekim 2026: sayfa eski ürünü anlatıyordu ("net" analizi, saatli günlük plan, "planına dön") ve
@@ -16,13 +20,17 @@ export const metadata = {
   İlerleme sekmesi (`exam-prep-progress.tsx`), zorluk önerisi (`prep-level.ts`).
 */
 
-const PATH: { icon: Icon3DName; title: string; body: string }[] = [
+/*
+  Faz 5 §4.1 (19 Kasım 2026): ücretsiz hesapta hiç açılmayan adımlar (`PLUS_ONLY_ACTIONS`: podcast, yazılı ve sözlü
+  deneme) "Plus" rozetiyle; bekçi test listeyi kapılarla karşılaştırır.
+*/
+const PATH: { icon: Icon3DName; title: string; body: string; plus?: boolean }[] = [
   { icon: "alistirma", title: "Seviye tespiti", body: "İstersen kısa bir testle başla; sıran ve düzeyin buna göre ayarlanır." },
   { icon: "ders", title: "Ders", body: "Her konu kısa ekranlarla anlatılır; önce dene soruları ve tablolarla." },
-  { icon: "podcast", title: "Podcast", body: "Aynı konuyu iki öğretmenin konuşmasından dinle." },
+  { icon: "podcast", title: "Podcast", body: "Aynı konuyu iki öğretmenin konuşmasından dinle.", plus: true },
   { icon: "konu-testi", title: "Konu testi", body: "Konunun sonunda kontrol; her şıkkın açıklamasıyla." },
-  { icon: "yazili", title: "Yazılı deneme", body: "Bütün konulardan, gerçek sınav gibi. Kâğıda çözüp fotoğrafla da gönderebilirsin." },
-  { icon: "sozlu", title: "Sözlü deneme", body: "Sesli ya da yazılı cevapla, sonunda puanını al." },
+  { icon: "yazili", title: "Yazılı deneme", body: "Bütün konulardan, gerçek sınav gibi. Kâğıda çözüp fotoğrafla da gönderebilirsin.", plus: true },
+  { icon: "sozlu", title: "Sözlü deneme", body: "Sesli ya da yazılı cevapla, sonunda puanını al.", plus: true },
 ];
 
 const PROGRESS = [
@@ -39,7 +47,7 @@ const FAQ = [
   },
   {
     q: "Yol neden sırayla açılıyor?",
-    a: "Her adım bir öncekinin üstüne kuruluyor: önce ders, sonra podcast, sonra test. İstersen \"Başka birini seç\" ile sırayı atlayıp başka bir etkinliği açabilirsin; yazılı deneme her zaman açık.",
+    a: `Her adım bir öncekinin üstüne kuruluyor: önce ders, sonra podcast, sonra test. İstersen "Başka birini seç" ile sırayı atlayıp başka bir etkinliği açabilirsin. ${WRITTEN_EXAM_AVAILABILITY}`,
   },
   {
     q: "Zorluk bana uymazsa?",
@@ -47,7 +55,7 @@ const FAQ = [
   },
   {
     q: "Birden fazla sınavım var.",
-    a: "Her sınav ayrı bir hazırlık ve kendi yolu olur; belgeler birbirine karışmaz. Ücretsiz planda bir hazırlık, Plus'ta sınırsız.",
+    a: "Her sınav ayrı bir hazırlık ve kendi yolu olur; belgeler birbirine karışmaz. Ücretsiz planda bir hazırlık kurulur; Plus'ta birden çok hazırlık kurabilirsin ve hepsinin içeriği aynı aylık haktan düşer.",
   },
 ];
 
@@ -89,7 +97,14 @@ export default function SinavHazirligiPage() {
                 <li key={step.title} className="lp-step">
                   <Icon3D name={step.icon} size={52} />
                   <span className="lp-step-no">{index + 1}</span>
-                  <h3 className="lp-h3">{step.title}</h3>
+                  <h3 className="lp-h3">
+                    {step.title}
+                    {step.plus ? (
+                      <span className="lp-plus-chip" data-testid="sh-plus-badge">
+                        Plus
+                      </span>
+                    ) : null}
+                  </h3>
                   <p className="lp-muted">{step.body}</p>
                 </li>
               ))}
@@ -147,9 +162,10 @@ export default function SinavHazirligiPage() {
         <section className="lp-final" aria-labelledby="sh-final">
           <div className="lp-wrap lp-final-inner">
             <Icon3D name="bos-hazirlik" size={72} />
-            <h2 id="sh-final" className="lp-h2">
-              İlk hazırlığın ücretsiz
+            <h2 id="sh-final" className="lp-h2" data-testid="sh-final-cta">
+              {PLAN_MARKETING_COPY.free.firstCycleCta}
             </h2>
+            <p className="lp-muted">Podcast, yazılı deneme ve sözlü deneme Plus&apos;ta açılır.</p>
             <Link href="/kayit" className="lp-btn lp-btn--primary">
               Hazırlığını kur
               <ArrowRight className="h-4 w-4" aria-hidden />

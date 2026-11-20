@@ -11,8 +11,9 @@ import {
   tutorVerifyUserPrompt,
   type TutorContext,
 } from "@/lib/ai/teacher-tutor";
-import { answerFirstLine, stuckPointIssue } from "@/lib/learning/tutor-answer";
+import { answerFirstLine, misconceptionFirstLine, stuckPointIssue } from "@/lib/learning/tutor-answer";
 import { simplifyLine } from "@/lib/ai/simplify-request";
+import { parseTutorIssueRows, settleLabelOnlyIssues } from "@/lib/ai/tutor-general-label";
 import type { TutorStyle } from "@/lib/learning/tutor-style";
 
 export type TutorRunOutcome =
@@ -56,7 +57,7 @@ export async function runTeacherTutor(input: {
   const simplify = simplifyLine(input.message);
   // Tura özel satırlar (10 Kasım 2026: adım kilidi, aktif soru, duygu açılışı) en sonda: bu cevapta son söz onlarındır.
   const turn = (input.turnLines ?? []).filter(Boolean);
-  const system = `${tutorSystemPrompt(input.context)}\n\n${answerFirstLine(input.message, input.style)}${simplify ? `\n\n${simplify}` : ""}${turn.length ? `\n\n${turn.join("\n\n")}` : ""}`;
+  const system = `${tutorSystemPrompt(input.context)}\n\n${answerFirstLine(input.message, input.style)}\n${misconceptionFirstLine(input.message)}${simplify ? `\n\n${simplify}` : ""}${turn.length ? `\n\n${turn.join("\n\n")}` : ""}`;
   let reasons: string[] = [];
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const note = reasons.length ? `\n\n${tutorRetryNote(reasons)}` : "";
@@ -90,6 +91,7 @@ export async function runTeacherTutor(input: {
     }
 
     let issues: string[];
+    let reviewRaw: unknown = null;
     try {
       const review = await input.client.chat.completions.create(
         {
@@ -107,7 +109,8 @@ export async function runTeacherTutor(input: {
         { signal: input.signal, timeout: 60_000, maxRetries: 0 },
       );
       await input.onUsage(review.usage?.prompt_tokens ?? 0, review.usage?.completion_tokens ?? 0);
-      issues = parseTutorIssues(parseModelJson(review.choices[0]?.message?.content ?? ""));
+      reviewRaw = parseModelJson(review.choices[0]?.message?.content ?? "");
+      issues = parseTutorIssues(reviewRaw);
     } catch (error) {
       if (input.signal?.aborted) throw error;
       // Denetlenemeyen cevap öğrenciye gitmez.
@@ -116,6 +119,15 @@ export async function runTeacherTutor(input: {
     if (hasTemplateLabels(answer)) issues.push("Etiketli kalıp ('Nerede takıldığın:', 'Kontrol sorusu:' gibi) kullanılmış; doğal konuş.");
     if (stuck) issues.push(stuck);
     if (!issues.length) return { ok: true, content: answer, attempts: attempt + 1 };
+    // "Belgem + genel bilgi" (Burhan kararı 3): denetçinin BÜTÜN itirazları yalnız etiket eksikliğiyse (doğru, sayısız
+    // genel bilgi) cevap reddedilmez, kod etiketi ekler. Kalıp/takılma sorunu ya da başka itiraz varsa eski yol aynen.
+    if (issues.length === parseTutorIssues(reviewRaw).length) {
+      const fixed = settleLabelOnlyIssues(input.context.mode, answer, parseTutorIssueRows(reviewRaw));
+      if (fixed) {
+        console.info("tutor_label_autofixed", { labeled: fixed.labeled, attempt: attempt + 1 });
+        return { ok: true, content: fixed.content, attempts: attempt + 1 };
+      }
+    }
     reasons = issues;
   }
   return { ok: false, reasons };

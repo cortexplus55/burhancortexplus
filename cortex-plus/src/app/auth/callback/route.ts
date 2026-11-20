@@ -4,6 +4,8 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { exchangeFailurePath, providerFailurePath } from "@/lib/auth/link-failure";
 import { safeNextPath } from "@/lib/auth/safe-next-path";
 import { UNVERIFIED_FLAG, isEmailUnverified } from "@/lib/auth/email-verification";
+import { consentStatusFrom } from "@/lib/legal/consent-evidence";
+import { loadConsentRows } from "@/lib/legal/record-consent";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -41,6 +43,11 @@ export async function GET(request: Request) {
           });
         }
       }
+      // Faz 2 (madde 6): Google ile ilk kayıtta (ya da onayı hiç alınmamış hesapta) KVKK, Kullanım Koşulları ve yaş
+      // beyanı sunucuda sorulur: onay ekranına gidilir, onaydan sonra `next`e dönülür. Kayıt sihirbazından gelen
+      // akış (`/kayit/...`) onayı kendi yüküyle yazar. Onay okunamazsa öğrenci kilitlenmez (yönlendirme yok).
+      const consentPath = await consentRedirect(data?.user?.id ?? null, next).catch(() => null);
+      if (consentPath) return NextResponse.redirect(`${origin}${consentPath}`);
       return NextResponse.redirect(`${origin}${next}`);
     }
     return NextResponse.redirect(`${origin}${exchangeFailurePath(error, next)}`);
@@ -68,4 +75,14 @@ async function claimUnverifiedAccount(
   });
   if (error) throw error;
   return true;
+}
+
+/** Onayı eksik hesap için onay ekranının yolu; tamamsa ya da okunamazsa `null`. */
+async function consentRedirect(userId: string | null, next: string): Promise<string | null> {
+  if (!userId || next.startsWith("/kayit") || next.startsWith("/onay")) return null;
+  const rows = await loadConsentRows(createServiceClient(), userId);
+  if (!rows) return null;
+  const status = consentStatusFrom(rows);
+  if (!status.missing.length && !status.ageNeeded) return null;
+  return `/onay?next=${encodeURIComponent(next)}`;
 }

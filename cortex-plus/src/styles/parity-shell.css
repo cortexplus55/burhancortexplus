@@ -2528,6 +2528,35 @@
   font-size: 0.875rem;
 }
 
+/* Telefon sayfasında dokunma hedefi en az 44 px; "Fotoğraf çek" ikincil (20 Kasım 2026, sayfa tepsisi). */
+.cp-phone-card .cp-upload-pick {
+  min-height: 44px;
+}
+
+.cp-phone-camera {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  margin: 0.55rem 0 0 0.5rem;
+  padding: 0 1.15rem;
+  border: 1px solid var(--c-border-strong);
+  border-radius: 9999px;
+  background: transparent;
+  color: inherit;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* Kart `bg-2` yüzey: tepsinin kartları ve araçları bir basamak yukarıda. */
+.cp-phone-card .cx-ptray {
+  --ptray-card: var(--cx-bg-3);
+  --ptray-tool: var(--cx-bg-4);
+  --ptray-tool-hover: var(--cx-bg-4);
+  margin-top: 0.85rem;
+}
+
 .cp-more-actions {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -7723,6 +7752,19 @@
 .cp-exam-material span {
   color: var(--cp-muted);
   font-size: 0.8125rem;
+}
+
+/* Faz 2 (madde 5): kısmen işlenen belge rozeti — metin rengi temanın ana rengi (AA), kenarlık vurgu. */
+.cp-exam-material .cp-exam-material-coverage {
+  margin-top: 0.25rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 0.6rem;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-bg);
+  color: inherit;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .cp-exam-tab.is-active .cp-exam-tab-count {
@@ -13271,7 +13313,7 @@ a.cp-exam-search {
 }
 
 /* =============================================================================
-   kıyas ürünü kabuğu (17 Ekim 2026, tasarım 3. adım; ölçümler docs/delivery/TASARIM-ASTRA-17-EKIM.md).
+   kıyas ürünü kabuğu (17 Ekim 2026, tasarım 3. adım; ölçümler tasarım notlarında).
    Üst çubuk 96 px; ortada simgeli sekme grubu (#141414 kapsül, 48 px, iç boşluk 4 px;
    sekme 40 px, 0 14 px, simge 20 px, 13 px / 600) ve yanında ayrı "Daha fazla" kapsülü;
    seçili sekme ve sağ üstteki küçük düğmeler "cam" yüzey. Önceki katmanların üzerine yazar.
@@ -16567,5 +16609,61 @@ a.cp-exam-search {
     margin-right: 0;
     background: var(--glass-bg);
     box-shadow: var(--glass-inset);
+  }
+}
+
+/*
+  Hazırlığı sil (21 Kasım 2026, `prep-delete-button.tsx`): Sınavlar kartının köşesinde simge düğme, hazırlık sayfasının
+  Seçenekler listesinde tehlike satırı. Renkler token'dan; dokunma alanı 40 px (telefonda 44).
+*/
+.cp-prep-card-top {
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cp-prep-card-top--bare {
+  margin-bottom: -0.25rem;
+}
+
+.cp-prep-card-delete {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin-left: auto;
+  border: 0;
+  border-radius: 999px;
+  color: var(--cx-text-secondary);
+  cursor: pointer;
+  transition: color 160ms ease, scale 220ms var(--cx-ease-out, ease);
+}
+
+.cp-prep-card-delete:hover,
+.cp-prep-card-delete:focus-visible {
+  color: var(--cx-danger);
+}
+
+.cp-prep-card-delete:focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}
+
+@media (max-width: 767px) {
+  .cp-prep-card-delete {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+.cp-prep-sheet-list button.cp-prep-sheet-danger {
+  color: var(--cx-danger);
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-prep-card-delete {
+    transition: color 160ms ease;
   }
 }

@@ -21,6 +21,12 @@ import { dropNearDuplicates } from "@/lib/learning/item-dedup";
 import { runTopicTestShards } from "@/lib/learning/quiz-shards";
 import { alignToPublished, playableQuestions, type QuizStageMs } from "@/lib/learning/quiz-delivery";
 import { runQuizSanity } from "@/lib/learning/quiz-sanity";
+import {
+  QUIZ_OPTION_CHECK_FLAG,
+  QUIZ_OPTION_ENFORCE_FLAG,
+  separabilityKinds,
+} from "@/lib/learning/option-separability";
+import { isFeatureEnabled } from "@/lib/admin/feature-flags";
 import { balanceQuizQuestions } from "@/lib/learning/option-balance";
 import { repairBudget } from "@/lib/learning/repair-budget";
 import {
@@ -42,6 +48,8 @@ import {
   type TeacherQuizInput,
 } from "@/lib/learning/teacher-quiz";
 import { capSameTable, coreFirst, questionTableOf } from "@/lib/learning/topic-test-shape";
+import { enforceSingleChoice, repairSingleChoice } from "@/lib/learning/single-choice-guard";
+import { quizKeyRepeatsSourceError, sourceCorrectionPromptBlock } from "@/lib/learning/source-correction";
 
 /** `role`: taslak ve düzeltme düşük düşünmeyle, denetim varsayılanla (19 Ekim 2026). */
 export type AskJson = (system: string, user: string, role?: "draft" | "verify" | "fix") => Promise<unknown | null>;
@@ -94,6 +102,11 @@ export type TeacherQuizLoopResult = {
   codes: Record<string, number>;
   /** Taslak, ilk denetim ve onarım süreleri. Yönetim günlüğüne yazılır. */
   stages: QuizStageMs;
+  /** H2: şık ayrılabilirliğine takılan aday soru sayısı (gölge modda elenmez, yalnız sayılır). */
+  optionFlagged?: number;
+  /** H2 gölge sayımı: denetlenen aday ve kurala göre takılan. */
+  optionChecked?: number;
+  optionKinds?: { reordered: number; neitherNor: number };
 };
 
 export type TeacherQuizLoopHooks = {
@@ -132,6 +145,10 @@ export async function teacherQuizLoop(
   const pointsAvailable = scoped ? topicTestPoints(input).length : 0;
   const subheadings = scoped ? topicTestSubheadings(input) : [];
   const codes: Record<string, number> = {};
+  /** H2 sayacı: şık ayrılabilirliğinden elenen aday soru (bayrak açıkken). */
+  let optionFlagged = 0;
+  let optionChecked = 0;
+  const optionKinds = { reordered: 0, neitherNor: 0 };
   const slots: (QuizQuestion | null)[] = [];
   const accepted = (): Slot[] => slots.flatMap((question, index) => (question ? [{ index, question }] : []));
 
@@ -149,7 +166,27 @@ export async function teacherQuizLoop(
   const context = mode === "topic" ? "" : input.sourceBlock?.trim() || input.pages.map((page) => page.text).join("\n");
   const review = async (candidates: Slot[]): Promise<Pending[]> => {
     const kept = accepted();
-    const structural = candidates.map((slot) => quizStructureIssues(slot.question, { multi: input.multi, optionCount, context }));
+    // H2 (Burhan kararı 2): gölge modda kapı değişmez; eleme yalnız iki bayrak birlikte açıkken.
+    const enforce = Boolean(input.optionCheck && input.optionCheckEnforce);
+    const structural = candidates.map((slot) =>
+      quizStructureIssues(slot.question, {
+        multi: input.multi,
+        optionCount,
+        context,
+        optionCheck: enforce,
+        sourceCorrection: input.sourceCorrection,
+      }),
+    );
+    if (input.optionCheck) {
+      for (const slot of candidates) {
+        if (slot.question.multi) continue;
+        optionChecked += 1;
+        const kinds = separabilityKinds(slot.question.options);
+        if (kinds.reordered) optionKinds.reordered += 1;
+        if (kinds.neitherNor) optionKinds.neitherNor += 1;
+        if (kinds.reordered || kinds.neitherNor) optionFlagged += 1;
+      }
+    }
     // Tek geçiş (26 Ekim 2026): ikinci denetçi ve kör çözücü yok. Kapı deterministik.
     const factual: QuizIssue[] = [];
     const rows: Pending[] = candidates.map((slot, position) => ({
@@ -209,7 +246,13 @@ export async function teacherQuizLoop(
     const sanity = await runQuizSanity((system, user) => ask(system, user, "fix"), {
       mode: mode === "topic" ? "topic" : "document",
       topicLabel: input.topicLabel,
-      source: input.sourceBlock?.trim() || input.pages.map((page) => page.text).join("\n"),
+      // Kaynak düzeltmesi (Faz 1-A §2.1) kaynaktan önce: doğrulayıcı anahtarı kaynağın yanlışına geri çevirmesin.
+      source: [
+        sourceCorrectionPromptBlock(input.sourceCorrection),
+        input.sourceBlock?.trim() || input.pages.map((page) => page.text).join("\n"),
+      ]
+        .filter(Boolean)
+        .join("\n\n"),
       questions: draft,
     });
     draft = sanity.questions;
@@ -225,6 +268,10 @@ export async function teacherQuizLoop(
     });
   }
 
+  // Tek doğru şık onarımı (Faz 1-A §3.1): çok cevaplı soru istenmiyorsa kodun güvenle onarabildiği anahtar hatası
+  // (yinelenen anahtar, tek doğruyken çok cevaplı bayrağı, şık metninden yazım farkı) burada düzelir; birden fazla farklı
+  // doğru işaretli soru yapı kapısında elenir ve yerine yenisi yazılır (sınırlı geçiş).
+  if (!multi) draft = draft.map((question) => repairSingleChoice(question) ?? question);
   slots.push(...draft.map(() => null));
   let bad: Pending[] = [];
   const settle = (rows: Pending[]) => {
@@ -273,7 +320,7 @@ export async function teacherQuizLoop(
   const questions = withOneMultiLast(
     slots.filter((question): question is QuizQuestion => question !== null),
     count,
-  ).map(shuffleOptions);
+  ).map((question) => shuffleOptions(question));
   return {
     questions,
     rejected: bad.map((row) => ({ question: row.question, problems: row.problems.map((problem) => problem.text) })),
@@ -283,6 +330,9 @@ export async function teacherQuizLoop(
     forced,
     codes,
     stages: { draftMs, reviewMs, repairMs },
+    optionFlagged,
+    optionChecked,
+    optionKinds,
   };
 }
 
@@ -378,6 +428,9 @@ async function runShardedTopicQuiz(
   let softKept = 0;
   let forced = false;
   let rounds = 0;
+  let optionFlagged = 0;
+  let optionChecked = 0;
+  const optionKinds = { reordered: 0, neitherNor: 0 };
   const rejected: Reviewed[] = [];
   const salvaged: string[] = [];
   const stages = { draftMs: 0, reviewMs: 0, repairMs: 0 };
@@ -392,6 +445,10 @@ async function runShardedTopicQuiz(
     stages.reviewMs = Math.max(stages.reviewMs, part.stages.reviewMs);
     stages.repairMs = Math.max(stages.repairMs, part.stages.repairMs);
     for (const [code, count] of Object.entries(part.codes)) codes[code] = (codes[code] ?? 0) + count;
+    optionFlagged += part.optionFlagged ?? 0;
+    optionChecked += part.optionChecked ?? 0;
+    optionKinds.reordered += part.optionKinds?.reordered ?? 0;
+    optionKinds.neitherNor += part.optionKinds?.neitherNor ?? 0;
   }
   return {
     // Parçalar arası çakışma (aynı bilgi, aynı cevap en çok iki): her parçanın kendi denetimi tek soruya bakıyordu.
@@ -404,6 +461,9 @@ async function runShardedTopicQuiz(
     forced,
     codes,
     stages,
+    optionFlagged,
+    optionChecked,
+    optionKinds,
   };
 }
 
@@ -479,13 +539,23 @@ async function runTeacherQuizInner(
   let calls = 0;
   // Öğrenci bekliyor: hızlı işlem. Önceden yazım ve tek ücretli çok parçalı iş (yazılı deneme) normal.
   // Hızlı işlem yalnız Plus/Sigma ve kurucuya (19 Ekim 2026, `fast-access.ts`).
-  const profileLoad = studentPedagogyBlock(service, input.userId, "quiz");
+  const profileLoad = studentPedagogyBlock(service, input.userId, "quiz", { prepTitle: input.prepTitle ?? null, subject: [input.prepTitle, input.topicLabel].filter(Boolean).join(" ") || null });
   const optionCountLoad = input.optionCount
     ? Promise.resolve(input.optionCount)
     : studentOptionCount(service, input.userId, input.prepTitle);
   const tier = fastTier(!free && !held && (await fastAllowedFor(service, input.userId)));
+  // H2 (15 Kasım 2026): şık ayrılabilirliği yalnız bayrak açıkken; okuma düşerse kapalı (bugünkü kapı).
+  const [optionCheck, optionCheckEnforce] = await Promise.all([
+    isFeatureEnabled(service, QUIZ_OPTION_CHECK_FLAG, input.userId).catch(() => false),
+    isFeatureEnabled(service, QUIZ_OPTION_ENFORCE_FLAG, input.userId).catch(() => false),
+  ]);
   const profile = await profileLoad;
-  input = { ...input, optionCount: await optionCountLoad };
+  input = {
+    ...input,
+    optionCount: await optionCountLoad,
+    ...(optionCheck ? { optionCheck: true } : {}),
+    ...(optionCheck && optionCheckEnforce ? { optionCheckEnforce: true } : {}),
+  };
   const ask: AskJson = async (system, user, role) => {
     calls += 1;
     const response = await openai.chat.completions.create({
@@ -646,6 +716,16 @@ async function runTeacherQuizInner(
       lastResort,
       ...(tableOf ? { tableCapped: tableCapped.length, tableOverflow } : {}),
       urgent: Boolean(input.urgent),
+      ...(input.optionCheck
+        ? {
+            optionCheck: {
+              mode: input.optionCheckEnforce ? "enforce" : "shadow",
+              checked: loop.optionChecked,
+              flagged: loop.optionFlagged,
+              kinds: loop.optionKinds,
+            },
+          }
+        : {}),
       calls,
       ms: Date.now() - started,
       draftMs: stages.draftMs,
@@ -663,6 +743,28 @@ async function runTeacherQuizInner(
           }
         : {}),
     });
+    // Kayıt öncesi son kapı (Faz 1-A §3.1–3.2): tek doğru şık ve cevap sızıntısı. Yapı kapısı aynı ölçüyü taslakta
+    // uyguladığı için burada elenen soru beklenmez; elenirse sayı eksilir ve iade kuralı aşağıda işler.
+    if (!input.multi) {
+      const gate = enforceSingleChoice(questions);
+      if (gate.rejected.length || gate.repaired) {
+        console.warn("teacher_quiz_single_choice_gate", {
+          topic: logTopic(input.topicLabel),
+          rejected: gate.rejected.length,
+          repaired: gate.repaired,
+          reasons: gate.rejected.flatMap((row) => row.issues).slice(0, 4),
+        });
+      }
+      questions = gate.kept;
+    }
+    // Kaynak düzeltmesi (Faz 1-A §2.1): anahtarı kaynağın yanlışını taşıyan soru kayda geçmez.
+    if (input.sourceCorrection) {
+      const before = questions.length;
+      questions = questions.filter((question) => !quizKeyRepeatsSourceError(question, input.sourceCorrection));
+      if (questions.length < before) {
+        console.warn("teacher_quiz_source_correction_gate", { topic: logTopic(input.topicLabel), rejected: before - questions.length });
+      }
+    }
     if (questions.length < input.count) {
       await refund();
       return {

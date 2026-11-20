@@ -87,9 +87,27 @@ function sameStem(a: string, b: string): boolean {
   return a.slice(0, k) === b.slice(0, k);
 }
 
+function commonPrefix(a: string, b: string): number {
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i += 1;
+  return i;
+}
+
+/**
+ * Tek sözcüklük eşleşmenin güçlü olması (H3, 15 Kasım 2026): sözcükler aynı, ya da kısa olanın tamamı öbürünün başı
+ * ("mayoz" ~ "mayozun", "kuvvet" ~ "kuvveti"), ya da en az altı harf ortak. Beş harflik ortak önek tek başına yetmez:
+ * canlıda "karıştırıyorum" ile "Karışımlar" ("karış") eşleşip ilgisiz bir matematik sorusuna kimya hazırlığı bağlanmıştı.
+ */
+function strongStem(a: string, b: string): boolean {
+  if (a === b) return true;
+  const shared = commonPrefix(a, b);
+  return (shared === Math.min(a.length, b.length) && shared >= 5) || shared >= 6;
+}
+
 /**
  * Bir adın mesajla örtüşmesi: adın içerik sözcüklerinden mesajda geçenler. İki sözcük geçince ya da tek ama en az beş
- * harfli (ayırt edici) bir sözcük geçince eşleşir. Puan: kapsanan oran + eşleşen sayı (çok sözcük örtüşen öne geçer).
+ * harfli ve güçlü (`strongStem`) bir sözcük geçince eşleşir. Puan: kapsanan oran + eşleşen sayı (çok sözcük örtüşen
+ * öne geçer).
  */
 export function phraseScore(
   phrase: string,
@@ -101,7 +119,10 @@ export function phraseScore(
   if (!parts.length) return 0;
   const hits = parts.filter((part) => messageWords.some((word) => sameStem(part, word)));
   if (!hits.length) return 0;
-  if (hits.length === 1 && hits[0]!.length < 5) return 0;
+  if (hits.length === 1) {
+    const only = hits[0]!;
+    if (only.length < 5 || !messageWords.some((word) => strongStem(only, word))) return 0;
+  }
   return hits.reduce((sum, word) => sum + weight(word), 0) + 0.05 * (hits.length / parts.length);
 }
 
@@ -117,7 +138,7 @@ function stemWeights(phrases: readonly string[]): (word: string) => number {
 const DAYS_RE = /(\d{1,3})\s*gün\s*(?:sonra|sonraki|kala|kalan|kaldı)/u;
 const NEAR_DAY_RE = /\b(bugün|yarın)(?:kü|ki)?\s+(?:olan\s+)?sınav/u;
 const MATERIAL_CUE_RE =
-  /yüklediğim|yükledim|not(?:um|umdan|umu|larım|larımdan|undan|larından)\b|belge(?:m|mden|mdeki|deki)\b|dosya(?:m|mdan|mdaki)\b|pdf/u;
+  /yüklediğim|yükledim|not(?:um|umdan|umu|umdaki|larım|larımdan|larımdaki|undan|undaki|larından)\b|belge(?:m|mden|mdeki|deki)\b|dosya(?:m|mdan|mdaki)\b|pdf/u;
 
 /**
  * Mesajın öğrencinin hazırlık / konu / belgesine bağlanması. Öncelik: adı geçen (hazırlık adı, ders, konu başlığı ya da
@@ -432,7 +453,11 @@ export function materialTurnLines(input: {
   linkLine: boolean;
 }): string[] {
   const lines: string[] = [];
-  if (input.match && input.linkLine) lines.push(linkedMaterialLine(input.match, input.hasEvidence));
+  // H3 (15 Kasım 2026): notta kanıt yoksa ve öğrenci kendi notunu anmadıysa hazırlık adı ve "bulunamadı" satırı isteme
+  // gitmez; model onu öğrenciye aktarıp "Genel" sohbette hazırlık adı sızdırıyordu.
+  if (input.match && input.linkLine && (input.hasEvidence || input.match.materialCue)) {
+    lines.push(linkedMaterialLine(input.match, input.hasEvidence));
+  }
   if (input.intent.tool) lines.push(studioToolLine(input.intent.tool));
   else if (input.intent.summary) lines.push(SUMMARY_TURN_LINE);
   if (input.tone.confused) lines.push(CONFUSED_TURN_LINE);

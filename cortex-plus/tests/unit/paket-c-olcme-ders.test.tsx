@@ -263,16 +263,19 @@ const snapshot = (over: Partial<TopicMasterySnapshot>): TopicMasterySnapshot => 
 
 describe("Paket C · dört ekranda tek sayı", () => {
   it("yüzde, durum ve çözülen sayı tek fonksiyondan; Hazırsın ekranı aynı durumu verir", () => {
-    const strong = snapshot({});
+    // Faz 4: "Öğrendin" en az 4 ipucusuz doğru ister (`mastery-policy.ts`); 3 doğruyla %75 "Gelişiyor".
+    const developing = topicMasteryView(snapshot({}), 70);
+    expect(developing).toEqual({ percent: 75, state: "needs_work", badge: "developing", tone: "cobalt", label: "Gelişiyor", text: "%75", solved: 4 });
+    const strong = snapshot({ evidenceCount: 5, firstAttemptCorrect: 4, firstAttemptTotal: 5, independentCorrect: 4, independentTotal: 5 });
     const view = topicMasteryView(strong, 70);
-    expect(view).toEqual({ percent: 75, state: "ready", label: "Sağlam", text: "%75", solved: 4 });
+    expect(view).toEqual({ percent: 80, state: "ready", badge: "learned", tone: "emerald", label: "Öğrendin", text: "%80", solved: 5 });
     expect(topicState(strong, 70)).toBe(view.state);
     // Kayıtlı confidence 90 olsa da ekran ham sayılardan okur. Tek doğru cevap (Paket I #7, 30 Ekim 2026)
     // artık "%33" değil "Ölçülmedi": sönümlü öncül sayı öğrenciye anlamsızdı, ölçüm 3 cevapla başlar.
     const one = snapshot({ evidenceCount: 1, firstAttemptCorrect: 1, firstAttemptTotal: 1, independentCorrect: 1, independentTotal: 1 });
     expect(topicMasteryView(one, 70)).toMatchObject({ percent: 0, state: "unmeasured", label: "Ölçülmedi", text: "Ölçülmedi" });
     expect(topicMasteryView(snapshot({ measured: false, evidenceCount: 0 }), 70).state).toBe("unmeasured");
-    expect(MASTERY_STATE_LABEL.ready).toBe("Sağlam");
+    expect(MASTERY_STATE_LABEL.ready).toBe("Öğrendin");
   });
 
   it("İlerleme satırı durumu taşır; değerlendirme sayfası ayrı eşik kullanmaz", () => {
@@ -306,20 +309,20 @@ describe("Paket C · sonuç kartının dört aşaması", () => {
       streak: 3,
       topicGain: { label: "Hücre zarı", before: 40, after: 62 },
       openMisconceptions: 1,
-      masteryStates: ["ready", "needs_work", "needs_work", "unmeasured"],
+      masteryBadges: ["learned", "developing", "weak", "weak", "unmeasured"],
     });
     expect(stages.map((stage) => stage.id)).toEqual(["reward", "mastery", "gaps"]);
     expect(stages[0]).toMatchObject({ value: "+18 yıldız", note: "3 günlük seri sürüyor." });
     expect(stages[1]).toMatchObject({ value: "+%22", note: "Hücre zarı · şimdi %62", gain: true });
-    expect(stages[2]!.value).toBe("1 açık yanılgı · 2 çalışılacak konu · 1 sağlam konu");
+    expect(stages[2]!.value).toBe("1 açık yanılgı · Öğrendin: 1 konu · Gelişiyor: 1 konu · Zayıf: 2 konu · Ölçülmedi: 1 konu");
   });
 
   it("okunamayan veri sayfayı düşürmez; ders hâkimiyet ölçmez; artış yoksa 'Değişmedi'", () => {
-    const lesson = resultStages({ kind: "lesson", score: 1, total: 1, streak: null, topicGain: null, openMisconceptions: null, masteryStates: null });
+    const lesson = resultStages({ kind: "lesson", score: 1, total: 1, streak: null, topicGain: null, openMisconceptions: null, masteryBadges: null });
     expect(lesson[0]!.note).toBe("Seri şu an okunamadı.");
     expect(lesson[1]!.value).toBe("Bu adım ölçmez");
     expect(lesson[2]!.value).toBe("Eksik sayısı şu an okunamadı");
-    expect(resultStages({ kind: "quiz", score: 2, total: 5, streak: 0, topicGain: { label: "x", before: 50, after: 50 }, openMisconceptions: 0, masteryStates: [] })[1]!.value).toBe("Değişmedi");
+    expect(resultStages({ kind: "quiz", score: 2, total: 5, streak: 0, topicGain: { label: "x", before: 50, after: 50 }, openMisconceptions: 0, masteryBadges: [] })[1]!.value).toBe("Değişmedi");
     expect(readTopicGain({ label: "x", before: 50, after: 40 })).toBeNull();
     const page = read("src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/sonuc/page.tsx");
     expect(page).toContain("⏭️ Sıradaki etkinliğe geç");

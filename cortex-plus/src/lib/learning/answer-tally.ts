@@ -11,7 +11,8 @@
  * İstemci ve sunucu bu modülü birlikte okur (sunucuya özel içe aktarma yok).
  */
 
-import { multiPartialPercent, sameOptionSet, selectedOptions } from "@/lib/learning/exam-quiz";
+import { multiPartialPercent, normalizeQuizQuestion, sameOptionSet, selectedOptions } from "@/lib/learning/exam-quiz";
+import { storedTrueFalseKey } from "@/lib/learning/answer-key-consistency";
 import { cardAnswerCredit } from "@/lib/learning/flashcard-round";
 import { verdictCounts, type ExamVerdict, type VerdictCounts } from "@/lib/learning/mock-exam/verdict-counts";
 
@@ -55,6 +56,12 @@ export function cardItemVerdict(answer: unknown): ItemVerdict {
   return "yanlis";
 }
 
+function auditedQuizRow(row: unknown): unknown {
+  const raw = (row ?? {}) as Parameters<typeof normalizeQuizQuestion>[0];
+  if (typeof raw.text !== "string" || !Array.isArray(raw.options) || !Array.isArray(raw.correct)) return row ?? {};
+  return normalizeQuizQuestion(raw) ?? row;
+}
+
 type PayloadLike = { type?: unknown; questions?: unknown; items?: unknown; cards?: unknown; check?: unknown };
 
 function rows(value: unknown): unknown[] {
@@ -66,12 +73,17 @@ export function activityVerdicts(payload: unknown, answers: Record<string, unkno
   const data = (payload ?? {}) as PayloadLike;
   const at = (index: number) => answers[String(index)];
   if (data.type === "quiz") {
+    // Kayıtlı soru puanla aynı kapıdan (19 Kasım 2026, Faz 1-A §3): anahtarı açıklamasıyla çelişen soru hizalanır,
+    // hesabı yanlış soru puanlanmaz (`auditStoredQuizKey`).
     return rows(data.questions).map((row, index) =>
-      quizItemVerdict((row ?? {}) as { correct?: string[]; multi?: boolean; voided?: boolean }, at(index)),
+      quizItemVerdict(auditedQuizRow(row) as { correct?: string[]; multi?: boolean; voided?: boolean }, at(index)),
     );
   }
   if (data.type === "true_false") {
-    return rows(data.items).map((row, index) => trueFalseItemVerdict((row ?? { correct: false }) as { correct: boolean }, at(index)));
+    return rows(data.items).map((row, index) => {
+      const item = (row ?? { correct: false }) as { correct: boolean; text?: unknown; statement?: unknown };
+      return trueFalseItemVerdict({ correct: typeof item.correct === "boolean" ? storedTrueFalseKey(item) : item.correct }, at(index));
+    });
   }
   if (data.type === "cards") return rows(data.cards).map((_, index) => cardItemVerdict(at(index)));
   if (data.type === "mock_exam") {

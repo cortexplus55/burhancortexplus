@@ -1,19 +1,30 @@
 import Link from "next/link";
-import { ArrowRight, Check, Sparkles, Timer } from "lucide-react";
+import { ArrowRight, BookCheck, Check, RefreshCwOff, ShieldCheck, Sparkles, Timer, type LucideIcon } from "lucide-react";
 import { CortexLogoReveal } from "@/components/brand/cortex-logo-reveal";
 import { AudienceHero } from "@/components/landing/audience-hero";
 import { LandingDuel } from "@/components/landing/landing-duel";
-import { FAQ, FREE_PLAN_POINTS, HOME_COPY, PLUS_PLAN_POINTS, TRUST_FACTS, WEEK_PLAN_POINTS } from "@/lib/marketing/landing-content";
+import {
+  FAQ,
+  FAQ_MORE,
+  FREE_PLAN_POINTS,
+  HOME_COPY,
+  PLUS_PLAN_POINTS,
+  TRUST_LINE,
+  WEEK_PLAN_POINTS,
+} from "@/lib/marketing/landing-content";
 import { WEEKLY_PLUS_PLAN_NAME } from "@/lib/billing/tier-presentation";
-import { PLAN_ALLOWANCES, allowanceInWork } from "@/lib/credits/price-table";
+import { PLAN_MARKETING_COPY } from "@/lib/marketing/plan-copy";
 import { formatTryWhole } from "@/lib/format";
 import type { PlusPrices } from "@/lib/billing/plan-prices";
 import "@/styles/landing.css";
 import "@/styles/home-cinema.css";
+import "@/styles/home-farklar.css";
 
 export type LandingPrices = PlusPrices;
 
-const fmtCount = (n: number) => new Intl.NumberFormat("tr-TR").format(n);
+/** Güven satırının simgeleri, `TRUST_LINE` sırasıyla: nota sadakat, yenileme yok, güvenli ödeme. */
+const TRUST_ICONS: readonly LucideIcon[] = [BookCheck, RefreshCwOff, ShieldCheck];
+
 
 /**
  * Ana sayfa. 11 Kasım 2026'da üç tur:
@@ -24,9 +35,9 @@ const fmtCount = (n: number) => new Intl.NumberFormat("tr-TR").format(n);
  * Gece, kokpit (canlı denetim: aynı beş özellik sayfada üç kez anlatılıyor, sayfa 5.000 px): dört bölüm kaldı.
  *
  * 1. Kahraman + dört hedef kitle sekmesi + 7 adımlı canlı kokpit, tek ekranda (`AudienceHero`).
- * 2. "Aynı not, iki ayrı sonuç": somut karşılaştırma kartı ve fark satırları (`LandingDuel`, `#farklar`).
- * 3. Planlar ve güvenceler: Ücretsiz, Plus, Sınav Haftası; otomatik yenileme yok.
- * 4. Sık sorulanlar ve son çağrı.
+ * 2. "Aynı not, iki ayrı sonuç": altı başlıklı, sahneli tek akordeon (`LandingDuel`, `#farklar`; Faz 9, 20 Kasım 2026).
+ * 3. Planlar ve güvenceler: Ücretsiz, Plus, Sınav Haftası; altında tek güven satırı (`TRUST_LINE`).
+ * 4. Sık sorulanlar (beş soru + Yardım Merkezi bağlantısı) ve son çağrı.
  *
  * Durağan kahraman sahnesi ve film şeridi kalktı: anlattıklarını kokpit canlı gösteriyor. Her bölümde tek başlık,
  * en çok tek cümle. Bütün cümleler `landing-content.ts`, `landing-showcase.ts`, `landing-journey.ts` ve
@@ -34,9 +45,8 @@ const fmtCount = (n: number) => new Intl.NumberFormat("tr-TR").format(n);
  * ile ve `prefers-reduced-motion`da durur.
  */
 export function LandingPage({ prices }: { prices: LandingPrices }) {
-  const plus = allowanceInWork(PLAN_ALLOWANCES.plusMonthly);
-  const week = allowanceInWork(PLAN_ALLOWANCES.plusWeekly);
-  const sigma = allowanceInWork(PLAN_ALLOWANCES.sigmaMonthly);
+  // Faz 5 §4: kota metni tek merkezden (`plan-copy.ts`); fiyat sayfasıyla birebir aynı karşılık.
+  const { plus, week, sigma } = PLAN_MARKETING_COPY;
   const copy = HOME_COPY.plans;
 
   return (
@@ -86,7 +96,7 @@ export function LandingPage({ prices }: { prices: LandingPrices }) {
                 </p>
               </div>
               <p className="lp-duo-lede">
-                Ayda yaklaşık {fmtCount(plus.lessons)} ders ya da {fmtCount(plus.messages)} mesaj; bütün konular açık.
+                {plus.periodLine}; bütün konular açık.
               </p>
               <ul className="lp-duo-list">
                 {PLUS_PLAN_POINTS.map((point) => (
@@ -112,7 +122,7 @@ export function LandingPage({ prices }: { prices: LandingPrices }) {
                 </p>
               </div>
               <p className="lp-duo-lede">
-                {copy.weekLede} Yaklaşık {fmtCount(week.lessons)} ders.
+                {copy.weekLede} {week.line}.
               </p>
               <ul className="lp-duo-list">
                 {WEEK_PLAN_POINTS.map((point) => (
@@ -128,19 +138,22 @@ export function LandingPage({ prices }: { prices: LandingPrices }) {
             </article>
           </div>
 
-          <ul className="lp-trustline" aria-label="Güven">
-            {TRUST_FACTS.map((fact) => (
-              <li key={fact.title}>
-                <strong>{fact.title}</strong>
-                <span>{fact.body}</span>
-              </li>
-            ))}
+          {/* Faz 9 (20 Kasım 2026): üç paragraflık güvence listesi yerine tek satır, üç simgeli öğe. */}
+          <ul className="lp-trustline" aria-label="Güvenceler" data-testid="trust-line">
+            {TRUST_LINE.map((label, at) => {
+              const Icon = TRUST_ICONS[at] ?? Check;
+              return (
+                <li key={label}>
+                  <Icon className="lp-trustline-icon" aria-hidden />
+                  {label}
+                </li>
+              );
+            })}
           </ul>
 
           <Link href="/fiyatlandirma" className="lp-sigma-strip">
             <span>
-              🔥 Çok yoğun çalışanlar için: Sigma Paketi (Ayda {fmtCount(sigma.lessons)}{" "}
-              ders / {fmtCount(sigma.messages)} mesaj)
+              🔥 Çok yoğun çalışanlar için: Sigma Paketi ({sigma.periodLine})
             </span>
             <span>Tüm planları karşılaştır →</span>
           </Link>
@@ -152,14 +165,26 @@ export function LandingPage({ prices }: { prices: LandingPrices }) {
           <h2 id="lp-faq-title" className="hm-h2 hm-h2--left">
             Sık sorulanlar
           </h2>
-          <div className="lp-faq">
+          <div className="lp-faq" data-testid="home-faq">
             {FAQ.map((item) => (
               <details key={item.q} className="lp-faq-item">
                 <summary>{item.q}</summary>
                 <p className="lp-muted">{item.a}</p>
+                {item.link ? (
+                  <Link href={item.link.href} className="lp-faq-link">
+                    {item.link.label}
+                    <ArrowRight className="h-4 w-4" aria-hidden />
+                  </Link>
+                ) : null}
               </details>
             ))}
           </div>
+          <p className="lp-faq-more">
+            <Link href={FAQ_MORE.href}>
+              {FAQ_MORE.label}
+              <ArrowRight className="h-4 w-4" aria-hidden />
+            </Link>
+          </p>
         </div>
       </section>
 

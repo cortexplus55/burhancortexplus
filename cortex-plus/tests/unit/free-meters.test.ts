@@ -90,7 +90,8 @@ describe("sayaçların saati ve cümleleri", () => {
     // Cuma 13:00 İstanbul.
     const friday = new Date("2026-10-23T10:00:00Z");
     expect(freeMeterResetsAt("chat", friday).toISOString()).toBe("2026-10-23T21:00:00.000Z");
-    expect(freeMeterResetsAt("photo", friday).toISOString()).toBe("2026-10-23T21:00:00.000Z");
+    // Faz 4: fotoğraf sayacı aylık — İstanbul ay başında yenilenir.
+    expect(freeMeterResetsAt("photo", friday).toISOString()).toBe("2026-10-31T21:00:00.000Z");
     expect(freeMeterResetsAt("included", friday).toISOString()).toBe("2026-10-23T21:00:00.000Z");
     // Ders sayacının haftalık anahtarı yalnız eski kayıtları okumak için durur (SQL `free_period_key`).
     const monday = new Date("2026-10-25T21:30:00Z");
@@ -100,17 +101,18 @@ describe("sayaçların saati ve cümleleri", () => {
   });
 
   it("öğrenciye kredi değil iş söylenir; ders sayacında hak yok (ücretsiz hesap = tek ders)", () => {
-    expect(FREE_LIMITS).toMatchObject({ lesson: 0, chat: 3, photo: 1, included: 40 });
+    expect(FREE_LIMITS).toMatchObject({ lesson: 0, chat: 3, photo: 7, included: 40, reexplain: 10 });
     // "Bu haftaki 3 ücretsiz ders hakkın bitti" ve Pazartesi geri sayımı kalktı: ilk ders açık, devamı Plus'ta.
     expect(freeLimitReachedLine("lesson")).toBe("Ücretsiz hesapta ilk dersin açık; devamı Plus'ta.");
     expect(freeLimitReachedLine("lesson")).toBe(FREE_LESSON_GATE_LINE);
     expect(freeLimitReachedLine("chat")).toBe("Bugünkü 3 ücretsiz sohbet mesajı hakkın bitti.");
-    expect(freeLimitReachedLine("photo")).toBe("Bugünkü 1 ücretsiz fotoğraftan çözüm hakkın bitti.");
+    expect(freeLimitReachedLine("photo")).toBe("Bu ayki 7 ücretsiz fotoğraftan çözüm hakkın bitti.");
+    expect(freeMeterResetLine("photo")).toBe("Hakkın ay başında yenilenir.");
     expect(freeMeterResetLine("chat")).toBe("Hakkın gece yarısı yenilenir.");
     // 11 Kasım 2026 (ürün sahibinin kararı): ilk dersin döngüsü süreye takılmaz; aynı akşam haftalık ders hakkı
     // kalktı. "Sınırsız" denmez (günlük kötüye kullanım sınırı duruyor).
     expect(FREE_TIER_SENTENCE).toBe(
-      "İlk hazırlığında ilk dersin (konu anlatımı, kartlar, doğru/yanlış ve konu testi) süre sınırı olmadan açık; ayrıca günde 3 sohbet mesajı ve günde 1 fotoğraftan soru çözümü",
+      "İlk hazırlığında ilk dersin (konu anlatımı, kartlar, doğru/yanlış ve konu testi) süre sınırı olmadan açık; ayrıca günde 3 sohbet mesajı ve ayda 7 fotoğraftan soru çözümü",
     );
     expect(FREE_TIER_SENTENCE.toLocaleLowerCase("tr")).not.toContain("sınırsız");
     for (const line of [freeLimitReachedLine("lesson"), freeLimitReachedLine("chat"), FREE_TIER_SENTENCE, FREE_LESSON_REFUSAL_MESSAGE]) {

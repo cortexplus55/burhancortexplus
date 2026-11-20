@@ -1,6 +1,5 @@
 import { FREE_TIER_SENTENCE } from "@/lib/billing/free-meters";
-import { allowanceWorkLine } from "@/lib/billing/tier-presentation";
-import { PLAN_ALLOWANCES } from "@/lib/credits/price-table";
+import { PLAN_MARKETING_COPY } from "@/lib/marketing/plan-copy";
 import Link from "next/link";
 import { LifeBuoy, Mail } from "lucide-react";
 import { MarketingPage } from "@/components/layout/marketing-page";
@@ -9,11 +8,17 @@ import { ParitySorShell } from "@/components/parity/sor-shell";
 import { loadOptionalStudentShell } from "@/lib/student/optional-shell";
 import { FREE_DOCUMENT_SENTENCE, PLUS_ONLY_SENTENCE } from "@/lib/billing/free-tier-copy";
 import { supportSlaLine } from "@/lib/support/sla";
+import { pageMetadata } from "@/lib/seo/page-metadata";
+import { faqPageJsonLd } from "@/lib/seo/structured-data";
+import { JsonLd } from "@/components/seo/json-ld";
 
-export const metadata = {
+// Kanonik adres ve sayfaya özel paylaşım bilgisi (20 Kasım 2026, Faz 3).
+export const metadata = pageMetadata({
   title: "Yardım",
-  description: "Cortex Plus hakkında sık sorulan sorular ve destek kanalları.",
-};
+  description:
+    "Cortex Plus hakkında sık sorulan sorular ve destek kanalları.",
+  path: "/yardim",
+});
 
 // 19 Ekim 2026: "çalışma planı", "gelişmiş model" ve "öncelikli destek" yoktu; cevaplar bugünkü ürüne göre.
 const faqs = [
@@ -26,7 +31,7 @@ const faqs = [
     question: "Ücretsiz olarak ne yapabilirim?",
     // 11 Kasım 2026: ilk dersin döngüsü süreye takılmaz; aynı akşam haftalık ders hakkı kalktı (ücretsiz hesap =
     // tek ders). Cümleler tek kaynaktan (`free-meters.ts`, `free-tier-copy.ts`).
-    answer: `Ücretsiz hesapta ${FREE_TIER_SENTENCE.charAt(0).toLocaleLowerCase("tr")}${FREE_TIER_SENTENCE.slice(1)} var; mesaj ve fotoğraf hakkı gece yarısı yenilenir. İlk dersten sonraki konular, yeni anlatımlar ("Farklı anlat") ve Çalışma Stüdyosu'ndaki test, kart ve doğru/yanlış üretimi Plus'ta açılır. ${FREE_DOCUMENT_SENTENCE} ${PLUS_ONLY_SENTENCE} Sesli dinleme de Plus'ta.`,
+    answer: `Ücretsiz hesapta ${FREE_TIER_SENTENCE.charAt(0).toLocaleLowerCase("tr")}${FREE_TIER_SENTENCE.slice(1)} var; mesaj hakkı gece yarısı, fotoğraf hakkı ay başında yenilenir. İlk dersten sonraki konular, yeni anlatımlar ("Farklı anlat") ve Çalışma Stüdyosu'ndaki test, kart ve doğru/yanlış üretimi Plus'ta açılır. ${FREE_DOCUMENT_SENTENCE} ${PLUS_ONLY_SENTENCE} Sesli dinleme de Plus'ta.`,
   },
   {
     question: "Dosyalarım güvende mi?",
@@ -36,7 +41,12 @@ const faqs = [
   {
     question: "Plus ile ücretsiz arasındaki fark nedir?",
     answer:
-      `Plus hacim ve hız satar: ${allowanceWorkLine(PLAN_ALLOWANCES.plusMonthly).replace(/^A/, "a")}, belgenin tamamı ve bütün konular, sınırsız hazırlık, podcast, video ders, sözlü ve yazılı deneme, sınav sabahı kâğıdı ve hazır içerik yokken daha hızlı yazım. Abonelik kendiliğinden yenilenmez.`,
+      `Plus hacim ve hız satar: ${PLAN_MARKETING_COPY.plus.periodLine.replace(/^A/, "a")}, belgenin tamamı ve bütün konular, birden çok hazırlık, podcast, video ders, sözlü ve yazılı deneme, sınav sabahı kâğıdı ve hazır içerik yokken daha hızlı yazım. Abonelik kendiliğinden yenilenmez.`,
+  },
+  {
+    // Faz 5 §4 (19 Kasım 2026): üç planın karşılığı tek merkezden; Sigma da burada.
+    question: "Plus, Sınav Haftası ve Sigma arasındaki fark nedir?",
+    answer: `${PLAN_MARKETING_COPY.helpPlansAnswer} Sigma, Plus'taki her şeyi en yüksek aylık hak ve en yüksek yükleme limitiyle verir.`,
   },
   {
     question: "Destek ne kadar sürede döner?",
@@ -77,6 +87,8 @@ export default async function YardimPage() {
 function YardimContent() {
   return (
     <>
+      {/* Sık sorulanların yapılandırılmış verisi: soru ve cevap aşağıdaki metnin aynısı (20 Kasım 2026, Faz 3). */}
+      <JsonLd data={faqPageJsonLd(faqs)} />
       <p className="mk-eyebrow">Sık sorulanlar</p>
 
       {/*

@@ -9,6 +9,10 @@ import { cleanMathGlyphs } from "@/lib/curriculum/math-glyphs";
 import { loadOutcomePreview, type OutcomePreview } from "@/lib/curriculum/outcome-preview";
 import { renderMarkdownToHtml } from "@/lib/markdown";
 import { createServiceClient } from "@/lib/supabase/server";
+import { pageMetadata } from "@/lib/seo/page-metadata";
+import { breadcrumbJsonLd } from "@/lib/seo/structured-data";
+import { curriculumBreadcrumb } from "@/lib/seo/curriculum-breadcrumb";
+import { JsonLd } from "@/components/seo/json-ld";
 
 type Params = { params: Promise<{ programId: string; unitId: string; outcomeId: string }> };
 
@@ -36,13 +40,14 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   if (!hit) return { title: "Resmî Müfredat" };
   const preview = await previewFor(programId, hit.index, hit.outcome.code, hit.oIndex);
   const lead = preview ? plain(preview.explanation) : hit.outcome.text;
-  return {
+  // 20 Kasım 2026 (Faz 3): kanonik adresin yanında sayfaya özel paylaşım bilgisi.
+  return pageMetadata({
     title: `${hit.outcome.code} ${shortText(hit.outcome.text, 60)} — ${hit.program.label}`,
     description: shortText(`${hit.title}: ${hit.outcome.text}. ${lead}`, 155),
-    alternates: { canonical: `${SITE_BASE}${outcomePath(programId, hit.index, hit.oIndex)}` },
+    path: outcomePath(programId, hit.index, hit.oIndex),
     // Havuz bölümü olmayan kazanım sayfası ince kalır; arama motoruna önerilmez (6 Kasım 2026).
-    ...(preview ? {} : { robots: { index: false, follow: true } }),
-  };
+    robots: preview ? undefined : { index: false, follow: true },
+  });
 }
 
 /** Markdown'sız düz metin (açıklama alanı ve yapılandırılmış veri için). */
@@ -101,14 +106,14 @@ export default async function OutcomePage({ params }: Params) {
 
   return (
     <MarketingPage title={`${outcome.code} — ${title}`} description={program.label}>
-      <script
-        type="application/ld+json"
-        // JSON.stringify yalnız veri; "<" kaçışı betik etiketinin erken kapanmasını engeller.
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(
-            structuredData({ url, code: outcome.code, outcomeText: outcome.text, unitTitle: title, programLabel: program.label, preview }),
-          ).replace(/</g, "\\u003c"),
-        }}
+      {/* Ortak `JsonLd` (kaçışlı); gezinme yolu program ve ünite sayfalarıyla aynı yardımcıdan (20 Kasım 2026). */}
+      <JsonLd
+        data={[
+          structuredData({ url, code: outcome.code, outcomeText: outcome.text, unitTitle: title, programLabel: program.label, preview }),
+          breadcrumbJsonLd(
+            curriculumBreadcrumb({ program, unit: { index, title }, outcome: { index: oIndex, code: outcome.code } }),
+          ),
+        ]}
       />
       <p className="mk-eyebrow">
         <Link href={unitPath(program.id, index)}>← {title}</Link>

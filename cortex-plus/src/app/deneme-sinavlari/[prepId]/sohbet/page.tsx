@@ -13,6 +13,7 @@ import { getUserStreak } from "@/lib/streak/record-activity";
 import { examChatGreeting, loadExamChatContext } from "@/lib/learning/exam-chat-context";
 import { EXAM_CHAT_STARTERS } from "@/lib/learning/exam-chat-chrome";
 import { loadPrepDocumentIds } from "@/lib/documents/teacher-analysis-run";
+import { createServiceClient } from "@/lib/supabase/server";
 
 /**
  * Sınavın içinden açılan sohbet.
@@ -38,7 +39,8 @@ export default async function ExamPrepChatPage({
   const query = await searchParams;
   const { supabase, user } = await requireStudentArea();
 
-  const context = await loadExamChatContext(supabase, user.id, prepId);
+  // Bağlam son dersin içeriğini okur (cevap anahtarı taşır): sunucu anahtarıyla; hazırlık sahipliği içeride (user_id).
+  const context = await loadExamChatContext(createServiceClient(), user.id, prepId);
   if (!context) notFound();
 
   const [{ data: profile }, isPremium, chatCost, feedbackOn, account, streak, { data: conversations }, prepDocumentIds] =

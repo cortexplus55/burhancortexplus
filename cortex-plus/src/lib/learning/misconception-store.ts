@@ -96,6 +96,8 @@ export async function resolveMisconceptionsAfterEvidence(
     .eq("exam_prep_id", input.prepId)
     .eq("correct", true)
     .eq("hint_assisted", false)
+    // Faz 4: kartın öz bildirimi ("Bildim") yanılgı kapatmaz; yalnız gerçek cevap kapatır.
+    .not("source_kind", "like", "card_%")
     .gte("created_at", oldest)
     .order("created_at", { ascending: false })
     .limit(1000);

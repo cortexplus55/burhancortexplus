@@ -1,8 +1,8 @@
 import type { Icon3DName } from "@/components/ui/icon-3d";
 import { PHOTO_PAGE_LIMITS } from "@/lib/billing/entitlements";
-import { AUDIO_CHARS_PER_CREDIT_PRICE, CREDIT_PRICE_TABLE, PLAN_ALLOWANCES } from "@/lib/credits/price-table";
+import { AUDIO_CHARS_PER_CREDIT_PRICE, CREDIT_PRICE_TABLE, PLAN_ALLOWANCES, TEXT_PAGES_PER_CREDIT } from "@/lib/credits/price-table";
 import { DUO_WORDS_PER_MINUTE } from "@/lib/learning/podcast-formats";
-import { FREE_CHAT_PER_DAY, FREE_PHOTO_PER_DAY } from "@/lib/billing/free-meters";
+import { FREE_CHAT_PER_DAY, FREE_PHOTO_PER_MONTH } from "@/lib/billing/free-meters";
 
 /**
  * Plus ile bir ayda neler yapılır (20 Ekim 2026, ürün sahibi: "plus alan biri bütün bir plus hesabıyla
@@ -28,7 +28,7 @@ export type PlanWork = {
   plusOnly: boolean;
   /**
    * Ücretsiz hesapta ne kadar (11 Kasım 2026 akşamı, ürün sahibinin kararı: ücretsiz hesap = tek ders): ders yalnız
-   * ilk hazırlığın ilk dersi ("first"), test ve kartlar o derse dahil ("included"); mesaj günde 3, fotoğraf günde 1
+   * ilk hazırlığın ilk dersi ("first"), test ve kartlar o derse dahil ("included"); mesaj günde 3, fotoğraf ayda 7
    * (ayda sayı). Plus'a özelse null.
    */
   free: number | "first" | "included" | null;
@@ -118,7 +118,7 @@ export const PLAN_WORK: readonly PlanWork[] = [
     icon: "denklem",
     credits: CREDIT_PRICE_TABLE.IMAGE_SOLUTION.credits,
     plusOnly: false,
-    free: FREE_PHOTO_PER_DAY * MONTH_DAYS,
+    free: FREE_PHOTO_PER_MONTH,
   },
   {
     id: "video",
@@ -159,10 +159,10 @@ export function freeMonthlyCount(work: PlanWork): number {
   return work.free;
 }
 
-/** Belge: metinli sayfa başına bedel; fotoğraf ve taranmış sayfa ayrıca aylık sınırlı. */
+/** Belge: metin sayfası 5'te 1 kredi (Faz 4); fotoğraf ve taranmış sayfa ayrıca aylık sınırlı. */
 export function documentPagesFor(allowance: number): { pages: number; scanned: number } {
   return {
-    pages: Math.floor(allowance / CREDIT_PRICE_TABLE.DOCUMENT_PAGE_PROCESS.credits),
+    pages: Math.floor(allowance / CREDIT_PRICE_TABLE.DOCUMENT_PAGE_PROCESS.credits) * TEXT_PAGES_PER_CREDIT,
     scanned: PHOTO_PAGE_LIMITS.plus,
   };
 }
@@ -179,7 +179,7 @@ export function mixShare(mix: WorkMix, allowance: number = PLAN_ALLOWANCES.plusM
 }
 
 /**
- * Aynı karışım ücretsiz hesapla kaç günde biter: günde 3 mesaj, günde 1 fotoğraf. Ücretsiz hesapta ders yalnız ilk
+ * Aynı karışım ücretsiz hesapla kaç günde biter: günde 3 mesaj, ayda 7 fotoğraf. Ücretsiz hesapta ders yalnız ilk
  * derstir (test ve kartlar ona dahil): karışımda Plus'a özel iş, birden çok ders ya da ilk dersin dışında test/kart
  * varsa ücretsizle hiç yürümez (null).
  */
@@ -189,7 +189,9 @@ export function freeDaysFor(mix: WorkMix): number | null {
   if (lessons > 1) return null;
   if (PLAN_WORK.some((work) => work.free === "included" && (mix[work.id] ?? 0) > lessons)) return null;
   const chat = Math.ceil((mix.chat ?? 0) / FREE_CHAT_PER_DAY);
-  const photo = Math.ceil((mix.photo ?? 0) / FREE_PHOTO_PER_DAY);
+  // Fotoğraf aylık sayaçtır (Faz 4: ayda 7): ayın hakkını aşan karışım ücretsizde yürümez.
+  if ((mix.photo ?? 0) > FREE_PHOTO_PER_MONTH) return null;
+  const photo = (mix.photo ?? 0) > 0 ? 1 : 0;
   return Math.max(lessons, chat, photo);
 }
 
@@ -218,22 +220,25 @@ export function tempoMix(tempo: Tempo): WorkMix {
   };
 }
 
-/** Hazır tempolar: hepsi Plus hakkına sığar ve gittikçe yoğunlaşır (bekçi test; kredi v3, 24 Ekim 2026). */
+/**
+ * Hazır tempolar: hepsi Plus hakkına sığar ve gittikçe yoğunlaşır (bekçi test). Faz 4 (19 Kasım 2026): aylık hak 4.350
+ * krediye, ders 22 / test 14 / podcast 16 fiyatına göre yeniden ayarlandı; en yoğunu hakkın dörtte üçünü geçmez.
+ */
 export const TEMPO_PRESETS: readonly { id: string; label: string; tempo: Tempo }[] = [
   {
     id: "duzenli",
     label: "Düzenli çalışma",
-    tempo: { lessonsPerDay: 1, quizzesPerDay: 2, questionsPerDay: 5, podcastsPerWeek: 3, writtenPerWeek: 1, videosPerMonth: 1 },
+    tempo: { lessonsPerDay: 1, quizzesPerDay: 1, questionsPerDay: 5, podcastsPerWeek: 2, writtenPerWeek: 1, videosPerMonth: 1 },
   },
   {
     id: "sinav-ayi",
     label: "Sınav ayı",
-    tempo: { lessonsPerDay: 2, quizzesPerDay: 3, questionsPerDay: 5, podcastsPerWeek: 5, writtenPerWeek: 2, videosPerMonth: 0 },
+    tempo: { lessonsPerDay: 1, quizzesPerDay: 2, questionsPerDay: 5, podcastsPerWeek: 3, writtenPerWeek: 2, videosPerMonth: 0 },
   },
   {
     id: "son-sprint",
     label: "Son sprint",
-    tempo: { lessonsPerDay: 2, quizzesPerDay: 5, questionsPerDay: 8, podcastsPerWeek: 3, writtenPerWeek: 3, videosPerMonth: 0 },
+    tempo: { lessonsPerDay: 1, quizzesPerDay: 3, questionsPerDay: 8, podcastsPerWeek: 2, writtenPerWeek: 3, videosPerMonth: 0 },
   },
 ];
 

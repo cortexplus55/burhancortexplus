@@ -299,7 +299,8 @@ export async function loadActivity(service: SupabaseClient, query: ActivityQuery
               label: "Destek talebi açtı",
               detail: str(row.subject),
             })),
-          ...((reports.data ?? []) as Row[]).map((row) => ({
+          // Tanıtım turundan misafir bildirimi (Faz 5 §3.1) hesaba bağlı değil; etkinlik akışı kişi başına.
+          ...((reports.data ?? []) as Row[]).filter((row) => row.user_id).map((row) => ({
             key: `report:${row.id}`,
             at: String(row.created_at),
             userId: String(row.user_id),

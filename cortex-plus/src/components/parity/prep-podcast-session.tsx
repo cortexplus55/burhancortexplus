@@ -6,6 +6,8 @@ import type { PodcastLength } from "@/lib/learning/podcast-formats";
 import { useEffect, useState } from "react";
 import { ExamPodcastPlayer } from "@/components/parity/exam-podcast-player";
 import { NodeGenerationProgress } from "@/components/parity/node-generation-progress";
+import { PodcastStatusSteps, reportPodcastReady, usePodcastServerStatus } from "@/components/parity/podcast-status-steps";
+import { furtherPodcastStatus } from "@/lib/learning/podcast-status";
 import {
   describeGenerationFailure,
   generationFailureCode,
@@ -35,10 +37,21 @@ export function PrepPodcastSession({
   const [message, setMessage] = useState("");
   /** Üretim yuvaları dolu: "sıradasın" notu (19 Ekim 2026, Faz 3.2). */
   const [queued, setQueued] = useState(false);
+  /** Durum adımları (19 Kasım 2026, Faz 1-A §4.2): deneme başına bir kimlik; ilk bölümün sesi hazır olunca son adım. */
+  const [statusId, setStatusId] = useState<string | null>(null);
+  const [audioReady, setAudioReady] = useState(false);
+  const serverStatus = usePodcastServerStatus(statusId, status === "loading");
+  const stage = furtherPodcastStatus(
+    serverStatus,
+    audioReady ? "ready" : status === "ready" ? "synthesizing_audio" : null,
+  );
 
   useEffect(() => {
     let alive = true;
     setStatus("loading");
+    const id = crypto.randomUUID();
+    setStatusId(id);
+    setAudioReady(false);
     // Üretim düşerse bir kez kendiliğinden, yeni istek kimliğiyle yeniden istenir (19 Ekim 2026):
     // öğrenci "üretilemedi" görmeden önce iki tam deneme yapılır.
     void postJsonWithRetry<{
@@ -50,7 +63,7 @@ export function PrepPodcastSession({
       reason?: string;
       /** Yoldaki aynı konunun podcast'i hazır (30 Ekim 2026): o adım açılır, baştan yazılmaz. */
       openNode?: string;
-    }>("/api/learning/exam-prep/podcast", () => ({ prepId, topicId, length, clientRequestId: crypto.randomUUID() }), {
+    }>("/api/learning/exam-prep/podcast", () => ({ prepId, topicId, length, clientRequestId: crypto.randomUUID(), statusId: id }), {
       onBusy: () => {
         if (alive) setQueued(true);
       },
@@ -106,6 +119,7 @@ export function PrepPodcastSession({
         title="Podcast hazırlanıyor…"
         topic={topicLabel}
         note={queued ? BUSY_NOTE : undefined}
+        stepsSlot={<PodcastStatusSteps status={stage} announce={false} />}
         onClose={() => router.push(home)}
       />
     );
@@ -146,12 +160,24 @@ export function PrepPodcastSession({
   }
 
   return (
-    <ExamPodcastPlayer
-      title={title}
-      chapters={chapters}
-      resumeKey={`${prepId}:${topicId}:${length}`}
-      onClose={() => router.push(home)}
-      onFinish={() => router.push(home)}
-    />
+    <>
+      {/* Senaryo geldi, ilk bölümün sesi hazırlanıyor: adımlar ses çalmaya hazır olana kadar görünür. */}
+      {!audioReady ? (
+        <div className="pss-session">
+          <PodcastStatusSteps compact status={stage} />
+        </div>
+      ) : null}
+      <ExamPodcastPlayer
+        title={title}
+        chapters={chapters}
+        resumeKey={`${prepId}:${topicId}:${length}`}
+        onAudioReady={() => {
+          setAudioReady(true);
+          reportPodcastReady(statusId);
+        }}
+        onClose={() => router.push(home)}
+        onFinish={() => router.push(home)}
+      />
+    </>
   );
 }

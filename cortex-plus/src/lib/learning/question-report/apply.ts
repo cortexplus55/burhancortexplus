@@ -9,6 +9,7 @@ import {
 } from "@/lib/learning/exam-quiz";
 import { reviewPromptKey, type StoredReviewItem } from "@/lib/learning/review-items";
 import type { ReportDecision, ReportedQuestion } from "@/lib/learning/question-report/decision";
+import { lockedKeys } from "@/lib/learning/answer-lock";
 
 /**
  * Bildirilen sorunun kaynağı ve düzeltmesi (31 Ekim 2026, Paket J2 #10). Soru her zaman SUNUCUDAKİ kayıttan okunur;
@@ -23,6 +24,11 @@ export type ReportTarget = {
   question: ReportedQuestion;
   prepId: string | null;
   alreadyVoided: boolean;
+  /**
+   * Öğrenci bu sorunun cevabını gördü mü (Faz 5 §3.1): bildirim düğmesi artık cevaptan önce de açık. Görmediyse sunucu
+   * cevabında anahtar, açıklama ve denetçinin gerekçesi gönderilmez (cevabı ele vermesin).
+   */
+  answerShown: boolean;
   apply: (decision: ReportDecision) => Promise<AppliedFix>;
 };
 
@@ -70,6 +76,9 @@ async function loadNodeTarget(
   return {
     prepId,
     alreadyVoided: question.voided === true,
+    answerShown:
+      attempt.status === "completed" ||
+      lockedKeys((attempt.answers ?? {}) as Record<string, unknown>).includes(String(index)),
     question: {
       type: "choice",
       text: question.text,
@@ -97,6 +106,23 @@ async function loadNodeTarget(
       const { error } = await service.from("exam_prep_node_attempts").update(update).eq("id", attempt.id);
       if (error) throw new Error(error.message);
       if (prepId) await retireReviewItem(service, input.userId, prepId, question);
+      // 19 Kasım 2026 (Faz 2 denetimi): yol testinin yanlışı defterde `source_ref = "<deneme>:q:<sıra>"` ile durur;
+      // bildirim onu güncellemiyordu, bozuk soru defterde eski anahtarla kalıyordu. Deneme sorusuyla aynı kural.
+      const { error: notebookError } = await service
+        .from("mistake_entries")
+        .update(
+          decision.action === "fix" && decision.correctedKey?.length
+            ? {
+                correct_answer: decision.correctedKey.join(" | "),
+                ...(decision.explanation ? { explanation: decision.explanation } : {}),
+              }
+            : { mastered_at: new Date().toISOString() },
+        )
+        .eq("user_id", input.userId)
+        .eq("source_ref", `${attempt.id}:q:${index}`);
+      if (notebookError) {
+        console.error("question_report_notebook_failed", { kind: "node", code: notebookError.code ?? null });
+      }
       const shown = normalizeQuizQuestion(fixed as Parameters<typeof normalizeQuizQuestion>[0]);
       return {
         question: shown ? publicQuizQuestion(shown) : undefined,
@@ -197,6 +223,8 @@ async function loadMockTarget(
   return {
     prepId: (exam.exam_prep_id as string | null) ?? null,
     alreadyVoided,
+    // Yazılı deneme yalnız notlandıktan sonra bildirilir: cevaplar zaten açık.
+    answerShown: true,
     question: {
       type: choice ? "choice" : "open",
       text: String(row.question_text ?? ""),

@@ -6,6 +6,8 @@
  * hesaptan önce formül + başlangıç verisi.
  */
 
+import { isInsideSymbolicMath } from "@/lib/text/symbolic-math";
+
 export type WorkedExample = {
   prompt: string;
   solution: string;
@@ -48,6 +50,9 @@ export function checkSimpleMathClaims(text: string): string[] {
   while ((match = eq.exec(text)) !== null) {
     const before = text.slice(0, match.index).trimEnd();
     if (/[+\-−×x*÷/]$/i.test(before)) continue;
+    // Faz 2 (madde 1): değişkenli, LaTeX'li, kimyasal oklu ya da eşitsizlikli ifadenin sayısal parçası
+    // ("x^2 - 4 = 0" içindeki "2 - 4 = 0") aritmetik eşitlik testine girmez.
+    if (isInsideSymbolicMath(text, match.index, match.index + match[0].length)) continue;
 
     const number = (value: string) => Number(value.replace("−", "-").replace(",", "."));
     const a = number(match[1]);

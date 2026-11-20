@@ -79,6 +79,22 @@ export const DUEL_ACCESS = {
   createPerMinute: 6,
 } as const;
 
+/**
+ * Düello 9B (15 Kasım 2026, Burhan onayı), `duel.v2` bayrağı arkasında. Bayrak kapalıyken yukarıdaki `DUEL_ACCESS` ve
+ * `QUIZ_GENERATE` (10 kredi) aynen geçerli. Açıkken: kurma bedeli `DUEL_GENERATE` 20 kredi, günlük kurma sınırı plan
+ * başına (İstanbul günü; ücretsiz 1, Plus / Sınav Haftası 10, Sigma 30, kurucu sınırsız), set istemi ve paylaşım uyarısı.
+ * Oynamak, bot ve rövanş iki durumda da serbest. `duel.enabled` adı yeni düello sunucusuna ayrılmış; bu bayrak o değil.
+ */
+export const DUEL_V2_FLAG = "duel.v2";
+export const DUEL_V2_ACTION_CODE = "DUEL_GENERATE" as const;
+export const DUEL_V2_DAILY_LIMIT = { free: 1, plus: 10, sigma: 30 } as const;
+
+/** Bayrak açıkken bugün kurulabilecek düello sayısı; kurucuda sınır yok (null). */
+export function duelDailyLimit(plan: "free" | "plus" | "sigma", founder: boolean): number | null {
+  if (founder) return null;
+  return DUEL_V2_DAILY_LIMIT[plan];
+}
+
 /** Sınav Haftası ikinci seçeneği yalnız sınav bu kadar gün içindeyse (ANA-PROMPT §3.11). */
 export const EXAM_WEEK_OFFER_THRESHOLD_DAYS = 14;
 

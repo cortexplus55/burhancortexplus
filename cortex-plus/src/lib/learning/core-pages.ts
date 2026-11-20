@@ -19,3 +19,13 @@ export function corePageRun(pages: number[], max = 6): number[] {
   for (let page = best[0]; page <= best[best.length - 1]; page += 1) filled.push(page);
   return filled.slice(0, max);
 }
+
+/**
+ * Ana ünite dersinin sayfaları (Faz 10, 21 Kasım 2026). Ünite dersi birden çok alt başlığı öğretir; alt başlıkların
+ * sayfaları belgede dağınık olabilir. `corePageRun`'ın "en uzun ardışık dizi, en çok 6 sayfa" kuralı ünitenin öbür alt
+ * başlıklarını kesiyordu: burada dersin bütün sayfaları sırayla alınır, en çok `max` (ünite dersi grubu zaten en çok 12
+ * öğretilebilir sayfa, `UNIT_LESSON_MAX_PAGES`).
+ */
+export function unitLessonPages(pages: number[], max = 12): number[] {
+  return [...new Set(pages.filter((page) => Number.isInteger(page) && page > 0))].sort((a, b) => a - b).slice(0, max);
+}

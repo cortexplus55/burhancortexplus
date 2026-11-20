@@ -6,6 +6,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { SIGNUP_NEXT_KEY, SIGNUP_STORAGE_KEY, type SignupPayload } from "@/lib/parity/signup";
 import { safeNextPath } from "@/lib/auth/safe-next-path";
+import { guestHandoffTarget } from "@/lib/documents/guest-handoff";
 import { completeSignup } from "../actions";
 import "@/styles/parity-marketing.css";
 import "@/styles/cinematic-home.css";
@@ -52,7 +53,9 @@ export function SignupFinalizer() {
         if (result.ok) {
           let target = result.redirectTo;
           try {
-            target = safeNextPath(localStorage.getItem(SIGNUP_NEXT_KEY), result.redirectTo);
+            const storedNext = localStorage.getItem(SIGNUP_NEXT_KEY);
+            // Faz 5 §1.3: açık bir `next` yoksa ve bu sekmede misafirin dosyası bekliyorsa kurulum sihirbazına.
+            target = guestHandoffTarget(safeNextPath(storedNext, result.redirectTo), { explicitNext: Boolean(storedNext) });
             localStorage.removeItem(SIGNUP_STORAGE_KEY);
             localStorage.removeItem(SIGNUP_NEXT_KEY);
           } catch {

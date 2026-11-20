@@ -2,6 +2,7 @@ import { LinkIcon } from "lucide-react";
 import { MarketingPage } from "@/components/layout/marketing-page";
 import { ResultCard } from "@/components/marketing/result-card";
 import { safeNextPath } from "@/lib/auth/safe-next-path";
+import { CANONICAL_EMAIL_TAKEN_MESSAGE } from "@/lib/auth/canonical-email";
 
 export const metadata = { title: "Giriş bağlantısı açılamadı" };
 
@@ -55,6 +56,27 @@ export default async function AuthCodeErrorPage({
           primaryLabel="Giriş yap"
           secondaryHref="/yardim"
           secondaryLabel="Yardım sayfası"
+        />
+      </MarketingPage>
+    );
+  }
+
+  // Faz 2 (madde 4): aynı e-posta kutusuyla açılmış bir hesap zaten var (Google ile ilk giriş, başka yazım).
+  if (neden === "hesap-var") {
+    return (
+      <MarketingPage
+        variant="auth"
+        title="Bu e-postayla bir hesabın var"
+        description={CANONICAL_EMAIL_TAKEN_MESSAGE}
+      >
+        <ResultCard
+          icon={LinkIcon}
+          tone="error"
+          detail="Yeni bir hesap açılmadı. Var olan hesabına e-posta ve şifrenle giriş yapabilirsin; şifreni hatırlamıyorsan sıfırlama bağlantısı iste."
+          primaryHref="/giris"
+          primaryLabel="Giriş yap"
+          secondaryHref="/sifremi-unuttum"
+          secondaryLabel="Şifremi unuttum"
         />
       </MarketingPage>
     );

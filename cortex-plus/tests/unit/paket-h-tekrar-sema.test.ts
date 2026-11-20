@@ -163,7 +163,8 @@ const demandLesson: LessonV3 = {
 } as LessonV3;
 
 // Hafif doğrulayıcı (30 Ekim 2026) kavram başına ayrı bir çağrı; bu test yalnız şema tamamlama çağrısını sayar.
-const input = { topicLabel: "Talep ve arz", prepTitle: "KPSS İktisat", pages: [{ page: 3, text: "Talep yasası ve arz yasası. Fiyat 10 TL, 20 TL." }], upcomingTopics: [], sanity: false };
+// Görsel sahne çağrısı (Faz 1-B) ayrı bir çağrı; bu test onu saymaz (kendi testi visual-scenes-integration).
+const input = { topicLabel: "Talep ve arz", prepTitle: "KPSS İktisat", pages: [{ page: 3, text: "Talep yasası ve arz yasası. Fiyat 10 TL, 20 TL." }], upcomingTopics: [], sanity: false, visualScene: false };
 
 const card = (over: Record<string, unknown> = {}) =>
   JSON.stringify({

@@ -15,6 +15,12 @@ import {
   type SectionCheck,
 } from "@/lib/learning/teaching-standards";
 import { rejoinIntervalCells } from "@/lib/learning/interval-text";
+import { academicDomainSchema, parseVisualScene, visualArchetypeSchema, visualSceneSchema } from "@/lib/learning/visual-scenes/schema";
+import { visualSceneText } from "@/lib/learning/visual-scenes/prompt";
+import { checkSceneRelations } from "@/lib/learning/visual-scenes/relation-check";
+import { explanationAnswerMismatch, mcqAnswerMismatch } from "@/lib/learning/answer-consistency";
+import { unsafeStoredCheck } from "@/lib/learning/answer-key-consistency";
+import { guardLessonForCorrection } from "@/lib/learning/lesson-correction-guard";
 
 /**
  * LessonV3 — Ders → Ekran → Blok dizisi (16 Ekim 2026, ürün sahibinin kararı).
@@ -107,6 +113,17 @@ export const diagramCardBlockSchema = z.object({
   items: z.array(diagramCardItemSchema).min(2).max(8),
 });
 
+/**
+ * Branşa özel görsel sahne (19 Kasım 2026, Faz 1-B): disiplinin arketipine göre çizilen SVG sahnesi
+ * (`components/learning/visual-scenes`). Model yalnız yapı verisini yazar; yerleşim koddadır.
+ */
+export const visualSceneBlockSchema = z.object({
+  type: z.literal("visual_scene"),
+  academicDomain: academicDomainSchema.optional().catch(undefined),
+  visualArchetype: visualArchetypeSchema,
+  scene: visualSceneSchema,
+});
+
 export const lessonBlockSchema = z.discriminatedUnion("type", [
   textBlockSchema,
   formulaBlockSchema,
@@ -121,6 +138,7 @@ export const lessonBlockSchema = z.discriminatedUnion("type", [
   memoryHookBlockSchema,
   comparisonCarouselBlockSchema,
   diagramCardBlockSchema,
+  visualSceneBlockSchema,
 ]);
 
 export type LessonBlock = z.infer<typeof lessonBlockSchema>;
@@ -130,7 +148,7 @@ export type LessonHook = z.infer<typeof lessonHookSchema>;
 export type LessonCarousel = z.infer<typeof lessonCarouselSchema>;
 
 /** Görsel kartların türleri: oynatma paketi ve ekran bunları tanır. */
-export const VISUAL_BLOCK_TYPES = ["exam_trap_card", "memory_hook_card", "comparison_carousel"] as const;
+export const VISUAL_BLOCK_TYPES = ["exam_trap_card", "memory_hook_card", "comparison_carousel", "visual_scene"] as const;
 
 const STRUCTURED_LAYOUTS = new Set(["flow", "cycle", "matrix", "tree", "free"]);
 
@@ -219,6 +237,10 @@ export function blockAlias(item: unknown): unknown {
   if (row.type === "diagram_card") {
     return parametricFromDiagramCard(row) ?? { type: "diagram", diagram: row.diagram ?? row.card };
   }
+  if (row.type === "visual_scene") {
+    const scene = parseVisualScene(row.scene ?? row.visual, typeof row.visualArchetype === "string" ? (row.visualArchetype as never) : undefined);
+    return scene ? { ...row, visualArchetype: scene.archetype, scene } : row;
+  }
   if (row.type === "general_knowledge_box") {
     const note = row.note ?? row.box;
     return { type: "note", note: note && typeof note === "object" ? { ...(note as object), tone: "general" } : note };
@@ -252,6 +274,7 @@ export function visualBlockText(block: LessonBlock): string {
     }
     if (diagram.layout === "tree") return `${diagram.caption}: ${diagram.root.label}`;
   }
+  if (block.type === "visual_scene") return visualSceneText(block.scene);
   if (block.type === "diagram_card") {
     const bits = block.items.map((item) => [item.label, item.value, item.detail].filter((part) => part != null && part !== "").join(" "));
     return [block.title, block.caption, bits.join(" → ")].filter(Boolean).join(": ");
@@ -289,7 +312,7 @@ const v2 = lessonV2Schema.shape;
 /** Kapsam turunun ek ekranları sığsın. İstem hâlâ 12 ekran ister; bu tavan kayıt içindir. */
 export const LESSON_SCREEN_HARD_CAP = 16;
 
-export const lessonV3Schema = z.object({
+const lessonV3ObjectSchema = z.object({
   format: z.literal(LESSON_V3_FORMAT),
   title: v2.title,
   objective: v2.objective,
@@ -303,7 +326,110 @@ export const lessonV3Schema = z.object({
   numericalCheck: v2.numericalCheck,
   summary: v2.summary,
   nextFocus: v2.nextFocus,
+  sourceCorrectionWarning: v2.sourceCorrectionWarning,
+  /** Faz 1-B: dersin disiplini ve görsel arketipi (üretimde otomatik sınıflandırılır; eski derslerde yok). */
+  academicDomain: academicDomainSchema.optional().catch(undefined),
+  visualArchetype: visualArchetypeSchema.optional().catch(undefined),
 });
+
+/**
+ * Dersin doğrulanmış bilgi metni (Faz 1-B ilişki denetimi): metin, formül, adım, tablo, kart, not ve örnek blokları.
+ * Soru önermeleri (bilerek yanlış olabilir), tuzak kartları (yanlış inanç) ve görsel sahneler girmez.
+ */
+export function lessonFactText(lesson: Pick<LessonV3Object, "screens" | "summary">): string {
+  const parts: string[] = [];
+  for (const screen of lesson.screens) {
+    for (const block of screen.blocks) {
+      if (block.type === "text") parts.push(block.text);
+      else if (block.type === "formula") parts.push(`${block.formula.title}: ${block.formula.expression}`);
+      else if (block.type === "procedure") parts.push(block.procedure.steps.map((step) => `${step.label}: ${step.detail}`).join("; "));
+      else if (block.type === "table") parts.push([block.table.columns.join(" | "), ...block.table.rows.map((row) => row.join(" | "))].join("\n"));
+      else if (block.type === "cards") parts.push(block.cards.map((card) => `${card.title}: ${card.body}`).join("; "));
+      else if (block.type === "note") parts.push(`${block.note.title}: ${block.note.body}`);
+      else if (block.type === "example") parts.push(`Örnek: ${block.example.prompt} ${block.example.result ?? ""}`);
+    }
+  }
+  parts.push(...(lesson.summary ?? []));
+  return parts.join("\n").replace(/==|\*\*/g, "");
+}
+
+/**
+ * Kayıttaki görsel sahne de okunurken denetlenir: dersin doğrulanmış içeriği ya da kaynak düzeltmesiyle çelişen
+ * sahne düşer (ders sahnesiz açılır). Yeni üretimde aynı denetim yayımdan önce çalışır.
+ */
+export function dropContradictingScenes<T extends Pick<LessonV3Object, "screens" | "summary" | "sourceCorrectionWarning">>(lesson: T): T {
+  if (!lesson.screens.some((screen) => screen.blocks.some((block) => block.type === "visual_scene"))) return lesson;
+  const context = { lessonText: lessonFactText(lesson), sourceCorrection: lesson.sourceCorrectionWarning ?? null };
+  let changed = false;
+  const screens = lesson.screens.map((screen) => {
+    const blocks = screen.blocks.filter((block) => block.type !== "visual_scene" || checkSceneRelations(block.scene, context).ok);
+    if (blocks.length === screen.blocks.length) return screen;
+    changed = true;
+    return { ...screen, blocks };
+  });
+  return changed ? { ...lesson, screens } : lesson;
+}
+
+type CheckBlockV3 = Extract<LessonV3Object["screens"][number]["blocks"][number], { type: "check" }>;
+
+/** Kontrolün anahtarı açıklama/hesap/gerekçeyle hizalanmış hâli; ikinci soru (tam öğe) de kendi açıklamasıyla. */
+function settledCheck(check: CheckBlockV3["check"]): CheckBlockV3["check"] {
+  let next = check;
+  if (next.type === "mcq") {
+    const mismatch = mcqAnswerMismatch(next);
+    if (mismatch) next = { ...next, answerIndex: mismatch.expectedIndex };
+    const review = next.review;
+    if (review?.options && typeof review.answerIndex === "number") {
+      const reviewMismatch = explanationAnswerMismatch({ options: review.options, keyed: [review.answerIndex], explanation: review.explanation });
+      if (reviewMismatch) next = { ...next, review: { ...review, answerIndex: reviewMismatch.expectedIndex } };
+    }
+  }
+  return next;
+}
+
+/**
+ * Kayıtlı ders okunurken cevap anahtarı kapısı (19 Kasım 2026, Faz 1-A §3): yeni üretimdeki aynı kurallar eski
+ * kayda da uygulanır. Anahtar açıklamanın hesabıyla ya da şık gerekçeleriyle çelişiyorsa desteklenen şıkka alınır
+ * (öğrenci doğru şıkla yanlış sayılmaz); açıklamasındaki işlem yanlış ya da D/Y anahtarı önermedeki işlemle
+ * çelişen soru güvenle puanlanamaz: ekrandan düşer (ekranda başka blok kalıyorsa), gösterilmez ve puanlanmaz.
+ */
+export function settleStoredChecks<T extends Pick<LessonV3Object, "screens">>(lesson: T): T {
+  let changed = false;
+  const screens = lesson.screens.map((screen) => {
+    let screenChanged = false;
+    type Block = (typeof screen.blocks)[number];
+    const blocks = screen.blocks.flatMap((block): Block[] => {
+      if (block.type !== "check") return [block];
+      if (unsafeStoredCheck(block.check) && screen.blocks.length > 1) {
+        screenChanged = true;
+        return [];
+      }
+      const check = settledCheck(block.check);
+      if (check === block.check) return [block];
+      screenChanged = true;
+      return [{ ...block, check } as Block];
+    });
+    if (!screenChanged) return screen;
+    changed = true;
+    return { ...screen, blocks };
+  });
+  return changed ? { ...lesson, screens } : lesson;
+}
+
+type LessonV3Object = z.infer<typeof lessonV3ObjectSchema>;
+
+/**
+ * Kayıtlı ders okunurken de kaynak düzeltme bekçisi (20 Kasım 2026): dersin kendi uyarısı varsa yanlışı öğreten cümle,
+ * kutu ve soru gösterilmez. Ekran sayısı değişmez (cevaplar ekran sırasına bağlı).
+ */
+function guardStoredCorrection<T extends LessonV3Object>(lesson: T): T {
+  if (!lesson.sourceCorrectionWarning) return lesson;
+  return guardLessonForCorrection(lesson, lesson.sourceCorrectionWarning, { keepScreens: true }).lesson;
+}
+
+export const lessonV3Schema = lessonV3ObjectSchema.transform((lesson) =>
+  settleStoredChecks(guardStoredCorrection(dropContradictingScenes(lesson))),
+);
 
 export type LessonV3 = z.infer<typeof lessonV3Schema>;
 
@@ -409,6 +535,7 @@ export function v3ToV2(lesson: LessonV3): LessonV2 {
     numericalCheck: lesson.numericalCheck,
     summary: lesson.summary,
     nextFocus: lesson.nextFocus,
+    ...(lesson.sourceCorrectionWarning ? { sourceCorrectionWarning: lesson.sourceCorrectionWarning } : {}),
   };
 }
 
@@ -446,6 +573,7 @@ export function v2ToV3(lesson: LessonV2): LessonV3 {
     numericalCheck: lesson.numericalCheck,
     summary: lesson.summary,
     nextFocus: lesson.nextFocus,
+    ...(lesson.sourceCorrectionWarning ? { sourceCorrectionWarning: lesson.sourceCorrectionWarning } : {}),
   };
 }
 

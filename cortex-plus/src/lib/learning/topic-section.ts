@@ -107,20 +107,25 @@ function splitAppendix(text: string): { body: string; appendix: string[][] } {
 /**
  * Konunun kendi bölümleri. Yardımcı (etiketli) sayfalara dokunulmaz. Sayfalarda öbür bir konunun başlığı yoksa ya da
  * daraltma konunun metnini {@link TOPIC_SECTION_MIN_CHARS} altına indirecekse sayfalar olduğu gibi döner.
+ * `selfNames`: ünite dersinde ünitenin kendi alt konuları (20 Kasım 2026); onların başlığı da bu konunundur ve aynı adı
+ * taşıyan öbür ad dışarıda sayılmaz. Verilmezse davranış eskisi gibi.
  */
 export function narrowPagesToTopic<T extends Page>(
   pages: readonly T[],
   topic: string,
   siblings: readonly string[],
+  options: { selfNames?: readonly string[] } = {},
 ): { pages: T[]; narrowed: boolean; dropped: string[] } {
   const unchanged = { pages: [...pages], narrowed: false, dropped: [] as string[] };
-  const others = otherTopics(topic, siblings);
+  const selfNames = (options.selfNames ?? []).filter((name) => name.trim());
+  const selfKeys = new Set(selfNames.map(fold));
+  const others = otherTopics(topic, siblings).filter((other) => !selfKeys.has(fold(other)));
   if (!others.length || !topic.trim()) return unchanged;
   const own = pages.filter((page) => !page.label);
   const classify = (line: string): Owner | "neutral" | null => {
     const heading = headingOfLine(line, { allowShort: true });
     if (!heading) return null;
-    if (headingNamesTopic(heading, topic)) return "self";
+    if (headingNamesTopic(heading, topic) || selfNames.some((name) => headingNamesTopic(heading, name))) return "self";
     return others.some((other) => headingNamesTopic(heading, other)) ? "other" : "neutral";
   };
   const lines = own.flatMap((page) => splitAppendix(page.text).body.split("\n"));

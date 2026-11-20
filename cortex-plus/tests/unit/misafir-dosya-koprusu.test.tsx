@@ -207,7 +207,7 @@ describe("kurulumda: ana sayfada seçtiğin dosya", () => {
     installFakeIndexedDb();
     await holdGuestDocuments([fileOf("Anatomi_vize_notu.pdf", "application/pdf")]);
     render(<GuestDocumentOffer variant="hint" />);
-    expect((await screen.findByRole("status")).textContent).toMatch(/“Anatomi_vize_notu\.pdf” kaybolmadı: materyal adımında seni bekliyor/);
+    expect((await screen.findByRole("status")).textContent).toMatch(/“Anatomi_vize_notu\.pdf” kaybolmadı: materyal adımında kendiliğinden eklenecek/);
   });
 
   it("materyal adımında kart: öğrencinin dokunuşuyla sihirbazın yükleme yoluna verilir, sonra silinir", async () => {
@@ -250,7 +250,7 @@ describe("kurulumda: ana sayfada seçtiğin dosya", () => {
 describe("bağlantılar: ana sayfa → kayıt → kurulum", () => {
   it("sihirbaz dosyayı bildiğimiz yükleme yoluna verir; önceki adımlarda hatırlatır", () => {
     const wizard = read("src/components/parity/exam-create-wizard.tsx");
-    expect(wizard).toContain('<GuestDocumentOffer variant="offer" disabled={uploading} onTake={(files) => takeFiles(files)} />');
+    expect(wizard).toContain('<GuestDocumentOffer variant="offer" auto disabled={uploading} onTake={(files) => takeFiles(files)} />');
     expect(wizard).toContain('{step === "subject" || step === "date" || step === "target" ? <GuestDocumentOffer variant="hint" /> : null}');
     // Kart bırakma alanının üstünde: öğrenci dosyasını ilk bakışta görür.
     expect(wizard.indexOf('<GuestDocumentOffer variant="offer"')).toBeLessThan(wizard.indexOf('className={dragOver ? "apw-drop apw-drop--over" : "apw-drop"}'));
@@ -260,9 +260,10 @@ describe("bağlantılar: ana sayfa → kayıt → kurulum", () => {
     const signup = read("src/app/kayit/signup-wizard.tsx");
     expect(signup).toContain('searchParams.get("kaynak") === "belge"');
     expect(signup).toContain("readGuestMarker()");
-    expect(signup).toContain("hesabın açılınca kurulumda");
+    // Faz 5 §1.3: hesap açılınca dosya kurulum sihirbazına kendiliğinden aktarılır.
+    expect(signup).toContain("sihirbazına kendiliğinden aktarılır");
     // Kayıt dönüş adresi kurulumdur ve güvenli yol denetiminden geçer.
-    expect(read("src/lib/marketing/landing-journey.ts")).toContain('export const GUEST_DOCUMENT_NEXT = "/deneme-sinavlari/olustur";');
+    expect(read("src/lib/documents/guest-handoff.ts")).toContain('export const GUEST_DOCUMENT_NEXT = "/deneme-sinavlari/olustur";');
   });
 
   it("köprü dosyayı hiçbir yere göndermez", () => {

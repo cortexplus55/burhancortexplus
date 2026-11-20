@@ -1,6 +1,8 @@
 "use client";
 
 import { LIVE_HEADER, splitLiveBody } from "@/lib/ai/chat-live";
+import { dropSourceLabels } from "@/lib/ai/chat-answer-settle";
+import { ONE_MOVE_MAX_CHIPS } from "@/lib/ai/teacher-v2";
 import { useCallback, useRef, useState, useEffect, type ComponentProps } from "react";
 import { createPortal } from "react-dom";
 import { useLearningTimer } from "@/components/learning/use-learning-timer";
@@ -74,9 +76,15 @@ import { TutorReplyView } from "@/components/chat/tutor-reply-view";
 import { useSelectedCockpitPrepId } from "@/components/parity/home-selection";
 import { SourceModePill } from "@/components/chat/source-mode-pill";
 import { TutorModeSwitcher } from "@/components/chat/tutor-mode-switcher";
+import { TeachStyleMenu } from "@/components/chat/teach-style-menu";
+import { splitFinalQuestion } from "@/lib/learning/question-bubble";
 import {
   DEFAULT_TUTOR_STYLE,
+  GUIDED_TEACH_STYLE,
+  TEACH_STYLE_STORAGE_KEY,
+  parseTeachStyle,
   parseTutorStyle,
+  type TeachStyle,
   type TutorStyle,
 } from "@/lib/learning/tutor-style";
 import { CHAT_UPLOAD_ACCEPT } from "@/lib/documents/upload-accept";
@@ -92,6 +100,8 @@ import { useOpenFromRefusal, useQuotaNotice } from "@/components/entitlements/en
 import { MessageQuota } from "@/components/entitlements/message-quota";
 import { Gate } from "@/components/entitlements/gate";
 import { gateFromRefusal } from "@/lib/entitlements/gate";
+import { useAutoGrow } from "@/lib/ui/use-auto-grow";
+import { createSendLock } from "@/lib/ui/send-lock";
 import "@/styles/parity-sor.css";
 import "@/styles/parity-shell.css";
 
@@ -289,6 +299,7 @@ function ChatPanelSession({
   tutorStyleLabel,
   initialTutorStyle,
   followUser = false,
+  teacherV2 = false,
   quotaHint,
   starterPrompts,
   feedbackEnabled = false,
@@ -341,6 +352,11 @@ function ChatPanelSession({
    * duyar. Kapalıyken bugünkü davranış aynen.
    */
   followUser?: boolean;
+  /**
+   * Faz 13A (`teacher.v2`, 15 Kasım 2026): yanıtın altında en çok 3 çip. Yanıtın kendi çipleri (Sokratik / Adım Adım
+   * hızlı eylemleri) varsa genel devam önerileri gösterilmez. Kapalıyken bugünkü davranış aynen.
+   */
+  teacherV2?: boolean;
   quotaHint?: string | null;
   starterPrompts?: { label: string; prompt: string }[];
   /**
@@ -381,6 +397,25 @@ function ChatPanelSession({
   const [tutorStyle, setTutorStyle] = useState<TutorStyle>(
     parseTutorStyle(initialTutorStyle) || DEFAULT_TUTOR_STYLE,
   );
+  /**
+   * Faz 13 PR-1 (teacher.v2, yalnız ana sohbet): dört anlatım, varsayılan Rehberli. Seçim tarayıcıda; öbür üç stil
+   * profile de yazılır. Bayrak kapalıyken ya da hazırlık sohbetinde kullanılmaz (bugünkü `tutorStyle`).
+   */
+  const v2Main = teacherV2 && !prepId;
+  const [teachStyle, setTeachStyle] = useState<TeachStyle>(GUIDED_TEACH_STYLE);
+  useEffect(() => {
+    if (!v2Main) return;
+    try {
+      const saved = parseTeachStyle(window.localStorage.getItem(TEACH_STYLE_STORAGE_KEY));
+      if (saved) setTeachStyle(saved);
+    } catch {
+      /* depolama kapalı: Rehberli kalır */
+    }
+  }, [v2Main]);
+  /** Ekrandaki çiplerin ve isteğin stili: bayrak açıkken seçilen anlatım, değilse bugünkü stil. */
+  const activeStyle: TeachStyle = v2Main ? teachStyle : tutorStyle;
+  /** Yanıt görünümü üç stili tanır; Rehberli, cevabı saklayan Sokratik çizimle gösterilir. */
+  const replyStyle: TutorStyle = activeStyle === GUIDED_TEACH_STYLE ? "hints_first" : activeStyle;
   const [loading, setLoading] = useState(false);
   const [paywall, setPaywall] = useState(false);
   /** 402'nin kodu: hangi ücretsiz sayacın dolduğu (mesaj ya da fotoğraf). */
@@ -484,6 +519,11 @@ function ChatPanelSession({
     (typeof COMPOSER_MODES)[number]["id"] | null
   >(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
+  // Faz 3 (20 Kasım 2026): yazma alanı Safari ve Firefox'ta da büyüsün (CSS `field-sizing` yalnız Chrome'da).
+  useAutoGrow(composerRef, input);
+  // Faz 3: durum (`loading`) bir sonraki çizimde gelir; arada ikinci Enter / çift tık ikinci isteği göndermesin.
+  const [sendLock] = useState(createSendLock);
+  const [composerLock] = useState(createSendLock);
   const viewRef = useRef<HTMLDivElement>(null);
   const composerZoneRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -519,6 +559,16 @@ function ChatPanelSession({
       cancelled = true;
     };
   }, [variant]);
+
+  function persistTeachStyle(next: TeachStyle) {
+    setTeachStyle(next);
+    try {
+      window.localStorage.setItem(TEACH_STYLE_STORAGE_KEY, next);
+    } catch {
+      /* depolama kapalı: seçim bu sekmede geçerli */
+    }
+    if (next !== GUIDED_TEACH_STYLE) persistTutorStyle(next);
+  }
 
   function persistTutorStyle(next: TutorStyle) {
     setTutorStyle(next);
@@ -876,7 +926,17 @@ function ChatPanelSession({
     }
   }
 
+  /** Yazma alanının gönderimi; eşzamanlı kilitle (çift Enter, Enter + düğme aynı anda) tek kez çalışır. */
   async function sendComposer() {
+    if (!composerLock.tryAcquire()) return;
+    try {
+      await sendComposerNow();
+    } finally {
+      composerLock.release();
+    }
+  }
+
+  async function sendComposerNow() {
     const file = pendingFile;
     const remote = pendingRemote;
     const text = input.trim();
@@ -1050,6 +1110,8 @@ function ChatPanelSession({
     allowWhileLoading = false,
   ) {
     if (!text.trim() || (loading && !allowWhileLoading)) return;
+    // Aynı anda ikinci istek yok (öneri çipine çift tık, art arda Enter): kilit istek bitince ya da hata olunca açılır.
+    if (!sendLock.tryAcquire()) return;
     const typed = typedRef.current;
     typedRef.current = null;
     if (imageDocumentId) activeDocumentId.current = imageDocumentId;
@@ -1092,7 +1154,7 @@ function ChatPanelSession({
           prepId,
           contextPrepId: prepId ? undefined : (contextPrepId ?? undefined),
           mood: chatMood === DEFAULT_MOOD ? undefined : chatMood,
-          tutorStyle,
+          tutorStyle: activeStyle,
         }),
       });
 
@@ -1160,6 +1222,9 @@ function ChatPanelSession({
       // Canlı akış (3 Kasım 2026): taslak token token gelir, sonda kuyruk kesin metni,
       // mesaj kimliğini ve kaynağı getirir (denetim düzelttiyse taslak değişir).
       const liveStream = res.headers.get(LIVE_HEADER) === "1";
+      // "Genel" modda ve belge bağlanmamış sohbette "Materyal dışı · kaynakta yok" akış sırasında da görünmez (15 Kasım
+      // 2026, Burhan); kesin metin sunucuda zaten süzülmüş gelir.
+      const maskSourceLabels = !useDocuments && !activeDocumentId.current;
       let raw = "";
       let finalId = messageId;
       for (;;) {
@@ -1167,6 +1232,7 @@ function ChatPanelSession({
         if (done) break;
         raw += decoder.decode(value, { stream: true });
         assistant = liveStream ? splitLiveBody(raw).draft : raw;
+        if (maskSourceLabels) assistant = dropSourceLabels(assistant);
         setMessages((prev) => {
           const copy = [...prev];
           copy[copy.length - 1] = {
@@ -1180,6 +1246,7 @@ function ChatPanelSession({
       if (liveStream) {
         const { draft, trailer } = splitLiveBody(raw);
         assistant = trailer?.content ?? draft;
+        if (maskSourceLabels) assistant = dropSourceLabels(assistant);
         if (trailer?.conversationId) conversationId.current = trailer.conversationId;
         finalId = trailer?.messageId || undefined;
         if (trailer && !trailer.error) {
@@ -1248,6 +1315,7 @@ function ChatPanelSession({
     } finally {
       if (abortRef.current === controller) abortRef.current = null;
       setLoading(false);
+      sendLock.release();
     }
   }
 
@@ -1387,6 +1455,9 @@ function ChatPanelSession({
     !lastMessage.isError &&
     !lastMessage.local &&
     lastMessage.content.trim().length > 0;
+  /** PROMPT-V2 §8: son yanıt bir soruyla bitiyorsa yazma alanı "Cevabını yaz" der (yalnız teacher.v2, ana sohbet). */
+  const answerPlaceholder =
+    v2Main && lastIsAnswer && !loading && splitFinalQuestion(lastMessage.content) ? "Cevabını yaz" : null;
 
   // Jenerik "yükleniyor" yerine ne beklediğini söylüyor — kıyas ürünündeki "Çözüm
   // arıyor" gibi. Ekstra istek yok, yalnızca zaten elimizdeki duruma göre metin.
@@ -1739,8 +1810,10 @@ function ChatPanelSession({
                           disabled={loading}
                           onPrompt={(prompt) => void send(prompt)}
                           hideChips={!showSuggestions}
-                          tutorStyle={tutorStyle}
+                          tutorStyle={replyStyle}
                           quickActions={index === messages.length - 1}
+                          maxChips={teacherV2 ? ONE_MOVE_MAX_CHIPS : undefined}
+                          ladderChips={v2Main && (activeStyle === GUIDED_TEACH_STYLE || activeStyle === "hints_first")}
                         />
                         <MessageActions
                           content={message.content}
@@ -1819,7 +1892,7 @@ function ChatPanelSession({
               {/* Yanıt bittikten sonra devam önerileri. Öğrenci "peki şimdi ne
                   sorayım" diye kalmasın; bunlar gerçekten çalışan komutlar,
                   süs değil. Sınav sohbetinde aynı işi hızlı komutlar görür. */}
-              {!examChrome && !loading && lastIsAnswer && showSuggestions ? (
+              {!examChrome && !loading && lastIsAnswer && showSuggestions && !(teacherV2 && activeStyle !== "direct_solve") ? (
                 <div className="cp-followups" role="group" aria-label="Devam önerileri">
                   {FOLLOW_UPS.map((item) => (
                     <button
@@ -1983,7 +2056,11 @@ function ChatPanelSession({
                     }}
                   />
                 ) : null}
-                <TutorModeSwitcher value={tutorStyle} onChange={persistTutorStyle} disabled={loading} />
+                {v2Main ? (
+                  <TeachStyleMenu value={teachStyle} onChange={persistTeachStyle} disabled={loading} />
+                ) : (
+                  <TutorModeSwitcher value={tutorStyle} onChange={persistTutorStyle} disabled={loading} />
+                )}
                 {showSubjectPicker ? (
                   <button
                     type="button"
@@ -2092,7 +2169,7 @@ function ChatPanelSession({
                 ref={composerRef}
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
-                placeholder={placeholder ?? "Sor, konuş veya dosya gönder"}
+                placeholder={answerPlaceholder ?? placeholder ?? "Sor, konuş veya dosya gönder"}
                 rows={2}
                 aria-label="Mesajın"
                 disabled={loading}
@@ -2942,7 +3019,7 @@ function ChatPanelSession({
               <Textarea
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
-                placeholder={placeholder ?? "Sor, konuş veya dosya gönder"}
+                placeholder={answerPlaceholder ?? placeholder ?? "Sor, konuş veya dosya gönder"}
                 rows={1}
                 aria-label="Mesajın"
                 className="min-h-[44px] flex-1 resize-none border-0 bg-transparent text-sm shadow-none focus-visible:ring-0"

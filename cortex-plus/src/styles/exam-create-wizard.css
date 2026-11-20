@@ -1522,6 +1522,36 @@
   line-height: 1.35;
 }
 
+/* Ana ünitenin alt başlıkları (Faz 10): ünitenin altında küçük, ince çizgiyle bağlı liste. */
+.apw-topic-subtopics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.5rem;
+  margin: 0.15rem 0 0;
+  padding: 0 0 0 0.6rem;
+  list-style: none;
+  border-left: 2px solid color-mix(in srgb, var(--cp-text) 14%, transparent);
+  font: var(--t-label-13);
+  color: var(--cp-muted);
+}
+
+/* Konu kartının `li` kuralı (kenar, zemin, iç boşluk) iç içe listeye inmesin. */
+.apw-topics .apw-topic-subtopics li {
+  display: block;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  overflow-wrap: anywhere;
+}
+
+.apw-topics .apw-topic-subtopics li + li::before {
+  content: "·";
+  margin-right: 0.5rem;
+  opacity: 0.6;
+}
+
 .apw-excluded,
 .apw-missing {
   display: grid;
@@ -3012,6 +3042,35 @@
   background: var(--apw-sel-hover);
 }
 
+/* "Dosya seç" ve (telefonda) "Fotoğraf çek" yan yana (20 Kasım 2026); kamera düğmesi ikincil. */
+.apw-drop-picks {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.apw .apw-drop-picks .apw-drop-pick {
+  margin-top: 0;
+}
+
+.apw .apw-drop-pick--camera {
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  padding: 0 1.25rem;
+  border: 1px solid var(--apw-line-2);
+  background: var(--apw-s2);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+/* Tepsi bölgenin içinde: bölgenin dolgusu yeter, kesik çerçeve kalır. */
+.apw .apw-drop:has(> .cx-ptray) {
+  padding: 1.25rem 1rem 1rem;
+}
+
 .apw-or {
   display: flex;
   align-items: center;
@@ -3412,4 +3471,19 @@
   .apw .apw-subject-go {
     transition: none;
   }
+}
+
+/* Faz 4: yükleme önizleme şeridi (metin sayfası + fotoğraf · tahmini kurulum kredisi). 390px'te sarar, taşmaz. */
+.apw-upload-strip {
+  margin: 0.75rem 0 0;
+  padding: 0.65rem 0.85rem;
+  border-radius: 0.75rem;
+  border: 1px solid #a7f3d0;
+  background: #ecfdf5;
+  color: #065f46;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  max-width: 100%;
 }

@@ -16,6 +16,9 @@ import type { SketchScene } from "@/lib/learning/video-lesson";
  * notlanır (hiç ağ isteği yok).
  *
  * İçerik evrensel matematik (kök dışına çıkarma); bekçi test şemaları ve hesapları doğrular.
+ *
+ * Faz 7 (20 Kasım 2026): bu dosya turun "Lise & YKS · Matematik" branşıdır. Öbür üç branş (mühendislik, TUS, hukuk)
+ * `guest-tracks/` altında aynı biçimde durur; dördü `guest-tour-tracks.ts`te toplanır.
  */
 
 export const TOUR_PREP = {
@@ -97,7 +100,8 @@ export const TOUR_LESSON: LessonV3 = {
           example: {
             prompt: "√((−3)²) + ³√(−27) işleminin sonucu kaçtır?",
             steps: ["Çift derece: √((−3)²) = |−3| = 3", "Tek derece: ³√(−27) = −3", "Topla: 3 + (−3) = 0"],
-            solution: "0",
+            // Ürünün şeması çözümü en az 8 karakter ister; tek karakterlik "0" çözümlü örneği şemadan düşürüyordu.
+            solution: "Sonuç: 0",
           },
         },
         {
@@ -221,41 +225,19 @@ export function tourWarningSteps(): ("lesson" | "question" | "cards" | "check")[
 
 /* ---------- 7. adım: Plus önizlemeleri (11 Kasım 2026, kokpit) ---------- */
 
-/**
- * Podcast önizlemesi: uydurma bir diyalog ya da tarayıcının robot sesi DEĞİL (13 Kasım 2026). Ürünün kendi podcast
- * motoru (senarist yazar, denetçi okur) turdaki dersten iki sesli bir bölüm yazdı; bölümün tamamı
- * `tour-podcast.json`ta. Kesit o bölümün hoca uyarısını karşılayan ardışık iki satırı ("√(x²) … −x"), ürünün kendi
- * sesleriyle; ses dosyası depoda sabit (`public/ornek`), süreler dosyanın ölçülen süreleri. Kelime vurgusunu ürünün
- * karaoke bileşeni çizer. Bekçi test satırları ve süreleri `tour-podcast.json` ile karşılaştırır.
- */
-export const TOUR_PODCAST_SAMPLE = {
-  src: "/ornek/podcast-koklu-sayilar.mp3",
-  source: "Köklü Sayılar ders notu",
-  durationMs: 15672,
-  lines: [
-    {
-      speaker: "ada",
-      name: "Ada",
-      text: "√(x²) ifadesinde x negatifse sonuç x mi olur, −x mi?",
-      startMs: 0,
-      endMs: 7008,
-    },
-    {
-      speaker: "kerem",
-      name: "Kerem",
-      text: "−x olur, çünkü x negatifken |x| = −x'tir ve karekökün sonucu negatif olamaz.",
-      startMs: 7008,
-      endMs: 15672,
-    },
-  ],
-} as const;
+/*
+  Podcast önizlemesi (13 Kasım 2026; Faz 7, 20 Kasım 2026): kesitler tek yerde, `demo-podcasts.ts` (`DEMO_PODCASTS`).
+  Ürünün kendi podcast motoru turdaki dersten iki sesli bir bölüm yazdı (bölümün tamamı `tour-podcast.json`ta); kesit
+  o bölümün hoca uyarısını karşılayan ardışık iki satırı, ürünün kendi sesleriyle. Uydurma diyalog ya da tarayıcının
+  robot sesi yok. Bekçi test `DEMO_PODCASTS.lise` satırlarını ve sürelerini `tour-podcast.json` ile karşılaştırır.
+*/
 
 /**
  * Çizimli video önizlemesi: ürünün çizimli video sahnesi biçiminde (`SketchScene`) iki sahne; turdaki dersin iki
  * kuralı. Tahtayı ürünün kendi çizim tahtası çizer; önizleme sessizdir (anlatım alt yazı olarak akar), sahne süresi
  * bu yüzden sabittir. Formül adımları ok işaretinden bölünür ve sırayla belirir.
  */
-export const TOUR_SKETCH: { title: string; sceneMs: number; scenes: SketchScene[] } = {
+export const TOUR_SKETCH: { title: string; sceneMs: number; scenes: (SketchScene & { diagram: NonNullable<SketchScene["diagram"]> })[] } = {
   title: "Kök dışına çıkarma",
   sceneMs: 7000,
   scenes: [

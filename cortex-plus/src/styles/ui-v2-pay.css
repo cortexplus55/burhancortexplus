@@ -74,3 +74,36 @@
     min-height: 44px;
   }
 }
+
+/*
+ * Dokunma hedefi en az 44 px (15 Kasım 2026, Burhan kararı 8). Metin içindeki bağlantılar (iptal-iade, telefon,
+ * İletişim, sözleşme) satırın akışını bozmasın diye büyümez: satır içi öğenin dikey dolgusu satırları itmez ama
+ * dokunma alanını büyütür; iki satıra kırılan bağlantıda her satır parçası ayrı ayrı 44 px olur. Bağımsız duran
+ * "Ücretsiz planda devam et" ve "Tüm avantajları gör" doğrudan 44 px. Renk, yazı ve metin aynen. Bağlantı yanındaki metnin
+ * üstünde durur: sözleşme bağlantısının ikinci satırı "…okudum" metnine komşu (okunmadan ikisi de metni açar).
+ */
+[data-ui~="pay"] #planlar .cs-trust-item a,
+[data-ui~="pay"] #planlar .cp-legal-link {
+  position: relative;
+  z-index: 1;
+  /* Satır parçasının yüksekliği yazı boyunun ~1,17 katı: 13-16 px yazıda parça 44-45 px olur. */
+  padding-block: calc(22px - 0.55em);
+}
+/*
+ * Güven şeridinde iki maddenin bağlantıları alt alta gelebilir (yazı tipine ve genişliğe göre "iptal ve iade" bir
+ * maddenin son satırına, telefon bir sonrakinin ilk satırına düşer). Dolgular örtüşürse sonraki bağlantı dokunuşu alır,
+ * öncekinin alanı 44 px'in altına iner (CI'da 40 px ölçüldü). Maddeler arası boşluk iki dolgunun toplamı kadar: örtüşme yok.
+ */
+[data-ui~="pay"] #planlar .cs-trust-strip {
+  display: grid;
+  row-gap: 1.75rem;
+}
+[data-ui~="pay"] #planlar .cp-pay-free-continue {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding-inline: 12px;
+}
+[data-ui~="pay"] #planlar button.cp-tap {
+  min-height: 44px;
+}

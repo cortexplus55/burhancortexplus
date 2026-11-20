@@ -4,8 +4,10 @@ import { isTreeExam, TREE_EXAMS } from "@/lib/curriculum/exam-trees";
 import { displayUnitTitles } from "@/lib/curriculum/unit-title";
 import { cutAtWord } from "@/lib/curriculum/topic-map";
 import type { CurriculumProgram } from "@/lib/curriculum/types";
+import { SITE_URL } from "@/lib/seo/page-metadata";
 
-export const SITE_BASE = "https://cortexplus.app";
+/** Taban adres tek kaynaktan (`lib/seo/page-metadata.ts`). */
+export const SITE_BASE = SITE_URL;
 
 /** Konu ağacı programı (KPSS/ALES/DGS/YDS/TUS/DUS) için resmî liste olmadığını söyleyen etiket; MEB/ÖSYM resmî programda null. */
 export function treeLabelFor(program: Pick<CurriculumProgram, "kind">): string | null {

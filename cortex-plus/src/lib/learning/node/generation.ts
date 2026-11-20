@@ -3,11 +3,19 @@
  * başarısız, iade), önceden yazımın saklanması ya da devralınan kayda yazılması, kaydın açılması.
  */
 import "server-only";
+import { invalidateSessionUserContext } from "@/lib/auth/session-context";
 import { NextResponse, after } from "next/server";
 import { recordLessonTiming, recordOpenTiming } from "@/lib/admin/beta-metrics";
 import { adoptedPrefetchAttempt, dropPrefetch, publishPrefetchPartial, storePrefetchedLesson } from "@/lib/learning/lesson-prefetch";
 import { quizPrefetchStorable } from "@/lib/learning/topic-test-prefetch";
-import { loadTopicSupport, supportPagesForEngine } from "@/lib/learning/topic-support-load";
+import {
+  loadTopicSupport,
+  loadUnitSourcePages,
+  mergeSupportExcerpts,
+  supportPagesForEngine,
+} from "@/lib/learning/topic-support-load";
+import { loadExcludedSiblingTopics } from "@/lib/learning/sibling-topics";
+import { ALL_TOPICS_LABEL } from "@/lib/learning/prep-wide-target";
 import { fillPodcastCheckLater } from "@/lib/learning/podcast-check-later";
 import { fillOralRestLater } from "@/lib/learning/oral-rest-later";
 import { errorResponse } from "@/lib/api/guards";
@@ -40,7 +48,7 @@ import {
   readWalletBalance,
   settlePendingStart,
 } from "@/lib/learning/node/shared";
-import { loadTopicLesson, saveTopicLesson } from "@/lib/learning/node/lesson-store";
+import { loadTopicLesson, loadTopicSourceCorrection, saveTopicLesson } from "@/lib/learning/node/lesson-store";
 import { loadSectionBackbone, loadUpcomingTopicTitles } from "@/lib/learning/node/lesson";
 import { publicPayloadForUser } from "@/lib/learning/node/payload";
 import { generateNodePayload } from "@/lib/learning/node/generate";
@@ -114,6 +122,7 @@ export async function refundUnsavedGeneration(
           p_key: `unsaved_refund:${id}`,
           p_meta: { reason: "unsaved_generation", cause: input.reason, reservation_id: id, action_code: row.action_code ?? null },
         });
+        if (!giftError) await invalidateSessionUserContext(input.userId);
         if (giftError) {
           await service.from("credit_reservations").update({ status: "committed" }).eq("id", id).eq("status", "refunded");
           console.error("unsaved_generation_refund_failed", { reason: input.reason, reservationId: id });
@@ -160,7 +169,7 @@ export async function runStartGeneration(
   const { userId, service, options, requestStarted, parsed, prepId, nodeId, lessonFormat, prefetch, teachingV2, prep, node, kind, oralCount, oralMultiTopic, difficulty, voiceMode, familiarity, mood, lessonReviewCards } = context;
   const { sessionMeta, topic, topicLabel, topicWiden, warm, refreshTopicQuiz, voiceSession, premium, freeMeter, practiceTopics, finalFill, retargetedTopic, quizLesson, variant, peekBuildingMs } = state;
   let { title } = state;
-  const { prepSource, prepDocs, teachingPlan, sourceMode, source, sourceTrace, lessonCoreDocumentId, lessonCorePages, lessonTopicOnly, oralAllPlan, podcastSyllabus, alternativeOf } = sourced;
+  const { prepSource, prepDocs, teachingPlan, sourceMode, source, sourceTrace, lessonCoreDocumentId, lessonCorePages, lessonTopicOnly, oralAllPlan, podcastSyllabus, alternativeOf, sourceFallback, unitSubtopics, unitSupportRefs } = sourced;
   const { clientRequestId, generationId, creatingAttemptId } = reserved;
   // Kaydı önceden açılmayan yol (v1) da bilinen bir anahtarla ücretlensin: kayıt yazılamazsa iade bu anahtarı bulur.
   // Önceden yazım ücretsizdir, anahtarı motor kendisi verir.
@@ -227,9 +236,27 @@ export async function runStartGeneration(
   // okuma düşerse boş döner ve ders kendi sayfalarıyla yazılır.
   const teacherCore =
     (kind === "lesson" || TEACHER_PAGE_KINDS.has(kind)) && lessonCoreDocumentId && lessonCorePages.length && !voiceSession;
+  // Ana ünitenin öbür belgelerdeki parçaları (Faz 10, PDF + slayt + not aynı ünitede) önce, kendi etiketleriyle.
   const lessonSupport = teacherCore
-    ? loadTopicSupport(service, { userId, prepId, topicId: topic?.id ?? null })
+    ? Promise.all([
+        unitSupportRefs.length ? loadUnitSourcePages(service, userId, unitSupportRefs) : Promise.resolve([]),
+        loadTopicSupport(service, { userId, prepId, topicId: topic?.id ?? null }),
+      ]).then(([unitPages, support]) => mergeSupportExcerpts(unitPages, support))
     : Promise.resolve([]);
+  // Kardeş ünite sınırı (19 Kasım 2026, Faz 1-A §1): aynı kaynak sayfalarını paylaşan üniteler; yalnız okuma, paralel.
+  const excludedSiblingsEarly: Promise<string[]> =
+    teacherCore && lessonCoreDocumentId && prepId && topicLabel !== ALL_TOPICS_LABEL
+      ? loadExcludedSiblingTopics(service, {
+          prepId,
+          topicLabel,
+          topicId: topic?.id ?? null,
+          core: { documentId: lessonCoreDocumentId, pages: lessonCorePages },
+        })
+      : Promise.resolve([]);
+
+  // Kaynak düzeltme uyarısı (19 Kasım 2026, Faz 1-A §2.1): konunun kayıtlı dersinden; yalnız belgeli üretim.
+  const sourceCorrectionEarly =
+    topic?.id && lessonCoreDocumentId && !voiceSession ? loadTopicSourceCorrection(service, topic.id) : Promise.resolve(null);
 
   if (!leadWanted) earlyLead?.abort();
   if (leadWanted) {
@@ -336,6 +363,9 @@ export async function runStartGeneration(
                 }
               : null,
           lessonTopicOnly,
+          ...(sourceFallback ? { sourceFallback } : {}),
+          excludedSiblingTopics: await excludedSiblingsEarly,
+          sourceCorrection: await sourceCorrectionEarly,
           ...(alternativeOf ? { alternativeOf: leadWanted ? `${alternativeOf}\n\n${REWRITE_LEAD_NOTE}` : alternativeOf } : {}),
           repetitiveSparseEvidence: source.repetitiveSparseEvidence,
           sourceFormulas: source.formulas ?? [],
@@ -379,6 +409,8 @@ export async function runStartGeneration(
                   return title.length >= 3 && source.block.toLocaleLowerCase("tr").includes(title);
                 })
               : [],
+          // Ünite dersinin alt konuları (20 Kasım 2026): yalnız ders; hazırlıkta alt konu yoksa alan yok.
+          ...(kind === "lesson" && unitSubtopics ? { unitSubtopics } : {}),
           learningPreferences: teachingV2 ? prep.learning_preferences : null,
           teacherBrief: teachingV2 ? teachingPlan.brief : "",
           // "Öğretmen gözü" (18 Ekim 2026): bütün öğretmen motorları aynı maddeleri okur.

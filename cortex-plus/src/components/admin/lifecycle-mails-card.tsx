@@ -8,7 +8,7 @@ import { formatNumber } from "@/lib/format";
 type Row = { id: string; name: string; when: string; sent: number | null };
 
 /**
- * Otomatik e-postalar (8 Kasım 2026): ne zaman gittiği, kaç tane gittiği, önizleme (örnek verilerle çizilir; kimseye
+ * Otomatik e-postalar (8 Kasım 2026; Faz 6, 20 Kasım 2026: sekiz şablon): ne zaman gittiği, kaç tane gittiği, önizleme (örnek verilerle çizilir; kimseye
  * gitmez) ve kurucunun kendi adresine deneme.
  */
 export function LifecycleMailsCard({ rows, purchaseSent }: { rows: Row[]; purchaseSent: number }) {

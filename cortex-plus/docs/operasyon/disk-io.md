@@ -168,6 +168,34 @@ sonraki temiz pencere (6b). İkisi de Burhan'ın kararı; ayar değiştirilmedi.
 
 Görünmeyen %99 için sıra: (b) sıfırlama → 24 saat sonra aynı sorguyla yeniden ölçüm → hâlâ izlenmeyen yazı büyükse `log_temp_files`.
 
+### `match_document_chunks` düzeltmesi (yazıldı, uygulanmadı)
+
+Göç `supabase/migrations/20261115160000_match_chunks_narrow_sort.sql` (PR `fix/belge-arama-dar-siralama`). Aday satırı dar:
+parça kimliği, belge kimliği, uzaklık; sıralama `ORDER BY uzaklık, kimlik LIMIT n` (en çok 20 satırlık yığın, diske taşmaz);
+`content`, dosya adı ve sayfa numarası seçilen satırlara sonra birleşir. Uzaklık satır başına bir kez hesaplanır (eşik,
+uzaklık sırasının ön ekini tuttuğu için LIMIT'ten sonra uygulanır). Aynı imza, aynı yetkiler, DROP yok.
+
+Kanıt: `tests/unit/belge-arama-dar-siralama.test.ts` eski ve yeni gövdeyi PGlite'ta yan yana koşturur (240 rastgele arama,
+parça, silinmiş belge, başka kullanıcı, sayfasız parça, eşik): sonuçlar birebir aynı. Plan ağacında eskisinin CTE'si `content`
+taşıyor, yenisinin LIMIT altındaki sıralaması taşımıyor. Sayfa süzgeci kaldırılınca test düşüyor (denendi).
+
+Uygulama: Burhan onayıyla SQL ekranında + kayıt satırı. Beklenen etki: bu sorgunun geçici yazısı ~0 (bugün çağrı başına
+~130 kB). Ölçüm: uygulamadan 24 saat sonra `pg_stat_statements`'ta `temp_blks_written`.
+
+### Supabase desteğine sorulacak (`log_temp_files` reddedildi)
+
+15 Kasım 2026'da `alter database postgres set log_temp_files = '10MB'` "permission denied to set parameter" ile reddedildi
+(yönetilen sunucu; `goc-kayitlari.md`). Gönderilecek metin (Burhan gönderir; destek talebi dışarıya mesajdır):
+
+> Project ref: dgjfyewgrukglsehyntc. We see high temp file usage: `pg_stat_database.temp_bytes` ~465 GB cumulative,
+> roughly 11 GB/day, while `pg_stat_statements.temp_blks_written` accounts for under 1% of it. To find the source, could you
+> enable `log_temp_files = 10MB` on this project for 48 hours and then restore the previous value? Alternatively, could you
+> tell us which internal processes (PostgREST schema cache reload, pg_cron, Realtime, backups, autovacuum) produced temp
+> files on this instance over the last 7 days? We only need the query fingerprint and the size, no data.
+
+Türkçesi: geçici dosya yazısının %99'u `pg_stat_statements`'ta görünmüyor; kaynağını bulmak için `log_temp_files`'ı 10 MB
+eşikle 48 saat açıp eski değere döndürmelerini ya da son 7 günde geçici dosya yazan iç süreçleri söylemelerini istiyoruz.
+
 ## Yükseltmeden sonra (bekliyor)
 
 Burhan compute'u yükseltince 48 saat sonra aynı salt okunur sorgu: geçici yazı / gün, geçici dosya / gün, IO bütçesi grafiği.

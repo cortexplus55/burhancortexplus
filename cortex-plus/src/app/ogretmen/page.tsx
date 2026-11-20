@@ -10,20 +10,22 @@ import {
 } from "@/components/parity/app-utils";
 import { requireStudentArea } from "@/lib/auth/session";
 import { getCreditCost } from "@/lib/credits/rules";
-import { isPremiumUser } from "@/lib/ai/generate";
 import { parseTutorStyle, tutorStyleLabel } from "@/lib/learning/tutor-style";
 import { messageFeedbackEnabled } from "@/lib/learning/message-feedback";
 import { turkishLower } from "@/lib/text/turkish";
 import { homeLine, startGreeting as companionStartGreeting } from "@/lib/companion/voice";
 import { loadActivityDays, loadTodayMood } from "@/lib/companion/today-mood";
 import { istanbulDay } from "@/lib/istanbul-day";
-import { getStudentAccountContext } from "@/lib/student/account-context";
+import { getSessionUserContext } from "@/lib/auth/session-context";
+import { loadRecentConversations } from "@/lib/student/recent-conversations";
 import { getUserStreak } from "@/lib/streak/record-activity";
 import { FirstStepLauncher } from "@/components/parity/first-step-launcher";
 import { loadNearestExamCountdown } from "@/lib/learning/exam-countdown-load";
 import { loadContinueStep } from "@/lib/learning/prep-cards";
-import { pathSkipKinds } from "@/lib/billing/node-free-meter";
+import { pathSkipKindsForView } from "@/lib/billing/node-free-meter";
 import { createServiceClient } from "@/lib/supabase/server";
+import { isFeatureEnabled } from "@/lib/admin/feature-flags";
+import { TEACHER_V2_FLAG } from "@/lib/ai/teacher-v2";
 import { ContinueLine } from "@/components/parity/continue-line";
 import { HomeCockpit, HomeSelectionProvider, HomeToolsTray } from "@/components/parity/home-cockpit";
 import { loadHomeCockpit, type NodeRow } from "@/lib/learning/home-cockpit";
@@ -43,60 +45,75 @@ export default async function OgretmenPage({
 }) {
   const { supabase, user } = await requireStudentArea();
   const params = await searchParams;
+  const hasConversation = Boolean(params.sohbet);
 
+  // Faz 2 (madde 2): profil, plan ve kredi özeti oturum bağlamından (requireUser ile aynı istek içi okuma; 45 sn
+  // paylaşımlı önbellek). Birbirine bağlı olmayan bütün okumalar tek turda; eskiden geri bildirim bayrağı, sohbet,
+  // mesajlar, ruh hali, bayraklar sırayla bekleniyordu.
   const [
     { count },
-    { data: profile },
+    context,
     chatCost,
-    isPremium,
-    account,
     streak,
     { data: goal },
-    { data: conversations },
+    recent,
     { count: prepCount },
     countdown,
-  ] =
-    await Promise.all([
-      supabase
-        .from("documents")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .eq("status", "completed"),
-      supabase
-        .from("profiles")
-        .select(
-          "full_name, tutor_style, primary_role, avatar_url, grade_level, focus_subject",
-        )
-        .eq("id", user.id)
-        .maybeSingle(),
-      getCreditCost("AI_CHAT_STANDARD"),
-      isPremiumUser(supabase, user.id),
-      getStudentAccountContext(supabase, user.id),
-      getUserStreak(supabase, user.id),
-      // Kayıt sırasında verilen hedef; başlangıç önerilerini buna göre yazıyoruz.
-      supabase
-        .from("learning_goals")
-        .select("goal_text, target_date")
-        .eq("user_id", user.id)
-        .order("created_at")
-        .limit(1)
-        .maybeSingle(),
-      supabase
-        .from("conversations")
-        .select("id, title, updated_at")
-        .eq("user_id", user.id)
-        .is("deleted_at", null)
-        .order("updated_at", { ascending: false })
-        .limit(5),
-      // Hiç hazırlığı yoksa selamın altında ilk adım kartı (19 Ekim 2026). "Hedef puan" kaydı sayılmaz.
-      supabase
-        .from("exam_preps")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .neq("exam_type", "hedef")
-        .neq("exam_type", STUDIO_EXAM_TYPE),
-      loadNearestExamCountdown(supabase, user.id),
-    ]);
+    feedbackOn,
+    conversationRead,
+    todayMood,
+    activityRead,
+    uiOgretmen,
+    teacherV2,
+  ] = await Promise.all([
+    supabase
+      .from("documents")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("status", "completed"),
+    getSessionUserContext(user.id, { client: supabase }),
+    getCreditCost("AI_CHAT_STANDARD"),
+    getUserStreak(supabase, user.id),
+    // Kayıt sırasında verilen hedef; başlangıç önerilerini buna göre yazıyoruz.
+    supabase
+      .from("learning_goals")
+      .select("goal_text, target_date")
+      .eq("user_id", user.id)
+      .order("created_at")
+      .limit(1)
+      .maybeSingle(),
+    loadRecentConversations(supabase, user.id),
+    // Hiç hazırlığı yoksa selamın altında ilk adım kartı (19 Ekim 2026). "Hedef puan" kaydı sayılmaz.
+    supabase
+      .from("exam_preps")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .neq("exam_type", "hedef")
+      .neq("exam_type", STUDIO_EXAM_TYPE),
+    loadNearestExamCountdown(supabase, user.id),
+    messageFeedbackEnabled(supabase),
+    hasConversation
+      ? supabase
+          .from("conversations")
+          .select("id")
+          .eq("id", params.sohbet!)
+          .eq("user_id", user.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    // Dost katmanı (8 Kasım 2026): selamın altındaki satır ve öğretmenin ilk sözü gerçek sinyallerden (ruh hali, seri,
+    // son çalışmadan beri geçen gün, sınava kalan gün, sıradaki adım). Model çağrısı yok; okuma düşerse sade selam.
+    loadTodayMood(supabase, user.id).catch(() => null),
+    loadActivityDays(supabase, user.id).catch(() => null),
+    // Yeni görünüm bayrağı (Faz 6A, `ui.v2.ogretmen`): KAPALIYKEN sarmalayıcı yok ve sohbet bugünkü gibi kayar.
+    uiV2("ogretmen", user.id),
+    // Faz 13A (15 Kasım 2026): öğretmen hissi, kişi bazlı bayrak; okuma düşerse kapalı.
+    isFeatureEnabled(createServiceClient(), TEACHER_V2_FLAG, user.id).catch(() => false),
+  ]);
+  const profile = context.profile;
+  const account = context.account;
+  const isPremium = context.entitlements.isPremium;
+  const conversations = recent;
+  const activity = activityRead ?? { daysSinceLast: null, streak };
 
   // Kimlik ve oy da geliyor: eski bir sohbeti açtığında daha önce bastığın
   // başparmak dolu görünsün, ikinci kez oy vermeye kalkmayasın.
@@ -107,40 +124,52 @@ export default async function OgretmenPage({
     rating?: 1 | -1 | null;
   }[] = [];
   let conversationId: string | undefined;
+  const conversation = (conversationRead as { data: { id: string } | null }).data;
 
-  const feedbackOn = await messageFeedbackEnabled(supabase);
+  // Faz 3B: ücretsiz hesapta kilitli adımlar sunucunun kararından (`freeTopicLocks`, hazırlık sayfasıyla aynı girdi).
+  const freeAccount = account?.showsUpgradeChrome === true && !account?.isAdmin;
+  const lockService = freeAccount ? createServiceClient() : null;
+  const withPreps = !hasConversation && (prepCount ?? 0) > 0;
 
-  if (params.sohbet) {
-    const { data: conversation } = await supabase
-      .from("conversations")
-      .select("id")
-      .eq("id", params.sohbet)
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (conversation) {
-      conversationId = conversation.id;
-      // İki ayrı sorgu, çünkü sütun listesi tip düzeyinde sabit olmak zorunda.
-      const { data: rows } = feedbackOn
-        ? await supabase
+  // İkinci tur: yalnız ilk turun sonucuna bağlı okumalar, birlikte.
+  const [rows, skipKinds, firstLesson] = await Promise.all([
+    conversation
+      ? feedbackOn
+        ? supabase
             .from("messages")
             .select("id, role, content, rating")
             .eq("conversation_id", conversation.id)
             .order("created_at")
-        : await supabase
+            .then(({ data }) => data)
+        : supabase
             .from("messages")
             .select("id, role, content")
             .eq("conversation_id", conversation.id)
-            .order("created_at");
-      initialMessages = (rows ?? [])
-        .filter((row) => row.role === "user" || row.role === "assistant")
-        .map((row) => ({
-          role: row.role as "user" | "assistant",
-          content: row.content as string,
-          id: row.id as string,
-          rating: ("rating" in row ? (row.rating as 1 | -1 | null) : null) ?? null,
-        }));
-    }
+            .order("created_at")
+            .then(({ data }) => data)
+      : Promise.resolve(null),
+    // Ana ekran öğretmenle sohbet alanıdır (8 Kasım 2026, ürün sahibi): selam, Başla ve hiç hazırlığı olmayan öğrenciye
+    // ilk adım kartları. Hazırlığı olan öğrenciye tek satır "Kaldığın yerden devam" (8 Kasım 2026); okuma düşerse
+    // satır yok. 13 Kasım 2026 (ürün sahibinin kararı): hazırlığı olan öğrencinin boş ana ekranı beş parça (sınav
+    // şeridi, konu halkası, metin bloğu, ince yazma çubuğu, üst çubuk). Veri devam kartının kaynağından; okuma düşerse
+    // eski devam kartına dönülür.
+    withPreps ? pathSkipKindsForView(createServiceClient(), user.id, supabase).catch(() => new Set<string>()) : Promise.resolve(new Set<string>()),
+    // Ücretsiz hesabın ilk dersi (kapı ve "Ücretsiz ders" etiketi; okunamazsa null: kapı açık der, OTONOM §9 karar 3).
+    lockService
+      ? firstLessonStatus(lockService, user.id).then((status) => status?.state ?? null).catch(() => null)
+      : Promise.resolve(null),
+  ]);
+  if (conversation) {
+    conversationId = conversation.id;
+    // İki ayrı sorgu, çünkü sütun listesi tip düzeyinde sabit olmak zorunda.
+    initialMessages = ((rows ?? []) as { id: string; role: string; content: string; rating?: number | null }[])
+      .filter((row) => row.role === "user" || row.role === "assistant")
+      .map((row) => ({
+        role: row.role as "user" | "assistant",
+        content: row.content as string,
+        id: row.id as string,
+        rating: ("rating" in row ? (row.rating as 1 | -1 | null) : null) ?? null,
+      }));
   }
 
   const firstName = parityGreetingName(profile?.full_name ?? user.email);
@@ -153,10 +182,6 @@ export default async function OgretmenPage({
   const goalText = goal?.goal_text ?? null;
   // Dost katmanı (8 Kasım 2026): selamın altındaki satır ve öğretmenin ilk sözü gerçek sinyallerden (ruh hali, seri,
   // son çalışmadan beri geçen gün, sınava kalan gün, sıradaki adım). Model çağrısı yok; okuma düşerse sade selam.
-  const [todayMood, activity] = await Promise.all([
-    loadTodayMood(supabase, user.id).catch(() => null),
-    loadActivityDays(supabase, user.id).catch(() => ({ daysSinceLast: null, streak })),
-  ]);
   const hour = Number(
     new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Istanbul", hour: "2-digit", hourCycle: "h23" }).format(new Date()),
   );
@@ -174,19 +199,6 @@ export default async function OgretmenPage({
   };
   const startGreeting = companionStartGreeting(companionSignals);
   const style = parseTutorStyle(profile?.tutor_style);
-  // Ana ekran öğretmenle sohbet alanıdır (8 Kasım 2026, ürün sahibi): selam, Başla ve hiç hazırlığı olmayan öğrenciye
-  // ilk adım kartları. Plus kartı ve stüdyo kartları burada yok; stüdyolar üstteki "Çalışma Stüdyosu" sekmesinde.
-  // Hazırlığı olan öğrenciye tek satır "Kaldığın yerden devam" (8 Kasım 2026); okuma düşerse satır yok.
-  // 13 Kasım 2026 (ürün sahibinin kararı, 8 Kasım'ın "ana ekran yalnız sohbet" kararının yerine): hazırlığı olan
-  // öğrencinin boş ana ekranı beş parça (sınav şeridi, konu halkası, metin bloğu, ince yazma çubuğu, üst çubuk).
-  // Veri devam kartının kaynağından; okuma düşerse eski devam kartına dönülür.
-  const skipKinds =
-    !params.sohbet && (prepCount ?? 0) > 0
-      ? await pathSkipKinds(createServiceClient(), user.id).catch(() => new Set<string>())
-      : new Set<string>();
-  // Faz 3B: ücretsiz hesapta kilitli adımlar sunucunun kararından (`freeTopicLocks`, hazırlık sayfasıyla aynı girdi).
-  const freeAccount = account?.showsUpgradeChrome === true && !account?.isAdmin;
-  const lockService = freeAccount ? createServiceClient() : null;
   const lockedNodeIds = lockService
     ? async (prepId: string, prepTitle: string, rows: readonly NodeRow[]) => {
         const locks = await freeTopicLocks(lockService, {
@@ -204,17 +216,9 @@ export default async function OgretmenPage({
         return new Set(locks?.lockedIds ?? []);
       }
     : undefined;
-  // Ücretsiz hesabın ilk dersi (kapı ve "Ücretsiz ders" etiketi; okunamazsa null: kapı açık der, OTONOM §9 karar 3).
-  const firstLessonRead = lockService
-    ? firstLessonStatus(lockService, user.id).then((status) => status?.state ?? null).catch(() => null)
-    : Promise.resolve(null);
-  const cockpit =
-    !params.sohbet && (prepCount ?? 0) > 0
-      ? await loadHomeCockpit(supabase, user.id, skipKinds, lockedNodeIds).catch(() => [])
-      : [];
-  const firstLesson = await firstLessonRead;
+  const cockpit = withPreps ? await loadHomeCockpit(supabase, user.id, skipKinds, lockedNodeIds).catch(() => []) : [];
   const continueStep =
-    !params.sohbet && (prepCount ?? 0) > 0 && cockpit.length === 0
+    withPreps && cockpit.length === 0
       ? await loadContinueStep(supabase, user.id, skipKinds).catch(() => null)
       : null;
   const greetingSubline = params.sohbet
@@ -233,8 +237,6 @@ export default async function OgretmenPage({
   // hiç görünmüyordu. Dost satırı aynı adımı anıyorsa kartın hemen üstünde kalır, ikisi birlikte okunur.
   const heroLead = continueStep ? <ContinueLine step={continueStep} /> : undefined;
   const avatar = profile?.avatar_url as string | null | undefined;
-  // Yeni görünüm bayrağı (Faz 6A, `ui.v2.ogretmen`): KAPALIYKEN sarmalayıcı yok ve sohbet bugünkü gibi kayar.
-  const uiOgretmen = await uiV2("ogretmen", user.id);
   // Faz 11C (`ui.v2.buyume`): ilk ders tamamlanınca ana ekranda davet şeridi (ücretsizde ilk dersin durumu, ücretlide
   // yolda biten bir adım). Bağlantı /davet ile aynı kaynaktan; bayrak kapalıyken okunmaz.
   const inviteStrip =
@@ -269,6 +271,7 @@ export default async function OgretmenPage({
         tutorStyleLabel={tutorStyleLabel(style)}
         initialTutorStyle={style}
         followUser={uiOgretmen}
+        teacherV2={teacherV2}
       />
   );
   const body = cockpit.length ? <HomeSelectionProvider preps={cockpit}>{panel}</HomeSelectionProvider> : panel;
@@ -283,11 +286,7 @@ export default async function OgretmenPage({
       account={account}
       entitlements={{ firstLesson, examDaysLeft: countdown?.state === "countdown" ? countdown.daysLeft : null }}
       emailUnverified={!account?.isAdmin && emailUnverifiedFromMetadata(user.app_metadata)}
-      recentConversations={(conversations ?? []).map((row) => ({
-        id: row.id,
-        title: row.title ?? "Yeni sohbet",
-        updatedAt: row.updated_at,
-      }))}
+      recentConversations={conversations}
     >
       {uiOgretmen ? (
         <div className="cx-ui-scope" data-ui="ogretmen">

@@ -5,6 +5,7 @@ import { formatDayLong } from "@/lib/format";
 import type { LearningTrackingView } from "@/components/parity/exam-prep-home";
 import { READY_HEADLINE } from "@/lib/learning/learning-tracking";
 import { METRIC_HINT, METRIC_LABEL, coverageLine } from "@/lib/learning/prep-metrics";
+import "@/styles/report-card.css";
 
 /**
  * Konu satırı `topicMasteryView`'dan (30 Ekim 2026, Paket I #7): yol, İlerleme ve Hazırsın ile aynı rozet
@@ -14,8 +15,10 @@ import { METRIC_HINT, METRIC_LABEL, coverageLine } from "@/lib/learning/prep-met
 export type TopicMasteryRow = {
   topicKey: string;
   measured: boolean;
-  /** "Sağlam" / "Çalışılacak" / "Ölçülmedi". */
+  /** Faz 4 rozeti: "Öğrendin" / "Gelişiyor" / "Zayıf" / "Ölçülmedi". */
   stateLabel: string;
+  /** Rozet rengi (zümrüt / kobalt / mercan / gri). */
+  tone?: "emerald" | "cobalt" | "coral" | "gray";
   /** "%62" ya da "Ölçülmedi". */
   percentText: string;
   evidenceCount: number;
@@ -146,11 +149,12 @@ export function ExamPrepAssessment({
               <li key={t.topicKey}>
                 <strong>{t.topicKey}</strong>
                 <span>
+                  <em className={`cp-badge cp-badge--${t.tone ?? (t.measured ? "cobalt" : "gray")}`}>{t.measured ? t.stateLabel : "Ölçülmedi"}</em>{" "}
                   {t.measured
-                    ? `${t.stateLabel} · ${t.percentText} · ${t.evidenceCount} cevap`
+                    ? `${t.percentText} · ${t.evidenceCount} cevap`
                     : t.evidenceCount > 0
-                      ? `Ölçülmedi · ${t.evidenceCount} cevap (en az 3 gerekir)`
-                      : "Ölçülmedi"}
+                      ? `${t.evidenceCount} cevap (en az 3 gerekir)`
+                      : null}
                 </span>
               </li>
             ))}

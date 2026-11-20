@@ -3,7 +3,7 @@ import "server-only";
 import { after } from "next/server";
 import { studentOptionCount } from "@/lib/learning/student-pedagogy";
 import { documentRunningHeaders, ensureCleanPages } from "@/lib/documents/clean-pages";
-import { corePageRun } from "@/lib/learning/core-pages";
+import { corePageRun, unitLessonPages } from "@/lib/learning/core-pages";
 import { runTeacherLesson, type PublishedLesson } from "@/lib/learning/teacher-lesson-run";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { recordLessonGenerationFailure } from "@/lib/learning/lesson-generation-failures";
@@ -15,14 +15,22 @@ import { upcomingTopicsAfter } from "@/lib/learning/lesson-grounding";
 import { examPointsInSource } from "@/lib/learning/exam-points";
 import { findFormulaTypos } from "@/lib/learning/formula-typos";
 import { mergeNoteWarnings } from "@/lib/learning/note-rule-check";
-import { checkNoteRules } from "@/lib/learning/note-rule-check-run";
+import { checkNoteRulesAndCorrection } from "@/lib/learning/note-rule-check-run";
+import {
+  correctionsAsNoteWarnings,
+  settleWithin,
+  SOURCE_CORRECTION_WAIT_MS,
+  type SourceCorrectionWarning,
+} from "@/lib/learning/source-correction";
 import { loadOfficialOutcome } from "@/lib/curriculum/prep-outcome";
 import { prepTopicLabels } from "@/lib/documents/generation-context";
 import { poolSourceText } from "@/lib/content-pool/serve";
 import { ALL_TOPICS_LABEL } from "@/lib/learning/prep-wide-target";
 import { narrowPagesToTopic } from "@/lib/learning/topic-section";
+import { resolveLessonSubtopicScope } from "@/lib/learning/lesson-subtopics";
 import { APPROVED_FACTS_CHARS } from "@/lib/learning/teacher-lesson";
 import { NodeGenerationError, actionForKind, awaitLoggedWrite } from "./shared";
+import { guardLessonForCorrection } from "@/lib/learning/lesson-correction-guard";
 import { saveTopicLesson } from "./lesson-store";
 import { withSupport, type LessonCore } from "./teacher-pages";
 import type { NodePayloadInput } from "./generate";
@@ -94,13 +102,15 @@ export async function teacherLessonPayload(
         topicLabels: [input.topicLabel],
         maxChars: APPROVED_FACTS_CHARS,
       }).catch(() => "");
+  // Ana ünite dersi (Faz 10): alt başlıkların dağınık sayfaları kesilmez; tek konulu ders bugünkü gibi en uzun ardışık dizi.
+  const unitLessonEarly = Boolean(input.sessionMeta?.lessonSubtopics?.length || input.unitSubtopics?.unit?.length);
   const edges = core ? await documentRunningHeaders(input.service, core.documentId) : [];
   const headersMs = Date.now() - startedAt;
   const clean = core
     ? await ensureCleanPages(input.service, {
         userId: input.userId,
         documentId: core.documentId,
-        pages: corePageRun(core.pages),
+        pages: unitLessonEarly ? unitLessonPages(core.pages) : corePageRun(core.pages),
         edges,
       })
     : [];
@@ -112,8 +122,29 @@ export async function teacherLessonPayload(
     cleanedByModelNow: clean.filter((item) => item.cleaned).length,
   });
   // Konu yalıtımı (6 Kasım 2026): aynı sayfayı paylaşan öbür konuların bölümleri kaynaktan çıkar, yazar kapsam satırını okur.
-  const siblings = await (siblingsEarly ?? Promise.resolve([] as string[]));
-  const scoped = narrowPagesToTopic<{ page: number; text: string; label?: string }>(withSupport(clean, core), input.topicLabel, siblings);
+  const prepSiblings = await (siblingsEarly ?? Promise.resolve([] as string[]));
+  // Ünite dersi (20 Kasım 2026, ürün sahibinin kararı): ders ünitenin alt konularının hepsini öğretir (bölünmüş ünitede
+  // yalnız bu derse düşenleri). Öbür ünitelerin alt konuları kapsam satırına ve daraltmaya kardeş olarak, ünitenin öbür
+  // derslerinin alt konuları dışarıda tutulacak ad olarak girer. Alt konu yoksa hepsi boş: ders bugünkü gibi.
+  const unitScope = resolveLessonSubtopicScope({
+    lessonSubtopics: input.sessionMeta?.lessonSubtopics,
+    unitSubtopics: input.unitSubtopics?.unit,
+    otherUnitSubtopics: input.unitSubtopics?.others,
+  });
+  const unitLesson = unitScope.subtopics.length > 0;
+  const siblings = unitLesson ? [...prepSiblings, ...unitScope.otherUnits] : prepSiblings;
+  if (unitLesson) {
+    console.info("lesson_subtopic_scope", {
+      topic: input.topicLabel.slice(0, 80),
+      subtopics: unitScope.subtopics.length,
+      excluded: unitScope.excluded.length,
+      otherUnits: unitScope.otherUnits.length,
+      split: Boolean(input.sessionMeta?.lessonSubtopics?.length),
+    });
+  }
+  const narrowSiblings = unitLesson ? [...siblings, ...unitScope.excluded] : siblings;
+  const narrowOptions = unitLesson ? { selfNames: unitScope.subtopics } : undefined;
+  const scoped = narrowPagesToTopic<{ page: number; text: string; label?: string }>(withSupport(clean, core), input.topicLabel, narrowSiblings, narrowOptions);
   if (scoped.narrowed) console.info("lesson_topic_scope", { topic: input.topicLabel.slice(0, 80), dropped: scoped.dropped.slice(0, 6) });
   const lessonPages = scoped.pages;
   // Akıllı hoca uyarısı (31 Ekim 2026, Paket J3 #13): notta yanlış yazılmış evrensel formül. Yalnız belgeli derste;
@@ -123,17 +154,32 @@ export async function teacherLessonPayload(
   const warned = noteWarnings.length ? { noteWarnings } : {};
   // Genel katman (Paket J denetimi #13): katalog yalnız bilinen formülleri tanır; her derste çalışan modelli denetim
   // ders yazımıyla PARALEL koşar, dersi bekletmez. Yayın anına yetişirse kutuya eklenir, yetişmezse kayda girer.
+  // Kaynak düzeltme uyarısı (19 Kasım 2026, Faz 1-A §2.1): aynı denetim çağrısında; açık bilimsel hata varsa 1. adımda
+  // kart, kavram denetimi doğrusunu (verifiedTruth) kullanır, kayıtlı ünite uyarıyı taşır (test, kart, D/Y okur).
   let modelWarnings: typeof noteWarnings = [];
+  // "Farklı anlat" ve yeniden yazım: konunun kayıtlı uyarısı yazara baştan gider; denetim yenisini bulursa o geçer.
+  let sourceCorrection: SourceCorrectionWarning | null = core ? (input.sourceCorrection ?? null) : null;
   const modelCheck = core
-    ? checkNoteRules(input.service, input.userId, noteText).then((found) => {
-        modelWarnings = found;
-        return found;
+    ? checkNoteRulesAndCorrection(input.service, input.userId, noteText).then((found) => {
+        modelWarnings = found.warnings;
+        sourceCorrection = found.correction ?? sourceCorrection;
+        return found.warnings;
       })
     : Promise.resolve([] as typeof noteWarnings);
   const warnedNow = () => {
     const merged = mergeNoteWarnings(noteWarnings, modelWarnings);
-    return merged.length ? { noteWarnings: merged } : {};
+    return {
+      ...(merged.length ? { noteWarnings: merged } : {}),
+      ...(sourceCorrection ? { sourceCorrectionWarning: sourceCorrection } : {}),
+    };
   };
+  // Faz 1-A §2.1 (canlı bulgu, 19 Kasım 2026): yazar düzeltmeyi baştan okusun diye denetim sınırlı süre beklenir.
+  // Gelmezse yazım bugünkü gibi başlar; geç uyarı `lateNoteWarnings` ile kavram denetimine gider.
+  if (core) {
+    const waitStarted = Date.now();
+    await settleWithin(modelCheck, SOURCE_CORRECTION_WAIT_MS);
+    console.info("lesson_source_correction_wait", { ms: Date.now() - waitStarted, correction: Boolean(sourceCorrection) });
+  }
   const outcome = await runTeacherLesson(input.service, {
     mode: core ? "document" : "topic",
     userId: input.userId,
@@ -155,11 +201,20 @@ export async function teacherLessonPayload(
     examPoints: core ? examPointsInSource(input.examPoints, lessonPages.map((page) => page.text).join("\n")) : input.examPoints,
     runningHeaders: edges,
     ...(siblings.length ? { siblingTopics: siblings } : {}),
+    // Ünitenin zorunlu planı ve bu dersin dışında kalan alt konuları; yalnız ünite dersinde (yoksa alan yok).
+    ...(unitLesson ? { subtopics: unitScope.subtopics } : {}),
+    ...(unitScope.excluded.length ? { excludedSubtopics: unitScope.excluded } : {}),
+    // Kardeş ünite sınırı (Faz 1-A §1): aynı kaynak sayfalarını paylaşan üniteler; yalnız belgeli derste.
+    ...(core && input.excludedSiblingTopics?.length ? { excludedSiblingTopics: input.excludedSiblingTopics } : {}),
+    ...(sourceCorrection ? { sourceCorrection } : {}),
     ...((await approvedEarly) ? { approvedFacts: await approvedEarly } : {}),
     officialOutcome: await loadOfficialOutcome(input.service, input.prepId, input.topicLabel),
     ...warned,
     // Modelli denetim yazımdan sonra bitse de kavram denetimi standart kurala çevirir.
-    lateNoteWarnings: () => mergeNoteWarnings(noteWarnings, modelWarnings),
+    lateNoteWarnings: () => [
+      ...mergeNoteWarnings(noteWarnings, modelWarnings),
+      ...correctionsAsNoteWarnings(sourceCorrection),
+    ],
     startedAt,
     charge: input.charge,
     // Hızlı işlem yalnız öğrencinin açtığı soğuk derste (kimin alacağına `fastAllowedFor` karar verir).
@@ -238,7 +293,16 @@ export async function teacherLessonPayload(
       ],
     });
   }
-  const lesson = outcome.lesson;
+  const checked = await modelCheck.then(warnedNow);
+  // Ünite şeması (Faz 1-A §2.1): uyarı dersin kendisinde de durur; kayıt (content_json) onu taşır.
+  // Geç gelen düzeltme (yazım bittikten sonra) de bekçiden geçer; ekranlar yayımlandığı için ekran sayısı değişmez.
+  const lesson = checked.sourceCorrectionWarning
+    ? guardLessonForCorrection(
+        { ...outcome.lesson, sourceCorrectionWarning: checked.sourceCorrectionWarning },
+        checked.sourceCorrectionWarning,
+        { keepScreens: true },
+      ).lesson
+    : outcome.lesson;
   // Ders kalitesi örneği (23 Ekim 2026): denetçinin öğretim puanları, ek model çağrısı olmadan. Yanıtı beklemez;
   // yazım düşerse ders sürer (6 Kasım 2026'dan beri hata günlüğe iner).
   if (outcome.teachingScores?.length) {
@@ -269,7 +333,7 @@ export async function teacherLessonPayload(
     refunded: false,
     engine: "teacher",
     // Denetim çoktan bitmiş olur (15 sn tavan, ders yazımı daha uzun); yine de beklenir ki kayıt eksik kalmasın.
-    ...(await modelCheck.then(warnedNow)),
+    ...checked,
   };
   // Önceden yazılan ders konuya öğrenci açınca yazılır.
   if (input.prepId && input.topicId && input.charge !== false) {

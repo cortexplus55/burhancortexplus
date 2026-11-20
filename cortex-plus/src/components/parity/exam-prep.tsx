@@ -6,8 +6,10 @@ import { CalendarClock, ChevronRight, Pencil, Plus, Search, Trash2, X } from "lu
 import { Icon3D, type Icon3DName } from "@/components/ui/icon-3d";
 import { WeeklySurveyCard } from "@/components/feedback/weekly-survey-card";
 import { PageShell } from "@/components/parity/page-shell";
+import { PrepDeleteButton } from "@/components/parity/prep-delete-button";
 import { cn } from "@/lib/utils";
 import { useDismiss } from "@/lib/ui/use-dismiss";
+import { WRITTEN_EXAM_AVAILABILITY } from "@/lib/marketing/plan-copy";
 import {
   draftStarted,
   dropExamWizardDraft,
@@ -197,7 +199,7 @@ export function ParityExamPrep({ cards, userId = null }: { cards: ExamPrepCard[]
               </li>
               <li>
                 <strong>Yolda ilerle</strong>
-                <span>Sıradaki adım öneridir. İstediğin konunun dersini veya etkinliğini şimdi açabilirsin; deneme sınavı her zaman açık.</span>
+                <span>Sıradaki adım öneridir. İstediğin konunun dersini veya etkinliğini şimdi açabilirsin. {WRITTEN_EXAM_AVAILABILITY}</span>
               </li>
               <li>
                 <strong>Ders bitince</strong>
@@ -283,18 +285,22 @@ export function PrepCard({ card, showTargetLabel }: { card: ExamPrepCard; showTa
       ? Math.min(100, Math.max(8, card.targetScore))
       : 75;
   const finished = card.topicsTotal > 0 && card.topicsDone === card.topicsTotal;
+  const dated = Boolean(card.dated && card.daysLabel);
   return (
     <article className="cp-prep-card">
       <div className="cp-prep-card-body">
-        {/* 8 Kasım 2026: sınav tarihi varsa kartın başında kalan süre çipi; önceden yalnız başlık ve ince bir çizgi vardı. */}
-        {card.dated && card.daysLabel ? (
-          <div className="cp-prep-card-top">
+        {/* 8 Kasım 2026: sınav tarihi varsa kartın başında kalan süre çipi; önceden yalnız başlık ve ince bir çizgi vardı.
+            21 Kasım 2026: köşede "Hazırlığı sil" (onay penceresiyle); sınav günü geçmiş ya da çalışılmayan hazırlık
+            buradan silinir. */}
+        <div className={cn("cp-prep-card-top", !dated && "cp-prep-card-top--bare")}>
+          {dated ? (
             <span className={cn("cp-prep-card-days", card.past && "is-past")}>
               <CalendarClock className="h-3.5 w-3.5" aria-hidden />
               {card.daysLabel}
             </span>
-          </div>
-        ) : null}
+          ) : null}
+          <PrepDeleteButton prepId={card.id} title={card.title} variant="icon" />
+        </div>
         <h2 className="cp-prep-card-title">{card.title}</h2>
         <div className="cp-prep-meter">
           <div className="cp-prep-meter-rail">

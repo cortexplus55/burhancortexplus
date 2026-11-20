@@ -9,6 +9,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { makeFakeDb } from "./helpers/fake-supabase";
+import { textPageCredits } from "@/lib/credits/price-table";
 import { afterCalls, model, processRequest, routeTables, titledOutline } from "./helpers/outline-model-mock";
 
 vi.mock("@/lib/ai/generate", async () => (await import("./helpers/outline-model-mock")).generateModule());
@@ -107,7 +108,8 @@ describe("M3: wizard-deferred files wait for the ONE course outline", () => {
     expect(model.calls.map((c) => c.model)).toEqual(["gpt-4.1", "gpt-4.1"]);
     expect(model.calls[1]!.prompt).toContain("kimya6.pdf");
     expect(outlineCharges(fake)).toBe(1);
-    expect(fake.chargedCredits("u1")).toBe(5 + 5 + COST);
+    // Faz 4: metin sayfası ceil(n / 5) kredi — 5 sayfa 1, 6 sayfa 2.
+    expect(fake.chargedCredits("u1")).toBe(textPageCredits(5) + textPageCredits(6) + COST);
     expect(fake.db.tables.documents!.map((d: any) => `${d.status}/${d.topic_map_status}`)).toEqual([
       "completed/ready",
       "completed/ready",

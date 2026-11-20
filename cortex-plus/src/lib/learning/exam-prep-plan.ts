@@ -39,6 +39,10 @@ export type PlanNodeSessionMeta = {
    * gün), 0 boş haftanın bakım tekrarı. Yolda tarihiyle yer alır, "Aralıklı Tekrar ve Kontrol" bölümünde.
    */
   longReview?: number;
+  /** Ana ünite dersinin alt başlıkları (Faz 10); yalnız ünite modelli hazırlığın ders düğümünde. */
+  lessonSubtopics?: string[];
+  /** Ana ünite oturumunun belge başına sayfaları (Faz 10). */
+  unitSources?: { documentId: string; pages: number[] }[];
 };
 
 /** Ara sınav öncesi kontrol adımı mı (yolun ortasında, finale ait değil). */
@@ -227,11 +231,17 @@ export function buildExamPlan(days: number): PlanNodeDraft[] {
  */
 function sessionMetaFromAnchor(
   anchor: PlanNodeDraft | undefined,
+  kind?: PlanNodeKind,
 ): PlanNodeSessionMeta | undefined {
   const meta = anchor?.meta;
   if (!meta) return undefined;
   const copy: PlanNodeSessionMeta = { ...meta };
   if (meta.sourcePages) copy.sourcePages = [...meta.sourcePages];
+  // Ana ünite alanları (Faz 10): ders alt başlıkları yalnız ders düğümünün; hazırlık geneli adım bir ünitenin kaynağına
+  // bağlanmaz. Konuya bağlı adım ünite işaretini taşır, kaynağını açılışta ünitenin satırından okur.
+  delete copy.lessonSubtopics;
+  if (kind && PREP_WIDE_KINDS.has(kind)) delete copy.unitSources;
+  else if (meta.unitSources) copy.unitSources = meta.unitSources.map((ref) => ({ ...ref, pages: [...ref.pages] }));
   return copy;
 }
 
@@ -305,7 +315,7 @@ export function mergeStudyPathTemplate<T extends PlanNodeDraft>(
     const at = out.findIndex((node) => !isCheckpointMeta(node.meta) && CORE_ORDER.indexOf(node.kind) > slot);
     const idx = at < 0 ? out.length : at;
     const anchor = out[Math.min(idx, Math.max(0, out.length - 1))];
-    const meta = sessionMetaFromAnchor(anchor);
+    const meta = sessionMetaFromAnchor(anchor, kind);
     out.splice(idx, 0, {
       kind,
       title: studyPathItemTitle(kind, meta),

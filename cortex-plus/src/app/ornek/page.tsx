@@ -1,15 +1,19 @@
-import type { Metadata } from "next";
 import { DemoWalkthrough } from "@/components/demo/demo-walkthrough";
+import { SuperGuclerStrip } from "@/components/landing/fark-vitrini";
 import { AdvantageCompact } from "@/components/marketing/advantage-sections";
+import { RADIO_SHOWCASE, RED_PEN_SHOWCASE } from "@/lib/marketing/fark-vitrini";
 import { ParityMarketingPage } from "@/components/parity/marketing";
 import { loadDemoLesson } from "@/lib/demo/lesson";
 import "@/styles/demo.css";
+import { pageMetadata } from "@/lib/seo/page-metadata";
 
-export const metadata: Metadata = {
+// Kanonik adres ve sayfaya özel paylaşım bilgisi (20 Kasım 2026, Faz 3).
+export const metadata = pageMetadata({
   title: "Nasıl çalışır — örnek çalışma",
   description:
     "Hazır bir ders notuyla Cortex Plus akışını baştan sona gezin: konu çıkarımı, podcast, quiz ve sözlü.",
-};
+  path: "/ornek",
+});
 
 /**
  * Örnek akış sayfası.
@@ -59,7 +63,10 @@ export default async function OrnekPage() {
         oral={lesson.oral}
       />
       <div style={{ padding: "0 1rem 3rem" }}>
-        <AdvantageCompact />
+        {/* Şeritte kartla gösterilen iki satır listede ikinci kez yazılmaz. */}
+        <AdvantageCompact omit={[RADIO_SHOWCASE.id, RED_PEN_SHOWCASE.id]} />
+        {/* Faz 7 (20 Kasım 2026): kayıtlı hesapta açılan iki aracın önizlemesi; ana sayfadaki kartların aynısı. */}
+        <SuperGuclerStrip />
       </div>
     </div>
     </ParityMarketingPage>

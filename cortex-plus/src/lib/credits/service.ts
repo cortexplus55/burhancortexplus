@@ -1,4 +1,5 @@
 import "server-only";
+import { invalidateSessionUserContext } from "@/lib/auth/session-context";
 import { priceForModel, usageCostUsd, type ModelPrice } from "@/lib/billing/model-price";
 import { randomUUID } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -32,7 +33,7 @@ export type ReservationResult =
       refusal?: FreeRefusal;
     };
 
-const METERS: readonly FreeMeter[] = ["lesson", "chat", "photo", "included"];
+const METERS: readonly FreeMeter[] = ["lesson", "chat", "photo", "included", "reexplain"];
 
 /** SQL hata metninden ücretsiz reddi okur. */
 export function parseFreeRefusal(message: string): FreeRefusal | null {
@@ -208,15 +209,27 @@ export async function reserveCredits(
     if (error.message.includes("invalid_action")) {
       return { ok: false, reason: "invalid_action" };
     }
+    // 19 Kasım 2026 (Faz 2 denetimi): yük altında düşen ayırma sessiz "error" dönüyordu; sebep kayda geçer.
+    console.error("credit_reserve_failed", { actionCode, code: error.code ?? null, message: String(error.message ?? "").slice(0, 160) });
     return { ok: false, reason: "error" };
   }
 
-  if (typeof data !== "string" || !data) return { ok: false, reason: "error" };
+  if (typeof data !== "string" || !data) {
+    console.error("credit_reserve_empty", { actionCode });
+    return { ok: false, reason: "error" };
+  }
   const { data: claim, error: claimError } = await service.rpc("credit_claim_operation", {
     p_reservation_id: data,
     p_token: randomUUID(),
   });
-  if (claimError) return { ok: false, reason: "error" };
+  if (claimError) {
+    // Ayırma açıldı ama sahiplenme düştü: ayırma "bekliyor"da kalır. İade burada yapılmaz (aynı anahtarı başka bir
+    // istek sahiplenmiş olabilir); kimlik kayda geçer ki takılı ayırma temizliği ya da elle iade bulunabilsin.
+    console.error("credit_claim_failed", { actionCode, reservationId: data, code: claimError.code ?? null, message: String(claimError.message ?? "").slice(0, 160) });
+    return { ok: false, reason: "error" };
+  }
+  // Faz 2: kredi/sayaç düştü; gösterim önbelleği (oturum bağlamı) anında temizlenir. Karar SQL'de verildi.
+  await invalidateSessionUserContext(userId);
   if (claim?.state !== "claimed") return {
     ok: false,
     reason: claim?.state === "busy" ? "operation_in_progress" : claim?.state === "committed" ? "operation_completed" : "error",
@@ -276,6 +289,7 @@ export const STALE_REFUND_ACTION_CODES: readonly ActionCode[] = [
   "AI_CHAT_PARENT",
   "IMAGE_SOLUTION",
   "QUIZ_GENERATE",
+  "DUEL_GENERATE",
   "FLASHCARD_GENERATE",
   "PRACTICE_EXAM_GENERATE",
   "PRACTICE_EXAM_GRADE",

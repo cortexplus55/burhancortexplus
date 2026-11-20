@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 export default async function E2eAnaEkranPage({
   searchParams,
 }: {
-  searchParams: Promise<{ durum?: string; plan?: string; hazirlik?: string; konu?: string; hak?: string; kota?: string; buyume?: string }>;
+  searchParams: Promise<{ ogretmen?: string; durum?: string; plan?: string; hazirlik?: string; konu?: string; hak?: string; kota?: string; buyume?: string }>;
 }) {
   if (process.env.E2E_FIXTURE !== "1") notFound();
   const params = await searchParams;
@@ -22,6 +22,7 @@ export default async function E2eAnaEkranPage({
     <AnaEkranFixture
       conversation={params.durum === "sohbet" || params.durum === "cevapsiz" || params.durum === "ogretim" || params.durum === "ozet"}
       teaching={params.durum === "ogretim"}
+      teacherV2={params.ogretmen === "v2"}
       summary={params.durum === "ozet"}
       unanswered={params.durum === "cevapsiz"}
       plus={fixturePlan(params.plan) !== "free"}

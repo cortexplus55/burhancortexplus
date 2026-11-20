@@ -19,13 +19,19 @@ import { DataDeletionButton } from "@/components/profile/data-deletion-button";
 import { CookiePreferencesButton } from "@/components/legal/cookie-banner";
 import { EmailChangeCard } from "@/components/profile/email-change-card";
 import { EmailPreferencesCard } from "@/components/profile/email-preferences-card";
+import { NotificationPreferencesPanel } from "@/components/notifications/notification-preferences-panel";
+import { publicPreferences } from "@/lib/notifications/preference-api";
+import { loadNotificationPreferences } from "@/lib/notifications/preferences";
 import { AppearanceRow } from "@/components/parity/appearance-row";
 import { requireUser } from "@/lib/auth/session";
+import { getSessionUserContext } from "@/lib/auth/session-context";
 import { formatDate } from "@/lib/format";
 import { getStudentAccountContext } from "@/lib/student/account-context";
 import { createServiceClient } from "@/lib/supabase/server";
 import { FounderBadge } from "@/components/student/founder-chip";
 import { DialogLink } from "@/components/parity/dialog-link";
+import { WorkCapacityCard } from "@/components/profile/work-capacity-card";
+import "@/styles/report-card.css";
 
 export const metadata = { title: "Ayarlar" };
 
@@ -74,8 +80,13 @@ function Group({ title, description, children, tone }: { title: string; descript
 export default async function AyarlarPage() {
   const { supabase, user } = await requireUser();
 
-  // Okumalar paralel (2 Kasım 2026, O12).
-  const [{ data: deletionRequest }, account, { data: reminderPref }, { data: profile }] = await Promise.all([
+  // Okumalar paralel (2 Kasım 2026, O12). Faz 2: plan ve kredi özeti oturum bağlamından (kabukla aynı istek içi
+  // okuma); profilin iki ayrı okuması tek sorgu; kampanya izni de aynı turda (eskiden ayrı, sonraki turdaydı).
+  // Faz 6 (20 Kasım 2026): bildirim tercihleri kendi deposundan (sunucu anahtarı + kullanıcı süzgeci); tablo henüz
+  // yoksa depo eski hatırlatma sütununu okur. Ad, avatar, okul ve sınıf ayrı profil sorgusu yerine kabukla aynı
+  // oturum bağlamından (istekte bir kez; profil güncellemesi bağlamı tazeler): sayfanın sorgu sayısı değişmedi.
+  const service = createServiceClient();
+  const [{ data: deletionRequest }, account, sessionContext, { data: marketingPref }, notificationPrefs] = await Promise.all([
     supabase
       .from("data_deletion_requests")
       .select("id, status, requested_at")
@@ -84,16 +95,13 @@ export default async function AyarlarPage() {
       .limit(1)
       .maybeSingle(),
     getStudentAccountContext(supabase, user.id),
-    // Kolon yoksa sorgu hata verir ve tercih "açık" varsayılır.
-    supabase.from("profiles").select("study_reminder_email").eq("id", user.id).maybeSingle(),
-    supabase.from("profiles").select("full_name, avatar_url, school_name, grade_level").eq("id", user.id).maybeSingle(),
+    getSessionUserContext(user.id, { client: supabase }),
+    // Kampanya izni yalnız sunucu anahtarıyla okunur (satır güvenliği tarayıcıya kapalı). 7 Kasım 2026.
+    service.from("email_preferences").select("marketing").eq("user_id", user.id).maybeSingle(),
+    loadNotificationPreferences(service, user.id),
   ]);
-  // Kampanya izni yalnız sunucu anahtarıyla okunur (satır güvenliği tarayıcıya kapalı). 7 Kasım 2026.
-  const { data: marketingPref } = await createServiceClient()
-    .from("email_preferences")
-    .select("marketing")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  // Okuma düşerse ad "Öğrenci" varsayılır.
+  const profile = sessionContext.profile;
 
   const name = (profile?.full_name as string | null)?.trim() || "Öğrenci";
   const avatarRaw = (profile?.avatar_url as string | null) ?? null;
@@ -102,6 +110,9 @@ export default async function AyarlarPage() {
   const school = (profile?.school_name as string | null)?.trim() || null;
   const grade = (profile?.grade_level as string | null)?.trim() || null;
   const lessons = workCount(PLAN_ALLOWANCES.plusMonthly, PLAN_WORK_BY_ID.lesson).toLocaleString("tr-TR");
+  // Faz 4 "Kalan Çalışma Kapasiten": dönem hakkından kalan + ek paket bakiyesi (harcama bu ikisinden düşer).
+  const remainingCredits = Math.max(0, account.freeAllowanceRemaining) + Math.max(0, account.balance);
+  const showCapacity = !account.isAdmin && (account.isPremium || remainingCredits > 0);
   const planLabel = account.isAdmin ? null : account.isPremium ? (account.subscriptionBadge ?? "Plus") : "Ücretsiz";
 
   return (
@@ -148,6 +159,7 @@ export default async function AyarlarPage() {
                 : `Ücretsiz plandasın. Plus ile podcast, sözlü ve yazılı deneme, video ders ve ayda yaklaşık ${lessons} ders hakkı açılır.`
           }
         >
+          {showCapacity ? <WorkCapacityCard remaining={remainingCredits} /> : null}
           <SettingsRows
             rows={[
               { href: "/krediler", icon: Gauge, title: "Kullanım limitleri", hint: "Bu ay ne kadar kullandığın" },
@@ -170,16 +182,16 @@ export default async function AyarlarPage() {
           <AppearanceRow />
         </Group>
 
+        {/*
+          Faz 6 (20 Kasım 2026): bildirim ve e-posta tercihlerinin tek yeri. Eski tek "Çalışma hatırlatması" anahtarı
+          bu panele katıldı; kampanya izni (yasal onay kanıtıyla) kendi kartında aynen duruyor.
+        */}
         <Group
-          title="Bildirimler ve e-posta"
+          title="Bildirim ve E-Posta Tercihleri"
           description="Hesabınla ilgili bilgilendirmeler (doğrulama, ödeme, iade) her zaman gelir; aşağıdakileri istediğin gibi ayarla. Günde en fazla bir hatırlatma gönderiyoruz."
         >
-          <EmailPreferencesCard
-            initial={{
-              reminders: (reminderPref?.study_reminder_email as boolean | null) ?? true,
-              marketing: marketingPref?.marketing === true,
-            }}
-          />
+          <NotificationPreferencesPanel initial={publicPreferences(notificationPrefs)} mode={{ kind: "session" }} />
+          <EmailPreferencesCard initial={{ marketing: marketingPref?.marketing === true }} />
         </Group>
 
         <Group title="Giriş ve güvenlik" description="Giriş yaptığın adres ve şifren.">

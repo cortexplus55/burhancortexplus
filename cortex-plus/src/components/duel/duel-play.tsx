@@ -81,6 +81,7 @@ export function DuelPlay({
   signupHref = "/kayit",
   shareUrl: shareUrlProp,
   neutralBot = false,
+  shareWarning = null,
 }: {
   code: string;
   title: string;
@@ -102,6 +103,8 @@ export function DuelPlay({
    * gösterilmez ("cevapladı" nötr işareti); bot "BOT" etiketli. Kapalıyken bugünkü canlı akış.
    */
   neutralBot?: boolean;
+  /** Düello kurucunun kendi notundan yazıldıysa paylaşım düğmelerinin altında uyarı (yalnız kurucuya; düello 9B). */
+  shareWarning?: string | null;
 }) {
   const [stage, setStage] = useState<"intro" | "countdown" | "play" | "sending" | "result">("intro");
   /** Oyun öncesi 3-2-1 (30 Ekim 2026, canlı tur): sorular gelince 1. sorunun süresi hemen başlıyor, öğrenci kaçırıyordu. */
@@ -436,6 +439,7 @@ export function DuelPlay({
             </button>
           )}
         </div>
+        {shareWarning ? <p className="cp-duel-muted cp-duel-share-note">{shareWarning}</p> : null}
         {signedIn ? null : (
           <p className="cp-duel-muted">
             Kendi düellonu kurmak için{" "}
@@ -514,6 +518,7 @@ export function DuelPlay({
           <Copy className="h-4 w-4" aria-hidden /> Bağlantıyı kopyala
         </button>
       </div>
+      {shareWarning ? <p className="cp-duel-muted cp-duel-share-note">{shareWarning}</p> : null}
     </section>
   );
 }

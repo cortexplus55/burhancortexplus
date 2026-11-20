@@ -1,5 +1,7 @@
 "use server";
 
+import { invalidateSessionUserContext } from "@/lib/auth/session-context";
+import { notifyInApp } from "@/lib/notifications/in-app";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -81,8 +83,9 @@ export async function reviewTeacherApplication(input: {
     });
   }
 
-  await service.from("notifications").insert({
-    user_id: application.user_id,
+  await notifyInApp(service, {
+    kind: "account",
+    userId: application.user_id,
     title:
       parsed.data.decision === "approved"
         ? "Öğretmen başvurun onaylandı"
@@ -168,6 +171,68 @@ export async function toggleFeatureFlag(key: string, enabled: boolean) {
   return { ok: !error };
 }
 
+/** Kişi bazlı (pilot) açılabilen anahtarlar. Liste dar tutulur: yalnız buradakiler panelden kurucuya açılır. */
+const SELF_PILOT_FLAGS = ["duel.v2", "teacher.v2"] as const;
+
+/**
+ * Anahtarı genel olarak açmadan yalnız kurucunun hesabında açar ya da kaldırır (`metadata.pilot_user_ids`; okuyucu
+ * `isFeatureEnabled` bunu zaten tanıyor). Satır yoksa **kapalı** (`enabled = false`) oluşturulur: "Aç → Kapat" ile satır
+ * kurmak arada herkese açardı. Genel `enabled` değerine dokunmaz. Düello 9B (15 Kasım 2026): "önce yalnız Burhan".
+ */
+export async function setSelfFlagPilot(
+  key: string,
+  on: boolean,
+): Promise<{ ok: true; pilotCount: number } | { ok: false; error: string }> {
+  const founder = await checkFounderActor();
+  if (!founder.ok) return { ok: false, error: founder.error };
+  const actorId = founder.userId;
+  const parsed = z.object({ key: z.enum(SELF_PILOT_FLAGS), on: z.boolean() }).safeParse({ key, on });
+  if (!parsed.success) return { ok: false, error: "Bu anahtar kişi bazlı açılmıyor." };
+
+  const service = createServiceClient();
+  const { data: row, error: readError } = await service
+    .from("feature_flags")
+    .select("key, metadata")
+    .eq("key", parsed.data.key)
+    .maybeSingle();
+  if (readError) return { ok: false, error: "Anahtar okunamadı." };
+
+  const meta =
+    row?.metadata && typeof row.metadata === "object" ? { ...(row.metadata as Record<string, unknown>) } : {};
+  const existing = Array.isArray(meta.pilot_user_ids)
+    ? meta.pilot_user_ids.filter((id): id is string => typeof id === "string")
+    : [];
+  const next = parsed.data.on
+    ? existing.includes(actorId)
+      ? existing
+      : [...existing, actorId]
+    : existing.filter((id) => id !== actorId);
+
+  const write = row
+    ? await service
+        .from("feature_flags")
+        .update({ metadata: { ...meta, pilot_user_ids: next }, updated_at: new Date().toISOString() })
+        .eq("key", parsed.data.key)
+    : await service.from("feature_flags").insert({
+        key: parsed.data.key,
+        enabled: false,
+        metadata: { pilot_user_ids: next },
+        updated_at: new Date().toISOString(),
+      });
+  if (write.error) return { ok: false, error: "Güncellenemedi." };
+
+  await auditLog(service, {
+    actorId,
+    action: "feature_flag.pilot_self",
+    entityType: "feature_flag",
+    entityId: parsed.data.key,
+    metadata: { on: parsed.data.on, pilot_count: next.length },
+  });
+
+  revalidatePath("/admin/feature-flags");
+  return { ok: true, pilotCount: next.length };
+}
+
 export async function grantCredits(userId: string, amount: number) {
   const actorId = await requireAdminActor();
   if (!actorId) return { ok: false, error: "Yetkisiz işlem." };
@@ -185,6 +250,7 @@ export async function grantCredits(userId: string, amount: number) {
     p_entry_type: "grant",
     p_reason: `admin:${actorId}`,
   });
+  if (!error) await invalidateSessionUserContext(parsed.data.userId);
 
   if (error) {
     if (error.message.includes("wallet_not_found")) {
@@ -360,6 +426,7 @@ export async function adjustCredits(input: {
     p_entry_type: parsed.data.delta > 0 ? "grant" : "adjustment",
     p_reason: parsed.data.reason ?? `admin:${actorId}`,
   });
+  if (!error) await invalidateSessionUserContext(parsed.data.userId);
 
   if (error) {
     if (error.message.includes("wallet_not_found")) {
@@ -1086,6 +1153,8 @@ export async function setUserSuspended(input: {
     })
     .eq("id", userId);
   if (error) return { ok: false, error: "Kayıt güncellenemedi." };
+  // Faz 2: askı anında geçerli; oturum bağlamı ve middleware kapısı önbelleği silinir.
+  await invalidateSessionUserContext(userId);
 
   // Giriş kapısı: 100 yıl yasak = kalıcı; "none" kaldırır. Düşerse profil bariyeri yine tutar.
   await service.auth.admin

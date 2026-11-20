@@ -1,4 +1,8 @@
+import { KEY_CONSISTENCY_PREFIX, hasFalseArithmetic } from "@/lib/learning/answer-key-consistency";
+import { ANSWER_LEAK_PREFIX, SINGLE_CHOICE_ISSUE_PREFIX, answerLeakIssue, singleChoiceVerdict } from "@/lib/learning/single-choice-guard";
+import { quizKeyRepeatsSourceError, sourceCorrectionPromptBlock, type SourceCorrectionWarning } from "@/lib/learning/source-correction";
 import { CONTENT_STYLE } from "@/lib/ai/content-style";
+import { OPTION_SEPARABILITY_PREFIX, optionSeparabilityIssues } from "@/lib/learning/option-separability";
 import { officialOutcomeBlock, type OfficialOutcomeGrounding } from "@/lib/curriculum/grounding";
 import {
   EQUIVALENT_OPTIONS_RULE,
@@ -16,6 +20,7 @@ import { inventedKindSiblings, offKindDistractors } from "@/lib/learning/distrac
 import {
   affirmedWrongOptions,
   explanationAnswerMismatch,
+  mismatchEvidence,
   inlineCarriers,
   refutedCorrectOptions,
   unresolvedVisualReference,
@@ -70,6 +75,11 @@ export type TeacherQuizInput = {
   focus?: "practice" | "gaps";
   /** Aşinalık ve ruh hali satırı. */
   learnerLine?: string;
+  /**
+   * Kaynak düzeltme uyarısı (19 Kasım 2026, Faz 1-A §2.1): kaynaktaki açık bilimsel hatanın doğrusu. Yazar, denetçi ve
+   * doğrulayıcı doğrusunu okur; anahtar kaynağın yanlışını taşıyamaz (`quizKeyRepeatsSourceError`).
+   */
+  sourceCorrection?: SourceCorrectionWarning | null;
   /** Öğretmen analizinin "Sınavda sorulur" maddeleri (18 Ekim 2026). */
   examPoints?: string[];
   /**
@@ -79,6 +89,10 @@ export type TeacherQuizInput = {
   sourceBlock?: string;
   /** Hafif doğrulayıcı (30 Ekim 2026, `quiz-sanity.ts`); varsayılan açık. Yalnız yerel ölçüm betikleri kapatır. */
   sanity?: boolean;
+  /** Şık ayrılabilirliği denetimi (H2, `quiz.option_check` bayrağı; `option-separability.ts`). Açıkken GÖLGE: yalnız sayılır. */
+  optionCheck?: boolean;
+  /** Eleme modu (`quiz.option_check_enforce`): yalnız `optionCheck` ile birlikte; soru elenir. */
+  optionCheckEnforce?: boolean;
   /**
    * Yazılı deneme (26 Ekim 2026): soru kaynak cümlesini aynen taşımak zorunda değildir.
    * Yanlış olgu, bozuk öğe, kopya ve konu dışı yine düşer.
@@ -449,6 +463,7 @@ export function quizUserPrompt(input: TeacherQuizInput, ask = input.count): stri
     `SORU SAYISI: ${ask}`,
     input.difficulty ? `ZORLUK: ${DIFFICULTY_LINE[input.difficulty]}` : "",
     input.brief ? `İSTEK (kurallarla çelişirse kurallar geçerli):\n${input.brief}` : "",
+    sourceCorrectionPromptBlock(input.sourceCorrection),
     input.learnerLine ? `ÖĞRENCİ: ${input.learnerLine}` : "",
     quizPointsBlock(input),
     topicTestShapeBlock(input),
@@ -594,7 +609,8 @@ export function quizVerifyUserPrompt(questions: QuizQuestion[], input: TeacherQu
       : // Belgeli kipte de denetçi İSTEK'i görür (20 Ekim 2026): podcast dinleme kontrolünün kuralları
         // ("Ada/Kerem geçmez", itiraf doğru şık olamaz) yalnız yazara gidiyordu.
         `${quizSource(input)}${input.brief ? `
-İSTEK: ${input.brief.slice(0, 600)}` : ""}`;
+İSTEK: ${input.brief.slice(0, 600)}` : ""}${input.sourceCorrection ? `
+${sourceCorrectionPromptBlock(input.sourceCorrection)}` : ""}`;
   const context =
     input.scope === "topic_test"
       ? [
@@ -783,9 +799,11 @@ function textSeed(text: string): number {
  * model doğru cevabı neredeyse hep ilk şıkka yazıyordu (KPSS 5/5, deneme
  * sınavı 4/4); öğrenci "cevap hep A" diye öğrenirdi.
  */
-export function shuffleOptions(question: QuizQuestion): QuizQuestion {
+export function shuffleOptions(question: QuizQuestion, salt?: string): QuizQuestion {
   if (question.options.length < 2) return question;
-  let state = textSeed(question.text) || 1;
+  // Faz 4: kayıtlı testin ücretsiz tekrarında tuz (yeni denemenin kimliği) sırayı her çözümde değiştirir; aynı
+  // deneme aynı sırayı görür. Doğru cevap şık METNİ olduğundan anahtar korunur.
+  let state = textSeed(salt ? `${salt}\u0000${question.text}` : question.text) || 1;
   const random = () => {
     state ^= state << 13;
     state ^= state >>> 17;
@@ -992,11 +1010,16 @@ export const UNSALVAGEABLE_PROBLEM = new RegExp(
     "Aynı şık iki kez",
     "İki şık aynı cevap",
     THRESHOLD_TWIN_PREFIX,
+    OPTION_SEPARABILITY_PREFIX,
     "Kök doğru şıkkı içeriyor",
     "Kök doğru şıkkın ifadesini kuruyor",
     "Cevap anahtarı hesapla çelişiyor",
     "Hiçbir şık kökteki",
     "sonucuna varıyor; doğru şık",
+    // 19 Kasım 2026 (Faz 1-A denetimi): son kapı (kayıt öncesi) bu iki sorunu taşıyan soruyu atıyor; kurtarma onu geri
+    // koyunca sayı eksik kalıp test düşüyordu. Geri konmaz, ikinci geçiş yenisini yazar.
+    SINGLE_CHOICE_ISSUE_PREFIX,
+    ANSWER_LEAK_PREFIX,
   ].join("|"),
   "u",
 );
@@ -1229,6 +1252,8 @@ function visualReferenceIssue(text: string): string | null {
   return hit ? `Kök '${hit}' diye ekranda olmayan bir görsele gönderme yapıyor; çözmek için gereken veriyi kökün içine yaz.` : null;
 }
 
+const QUIZ_ARITHMETIC_ISSUE = `${KEY_CONSISTENCY_PREFIX}: açıklamadaki, gerekçedeki ya da çözüm adımındaki işlem yanlış; hesabı ve anahtarı birlikte düzelt.`;
+
 function keyMismatchIssue(question: QuizQuestion, keyed: number[]): string | null {
   const mismatch = explanationAnswerMismatch({
     options: question.options,
@@ -1238,7 +1263,8 @@ function keyMismatchIssue(question: QuizQuestion, keyed: number[]): string | nul
     explanation: question.explanation,
   });
   if (!mismatch) return null;
-  return `Açıklama ${formatValue(mismatch.value)} sonucuna varıyor; doğru şık '${mismatch.keyed.join("', '")}' değil '${mismatch.expected}' olmalı ya da açıklama yanlış.`;
+  const evidence = mismatch.reason && mismatch.reason !== "value" ? mismatchEvidence(mismatch) : `Açıklama ${formatValue(mismatch.value)} sonucuna varıyor`;
+  return `${evidence}; doğru şık '${mismatch.keyed.join("', '")}' değil '${mismatch.expected}' olmalı ya da açıklama yanlış.`;
 }
 
 const formatValue = (value: number) => String(Number(value.toFixed(6))).replace(".", ",");
@@ -1312,9 +1338,20 @@ export const INVENTED_SIBLING_PREFIX = "Çeldirici uydurma bir terim";
  */
 export function quizStructureIssues(
   question: QuizQuestion,
-  options: { multi?: boolean; optionCount?: OptionCount; context?: string } = {},
+  options: {
+    multi?: boolean;
+    optionCount?: OptionCount;
+    context?: string;
+    optionCheck?: boolean;
+    sourceCorrection?: SourceCorrectionWarning | null;
+  } = {},
 ): string[] {
   const issues: string[] = [];
+  // Kaynak düzeltmesi (Faz 1-A §2.1): doğru şık kaynağın yanlış bilgisini taşıyorsa soru düşer, yerine yenisi yazılır.
+  const correctionIssue = quizKeyRepeatsSourceError(question, options.sourceCorrection);
+  if (correctionIssue) issues.push(correctionIssue);
+  // H2 (15 Kasım 2026, bayrak `quiz.option_check`): ayrılmayan şık soruyu eler; metin değişmez, yedek gelir.
+  if (options.optionCheck && !question.multi) issues.push(...optionSeparabilityIssues(question.options));
   const countIssue = optionCountIssue(question, options.optionCount);
   if (countIssue) issues.push(countIssue);
   const mismatch = stepsAnswerMismatch(question);
@@ -1327,10 +1364,20 @@ export function quizStructureIssues(
   }
   const said =[question.text, question.explanation ?? "", ...question.options, ...(question.optionWhy ?? []), ...(question.steps ?? [])];
   if (reversedFunctionNotation(said.join("\n")).length) issues.push(FUNCTION_NOTATION_ISSUE);
+  // Faz 1-A §3 güçlendirmesi (19 Kasım 2026): açıklama/gerekçe/adımdaki işlem kodla hesaplanır; yanlış hesaplı soru
+  // anahtarı da şüpheli kılar, düşer ve yedek doldurur.
+  if (hasFalseArithmetic([question.explanation ?? "", ...(question.optionWhy ?? []), ...(question.steps ?? [])].join("\n"))) {
+    issues.push(QUIZ_ARITHMETIC_ISSUE);
+  }
   if (question.multi && options.multi) {
     return [...issues, ...multiQuestionIssues(question)];
   }
   if (question.multi || question.correct.length !== 1) issues.push("Tek doğru şık olmalı (multi false).");
+  else {
+    // Faz 1-A §3.1: işaretli doğru şıklardan birine birebir denk gelmeli, şıklar birbirinden ayrı olmalı.
+    const verdict = singleChoiceVerdict(question);
+    if (!verdict.ok) issues.push(verdict.issue);
+  }
   if (!question.explanation?.trim()) issues.push("explanation yok.");
   if ((question.optionWhy?.length ?? 0) !== question.options.length) {
     issues.push("optionWhy her şık için bir cümle olmalı, şık sayısı kadar ve aynı sırada.");
@@ -1344,7 +1391,10 @@ export function quizStructureIssues(
     issues.push("Açıklama şıklara sırasıyla gönderme yapıyor; şıklar karışık gösteriliyor, her şıkkı içeriğiyle an.");
   }
   const answer = question.correct[0] ?? "";
-  if (answer.length >= 6 && question.text.toLocaleLowerCase("tr").includes(answer.toLocaleLowerCase("tr"))) {
+  // AnswerLeakGuard (Faz 1-A §3.2): kök doğru şıkkı parantez içinde ya da açıkça veriyorsa soru reddedilir, yerine yenisi yazılır.
+  const leak = answerLeakIssue(question);
+  if (leak) issues.push(leak);
+  else if (answer.length >= 6 && question.text.toLocaleLowerCase("tr").includes(answer.toLocaleLowerCase("tr"))) {
     issues.push("Kök doğru şıkkı içeriyor; cevabı veriyor.");
   } else {
     const giveaway = answerOnlyWordInStem(question.text, answer, question.options);

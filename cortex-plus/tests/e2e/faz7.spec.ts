@@ -123,5 +123,71 @@ for (const width of WIDTHS) {
       expect(await page.evaluate(() => (window as unknown as { __x?: number }).__x)).toBeUndefined();
       await expect(page.getByText("Diğer planlar · Sigma")).toBeVisible();
     });
+
+    test("/pay v2: yasal bağlantılar ve küçük eylemler en az 44 px dokunma alanı", { tag: ["@public"] }, async ({ page }) => {
+      // Burhan kararı 8 (15 Kasım 2026): metin içi bağlantılarda her satır parçası, bağımsız eylemlerde kutu 44 px.
+      // Alan, öğenin kendisiyle ölçülür: parçanın ortasından yukarı ve aşağı, nokta hâlâ öğeye düşüyorsa sayılır.
+      await page.goto("/e2e/paketler?ui=v2");
+      const targets = [
+        ...(await page.locator("#planlar .cs-trust-item a").all()),
+        page.locator("#planlar .cp-legal-link"),
+        page.getByRole("link", { name: "Ücretsiz planda devam et" }),
+        page.getByRole("button", { name: "Tüm avantajları gör" }),
+      ];
+      expect(targets.length).toBeGreaterThanOrEqual(5);
+      for (const target of targets) {
+        await target.scrollIntoViewIfNeeded();
+        const heights = await target.evaluate((node) =>
+          Array.from(node.getClientRects()).map((rect) => {
+            const spans: number[] = [];
+            for (const fx of [0.2, 0.5, 0.8]) {
+              const x = rect.left + rect.width * fx;
+              const y = rect.top + rect.height / 2;
+              let up = 0;
+              let down = 0;
+              for (let d = 1; d < 40; d += 1) {
+                const hit = document.elementFromPoint(x, y - d);
+                if (hit && (hit === node || node.contains(hit))) up = d;
+                else break;
+              }
+              for (let d = 1; d < 40; d += 1) {
+                const hit = document.elementFromPoint(x, y + d);
+                if (hit && (hit === node || node.contains(hit))) down = d;
+                else break;
+              }
+              spans.push(up + down + 1);
+            }
+            return Math.min(...spans);
+          }),
+        );
+        const name = (await target.textContent())?.trim().slice(0, 40) ?? "?";
+        for (const height of heights) expect(height, `dokunma alanı: ${name}`).toBeGreaterThanOrEqual(44);
+      }
+      // Dolgu alanına dokunmak sözleşmeyi açar, kutuyu işaretlemez; iki onay kutusu kendi dokunuşunu alır.
+      const link = page.locator("#planlar .cp-legal-link");
+      // Faz 5 §2: kartların altına veli bağlantısı bölümü geldi; bağlantı son ölçülen öğeden uzakta kalabilir.
+      await link.scrollIntoViewIfNeeded();
+      const first = await link.evaluate((node) => {
+        const rect = node.getClientRects()[0];
+        return { x: rect.left + 12, y: rect.top + 3 };
+      });
+      await page.mouse.click(first.x, first.y);
+      await expect(page.getByRole("dialog")).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(page.getByRole("dialog")).toHaveCount(0);
+      for (const checkbox of await page.locator("[data-payment-consent] [role='checkbox']").all()) {
+        await checkbox.scrollIntoViewIfNeeded();
+        const rect = (await checkbox.boundingBox())!;
+        const self = await checkbox.evaluate(
+          (node, point) => {
+            const hit = document.elementFromPoint(point.x, point.y);
+            return Boolean(hit && (hit === node || node.contains(hit)));
+          },
+          { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 },
+        );
+        expect(self).toBe(true);
+      }
+      expect(await overflow(page)).toBeLessThanOrEqual(0);
+    });
   });
 }

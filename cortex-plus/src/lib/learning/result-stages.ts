@@ -1,5 +1,5 @@
 import { prepStars } from "@/lib/stars/rules";
-import type { TopicMasteryState } from "@/lib/learning/learning-tracking";
+import { BADGE_LABEL, type MasteryBadge } from "@/lib/learning/mastery-policy";
 
 /**
  * Sonuç sayfasının dört aşaması (29 Ekim 2026) — saf. Sayfa yalnız çizer; metin ve sayı burada.
@@ -17,7 +17,14 @@ export type ResultStage = {
   gain?: boolean;
 };
 
-export type TopicGainRecord = { label: string; before: number; after: number };
+export type TopicGainRecord = {
+  label: string;
+  before: number;
+  after: number;
+  badge?: "learned" | "developing" | "weak" | "unmeasured";
+  badgeLabel?: string;
+  tone?: "emerald" | "cobalt" | "coral" | "gray";
+};
 
 export function readTopicGain(raw: unknown): TopicGainRecord | null {
   if (!raw || typeof raw !== "object") return null;
@@ -26,8 +33,15 @@ export function readTopicGain(raw: unknown): TopicGainRecord | null {
   const after = Number(row.after);
   const label = typeof row.label === "string" ? row.label.trim() : "";
   if (!label || !Number.isFinite(before) || !Number.isFinite(after) || after <= before) return null;
-  return { label, before, after };
+  // Faz 4 rozeti (kayıtta varsa): ekranlarla aynı etiket ve renk.
+  const badge = row.badge === "learned" || row.badge === "developing" || row.badge === "weak" || row.badge === "unmeasured" ? row.badge : null;
+  const tone = row.tone === "emerald" || row.tone === "cobalt" || row.tone === "coral" || row.tone === "gray" ? row.tone : null;
+  const badgeLabel = typeof row.badgeLabel === "string" && row.badgeLabel.trim() ? row.badgeLabel.trim() : null;
+  return badge && tone && badgeLabel ? { label, before, after, badge, badgeLabel, tone } : { label, before, after };
 }
+
+/** Sonuç kartındaki rozet sırası: kazanılan önce. */
+const BADGE_ORDER: readonly MasteryBadge[] = ["learned", "developing", "weak", "unmeasured"];
 
 /** Kanıt üreten türler: test, doğru/yanlış, sözlü, soru-cevap, odaklı pratik, son kontrol. */
 const EVIDENCE_KINDS = new Set(["quiz", "true_false", "oral", "qa", "focused", "gaps", "final_check", "written_exam"]);
@@ -39,7 +53,8 @@ export function resultStages(input: {
   streak: number | null;
   topicGain: unknown;
   openMisconceptions: number | null;
-  masteryStates: TopicMasteryState[] | null;
+  /** Planlı konuların rozetleri (`masteryByPlannedTopic` + `topicMasteryView`): ekranlarla aynı dört etiket. */
+  masteryBadges: MasteryBadge[] | null;
 }): ResultStage[] {
   const stars = prepStars(input.kind, input.score, input.total);
   const reward: ResultStage = {
@@ -75,19 +90,25 @@ export function resultStages(input: {
           : "Hâkimiyet testte, doğru/yanlışta ve sözlüde ölçülür.",
       };
 
-  const needsWork = input.masteryStates?.filter((state) => state === "needs_work").length ?? null;
-  const ready = input.masteryStates?.filter((state) => state === "ready").length ?? null;
+  // 20 Kasım 2026: konu sayımı İlerleme ve yolla aynı dört rozetle (Öğrendin / Gelişiyor / Zayıf / Ölçülmedi);
+  // eski "çalışılacak / sağlam" ikilisi gelişen konuyu zayıfla aynı kefeye koyuyordu.
+  const count = (badge: MasteryBadge) => input.masteryBadges?.filter((value) => value === badge).length ?? 0;
   const parts: string[] = [];
   if (input.openMisconceptions != null) parts.push(`${input.openMisconceptions} açık yanılgı`);
-  if (needsWork != null) parts.push(`${needsWork} çalışılacak konu`);
-  if (ready != null) parts.push(`${ready} sağlam konu`);
+  if (input.masteryBadges) {
+    for (const badge of BADGE_ORDER) {
+      const n = count(badge);
+      if (n > 0) parts.push(`${BADGE_LABEL[badge]}: ${n} konu`);
+    }
+  }
+  const unfinished = input.masteryBadges ? count("weak") + count("developing") : null;
   const gaps: ResultStage = {
     id: "gaps",
     icon: "🧩",
     title: "Kapanan ve kalan eksik",
     value: parts.length ? parts.join(" · ") : "Eksik sayısı şu an okunamadı",
     note:
-      input.openMisconceptions === 0 && (needsWork ?? 0) === 0
+      input.openMisconceptions === 0 && (unfinished ?? 0) === 0
         ? "Açık eksik yok; sıradaki adım pekiştirme."
         : input.openMisconceptions != null && input.openMisconceptions > 0
           ? "Yanılgı aynı konuda iki ayrı günde yardımsız doğru cevapla kapanır."

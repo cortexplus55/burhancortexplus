@@ -542,7 +542,9 @@ describe("6 · yazılı deneme S4: kökün çok sözcüklü öncülü doğru ş�
   it("deneme yolu yapı kapısından geçer: mock-exam → generateExamQuiz → runTeacherQuiz → teacherQuizLoop", () => {
     expect(read("src/lib/learning/mock-exam/create.ts")).toContain("const outcome = await generateExamQuiz({");
     expect(read("src/lib/learning/exam-quiz-generate.ts")).toContain("const outcome = await runTeacherQuiz(input.service, {");
-    expect(read("src/lib/learning/teacher-quiz-run.ts")).toContain("quizStructureIssues(slot.question, { multi: input.multi, optionCount, context })");
+    expect(read("src/lib/learning/teacher-quiz-run.ts")).toMatch(
+      /quizStructureIssues\(slot\.question, \{\s*multi: input\.multi,\s*optionCount,\s*context,\s*optionCheck: enforce,/,
+    );
   });
 
   it("yanlış alarm yok: öncül yok, çeldirici de öncülü taşıyor, ortak tek sözcük (biyoloji, hukuk, ekonomi)", () => {

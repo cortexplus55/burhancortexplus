@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { parseExamAnalysis } from "@/lib/learning/exam-analysis";
 import { ExamQuestionReviewClient } from "@/components/parity/exam-question-review-client";
@@ -9,6 +9,8 @@ import { mockElapsedLabel } from "@/lib/learning/mock-exam/time-limit";
 import { scoringKeyTerms } from "@/lib/learning/mock-exam/key-terms";
 import { rowVerdictCounts } from "@/lib/learning/mock-exam/verdict-counts";
 import { parseStoredFirstError, parseStoredSteps, type WorkStepKind, type WorkStepVerdict } from "@/lib/learning/mock-exam/work-steps";
+import { parseRedPen, type RedPen } from "@/lib/learning/mock-exam/red-pen";
+import { createServiceClient } from "@/lib/supabase/server";
 
 export const metadata = { title: "Soru inceleme" };
 
@@ -19,6 +21,8 @@ type ReviewFeedback = {
   /** Çözümün satırları ve ilk hatalı satır (5 Kasım 2026). Eski kayıtta yok. */
   steps?: WorkStepVerdict[];
   firstError?: { line: number; kind?: WorkStepKind; note?: string };
+  /** Kırmızı Kalemli Hoca (Faz 7, 20 Kasım 2026): yeşil ve kırmızı satırlar. Eski kayıtta yok. */
+  redPen?: RedPen;
 };
 
 /** Açık uçlu notun ölçütleri (grade-exam: met / missed), puan notu (`step`) ve adımlar. Eski kayıtta yok. */
@@ -32,13 +36,15 @@ function reviewFeedback(raw: unknown): ReviewFeedback | null {
   const note = typeof row.step === "string" && row.step.trim() ? row.step.trim() : undefined;
   const steps = parseStoredSteps(row.steps);
   const firstError = steps.length ? parseStoredFirstError(row.firstError, steps) : null;
-  if (!met.length && !missed.length && !note && !steps.length) return null;
+  const redPen = parseRedPen(raw);
+  if (!met.length && !missed.length && !note && !steps.length && !redPen) return null;
   return {
     met,
     missed,
     ...(note ? { note } : {}),
     ...(steps.length ? { steps } : {}),
     ...(firstError ? { firstError } : {}),
+    ...(redPen ? { redPen } : {}),
   };
 }
 
@@ -72,12 +78,18 @@ export default async function ExamQuestionReviewPage({
     .limit(1)
     .maybeSingle();
 
+  // Faz 2 (madde 7.3): notlanmış kayıt yoksa (sınav sürüyor ya da hiç başlamadı) cevap anahtarı açılmaz; öğrenci
+  // sınavın kendisine döner. Eskiden inceleme adresi etkin sınavda bütün doğru cevapları gösteriyordu.
+  if (!attempt) redirect(`/deneme-sinavlari/${prepId}/deneme/${examId}`);
+
   // Analiz sınav biterken zaten üretilip kaydediliyordu ama hiçbir yerde
   // gösterilmiyordu: öğrenci yalnızca doğru/yanlış listesini görüyordu.
   const analysis = parseExamAnalysis(attempt?.analysis as string | null);
 
   const [{ data: questions }, { data: reviews }] = await Promise.all([
-    supabase
+    // Cevap anahtarı sütunları yalnız sunucu anahtarıyla okunur (göç 20261119150000). Buraya yalnız sınavın sahibi ve
+    // yalnız NOTLANMIŞ kayıtla gelinir (yukarıdaki iki kontrol); süren sınavda anahtar hiçbir yoldan açılmaz.
+    createServiceClient()
       .from("practice_exam_questions")
       .select("id, question_text, question_type, options, correct_answer, correct_answers, sort_order, rubric, model_answer")
       .eq("exam_id", examId)

@@ -3,7 +3,7 @@
  */
 
 import { parseExamPlace, parseExamTime } from "@/lib/learning/exam-time";
-import { parseSnoozedUntil, parseStoredExamResult, type StoredExamResult } from "@/lib/learning/exam-result";
+import { parseFeedbackAt, parseSnoozedUntil, parseStoredExamResult, type StoredExamResult } from "@/lib/learning/exam-result";
 
 export type PathNodeLike = {
   id: string;
@@ -93,6 +93,8 @@ export type LearningPreferencesView = {
    */
   examResult?: StoredExamResult;
   examResultSnoozedUntil?: string;
+  /** Sınav sonrası yorumunun verildiği an (Faz 7, 20 Kasım 2026); yorum tablosu ayrı, soru buna bakarak kapanır. */
+  examFeedbackAt?: string;
 };
 
 const CHOSEN_MODALITIES = ["reading", "listening", "watching", "practice"] as const;
@@ -146,6 +148,7 @@ export function parseLearningPreferences(raw: unknown): LearningPreferencesView 
   const examPlace = parseExamPlace(o.examPlace);
   const examResult = parseStoredExamResult(o.examResult);
   const examResultSnoozedUntil = parseSnoozedUntil(o.examResultSnoozedUntil);
+  const examFeedbackAt = parseFeedbackAt(o.examFeedbackAt);
   return {
     style,
     pace,
@@ -158,6 +161,7 @@ export function parseLearningPreferences(raw: unknown): LearningPreferencesView 
     ...(examPlace ? { examPlace } : {}),
     ...(examResult ? { examResult } : {}),
     ...(examResultSnoozedUntil ? { examResultSnoozedUntil } : {}),
+    ...(examFeedbackAt ? { examFeedbackAt } : {}),
   };
 }
 

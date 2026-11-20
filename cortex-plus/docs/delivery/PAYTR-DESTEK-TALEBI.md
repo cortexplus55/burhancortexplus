@@ -131,7 +131,27 @@ gösteriyor — eski talepler için tarih aralığını geri çekmek gerekiyor.
 fiyat sayfasını (`/fiyatlandirma`) gösteriyor, otomatik yenilemenin bugün
 olmadığını tekrar söylüyor.
 
-## Durum (8 Kasım 2026, panel okundu): PayTR bizden cevap bekliyor
+## Durum (20 Kasım 2026): test girişi yeniden gönderildi, PayTR'nin incelemesi bekleniyor
+
+Panelde "Destek Talepleriniz" (Mağaza 747272) 6–20 Kasım aralığında okundu:
+
+| Tarih | Kim | Ne |
+|---|---|---|
+| 8 Kasım 2026 02:14 | Biz (ürün sahibi, panelden) | Başvuru ve Evrak İşlemleri → Non3D(3D'siz Ödeme) Talebi; ürünler "Abonelik Yöntemi", "Kart Saklama". Test hesabı `cortextestt@gmail.com` ve giriş bilgisi + iki açık soru (PCI-DSS / SAQ seviyesi; "ilk ödeme 3D, yalnız yenilemeler Non3D") |
+| 8 Kasım 2026 08:09 | PayTR | "Mesajınız ilgili ekiplerimize yönlendirilmiştir" |
+| 9 Kasım 2026 10:23 | PayTR | **"E-posta veya şifre hatalı. Kontrol edip tekrar dene hatası vermektedir."** — inceleme ekibi test hesabına giremedi; bu cevap 11 gün fark edilmedi |
+| 20 Kasım 2026 23:05 | Biz (formu Claude doldurdu, şifreyi ve gönderimi ürün sahibi yaptı) | Aynı başlık ve ürünlerle yeni talep: giriş bilgileri ayrı satırlarda (önceki mesajda şifre cümle sonunda yazıldığı için noktanın karışmış olması muhtemel), iki soru yeniden |
+
+Hesap kontrolü (20 Kasım, salt okuma): `cortextestt@gmail.com` duruyor, e-postası onaylı, şifresi var, engelli değil;
+aynı gün başarılı giriş kaydı var. Supabase'in giriş denetim kaydı (`auth.audit_log_entries`) bu hesap için boş,
+yani 9 Kasım denemesinin kesin sebebi kayıttan okunamıyor.
+
+**Sıradaki:** PayTR'nin cevabını beklemek. Cevap 1-2 iş günü içinde gelmezse destek hattı (0232 335 05 55) aranır.
+Panel listesi açılışta yalnız son haftayı gösterir; geriye bakarken tarih aralığını en çok ~15 günlük pencerelerle
+değiştirin. Mesaj gövdesi şifre içerdiği için bu belgeye ya da depoya kopyalanmaz. İnceleme bitince test hesabının
+şifresi değiştirilir.
+
+## Durum (8 Kasım 2026, panel okundu): PayTR bizden cevap bekliyor (tarihçe; güncel durum yukarıda)
 
 Destek listesi 1 Eylül – 8 Kasım aralığında tek tek tarandı (liste bir seferde en
 çok ~15 günlük pencere gösteriyor). 9 Ekim'deki "test giriş bilgisi" isteğinden

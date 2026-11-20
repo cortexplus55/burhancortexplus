@@ -45,11 +45,21 @@ export function examPrepLessonRewriteHref(prepId: string, nodeId: string) {
 export function opensSavedLesson(input: {
   kind: string;
   status: string | null | undefined;
-  query: { incele?: string; tekrar?: string; farkli?: string; konu?: string };
+  query: { incele?: string; tekrar?: string; farkli?: string; konu?: string; yeni?: string };
 }): boolean {
   if (input.query.incele === "1") return true;
-  if (input.kind !== "lesson" || input.status !== "done") return false;
+  // Faz 4 (%100 ücretsiz yeniden çalışma): bitmiş test, doğru/yanlış, kart ve podcast da kaydından açılır; yeni
+  // üretim yalnız açık istekle (`?yeni=1`, "Yeni 8 Kart Üret (8 Kredi)"). Yazılı deneme önce karnesini gösterir.
+  if (input.status !== "done" || !SAVED_OPEN_KINDS.has(input.kind)) return false;
+  if (input.query.yeni === "1") return false;
   return input.query.tekrar !== "1" && input.query.farkli !== "1" && !input.query.konu?.trim();
+}
+
+const SAVED_OPEN_KINDS: ReadonlySet<string> = new Set(["lesson", "quiz", "true_false", "flashcards", "podcast"]);
+
+/** Faz 4: bitmiş adımda açık yeni üretim adresi ("Yeni 8 Kart Üret (8 Kredi)"). */
+export function examPrepRegenerateHref(prepId: string, nodeId: string) {
+  return `${examPrepNodeHref(prepId, nodeId)}?yeni=1`;
 }
 
 /** Bitmiş etkinliğin sonucu (kıyas ürünü: "Sonuçları gör" önceki sonucu açar, etkinliği baştan kurmaz). */
@@ -64,6 +74,21 @@ export function examPrepReviewsHref(prepId: string) {
 /** Günü gelen tekrar (20 Ekim 2026): bugünün oturumu; yolun dışında, yolu kilitlemez. */
 export function examPrepDueReviewHref(prepId: string) {
   return `/deneme-sinavlari/${prepId}/tekrar`;
+}
+
+/** Faz 4: ücretsiz hedefli tekrar (Zayıf / Gelişiyor / tuzak konuların kayıtlı soruları + Yanlışlar Defteri). */
+export function examPrepTargetedReviewHref(prepId: string) {
+  return `/deneme-sinavlari/${prepId}/tekrar?hedef=1`;
+}
+
+/** Faz 4: "Yolu Yeniden Çalış (Ücretsiz)" — bitmiş adımlar kayıttan, sıralı ya da karışık sırayla. */
+export function examPrepRestudyHref(prepId: string, order: "path" | "mixed" = "path") {
+  return `/deneme-sinavlari/${prepId}/yeniden${order === "mixed" ? "?sira=karisik" : ""}`;
+}
+
+/** Faz 4: yeni deneme sınavı kurulumu (başlatma + notlandırma tek seferde 17 kredi). */
+export function examPrepNewMockHref(prepId: string) {
+  return `/deneme-sinavlari/${prepId}/deneme/kurulum`;
 }
 
 export function examPrepAssessmentHref(prepId: string) {

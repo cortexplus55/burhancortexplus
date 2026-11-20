@@ -24,11 +24,14 @@ import {
   videoSystem,
   videoUserPrompt,
   videoVerifyUserPrompt,
+  videoDomain,
   type SketchDiagram,
   type SketchScript,
   type VideoInput,
   type VideoScript,
 } from "@/lib/learning/video-lesson";
+import type { AcademicDomain, VisualArchetype } from "@/lib/learning/visual-scenes/archetype";
+import type { ReelBeat, ReelVisual } from "@/lib/learning/visual-scenes/schema";
 
 /** Bir sahnenin saklanan hâli: anlatım, resim ve ses yolu, sesin süresi. */
 /** keyFact: resmin üstünde büyük yazılan kilit bilgi (18 Ekim 2026; eski videolarda yok). */
@@ -47,6 +50,11 @@ export type StoredVideoScene = {
   voice?: "ada" | "kerem";
   diagram?: SketchDiagram;
   visualSchema?: SketchDiagram;
+  /** Faz 1-B: 5 sahneli akıştaki yeri ve branşa özel SVG sahnesinin verisi (eski kayıtlarda yok). */
+  beat?: ReelBeat;
+  reel?: ReelVisual;
+  academicDomain?: AcademicDomain;
+  visualArchetype?: VisualArchetype;
 };
 
 type Issue = { scene: number; severity: "high" | "low"; problem: string; fix?: string };
@@ -107,10 +115,13 @@ export async function sketchScriptLoop(
   ask: AskJson,
   input: VideoInput,
 ): Promise<{ script: SketchScript | null; problems: string[] }> {
-  let script = parseSketchScript(await ask(sketchSystem(input.mode), videoUserPrompt(input)), input.topicLabel);
+  // Faz 1-B: disiplin kodla sınıflandırılır (model çağrısız); istem arketipin sahne şemasını taşır.
+  const domain = videoDomain(input);
+  const corpus = input.mode === "topic" ? undefined : [input.topicLabel, ...input.pages.map((page) => page.text)].join("\n");
+  let script = parseSketchScript(await ask(sketchSystem(input.mode, domain), videoUserPrompt(input)), input.topicLabel, domain);
   if (!script) return { script: null, problems: ["Senaryo kurulamadı."] };
   const review = async (draft: SketchScript) => {
-    const structural = sketchStructureIssues(draft);
+    const structural = sketchStructureIssues(draft, corpus);
     const factual = parseIssues(
       await ask(sketchVerifySystem(input.mode), `${videoUserPrompt(input)}\n\nSENARYO (JSON):\n${JSON.stringify(draft)}`),
     );
@@ -126,15 +137,24 @@ export async function sketchScriptLoop(
   let found = await review(script);
   if (found.all.length) {
     const fixed = parseSketchScript(
-      await ask(VIDEO_FIX_PREFIX + sketchSystem(input.mode), sketchFixUserPrompt(script, found.all, input)),
+      await ask(VIDEO_FIX_PREFIX + sketchSystem(input.mode, domain), sketchFixUserPrompt(script, found.all, input)),
       input.topicLabel,
+      domain,
     );
     if (fixed) {
       script = fixed;
       found = await review(script);
     }
   }
-  return found.high.length ? { script: null, problems: found.high } : { script, problems: [] };
+  if (found.high.length) return { script: null, problems: found.high };
+  return {
+    script: {
+      ...script,
+      academicDomain: script.academicDomain ?? domain.academicDomain,
+      visualArchetype: script.visualArchetype ?? domain.visualArchetype,
+    },
+    problems: [],
+  };
 }
 
 /**
@@ -227,8 +247,10 @@ async function synthesizeSketchReel(
         durationMs: voice.durationMs,
         sceneTitle: scene.sceneTitle,
         voice: scene.voice,
-        diagram: scene.diagram,
-        visualSchema: scene.diagram,
+        ...(scene.diagram ? { diagram: scene.diagram, visualSchema: scene.diagram } : {}),
+        ...(scene.beat && scene.reel ? { beat: scene.beat, reel: scene.reel } : {}),
+        ...(script.academicDomain ? { academicDomain: script.academicDomain } : {}),
+        ...(script.visualArchetype ? { visualArchetype: script.visualArchetype } : {}),
         ...(scene.formula ? { formula: scene.formula } : {}),
         ...(scene.keyFact ? { keyFact: scene.keyFact } : {}),
       };
@@ -259,6 +281,7 @@ export async function runVideoLesson(
     idempotencyKey: input.idempotencyKey,
     ...(input.sharedUsageCode ? { sharedUsageCode: input.sharedUsageCode } : {}),
     label: "teacher_video",
+    prepTitle: input.prepTitle,
     topic: input.topicLabel,
     work: async (ask) => {
       if (input.renderMode === "sketch_reel") {

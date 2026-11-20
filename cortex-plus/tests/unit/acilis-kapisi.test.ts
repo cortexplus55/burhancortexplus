@@ -45,7 +45,7 @@ describe("kapı betiği", () => {
     const source = pattern!.replace("${code}", "PRACTICE_EXAM_GENERATE").replace(/\\\\/g, "\\");
     const match = table.match(new RegExp(source));
     expect(Number(match?.[1])).toBe(CREDIT_PRICE_TABLE.PRACTICE_EXAM_GENERATE.credits);
-    expect(CREDIT_PRICE_TABLE.PRACTICE_EXAM_GENERATE.credits).toBe(15);
+    expect(CREDIT_PRICE_TABLE.PRACTICE_EXAM_GENERATE.credits).toBe(17);
   });
 
   /* Depo kökünden de çalışır (KREDI-SISTEMI.md (a): `node cortex-plus/scripts/acilis-kapisi.mjs --db`):

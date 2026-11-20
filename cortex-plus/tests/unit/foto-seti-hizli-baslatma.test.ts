@@ -257,7 +257,9 @@ describe("bağlantılar (kaynak bekçisi)", () => {
     expect(addSource.match(/clearPendingMaterials\(service, \{ prepId, userId, documentIds: requested \}\)/g)).toHaveLength(2);
     expect(read("src/lib/privacy/account-deletion.ts")).toContain(`"exam_prep_pending_materials"`);
     expect(read("src/components/parity/exam-prep-home.tsx")).toContain("<PendingMaterialsBanner prepId={prepId} initialPending={pendingMaterials} />");
-    expect(read("src/app/deneme-sinavlari/[prepId]/page.tsx")).toContain("pendingMaterials={await countPendingMaterials(service, { prepId, userId: user.id })}");
+    // Faz 2 (madde 2.3): sayım sayfanın paralel okuma turunda (eskiden JSX içinde ayrı bir await idi).
+    expect(read("src/app/deneme-sinavlari/[prepId]/page.tsx")).toContain("countPendingMaterials(service, { prepId, userId: user.id })");
+    expect(read("src/app/deneme-sinavlari/[prepId]/page.tsx")).toContain("pendingMaterials={pendingMaterials}");
   });
 
   it("telefon büyük seti imzalı yüklemeyle gönderir; ödevde fotoğraflar tek tek", () => {

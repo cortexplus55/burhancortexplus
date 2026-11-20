@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { freePreview } from "@/lib/billing/free-preview";
+import { billingExempt, freePreview } from "@/lib/billing/free-preview";
+import { planTier } from "@/lib/billing/entitlements";
 import { readFirstTopic } from "@/lib/billing/free-topic-gate";
 import { firstLessonCycleNode } from "@/lib/billing/free-topic-rule";
 
@@ -117,4 +118,30 @@ async function firstFreePrep(service: SupabaseClient, input: { userId: string; c
   const { data, error } = await query.limit(1);
   if (error) throw new Error("first_lesson_history_unreadable");
   return (data ?? []).length === 0;
+}
+
+/**
+ * Ücretsiz hesap süresiz ilk dersini kullandı mı (21 Kasım 2026, hazırlık silme onayı): hesap ücretsiz sayaçla bir yol
+ * adımı açmışsa silip yeniden kurduğu hazırlık "ilk" sayılmaz, dersleri Plus ister (`firstFreePrep` ile aynı kanıt).
+ * Ücretli hesapta, muafta ya da okuma düşerse false (uyarı yanlış yere çıkmasın).
+ */
+export async function freeFirstLessonUsed(service: SupabaseClient, userId: string): Promise<boolean> {
+  try {
+    if (await billingExempt(service, userId).catch(() => false)) return false;
+    const preview = await freePreview(service, userId).catch(() => null);
+    if (!preview && (await planTier(service, userId)) !== "free") return false;
+    let query = service
+      .from("credit_reservations")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("free_meter", "included")
+      .neq("status", "refunded")
+      .like("idempotency_key", PATH_STEP_KEY_PATTERN);
+    if (preview) query = query.gte("created_at", preview.startedAt);
+    const { data, error } = await query.limit(1);
+    if (error) return false;
+    return (data ?? []).length > 0;
+  } catch {
+    return false;
+  }
 }

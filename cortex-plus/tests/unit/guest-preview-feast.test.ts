@@ -8,7 +8,7 @@ import {
   WEEKLY_PLUS_PLAN_NAME,
   tierComparisonRows,
 } from "@/lib/billing/tier-presentation";
-import { HERO } from "@/lib/marketing/landing-content";
+import { HERO_FOOT } from "@/lib/marketing/landing-content";
 import { PLAN_ALLOWANCES, allowanceInWork } from "@/lib/credits/price-table";
 
 const read = (path: string) => readFileSync(path, "utf8").replace(/\r\n/g, "\n");
@@ -48,8 +48,8 @@ describe("misafir ön izleme şöleni", () => {
   });
 
   it("kayıt adım 1 ve 3 ile ana sayfa kahramanı /ornek'e gider", () => {
-    expect(HERO.secondary.href).toBe("/ornek");
-    expect(HERO.secondary.label).toMatch(/örnek bir dersi incele/i);
+    expect(HERO_FOOT.sample.href).toBe("/ornek");
+    expect(HERO_FOOT.sample.label).toMatch(/örnek dersi incele/i);
     const wizard = read("src/app/kayit/signup-wizard.tsx");
     expect(wizard.match(/href=\"\/ornek\"/g)?.length).toBeGreaterThanOrEqual(1);
     expect(wizard).toContain("PreviewLessonLink");
@@ -72,6 +72,10 @@ describe("paket adları tutarlı", () => {
     expect(landing).toContain('href="/fiyatlandirma"');
     expect(landing).toContain("Sigma Paketi");
     const sigma = allowanceInWork(PLAN_ALLOWANCES.sigmaMonthly);
-    expect(sigma).toEqual({ lessons: 2000, messages: 20000 });
+    // Faz 4: Sigma 14.500 kredi (ders 22, mesaj 1); şerit plan kartıyla aynı karşılığı yazar (`planWorkEquivalent`).
+    expect(sigma).toEqual({ lessons: 659, messages: 14500 });
+    // Faz 5 §4.2: şerit merkezi metinden okur (`PLAN_MARKETING_COPY`); orası `planWorkEquivalent` kullanır.
+    expect(landing).toContain("PLAN_MARKETING_COPY");
+    expect(read("src/lib/marketing/plan-copy.ts")).toContain("planWorkEquivalent(allowance)");
   });
 });

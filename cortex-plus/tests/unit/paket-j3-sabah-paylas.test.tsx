@@ -38,7 +38,7 @@ import {
 } from "@/lib/learning/prep-invite";
 import { PREP_SHARE_LABEL, isAbsoluteHttpUrl, prepInviteText, prepInviteWhatsappHref } from "@/lib/learning/prep-share";
 import {
-  EXAM_RESULT_ASK,
+  EXAM_FEEDBACK_TITLE,
   EXAM_RESULT_LATER,
   chooseExamBaseline,
   examDatePassed,
@@ -344,23 +344,23 @@ describe("Paket J3 #14 · sınıf grubuyla paylaşım", () => {
     expect(page).toContain("prepInviteSignupHref(token");
     expect(page).not.toMatch(/<Suspense|full_name/);
     expect(existsSync("src/app/hazirlik-davet/[token]/loading.tsx")).toBe(false);
-    // Hazırlık sayfası bağlantıyı sunucuda imzalar ve mutlak adresle verir.
-    const prepPage = read("src/app/deneme-sinavlari/[prepId]/page.tsx");
-    expect(prepPage).toContain("createPrepInviteToken(prep.id as string)");
-    expect(prepPage).toContain("prepInviteUrl(inviteToken)");
+    // 20 Kasım 2026 (Faz 7): bağlantıyı sayfa değil "Sınıfla Paylaş" ucu verir; paylaşım kodu yoksa (göç öncesi)
+    // imzalı davete düşer ve yine mutlak adresle verir.
+    const shareRoute = read("src/app/api/learning/exam-prep/share-code/route.ts");
+    expect(shareRoute).toContain("createPrepInviteToken(prepId)");
+    expect(shareRoute).toContain("prepInviteUrl(token)");
+    expect(shareRoute).toContain("isAbsoluteHttpUrl(url)");
   });
 
-  it("düğmeler hazırlık sayfasında: kâğıt bağlantısı ve WhatsApp adresi", () => {
-    render(<PrepShareTools prepId={PREP} inviteUrl="https://cortexplus.app/hazirlik-davet/x" whatsappHref="https://wa.me/?text=a" />);
+  it("yolun altında yalnız kâğıt; sınıfla paylaşımın tek girişi üst simgelerde", () => {
+    render(<PrepShareTools prepId={PREP} />);
     const cram = screen.getByText(CRAM_SHEET_TITLE).closest("a")!;
     expect(cram.getAttribute("href")).toBe(examPrepCramSheetHref(PREP));
-    const share = screen.getByText(PREP_SHARE_LABEL).closest("a")!;
-    expect(share.getAttribute("href")).toBe("https://wa.me/?text=a");
-    expect(share.getAttribute("target")).toBe("_blank");
-    cleanup();
-    render(<PrepShareTools prepId={PREP} inviteUrl={null} whatsappHref={null} />);
     expect(screen.queryByText(PREP_SHARE_LABEL)).toBeNull();
-    expect(screen.getByText(CRAM_SHEET_TITLE)).toBeTruthy();
+    expect(screen.queryByText(/WhatsApp/)).toBeNull();
+    const home = read("src/components/parity/exam-prep-home.tsx");
+    expect(home.match(/<ClassShareButton /g)?.length).toBe(1);
+    expect(home).not.toContain("PREP_SHARE_LABEL");
   });
 });
 
@@ -465,6 +465,8 @@ describe("Paket J3 #14 · sınav sonrası başarı kartı", () => {
     expect(route).toContain("next = { ...raw,");
   });
 
+  // Faz 7 (20 Kasım 2026): soru "🎓 Sınavın Nasıl Geçti?" formuna dönüştü (not + yorum, yeni uç); sayısal notta
+  // aynı başarı kartı çıkar, "henüz açıklanmadı" aynı ertelemeyi yapar.
   it("ekran: sorulur, yazılınca kart; 'henüz açıklanmadı' kartı kapatır", async () => {
     const calls: unknown[] = [];
     vi.stubGlobal(
@@ -472,23 +474,26 @@ describe("Paket J3 #14 · sınav sonrası başarı kartı", () => {
       vi.fn(async (_url: string, init?: RequestInit) => {
         const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
         calls.push(body);
-        const payload = body.later ? { ok: true, snoozed: true } : { ok: true, result: { score: body.score, baselinePct: 42 } };
+        const payload = body.later
+          ? { ok: true, snoozed: true }
+          : { ok: true, testimonialSaved: true, result: { score: Number(body.actualScore), baselinePct: 42 } };
         return new Response(JSON.stringify(payload), { status: 200, headers: { "Content-Type": "application/json" } });
       }),
     );
     render(<ExamResultCard prepId={PREP} due stored={null} landingUrl="https://cortexplus.app/" />);
-    expect(screen.getByText(`🎓 ${EXAM_RESULT_ASK}`)).toBeTruthy();
-    fireEvent.change(screen.getByLabelText("Sınav notu (0-100)"), { target: { value: "88" } });
-    fireEvent.click(screen.getByText("Kartımı oluştur"));
+    expect(screen.getByText(EXAM_FEEDBACK_TITLE)).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Sınav notun"), { target: { value: "88" } });
+    fireEvent.change(screen.getByLabelText("Kısa yorumun"), { target: { value: "İşime yaradı" } });
+    fireEvent.click(screen.getByText("Gönder"));
     expect(await screen.findByText("🎓 Başlangıç: %42 → Sınav Notu: 88 (+46 Puan Artış!)")).toBeTruthy();
-    expect(calls[0]).toEqual({ prepId: PREP, score: 88 });
+    expect(calls[0]).toMatchObject({ prepId: PREP, actualScore: "88", comment: "İşime yaradı", allowPublicShowcase: false });
     const share = screen.getByText("WhatsApp'ta paylaş").closest("a")!;
     expect(share.getAttribute("href")).toContain(encodeURIComponent("https://cortexplus.app/"));
     cleanup();
 
     render(<ExamResultCard prepId={PREP} due stored={null} landingUrl="https://cortexplus.app/" />);
     fireEvent.click(screen.getByText(EXAM_RESULT_LATER));
-    await vi.waitFor(() => expect(screen.queryByText(`🎓 ${EXAM_RESULT_ASK}`)).toBeNull());
+    await vi.waitFor(() => expect(screen.queryByText(EXAM_FEEDBACK_TITLE)).toBeNull());
     expect(calls[1]).toEqual({ prepId: PREP, later: true });
     cleanup();
 

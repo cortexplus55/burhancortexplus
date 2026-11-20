@@ -93,6 +93,9 @@ const healthyRows: Rows = {
   email_preferences: {},
   email_campaigns: {},
   referral_gift_days: {},
+  // 19 Kasım 2026 (Faz 4): kavrama politikası sütunu ve "Farklı anlat" önbelleği.
+  exam_prep_topic_mastery: {},
+  exam_prep_step_reexplains: {},
 };
 
 const healthy = () => service({ rows: healthyRows });
@@ -197,7 +200,9 @@ describe("diğer göç dosyaları", () => {
     // 7 Kasım 2026: +2 satır (onay kanıtı, çerez tercihi kaydı).
     // 7 Kasım 2026: +2 satır (e-posta ağı, davet günlük tavanı).
     // 11 Kasım 2026 akşamı: +1 satır (ücretsiz hesap = tek ders, SQL'deki ders sınırı).
-    expect(checks).toHaveLength(30);
+    // 19 Kasım 2026 (Faz 4): +1 satır (kavrama politikası ve Farklı anlat önbelleği; kritik değil).
+    expect(checks).toHaveLength(31);
+    expect(find(checks, "Faz 4 kavrama politikası")).toMatchObject({ ok: true, critical: false });
     expect(find(checks, "tek ders (SQL sınırı)")).toMatchObject({ ok: true, critical: false });
     expect(find(checks, "Kurucu rolü")).toMatchObject({ ok: true, critical: false });
     expect(find(checks, "Kredi kuralı satırları")).toMatchObject({ ok: true, critical: true });
@@ -216,8 +221,8 @@ describe("diğer göç dosyaları", () => {
     expect(find(checks, "Aralıklı tekrar").ok).toBe(true);
     expect(find(checks, "Yanılgı çözümü").ok).toBe(true);
     expect(find(checks, "Öğretmen analizi").ok).toBe(true);
-    expect(find(checks, "Kredi sistemi v2").detail).toBe("Mesaj 3, ders 30, podcast 12 kredi");
-    expect(find(checks, "Kredi v3").detail).toContain("ücretsiz ilk ders, günde 3 mesaj, 1 fotoğraf");
+    expect(find(checks, "Kredi sistemi v2").detail).toBe("Mesaj 1, ders 22, podcast 16 kredi");
+    expect(find(checks, "Kredi v3").detail).toContain("ücretsiz ilk ders, günde 3 mesaj, ayda 7 fotoğraf");
     expect(find(checks, "Kredi v3").detail).not.toContain("haftada");
     expect(find(checks, "Kredi v3").detail).toContain("günlük kredi 0");
     expect(find(checks, "Üretim işleri")).toMatchObject({ ok: true, critical: false });
@@ -244,7 +249,7 @@ describe("diğer göç dosyaları", () => {
     const checks = await probeSchema(sb);
     const v3 = find(checks, "Kredi v3");
     expect(v3).toMatchObject({ ok: false, critical: true });
-    expect(v3.detail).toContain("Ders 30 kredi");
+    expect(v3.detail).toContain(`Ders ${CREDIT_PRICE_TABLE.STUDY_PLAN_GENERATE.credits} kredi`);
     expect(v3.detail).not.toContain("free_usage yok");
     expect(v3.detail).toContain("günlük ücretsiz kredi 6 (0 olmalı: 20261024123000)");
     expect(checks.filter((check) => !check.ok).map((check) => check.name)).toEqual(["Kredi v3 ve ücretsiz sayaçlar"]);
@@ -293,7 +298,7 @@ describe("diğer göç dosyaları", () => {
     expect(find(oldPrice, "Kredi v3").detail).toContain("Ders 6 kredi");
     // 29 Ekim 2026: aynı fark bedel satırında da görünür (uyarı); satır eksik değil, kritik satır yeşil.
     expect(find(oldPrice, "Kredi bedeli kod ile canlı ayrışıyor")).toMatchObject({ ok: false, critical: false });
-    expect(find(oldPrice, "Kredi bedeli kod ile canlı ayrışıyor").detail).toContain("STUDY_PLAN_GENERATE: canlı 6, kod 30");
+    expect(find(oldPrice, "Kredi bedeli kod ile canlı ayrışıyor").detail).toContain("STUDY_PLAN_GENERATE: canlı 6, kod 22");
     expect(find(oldPrice, "Kredi kuralı satırları").ok).toBe(true);
     const noMeters = await probeSchema(service({ rows: { credit_rules: liveRules } }));
     expect(find(noMeters, "Kredi v3")).toMatchObject({ ok: false, critical: true });
@@ -311,7 +316,8 @@ describe("diğer göç dosyaları", () => {
     const checks = await probeSchema(
       service({
         rpcError: { message: "Could not find the function public.apply_payment_refund" },
-        rows: { credit_rules: { AI_CHAT_STANDARD: { credit_cost: 1 } } },
+        // Koddaki mesaj fiyatından farklı eski bir bedel (Faz 4'te mesaj 1 kredi).
+        rows: { credit_rules: { AI_CHAT_STANDARD: { credit_cost: CREDIT_PRICE_TABLE.AI_CHAT_STANDARD.credits + 2 } } },
       }),
     );
     expect(find(checks, "Kredi sistemi v2")).toMatchObject({ ok: false, critical: true });
