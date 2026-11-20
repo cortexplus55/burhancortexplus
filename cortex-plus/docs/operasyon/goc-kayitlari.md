@@ -54,7 +54,7 @@ kapalıyken bu satır hiç kullanılmaz.
 | | |
 |---|---|
 | Onaylayan | Burhan (sohbette, 15 Kasım 2026: "#683 … Göçünü uygulamayı ve PR'ı birleştirmeyi ONAYLIYORUM") |
-| Uygulama | 15 Kasım 2026, ~13:15 UTC (TR ~16:15); Supabase SQL ekranı, tek çalıştırma + kayıt satırı |
+| Uygulama | 15 Kasım 2026, ~13:20 UTC (TR ~16:20); Supabase SQL ekranı, tek çalıştırma + kayıt satırı |
 | Uygulayan | Claude, Burhan'ın onayıyla |
 | Değişen | Yalnız `public.match_document_chunks(uuid, vector, integer, double precision, uuid)` aynı imzayla yeniden tanımlandı; tablo, sütun ve veri değişmedi |
 
@@ -64,6 +64,20 @@ olmalı; docs/operasyon/disk-io.md).
 
 **Geri alma:** `20261031160000_part_search_parent.sql` dosyasının `CREATE OR REPLACE` bloğunu SQL ekranında yeniden
 çalıştırmak (göç değil; yalnız Burhan'ın kararıyla).
+
+## 20261115170000 · document_study_map (PR #686)
+
+| | |
+|---|---|
+| Onaylayan | Burhan (sohbette, 15 Kasım 2026: "#686 … Göçünü uygulamayı ONAYLIYORUM") |
+| Uygulama | 15 Kasım 2026, ~13:33 UTC (TR ~16:33); Supabase SQL ekranı, tek çalıştırma + kayıt satırı |
+| Uygulayan | Claude, Burhan'ın onayıyla |
+| Değişen | `public.documents`'a tek boş bırakılabilir sütun: `study_map jsonb` (açıklamasıyla). Var olan satırların hiçbir değeri değişmedi |
+
+**Doğrulama:** sütun `jsonb`, kayıt satırı 1, dolu satır 0 (harita ilk ihtiyaçta arka planda yazılır). Kod sütun yokken de
+çalışır; PR #686 birleşmeden önce uygulandı (sütunu okuyan kod yalnız `teacher.v2` açıkken çalışır).
+
+**Geri alma:** `ALTER TABLE public.documents DROP COLUMN study_map;` (yalnız Burhan; harita yeniden hesaplanabilir veridir).
 
 ## 20261119150000 · cevap_anahtari_okuma_kapat (PR #707)
 
