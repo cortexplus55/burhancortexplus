@@ -5,6 +5,7 @@
  */
 
 import { sourceCorrectionWarningSchema } from "@/lib/learning/source-correction";
+import { parseSubtopicList } from "@/lib/learning/subtopic-list";
 import { z } from "zod";
 import { lessonCheckHasAnswerKey } from "@/lib/learning/answer-key";
 import { diagramIssues, lessonDiagramSchema } from "@/lib/learning/lesson-diagram";
@@ -64,7 +65,29 @@ export type SessionTeachingMeta = {
   practiceVariant?: number;
   /** Öğrenciye yazılan süre. Yol, kapı ve ders çubuğu aynı sayıyı okur. */
   activityMinutes?: number;
+  /**
+   * Ana ünite dersinin alt başlıkları (Faz 10, 20 Kasım 2026). Yalnız ünite modelli hazırlığın ders düğümünde. Bölünmüş
+   * ünitede bu derse düşen alt başlıklar; ders motoru `lessonSubtopics ?? exam_prep_topics.subtopics` okur, ikisi de
+   * yoksa ders bugünkü gibi yazılır.
+   */
+  lessonSubtopics?: string[];
+  /** Ana ünite oturumunun belge başına sayfaları (Faz 10): çekirdek belge + öbür belgelerin yardımcı sayfaları. */
+  unitSources?: { documentId: string; pages: number[] }[];
 };
+
+/** Oturum alanındaki belge başına sayfa listesini güvenle okur (bozuk satır atlanır). */
+export function parseUnitSources(raw: unknown): { documentId: string; pages: number[] }[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const row = item as { documentId?: unknown; pages?: unknown };
+    if (typeof row.documentId !== "string" || !row.documentId || !Array.isArray(row.pages)) return [];
+    const pages = [...new Set(row.pages.filter((page): page is number => Number.isInteger(page) && (page as number) > 0))].sort(
+      (a, b) => a - b,
+    );
+    return pages.length ? [{ documentId: row.documentId, pages }] : [];
+  });
+}
 
 export type MisconceptionDraft = {
   claim: string;
@@ -100,6 +123,8 @@ export function parseSessionMeta(raw: unknown): SessionTeachingMeta | null {
     row.role === "mock"
       ? row.role
       : undefined;
+  const lessonSubtopics = parseSubtopicList(row.lessonSubtopics);
+  const unitSources = parseUnitSources(row.unitSources);
   return {
     topicId: typeof row.topicId === "string" ? row.topicId : undefined,
     topicTitle: typeof row.topicTitle === "string" ? row.topicTitle : undefined,
@@ -118,6 +143,9 @@ export function parseSessionMeta(raw: unknown): SessionTeachingMeta | null {
       typeof row.activityMinutes === "number" && Number.isFinite(row.activityMinutes) && row.activityMinutes > 0
         ? Math.round(row.activityMinutes)
         : undefined,
+    // Ana ünite alanları yalnız varsa (eski düğümün okunuşu değişmez).
+    ...(lessonSubtopics.length ? { lessonSubtopics } : {}),
+    ...(unitSources.length ? { unitSources } : {}),
   };
 }
 

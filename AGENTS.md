@@ -687,7 +687,7 @@ denenir"), `podcast-audio-once.test.tsx` ("kendiliğinden yeniden").
 | Konu | Karar |
 |---|---|
 | Okulum'da hazırlık paylaşımı | **İsteğe bağlı kalır** (Astra'da varsayılan açık); belgeden çıkan hazırlık okul listesine kendiliğinden düşmez |
-| Konu sayısı (#247, "her sayfa tek konuya") | **Gevşetilmez.** KPSS 30 sayfa → 16 konu (Astra 6); bütün bölümler yolda, ilk ders Cortex 88 / Astra 78 |
+| Konu sayısı (#247, "her sayfa tek konuya") | **Gevşetilmez.** KPSS 30 sayfa → 16 konu (Astra 6); bütün bölümler yolda, ilk ders Cortex 88 / Astra 78. **20 Kasım 2026: yeni hazırlıklarda değişti** (ana ünite modeli, ince konular alt başlık; "Ana ünite modeli" bölümü) |
 | "Beceri ağacı" görünümü | **Eklenmez**: İlerleme'deki konu listesi aynı bilgiyi veriyor |
 | Ruh hali kartı | Günde bir kez (#340) — derste art arda iki onay kartı da kalktı |
 
@@ -2929,3 +2929,31 @@ adım, fark vitrini ve SSS satırlarını **bilerek** değiştirir. Yeniden açm
 
 Bekçi: `ders-cekirdegi.test.ts`, `faz9-kahraman-formul.test.tsx`, `landing-showcase.test.ts`, `guest-demo-tracks-ui.test.tsx`, `fark-akordeon.test.tsx`, `hukuk-sahne-faz9.test.tsx`,
 `sinematik-ana-sayfa.test.tsx`, `marketing-claims.test.ts`; e2e `ders-cekirdegi.spec.ts`, `faz9-kahraman.spec.ts`, `ana-sayfa-akordeon.spec.ts`, `brans-demo.spec.ts`, `donusum.spec.ts`, `mufredat.spec.ts`.
+
+## Ana ünite modeli ve derin ünite dersi (20–21 Kasım 2026, Faz 10)
+
+Ürün sahibinin kararları (20 Kasım 2026): **ana ünite modeli** (yeni hazırlığın yolu az sayıda tam ünite; konu haritasının
+ince konuları ünitenin alt başlığı), ücretsiz hesapta **1. ünite açık**, sıra **belge sırası + önkoşul**, canlı ölçüm en çok
+3 $. **19 Ekim'in "konu sayısı gevşetilmez" (#247) kararı YENİ hazırlıklar için bilerek değişti**; eski hazırlıkların satırları
+(alt başlıksız) bugünkü gibi çalışır ve rota sözleşme anlık görüntüleri değişmedi. Göç `20261121120000_faz10_unite_alt_baslik.sql`
+**kod yayınından sonra** (yalnız ekler; kod onsuz çalışır, alt başlıklar düğümün `session_meta.lessonSubtopics` alanında durur).
+Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| **Gürültü sayfası ünite açmaz ve etkin sayfaya sayılmaz:** kapak, boş, içindekiler, cevap anahtarı (başlıksız "1-A 2-C …" ızgarası da), kaynakça (başlığı sayfanın başında ya da satırların ≥%60'ı künye), yalnız başlık taşıyan slayt. Yeni türler veritabanının `page_kind` CHECK listesine çevrilerek yazılır (`storedPageKind`: kaynakça → `answer_key`, yalnız başlık → `uncertain`); göç gerekmez | `page-analysis.ts` (`noisePageKind`, `classifyPageKind`, `pageUsableForLesson`) |
+| **Ünite bandı etkin sayfadan:** 1–6 sayfa 1–3 ünite, 7–15 → 3–5, 16–35 → 5–8, 36–80 → 8–12, 81+ → 10–15, **sert tavan 15** (`MAX_MAIN_UNITS`). Ölçülmemiş sayfa 1.000 karakter sayılır | `topic-consolidation.ts` (`unitCountBand`, `effectivePageCount`) |
+| **Birleştirme saf ve belirlenimci** (`consolidateFragmentedTopics`, model yok, kod başlık yazmaz): (1) bütün sayfaları gürültü konu düşer, (2) modelin üniteleri, (3) aynı tema (farklı dosyalarda aynı ad, biri öbürünün konusu, konuların yarısı ortak), (4) aynı üst başlığın numaralı parçaları, (5) mikro ünite (< 600 karakter tek sayfa/slayt) en yakın üniteye, (6) tavanın üstünde en küçük + en ilgili iki ünite, (7) tabanın altında en büyük çok konulu ünite ikiye, (8) fotoğraf seti ya da çok belgeli kursta öğrenme basamağı 1–4 (kararlı; basamağı eksik ünite varsa sıra kalır). Birleşmede büyüğün adı kalır, küçüğün adı alt başlık olur; hiçbir kaynak, sayfa ya da alt başlık kaybolmaz | `topic-consolidation.ts` |
+| **Ünite satırı:** `exam_prep_topics.subtopics` (jsonb, en çok 24 ad), `source_refs` yaprak başına, `document_topic_node_id` = ilk yaprak. 12 öğretilebilir sayfayı geçen ünite alt başlık gruplarıyla ardışık derslere bölünür (`unitLessonGroups`, `UNIT_LESSON_MAX_PAGES`); ders düğümü kendi kısmını taşır (`session_meta.lessonSubtopics`, `unitSources`, `lessonPart/lessonParts`). Sihirbaz ünite + alt başlıkları gösterir | `unit-topic-row.ts`, `exam-schedule-v2.ts`, `intake-outline.ts` (`loadIntakeMainUnits`), `exam-wizard-copy.ts` (`unitSubtopicsToShow`) |
+| **Derin ünite dersi:** yazar ve kapsam denetçisi aynı `SUBTOPIC_COVERAGE_CONTRACT`'ı okur (her alt başlık en az bir odaklı ekran, alt başlıklar arasında kontrol sorusu, kaynaktaki formül/istisna/eşik düşmez). Derinlik alt başlık sayısından: 1–2 → 4–5 ekran, 3–4 → 6–8, 5+ → 8–11 (`lessonDepthForSubtopics`). Kapanışta işlenmemiş alt başlık (`uncoveredSubtopics`, omurgayla aynı kök ölçüsü) yalnız eksikler için tek tamamlama çağrısı açar (`completeLessonCoverage`; ders en çok 16 ekran). Bölünmüş ünitenin öbür derslerinin ve öbür ünitelerin alt başlıkları bu derste bölüm olmaz (`excludedSubtopics`, `EXCLUDED_SIBLING` sınırı). Alt başlıksız derste (eski hazırlık) hiçbir istem değişmez | `lesson-subtopics.ts`, `subtopic-list.ts`, `teacher-lesson.ts`, `teacher-lesson-run.ts` |
+| **Ünite dersi bütün sayfalarını okur:** "en uzun 6 ardışık sayfa" kırpması (`corePageRun`) yalnız tek konulu derste; ünite dersi ve ders podcast'i `unitLessonPages` (sıralı, en çok 12) | `core-pages.ts`, `node/lesson.ts`, `prep-topic-source.ts` |
+| **Sonradan materyal eklemede ünite tutarlılığı:** gelen ünite var olan üniteyle aynı temadaysa (`sameUnitTheme`) ona katılır, yeni küçük ünite açılmaz. **Tavan 15 burada da:** tavanı aşacak ünite en ilgili üniteye (`unitRelatedness`, ad + alt başlık sözcük örtüşmesi; örtüşme yoksa yolun son ünitesi) ya da aynı eklemenin yeni ünitesine katılır. Katılan içerik ünitenin **açık son dersine** ancak o dersin kaynağı 12 sayfayı geçmeyecekse eklenir; geçecekse ya da ünitenin bütün dersleri bitmişse ünitenin son dersinden ve son bitmiş adımından sonra **yeni ders adımları** açılır ("Ünite · Ders N: alt başlıklar"; bitmemiş test arkada kalır). Bitmiş adım, puan, hâkimiyet ve hazırlık skoru değişmez; hiçbir sayfa düşmez. Yeni ders düğümleri ünitenin satır kimliğini (`session_meta.topicId`) taşır; kimliği olmayan eski "Materyal ekle" düğümü adıyla eşlenir | `prep-add-material.ts`, `prep-attach.ts` (`unitNodeRefreshes`, `nodeOfTopic`) |
+| Sınıf klonu (Faz 7) ünitenin alt başlık adlarını da kopyalar (sütun yoksa alt başlıksız; belge, kaynak, cevap yine kopyalanmaz) | `prep-invite-store.ts` |
+
+Bilinen açıklar (ürün kararı ya da ayrı iş): belgesi olmayan klon hazırlığın konu modlu dersi alt başlıkları okumaz (kaynak
+çözücüsü koşmaz; rota sözleşmesini değiştirirdi); önceden yazılmış ders, ünitenin alt başlıkları sonradan değişirse
+atılmaz; materyal eklemenin yeni ders düğümleri `schedule_v2` takvim kaydına yazılmaz (yeniden planlama eskiden de
+yalnız takvimdeki oturumlardan kurulur).
+
+Bekçi: `multi-source-topic-consolidation.test.ts` (sentetik karma kaynak: bant, birleştirme adımları, gürültü, basamak sırası,
+materyal ekleme tavanı ve sayfa kaybı), `unite-alt-konu-dersi.test.ts`, `node-route-contract.test.ts`, e2e `unite-alt-baslik.spec.ts`.

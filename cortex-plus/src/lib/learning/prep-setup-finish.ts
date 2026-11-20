@@ -66,7 +66,7 @@ async function applySetupWritesRowByRow(
     if (outcome.failed) ok = false;
   }
   await runPool(input.topics, WRITE_LANES, async (topic) => {
-    const { id, source_refs, contradictions, ...core } = topic;
+    const { id, source_refs, contradictions, subtopics, ...core } = topic;
     if (Object.keys(core).length) {
       const write = await service.from("exam_prep_topics").update(core).eq("id", id);
       if (write.error) ok = false;
@@ -79,6 +79,14 @@ async function applySetupWritesRowByRow(
       const extraWrite = await service.from("exam_prep_topics").update(extras).eq("id", id);
       if (extraWrite.error && !missingColumn(extraWrite.error)) {
         console.error("topic sources", extraWrite.error.message);
+        ok = false;
+      }
+    }
+    // Alt başlıklar ayrı yazılır: sütun yoksa (göç uygulanmadı) kaynaklar yine yazılmış olur.
+    if (subtopics?.length) {
+      const subWrite = await service.from("exam_prep_topics").update({ subtopics }).eq("id", id);
+      if (subWrite.error && !missingColumn(subWrite.error)) {
+        console.error("topic subtopics", subWrite.error.message);
         ok = false;
       }
     }

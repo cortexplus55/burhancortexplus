@@ -22,6 +22,28 @@ export type OutlineTopicPerspective = {
 const WEIGHT_PREFIX = "exam_weight:";
 const COURSE_PREFIX = "course:";
 const ORIGIN_PREFIX = "origin:";
+const STAGE_PREFIX = "stage:";
+
+/**
+ * Ünitenin öğrenme basamağı (Faz 10, 20 Kasım 2026): 1 temel kavramlar ve tanımlar, 2 ana mekanizma / kuram / yapı,
+ * 3 hesaplama / uygulama / süreç, 4 istisnalar, özel durumlar, ileri sentez. Konu haritası yazar; ünite düğümünün
+ * `key_relations` alanında durur (göç yok). Yalnız fotoğraf setinde ve çok belgeli kursta sırayı belirler.
+ */
+export type UnitStage = 1 | 2 | 3 | 4;
+
+export function packStageRelation(stage: UnitStage): string {
+  return `${STAGE_PREFIX}${stage}`;
+}
+
+export function readStageFromRelations(relations: unknown): UnitStage | null {
+  if (!Array.isArray(relations)) return null;
+  for (const item of relations) {
+    if (typeof item !== "string" || !item.startsWith(STAGE_PREFIX)) continue;
+    const stage = Number(item.slice(STAGE_PREFIX.length));
+    return stage === 1 || stage === 2 || stage === 3 || stage === 4 ? stage : null;
+  }
+  return null;
+}
 
 /** Unit nodes of one course outline share this tag across its documents. */
 export function packCourseRelation(courseId: string): string {

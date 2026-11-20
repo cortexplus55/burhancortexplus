@@ -104,6 +104,8 @@ export type ExamWizardDraft = {
       important: boolean;
       sections: string[];
       unitTitle?: string | null;
+      /** Ana ünitenin alt başlıkları (Faz 10). */
+      subtopics?: string[];
     }[];
   };
   title: string;

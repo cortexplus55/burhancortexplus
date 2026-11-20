@@ -1,15 +1,31 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { schedulePriorityForTopic } from "@/lib/learning/exam-coverage";
-import type { ScheduleBuildResult, ScheduleTopicInput } from "@/lib/learning/exam-schedule-v2";
+import type {
+  ScheduleBuildResult,
+  ScheduleLessonGroup,
+  ScheduleSession,
+  ScheduleTopicInput,
+} from "@/lib/learning/exam-schedule-v2";
+import { missingColumn } from "@/lib/learning/missing-column";
+import type { TopicSourceRef } from "@/lib/learning/topic-merge";
 import type { MeasuredLevel } from "@/lib/learning/diagnostic";
 import { examWeightToEmphasis, isHighExamWeight, unpackTopicPerspective } from "@/lib/documents/outline-topic-meta";
 import { parseTopicSourceRefs, toTopicSourceRef } from "@/lib/learning/topic-source-refs";
 import { consolidatePrepDocuments } from "@/lib/learning/consolidate-documents";
-import { loadOneshotIntakeTopics } from "@/lib/learning/intake-outline";
+import {
+  loadConsolidationDocuments,
+  loadIntakeMainUnits,
+  loadOneshotIntakeTopics,
+  type IntakeMainTopic,
+} from "@/lib/learning/intake-outline";
 import { priorityFromImportance, priorityFromWeight } from "@/lib/learning/cross-material-topics";
 import { orderTopicsForPath } from "@/lib/learning/topic-order";
 import { parseTeacherAnalysis, type TeacherAnalysis } from "@/lib/learning/teacher-brain";
+import { readScopeExclusionPhrases } from "@/lib/learning/scope-exclusion-read";
+import { unitLessonGroups, type UnitLessonPart } from "@/lib/learning/topic-consolidation";
+import { parseSubtopics } from "@/lib/learning/unit-topic-row";
+import { parseUnitSources } from "@/lib/learning/teaching-standards";
 
 export type PrepScheduleTopics = {
   titles: string[];
@@ -19,7 +35,47 @@ export type PrepScheduleTopics = {
    * Konular sihirbazın gösterdiği haritadan geldi: sıra öğretim sırasıdır, yeniden dizilmez.
    */
   fromOutline?: boolean;
+  /** Ana ünite modeli (Faz 10): her konu bir ana ünite, ince konular `subtopics`. */
+  mainUnits?: boolean;
 };
+
+/**
+ * Ana ünitelerin takvim girdisi (Faz 10). Sıra birleştirmenin sırasıdır (belge sırası ya da öğrenme basamağı); kimlik
+ * ünitenin ilk yaprağı (eski konu satırı gibi `document_topic_node_id`). Ünite 12 öğretilebilir sayfayı aşıyorsa
+ * `lessonGroups` ardışık dersleri taşır.
+ */
+function mainUnitScheduleTopics(
+  topics: readonly IntakeMainTopic[],
+  hardSet: ReadonlySet<string>,
+  groups: { documentId: string; analysis: TeacherAnalysis }[],
+): PrepScheduleTopics {
+  const scheduleTopics: ScheduleTopicInput[] = topics.map((topic) => ({
+    id: topic.nodeIds[0] ?? topic.title,
+    title: topic.title,
+    objective: topic.subtopics.join(" · ") || null,
+    prerequisites: topic.prerequisites,
+    pageNumbers: topic.pages,
+    measuredLevel: "unknown",
+    selfHard: [topic.title, ...topic.subtopics].some((title) => hardSet.has(fold(title))),
+    priority:
+      priorityFromWeight(topic) ??
+      priorityFromImportance(topic.importance) ??
+      schedulePriorityForTopic(groups, topic.title),
+    weightPercent: topic.weightPercent,
+    examHeavy: topic.examHeavy,
+    importance: topic.importance,
+    sourceRefs: topic.sources,
+    subtopics: [...topic.subtopics],
+    ...(topic.lessonGroups.length > 1 ? { lessonGroups: topic.lessonGroups.map((group) => ({ ...group })) } : {}),
+  }));
+  return {
+    titles: topics.map((topic) => topic.title),
+    nodeIds: topics.map((topic) => topic.nodeIds[0] ?? null),
+    scheduleTopics,
+    fromOutline: true,
+    mainUnits: true,
+  };
+}
 
 /**
  * Hazırlıktaki bütün belgelerin konularını tek listeye indirir.
@@ -37,6 +93,15 @@ export async function loadScheduleTopics(
    * kullanıcıya göre süzülüyor (#134), boş kimlik hiçbir belge bulamayıp `documents_unavailable` fırlatıyordu.
    */
   userId: string,
+  /**
+   * Ana ünite modeli (Faz 10): yeni hazırlığın kurulumu ve ünite modelli hazırlığa materyal ekleme. Verilmezse (eski
+   * hazırlığa ekleme) ince konular bugünkü gibi ayrı konu.
+   */
+  options: {
+    mainUnits?: boolean;
+    /** İnce konu süzgeci, ünite kurulmadan önce (sonradan eklenen büyük belgenin baş sayfaları). */
+    keepLeaf?: (leaf: { sources: TopicSourceRef[] }) => boolean;
+  } = {},
 ): Promise<PrepScheduleTopics> {
   const hardSet = new Set(hardTopics.map((topic) => topic.trim().toLocaleLowerCase("tr")));
   const groups: { documentId: string; analysis: TeacherAnalysis }[] = [];
@@ -51,6 +116,17 @@ export async function loadScheduleTopics(
       if (!analysis) continue;
       groups.push({ documentId: row.document_id as string, analysis });
     }
+  }
+
+  // Ana ünite modeli (Faz 10): sihirbazın gösterdiği üniteler aynı işlevden; belgenin kapsam dışı dediği ince konu
+  // üniteye girmez. Harita hazır değilse (eski / düz harita) aşağıdaki eski yol.
+  if (options.mainUnits && userId) {
+    const phrases = await readScopeExclusionPhrases(service, documentIds).catch(() => [] as string[]);
+    const main = await loadIntakeMainUnits(service, userId, documentIds, {
+      exclusionPhrases: phrases,
+      ...(options.keepLeaf ? { keepLeaf: options.keepLeaf } : {}),
+    }).catch(() => null);
+    if (main) return mainUnitScheduleTopics(main.topics, hardSet, groups);
   }
 
   // Sihirbaz konuları kurs haritasından gösteriyor (intake: loadOneshotIntakeTopics, "model sırası
@@ -186,15 +262,23 @@ export async function loadPrepScheduleTopics(
     }
   }
 
-  const { data: rows } = await service
+  // Ana ünite satırı (Faz 10) alt başlıklarıyla okunur; sütun yoksa (göç uygulanmadı) eski seçim.
+  const select = "id, label, sort_order, document_topic_node_id, source_refs, measured_level";
+  const rich = await service
     .from("exam_prep_topics")
-    .select("id, label, sort_order, document_topic_node_id, source_refs, measured_level")
+    .select(`${select}, subtopics`)
     .eq("exam_prep_id", input.prepId)
     .order("sort_order");
+  const rows = (
+    rich.error && missingColumn(rich.error)
+      ? (await service.from("exam_prep_topics").select(select).eq("exam_prep_id", input.prepId).order("sort_order")).data
+      : rich.data
+  ) as Record<string, unknown>[] | null;
   const nodeIds = (rows ?? [])
     .map((row) => row.document_topic_node_id)
     .filter((id): id is string => typeof id === "string");
   const extras = await loadTopicNodeExtras(service, nodeIds);
+  const unitLessons = previousUnitLessons(sessions);
 
   const out: ScheduleTopicInput[] = [];
   const used = new Set<string>();
@@ -217,6 +301,27 @@ export async function loadPrepScheduleTopics(
     const measured = MEASURED.includes(row.measured_level as MeasuredLevel)
       ? (row.measured_level as MeasuredLevel)
       : "unknown";
+    // Ana ünite (Faz 10): alt başlıklar satırdan (göçten önce kurulduysa önceki ders oturumlarından); ünitenin bütün
+    // sayfaları; dersler önceki takvimin grupları (kaynak değişmediyse) ya da yeniden hesaplanır. Kavram birimi yok.
+    const previousUnit = unitLessons.get(id);
+    const subtopics = parseSubtopics(row.subtopics).length ? parseSubtopics(row.subtopics) : (previousUnit?.subtopics ?? []);
+    if (subtopics.length) {
+      const unitPages = [...new Set(refs.flatMap((ref) => ref.pages))].sort((a, b) => a - b);
+      const lessonGroups = await unitLessonGroupsForRow(service, refs, previousUnit?.groups ?? []);
+      out.push({
+        id,
+        title,
+        objective: subtopics.join(" · "),
+        pageNumbers: unitPages.length ? unitPages : pages,
+        sourceRefs: refs.map(toTopicSourceRef),
+        measuredLevel: measured,
+        selfHard: [title, ...subtopics].some((item) => hardSet.has(fold(item))),
+        subtopics,
+        ...(lessonGroups.length > 1 ? { lessonGroups } : {}),
+        ...(node ? { examHeavy: node.examHeavy, importance: node.importance, prerequisites: node.prerequisites } : {}),
+      });
+      continue;
+    }
     out.push({
       id,
       title,
@@ -246,4 +351,78 @@ export async function loadPrepScheduleTopics(
     });
   }
   return out;
+}
+
+type UnitLessonRecord = { subtopics: string[]; groups: ScheduleLessonGroup[] };
+
+/** Önceki takvimin ana ünite dersleri (konu kimliği → alt başlıklar ve ders grupları, ders sırasıyla). */
+function previousUnitLessons(sessions: readonly ScheduleSession[]): Map<string, UnitLessonRecord> {
+  const out = new Map<string, UnitLessonRecord & { parts: { part: number; group: ScheduleLessonGroup }[] }>();
+  for (const session of sessions) {
+    if (session.role !== "learn" || !Array.isArray(session.lessonSubtopics) || !session.lessonSubtopics.length) continue;
+    const record = out.get(session.topicId) ?? { subtopics: [], groups: [], parts: [] };
+    for (const title of session.lessonSubtopics) {
+      if (typeof title === "string" && title.trim() && !record.subtopics.includes(title.trim())) record.subtopics.push(title.trim());
+    }
+    const sourceRefs = parseUnitSources(session.unitSources);
+    if (sourceRefs.length) {
+      record.parts.push({ part: session.lessonPart ?? 1, group: { subtopics: [...session.lessonSubtopics], sourceRefs } });
+    }
+    out.set(session.topicId, record);
+  }
+  return new Map(
+    [...out].map(([id, record]) => [
+      id,
+      { subtopics: record.subtopics, groups: record.parts.sort((a, b) => a.part - b.part).map((item) => item.group) },
+    ]),
+  );
+}
+
+/** Belge başına sayfa kümesi (karşılaştırma için anahtar). */
+function pageSetKey(refs: readonly { documentId: string; pages: readonly number[] }[]): string {
+  const byDoc = new Map<string, Set<number>>();
+  for (const ref of refs) {
+    const set = byDoc.get(ref.documentId) ?? new Set<number>();
+    for (const page of ref.pages) set.add(page);
+    byDoc.set(ref.documentId, set);
+  }
+  return [...byDoc]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([documentId, pages]) => `${documentId}:${[...pages].sort((x, y) => x - y).join(",")}`)
+    .join("|");
+}
+
+/**
+ * Ana ünitenin dersleri (yeniden planlama): önceki takvimin grupları ünitenin bugünkü kaynağını tam kapsıyorsa onlar
+ * (aynı dersler, aynı adlar); kaynak değiştiyse (materyal eklendi) ya da grup yoksa yapraklardan yeniden hesaplanır
+ * (kurulumla aynı işlev, `unitLessonGroups`). Okuma düşerse tek ders.
+ */
+async function unitLessonGroupsForRow(
+  service: SupabaseClient,
+  refs: ReturnType<typeof parseTopicSourceRefs>,
+  previous: readonly ScheduleLessonGroup[],
+): Promise<ScheduleLessonGroup[]> {
+  const rowKey = pageSetKey(refs);
+  if (previous.length && pageSetKey(previous.flatMap((group) => group.sourceRefs)) === rowKey) return [...previous];
+  const nodeIds = [...new Set(refs.map((ref) => ref.nodeId).filter((id): id is string => Boolean(id)))];
+  if (!nodeIds.length) return [];
+  try {
+    const [{ data: nodes }, measured] = await Promise.all([
+      service.from("document_topic_nodes").select("id, title").in("id", nodeIds),
+      loadConsolidationDocuments(
+        service,
+        [...new Set(refs.map((ref) => ref.documentId))].map((documentId) => ({ documentId, fileName: "" })),
+      ),
+    ]);
+    const titleOf = new Map((nodes ?? []).map((row) => [row.id as string, String(row.title ?? "").trim()]));
+    const usable = new Map((measured ?? []).map((doc) => [doc.documentId, new Set(doc.usablePages)]));
+    const parts: UnitLessonPart[] = refs.map((ref) => ({
+      title: (ref.nodeId ? titleOf.get(ref.nodeId) : "") || "",
+      documentId: ref.documentId,
+      pages: ref.pages,
+    }));
+    return unitLessonGroups(parts, (documentId) => usable.get(documentId) ?? null);
+  } catch {
+    return [];
+  }
 }

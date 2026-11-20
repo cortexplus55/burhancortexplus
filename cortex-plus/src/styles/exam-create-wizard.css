@@ -1522,6 +1522,36 @@
   line-height: 1.35;
 }
 
+/* Ana ünitenin alt başlıkları (Faz 10): ünitenin altında küçük, ince çizgiyle bağlı liste. */
+.apw-topic-subtopics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.5rem;
+  margin: 0.15rem 0 0;
+  padding: 0 0 0 0.6rem;
+  list-style: none;
+  border-left: 2px solid color-mix(in srgb, var(--cp-text) 14%, transparent);
+  font: var(--t-label-13);
+  color: var(--cp-muted);
+}
+
+/* Konu kartının `li` kuralı (kenar, zemin, iç boşluk) iç içe listeye inmesin. */
+.apw-topics .apw-topic-subtopics li {
+  display: block;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  overflow-wrap: anywhere;
+}
+
+.apw-topics .apw-topic-subtopics li + li::before {
+  content: "·";
+  margin-right: 0.5rem;
+  opacity: 0.6;
+}
+
 .apw-excluded,
 .apw-missing {
   display: grid;

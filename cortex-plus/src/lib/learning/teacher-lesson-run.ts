@@ -17,8 +17,8 @@ import { runLessonSanity } from "@/lib/learning/lesson-sanity";
 import { guardLessonForCorrection, guardScreensForCorrection } from "@/lib/learning/lesson-correction-guard";
 import { levelFromCalibrationBlock, type PedagogicalLevel } from "@/lib/learning/pedagogical-profile";
 import {
-  COVERAGE_COMPLETION_SCREENS,
   DIAGRAM_COMPLETION_SYSTEM,
+  coverageCompletionScreens,
   coverageCompletionUserPrompt,
   coverageGapCount,
   dedupScreens,
@@ -51,6 +51,7 @@ import {
   type TeacherLessonInput,
 } from "@/lib/learning/teacher-lesson";
 import { classifyAcademicDomain, type DomainClassification } from "@/lib/learning/visual-scenes/archetype";
+import { uncoveredSubtopics } from "@/lib/learning/lesson-subtopics";
 
 /*
   Öğretmen ders motoru, akışlı (18 Ekim 2026, ürün sahibinin kararı: "ders ~10 sn'de açılsın,
@@ -166,9 +167,25 @@ export async function completeLessonVisualScene(
 
 /** Kapsam tamamlama çağrısının tavanı: yalnız eksik kısımları öğreten en çok iki ekran. */
 const COVERAGE_COMPLETION_MS = 30_000;
+/**
+ * Ünite dersinde (20 Kasım 2026) eksik alt konu başına ekran payı ve süre: yazar istenen her ekran için zaman alır;
+ * süre ekran sayısıyla büyür, tavanı aşmaz. Dersin bütün ek çağrıları rota sınırına (300 sn) sığsın diye tamamlama
+ * dersin başlangıcından en geç `SUBTOPIC_COMPLETION_DEADLINE_MS` içinde biter; kalan süre azsa çağrı yapılmaz.
+ */
+const SUBTOPIC_COMPLETION_MS_PER_SCREEN = 12_000;
+const SUBTOPIC_COMPLETION_MAX_MS = 72_000;
+export const SUBTOPIC_COMPLETION_DEADLINE_MS = 240_000;
+const SUBTOPIC_COMPLETION_MIN_MS = 10_000;
+
+/** Tamamlama çağrısının süresi: alt konusuz derste 30 sn (eski); ünite dersinde ekran sayısıyla, kalan süreyle sınırlı. */
+export function coverageCompletionMs(gaps: LessonCoverageGaps, screens: number, remainingMs: number | null = null): number {
+  if (!gaps.subtopics?.length) return COVERAGE_COMPLETION_MS;
+  const scaled = Math.min(SUBTOPIC_COMPLETION_MAX_MS, Math.max(COVERAGE_COMPLETION_MS, screens * SUBTOPIC_COMPLETION_MS_PER_SCREEN));
+  return remainingMs === null ? scaled : Math.min(scaled, Math.max(0, remainingMs));
+}
 
 export type CoverageCompletion = {
-  verdict: "added" | "no_gain" | "unparsed" | "timeout" | "error";
+  verdict: "added" | "no_gain" | "unparsed" | "timeout" | "error" | "no_room" | "no_time";
   /** Eklenen ekranlar (yalnız `added`). Anahtar hizalı, tekrar düşmüş, şıkları karışık. */
   screens: LessonScreen[];
   before: number;
@@ -178,27 +195,34 @@ export type CoverageCompletion = {
 /**
  * Ders bitince kalan kapsam açıkları için tek küçük çağrı (30 Ekim 2026). Yazar aynı sistem istemiyle yalnız yeni ekran
  * yazar; ekranlar yayımlanan derse karşı tekrar süzgecinden ve anahtar kapısından geçer, hafif doğrulayıcı da bakar.
- * Açık azalmazsa, çağrı düşerse ya da zaman aşarsa ders aynen kalır.
+ * Açık azalmazsa, çağrı düşerse ya da zaman aşarsa ders aynen kalır. Ünite dersinde eksik alt konu sayısı kadar ekran
+ * istenir (`coverageCompletionScreens`); ders sert tavandaysa (`no_room`) ya da süre kalmadıysa (`no_time`) çağrı yok.
+ * `deadlineAt`: ünite dersinde tamamlamanın bitmesi gereken an (dersin başlangıcı + `SUBTOPIC_COMPLETION_DEADLINE_MS`).
  */
 export async function completeLessonCoverage(
   io: LessonIo,
   lesson: LessonV3,
   input: TeacherLessonInput,
   gaps: LessonCoverageGaps,
+  options: { deadlineAt?: number } = {},
 ): Promise<CoverageCompletion> {
   const before = coverageGapCount(gaps);
   const mode = input.mode ?? "document";
+  const allowance = coverageCompletionScreens(gaps, lesson.screens.length);
+  if (!allowance) return { verdict: "no_room", screens: [], before, after: before };
+  const ms = coverageCompletionMs(gaps, allowance, options.deadlineAt === undefined ? null : options.deadlineAt - Date.now());
+  if (gaps.subtopics?.length && ms < SUBTOPIC_COMPLETION_MIN_MS) return { verdict: "no_time", screens: [], before, after: before };
   try {
     const answer = await withDeadline(
       io.write(teacherSystem(mode), coverageCompletionUserPrompt(lesson, input, gaps), () => undefined),
-      COVERAGE_COMPLETION_MS,
+      ms,
     );
     if (!answer) return { verdict: "timeout", screens: [], before, after: before };
     const parsed = parseTeacherLesson(parseModelJson(answer.text), input.upcomingTopics);
     if (!parsed?.screens.length) return { verdict: "unparsed", screens: [], before, after: before };
     let extra = dedupScreens(
       settleCheckKeys(
-        dropRepeatedScreens(lesson.screens, dropRepeatedChecks(lesson.screens, parsed.screens.slice(0, COVERAGE_COMPLETION_SCREENS))),
+        dropRepeatedScreens(lesson.screens, dropRepeatedChecks(lesson.screens, parsed.screens.slice(0, allowance))),
       ),
     ).screens;
     if (extra.length && input.sanity !== false) {
@@ -739,11 +763,22 @@ export async function teacherLessonPipeline(
       }
     }
     // (2) Kapsam açığı kaldıysa yalnız eksikleri öğreten en çok iki ekran (30 Ekim 2026); düşerse ders aynen kalır.
+    // Ünite dersinde (20 Kasım 2026) kendi ekranında işlenmeyen alt konular da bu açıktır: tamamlama eksik alt konu sayısı
+    // kadar ekran ister (sert tavana ve süre bütçesine kadar), yalnız sona ekler; düşerse ders yine yayımlanır.
     const gapsLeft = lessonCoverageGaps(delivered, input);
+    let subtopicVerdict: CoverageCompletion["verdict"] | null = null;
+    const subtopicStarted = Date.now();
     if (coverageGapCount(gapsLeft) > 0) {
       const coverageStarted = Date.now();
-      const coverage = await completeLessonCoverage(io, delivered, input, gapsLeft);
+      const coverage = await completeLessonCoverage(
+        io,
+        delivered,
+        input,
+        gapsLeft,
+        gapsLeft.subtopics?.length ? { deadlineAt: started + SUBTOPIC_COMPLETION_DEADLINE_MS } : {},
+      );
       if (coverage.verdict === "added") delivered = { ...delivered, screens: [...delivered.screens, ...coverage.screens] };
+      if (gapsLeft.subtopics?.length) subtopicVerdict = coverage.verdict;
       console.info("teacher_lesson_coverage", {
         verdict: coverage.verdict,
         before: coverage.before,
@@ -751,6 +786,18 @@ export async function teacherLessonPipeline(
         added: coverage.screens.length,
         missing: [...gapsLeft.headings, ...gapsLeft.facts].slice(0, 6).map((item) => item.slice(0, 60)),
         ms: Date.now() - coverageStarted,
+      });
+    }
+    if (input.subtopics?.length) {
+      const missingAfter = uncoveredSubtopics(delivered.screens, input.subtopics, input.topicLabel);
+      console.info("teacher_lesson_subtopic_coverage", {
+        total: input.subtopics.length,
+        before: gapsLeft.subtopics?.length ?? 0,
+        after: missingAfter.length,
+        missing: missingAfter.slice(0, 8).map((item) => item.slice(0, 60)),
+        verdict: subtopicVerdict,
+        screens: delivered.screens.length,
+        ms: subtopicVerdict ? Date.now() - subtopicStarted : 0,
       });
     }
     // (3) diagram_card yoksa yalnız kartı isteyen tek küçük çağrı (29 Ekim 2026); düşerse ders aynen yayımlanır.

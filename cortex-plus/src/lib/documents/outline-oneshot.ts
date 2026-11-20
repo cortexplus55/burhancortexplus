@@ -148,9 +148,13 @@ const topicSchema = z.object({
   origin: z.enum(["document", "curriculum"]).optional(),
 });
 
+/** Ünitenin öğrenme basamağı (Faz 10, `UnitStage`); eski taslakta yok, yoksa sıra değişmez. */
+const stageSchema = z.number().int().min(1).max(4);
+
 const unitSchema = z.object({
   title: z.string().trim().min(1).max(MAX_TITLE_CHARS),
   examWeight: examWeightSchema.optional().default("medium"),
+  stage: stageSchema.optional(),
   topics: z.array(topicSchema).min(1).max(MAX_TOPICS_PER_UNIT),
 });
 
@@ -173,10 +177,11 @@ export const oneShotJsonSchema: Record<string, unknown> = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["title", "examWeight", "topics"],
+        required: ["title", "examWeight", "stage", "topics"],
         properties: {
           title: { type: "string" },
           examWeight: { type: "string", enum: ["high", "medium", "low"] },
+          stage: { type: "integer", enum: [1, 2, 3, 4] },
           topics: {
             type: "array",
             minItems: 1,
@@ -775,6 +780,7 @@ export function validateOneShotOutline(
     normalized.push({
       title: unitTitle,
       examWeight: unit.examWeight ?? "medium",
+      ...(asStage(unit.stage) ? { stage: asStage(unit.stage)! } : {}),
       topics,
     });
   }
@@ -825,6 +831,12 @@ function asWeight(value: unknown): "high" | "medium" | "low" {
   return text === "high" || text === "low" ? text : "medium";
 }
 
+/** Öğrenme basamağı 1–4; geçersiz ya da yoksa undefined (sıra değişmez). */
+export function asStage(value: unknown): 1 | 2 | 3 | 4 | undefined {
+  const n = asInteger(value);
+  return n === 1 || n === 2 || n === 3 || n === 4 ? n : undefined;
+}
+
 /**
  * Soft trim before zod. A 130-character title or a fifth likelyAsked item is a
  * formatting slip, not a reason to throw away the whole map and pay for
@@ -872,7 +884,8 @@ export function trimOneShotDraft(raw: unknown): { units: Record<string, unknown>
       totalTopics += 1;
     }
     if (!topics.length) continue;
-    units.push({ title: unitTitle, examWeight: asWeight(unit.examWeight), topics });
+    const stage = asStage(unit.stage);
+    units.push({ title: unitTitle, examWeight: asWeight(unit.examWeight), ...(stage ? { stage } : {}), topics });
   }
 
   return { units };
@@ -926,6 +939,13 @@ function repairBlock(repairErrors?: string, invalidDraftJson?: string): string {
 export const OUTLINE_BREVITY_RULE =
   "- KISA YAZ: konu başına yalnız başlık, sayfa aralığı, ağırlık, tek kısa whyLearn ve en çok iki kısa likelyAsked. Konunun içeriğini, tanımını, açıklamasını ya da sayfadan alıntı YAZMA; açıklama ve öğretim derste yazılır.";
 
+/**
+ * Ünitenin öğrenme basamağı (Faz 10, 20 Kasım 2026): fotoğraf setinde ve çok belgeli kursta yol bu basamağa göre dizilir
+ * (`topic-consolidation.ts`); tek düzenli belgede belgenin sırası kalır.
+ */
+export const OUTLINE_STAGE_RULE =
+  "- Her ünite için stage (öğrenme basamağı): 1 temel kavramlar ve tanımlar, 2 ana mekanizma / kuram / yapı, 3 hesaplama / uygulama / süreç, 4 istisnalar / özel durumlar / ileri sentez. Ünite hangi basamağın önkoşuluysa o basamak; emin değilsen 2.";
+
 /** Geniş ünite kuralı (25 Ekim 2026): yazar ve onarım turu aynı metni okur; kapı `outline-oversize.ts`. */
 export const OUTLINE_GRANULARITY_RULE =
   "- GENİŞ ÜNİTE TEK KONU OLAMAZ: dosyanın sayfa/metin hacminin %15'inden fazlasını tutan ya da içinde birden fazla bağımsız alt başlık, kural/formül ailesi, tarihsel dönem, sınıflandırma veya problem/vaka tipi barındıran bölüm 2-4 ayrı konuya bölünür; her konunun sayfa aralığı ayrıktır.\n" +
@@ -961,6 +981,7 @@ function studentOutlinePrompt(input: {
 - Bu içeriği en iyi nasıl anlarım, hangi sırayla çalışırım?
 - Ünite/konu sırasını öğrenme sırasına koy (önkoşullar önce; kitap sırasından farklı olabilir).
 - Konuları öğrencinin çalışacağı gibi grupla.
+${OUTLINE_STAGE_RULE}
 - Her konu için whyLearn: öğrenciye seslenen TEK kısa cümle (en çok 14 kelime), ne öğreneceği ve neden önemli ("… ayırt edersin", "… sınavda sık sorulur"). Birinci tekil yazma ("öğreneceğim", "bilgim" yok).
 ${OUTLINE_BREVITY_RULE}
 - Her konuya kısa id ver (ör. "t1") ve prerequisiteIds ile önceki konu id'lerini bağla.
@@ -977,14 +998,14 @@ ${OUTLINE_GRANULARITY_RULE}
 - Konu başlığı içeriği adlandırır, materyalin biçimini değil: "Kartı", "Eşleştirme Kartı", "Şeması", "Tablosu", "Fotoğrafı", "Özet Notu" yazma. Bir dosya (fotoğraf, kart, şema, test sayfası) başka dosyada anlatılan bir konuyu tekrar ediyorsa ayrı konu açma; o konu tek kalır, fileIndex'i konuyu en çok anlatan dosya olur.
 - "Diğer Konular" kovası EKLEME. Ünite 1–${MAX_UNITS}, toplam konu ≤${MAX_TOPICS_TOTAL}.
 
-JSON: {"units":[{"title":string,"examWeight":"high|medium|low","topics":[{"id":string,"title":string,"whyLearn":string,"fileIndex":number,"pageStart":number,"pageEnd":number,"examWeight":"high|medium|low","likelyAsked":string[],"prerequisiteIds":string[],"origin":"document|curriculum"}]}]}${tocBlockSection(input.tocBlock)}${input.skeletonBlock ?? ""}${previousOutlineBlock(input.previousOutline)}
+JSON: {"units":[{"title":string,"examWeight":"high|medium|low","stage":1|2|3|4,"topics":[{"id":string,"title":string,"whyLearn":string,"fileIndex":number,"pageStart":number,"pageEnd":number,"examWeight":"high|medium|low","likelyAsked":string[],"prerequisiteIds":string[],"origin":"document|curriculum"}]}]}${tocBlockSection(input.tocBlock)}${input.skeletonBlock ?? ""}${previousOutlineBlock(input.previousOutline)}
 
 Materyal:
 ${input.corpus}${repairBlock(input.repairErrors, input.invalidDraftJson)}`;
 }
 
 const SCHEMA_HINT =
-  'JSON: {"units":[{"title":string,"examWeight":"high|medium|low","topics":[{"id":string,"title":string,"whyLearn":string,"fileIndex":number,"pageStart":number,"pageEnd":number,"examWeight":"high|medium|low","likelyAsked":string[0-2],"prerequisiteIds":string[]}]}]}. ' +
+  'JSON: {"units":[{"title":string,"examWeight":"high|medium|low","stage":1|2|3|4,"topics":[{"id":string,"title":string,"whyLearn":string,"fileIndex":number,"pageStart":number,"pageEnd":number,"examWeight":"high|medium|low","likelyAsked":string[0-2],"prerequisiteIds":string[]}]}]}. ' +
   `Öğretmen+öğrenci bakışı. Uydurma yok — her konu alıntılanan sayfa metnine dayanır. fileIndex 0 tabanlı (d1→0). 1–${MAX_UNITS} ünite, ≤${MAX_TOPICS_TOTAL} konu. Diğer Konular yok. Öğrenme sırası (önkoşul önce).`;
 
 type OutlinePromptInput = {
@@ -1041,7 +1062,7 @@ ${OUTLINE_GRANULARITY_RULE.split("\n").filter((line) => line.includes("KISA ALT 
 MEVCUT HARİTA (bağlam; değiştirme, tekrar yazma):
 ${currentMapBlock(input.units)}
 
-JSON: {"units":[{"title":string,"examWeight":"high|medium|low","topics":[{"id":string,"title":string,"whyLearn":string,"fileIndex":number,"pageStart":number,"pageEnd":number,"examWeight":"high|medium|low","likelyAsked":string[],"prerequisiteIds":string[],"origin":"document"}]}]}
+JSON: {"units":[{"title":string,"examWeight":"high|medium|low","stage":1|2|3|4,"topics":[{"id":string,"title":string,"whyLearn":string,"fileIndex":number,"pageStart":number,"pageEnd":number,"examWeight":"high|medium|low","likelyAsked":string[],"prerequisiteIds":string[],"origin":"document"}]}]}
 
 Materyal (yalnız bu bölümlerin sayfaları):
 ${input.corpus}`;

@@ -61,6 +61,8 @@ import { removableBlock } from "@/lib/learning/lesson-sanity";
 import { contentTokens, rootCoverage } from "@/lib/learning/lexical-overlap";
 import { splitTableCells } from "@/lib/learning/interval-text";
 import { backboneBlock, lessonBackbone, uncoveredBackbone } from "@/lib/learning/lesson-backbone";
+import { backboneWithoutSubtopics, subtopicPlanBlock, uncoveredSubtopics } from "@/lib/learning/lesson-subtopics";
+import { lessonDepthForSubtopics, type LessonDepth } from "@/lib/learning/subtopic-list";
 import {
   keyFactsBlock,
   equationsWithoutCard,
@@ -166,6 +168,15 @@ export type TeacherLessonInput = {
    * Yoksa ders konunun yerleşik bilgisiyle yazılır.
    */
   approvedFacts?: string;
+  /**
+   * Ünite dersi (20 Kasım 2026, ürün sahibinin kararı): yeni hazırlıkta konu bir ana ünitedir ve tek derin ders bu
+   * listenin HEPSİNİ öğretir (bölünmüş ünitede yalnız bu derse düşen kısım). Yazar zorunlu planı ve sözleşmeyi okur,
+   * derinlik alt konu sayısından gelir (`lessonDepthForSubtopics`), kapanışta işlenmeyen alt konu ek ekranla istenir.
+   * Yoksa ya da boşsa ders bugünkü gibi yazılır.
+   */
+  subtopics?: string[];
+  /** Ünitenin bu derse düşmeyen alt konuları (bölünmüş ünitenin öbür dersleri): bu derste bölüm olmaz. */
+  excludedSubtopics?: string[];
 };
 
 /** Notun yazım hatası olan formülü kilit bilgi değildir: yazar ve kapsam ölçüsü onu "işlenmedi" saymasın. */
@@ -541,14 +552,29 @@ export function teacherSystem(mode: TeacherLessonMode = "document"): string {
   return mode === "topic" ? TOPIC_TEACHER_SYSTEM : TEACHER_SYSTEM;
 }
 
+/**
+ * Dersin dışındaki adlar: hazırlığın öbür konuları ve (ünite dersinde) ünitenin bu derse düşmeyen alt konuları.
+ * Alt konu yoksa yalnız öbür konular (eski davranış).
+ */
+export function lessonSiblingTopics(input: Partial<Pick<TeacherLessonInput, "siblingTopics" | "subtopics" | "excludedSubtopics">>): string[] {
+  const siblings = input.siblingTopics ?? [];
+  if (!input.subtopics?.length || !input.excludedSubtopics?.length) return siblings;
+  return [...siblings, ...input.excludedSubtopics];
+}
+
 /** Konunun kendi sayfalarından omurga; belgesiz derste yok. */
 export function inputBackbone(
-  input: Partial<Pick<TeacherLessonInput, "pages" | "topicLabel" | "runningHeaders" | "mode" | "siblingTopics">>,
+  input: Partial<
+    Pick<TeacherLessonInput, "pages" | "topicLabel" | "runningHeaders" | "mode" | "siblingTopics" | "subtopics" | "excludedSubtopics">
+  >,
 ): string[] {
   if (input.mode === "topic" || !input.pages?.length) return [];
   const backbone = lessonBackbone(input.pages, { topicLabel: input.topicLabel, runningHeaders: input.runningHeaders });
   // Öbür konuların başlıkları omurga değildir (6 Kasım 2026): "her alt başlık bir ekranda" kuralı onları dayatmasın.
-  return input.siblingTopics?.length ? backboneWithoutSiblings(backbone, input.topicLabel ?? "", input.siblingTopics) : backbone;
+  const siblings = lessonSiblingTopics(input);
+  const outside = siblings.length ? backboneWithoutSiblings(backbone, input.topicLabel ?? "", siblings) : backbone;
+  // Ünite dersinde ünitenin kendi alt konuları zorunlu planda: omurgada ikinci kez istenmez (20 Kasım 2026).
+  return backboneWithoutSubtopics(outside, input.subtopics);
 }
 
 /** Belgesiz derste konunun doğrulanmış havuz anlatımı; yazar ve hafif doğrulayıcı aynı bloğu okur. */
@@ -564,8 +590,11 @@ export function approvedFactsBlock(text: string | undefined): string {
 /** Onaylı bilgiler bloğunun tavanı (istem kısa kalsın; ilk ekranı geciktirmesin). */
 export const APPROVED_FACTS_CHARS = 6_000;
 
-/** "Farklı anlat" bloğu: aynı kazanımlar, farklı yol. Öğrencinin anlatım tercihi profil bloğundan gelir. */
-export function alternativeBlock(text: string | undefined): string {
+/**
+ * "Farklı anlat" bloğu: aynı kazanımlar, farklı yol. Öğrencinin anlatım tercihi profil bloğundan gelir.
+ * Ünite dersinde (`depth`) ekran sayısı alt konu planının derinliğinden gelir; yoksa eski 6-8 kuralı.
+ */
+export function alternativeBlock(text: string | undefined, depth: LessonDepth | null = null): string {
   const body = text?.trim();
   if (!body) return "";
   return [
@@ -573,7 +602,9 @@ export function alternativeBlock(text: string | undefined): string {
     "farklı bir giriş, farklı örnek ve benzetme, farklı sıra kullan. Önceki anlatımın cümlelerini ve örneklerini tekrar etme.",
     // 6 Kasım 2026 (canlı sınav): "farklı örnek" isteği yeni bir günlük örneği yanlış sınıfa koydurdu.
     "Yeni örnek ve benzetme ÖRNEĞİN SINIFLANDIRMASI kuralına birebir uyar; emin olmadığın yerde önceki anlatımın gerçek örneğini başka bir açıdan kullan.",
-    `Ders en az ${TOPIC_MIN_SCREENS} ekran olsun (6-8): kazanımları alt fikirlere böl, her alt fikre kendi ekranı.`,
+    depth
+      ? `Ders alt konu planının derinliğinde olsun (${depth.minScreens}-${depth.maxScreens} ekran): her alt konuya kendi ekranı.`
+      : `Ders en az ${TOPIC_MIN_SCREENS} ekran olsun (6-8): kazanımları alt fikirlere böl, her alt fikre kendi ekranı.`,
     body.slice(0, 10_000),
   ].join("\n");
 }
@@ -623,14 +654,14 @@ export function teacherUserPrompt(input: TeacherLessonInput): string {
     `KONU: ${input.topicLabel}`,
     input.mode === "topic"
       ? ""
-      : prepTopicScopeLine(input.topicLabel, siblingsOutsideBoundary(input.siblingTopics ?? [], input.excludedSiblingTopics)),
+      : prepTopicScopeLine(input.topicLabel, siblingsOutsideBoundary(lessonSiblingTopics(input), input.excludedSiblingTopics)),
     input.mode === "topic" ? "" : excludedSiblingBoundaryBlock(input.topicLabel, input.excludedSiblingTopics),
     lessonOptionCountLine(input),
     input.previousTopic ? `ÖNCEKİ KONU (gerekirse tek cümleyle bağlan): ${input.previousTopic}` : "",
     input.learnerLine ? `ÖĞRENCİ: ${input.learnerLine}` : "",
     examPointsBlock(input.examPoints, "lesson"),
     officialOutcomeBlock(input.officialOutcome, "lesson"),
-    alternativeBlock(input.alternativeOf),
+    alternativeBlock(input.alternativeOf, lessonDepthForSubtopics(input.subtopics?.length ?? 0)),
     input.mode === "topic" ? "" : noteWarningsPromptLine(input.noteWarnings),
     input.mode === "topic" ? "" : sourceCorrectionPromptBlock(lessonCorrectionNow(input)),
     input.mode === "topic" ? "" : sourceConflictLine(input.pages),
@@ -638,6 +669,8 @@ export function teacherUserPrompt(input: TeacherLessonInput): string {
     input.runningHeaders?.length
       ? `Şu satırlar sayfa kenarında tekrar eden başlıklardır, konu ya da bölüm adı değildir: ${input.runningHeaders.join(" | ")}`
       : "",
+    // Ünite dersi (20 Kasım 2026): zorunlu alt konu planı, derinlik ve sözleşme; alt konu yoksa boş.
+    subtopicPlanBlock(input),
     input.mode === "topic" ? "" : backboneBlock(inputBackbone(input)),
     input.mode === "topic" ? "" : keyFactsBlock(lessonFacts(input.pages, input.noteWarnings, lessonCorrectionNow(input))),
     input.mode === "topic" ? "" : sourceEquationsBlock(lessonFacts(input.pages, input.noteWarnings, lessonCorrectionNow(input))),
@@ -855,13 +888,17 @@ export function verifyPartUserPrompt(
   lesson: LessonV3,
   part: LessonPart,
   input: Pick<TeacherLessonInput, "pages" | "mode" | "topicLabel" | "prepTitle" | "examPoints"> &
-    Partial<Pick<TeacherLessonInput, "sourceCorrection" | "lateNoteWarnings">>,
+    Partial<Pick<TeacherLessonInput, "sourceCorrection" | "lateNoteWarnings" | "subtopics" | "excludedSubtopics">>,
   disputes: TeacherDispute[] = [],
 ): string {
   return [
     verifyUserPrompt(lesson, input),
     examPointsVerifyBlock(input.examPoints),
     input.mode === "topic" ? "" : lessonCorrectionVerifyLine(lessonCorrectionNow(input)),
+    // Ünite dersi (20 Kasım 2026): kapsamı yargılayan denetçi yazarın okuduğu planı ve sözleşmeyi aynen okur.
+    part.closing && input.subtopics?.length
+      ? `${subtopicPlanBlock(input)}\nListedeki bir alt konu derste kendi ekranında işlenmemişse 'high' yaz.`
+      : "",
     `DENETLENECEK: yalnız ${partLabel(part)}. Dersin öbür kısımları ayrıca denetlendi ya da denetlenecek; onları ` +
       "yalnız tutarlılık (F) için oku, onlar için sorun yazma.",
     // 23 Ekim 2026 (3. ölçüm): akışlı derste ilk kavram yazılırken sonrakiler henüz yok. Denetçi dersin başlığındaki
@@ -1285,7 +1322,21 @@ function givesAway(text: string, prompt: string, corrected: string): boolean {
 }
 
 type StructureInput = Pick<TeacherLessonInput, "runningHeaders"> &
-  Partial<Pick<TeacherLessonInput, "pages" | "topicLabel" | "mode" | "optionCount" | "noteWarnings" | "siblingTopics" | "sourceCorrection" | "lateNoteWarnings">>;
+  Partial<
+    Pick<
+      TeacherLessonInput,
+      | "pages"
+      | "topicLabel"
+      | "mode"
+      | "optionCount"
+      | "noteWarnings"
+      | "siblingTopics"
+      | "sourceCorrection"
+      | "lateNoteWarnings"
+      | "subtopics"
+      | "excludedSubtopics"
+    >
+  >;
 
 /**
  * Ekranın öğrettiği önermeler (Faz 1-A §2.1 ek düzeltmesi): metin, formül, şema ve karşılaştırma kartları, kartlar,
@@ -2302,11 +2353,33 @@ export function lessonLevelStructureIssues(lesson: LessonV3, input: StructureInp
   if (input.mode !== "topic" && presentsTruthAsMistake(lesson.commonMistake?.claim ?? "", lessonCorrectionNow(input as CorrectionCarrier))) {
     add("commonMistake", "Kaynak düzeltmesi: sık yapılan hata alanı bilimsel olarak DOĞRU olan bilgiyi yanılgı diye gösteriyor; hata olarak kaynağın yanlışını, düzeltme olarak doğrusunu yaz.");
   }
-  const cap = lessonScreenCap(facts.length);
+  // Ünite dersinde (20 Kasım 2026) ekran ve kavram sınırı alt konu sayısının derinliğinden: yazarın istemi aynı sayıyı okur.
+  const subtopics = input.subtopics ?? [];
+  const cap = lessonScreenCap(facts.length, subtopics.length);
   if (screens.length > cap) {
     low("screens", cap === 12 ? "En fazla on iki ekran; kavramı daha az ekrana sığdır." : `En fazla ${cap} ekran; kavramı daha az ekrana sığdır.`);
   }
-  if (groups.length > 6) low("screens", "En fazla altı kavram; kısa alt başlıkları komşusuyla birleştir.");
+  const conceptCap = lessonDepthForSubtopics(subtopics.length)?.maxConcepts ?? 6;
+  if (groups.length > conceptCap) {
+    low(
+      "screens",
+      conceptCap === 6
+        ? "En fazla altı kavram; kısa alt başlıkları komşusuyla birleştir."
+        : `En fazla ${conceptCap} kavram; kısa alt başlıkları komşusuyla birleştir.`,
+    );
+  }
+  // Ünitenin alt konuları (yüksek, kapsam): kavram düşmez; kapanışta yalnız eksik alt konular için ekran istenir.
+  const missingSubtopics = uncoveredSubtopics(screens, subtopics, input.topicLabel ?? "");
+  if (missingSubtopics.length) {
+    issues.push({
+      where: `screens[${screens.length - 1}]`,
+      severity: "high",
+      problem:
+        `${COVERAGE_TAG} Ünitenin şu alt konuları derste kendi ekranında işlenmedi: ${missingSubtopics.join(" · ")}. Her biri ` +
+        "için bu kısmın ardına alt konunun adını taşıyan bir ekran ekle (tanım, kural ya da formül, istisna ya da çözümlü " +
+        "örnek; ekran bir soruyla biter). Mevcut ekranları silme.",
+    });
+  }
   // Omurga ve kilit bilgi (yüksek): kavram düşmez; kapanışta sessiz bir ekran turu açar.
   const missingHeads = uncoveredBackbone(screens, inputBackbone(input));
   if (missingHeads.length) {
@@ -2400,8 +2473,20 @@ export function lessonLevelStructureIssues(lesson: LessonV3, input: StructureInp
  */
 export const COVERAGE_COMPLETION_SCREENS = 2;
 
-/** `formulas`: derste formül kartında gösterilmeyen kaynak denklemleri (10 Kasım 2026); eski çağıranlarda yok. */
-export type LessonCoverageGaps = { headings: string[]; facts: string[]; formulas?: string[] };
+/**
+ * `formulas`: derste formül kartında gösterilmeyen kaynak denklemleri (10 Kasım 2026); eski çağıranlarda yok.
+ * `subtopics`: ünite dersinde kendi ekranında işlenmeyen alt konular (20 Kasım 2026); alt konusuz derste alan yok.
+ */
+export type LessonCoverageGaps = { headings: string[]; facts: string[]; formulas?: string[]; subtopics?: string[] };
+
+/**
+ * Tamamlamanın en çok kaç yeni ekran isteyeceği: 2; ünite dersinde eksik alt konu sayısı kadar (en az 2). Sert tavanı
+ * (16) aşmaz: kayıtlı ders şeması 16'dan fazla ekranı okumaz, aşan ders yeniden açılamazdı. Yer yoksa 0 (çağrı yok).
+ */
+export function coverageCompletionScreens(gaps: LessonCoverageGaps, screenCount: number): number {
+  const wanted = Math.max(COVERAGE_COMPLETION_SCREENS, gaps.subtopics?.length ?? 0);
+  return Math.max(0, Math.min(wanted, LESSON_SCREEN_HARD_CAP - screenCount));
+}
 
 /**
  * Belgesiz (konu) derste alt sınır (3 Kasım 2026 canlı ölçüm: "Farklı anlat" 5 bölümle bitti, sayaç "Adım 1/8").
@@ -2410,36 +2495,44 @@ export type LessonCoverageGaps = { headings: string[]; facts: string[]; formulas
 export { TOPIC_MIN_SCREENS } from "@/lib/learning/lesson-screen-floor";
 import { TOPIC_MIN_SCREENS } from "@/lib/learning/lesson-screen-floor";
 
-export function topicDepthGap(screenCount: number): string | null {
-  if (screenCount >= TOPIC_MIN_SCREENS) return null;
+/** `floor`: ünite dersinde alt konu derinliğinin alt ucu (20 Kasım 2026); yoksa belgesiz dersin 6 ekranı. */
+export function topicDepthGap(screenCount: number, floor: number = TOPIC_MIN_SCREENS): string | null {
+  if (screenCount >= floor) return null;
   return (
-    `Ders ${screenCount} ekranda kaldı; en az ${TOPIC_MIN_SCREENS} olmalı. Kazanımların henüz kendi ekranı olmayan alt ` +
+    `Ders ${screenCount} ekranda kaldı; en az ${floor} olmalı. Kazanımların henüz kendi ekranı olmayan alt ` +
     "fikirleri (tanım, neden-sonuç, karşılaştırma, sınavda çıkan ayrıntı ya da çözümlü örnek)"
   );
 }
 
 export function lessonCoverageGaps(lesson: LessonV3, input: StructureInput): LessonCoverageGaps {
+  // Ünite dersi (20 Kasım 2026): kendi ekranında işlenmeyen alt konular; alt konusuz derste alan hiç yazılmaz.
+  const subtopics = input.subtopics?.length
+    ? { subtopics: uncoveredSubtopics(lesson.screens, input.subtopics, input.topicLabel ?? "") }
+    : {};
   if (input.mode === "topic") {
-    const gap = topicDepthGap(lesson.screens.length);
-    return { headings: gap ? [gap] : [], facts: [] };
+    const gap = topicDepthGap(lesson.screens.length, lessonDepthForSubtopics(input.subtopics?.length ?? 0)?.minScreens);
+    return { headings: gap ? [gap] : [], facts: [], ...subtopics };
   }
-  if (!input.pages?.length) return { headings: [], facts: [] };
+  if (!input.pages?.length) return { headings: [], facts: [], ...subtopics };
   const facts = lessonFacts(input.pages, input.noteWarnings, lessonCorrectionNow(input as CorrectionCarrier));
   return {
     headings: uncoveredBackbone(lesson.screens, inputBackbone(input)),
     facts: uncoveredKeyFacts(lesson.screens, facts).map((fact) => fact.text),
     // Kaynaktaki açık formül bir formül kartında gösterilmeli (en çok üçü istenir: tamamlama iki ekranla sınırlı).
     formulas: equationsWithoutCard(lesson.screens, facts).slice(0, 3).map((fact) => fact.text),
+    ...subtopics,
   };
 }
 
 export function coverageGapCount(gaps: LessonCoverageGaps): number {
-  return gaps.headings.length + gaps.facts.length + (gaps.formulas?.length ?? 0);
+  return gaps.headings.length + gaps.facts.length + (gaps.formulas?.length ?? 0) + (gaps.subtopics?.length ?? 0);
 }
 
 export function coverageCompletionUserPrompt(lesson: LessonV3, input: TeacherLessonInput, gaps: LessonCoverageGaps): string {
   const screens = lesson.screens.map((screen, index) => `[${index + 1}] ${screen.heading} (${screenConcept(screen)})`);
   const missing = [
+    // Ünite dersi (20 Kasım 2026): eksik alt konular önce; zorunlu planın tamamı yukarıdaki istemde.
+    ...(gaps.subtopics ?? []).map((subtopic) => `- Alt konu (ünitenin zorunlu planında; kendi ekranında eksiksiz anlat): ${subtopic}`),
     ...gaps.headings.map((heading) => `- Alt başlık: ${heading}`),
     ...gaps.facts.slice(0, 8).map((fact) => `- Kilit bilgi: ${fact}`),
     ...(gaps.formulas ?? []).map((formula) => `- Formül (bir 'formula' bloğunda, kaynaktaki yazımıyla göster): ${formula}`),
@@ -2447,7 +2540,11 @@ export function coverageCompletionUserPrompt(lesson: LessonV3, input: TeacherLes
   return (
     `${teacherUserPrompt(input)}\n\nKAPSAM TAMAMLAMASI: Bu ders yazıldı ve öğrenciye gidiyor. Mevcut ekranlar:\n${screens.join("\n")}\n\n` +
     `Kaynağın şu kısımları derste işlenmedi:\n${missing.join("\n")}\n\n` +
-    `Yalnız bunları öğreten en çok ${COVERAGE_COMPLETION_SCREENS} YENİ ekran yaz. Bilgi kaynaktaki yazımıyla gelir (terim, ` +
+    `Yalnız bunları öğreten en çok ${coverageCompletionScreens(gaps, lesson.screens.length)} YENİ ekran yaz.` +
+    (gaps.subtopics?.length
+      ? " Her eksik alt konuya en az bir ekran ayır; o ekranın 'concept' adı alt konunun adını taşır."
+      : "") +
+    " Bilgi kaynaktaki yazımıyla gelir (terim, " +
     "kısaltmanın açılımı, sayı); kaynakta olmayan bilgi ekleme. Her ekranın kendi 'concept' adı olur ve ekran bir soruyla " +
     "biter. Mevcut ekranları yeniden yazma, giriş, özet ve sık yapılan hata alanlarını boş bırak. Aynı JSON biçiminde " +
     `döndür: {"title":"${lesson.title.replace(/"/g, "'")}","screens":[…yalnız yeni ekranlar…]}`

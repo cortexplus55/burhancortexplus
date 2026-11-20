@@ -117,20 +117,44 @@ export async function copyInvitedPrep(
   // 23505: aynı öğrencinin aynı kaynaktan ikinci klonu (`exam_preps_clone_once`); çağıran eski kopyayı açar.
   if (error || !copy) return { ok: false, conflict: (error as { code?: string } | null)?.code === "23505" };
 
-  // Yalnız konu başlıkları ve sırası; ilerleme kopyalanmaz.
-  const { data: topics } = await service
+  // Yalnız konu başlıkları, sırası ve (ana ünite modelinde, Faz 10) ünitenin alt başlık adları; ilerleme kopyalanmaz.
+  // `subtopics` sütunu göçten önce yoksa (42703) başlık ve sıra eskisi gibi kopyalanır.
+  type TopicCopyRow = { label: string; sort_order: number; subtopics?: unknown };
+  let topics: TopicCopyRow[] = [];
+  let hasSubtopics = true;
+  const withSubtopics = await service
     .from("exam_prep_topics")
-    .select("label, sort_order")
+    .select("label, sort_order, subtopics")
     .eq("exam_prep_id", source.id)
     .order("sort_order");
-  const rows = (topics ?? []) as { label: string; sort_order: number }[];
+  if (withSubtopics.error) {
+    hasSubtopics = false;
+    const plain = await service.from("exam_prep_topics").select("label, sort_order").eq("exam_prep_id", source.id).order("sort_order");
+    topics = (plain.data ?? []) as TopicCopyRow[];
+  } else {
+    topics = (withSubtopics.data ?? []) as TopicCopyRow[];
+  }
+  const rows = topics;
   let firstTopicId: string | null = null;
   if (rows.length) {
-    const { data: inserted } = await service
-      .from("exam_prep_topics")
-      .insert(rows.map((topic) => ({ exam_prep_id: copy.id, label: topic.label, sort_order: topic.sort_order })))
-      .select("id, sort_order");
-    const ordered = ((inserted ?? []) as { id: string; sort_order: number }[]).sort((a, b) => a.sort_order - b.sort_order);
+    const subtopicsOf = (topic: TopicCopyRow): string[] =>
+      Array.isArray(topic.subtopics) ? topic.subtopics.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : [];
+    const anySubtopics = hasSubtopics && rows.some((topic) => subtopicsOf(topic).length > 0);
+    const insertRows = (withUnits: boolean) =>
+      service
+        .from("exam_prep_topics")
+        .insert(
+          rows.map((topic) => ({
+            exam_prep_id: copy.id,
+            label: topic.label,
+            sort_order: topic.sort_order,
+            ...(withUnits ? { subtopics: subtopicsOf(topic) } : {}),
+          })),
+        )
+        .select("id, sort_order");
+    let result = await insertRows(anySubtopics);
+    if (result.error && anySubtopics) result = await insertRows(false);
+    const ordered = ((result.data ?? []) as { id: string; sort_order: number }[]).sort((a, b) => a.sort_order - b.sort_order);
     firstTopicId = ordered[0]?.id ?? null;
   }
 

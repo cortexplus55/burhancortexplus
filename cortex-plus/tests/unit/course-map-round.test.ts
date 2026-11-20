@@ -226,10 +226,12 @@ describe("course map round (fake DB, real credit semantics)", () => {
       heading(1, 4), heading(0, 2), heading(0, 3), heading(1, 9), heading(0, 7),
     ]);
     expect(intake!.topics.map((t) => t.sources[0]!.documentId)).toEqual(["dB", "dA", "dA", "dB", "dA"]);
-    expect(intake!.units).toEqual([
+    // Faz 10: ünite satırı ünitenin sınav ağırlığını (ve haritada varsa öğrenme basamağını) da taşır.
+    expect(intake!.units.map(({ title, topicIndexes }) => ({ title, topicIndexes }))).toEqual([
       { title: "Birinci Ünite", topicIndexes: [0, 1] },
       { title: "İkinci Ünite", topicIndexes: [2, 3, 4] },
     ]);
+    expect(intake!.units.every((unit) => unit.examWeight === "medium")).toBe(true);
   });
   // 24 Ekim 2026 lansman testi: ünitenin konuları yalnız bir dosyadaydı; öbür dosyadaki boş ünite kopyası sayfasız
   // bir konu sayıldı, listenin başına "Diğer" olarak düştü ve dersi PDF'in 1. sayfasından yazıldı.
