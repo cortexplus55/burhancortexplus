@@ -6,9 +6,12 @@
  * (`/kayit?hedef=…`) değiştirir; aşağıdaki 7 adımlı tur (`landing-journey.ts`, 11 Kasım 2026) aynı bağlantıyı kullanır.
  * Eski kayıtsız vitrin (sekmeye göre dört örnek soru) turla birleşti ve kaldırıldı.
  *
- * 11 Kasım 2026, kokpit: kahraman ile tur tek ekranda birleşti. Tur tek bir örnek notla (matematik) oynanır; seçili
- * sekme turun bağlam satırını (`tourContext`) ve yol haritasındaki sınav sözünü (`examWord`) değiştirir ki dört
- * profil de "bu tur benim sınavım için de geçerli" desin. Bağlam cümleleri de bugün üründe çalışan şeyleri söyler.
+ * 11 Kasım 2026, kokpit: kahraman ile tur tek ekranda birleşti. Seçili sekme yol haritasındaki sınav sözünü
+ * (`examWord`) değiştirir.
+ *
+ * Faz 7 (20 Kasım 2026): tur artık tek bir matematik notuyla değil, sekmenin branşıyla oynanır (lise ve YKS/LGS →
+ * matematik, üniversite → mühendislik, akademik → hukuk; turun branş şeridinden TUS da seçilir). Bağlam satırı,
+ * örnek not ve yedi adımın içeriği branşın (`guest-demo-tracks.ts`).
  *
  * Pazarlama kuralı (19 Ekim 2026): her cümle bugün üründe çalışan bir şeyi anlatır. Kahraman cümleleri yalnız
  * ücretsiz hesapta da açık olanları sayar; Plus'ta olan özellik turun Plus adımında "Plus" rozetiyle gösterilir
@@ -32,8 +35,6 @@ export type AudienceSegment = {
   campName: string;
   /** Kayıt sayfası bu değeri alınca sınıf ve hedef sınavı önceden seçer (`signup-preset.ts`). */
   signupHref: `/kayit?hedef=${AudienceSegmentId}`;
-  /** Kokpitteki bağlam satırı: örnek notun bu profil için ne anlama geldiği. */
-  tourContext: string;
   /** Yol haritasındaki hedef çipinin ilk sözcüğü: "Yazılına 7 gün var". */
   examWord: string;
 };
@@ -47,7 +48,6 @@ export const AUDIENCE_SEGMENTS: AudienceSegment[] = [
     ctaLabel: "Lise kampını ücretsiz başlat",
     campName: "lise kampını",
     signupHref: "/kayit?hedef=lise",
-    tourContext: "Örnek not matematik; kendi yazılı notunu yüklediğinde aynı yedi adım kurulur.",
     examWord: "Yazılına",
   },
   {
@@ -58,7 +58,6 @@ export const AUDIENCE_SEGMENTS: AudienceSegment[] = [
     ctaLabel: "YKS / LGS kampını ücretsiz başlat",
     campName: "YKS / LGS kampını",
     signupHref: "/kayit?hedef=yks-lgs",
-    tourContext: "Örnek not matematik; TYT, AYT ve LGS konularında da yol aynı.",
     examWord: "Sınavına",
   },
   {
@@ -69,7 +68,6 @@ export const AUDIENCE_SEGMENTS: AudienceSegment[] = [
     ctaLabel: "Vize-final kampını ücretsiz başlat",
     campName: "vize-final kampını",
     signupHref: "/kayit?hedef=universite",
-    tourContext: "Örnek not matematik; vize slaytın ya da hocanın PDF'i için de adımlar aynı.",
     examWord: "Vizene",
   },
   {
@@ -80,7 +78,6 @@ export const AUDIENCE_SEGMENTS: AudienceSegment[] = [
     ctaLabel: "Sınav kampını ücretsiz başlat",
     campName: "sınav kampını",
     signupHref: "/kayit?hedef=akademik",
-    tourContext: "Örnek not matematik; KPSS, TUS, DUS ve ALES'te hazır müfredattan da başlarsın.",
     examWord: "Sınavına",
   },
 ];

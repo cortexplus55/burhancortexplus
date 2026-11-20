@@ -68,10 +68,10 @@ import { retentionFromTopics } from "@/lib/learning/prep-radar";
 import { dueReviewCountForPrep } from "@/lib/learning/review-items-store";
 import { countPendingMaterials } from "@/lib/learning/pending-materials";
 import { coverageBadgeText, processedCoverage } from "@/lib/documents/page-coverage";
-import { createPrepInviteToken, prepInviteUrl } from "@/lib/learning/prep-invite";
-import { prepInviteWhatsappHref } from "@/lib/learning/prep-share";
 import { examDatePassed, examResultDue } from "@/lib/learning/exam-result";
 import { loadExamBaseline } from "@/lib/learning/exam-result-load";
+import { createReadinessToken } from "@/lib/learning/readiness-snapshot";
+import { loadPrepRadio } from "@/lib/learning/prep-radio-server";
 import { appOrigin } from "@/lib/app-url";
 import { freeTopicLocks } from "@/lib/billing/free-topic-gate";
 import { poolLessonPreview } from "@/lib/content-pool/lesson-preview";
@@ -658,15 +658,25 @@ export default async function ExamPrepDetailPage({
       }
     : null;
 
-  // Paket J3 #14 (31 Ekim 2026): sınıf davet bağlantısı sunucuda imzalanır ve mutlak adresle gider (WhatsApp metnine
-  // göreli adres girmez). Sınav günü geçince not sorusu / başarı kartı; not göçsüz `learning_preferences`'ta.
-  const inviteToken = createPrepInviteToken(prep.id as string);
-  const inviteUrl = inviteToken ? prepInviteUrl(inviteToken) : null;
+  // Sınıfla paylaşım (Faz 7, 20 Kasım 2026): bağlantıyı sayfa değil üst simgelerdeki düğme ister
+  // (`/api/learning/exam-prep/share-code`: paylaşım kodu, göç yoksa imzalı sınıf daveti; ikisi de mutlak adres).
+  // Sınav günü geçince not sorusu / başarı kartı; not göçsüz `learning_preferences`'ta.
   const resultPrefs = parseLearningPreferences(prep.learning_preferences);
   const resultToday = istanbulDay();
   const examPassed = examDatePassed(prep.exam_date as string | null, resultToday);
   // Kaydedilmiş notun başlangıcı boşsa (eski kural ya da sonradan gelen kayıt) okurken yeniden hesaplanır (Paket J takip #2).
   const storedResult = resultPrefs.examResult;
+
+  // Sınav Radyosu (Faz 7, 20 Kasım 2026): sesi tamamen önbellekte olan kayıtlı podcast'ler, konu ve yol sırasıyla.
+  // Dalga 4 ile aynı anda okunur; düşerse boş liste (düğme yok). Hiçbir şey üretilmez, kredi düşmez.
+  const radioRead = loadPrepRadio(service, {
+    prepId,
+    userId: user.id,
+    topicLabels: [
+      ...prepTopics.map((topic) => String(topic.label ?? "")),
+      ...nodes.map((node) => String((node.sessionMeta as { topicTitle?: string } | undefined)?.topicTitle ?? "")),
+    ],
+  });
 
   // Dalga 4: kilit + havuz önizlemesi, sınav sonrası başlangıç, ünite kontrolü, hakimiyet haritası ve kamp kartı
   // birbirini beklemez (kilit, dalga 3'teki yol açma yazımından sonra okunur).
@@ -747,6 +757,7 @@ export default async function ExamPrepDetailPage({
         examDate: (prep.exam_date as string | null) ?? null,
       }),
     ]);
+  const radioItems = await radioRead;
   const pathNodes = lockedIds.size
     ? homeNodes.map((node) => (lockedIds.has(node.id) ? { ...node, planLocked: true } : node))
     : homeNodes;
@@ -759,7 +770,12 @@ export default async function ExamPrepDetailPage({
           today: resultToday,
           result: resultPrefs.examResult ?? null,
           snoozedUntil: resultPrefs.examResultSnoozedUntil ?? null,
+          feedbackAt: resultPrefs.examFeedbackAt ?? null,
         }),
+        // Faz 7 (20 Kasım 2026): "Sınav öncesi hazırlık puanın %X idi" — sayfanın gösterdiği "Hazırlık" puanı; kayıt
+        // tarayıcının yazdığı sayıyı değil sunucunun imzaladığı anlık görüntüyü okur.
+        readinessPct: progressView.scorePct,
+        readinessToken: createReadinessToken({ prepId: prep.id as string, userId: user.id, pct: progressView.scorePct }),
         stored: storedResult
           ? {
               score: storedResult.score,
@@ -798,8 +814,6 @@ export default async function ExamPrepDetailPage({
         prepId={prep.id}
         officialNote={officialPlanNote(prep.learning_preferences) ?? officialSourceNote(readCurriculumRef(prep.learning_preferences))}
         shareTools={{
-          inviteUrl,
-          whatsappHref: inviteUrl ? prepInviteWhatsappHref((prep.title ?? prep.exam_type) as string | null, inviteUrl) : null,
           // 11 Kasım 2026: sınav sabahı kâğıdı Plus'ta. Karar yolun Plus adımlarıyla aynı okumadan (`pathSkipKinds`:
           // ücretsiz hesapta dolu küme); sayfanın kendisi de kapıyı gösterir (`plusOnlyLocked`).
           cramSheetLocked: skipKinds.size > 0,
@@ -857,6 +871,7 @@ export default async function ExamPrepDetailPage({
         lockedPickId={typeof kilitli === "string" ? kilitli : null}
         pendingMaterials={pendingMaterials}
         dueReviews={dueReviews}
+        radioItems={radioItems}
       />
     </ParitySorShell>
   );

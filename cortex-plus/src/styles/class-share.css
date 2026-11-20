@@ -1,0 +1,267 @@
+/*
+  "📲 Sınıfla Paylaş" ve paylaşılan çalışma yolu (Faz 7, 20 Kasım 2026). Ölçü ve köşe tasarım sisteminden (--cx-*);
+  renk uygulama kabuğunda --cx-*, misafir sayfasında pazarlama paletinden (--mk-*, 11 Kasım: sıcak siyah, kâğıt beyazı
+  eylem). Kartlarda kenarlık yok; tıklanan her şey hap; dokunma hedefi telefonda en az 44 px.
+*/
+
+/* ---------- Hazırlık sayfasının üst simgelerindeki hap ---------- */
+.cp-class-share-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cx-space-6);
+  /* Her genişlikte 44 px: paylaşım çoğunlukla telefondan yapılır. */
+  min-height: var(--cx-tap-min);
+  padding: 0 var(--cx-space-16);
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  color: var(--cx-text-primary);
+  font: var(--cx-t-label-13);
+  font-weight: 600;
+  letter-spacing: var(--cx-ls-label);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: scale var(--cx-dur-scale) var(--cx-ease-out);
+}
+.cp-class-share-pill:hover,
+.cp-class-share-pill:focus-visible {
+  scale: var(--cx-scale-hover);
+}
+.cp-class-share-pill:focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}
+@media (max-width: 767px) {
+  .cp-class-share-pill {
+    padding: 0 var(--cx-space-14);
+  }
+}
+
+/* ---------- Paylaşım penceresi (onay penceresinin iskeleti, `confirm-dialog.css`) ---------- */
+.cp-class-share-dialog .cx-confirm-text + .cx-confirm-text {
+  margin-top: var(--cx-space-8);
+}
+.cp-class-share-reward {
+  margin: var(--cx-space-16) 0 0;
+  padding: var(--cx-space-12) var(--cx-space-16);
+  border-radius: var(--cx-radius-m);
+  background: var(--cx-highlight-weak);
+  color: var(--cx-text-highlight);
+  font: var(--cx-t-body-14);
+}
+.cp-class-share-link {
+  display: block;
+  margin: var(--cx-space-16) 0 0;
+  padding: var(--cx-space-12) var(--cx-space-16);
+  border-radius: var(--cx-radius-m);
+  background: var(--cx-bg-2);
+  color: var(--cx-text-reading);
+  font: var(--cx-t-meta-m);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+.cp-class-share-status {
+  margin: var(--cx-space-16) 0 0;
+  font: var(--cx-t-body-14);
+  color: var(--cx-text-secondary);
+}
+.cx-confirm-btn[data-tone="brand"] {
+  background: var(--cx-gradient-brand);
+  color: var(--cx-text-on-brand);
+  text-decoration: none;
+}
+.cx-confirm-btn[data-tone="brand"]:hover {
+  background: var(--cx-gradient-brand);
+  filter: brightness(1.06);
+}
+.cp-class-share-dialog .cx-confirm-btn {
+  gap: var(--cx-space-8);
+  text-decoration: none;
+}
+.cp-class-share-dialog .cx-confirm-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* ---------- /davet/<kod>: paylaşılan çalışma yolu ---------- */
+.cp-invite {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 36rem;
+  margin: 0 auto;
+  padding: var(--cx-space-24) 0 var(--cx-space-48);
+}
+.cp-invite-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cx-space-16);
+  padding: 28px;
+  color: var(--mk-text);
+}
+@media (max-width: 767px) {
+  .cp-invite-card {
+    padding: var(--cx-space-20);
+  }
+}
+.cp-invite-by {
+  display: flex;
+  align-items: center;
+  gap: var(--cx-space-12);
+  margin: 0;
+  font: var(--cx-t-label-13);
+  color: var(--mk-muted);
+}
+.cp-invite-avatar {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: var(--cx-icon-btn-l);
+  height: var(--cx-icon-btn-l);
+  border-radius: var(--cx-radius-max);
+  background: linear-gradient(135deg, #ffb224, #ff4d8d 45%, #8b5cf6 75%, #22d3ee);
+  color: #0b0907;
+  font: 700 0.9375rem / 1 var(--cx-font-sans);
+}
+.cp-invite-kicker {
+  margin: 0;
+  font: var(--cx-t-meta-s);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mk-muted);
+}
+.cp-invite-title {
+  margin: 0;
+  font: 600 clamp(1.5rem, 4.5vw, 2rem) / 1.15 var(--cx-font-sans);
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+  color: var(--mk-text);
+}
+.cp-invite-meta {
+  margin: 0;
+  font: var(--cx-t-body-14);
+  color: var(--mk-muted);
+}
+.cp-invite-units {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cx-space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cp-invite-unit {
+  display: flex;
+  align-items: center;
+  gap: var(--cx-space-12);
+  min-height: var(--cx-tap-min);
+  padding: var(--cx-space-8) var(--cx-space-12);
+  border-radius: var(--cx-radius-m);
+  background: rgba(255, 255, 255, 0.04);
+  font: var(--cx-t-body-14);
+  color: var(--mk-text);
+}
+.cp-invite-unit-no {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--cx-radius-max);
+  background: rgba(255, 255, 255, 0.08);
+  font: 600 0.75rem / 1 var(--cx-font-mono);
+  color: var(--mk-text);
+}
+.cp-invite-unit-label {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.cp-invite-unit-free {
+  flex: none;
+  padding: 4px 10px;
+  border-radius: var(--cx-radius-max);
+  background: rgba(52, 211, 153, 0.14);
+  color: #34d399;
+  font: var(--cx-t-meta-s);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.cp-invite-more {
+  margin: 0;
+  padding: 0 var(--cx-space-12);
+  font: var(--cx-t-label-13);
+  color: var(--mk-muted);
+}
+.cp-invite-note {
+  margin: 0;
+  font: var(--cx-t-body-14);
+  color: var(--mk-muted);
+}
+.cp-invite-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 52px;
+  padding: var(--cx-space-12) var(--cx-space-20);
+  text-align: center;
+  text-decoration: none;
+  font-size: 0.9375rem;
+  line-height: 1.25;
+}
+.cp-invite-cta[aria-disabled="true"],
+.cp-invite-cta:disabled {
+  cursor: progress;
+  opacity: 0.75;
+}
+.cp-invite-alt {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--cx-tap-min);
+  font: var(--cx-t-label-13);
+  color: var(--mk-muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.cp-invite-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--cx-space-8);
+}
+.cp-invite-status {
+  margin: 0;
+  font: var(--cx-t-body-14);
+  color: var(--mk-muted);
+}
+.cp-invite-status a {
+  color: var(--mk-text);
+  text-decoration: underline;
+}
+
+/* Uygulama kabuğunda (oturum açık öğrenci) aynı kart kabuğun dilinde: bg-1 kart, satırlar bg-2. */
+.cp-sor-main.cx-app-main .cx-mk-body .cp-invite-unit {
+  background: var(--cx-bg-2);
+}
+.cp-sor-main.cx-app-main .cx-mk-body .cp-invite-unit-no {
+  background: var(--cx-bg-3);
+}
+.cp-sor-main.cx-app-main .cx-mk-body .cp-invite-unit-free {
+  background: var(--cx-success-weak);
+  color: var(--cx-success);
+}
+.cp-sor-main.cx-app-main .cx-mk-body .cp-invite-avatar {
+  background: var(--cx-gradient-signature);
+  color: var(--cx-text-on-brand);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-class-share-pill {
+    transition: none;
+  }
+  .cp-class-share-pill:hover,
+  .cp-class-share-pill:focus-visible {
+    scale: none;
+  }
+}

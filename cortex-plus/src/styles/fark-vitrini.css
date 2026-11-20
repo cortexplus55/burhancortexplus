@@ -1,0 +1,1072 @@
+/*
+  Fark vitrini (20 Kasım 2026, Faz 7): ana sayfadaki "Aynı not, iki ayrı sonuç" bölümünün içinde üç kart; /ornek
+  sayfasının sonunda ikisi. Kartlar hem `.lp.hm` (ana sayfa) hem `.dm-shell` (/ornek) içinde durduğu için renkler
+  burada, `.fv` kökünde tanımlı: 11 Kasım paleti (sıcak siyah zemin, kâğıt beyazı eylem, tek vurgu logonun şeridi).
+  Mavi ve çivit yok; altın yalnız Plus etiketinde. Pazarlama kabuğu temadan bağımsız hep koyu: aynı değerler açık ve
+  koyu temada geçerli, her yazı/zemin çifti AA (hesap yanlarında).
+
+  Kurallar: yazı en az 12 px, dokunma alanı en az 44 px, hiçbir kutu kabından geniş değil (kart ve ızgara kap
+  sorgusuyla dizilir). Hareket yalnız CSS'te ve küçük; `prefers-reduced-motion`da durur.
+*/
+
+.fv {
+  --fv-ink: #0b0907;
+  --fv-ink-2: #15110d;
+  --fv-ink-3: #1e1813;
+  --fv-ink-4: #29211a;
+  --fv-paper: #f6ecd9;
+  --fv-paper-hover: #fffaf0;
+  --fv-paper-ink: #1b140d;
+  --fv-text: #f7f1e8; /* ink-2 üstünde 16:1 */
+  --fv-muted: #b9ada0; /* ink-2 üstünde 8,5:1 */
+  --fv-line: rgba(247, 241, 232, 0.11);
+  --fv-line-strong: rgba(247, 241, 232, 0.22);
+  --fv-peach: #ffc7a8;
+  --fv-ribbon: linear-gradient(90deg, #ffb224 0%, #ff4d8d 36%, #8b5cf6 68%, #22d3ee 100%);
+  --fv-ribbon-tilt: linear-gradient(135deg, #ffb224 0%, #ff4d8d 36%, #8b5cf6 68%, #22d3ee 100%);
+  /* Anlam rengi: başarı / sıfır maliyet (ürün sahibi: zümrüt yeşili). Yazı tonu ink-2 üstünde 13:1, rozet zemininde 10:1. */
+  --fv-success: #34d399;
+  --fv-success-text: #6ee7b7;
+  --fv-success-weak: rgba(52, 211, 153, 0.14);
+  --fv-success-edge: rgba(52, 211, 153, 0.42);
+  /* Karşı taraf: sönük gül (düello satırlarıyla aynı). */
+  --fv-them-text: #fda4af;
+  /* Kâğıt üstündeki kalemler: kırmızı 5,6:1, yeşil 5,8:1 (#f6ecd9 üstünde). */
+  --fv-pen-red: #b42318;
+  --fv-pen-red-stroke: #c81e1e;
+  --fv-pen-green: #0b5e3b;
+  --fv-pencil: #26201b;
+  --fv-paper-muted: #5c4f43; /* kâğıt üstünde 6,6:1 */
+  --fv-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  container-type: inline-size;
+  position: relative;
+  margin: clamp(1.5rem, 4vw, 2.5rem) 0;
+  color: var(--fv-text);
+}
+
+.fv-kicker {
+  margin: 0 0 0.85rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  line-height: 1.3;
+  text-align: center;
+  text-transform: uppercase;
+  color: var(--fv-peach);
+}
+
+/* ---------- Izgara: telefonda tek sütun, ortada iki (paylaş kartı tam genişlik), genişte üç ---------- */
+
+.fv-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fv-cell {
+  display: flex;
+  min-width: 0;
+}
+
+@container (min-width: 44rem) {
+  .fv-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .fv-cell--share {
+    grid-column: 1 / -1;
+  }
+}
+
+@container (min-width: 66rem) {
+  .fv-grid:not(.fv-grid--pair) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .fv-grid:not(.fv-grid--pair) .fv-cell--share {
+    grid-column: auto;
+  }
+}
+
+/* ---------- Kart ---------- */
+
+.fv-card {
+  container-type: inline-size;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.9rem;
+  min-width: 0;
+  padding: 1.1rem 1.15rem 1.2rem;
+  border: 1px solid var(--fv-line-strong);
+  border-radius: 1.25rem;
+  background: var(--fv-ink-2);
+  box-shadow: 0 1.4rem 3.2rem -2rem rgba(0, 0, 0, 0.9);
+  transition: border-color 0.2s ease;
+}
+
+.fv-card--radio.is-playing {
+  border-color: transparent;
+  background:
+    linear-gradient(var(--fv-ink-2), var(--fv-ink-2)) padding-box,
+    var(--fv-ribbon) border-box;
+}
+
+.fv-head {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.fv-title {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+  text-wrap: balance;
+  color: var(--fv-text);
+}
+
+.fv-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.fv-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+  padding: 0.2rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.fv-badge--ok {
+  background: var(--fv-success-weak);
+  box-shadow: inset 0 0 0 1px var(--fv-success-edge);
+  color: var(--fv-success-text);
+  font-family: var(--font-mono);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* +50 kredi: şeritten çerçeve, kâğıt beyazı yazı (ink-2 üstünde 16:1). */
+.fv-badge--bonus {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--fv-ink-3), var(--fv-ink-3)) padding-box,
+    var(--fv-ribbon) border-box;
+  color: var(--fv-text);
+  font-size: 0.8125rem;
+}
+
+/* Plus: altın yalnız burada (marka kuralı). #fdc94a, koyu altın zeminde 9:1. */
+.fv-plus {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(253, 179, 0, 0.16);
+  color: #fdc94a;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.fv-stage {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.fv-note {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--fv-muted);
+}
+
+.fv-status {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--fv-peach);
+}
+
+/* ---------- Karşılaştırma: Cortex Plus ışıkta, genel botlar sönük ---------- */
+
+.fv-compare {
+  display: grid;
+  gap: 0.6rem;
+  margin: auto 0 0;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--fv-line);
+}
+
+.fv-compare-row {
+  display: grid;
+  align-content: start;
+  gap: 0.2rem;
+  min-width: 0;
+  padding-left: 0.75rem;
+}
+
+.fv-compare-row--us {
+  border-left: 2px solid var(--fv-success-text);
+}
+
+.fv-compare-row--them {
+  border-left: 2px dashed rgba(253, 164, 175, 0.6);
+}
+
+.fv-compare dt {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.fv-compare-row--us dt {
+  color: var(--fv-success-text);
+}
+
+.fv-compare-row--them dt {
+  color: var(--fv-them-text);
+}
+
+.fv-compare dd {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--fv-muted);
+}
+
+.fv-compare-row--us dd {
+  color: var(--fv-text);
+}
+
+.fv-compare-icon {
+  width: 0.9rem;
+  height: 0.9rem;
+  flex: none;
+}
+
+@container (min-width: 40rem) {
+  .fv-compare {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem;
+  }
+}
+
+/* ---------- Kart A: kilit ekranı tarzı mini oynatıcı ---------- */
+
+.fv-lock {
+  display: grid;
+  gap: 0.7rem;
+  min-width: 0;
+  padding: 0.95rem 1rem 1rem;
+  border-radius: 1.35rem;
+  background:
+    radial-gradient(120% 80% at 0% 0%, rgba(255, 77, 141, 0.14), transparent 60%),
+    radial-gradient(120% 90% at 100% 100%, rgba(139, 92, 246, 0.16), transparent 60%),
+    var(--fv-ink);
+  box-shadow:
+    inset 0 0 0 1px rgba(247, 241, 232, 0.12),
+    0 1rem 2.4rem -1.6rem rgba(0, 0, 0, 0.95);
+}
+
+.fv-lock-top {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  color: var(--fv-muted);
+}
+
+.fv-lock-icon {
+  width: 0.9rem;
+  height: 0.9rem;
+  flex: none;
+}
+
+.fv-now {
+  display: grid;
+  grid-template-columns: 3.25rem minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: center;
+}
+
+/* Ünite numarası şeridin üstünde: süs (ekran okuyucu başlığı yazıdan okur). */
+.fv-art {
+  display: grid;
+  place-items: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 0.85rem;
+  background: var(--fv-ribbon-tilt);
+  color: var(--fv-paper-ink);
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.fv-now-text {
+  min-width: 0;
+}
+
+.fv-now-swap {
+  animation: fv-swap 0.38s var(--fv-ease) both;
+}
+
+.fv-now-unit {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  color: var(--fv-text);
+}
+
+.fv-now-src {
+  margin: 0.15rem 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  color: var(--fv-muted);
+}
+
+.fv-wave {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 2.5rem;
+}
+
+.fv-wave span {
+  flex: 1 1 0;
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(180deg, #ffb224, #ff4d8d);
+  opacity: 0.45;
+  transform: scaleY(0.18);
+  transform-origin: center;
+  transition: opacity 0.2s ease;
+}
+
+.fv-wave span:nth-child(2n) {
+  background: linear-gradient(180deg, #8b5cf6, #22d3ee);
+}
+
+.fv-card--radio.is-playing .fv-wave span {
+  opacity: 1;
+  animation: fv-bar 0.9s ease-in-out infinite;
+  animation-delay: calc(var(--fv-i, 0) * -70ms);
+}
+
+.fv-card--radio.is-playing .fv-wave span:nth-child(3n) {
+  animation-duration: 0.68s;
+}
+
+.fv-card--radio.is-playing .fv-wave span:nth-child(4n + 1) {
+  animation-duration: 1.15s;
+}
+
+.fv-progress {
+  height: 4px;
+  border-radius: 4px;
+  background: rgba(247, 241, 232, 0.12);
+  overflow: hidden;
+}
+
+.fv-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--fv-ribbon);
+  transition: width 0.25s linear;
+}
+
+.fv-times {
+  display: flex;
+  justify-content: space-between;
+  margin: -0.35rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.2;
+  color: var(--fv-muted);
+}
+
+.fv-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+/* Kartın tek ana eylemi: kâğıt beyazı (üstünde mürekkep yazı, 15:1). */
+.fv-play {
+  display: inline-flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0.55rem 1.1rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--fv-paper);
+  color: var(--fv-paper-ink);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  cursor: pointer;
+  box-shadow:
+    0 0 0 1px rgba(255, 199, 168, 0.28) inset,
+    0 10px 30px -12px rgba(255, 106, 77, 0.56);
+  transition:
+    background 0.2s ease,
+    transform 0.2s var(--fv-ease);
+}
+
+.fv-play:hover {
+  background: var(--fv-paper-hover);
+}
+
+.fv-play:active {
+  transform: scale(0.98);
+}
+
+.fv-play-glyph {
+  font-size: 0.875rem;
+  line-height: 1;
+}
+
+.fv-icon-btn {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 1px solid var(--fv-line-strong);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--fv-text);
+  cursor: pointer;
+}
+
+.fv-icon-btn:hover {
+  background: rgba(247, 241, 232, 0.06);
+}
+
+:is(.fv-play, .fv-icon-btn, .fv-seg-btn):focus-visible,
+.fv-steps-summary:focus-visible {
+  outline: 2px solid #ffdcae;
+  outline-offset: 3px;
+}
+
+/* Akış: Ünite 1 → Ünite 2 → … (çalan ünite şeritten çerçeveli). */
+.fv-queue {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8125rem;
+  line-height: 1.3;
+  color: var(--fv-muted);
+}
+
+.fv-queue-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.fv-queue-item + .fv-queue-item::before {
+  content: "→";
+  content: "→" / "";
+  color: var(--fv-muted);
+}
+
+.fv-queue-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+  padding: 0.2rem 0.65rem;
+  border: 1px solid var(--fv-line-strong);
+  border-radius: 999px;
+  overflow-wrap: anywhere;
+}
+
+.fv-queue-item.is-now .fv-queue-pill {
+  border-color: transparent;
+  background:
+    linear-gradient(var(--fv-ink-3), var(--fv-ink-3)) padding-box,
+    var(--fv-ribbon) border-box;
+  color: var(--fv-text);
+  font-weight: 700;
+}
+
+/* ---------- Kart B: kırmızı kalemli örnek kâğıt ---------- */
+
+.fv-seg {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--fv-ink);
+  box-shadow: inset 0 0 0 1px var(--fv-line-strong);
+}
+
+.fv-seg-btn {
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: 0.4rem 0.75rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--fv-muted);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  transition:
+    background 0.16s ease,
+    color 0.16s ease;
+}
+
+.fv-seg-btn:hover {
+  color: var(--fv-text);
+}
+
+/* Seçili hap cam yüzey (kâğıt beyazı kartın ana eylemi değil; ekranda tek vurgu). */
+.fv-seg-btn.is-on {
+  background: var(--fv-ink-4);
+  box-shadow: inset 0 0 0 1px rgba(247, 241, 232, 0.28);
+  color: var(--fv-text);
+}
+
+/* Kareli defter sayfası: ızgara satırla hizalanmak zorunda değil. */
+.fv-paper {
+  position: relative;
+  min-width: 0;
+  margin: 0;
+  padding: 0.9rem 1rem 1rem;
+  border-radius: 0.9rem;
+  background-color: var(--fv-paper);
+  background-image:
+    linear-gradient(rgba(27, 20, 13, 0.075) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(27, 20, 13, 0.075) 1px, transparent 1px);
+  background-size: 1rem 1rem;
+  color: var(--fv-paper-ink);
+  box-shadow: 0 1.2rem 2.6rem -1.6rem rgba(0, 0, 0, 0.95);
+}
+
+.fv-paper-head {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0 0 0.75rem;
+}
+
+.fv-paper-label {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  line-height: 1.3;
+  text-transform: uppercase;
+  color: var(--fv-paper-muted);
+}
+
+.fv-paper-q {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: #3d3229;
+}
+
+.fv-paper-lines {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fv-paper-line {
+  display: grid;
+  gap: 0.35rem;
+  justify-items: start;
+  min-width: 0;
+}
+
+.fv-paper-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+/* El yazısı havası yazı tipi yüklemeden: eğik, hafif açılı, kurşun kalem rengi. */
+.fv-ink {
+  position: relative;
+  display: inline-block;
+  padding: 0 0.15rem;
+  font-size: 1.125rem;
+  font-style: italic;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  line-height: 1.5;
+  color: var(--fv-pencil);
+  transform: rotate(-1deg);
+  overflow-wrap: anywhere;
+}
+
+.fv-pen-tick {
+  width: 1.4rem;
+  height: 1.4rem;
+  flex: none;
+  fill: none;
+  stroke: var(--fv-pen-green);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.6;
+}
+
+.fv-pen-squiggle {
+  position: absolute;
+  left: -0.1rem;
+  bottom: -0.3rem;
+  width: calc(100% + 0.2rem);
+  height: 0.55rem;
+  overflow: visible;
+  fill: none;
+  stroke: var(--fv-pen-red-stroke);
+  stroke-linecap: round;
+  stroke-width: 2;
+}
+
+.fv-pen-squiggle path,
+.fv-pen-ring path {
+  vector-effect: non-scaling-stroke;
+}
+
+.fv-pen-tick path,
+.fv-pen-squiggle path,
+.fv-pen-ring path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+}
+
+.fv-mark {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  min-height: 1.9rem;
+  padding: 0.2rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.fv-mark--good {
+  background: rgba(11, 94, 59, 0.1);
+  box-shadow: inset 0 0 0 1.5px rgba(11, 94, 59, 0.55);
+  color: var(--fv-pen-green);
+}
+
+/* Kırmızı kalemle çevrilmiş uyarı: halka el çizimi, yazı eğik. */
+.fv-mark--bad {
+  position: relative;
+  margin: 0.2rem 0 0 0.15rem;
+  padding: 0.45rem 0.95rem;
+  border-radius: 0;
+  color: var(--fv-pen-red);
+  font-style: italic;
+}
+
+.fv-mark-text {
+  position: relative;
+}
+
+.fv-pen-ring {
+  position: absolute;
+  inset: -0.1rem -0.3rem;
+  width: calc(100% + 0.6rem);
+  height: calc(100% + 0.2rem);
+  overflow: visible;
+  fill: none;
+  stroke: var(--fv-pen-red-stroke);
+  stroke-linecap: round;
+  stroke-width: 2.2;
+  pointer-events: none;
+}
+
+.fv-paper-total {
+  margin: 0.75rem 0 0;
+  font-size: 1rem;
+  font-style: italic;
+  font-weight: 800;
+  line-height: 1.3;
+  text-align: right;
+  color: var(--fv-pen-red);
+}
+
+/* İşaretler bir "an" olarak çizilir (`startMoment`, en çok 2,5 sn; dokununca biter). */
+.fv-paper[data-drawing] .fv-pen-tick path {
+  animation: fv-draw 0.22s var(--fv-ease) 0.1s both;
+}
+
+.fv-paper[data-drawing] .fv-mark--good {
+  animation: fv-pop 0.22s var(--fv-ease) 0.3s both;
+}
+
+.fv-paper[data-drawing] .fv-pen-squiggle path {
+  animation: fv-draw 0.38s var(--fv-ease) 0.5s both;
+}
+
+.fv-paper[data-drawing] .fv-pen-ring path {
+  animation: fv-draw 0.6s var(--fv-ease) 0.75s both;
+}
+
+.fv-paper[data-drawing] .fv-mark-text {
+  animation: fv-pop 0.22s var(--fv-ease) 1s both;
+}
+
+.fv-paper[data-drawing] .fv-paper-total {
+  animation: fv-pop 0.22s var(--fv-ease) 1.2s both;
+}
+
+/* ---------- Kart C: QR'lı mini sınav sabahı kâğıdı ---------- */
+
+.fv-sheet {
+  display: grid;
+  gap: 0.65rem;
+  min-width: 0;
+  padding: 0.9rem 1rem 0.8rem;
+  border-radius: 0.9rem;
+  background: var(--fv-paper-hover);
+  color: var(--fv-paper-ink);
+  box-shadow: 0 1.2rem 2.6rem -1.6rem rgba(0, 0, 0, 0.95);
+}
+
+.fv-sheet-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.fv-sheet-title {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 800;
+  line-height: 1.3;
+  text-wrap: balance;
+}
+
+.fv-sheet-topic {
+  margin: 0.2rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  line-height: 1.3;
+  text-transform: uppercase;
+  color: var(--fv-paper-muted);
+}
+
+/* Genişlik içeriğin en dar hâli: QR ya da adresin en uzun parçası ("cortexplus.app/"), hangisi genişse. */
+.fv-qr {
+  display: grid;
+  justify-items: center;
+  gap: 0.3rem;
+  width: min-content;
+  min-width: 5.9rem;
+  margin: 0;
+}
+
+.fv-qr-code {
+  display: block;
+  width: 5.5rem;
+  height: 5.5rem;
+  padding: 0.2rem;
+  border-radius: 0.4rem;
+  background: #ffffff;
+  box-shadow: inset 0 0 0 1px rgba(27, 20, 13, 0.18);
+}
+
+.fv-qr-code svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.fv-qr-caption {
+  display: grid;
+  gap: 0.05rem;
+  max-width: 100%;
+  font-size: 0.75rem;
+  line-height: 1.25;
+  text-align: center;
+  color: var(--fv-paper-muted);
+}
+
+.fv-qr-caption-label {
+  font-weight: 700;
+  color: var(--fv-paper-ink);
+}
+
+.fv-qr-caption-url {
+  font-family: var(--font-mono);
+}
+
+.fv-sheet-lines {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fv-sheet-line {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.5rem;
+  align-items: baseline;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.fv-sheet-tag {
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(27, 20, 13, 0.08);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.35;
+  white-space: nowrap;
+  color: #3d3229;
+}
+
+.fv-sheet-line[data-kind="formula"] .fv-sheet-tag {
+  background: rgba(255, 178, 36, 0.28);
+  color: #5c3a00;
+}
+
+.fv-sheet-line[data-kind="teacher"] .fv-sheet-tag {
+  background: rgba(255, 77, 141, 0.16);
+  color: #7d1238;
+}
+
+.fv-sheet-line[data-kind="warn"] .fv-sheet-tag {
+  background: rgba(200, 30, 30, 0.12);
+  color: #8f1b14;
+}
+
+.fv-sheet-text {
+  min-width: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.fv-sheet-sign {
+  margin: 0.15rem 0 0;
+  padding-top: 0.45rem;
+  border-top: 1px dashed rgba(27, 20, 13, 0.25);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.3;
+  color: var(--fv-paper-muted);
+}
+
+.fv-steps {
+  min-width: 0;
+  border-radius: 1rem;
+  background: var(--fv-ink);
+  box-shadow: inset 0 0 0 1px var(--fv-line-strong);
+}
+
+.fv-steps-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0.5rem 1rem;
+  border-radius: 1rem;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.3;
+  cursor: pointer;
+  list-style: none;
+}
+
+.fv-steps-summary::-webkit-details-marker {
+  display: none;
+}
+
+.fv-steps-chevron {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex: none;
+  color: var(--fv-muted);
+  transition: transform 0.2s ease;
+}
+
+.fv-steps[open] .fv-steps-chevron {
+  transform: rotate(180deg);
+}
+
+.fv-steps-list {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0 1rem 1rem 2.15rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--fv-muted);
+}
+
+.fv-steps-list li::marker {
+  color: #ffb224;
+  font-weight: 700;
+}
+
+/* Paylaş kartı genişken (ortada tam satır): kâğıt solda, adımlar sağda. */
+@container (min-width: 40rem) {
+  .fv-card--share .fv-stage {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+/* ---------- /ornek şeridi ---------- */
+
+.fv--strip {
+  max-width: 62rem;
+  margin: clamp(2rem, 5vw, 3rem) auto 0;
+}
+
+.fv-strip-title {
+  margin: 0;
+  font-size: clamp(1.4rem, 3.2vw, 1.9rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  text-align: center;
+  text-wrap: balance;
+  color: var(--fv-text);
+}
+
+.fv-strip-title::after {
+  content: "";
+  display: block;
+  width: 4.5rem;
+  height: 0.25rem;
+  margin: 0.8rem auto 0;
+  border-radius: 999px;
+  background: var(--fv-ribbon);
+}
+
+.fv-strip-lead {
+  max-width: 36rem;
+  margin: 0.8rem auto 1.25rem;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  text-align: center;
+  text-wrap: pretty;
+  color: var(--fv-muted);
+}
+
+/* ---------- Hareket ---------- */
+
+@keyframes fv-bar {
+  0%,
+  100% {
+    transform: scaleY(0.18);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes fv-swap {
+  from {
+    opacity: 0;
+    transform: translateY(0.35rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fv-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes fv-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Çalarken çubuklar durağan ama farklı boyda: ses sürdüğü yine görünür. */
+  .fv-card--radio.is-playing .fv-wave span {
+    animation: none;
+    transform: scaleY(0.5);
+  }
+
+  .fv-card--radio.is-playing .fv-wave span:nth-child(3n) {
+    transform: scaleY(0.85);
+  }
+
+  .fv-card--radio.is-playing .fv-wave span:nth-child(3n + 1) {
+    transform: scaleY(0.32);
+  }
+
+  .fv-now-swap,
+  .fv-paper[data-drawing] *,
+  .fv-paper[data-drawing] .fv-mark-text {
+    animation: none !important;
+  }
+
+  .fv-progress span,
+  .fv-steps-chevron,
+  .fv-play,
+  .fv-card {
+    transition: none;
+  }
+}

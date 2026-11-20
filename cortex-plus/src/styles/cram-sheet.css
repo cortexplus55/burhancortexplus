@@ -360,18 +360,63 @@
   font: var(--t-body-14);
 }
 
+/* İmza (Faz 7, 20 Kasım 2026): solda marka mührü ve not, sağda QR'ın çağrısı ve kodu. Dar ekranda alt alta. */
 .cp-cram-sign {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 12px 20px;
   margin: 16px 0 0;
-  padding-top: 12px;
+  padding-top: 14px;
   border-top: 1px solid var(--c-border);
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.cp-cram-sign-seal {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1 1 14rem;
+}
+
+.cp-cram-sign-mark {
+  flex: none;
 }
 
 .cp-cram-sign-text {
   min-width: 0;
+}
+
+.cp-cram-sign-qr {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1 1 18rem;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.cp-cram-sign-cta {
+  margin: 0;
+  max-width: 20rem;
+  font: var(--t-label-13);
+  line-height: 1.4;
+  text-align: right;
+  color: var(--c-text);
+  text-wrap: balance;
+}
+
+@media (max-width: 520px) {
+  .cp-cram-sign-qr {
+    justify-content: flex-start;
+  }
+
+  .cp-cram-sign-cta {
+    text-align: left;
+  }
 }
 
 .cp-cram-sign-brand {
@@ -389,11 +434,12 @@
 
 .cp-cram-qr {
   flex: none;
-  width: 72px;
-  height: 72px;
-  padding: 4px;
-  border-radius: 8px;
+  width: 96px;
+  height: 96px;
+  padding: 6px;
+  border-radius: 12px;
   background: #fff;
+  image-rendering: pixelated;
 }
 
 /* A4 kâğıt önizlemesi: baskıda göreceği gibi beyaz kâğıt, siyah yazı, iki sütun (geniş ekranda). */
@@ -426,7 +472,7 @@
   color: #555;
 }
 
-.cp-cram-sheet[data-view="paper"] .cp-cram-page .cp-cram-sign-brand {
+.cp-cram-sheet[data-view="paper"] .cp-cram-page :is(.cp-cram-sign-brand, .cp-cram-sign-cta) {
   color: #111;
 }
 
@@ -712,16 +758,28 @@
     font-size: 8.5pt;
   }
 
+  /* İmza, not ve QR baskıda tek parça; sayfa sonunda bölünmez. QR keskin (vektör, kenar yumuşatma yok). */
   .cp-cram-sheet .cp-cram-sign {
+    flex-wrap: nowrap;
     margin-top: 3mm;
     padding-top: 2mm;
     border-top: 0.5pt solid #000;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .cp-cram-sheet .cp-cram-sign-cta {
+    max-width: 70mm;
+    font-size: 8pt;
+    text-align: right;
   }
 
   .cp-cram-sheet .cp-cram-qr {
-    width: 18mm;
-    height: 18mm;
+    width: 24mm;
+    height: 24mm;
     padding: 0;
+    border-radius: 0;
+    image-rendering: pixelated;
   }
 
   /* Sayfadaki başka her şey görünmez; yalnız kâğıt basılır. */

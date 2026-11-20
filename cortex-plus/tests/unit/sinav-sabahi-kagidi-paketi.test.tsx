@@ -197,7 +197,7 @@ describe("kâğıdın ekranı", () => {
     expect(screen.getByRole("button", { name: /Bağlantıyı Kopyala/ })).toBeTruthy();
     const sign = container.querySelector(".cp-cram-sign")!;
     expect(within(sign as HTMLElement).getByText("Cortex Plus · cortexplus.app")).toBeTruthy();
-    expect(sign.querySelector("img")!.getAttribute("src")).toBe(share.qrSrc);
+    expect(sign.querySelector(".cp-cram-qr")!.getAttribute("src")).toBe(share.qrSrc);
   });
 
   it("yazdırmadan önce süzgeç Tümü'ne döner (kâğıdın tamamı basılır)", () => {
@@ -225,10 +225,11 @@ describe("bulunabilirlik ve baskı", () => {
     expect(read("src/app/araclar/page.tsx")).toContain("loadLatestPrep(supabase, user.id)");
   });
 
-  it("sayfa daveti imzalar, QR'ı sunucuda üretir; baskıda süzgeç gizli, imza basılır", () => {
+  it("sayfa paylaşım kodunu açar (yoksa daveti imzalar), QR'ı yerel üretir; baskıda süzgeç gizli, imza basılır", () => {
     const page = read("src/app/deneme-sinavlari/[prepId]/sinav-sabahi/page.tsx");
-    expect(page).toContain("createPrepInviteToken(prepId)");
-    expect(page).toContain("qrDataUri(url, 160)");
+    expect(page).toContain("ensurePrepShareCode(service, { prepId: input.prepId, userId: input.userId })");
+    expect(page).toContain("createPrepInviteToken(input.prepId)");
+    expect(page).toContain("qrSvgDataUri(url, { size: 160");
     const css = read("src/styles/cram-sheet.css");
     expect(css).toContain(".cp-cram-sheet .cp-cram-toolbar {");
     expect(css).toContain('.cp-cram-sheet[data-view="paper"] .cp-cram-page');

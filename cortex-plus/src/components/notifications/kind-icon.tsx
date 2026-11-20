@@ -6,6 +6,7 @@ import {
   Clapperboard,
   CreditCard,
   Gauge,
+  Gift,
   GraduationCap,
   Headphones,
   Receipt,
@@ -25,6 +26,7 @@ const ICONS: Record<string, LucideIcon> = {
   payment: CreditCard,
   refund: Receipt,
   account: ShieldCheck,
+  referral_reward: Gift,
 };
 
 export function NotificationKindIcon({ kind, className }: { kind: string; className?: string }) {

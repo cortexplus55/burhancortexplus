@@ -1,0 +1,181 @@
+{
+  "note": "Ürünün podcast motoruyla branşın tur dersinden üretilen bölüm (20 Kasım 2026). Kesit: sample.lines.",
+  "model": "gpt-6-luna",
+  "length": "diyalog",
+  "episode": {
+    "title": "Na’dan Kalsiyuma: Vaughan-Williams Sınıfları",
+    "chapters": [
+      {
+        "title": "Hedefe göre sınıflandırma",
+        "lines": [
+          {
+            "speaker": "ada",
+            "text": "Bir hastaya verapamil verildiğinde, ilacın hangi sınıfta olduğunu ilaç adından mı, hedef aldığı kanaldan mı anlarsın?"
+          },
+          {
+            "speaker": "kerem",
+            "text": "Hedefinden, ama sınıf numarasıyla hedefi eşleştirirken karıştırabilirim."
+          },
+          {
+            "speaker": "ada",
+            "text": "Vaughan-Williams sınıflandırması ilaçları hedeflerine göre ayırır: Sınıf I Na⁺ kanalını, Sınıf II β₁ reseptörünü, Sınıf III K⁺ kanalını, Sınıf IV Ca²⁺ kanalını hedefler.",
+            "spoken": "Vaughan-Williams sınıflandırması ilaçları hedeflerine göre ayırır: Sınıf I Na artı kanalını, Sınıf II β₁ reseptörünü, Sınıf III K artı kanalını, Sınıf IV Ca 2 artı kanalını hedefler."
+          },
+          {
+            "speaker": "ada",
+            "text": "Verapamil, Ca²⁺ kanalını hedeflediği için Sınıf IV’tür.",
+            "spoken": "Verapamil, Ca iki artı kanalını hedeflediği için Sınıf IV’tür."
+          },
+          {
+            "speaker": "ada",
+            "text": "Bu sıra bir adres etiketi gibi çalışır: sınıf numarasını duyunca önce hedefi çağırırsın."
+          }
+        ]
+      },
+      {
+        "title": "Sınıf I ve alt grupları",
+        "lines": [
+          {
+            "speaker": "ada",
+            "text": "Sınıf I’in üç alt grubu, aksiyon potansiyelinin süresini ve EKG’de QRS’yi farklı etkiler."
+          },
+          {
+            "speaker": "ada",
+            "text": "Aksiyon potansiyeli, kalp hücresinde uyarının oluşup yayılmasını sağlayan elektriksel değişimdir, QRS ise EKG’de ventriküllerin depolarizasyonunu gösteren bölümdür."
+          },
+          {
+            "speaker": "kerem",
+            "text": "Kinidin Sınıf Ia ve aksiyon potansiyelini uzatıyor, lidokain Sınıf Ib ve kısaltıyor."
+          },
+          {
+            "speaker": "kerem",
+            "text": "Flekainid ise Sınıf Ic, süreyi değiştirmiyor ama QRS’yi belirgin genişletiyor."
+          },
+          {
+            "speaker": "ada",
+            "text": "Sınıf I ilaçların Na⁺ kanalını hedeflemesi, hücreler arasındaki elektriksel iletimi etkilemelerini açıklar.",
+            "spoken": "Sınıf I ilaçların Na artı kanalını hedeflemesi, hücreler arasındaki elektriksel iletimi etkilemelerini açıklar."
+          },
+          {
+            "speaker": "ada",
+            "text": "Özellikle Ic’deki belirgin QRS genişlemesini, sınavda QT uzamasıyla aynı şey sanmamak gerekir: QRS ventrikül depolarizasyonunu, QT ise depolarizasyon ve repolarizasyonu kapsayan süreyi gösterir."
+          }
+        ]
+      },
+      {
+        "title": "Sınıf III, QT ve torsades",
+        "lines": [
+          {
+            "speaker": "ada",
+            "text": "Sınıf III ilaçlar K⁺ kanallarını bloke eder, böylece faz 3’teki repolarizasyon, yani hücrenin elektriksel olarak başlangıç durumuna dönmesi yavaşlar.",
+            "spoken": "Sınıf III ilaçlar K artı kanallarını bloke eder, böylece faz 3’teki repolarizasyon, yani hücrenin elektriksel olarak başlangıç durumuna dönmesi yavaşlar."
+          },
+          {
+            "speaker": "ada",
+            "text": "Bu gecikme EKG’de QT’yi uzatır ve torsades de pointes adı verilen ciddi bir ventriküler ritim bozukluğu riskini doğurur."
+          },
+          {
+            "speaker": "kerem",
+            "text": "K⁺ kanalının blokajı repolarizasyonu yavaşlatıyorsa, neden sınavda özellikle QT uzamasına dikkat etmem gerekiyor?",
+            "spoken": "K artı kanalının blokajı repolarizasyonu yavaşlatıyorsa, neden sınavda özellikle QT uzamasına dikkat etmem gerekiyor?"
+          },
+          {
+            "speaker": "ada",
+            "text": "QT, ventrikülün elektriksel aktivitesinin ne kadar sürdüğünü yansıtır, repolarizasyon uzadığında bu süre de uzar."
+          },
+          {
+            "speaker": "ada",
+            "text": "Uzamış QT, torsades de pointes gelişebilecek bir zemin oluşturduğu için klinik açıdan önem taşır."
+          },
+          {
+            "speaker": "kerem",
+            "text": "Sotalol başlanan bir hastada QTc 520 ms, potasyum 3,1 mmol/L olsun.",
+            "spoken": "Sotalol başlanan bir hastada QTc 520 ms, potasyum üç virgül bir mmol/L olsun."
+          },
+          {
+            "speaker": "kerem",
+            "text": "Hipokalemi neden riski daha da artırıyor?"
+          },
+          {
+            "speaker": "ada",
+            "text": "Potasyumun düşmesi repolarizasyonu daha da geciktirebilir, Sınıf III etkisiyle uzamış QT’nin üzerine bu gecikme eklenince torsades de pointes riski artar."
+          },
+          {
+            "speaker": "ada",
+            "text": "Bu vaka, sotalolün K⁺ blokajı, QT uzaması ve hipokaleminin birlikte değerlendirilmesini gerektirir.",
+            "spoken": "Bu vaka, sotalolün K artı blokajı, QT uzaması ve hipokaleminin birlikte değerlendirilmesini gerektirir."
+          }
+        ]
+      },
+      {
+        "title": "Amiodaronun ayrıksı yeri",
+        "lines": [
+          {
+            "speaker": "ada",
+            "text": "Amiodaron Sınıf III içinde yer alır, ancak onu yalnızca K⁺ kanalı blokeri diye düşünmek yanlıştır.",
+            "spoken": "Amiodaron Sınıf III içinde yer alır, ancak onu yalnızca K artı kanalı blokeri diye düşünmek yanlıştır."
+          },
+          {
+            "speaker": "ada",
+            "text": "Na⁺, β ve Ca²⁺ üzerine de etkisi vardır, dolayısıyla sınıflandırma hedefi gösterse de bazı ilaçların etkileri tek hedefle sınırlı kalmaz.",
+            "spoken": "Na artı, β ve Ca 2 artı üzerine de etkisi vardır, dolayısıyla sınıflandırma hedefi gösterse de bazı ilaçların etkileri tek hedefle sınırlı kalmaz."
+          },
+          {
+            "speaker": "kerem",
+            "text": "Amiodaron kullanan bir hastada hangi sınıfı ve hangi ek hedefleri birlikte hatırlamalıyım?",
+            "beat": "ask"
+          },
+          {
+            "speaker": "kerem",
+            "text": "Amiodaron Sınıf III’tür, K⁺ etkisinin yanında Na⁺, β ve Ca²⁺ üzerine de etki eder.",
+            "spoken": "Amiodaron Sınıf III’tür, K artı etkisinin yanında Na artı, β ve Ca 2 artı üzerine de etki eder.",
+            "beat": "reveal"
+          },
+          {
+            "speaker": "ada",
+            "text": "Amiodaronla ilgili ayrı bir sınav noktası tiroid ve akciğer toksisitesidir, bu toksisiteler ilacın önemli istenmeyen etkileri olduğundan güvenlilik değerlendirmesinde gözden kaçırılmamalıdır."
+          },
+          {
+            "speaker": "kerem",
+            "text": "En önemli dört eşleştirme: Sınıf I Na⁺, II β₁, III K⁺, IV Ca²⁺ hedefler.",
+            "spoken": "En önemli dört eşleştirme: Sınıf I Na artı, II β₁, III K artı, IV Ca 2 artı hedefler."
+          },
+          {
+            "speaker": "kerem",
+            "text": "Sınıf III, QT’yi uzatıp torsades de pointes riskini artırır."
+          },
+          {
+            "speaker": "kerem",
+            "text": "Amiodaron Sınıf III’tür ama dört sınıfın hedeflerine de etki eder."
+          },
+          {
+            "speaker": "ada",
+            "text": "Hedefi sınıf numarasıyla eşleştir, QT uzamasını K⁺ blokajına bağla ve amiodaronun çoklu etkisini unutma.",
+            "spoken": "Hedefi sınıf numarasıyla eşleştir, QT uzamasını K artı blokajına bağla ve amiodaronun çoklu etkisini unutma."
+          }
+        ]
+      }
+    ],
+    "length": "diyalog"
+  },
+  "sample": {
+    "src": "/ornek/podcast-tus.mp3",
+    "durationMs": 15360,
+    "lines": [
+      {
+        "speaker": "kerem",
+        "name": "Kerem",
+        "text": "Hipokalemi neden riski daha da artırıyor?",
+        "startMs": 0,
+        "endMs": 4152
+      },
+      {
+        "speaker": "ada",
+        "name": "Ada",
+        "text": "Potasyumun düşmesi repolarizasyonu daha da geciktirebilir, Sınıf III etkisiyle uzamış QT’nin üzerine bu gecikme eklenince torsades de pointes riski artar.",
+        "startMs": 4152,
+        "endMs": 15360
+      }
+    ]
+  }
+}

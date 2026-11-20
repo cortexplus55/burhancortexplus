@@ -54,6 +54,8 @@ describe("palet: mavi zemin ve mavi düğme geri gelmez", () => {
     "src/styles/cinematic-home.css",
     "src/styles/advantage.css",
     "src/styles/tour-previews.css",
+    // 20 Kasım 2026 (Faz 7): fark vitrini kartları.
+    "src/styles/fark-vitrini.css",
   ];
 
   it("pazarlama stil dosyalarında mavi eylem rengi yok", () => {
@@ -163,7 +165,7 @@ describe("aynı not, iki ayrı sonuç", () => {
 
   it("fark satırları açılır; kartın anlattığı iki fark ikinci kez yazılmaz", () => {
     render(<LandingDuel />);
-    expect([...HOME_DUEL_ROW_IDS]).toEqual(["ikiz-sinav", "sinav-sabahi", "ikiz-soru", "sessiz-sozlu", "velime-link"]);
+    expect([...HOME_DUEL_ROW_IDS]).toEqual(["ikiz-sinav", "ikiz-soru", "sessiz-sozlu", "velime-link"]);
     const list = document.querySelector("ol.hm-duel-list") as HTMLElement;
     const rows = within(list).getAllByRole("listitem");
     expect(rows).toHaveLength(HOME_DUEL_ROW_IDS.length);

@@ -105,7 +105,10 @@ import { PREP_HOME_COPY } from "@/lib/learning/exam-wizard-copy";
 import { PrepMaterialAdder } from "@/components/parity/prep-add-material";
 import { PendingMaterialsBanner } from "@/components/parity/pending-materials-banner";
 import { PrepShareTools } from "@/components/parity/prep-share-tools";
+import { ClassShareButton } from "@/components/parity/class-share-button";
 import { ExamResultCard, type ExamResultCardProps } from "@/components/parity/exam-result-card";
+import { PrepRadio } from "@/components/parity/prep-radio";
+import type { RadioItem } from "@/lib/learning/prep-radio";
 import "@/styles/prep-home-cx.css";
 import "@/styles/report-card.css";
 import { BADGE_LABEL, BADGE_TONE, type MasteryBadge } from "@/lib/learning/mastery-policy";
@@ -309,14 +312,20 @@ export function ExamPrepHome({
   examResult = null,
   firstTopicLock = null,
   officialNote = null,
+  radioItems = [],
 }: {
   prepId: string;
+  /** Sınav Radyosu (Faz 7): sesi önbellekte olan kayıtlı podcast bölümleri, sırayla; boşsa düğme yok. */
+  radioItems?: RadioItem[];
   /** Resmî müfredattan kurulduysa kaynak notu (sunucuda kayıttan üretilir). */
   officialNote?: string | null;
   /** 1. konu özeti; ücretsiz hesapta kilitli adım varsa dolu (`freeTopicLocks`). */
   firstTopicLock?: FirstTopicSummary | null;
-  /** Sınav sabahı kâğıdı + sınıf paylaşımı (Paket J3 #14); bağlantı sunucuda imzalı ve mutlak. Yoksa kâğıt düğmesi yine görünür. */
-  shareTools?: { inviteUrl: string | null; whatsappHref: string | null; cramSheetLocked?: boolean } | null;
+  /**
+   * Sınav sabahı kâğıdının kilidi (Paket J3 #14). Sınıfla paylaşım 20 Kasım 2026'dan beri üst simgelerdeki
+   * `ClassShareButton`'da; bağlantıyı sunucu açar (`/api/learning/exam-prep/share-code`).
+   */
+  shareTools?: { cramSheetLocked?: boolean } | null;
   /** Sınav günü geçince not sorusu ya da başarı kartı (Paket J3 #14). */
   examResult?: ExamResultCardProps | null;
   /** Hazırlığın kurulduğu belge; konu haritası oradan yenilenir. */
@@ -657,6 +666,8 @@ export function ExamPrepHome({
         role="toolbar"
         aria-label="Hazırlık işlemleri"
       >
+        {/* Faz 7 (20 Kasım 2026): sınıfla paylaşımın tek girişi (yolun altındaki eski WhatsApp düğmesi buraya taşındı). */}
+        <ClassShareButton prepId={prepId} />
         <Link
           href={`/deneme-sinavlari/${prepId}/sohbet`}
           className="cp-prep-icon"
@@ -816,6 +827,8 @@ export function ExamPrepHome({
           <span className="cp-prep-twin-entry-title">{TWIN_EXAM_LABEL}</span>
           <span className="cp-prep-twin-entry-sub">Hocanın çıkmış sorularının tarzında ve konu ağırlığında tam {TWIN_EXAM_QUESTION_COUNT} soru</span>
         </Link>
+        {/* Sınav Radyosu (Faz 7, 20 Kasım 2026): hazır podcast bölümleri sırayla, 0 kredi; liste boşsa düğme yok. */}
+        <PrepRadio prepId={prepId} prepTitle={title} items={radioItems} />
       </header>
       </aside>
 
@@ -906,14 +919,9 @@ export function ExamPrepHome({
               Deneme sınavı oluştur
             </Link>
           </section>
-          {/* 8 Kasım 2026 (ürün sahibinin onayı: "yol önce"): sınav sabahı kâğıdı ve paylaşım yolun altında; önce
-              yolun üstündeydi, telefonda yol ancak ikinci ekranda başlıyordu. */}
-          <PrepShareTools
-            prepId={prepId}
-            inviteUrl={shareTools?.inviteUrl ?? null}
-            whatsappHref={shareTools?.whatsappHref ?? null}
-            cramSheetLocked={shareTools?.cramSheetLocked ?? false}
-          />
+          {/* 8 Kasım 2026 (ürün sahibinin onayı: "yol önce"): sınav sabahı kâğıdı yolun altında; önce yolun üstündeydi,
+              telefonda yol ancak ikinci ekranda başlıyordu. Sınıfla paylaşım 20 Kasım 2026'dan beri üst simgelerde. */}
+          <PrepShareTools prepId={prepId} cramSheetLocked={shareTools?.cramSheetLocked ?? false} />
         </>
       ) : null}
 

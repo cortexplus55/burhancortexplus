@@ -153,7 +153,7 @@ describe("sınav sabahı kâğıdı: sayfa kapısı", () => {
 
 describe("hazırlık sayfasındaki düğme", () => {
   it("ücretsizde 'Plus' rozeti taşır ve yükseltme ekranını yerinde açar; adres durur", () => {
-    render(<PrepShareTools prepId={PREP} inviteUrl={null} whatsappHref={null} cramSheetLocked />);
+    render(<PrepShareTools prepId={PREP} cramSheetLocked />);
     const link = screen.getByText(CRAM_SHEET_TITLE).closest("a")!;
     expect(link.getAttribute("href")).toBe(examPrepCramSheetHref(PREP));
     expect(screen.getByTestId("cram-sheet-plus").textContent).toBe("Plus");
@@ -168,7 +168,7 @@ describe("hazırlık sayfasındaki düğme", () => {
   });
 
   it("Plus'ta rozet ve kapı yok; bağlantı kâğıda gider", () => {
-    render(<PrepShareTools prepId={PREP} inviteUrl={null} whatsappHref={null} />);
+    render(<PrepShareTools prepId={PREP} />);
     const link = screen.getByText(CRAM_SHEET_TITLE).closest("a")!;
     expect(screen.queryByTestId("cram-sheet-plus")).toBeNull();
     expect(link.getAttribute("aria-label")).toBeNull();

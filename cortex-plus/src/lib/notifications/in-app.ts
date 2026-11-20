@@ -23,10 +23,12 @@ export type InAppKind =
   | "payment"
   | "refund"
   | "account"
+  /** Faz 7: klonlanan yolu bitiren arkadaşın ödülü (+50 kredi). Bakiye değiştiği için öğrencinin anahtarından bağımsız. */
+  | "referral_reward"
   | "legacy";
 
 /** Hesapla ilgili bildirimler öğrencinin "uygulama içi bildirim" anahtarından bağımsız yazılır. */
-export const ESSENTIAL_KINDS: ReadonlySet<InAppKind> = new Set(["plan_notice", "payment", "refund", "account"]);
+export const ESSENTIAL_KINDS: ReadonlySet<InAppKind> = new Set(["plan_notice", "payment", "refund", "account", "referral_reward"]);
 
 export type InAppNotification = {
   id: string;

@@ -44,6 +44,7 @@ import { mistakeDraftsFromAttempt, nonPoolQuizAnswers, poolQuizAnswers, scoreAtt
 import { recordAnswerEvidence } from "@/lib/mastery-map/exam-evidence";
 import { recordPoolAnswers } from "@/lib/content-pool/record-answers";
 import { refreshStudentMemory } from "@/lib/learning/student-memory";
+import { rewardCloneReferral } from "@/lib/learning/viral-clone-reward";
 import { notifyBlindSpots, notifyTopicLearned } from "@/lib/notifications/events";
 import type { NodeContext } from "./context";
 
@@ -535,6 +536,14 @@ export async function completeAction(context: NodeContext): Promise<NextResponse
     // Öğrenme hafızası (5 Kasım 2026): yanlış türleri, zayıf kazanımlar ve açık yanılgılar kayıtlardan modelsiz
     // özetlenir; öğretmen sohbeti ve ders yazımı okur. Yanıttan sonra koşar, öğrenciyi bekletmez; düşerse uyarı.
     deferTask(() => refreshStudentMemory(service, userId), background);
+
+    // Sınıfla paylaşım ödülü (Faz 7, 20 Kasım 2026): klonlanan hazırlığın 1. konusunun konu testi bitince paylaşana
+    // +50 kredi. Kurallar SQL'de (`claim_clone_referral_reward`); yanıttan sonra koşar, asla atmaz, tamamlamayı
+    // bekletmez. Göç yokken atlanır. Yalnız konu testi: öbür türlerde iş planlanmaz.
+    if (kind === "quiz" && attempt.status !== "completed") {
+      const rewardTopicId = spansTopics ? null : (tested?.id ?? (topic?.id as string | undefined) ?? null);
+      deferTask(() => rewardCloneReferral(service, { userId, prepId, kind, topicId: rewardTopicId }), background);
+    }
 
     const body: Record<string, unknown> = {
       ok: true,
