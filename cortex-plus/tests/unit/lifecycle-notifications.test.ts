@@ -167,6 +167,61 @@ describe("abonelikten çıkma ve bağlantılar", () => {
   });
 });
 
+/* ───────────── şablon üretimleri ───────────── */
+
+describe("sekiz şablon: konu satırı, tek ana düğme, abonelikten çıkma yalnız yaşam döngüsünde", () => {
+  it("örnek girdilerle her şablon beklenen konu satırını ve doğru alt bilgiyi üretir", async () => {
+    const samples = await import("@/lib/email/templates/sample-inputs");
+    const { renderWelcomeOnboarding } = await import("@/lib/email/templates/welcome-onboarding");
+    const { renderPaymentConfirmed } = await import("@/lib/email/templates/payment-confirmed");
+    const { renderActivation24h } = await import("@/lib/email/templates/activation-24h");
+    const { renderFreeFirstUnitCompleted } = await import("@/lib/email/templates/free-first-unit-completed");
+    const { renderSmartTrapNudge } = await import("@/lib/email/templates/smart-trap-nudge");
+    const { renderExamEveCheatSheet } = await import("@/lib/email/templates/exam-eve-cheat-sheet");
+    const { renderSubscriptionExpiryReminder } = await import("@/lib/email/templates/subscription-expiry-reminder");
+    const { renderWeeklyStudyDigest } = await import("@/lib/email/templates/weekly-study-digest");
+
+    const transactional = [
+      [renderWelcomeOnboarding(samples.SAMPLE_WELCOME_ONBOARDING), "Hoş geldin Elif! İlk sınav yolunu 2 dakikada kuralım"],
+      [renderPaymentConfirmed(samples.SAMPLE_PAYMENT_CONFIRMED), "Plus paketin aktif! Sınav yolunda tüm kilitler açıldı"],
+    ] as const;
+    const lifecycle = [
+      [renderActivation24h(samples.SAMPLE_ACTIVATION_24H), 'Ders notun yoksa bile "Belgem yok" ile 30 saniyede başlayabilirsin'],
+      [renderFreeFirstUnitCompleted(samples.SAMPLE_FREE_FIRST_UNIT_COMPLETED), "1. konuyu %82 ile bitirdin! Kalan 11 konun hazır"],
+      [renderSmartTrapNudge(samples.SAMPLE_SMART_TRAP_NUDGE), 'TYT Matematik: "Üslü Sayılar" konusunda açık kalan 5 sınav tuzağın var'],
+      [renderExamEveCheatSheet(samples.SAMPLE_EXAM_EVE_CHEAT_SHEET), "Sınavına 48 saat kaldı!"],
+      [renderSubscriptionExpiryReminder(samples.SAMPLE_SUBSCRIPTION_EXPIRY_REMINDER), "Plus döneminin bitmesine 3 gün kaldı (Kartından otomatik çekim yapılmaz)"],
+      [renderWeeklyStudyDigest(samples.SAMPLE_WEEKLY_STUDY_DIGEST), "Haftalık Cortex Plus Karnen: 3 yeni konu öğrendin"],
+    ] as const;
+
+    for (const [mail, subject] of transactional) {
+      expect(mail.subject).toContain(subject);
+      expect(mail.html).not.toContain(samples.SAMPLE_PREFERENCES_URL);
+      expect(mail.text.length).toBeGreaterThan(80);
+    }
+    for (const [mail, subject] of lifecycle) {
+      expect(mail.subject).toContain(subject);
+      expect(mail.html).toContain(samples.SAMPLE_PREFERENCES_URL.replace(/&/g, "&amp;"));
+      expect(mail.text).toContain(samples.SAMPLE_PREFERENCES_URL);
+      expect(mail.html).toContain('max-width:600px');
+    }
+    const payment = renderPaymentConfirmed(samples.SAMPLE_PAYMENT_CONFIRMED);
+    expect(payment.text).toContain("KDV dahil");
+    expect(payment.text).toContain("Otomatik çekim yapılmaz");
+    for (const [mail] of [...transactional, ...lifecycle]) expect(`${mail.subject} ${mail.text}`).not.toMatch(/%100/);
+  });
+
+  it("yaşam döngüsü işleri şablona tercih bağlantısını verir ve gönderimi kilitten geçirir", () => {
+    const jobs = read("src/lib/notifications/jobs/lifecycle.ts");
+    expect(jobs.match(/sendGuardedMail\(service, \{/g)?.length).toBe(6);
+    expect(jobs.match(/category: "lifecycle"/g)?.length).toBe(6);
+    expect(jobs).toContain('unsubscribe: "marketing"');
+    expect(jobs).toContain("isFeatureEnabled(service, MARKETING_EMAIL_FLAG)");
+    // Sınav sabahı kâğıdı Plus'ta: ücretsiz hesaba vaat edilmez.
+    expect(jobs).toContain("cramSheetAvailable: !locked");
+  });
+});
+
 /* ───────────── göç (PGlite) ───────────── */
 
 const MIGRATION = "supabase/migrations/20261120120000_faz6_bildirim_eposta.sql";
