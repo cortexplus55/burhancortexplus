@@ -68,8 +68,6 @@ import { retentionFromTopics } from "@/lib/learning/prep-radar";
 import { dueReviewCountForPrep } from "@/lib/learning/review-items-store";
 import { countPendingMaterials } from "@/lib/learning/pending-materials";
 import { coverageBadgeText, processedCoverage } from "@/lib/documents/page-coverage";
-import { createPrepInviteToken, prepInviteUrl } from "@/lib/learning/prep-invite";
-import { prepInviteWhatsappHref } from "@/lib/learning/prep-share";
 import { examDatePassed, examResultDue } from "@/lib/learning/exam-result";
 import { loadExamBaseline } from "@/lib/learning/exam-result-load";
 import { createReadinessToken } from "@/lib/learning/readiness-snapshot";
@@ -660,10 +658,9 @@ export default async function ExamPrepDetailPage({
       }
     : null;
 
-  // Paket J3 #14 (31 Ekim 2026): sınıf davet bağlantısı sunucuda imzalanır ve mutlak adresle gider (WhatsApp metnine
-  // göreli adres girmez). Sınav günü geçince not sorusu / başarı kartı; not göçsüz `learning_preferences`'ta.
-  const inviteToken = createPrepInviteToken(prep.id as string);
-  const inviteUrl = inviteToken ? prepInviteUrl(inviteToken) : null;
+  // Sınıfla paylaşım (Faz 7, 20 Kasım 2026): bağlantıyı sayfa değil üst simgelerdeki düğme ister
+  // (`/api/learning/exam-prep/share-code`: paylaşım kodu, göç yoksa imzalı sınıf daveti; ikisi de mutlak adres).
+  // Sınav günü geçince not sorusu / başarı kartı; not göçsüz `learning_preferences`'ta.
   const resultPrefs = parseLearningPreferences(prep.learning_preferences);
   const resultToday = istanbulDay();
   const examPassed = examDatePassed(prep.exam_date as string | null, resultToday);
@@ -817,8 +814,6 @@ export default async function ExamPrepDetailPage({
         prepId={prep.id}
         officialNote={officialPlanNote(prep.learning_preferences) ?? officialSourceNote(readCurriculumRef(prep.learning_preferences))}
         shareTools={{
-          inviteUrl,
-          whatsappHref: inviteUrl ? prepInviteWhatsappHref((prep.title ?? prep.exam_type) as string | null, inviteUrl) : null,
           // 11 Kasım 2026: sınav sabahı kâğıdı Plus'ta. Karar yolun Plus adımlarıyla aynı okumadan (`pathSkipKinds`:
           // ücretsiz hesapta dolu küme); sayfanın kendisi de kapıyı gösterir (`plusOnlyLocked`).
           cramSheetLocked: skipKinds.size > 0,

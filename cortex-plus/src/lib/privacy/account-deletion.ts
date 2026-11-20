@@ -148,6 +148,14 @@ export async function purgeUserData(service: SupabaseClient, userId: string): Pr
       const { error } = await service.from(table).delete().eq("student_id", userId);
       if (error) return { ok: false, error: step };
     }
+    // 20 Kasım 2026 (Faz 7): sınıfla paylaşım ödül kayıtları; öğrenci paylaşan ya da klonlayan taraf olabilir. Kredi
+    // hareketinin kendisi deftere (credit_ledger) kalır. Göç canlıda yoksa atlanır.
+    for (const column of ["referrer_user_id", "referred_user_id"]) {
+      step = "purge_referral_credit_rewards";
+      const { error } = await service.from("referral_credit_rewards").delete().eq(column, userId);
+      if (error && missingRelation(error)) break;
+      if (error) return { ok: false, error: step };
+    }
 
     // Include soft-deleted documents and page beyond the API's default row cap.
     while (true) {

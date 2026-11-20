@@ -9,6 +9,8 @@ import { CramPrintButton } from "@/components/parity/cram-print-button";
 import { RichBody } from "@/components/parity/lesson-rich-text";
 import { UnicodeFormulaText } from "@/components/parity/unicode-formula";
 import { ExternalAnchor } from "@/components/ui/external-anchor";
+import { CortexMark } from "@/components/brand/cortex-mark";
+import { CRAM_QR_NOTE } from "@/lib/learning/class-share";
 import {
   CRAM_EMPTY_TEXT,
   CRAM_KIND_LABEL,
@@ -277,18 +279,23 @@ export function CramSheetView({
             {preview ? (
               <p className="cp-cram-foot">Cortex Plus · {prepTitle}</p>
             ) : (
-              <footer className="cp-cram-sign">
-                <div className="cp-cram-sign-text">
-                  <p className="cp-cram-sign-brand">{CRAM_SIGNATURE}</p>
-                  <p className="cp-cram-sign-note">
-                    {prepTitle} · notlarından ve derslerinden derlendi.
-                    {share ? " Kodu tara, aynı hazırlığa katıl." : ""}
-                  </p>
+              // Faz 7 (20 Kasım 2026): imza mührü (marka işareti, logo değişmez), not ve QR. Baskıda tek parça
+              // (`break-inside: avoid`); QR bağlantısı hazırlığın paylaşım kodu (`/davet/<kod>`).
+              <footer className="cp-cram-sign" data-has-qr={share?.qrSrc ? "true" : undefined}>
+                <div className="cp-cram-sign-seal">
+                  <CortexMark size={28} className="cp-cram-sign-mark" />
+                  <div className="cp-cram-sign-text">
+                    <p className="cp-cram-sign-brand">{CRAM_SIGNATURE}</p>
+                    <p className="cp-cram-sign-note">{prepTitle} · notlarından ve derslerinden derlendi.</p>
+                  </div>
                 </div>
                 {share?.qrSrc ? (
-                  // QR sunucuda üretilir (veri dışarı çıkmaz); bağlantı hazırlığın imzalı davetidir.
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img className="cp-cram-qr" src={share.qrSrc} alt="Aynı hazırlığa katılma bağlantısının QR kodu" width={72} height={72} />
+                  <div className="cp-cram-sign-qr">
+                    <p className="cp-cram-sign-cta">{CRAM_QR_NOTE}</p>
+                    {/* QR yerel üreticiyle çizilir (ağ isteği yok). */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img className="cp-cram-qr" src={share.qrSrc} alt="Bu hazırlığı telefonunda açma bağlantısının QR kodu" width={96} height={96} />
+                  </div>
                 ) : null}
               </footer>
             )}

@@ -107,6 +107,14 @@ function matches(path: string, prefixes: string[]) {
   return prefixes.some((p) => path === p || path.startsWith(`${p}/`));
 }
 
+/**
+ * Korumalı önekin altındaki herkese açık adres (Faz 7, 20 Kasım 2026): paylaşılan çalışma yolu `/davet/<kod>`
+ * misafire de açılır (önizleme + kayıt bağlantısı; sayfa oturumu kendisi okur). `/davet` (davet sayfası) korumalı kalır.
+ */
+export function publicUnderProtected(path: string): boolean {
+  return /^\/davet\/[^/]+\/?$/.test(path);
+}
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -165,7 +173,7 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isProtected = matches(path, PROTECTED_PREFIXES);
+  const isProtected = matches(path, PROTECTED_PREFIXES) && !publicUnderProtected(path);
 
   // Hesap paylaşımı koruması (31 Ekim 2026): en çok 2 açık cihaz. Yalnız uygulama sayfaları (ve oturumsuzken ana
   // sayfa) sorulur; API, cron, auth dönüşü, pazarlama ve statik dosya sorulmaz. Ayrıntı: device-sessions.ts.

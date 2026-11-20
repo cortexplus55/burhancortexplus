@@ -8,7 +8,8 @@
  * (UUID ve 20+ karakterlik parçalar) yer tutucuya çevrilir.
  */
 
-const TOKEN_ROUTES = ["odeme/veli", "veli-odeme", "yukle", "hazirlik-davet", "api/uploads/phone", "email-dogrula"];
+// "davet" (Faz 7, 20 Kasım 2026): `/davet/<kod>` paylaşılan çalışma yolunun kodu; kodu bilen yolu klonlar.
+const TOKEN_ROUTES = ["odeme/veli", "veli-odeme", "yukle", "hazirlik-davet", "davet", "api/uploads/phone", "email-dogrula"];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const LONG_TOKEN = /^[A-Za-z0-9._~-]{20,}$/;
 
