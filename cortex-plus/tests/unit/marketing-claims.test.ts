@@ -1,6 +1,8 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { FAQ, FREE_PLAN_POINTS, PLUS_PLAN_POINTS, TRUST_FACTS } from "@/lib/marketing/landing-content";
+import { FAQ, FREE_PLAN_POINTS, PLUS_PLAN_POINTS, TRUST_LINE } from "@/lib/marketing/landing-content";
+import { allFarkAccordionCopy } from "@/lib/marketing/fark-accordion";
+import { PLAN_MARKETING_COPY } from "@/lib/marketing/plan-copy";
 import { PLAN_ALLOWANCES, allowanceInWork, planWorkEquivalent } from "@/lib/credits/price-table";
 import { AUTO_RENEW_SUPPORTED } from "@/lib/payments/paytr-capability";
 import { tierComparisonRows } from "@/lib/billing/tier-presentation";
@@ -55,6 +57,11 @@ const SURFACES = [
   "src/components/landing/fark-vitrini-radio.tsx",
   "src/components/landing/fark-vitrini-red-pen.tsx",
   "src/components/landing/fark-vitrini-parts.tsx",
+  // 20 Kasım 2026 (Faz 9): "Aynı not, iki ayrı sonuç" akordeonu ve sahneleri.
+  "src/lib/marketing/fark-accordion.ts",
+  "src/components/landing/fark-accordion.tsx",
+  "src/components/landing/fark-scenes.tsx",
+  "src/components/landing/fark-twin-scene.tsx",
   "src/app/page.tsx",
   "src/app/ozellikler/page.tsx",
   "src/app/fiyatlandirma/page.tsx",
@@ -188,13 +195,21 @@ describe("yasak vaatler", () => {
 });
 
 describe("ana sayfanın sayıları koddan", () => {
-  // 11 Kasım 2026: kanıt şeridi ve özellik ızgarası kalktı; sayılar SSS, plan ikilisi ve güven satırında.
+  // 11 Kasım 2026: kanıt şeridi ve özellik ızgarası kalktı; sayılar SSS, plan kartları ve güven satırında.
+  // Faz 9 (20 Kasım 2026): SSS beş soruya indi, güven satırı tek satır; Plus'ın aylık karşılığı Plus kartında
+  // (`plus.periodLine`, sayfa aynen basar), fark akordeonunun metni de taranır.
   const text = [
     ...FAQ.map((item) => `${item.q} ${item.a}`),
     ...FREE_PLAN_POINTS,
     ...PLUS_PLAN_POINTS,
-    ...TRUST_FACTS.map((fact) => `${fact.title}. ${fact.body}`),
+    ...TRUST_LINE,
+    PLAN_MARKETING_COPY.plus.periodLine,
+    allFarkAccordionCopy(),
   ].join("\n");
+
+  it("Plus kartı aylık karşılığı sayfaya aynen basar", () => {
+    expect(withoutComments(read("src/components/landing/landing-page.tsx"))).toContain("{plus.periodLine}; bütün konular açık.");
+  });
 
   // 24 Ekim 2026: ücretsiz hesap sayaçla — günde 3 mesaj, günde 1 fotoğraf (göç 20261024121000). 11 Kasım 2026
   // akşamı (ürün sahibinin kararı): haftalık 3 ders hakkı kalktı, ücretsiz hesap = tek ders (göç 20261111180000:

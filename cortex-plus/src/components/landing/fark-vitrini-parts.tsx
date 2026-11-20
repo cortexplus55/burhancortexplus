@@ -5,7 +5,21 @@ import { FARK_VITRINI, SHOWCASE_COMPARE_LABELS, splitShowcaseTitle, type Showcas
 /*
   Fark vitrini kartlarının ortak parçaları (20 Kasım 2026). Durum ve istek yok: sunucu kartı (sınıfla paylaş) ve
   istemci kartları (radyo, kırmızı kalem) aynı başlığı ve aynı karşılaştırma bloğunu kullanır.
+
+  Faz 9 (20 Kasım 2026): ana sayfada kartlar "Aynı not, iki ayrı sonuç" akordeonunun sahnesi oldu. Orada başlık ve fark
+  satırı akordeonun kendi başlığında; kart yalnız rozetlerini (`ShowcaseChips`) ve canlı içeriğini çizer.
 */
+
+/** Rozet satırı: çağıranın rozetleri ve gerekiyorsa altın "Plus" etiketi. */
+export function ShowcaseChips({ plus = false, children }: { plus?: boolean; children?: ReactNode }) {
+  if (!children && !plus) return null;
+  return (
+    <div className="fv-chips">
+      {children}
+      {plus ? <span className="fv-plus">{FARK_VITRINI.plus}</span> : null}
+    </div>
+  );
+}
 
 /** Kart başlığı: simge süs (ekran okuyucu simgesiz okur); altında rozetler. */
 export function ShowcaseHead({ id, title, plus = false, children }: { id: string; title: string; plus?: boolean; children?: ReactNode }) {
@@ -21,17 +35,12 @@ export function ShowcaseHead({ id, title, plus = false, children }: { id: string
         ) : null}{" "}
         {text}
       </h3>
-      {children || plus ? (
-        <div className="fv-chips">
-          {children}
-          {plus ? <span className="fv-plus">{FARK_VITRINI.plus}</span> : null}
-        </div>
-      ) : null}
+      <ShowcaseChips plus={plus}>{children}</ShowcaseChips>
     </div>
   );
 }
 
-/** İki satırlık karşılaştırma: Cortex Plus ışıkta, genel botlar sönük ve kesik çizgili (düello satırlarıyla aynı dil). */
+/** İki satırlık karşılaştırma: Cortex Plus ışıkta, genel botlar sönük ve kesik çizgili. */
 export function ShowcaseCompareBlock({ compare }: { compare: ShowcaseCompare }) {
   return (
     <dl className="fv-compare">

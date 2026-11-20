@@ -1,6 +1,7 @@
 /*
-  Fark vitrini (20 Kasım 2026, Faz 7): ana sayfadaki "Aynı not, iki ayrı sonuç" bölümünün içinde üç kart; /ornek
-  sayfasının sonunda ikisi. Kartlar hem `.lp.hm` (ana sayfa) hem `.dm-shell` (/ornek) içinde durduğu için renkler
+  Fark vitrini (20 Kasım 2026, Faz 7): üç kart; /ornek sayfasının sonunda ikisi. Faz 9 (aynı gün): ana sayfada kartlar
+  "Aynı not, iki ayrı sonuç" akordeonunun sahneleri (`home-farklar.css`; sahne sarmalayıcısı `.fv` sınıfını taşır).
+  Kartlar hem `.lp.hm` (ana sayfa) hem `.dm-shell` (/ornek) içinde durduğu için renkler
   burada, `.fv` kökünde tanımlı: 11 Kasım paleti (sıcak siyah zemin, kâğıt beyazı eylem, tek vurgu logonun şeridi).
   Mavi ve çivit yok; altın yalnız Plus etiketinde. Pazarlama kabuğu temadan bağımsız hep koyu: aynı değerler açık ve
   koyu temada geçerli, her yazı/zemin çifti AA (hesap yanlarında).
@@ -44,19 +45,7 @@
   color: var(--fv-text);
 }
 
-.fv-kicker {
-  margin: 0 0 0.85rem;
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  font-weight: 500;
-  letter-spacing: 0.1em;
-  line-height: 1.3;
-  text-align: center;
-  text-transform: uppercase;
-  color: var(--fv-peach);
-}
-
-/* ---------- Izgara: telefonda tek sütun, ortada iki (paylaş kartı tam genişlik), genişte üç ---------- */
+/* ---------- Izgara (/ornek şeridi): telefonda tek sütun, genişte iki ---------- */
 
 .fv-grid {
   display: grid;
@@ -75,20 +64,6 @@
 @container (min-width: 44rem) {
   .fv-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .fv-cell--share {
-    grid-column: 1 / -1;
-  }
-}
-
-@container (min-width: 66rem) {
-  .fv-grid:not(.fv-grid--pair) {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .fv-grid:not(.fv-grid--pair) .fv-cell--share {
-    grid-column: auto;
   }
 }
 
