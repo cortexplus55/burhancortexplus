@@ -27,7 +27,7 @@ const POLL_WINDOW_MS = 15 * 60 * 1000;
  * altında, WhatsApp yeşili. Öğrenci paketi seçer; `POST /api/billing/parent-link` 48 saatlik imzalı bağlantıyı ve
  * öğrencinin ağzından hazır mesajı döner; WhatsApp'ta gönder, paylaş ya da kopyala. Veli ödeyince geri çağrı paketi
  * öğrencinin hesabına yazar; bu panel açıksa onay ekranına döner (ayrıca uygulama içi bildirim düşer).
- * Misafirde düğme girişe götürür; girişten sonra `/pay?veli=1` paneli açık gelir.
+ * Misafirde düğme kayda götürür; kayıttan (ya da oradaki girişten) sonra `/pay?veli=1` paneli açık gelir.
  */
 export function ParentWhatsAppLink({
   choices,
