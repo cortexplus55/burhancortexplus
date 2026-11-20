@@ -3,6 +3,7 @@ import "server-only";
 import { documentRunningHeaders, ensureCleanPages } from "@/lib/documents/clean-pages";
 import { corePageRun } from "@/lib/learning/core-pages";
 import type { SupportPage } from "@/lib/learning/topic-support-load";
+import { excludedSiblingBoundaryBlock } from "@/lib/learning/sibling-topics";
 import type { NodePayloadInput } from "./generate";
 
 /**
@@ -31,4 +32,12 @@ export async function teacherPages(
       })
     : [];
   return { edges, pages: withSupport(clean, core) };
+}
+
+/**
+ * Kardeş ünite sınır bloğu (19 Kasım 2026, Faz 1-A §1): yalnız belgeli üretimde ve aynı sayfaları paylaşan ünite
+ * varsa; yoksa boş.
+ */
+export function siblingBoundaryLine(input: Pick<NodePayloadInput, "topicLabel" | "excludedSiblingTopics">, core: LessonCore | null): string {
+  return core ? excludedSiblingBoundaryBlock(input.topicLabel, input.excludedSiblingTopics) : "";
 }

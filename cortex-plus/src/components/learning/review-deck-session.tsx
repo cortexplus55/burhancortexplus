@@ -11,7 +11,8 @@ import "@/styles/review-deck.css";
 /**
  * Tekrar destesi oturumu (8 Kasım 2026). Bir seferde bir kart: önce boşluklu cümle, "Cevabı göster" ile kilit
  * bilgi, sonra öğrenci kendini değerlendirir. Yanıt sunucuya gider (basamak ve gün orada hesaplanır); bağlantı
- * düşerse kart yine geçer, öğrenci bekletilmez ve sonda kaç kartın kaydedilemediği söylenir.
+ * düşerse kart yine geçer, öğrenci bekletilmez ve sonda kaç kartın kaydedilemediği söylenir. Kabuk zaten main
+ * öğesini veriyor; burası div (20 Kasım 2026, iç içe main yok).
  */
 export function ReviewDeckSession({
   cards,
@@ -47,7 +48,7 @@ export function ReviewDeckSession({
 
   if (!cards.length) {
     return (
-      <main className="rd">
+      <div className="rd">
         <div className="rd-empty">
           <Icon3D name="tekrar" size={88} />
           <h1>{total ? "Bugünkü tekrarın bitti" : "Tekrar destem"}</h1>
@@ -61,13 +62,13 @@ export function ReviewDeckSession({
             <ArrowRight size={16} aria-hidden />
           </Link>
         </div>
-      </main>
+      </div>
     );
   }
 
   if (!card) {
     return (
-      <main className="rd">
+      <div className="rd">
         <div className="rd-empty">
           <Icon3D name="yildiz" size={88} />
           <h1>Bu tur bitti</h1>
@@ -92,12 +93,12 @@ export function ReviewDeckSession({
             </Link>
           </div>
         </div>
-      </main>
+      </div>
     );
   }
 
   return (
-    <main className="rd">
+    <div className="rd">
       <header className="rd-head">
         <p className="rd-kicker">Tekrar destem</p>
         <p className="rd-count" aria-label={`${cards.length} karttan ${index + 1}.`}>
@@ -137,6 +138,6 @@ export function ReviewDeckSession({
           Cevabı göster
         </button>
       )}
-    </main>
+    </div>
   );
 }

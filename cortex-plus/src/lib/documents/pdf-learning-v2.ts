@@ -5,6 +5,7 @@ import {
   type ExtractionMethod,
   type PageAnalysis,
   type PageKind,
+  storedPageKind,
 } from "@/lib/documents/page-analysis";
 import { buildCoverageReport, type CoverageReport } from "@/lib/documents/coverage";
 import { draftFromLlmTopic, type TopicDraft } from "@/lib/documents/topic-map";
@@ -30,6 +31,7 @@ import {
 } from "@/lib/documents/outline-oneshot";
 import {
   packCourseRelation,
+  packStageRelation,
   packTopicPerspective,
   sharedCourseTag,
 } from "@/lib/documents/outline-topic-meta";
@@ -308,7 +310,8 @@ async function persistPageMeta(service: SupabaseClient, row: LightPageRow, analy
     .from("document_pages")
     .update({
       extraction_ok: analysis.extractionOk,
-      page_kind: analysis.pageKind,
+      // Faz 10: kaynakça ve yalnız başlık türleri CHECK listesinde yok; kayıtlı karşılıkları yazılır.
+      page_kind: storedPageKind(analysis.pageKind),
       headings: analysis.headings,
       formulas: analysis.formulas,
       tables_detected: analysis.tablesDetected,
@@ -362,7 +365,8 @@ async function prepareDocument(
     const analysis = analyzePage(row.page_number, texts.get(row.page_number) ?? "", row.extraction_method);
     if (row.extraction_ok === false) {
       analysis.extractionOk = false;
-      if (analysis.pageKind === "content" || analysis.pageKind === "uncertain") {
+      // Okuması düşen sayfanın kısa metni başlık sanılmaz (Faz 10): OCR boşluğu olarak kalır.
+      if (analysis.pageKind === "content" || analysis.pageKind === "uncertain" || analysis.pageKind === "title_only") {
         analysis.pageKind = "unreadable";
       }
     }
@@ -654,7 +658,12 @@ async function persistCourseOutline(
               learning_objective: packed.learning_objective,
               prerequisites: packed.prerequisites,
               key_definitions: packed.key_definitions,
-              key_relations: [...packed.key_relations, packCourseRelation(courseId)],
+              // Öğrenme basamağı (Faz 10): fotoğraf setinde ve çok belgeli kursta yolun sırası (`topic-consolidation.ts`).
+              key_relations: [
+                ...packed.key_relations,
+                packCourseRelation(courseId),
+                ...(unit.stage ? [packStageRelation(unit.stage)] : []),
+              ],
               worked_examples: [],
               common_mistakes: [],
               source_exercises: [],

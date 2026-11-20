@@ -18,6 +18,7 @@ import { displaySolution, isPromptEcho } from "@/lib/learning/oral-review";
 import { cleanFeedbackText, feedbackKicker } from "@/lib/learning/feedback-copy";
 import { LessonDiagramView } from "@/components/parity/lesson-diagram";
 import { DiagramCard } from "@/components/parity/diagram-card";
+import { LessonVisualScene } from "@/components/learning/visual-scenes/LessonVisualScene";
 import { SourceFigureCard, SourcePageButton } from "@/components/parity/source-page-drawer";
 import { figureHintsFor, matchLessonSource, planFigureSources, type SourceDocRef } from "@/lib/learning/source-preview";
 import {
@@ -36,9 +37,11 @@ import {
   type BoardLine,
 } from "@/lib/learning/lesson-board";
 import { RichBody } from "@/components/parity/lesson-rich-text";
+import { warmMathFonts } from "@/lib/learning/math-fonts";
 import { rejoinIntervalCells } from "@/lib/learning/interval-text";
 import { sanitizeStudentContent } from "@/lib/learning/student-safe-text";
 import { NOTE_WARNING_TITLE, formulaTypoBody, type FormulaTypo } from "@/lib/learning/formula-typos";
+import { SOURCE_CORRECTION_TITLE, allCorrections, correctionKey, type SourceCorrectionWarning } from "@/lib/learning/source-correction";
 import type {
   CheckGradeVariant,
   GradeCheckResult,
@@ -357,6 +360,8 @@ function LessonBlocks({
             return <LessonDiagramView key={key} diagram={block.diagram} id={key} />;
           case "diagram_card":
             return <DiagramCard key={key} card={block} id={key} />;
+          case "visual_scene":
+            return <LessonVisualScene key={key} block={block} id={key} />;
           case "note":
             // Genel bilgi kutusu kapalı başlar (8 Kasım 2026): belgede olmayan destek bilgisi; telefonda tek ekranda
             // metin + iki genel bilgi + sınav tuzağı üst üste geliyordu. Başlık görünür, dokununca açılır.
@@ -721,6 +726,36 @@ function NoteWarnings({ warnings }: { warnings: readonly FormulaTypo[] }) {
   );
 }
 
+/**
+ * Kaynak Düzeltme Uyarısı kartı (19 Kasım 2026, Faz 1-A §2.1): kaynakta açık bir bilimsel hata varsa dersin ilk
+ * adımında kaynağın yazdığı, doğrusu ve kısa açıklama. Ders metni değil; ekranın parçası.
+ */
+function SourceCorrectionCard({ warning }: { warning: SourceCorrectionWarning }) {
+  const titleId = useId();
+  // Aynı belgedeki bütün bariz hatalar tek kartta, sırayla (Faz 1-A §2.1 ek düzeltmesi).
+  const items = allCorrections(warning);
+  return (
+    <aside className="als-note als-note--correction" role="note" aria-labelledby={titleId}>
+      <p id={titleId} className="als-note-correction-title">
+        {SOURCE_CORRECTION_TITLE}
+      </p>
+      {items.map((item, index) => (
+        <div key={`${index}:${item.documentClaim}`} className="als-note-correction-item" data-correction-index={index}>
+          <p className="als-note-body">
+            <span className="als-note-correction-label">{items.length > 1 ? `${index + 1}. Kaynağında yazan: ` : "Kaynağında yazan: "}</span>
+            <span className="als-note-correction-claim">{item.documentClaim}</span>
+          </p>
+          <p className="als-note-body">
+            <span className="als-note-correction-label">Doğrusu: </span>
+            <strong>{item.verifiedTruth}</strong>
+          </p>
+          {item.explanation ? <p className="als-note-body">{item.explanation}</p> : null}
+        </div>
+      ))}
+    </aside>
+  );
+}
+
 function lessonHasExamMarks(lesson: PlayLessonV3): boolean {
   return studentTextParts(JSON.stringify(lesson.screens)).some((part) => part.exam);
 }
@@ -746,13 +781,17 @@ export function ExamLessonSteps({
   closeHref,
   gradeCheck,
   onReexplain,
+  reexplainBadge,
   toolbar,
   plannedMinutes = null,
   writingDone = false,
   sourceDocs = [],
   noteWarnings = [],
+  sourceCorrection = null,
 }: {
   lesson: PlayLesson;
+  /** Kaynak düzeltme uyarısı (Faz 1-A §2.1): ilk adımda kart. Yoksa çizilmez. */
+  sourceCorrection?: SourceCorrectionWarning | null;
   /**
    * Akıllı hoca uyarısı (31 Ekim 2026, Paket J3 #13): notta yanlış yazılmış evrensel formüller. Ders metni değil;
    * dersin ilk ekranında sarı kutu olarak çizilir.
@@ -797,7 +836,13 @@ export function ExamLessonSteps({
    * İstek çağıran yerde (yaşam döngüsü kancası) atılır; bileşen yalnız sonucu çizer.
    */
   onReexplain?: ReexplainHandler;
+  /** Faz 4: ücretsiz hesapta "Ücretsiz deneme: X/10" rozeti (abonede null). */
+  reexplainBadge?: string | null;
 }) {
+  // Kaynak düzeltme kartı formül kutusundaki aynı satırı ikinci kez göstermesin.
+  const shownNoteWarnings = sourceCorrection
+    ? noteWarnings.filter((warning) => !allCorrections(sourceCorrection).some((item) => correctionKey(warning.found) === correctionKey(item.documentClaim)))
+    : noteWarnings;
   const play = useMemo(() => toPlayV3(lesson), [lesson]);
   /** V2 görünümü: tekrar soruları, okuma süresi ve eski yardımcılar bunu okur (ekran i = bölüm i). */
   const view = useMemo(() => v3ToV2(play as LessonV3), [play]);
@@ -830,6 +875,11 @@ export function ExamLessonSteps({
     const observer = new ResizeObserver(publish);
     observer.observe(top);
     return () => observer.disconnect();
+  }, []);
+  // Formül yazı tipleri ders açılır açılmaz istenir: ilk formül kartı geldiğinde harfler görünmez kalıp yalnız √ çizilmesin
+  // (KaTeX `font-display: block`; Faz 9, 20 Kasım 2026, `math-fonts.ts`).
+  useEffect(() => {
+    warmMathFonts();
   }, []);
   useEffect(() => {
     if (shownIndex.current === index) return;
@@ -1384,7 +1434,8 @@ export function ExamLessonSteps({
           ) : null}
           <h1 className="als-heading">{step.heading}</h1>
 
-          {index === 0 && noteWarnings.length ? <NoteWarnings warnings={noteWarnings} /> : null}
+          {index === 0 && sourceCorrection ? <SourceCorrectionCard warning={sourceCorrection} /> : null}
+          {index === 0 && shownNoteWarnings.length ? <NoteWarnings warnings={shownNoteWarnings} /> : null}
 
           {step.kind === "overview" ? (
             <>
@@ -1788,6 +1839,7 @@ export function ExamLessonSteps({
           text={step.body}
           onReexplain={onReexplain}
           topicHint={mathTopicHint}
+          badge={reexplainBadge ?? null}
         />
       ) : null}
 
@@ -1844,11 +1896,13 @@ function StepReexplain({
   text,
   onReexplain,
   topicHint,
+  badge,
 }: {
   heading: string;
   text: string;
   onReexplain: ReexplainHandler;
   topicHint?: string;
+  badge?: string | null;
 }) {
   const [replies, setReplies] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -1883,9 +1937,12 @@ function StepReexplain({
           {error}
         </p>
       ) : null}
-      <button type="button" className="als-reexplain-btn" onClick={() => void run()} disabled={busy} aria-busy={busy}>
-        {busy ? "Farklı bir yoldan anlatılıyor…" : latest ? "🔄 Bir kez daha farklı anlat" : "🔄 Farklı anlat"}
-      </button>
+      <div className="als-reexplain-row">
+        <button type="button" className="als-reexplain-btn" onClick={() => void run()} disabled={busy} aria-busy={busy}>
+          {busy ? "Farklı bir yoldan anlatılıyor…" : latest ? "🔄 Bir kez daha farklı anlat" : "🔄 Farklı anlat"}
+        </button>
+        {badge ? <span className="als-reexplain-trial">{badge}</span> : null}
+      </div>
     </div>
   );
 }

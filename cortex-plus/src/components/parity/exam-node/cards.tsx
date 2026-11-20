@@ -5,7 +5,9 @@ import { CardGradeButtons } from "@/components/parity/review-grade-buttons";
 import { RichBody } from "@/components/parity/lesson-rich-text";
 import { cn } from "@/lib/utils";
 import { NodeSources } from "@/components/parity/node-sources";
+import { NEW_DECK_LABEL, SAVED_DECK_LABEL } from "@/lib/learning/free-restudy";
 import type { NodeLifecycle } from "./use-node-lifecycle";
+import "@/styles/report-card.css";
 
 /** Kartın çevrilmeden önceki yönergesi: önce hatırla, sonra bak. */
 export const CARD_RECALL_HINT = "Önce kendin hatırlamaya çalış, sonra karta dokun ya da boşluk tuşuna bas.";
@@ -40,7 +42,9 @@ export function FlashCard({ front, back, flipped, onFlip }: { front: string; bac
 }
 
 export function CardsPlay({ life }: { life: NodeLifecycle }) {
-  const { sources, stage, loading, payload, index, flipped, setFlipped, revealedCard, setRevealedCard, cardOffer, setCardOffer, cardRepeat, setCardRepeat, answersRef, finishCards, rateCard, cards, cardIndex, cardsPlaying } = life;
+  const { sources, stage, loading, payload, index, flipped, setFlipped, revealedCard, setRevealedCard, cardOffer, setCardOffer, cardRepeat, setCardRepeat, answersRef, finishCards, rateCard, cards, cardIndex, cardsPlaying, regenerateHref } = life;
+  // Faz 4: kayıtlı deste 0 kredi açılır; yeni deste yalnız açık seçimle.
+  const savedDeck = payload.type === "cards" && (payload as { reviewed?: unknown }).reviewed === true;
   return (
     <>
       {stage === "play" && payload.type === "cards" && cardOffer ? (
@@ -87,6 +91,7 @@ export function CardsPlay({ life }: { life: NodeLifecycle }) {
           dürüstçe değerlendir.
         */
         <section className="cp-exam-card-stage">
+          {savedDeck ? <SavedDeckBar regenerateHref={regenerateHref} /> : null}
           <CardProgress
             label={cardRepeat ? "Tekrar" : null}
             position={cardRepeat ? cardRepeat.pos + 1 : index + 1}
@@ -116,6 +121,20 @@ export function CardsPlay({ life }: { life: NodeLifecycle }) {
         </section>
       ) : null}
     </>
+  );
+}
+
+/** Faz 4: kayıtlı destenin etiketi ve açık yeni üretim bağlantısı ("Yeni 8 Kart Üret (8 Kredi)"). */
+export function SavedDeckBar({ regenerateHref }: { regenerateHref: string | null }) {
+  return (
+    <div className="cp-saved-deck" role="note">
+      <span className="cp-saved-deck-label">{SAVED_DECK_LABEL}</span>
+      {regenerateHref ? (
+        <a href={regenerateHref} className="cp-saved-deck-new">
+          {NEW_DECK_LABEL}
+        </a>
+      ) : null}
+    </div>
   );
 }
 

@@ -289,6 +289,7 @@ export function TopicMapEditor({
             <div className="flex flex-wrap items-center justify-between gap-2">
               <input
                 value={topic.title}
+                aria-label="Konu adı"
                 onChange={(event) =>
                   updateTopic(topic.id, { title: event.target.value })
                 }
@@ -297,6 +298,7 @@ export function TopicMapEditor({
               <button
                 type="button"
                 onClick={() => removeTopic(topic.id)}
+                aria-label={`Konuyu sil: ${topic.title}`}
                 className="text-xs text-red-300 underline"
               >
                 Sil
@@ -317,6 +319,7 @@ export function TopicMapEditor({
                 })
               }
               placeholder="Öğrenme hedefi"
+              aria-label={`${topic.title || "Konu"}: öğrenme hedefi`}
               rows={2}
               className="w-full rounded-md border border-white/10 bg-black/20 px-2 py-1.5 text-sm text-[var(--cs-text)]"
             />
@@ -328,6 +331,7 @@ export function TopicMapEditor({
                 })
               }
               placeholder="Kendi notun (isteğe bağlı)"
+              aria-label={`${topic.title || "Konu"}: kendi notun`}
               rows={2}
               className="w-full rounded-md border border-white/10 bg-black/20 px-2 py-1.5 text-sm text-[var(--cs-text)]"
             />

@@ -511,9 +511,12 @@ describe("bekçi: kaynak", () => {
   });
 
   it("hazırlık sayfası sayıyı anahtar arkasından okur; hatırlatma yeni cron açmaz", () => {
-    expect(read("src/app/deneme-sinavlari/[prepId]/page.tsx")).toContain("dueReviews={await dueReviewCountForPrep(service");
+    // Faz 2 (madde 2.3): sayı sayfanın paralel okuma turunda okunur (eskiden JSX içinde ayrı bir await idi).
+    const prepPage = read("src/app/deneme-sinavlari/[prepId]/page.tsx");
+    expect(prepPage).toContain("dueReviewCountForPrep(service");
+    expect(prepPage).toContain("dueReviews={dueReviews}");
     expect(read("src/lib/learning/review-items-store.ts")).toMatch(/dueReviewCountForPrep[\s\S]*SPACED_REVIEW_FLAG/);
-    const cron = read("src/app/api/cron/study-reminders/route.ts");
+    const cron = read("src/lib/notifications/jobs/daily-reminders.ts");
     expect(cron).toContain("isFeatureEnabled(service, SPACED_REVIEW_FLAG)");
     // 31 Ekim 2026: sayılar SQL fonksiyonundan, yoksa tablodan (reminder-facts.ts).
     const facts = read("src/lib/learning/reminder-facts.ts");

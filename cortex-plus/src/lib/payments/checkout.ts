@@ -3,6 +3,7 @@ import { buildPaytrToken, generateMerchantOid, paytrFetchInit } from "@/lib/paym
 import { auditLog } from "@/lib/audit";
 import { validReadEvidence, type ReadEvidence } from "@/lib/legal/consent-evidence";
 import { PERFORMANCE_CONSENT_TEXT } from "@/lib/legal/texts";
+import { PARENT_PERFORMANCE_CONSENT_TEXT } from "@/lib/payments/parent-pay-copy";
 import { SALES_DOCS } from "@/lib/legal/versions";
 
 /**
@@ -106,7 +107,7 @@ export async function createPaytrCheckout(service: SupabaseClient, input: Checko
         performance_consent: {
           accepted: true,
           at: new Date().toISOString(),
-          text: PERFORMANCE_CONSENT_TEXT,
+          text: input.via === "parent_link" ? PARENT_PERFORMANCE_CONSENT_TEXT : PERFORMANCE_CONSENT_TEXT,
         },
       },
     });

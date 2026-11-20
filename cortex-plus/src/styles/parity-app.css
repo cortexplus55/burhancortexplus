@@ -1,4 +1,8 @@
-@import url("https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&display=swap");
+/*
+  20 Kasım 2026: buradaki DM Serif Display @import'u kalktı. Yazı tipi 6 Kasım 2026'da tümden emekli oldu (hiçbir stil
+  ona bağlanmıyor, bekçi `paket2-sayfa.test.ts`), ama içe aktarma her pazarlama sayfasında Google Fonts'a boşuna bir
+  istek attırıyordu; misafir sayfaları yalnız kendi sunucumuzdan yüklenir (`fark-vitrini.spec.ts`).
+*/
 
 /* Tokenler tokens.css'te; burada yeniden tanımlanmaz. */
 .cs-app {

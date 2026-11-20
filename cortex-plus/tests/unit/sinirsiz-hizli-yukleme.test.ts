@@ -30,7 +30,7 @@ vi.mock("@/lib/ai/moderation", () => ({ moderate: mocks.moderate }));
 const { extractImageText } = await import("@/lib/documents/extract-image-text");
 const { PARALLEL_UPLOADS, createLimiter } = await import("@/lib/documents/upload-batch");
 const { UPLOAD_PENDING_MAX, UPLOAD_PREPARE_PER_DAY, UPLOAD_PREPARE_PER_MINUTE } = await import("@/lib/documents/upload-limits");
-const { compressedName, scaledSize } = await import("@/lib/documents/image-compress");
+const { compressedName, scaledSize } = await import("@/lib/upload/compress-image");
 const { appendPhoneUpload, phoneSessionDocuments, phoneSessionOpen } = await import("@/lib/documents/phone-session");
 const { planAddedMaterial } = await import("@/lib/learning/prep-add-material");
 const { PREP_DOCUMENT_REQUEST_MAX } = await import("@/lib/learning/prep-topic-list");
@@ -118,9 +118,9 @@ describe("hız: şerit, istek sınırları, küçültme, hızlı işlem", () => 
     expect(read("src/lib/documents/upload-client.ts")).toContain("compressImageForUpload(original)");
   });
 
-  it("küçültme: uzun kenar 2048, oran korunur; küçük görüntüye dokunulmaz; ad .jpg", () => {
-    expect(scaledSize(4080, 3060)).toEqual({ width: 2048, height: 1536 });
-    expect(scaledSize(3060, 4080)).toEqual({ width: 1536, height: 2048 });
+  it("küçültme: uzun kenar 1600 (20 Kasım 2026, tek küçültücü), oran korunur; küçük görüntüye dokunulmaz; ad .jpg", () => {
+    expect(scaledSize(4080, 3060)).toEqual({ width: 1600, height: 1200 });
+    expect(scaledSize(3060, 4080)).toEqual({ width: 1200, height: 1600 });
     expect(scaledSize(1200, 900)).toEqual({ width: 1200, height: 900 });
     expect(compressedName("20261030_211533.jpg")).toBe("20261030_211533.jpg");
     expect(compressedName("Ekran görüntüsü.PNG")).toBe("Ekran görüntüsü.jpg");

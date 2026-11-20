@@ -1,4 +1,5 @@
 import "server-only";
+import { enforceSingleChoice } from "@/lib/learning/single-choice-guard";
 import { logTopic } from "@/lib/curriculum/topic-map";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { openaiClient } from "@/lib/ai/openai-client";
@@ -345,14 +346,17 @@ export async function podcastListeningCheck(
         brief: PODCAST_CHECK_BRIEF,
         count: PODCAST_CHECK_COUNT,
         focus: "practice",
-        // Son soru çok cevaplı (23 Ekim 2026, ürün sahibinin kararı; konu testindeki gibi tek ve sonda).
-        multi: true,
+        // Tek doğru şık (19 Kasım 2026, Faz 1-A §3.1): dinleme kontrolünün bütün soruları tek seçimli; 23 Ekim 2026'daki
+        // "son soru çok cevaplı" kuralı kalktı. Kayıt öncesi kapı `teacherQuizLoop` içinde (`enforceSingleChoice`).
+        multi: false,
         ...(input.optionCount ? { optionCount: input.optionCount } : {}),
       },
       loopClock,
     );
     // Dinleme kontrolünde de şık harfleri testin bütününde dengelenir (6 Kasım 2026, Paket 2).
-    const questions = balanceQuizQuestions(loop.questions.slice(0, PODCAST_CHECK_COUNT));
+    // Kayıt öncesi kapı (Faz 1-A §3.1–3.2): tek doğru şık ve cevap sızıntısı; elenen soru kontrolden çıkar.
+    const gate = enforceSingleChoice(loop.questions);
+    const questions = balanceQuizQuestions(gate.kept.slice(0, PODCAST_CHECK_COUNT));
     console.info("teacher_podcast_check", {
       topic: logTopic(input.topicLabel),
       kept: questions.length,
@@ -437,7 +441,7 @@ async function runTeacherPodcastInner(
   let calls = 0;
   // Öğrenci bekliyor (önceden hazır podcast yok): hızlı işlem.
   // Hızlı işlem yalnız Plus/Sigma ve kurucuya (19 Ekim 2026, `fast-access.ts`).
-  const profileLoad = studentPedagogyBlock(service, input.userId, "podcast");
+  const profileLoad = studentPedagogyBlock(service, input.userId, "podcast", { prepTitle: input.prepTitle ?? null, subject: [input.prepTitle, input.topicLabel].filter(Boolean).join(" ") || null });
   const optionCountLoad = studentOptionCount(service, input.userId, input.prepTitle);
   const tier = fastTier(!free && (await fastAllowedFor(service, input.userId)));
   const profile = shared ? "" : await profileLoad;

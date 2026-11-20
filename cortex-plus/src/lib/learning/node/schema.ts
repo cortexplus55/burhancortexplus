@@ -7,7 +7,7 @@ export const bodySchema = z.object({
   prepId: z.string().uuid(),
   nodeId: z.string().uuid(),
   attemptId: z.string().uuid().optional(),
-  action: z.enum(["start", "complete", "save", "resume", "review", "grade-check", "progress", "choose", "warm"]).default("start"),
+  action: z.enum(["start", "complete", "save", "resume", "review", "grade-check", "answer-check", "progress", "choose", "warm", "skip-learned"]).default("start"),
   difficulty: z.enum(["kolay", "orta", "ileri"]).optional(),
   voiceMode: z.boolean().optional(),
   // Ders başında sorulan iki sinyal: konuya aşinalık ve o anki ruh hali.
@@ -18,6 +18,11 @@ export const bodySchema = z.object({
     .enum(["ready", "curious", "calm", "neutral", "low_energy", "stressed"])
     .optional(),
   answers: z.record(z.string(), z.unknown()).optional(),
+  /** Faz 2 (madde 7.3) `answer-check`: kontrol edilen sorunun sırası ve cevabı (test: şık metni/listesi; D/Y: boolean). */
+  questionIndex: z.number().int().min(0).max(199).optional(),
+  answer: z.union([z.string().max(2000), z.array(z.string().max(2000)).max(10), z.boolean()]).optional(),
+  /** `answer-check`: yenilenen sayfada kilitli soruların anahtarını geri al. */
+  revealIndexes: z.array(z.number().int().min(0).max(199)).max(60).optional(),
   /** Tek kontrol notlandırma: bölüm indeksi + yanıt. */
   sectionIndex: z.number().int().min(0).optional(),
   /** primary = bölüm sorusu; retry = sunucunun kurduğu tekrar varyantı. */
@@ -46,6 +51,11 @@ export const bodySchema = z.object({
   /** Ders oluşturma merkezi, düğümün konusu dışında bir konu seçtiyse. */
   activityTopicLabel: z.string().max(400).optional(),
   podcastLength: z.enum(PODCAST_LENGTHS).optional(),
+  /**
+   * Faz 4: bitmiş adımda açık yeni üretim ("Yeni 8 Kart Üret (8 Kredi)"). Yoksa kayıtlı gövde ücretsiz açılır
+   * (`free-restudy.ts`).
+   */
+  regenerate: z.boolean().optional(),
   /** Sunucunun kendi isteği: sıradaki dersi kredi düşmeden önceden yaz. */
   prefetch: z.boolean().optional(),
   /**

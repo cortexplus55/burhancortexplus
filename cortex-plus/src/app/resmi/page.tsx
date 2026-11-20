@@ -2,11 +2,15 @@ import Link from "next/link";
 import { MarketingPage } from "@/components/layout/marketing-page";
 import { CURRICULUM } from "@/lib/curriculum/registry";
 import { ExternalAnchor } from "@/components/ui/external-anchor";
+import { pageMetadata } from "@/lib/seo/page-metadata";
 
-export const metadata = {
+// Kanonik adres ve sayfaya özel paylaşım bilgisi (20 Kasım 2026, Faz 3).
+export const metadata = pageMetadata({
   title: "Resmî Takvim ve Sınav Yapıları",
-  description: "ÖSYM, ÖDSGM, MEB ve Diyanet belgelerinden takvim, sınav yapıları ve eksik veri listesi.",
-};
+  description:
+    "ÖSYM, ÖDSGM, MEB ve Diyanet belgelerinden takvim, sınav yapıları ve eksik veri listesi.",
+  path: "/resmi",
+});
 
 const KIND_LABEL = { sinav: "Merkezî sınav", meb: "MEB çalışma takvimi", dini: "Dinî bayram" } as const;
 

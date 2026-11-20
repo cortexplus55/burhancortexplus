@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { Check, Loader2, X } from "lucide-react";
 import { RichBody } from "@/components/parity/lesson-rich-text";
-import { TWIN_BUTTON, TWIN_UNAVAILABLE } from "@/lib/learning/twin-question-copy";
+import { TWIN_BUTTON, TWIN_UNAVAILABLE, TWIN_WRONG } from "@/lib/learning/twin-question-copy";
+import { sameOptionSet } from "@/lib/learning/exam-quiz";
 import "@/styles/twin-question.css";
 
 type TwinQuestion = { text: string; options: string[]; multi: boolean };
@@ -13,8 +14,13 @@ type TwinResult = { correct: boolean; correctOptions: string[]; explanation: str
  * "🔥 Anladığını Kanıtla: Şimdi İkiz Soruyu Çöz (+5 ⭐)" (31 Ekim 2026, Paket J3 #12). Yanlış yapılan sorunun
  * açıklamasının altında; dokununca aynı kavramın sayıları/öncülleri değişmiş tek kardeş sorusu açılır. Cevap sunucuda
  * notlanır (anahtar tarayıcıda yok), doğruysa +5 yıldız.
+ *
+ * Faz 5 §3.1 (19 Kasım 2026): düğme "🔥 Yanlışın İkiziyle Anında Telafi Et". `demo` verilirse (tanıtım turu) kardeş soru
+ * hazır veriden gelir ve tarayıcıda notlanır; istek yok, yıldız yok.
  */
-export function TwinQuestionCard({ attemptId, index }: { attemptId: string; index: number }) {
+export type TwinDemoQuestion = { text: string; options: string[]; correct: string[]; explanation: string };
+
+export function TwinQuestionCard({ attemptId, index, demo }: { attemptId: string; index: number; demo?: TwinDemoQuestion }) {
   const [state, setState] = useState<"idle" | "loading" | "play" | "checking" | "done">("idle");
   const [question, setQuestion] = useState<TwinQuestion | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -23,6 +29,12 @@ export function TwinQuestionCard({ attemptId, index }: { attemptId: string; inde
   const [error, setError] = useState<string | null>(null);
 
   async function open() {
+    if (demo) {
+      setQuestion({ text: demo.text, options: demo.options, multi: false });
+      setToken("demo");
+      setState("play");
+      return;
+    }
     setState("loading");
     setError(null);
     try {
@@ -48,6 +60,12 @@ export function TwinQuestionCard({ attemptId, index }: { attemptId: string; inde
 
   async function check() {
     if (!question || !token || !picked.length) return;
+    if (demo) {
+      const correct = sameOptionSet(picked, demo.correct);
+      setResult({ correct, correctOptions: demo.correct, explanation: demo.explanation, message: correct ? "👏 İkiz soruyu çözdün!" : TWIN_WRONG });
+      setState("done");
+      return;
+    }
     setState("checking");
     try {
       const response = await fetch("/api/learning/twin-question", {
@@ -72,7 +90,7 @@ export function TwinQuestionCard({ attemptId, index }: { attemptId: string; inde
   if (state === "idle" || state === "loading") {
     return (
       <div className="cp-twin-entry">
-        <button type="button" className="cp-twin-button" onClick={open} disabled={state === "loading"} aria-busy={state === "loading" || undefined}>
+        <button type="button" className="cp-twin-button" data-testid="twin-button" onClick={open} disabled={state === "loading"} aria-busy={state === "loading" || undefined}>
           {state === "loading" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
           <span>{state === "loading" ? "İkiz soru hazırlanıyor…" : TWIN_BUTTON}</span>
         </button>

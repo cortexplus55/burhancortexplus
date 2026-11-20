@@ -76,13 +76,16 @@ describe("Ücretsiz", () => {
   });
   it("düello kurmak: bakiye yoksa Plus, test bedeli kadar bakiye (hediye) varsa açık (DUEL_ACCESS)", () => {
     expect(gate(free(), "duel.start")).toMatchObject({ state: "locked", reason: "feature_requires_plus", requiredPlan: "plus" });
-    expect(gate(free({ balance: 10 }), "duel.start")).toMatchObject({ state: "limited", reason: "quota_ok", period: "lifetime", remaining: 1 });
+    // Faz 4: test bedeli 14.
+    expect(gate(free({ balance: 14 }), "duel.start")).toMatchObject({ state: "limited", reason: "quota_ok", period: "lifetime", remaining: 1 });
+    expect(gate(free({ balance: 13 }), "duel.start")).toMatchObject({ state: "locked", reason: "feature_requires_plus" });
     expect(DUEL_ACCESS).toMatchObject({ play: "everyone", bot: "everyone", dailyLimit: null });
   });
   it("hediye bakiyesi sayaç dolunca işi karşılar; Plus'a özel işi açmaz", () => {
     const gift = free({ balance: 90, firstLesson: "done", meters: { chat: { used: 3, limit: 3, resetsAt: MIDNIGHT } } });
-    expect(gate(gift, "lesson.create")).toMatchObject({ state: "limited", reason: "quota_ok", remaining: 3 });
-    expect(gate(gift, "teacher.message")).toMatchObject({ state: "limited", reason: "quota_ok", remaining: 30 });
+    // Faz 4: ders 22, mesaj 1 → 90 kredi 4 ders ya da 90 mesaj.
+    expect(gate(gift, "lesson.create")).toMatchObject({ state: "limited", reason: "quota_ok", remaining: 4 });
+    expect(gate(gift, "teacher.message")).toMatchObject({ state: "limited", reason: "quota_ok", remaining: 90 });
     expect(gate(gift, "podcast.create").state).toBe("locked");
   });
   it("ilk dersin döngüsü 'derse dahil' sayacıyla; 40 dolunca kilit (teklifsiz); başka konu free_topic_limit", () => {
@@ -116,7 +119,7 @@ describe("Ücretsiz", () => {
 
 describe("Plus / Sınav Haftası / Sigma", () => {
   it("Plus %0 ve %89 olağan; %90 uyarı; %100 kilit + Sigma", () => {
-    expect(gate(paid("plus", 0), "lesson.create")).toMatchObject({ state: "limited", reason: "quota_ok", period: "month", limit: 7200, remaining: 7200 });
+    expect(gate(paid("plus", 0), "lesson.create")).toMatchObject({ state: "limited", reason: "quota_ok", period: "month", limit: 4350, remaining: 4350 });
     expect(gate(paid("plus", 89), "lesson.create").reason).toBe("quota_ok");
     expect(gate(paid("plus", 90), "lesson.create").reason).toBe("plus_quota_90");
     expect(gate(paid("plus", 100), "lesson.create")).toMatchObject({ state: "locked", reason: "plus_quota_100", requiredPlan: "sigma", resetAt: "2026-12-12T00:00:00.000Z" });

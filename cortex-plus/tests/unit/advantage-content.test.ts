@@ -9,6 +9,7 @@ import {
   allAdvantageCopy,
 } from "@/lib/marketing/advantage-content";
 import * as landing from "@/lib/marketing/landing-content";
+import { allFarkAccordionCopy } from "@/lib/marketing/fark-accordion";
 import { PHOTO_PAGE_LIMITS } from "@/lib/billing/entitlements";
 import { DEFAULT_STANDARD } from "@/lib/learning/mock-exam/types";
 
@@ -26,11 +27,22 @@ const MARKETING_FILES = [
   "src/app/fiyatlandirma/page.tsx",
   "src/app/ozellikler/page.tsx",
   "src/app/ornek/page.tsx",
+  // 20 Kasım 2026 (Faz 7): fark vitrini kartları.
+  "src/lib/marketing/fark-vitrini.ts",
+  "src/components/landing/fark-vitrini.tsx",
+  "src/components/landing/fark-vitrini-radio.tsx",
+  "src/components/landing/fark-vitrini-red-pen.tsx",
+  "src/components/landing/fark-vitrini-parts.tsx",
+  // 20 Kasım 2026 (Faz 9): "Aynı not, iki ayrı sonuç" akordeonu ve sahneleri.
+  "src/lib/marketing/fark-accordion.ts",
+  "src/components/landing/fark-accordion.tsx",
+  "src/components/landing/fark-scenes.tsx",
+  "src/components/landing/fark-twin-scene.tsx",
 ];
 
 describe("vitrin farkları", () => {
   it("vitrin metninde rakip marka adı geçmez", () => {
-    const copy = `${allAdvantageCopy()}\n${JSON.stringify(landing)}`;
+    const copy = `${allAdvantageCopy()}\n${JSON.stringify(landing)}\n${allFarkAccordionCopy()}`;
     for (const brand of FORBIDDEN_BRAND_NAMES) {
       expect(copy.toLocaleLowerCase("tr")).not.toContain(brand.toLocaleLowerCase("tr"));
     }
@@ -46,7 +58,8 @@ describe("vitrin farkları", () => {
   it("başlık ve sütunlar ürün sahibinin istediği gibi", () => {
     expect(ADVANTAGE_SECTION.title).toBe("Neden Öğrenciler Yabancı Uygulamaları Bırakıp Cortex Plus'a Geçiyor?");
     expect(ADVANTAGE_SECTION.columns.others).toContain("Yabancı AI Uygulamaları");
-    expect(ADVANTAGE_ROWS).toHaveLength(7);
+    // 20 Kasım 2026 (Faz 7): +5 satır (sınıf klonlama, QR'lı kâğıt, sınav radyosu, kırmızı kalem, başarı karnesi).
+    expect(ADVANTAGE_ROWS).toHaveLength(12);
     expect(ADVANTAGE_BADGES).toHaveLength(6);
     expect(PRICING_ADVANTAGE.items).toHaveLength(4);
   });

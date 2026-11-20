@@ -10,6 +10,7 @@ import { prepInviteSignupHref } from "@/lib/learning/prep-invite";
 import { findJoinedCopy, inviterReferralCode, loadInviteSource } from "@/lib/learning/prep-invite-store";
 import { formatDayLong } from "@/lib/format";
 import "@/styles/cram-sheet.css";
+import { MAIN_CONTENT_ID } from "@/lib/ui/main-content";
 
 export const metadata = { title: "Hazırlığa katıl", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
@@ -33,7 +34,7 @@ export default async function PrepInvitePage({ params }: { params: Promise<{ tok
           ? "Bu hazırlık artık yok. Arkadaşından yeni bir bağlantı iste."
           : "Bu davet bağlantısı açılamadı. Arkadaşından yeni bir bağlantı iste.";
     return (
-      <main className="cp-cram">
+      <main id={MAIN_CONTENT_ID} className="cp-cram">
         <div className="cp-cram-empty" role="status">
           <p>{message}</p>
           <Link href="/" className="cp-cram-go">

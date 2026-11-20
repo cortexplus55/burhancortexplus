@@ -1,0 +1,258 @@
+/*
+  Sayfa tepsisi (20 Kasım 2026): yüklemeden önce çekilen defter sayfaları. Kurulum sihirbazının materyal adımında ve
+  telefondan yükleme sayfasında aynı bileşen (`photo-page-tray.tsx`). Renkler --cx-*; birincil düğme sayfanın eylem
+  rengi (--c-action, uygulamada --cx-brand-strong). Telefonda sayfalar yana kayan şerit (sayfa yana kaymaz, şerit
+  kendi kutusunda kayar); geniş ekranda alt alta sarılır. Bütün dokunma hedefleri en az 44 px.
+
+  Yüzey basamağı: tepsinin kartları bulunduğu yüzeyin bir üst basamağıdır. Varsayılan `bg-1` üstü (kurulumun bırakma
+  bölgesi); `bg-2` yüzeyde (telefon kartı) `--ptray-card` / `--ptray-tool` bir basamak yukarı alınır.
+*/
+
+.cx-ptray {
+  --ptray-card: var(--cx-bg-2);
+  --ptray-tool: var(--cx-bg-3);
+  --ptray-tool-hover: var(--cx-bg-4);
+  align-self: stretch;
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cx-space-10);
+  text-align: left;
+  color: var(--cx-text-primary);
+}
+
+.cx-ptray-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--cx-space-8);
+  min-width: 0;
+}
+
+.cx-ptray-title {
+  margin: 0;
+  font: var(--cx-t-title-s);
+  letter-spacing: var(--cx-ls-heading);
+}
+
+.cx-ptray-count {
+  flex: none;
+  font: var(--cx-t-meta-m);
+  letter-spacing: var(--cx-ls-meta);
+  color: var(--cx-text-secondary);
+}
+
+.cx-ptray-hint {
+  margin: 0;
+  font: var(--cx-t-body-14);
+  color: var(--cx-text-secondary);
+}
+
+/*
+  Şeridin genişliği kabından gelir, içeriğinden değil (`contain: inline-size`): yan yana sayfalar telefon sayfasının
+  ızgarasını genişletip sayfayı yana kaydırıyordu (390 px'te +73 px).
+*/
+.cx-ptray-list {
+  display: flex;
+  gap: var(--cx-space-8);
+  min-width: 0;
+  contain: inline-size;
+  margin: 0;
+  padding: var(--cx-space-2) 0 var(--cx-space-8);
+  list-style: none;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+
+.cx-ptray-page {
+  flex: none;
+  /* Üç araç (3 × 44 px) + aralıklar + dolgu. */
+  width: 9rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cx-space-4);
+  padding: var(--cx-space-4);
+  border-radius: var(--cx-radius-m);
+  background: var(--ptray-card);
+  scroll-snap-align: start;
+}
+
+.cx-ptray-thumb {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  border-radius: calc(var(--cx-radius-m) - var(--cx-space-4));
+  background: var(--ptray-tool);
+}
+
+.cx-ptray-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cx-ptray-ph {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  color: var(--cx-text-tertiary);
+}
+
+.cx-ptray-thumb:not([data-ready]) .cx-ptray-ph {
+  background: var(--cx-skeleton);
+  background-size: 200% 100%, auto;
+}
+
+.cx-ptray-ph svg {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.cx-ptray-num {
+  position: absolute;
+  top: var(--cx-space-6);
+  left: var(--cx-space-6);
+  display: grid;
+  place-items: center;
+  min-width: 1.75rem;
+  height: 1.75rem;
+  padding: 0 var(--cx-space-6);
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-bg-0);
+  color: var(--cx-text-primary);
+  font: var(--cx-t-meta-m);
+}
+
+.cx-ptray-tools {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--cx-space-2);
+}
+
+.cx-ptray-tool {
+  display: grid;
+  place-items: center;
+  min-width: var(--cx-tap-min);
+  min-height: var(--cx-tap-min);
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  background: var(--ptray-tool);
+  color: var(--cx-text-primary);
+  cursor: pointer;
+  transition: background var(--cx-dur-color) ease, color var(--cx-dur-color) ease;
+}
+
+.cx-ptray-tool svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.cx-ptray-tool:hover:not(:disabled) {
+  background: var(--ptray-tool-hover);
+}
+
+.cx-ptray-tool:disabled {
+  background: var(--ptray-card);
+  color: var(--cx-text-disabled);
+  cursor: default;
+}
+
+.cx-ptray-tool--remove:hover:not(:disabled) {
+  color: var(--cx-danger);
+}
+
+.cx-ptray-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cx-space-8);
+}
+
+.cx-ptray-add,
+.cx-ptray-upload {
+  flex: 1 1 12rem;
+  min-height: var(--cx-tap-mobile);
+  padding: 0 var(--cx-space-18);
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  font: var(--cx-t-button-l);
+  cursor: pointer;
+  transition: background var(--cx-dur-color) ease, scale var(--cx-dur-scale) var(--cx-ease-out);
+}
+
+.cx-ptray-add {
+  background: var(--ptray-card);
+  color: var(--cx-text-primary);
+}
+
+.cx-ptray-add:hover {
+  background: var(--ptray-tool);
+}
+
+.cx-ptray-upload {
+  background: var(--c-action, var(--cx-brand-strong));
+  color: var(--cx-text-on-brand);
+}
+
+.cx-ptray-upload:hover:not(:disabled) {
+  scale: var(--cx-scale-hover);
+}
+
+.cx-ptray-upload:disabled {
+  background: var(--ptray-tool);
+  color: var(--cx-text-disabled);
+  cursor: default;
+}
+
+.cx-ptray-cancel {
+  align-self: center;
+  min-height: var(--cx-tap-min);
+  padding: 0 var(--cx-space-16);
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  background: transparent;
+  color: var(--cx-text-secondary);
+  font: var(--cx-t-button-s);
+  cursor: pointer;
+}
+
+.cx-ptray-cancel:hover {
+  color: var(--cx-text-primary);
+}
+
+.cx-ptray-tool:focus-visible,
+.cx-ptray-add:focus-visible,
+.cx-ptray-upload:focus-visible,
+.cx-ptray-cancel:focus-visible {
+  outline: 2px solid var(--cx-focus);
+  outline-offset: 2px;
+}
+
+/* Geniş ekranda sayfalar sarılır: hepsi görünür, yana kaydırmak gerekmez. */
+@media (min-width: 768px) {
+  .cx-ptray-list {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+}
+
+/* Kamera düğmesi yalnız dokunmatik cihazda (masaüstünde `capture` yok sayılır, yazı yanıltır). */
+.cx-camera-pick {
+  display: none;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .cx-camera-pick {
+    display: inline-flex;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cx-ptray-upload:hover:not(:disabled) {
+    scale: none;
+  }
+}

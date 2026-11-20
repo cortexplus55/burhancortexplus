@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { CramSheetView } from "@/components/parity/cram-sheet-view";
 import { buildCramSheet } from "@/lib/learning/cram-sheet";
 import { readLessonV3 } from "@/lib/learning/lesson-v3";
-import { qrDataUri } from "@/lib/qr";
+import { qrSvgDataUri } from "@/lib/utils/qr-svg";
 
 export const dynamic = "force-dynamic";
 
@@ -40,8 +40,8 @@ export default async function E2eCramSheetPage() {
     weakSpots: [{ text: "E büyüdükçe D de büyür; F büyüdükçe D küçülür.", topic: "İkinci konu" }],
     teacherRules: ["Hesaplarda sabit değer 10 olarak alınacaktır."],
   });
-  const url = "https://cortexplus.app/hazirlik-davet/ornek";
-  const share = { url, whatsappHref: `https://wa.me/?text=${encodeURIComponent(url)}`, qrSrc: await qrDataUri(url, 160) };
+  const url = "https://cortexplus.app/davet/abcdefghjk";
+  const share = { url, whatsappHref: `https://wa.me/?text=${encodeURIComponent(url)}`, qrSrc: qrSvgDataUri(url, { size: 160, margin: 2 }) };
   return (
     <main className="dark" style={{ padding: 0 }}>
       <CramSheetView sheet={sheet} prepTitle="Örnek hazırlık" examDay="20 Kasım 2026" homeHref="/e2e/sinav-sabahi" share={share} />

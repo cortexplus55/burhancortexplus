@@ -15,10 +15,13 @@ import { PremiumPlanHero } from "@/components/marketing/premium-plan-hero";
 import { billingPeriodOf } from "@/lib/payments/subscription";
 import { formatTry, formatTryWhole } from "@/lib/format";
 import { allowanceShare } from "@/lib/credits/period";
+import { FREE_RESTUDY_BAND } from "@/lib/credits/price-table";
+import { PLAN_MARKETING_COPY } from "@/lib/marketing/plan-copy";
 import "@/styles/parity-app.css";
 import "@/styles/cortex-premium.css";
 import { TrustStrip } from "@/components/parity/trust-strip";
-import { ParentPayLinkButton } from "@/components/billing/parent-pay-link-button";
+import { safeNextPath } from "@/lib/auth/safe-next-path";
+import { ParentWhatsAppLink, type ParentLinkChoice } from "@/components/billing/parent-whatsapp-link";
 import {
   BENEFITS_LEAD,
   GUEST_PREVIEW_COLUMN,
@@ -114,7 +117,9 @@ export function SubscriptionCards({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const returnTo = searchParams.get("returnTo");
+  // Açık yönlendirme (19 Kasım 2026, Faz 3 denetimi): "/pay?returnTo=https://…" + "Kapat" siteden çıkarıyordu.
+  // Yalnız güvenli iç yol kabul edilir; değilse yok sayılır.
+  const returnTo = safeNextPath(searchParams.get("returnTo"), "") || null;
   // Yükseltme penceresinin bağlantısı (/pay?plan=plus|week|sigma&from=…, Faz 3B): istenen kart açık ve işaretli gelir.
   // Bilinmeyen değer yok sayılır (bugünkü varsayılan); `from` hiçbir yerde ekrana basılmaz.
   const pickedPlan = pickedPlanFrom(searchParams.get("plan"));
@@ -214,6 +219,12 @@ export function SubscriptionCards({
     göndermediği için paketler orada da görünmüyor.
   */
   const showCreditPacks = rest.length > 0 && plusOwned;
+  /** Veli bağlantısının paketleri: sahip olunmayan abonelikler (Plus aylık, Sınav Haftası, Sigma aylık). */
+  const parentLinkChoices: ParentLinkChoice[] = [
+    !plusOwned && plusTier.monthly ? { key: "plus" as const, planId: plusTier.monthly.id, name: `${PLAN_MARKETING_COPY.plus.name} (aylık)`, priceKurus: plusTier.monthly.price_try } : null,
+    !plusOwned && plusWeekly ? { key: "week" as const, planId: plusWeekly.id, name: "Sınav Haftası", priceKurus: plusWeekly.price_try } : null,
+    !sigmaOwned && sigmaTier.monthly ? { key: "sigma" as const, planId: sigmaTier.monthly.id, name: `${PLAN_MARKETING_COPY.sigma.name} (aylık)`, priceKurus: sigmaTier.monthly.price_try } : null,
+  ].filter((choice): choice is ParentLinkChoice => choice !== null);
   const plusBenefits = isParent ? parentPlusBenefitLines() : plusBenefitLines();
   const sigmaBenefits = isParent ? parentSigmaBenefitLines() : sigmaBenefitLines();
   const comparison = tierComparisonRows();
@@ -464,6 +475,11 @@ export function SubscriptionCards({
       </div>
 
 
+      {/* Faz 4 güvence bandı: üretilen yolu yeniden çözmek her zaman 0 kredi. */}
+      <p className="cs-pay-restudy-band" role="note" data-testid="restudy-band">
+        {FREE_RESTUDY_BAND}
+      </p>
+
       {/*
         İki sütun ancak iki kart varken. Tek kart iki sütunlu bir ızgarada sol
         yarıya oturup sağ yarıyı boş bırakıyor — sayfa eksik görünüyor.
@@ -499,6 +515,9 @@ export function SubscriptionCards({
               </p>
               <p className="text-xs text-[var(--cs-muted)]">
                 {billingNoteFor(plusPlan)}
+              </p>
+              <p className="cs-pay-work" data-testid="plan-work-plus">
+                {PLAN_MARKETING_COPY.plus.line}
               </p>
               {yearly && plusSaving ? (
                 <p className="cs-pay-save-callout">
@@ -536,10 +555,6 @@ export function SubscriptionCards({
                   planName={plusPlan.name}
                 />
               ) : null}
-              {/* Velime ödeme linki (29 Ekim 2026): kartı yanında olmayan öğrenci; veli hesap açmadan öder. */}
-              {checkoutEnabled && plusPlan && !plusOwned && !guestMode && !isParent ? (
-                <ParentPayLinkButton planId={plusPlan.id} planName={plusPlan.name} />
-              ) : null}
               {checkoutEnabled && plusWeekly && !plusOwned && !isParent ? (
                 <button
                   type="button"
@@ -560,6 +575,11 @@ export function SubscriptionCards({
               {plusWeekly && !plusOwned && !isParent ? (
                 <p className="mt-1.5 text-center text-xs text-[var(--cs-muted)]">
                   {WEEKLY_PLUS_PLAN_NAME} için tek ödeme, abonelik açılmaz.
+                </p>
+              ) : null}
+              {plusWeekly && !plusOwned && !isParent ? (
+                <p className="cs-pay-work cs-pay-work--sub" data-testid="plan-work-week">
+                  {WEEKLY_PLUS_PLAN_NAME}: {PLAN_MARKETING_COPY.week.line}
                 </p>
               ) : null}
               <button
@@ -639,6 +659,9 @@ export function SubscriptionCards({
                 <p className="text-xs text-[var(--cs-muted)]">
                   {billingNoteFor(sigmaPlan)}
                 </p>
+                <p className="cs-pay-work" data-testid="plan-work-sigma">
+                  {PLAN_MARKETING_COPY.sigma.line}
+                </p>
                 <button
                   type="button"
                   disabled={!checkoutEnabled || sigmaOwned || loadingId === sigmaPlan.id}
@@ -688,6 +711,16 @@ export function SubscriptionCards({
         ) : null}
 
       </div>
+
+      {/* Faz 5 §2: "Velime WhatsApp'tan Ödeme Linki Gönder" — paket kartlarının altında (/pay ve /fiyatlandirma). */}
+      {checkoutEnabled && !isParent && parentLinkChoices.length ? (
+        <ParentWhatsAppLink
+          choices={parentLinkChoices}
+          initialKey={pickedPlan}
+          guestMode={guestMode}
+          autoOpen={searchParams.get("veli") === "1"}
+        />
+      ) : null}
 
       {/*
         Fiyat ve satın alma önce (6 Kasım 2026, 360° denetim): karşılaştırma tablosu yaklaşık 20 karttı ve

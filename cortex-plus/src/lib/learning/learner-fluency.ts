@@ -14,6 +14,7 @@
  */
 
 import { foldTr } from "@/lib/documents/page-analysis";
+import { splitTurkishSentences } from "@/lib/text/turkish-sentences";
 
 const COMMON_CAPITAL = new Set([
   "kutle",
@@ -45,8 +46,7 @@ const COMMON_CAPITAL = new Set([
 ]);
 
 export function sentences(text: string): string[] {
-  return text
-    .split(/\n+|(?<=[.!?])\s+(?=[A-ZÇĞİÖŞÜ“"0-9])/)
+  return splitTurkishSentences(text)
     .map((part) => part.replace(/\s+/g, " ").trim())
     .filter((part) => part.length >= 8);
 }

@@ -52,7 +52,14 @@ type GateInput = {
 export type FirstTopicRow = { first: FirstTopicRef; firstIds: ReadonlySet<string> };
 
 /** Kapı bu hesapta çalışır mı ve 1. konu hangisi; abone, kurucu ya da konusuz hazırlıkta null. */
-async function loadFirstTopic(service: SupabaseClient, userId: string, prepId: string): Promise<FirstTopicRow | null> {
+async function loadFirstTopic(
+  service: SupabaseClient,
+  userId: string,
+  prepId: string,
+  /** Çağıran planı zaten biliyorsa (sayfa: oturum bağlamı) ayrı okuma yapılmaz. */
+  known?: { unlimited: boolean },
+): Promise<FirstTopicRow | null> {
+  if (known) return known.unlimited ? null : readFirstTopic(service, prepId);
   const [entitlements, exempt] = await Promise.all([
     getUserEntitlements(service, userId),
     billingExempt(service, userId).catch(() => false),
@@ -104,9 +111,18 @@ export async function freeTopicGate(service: SupabaseClient, input: GateInput): 
  */
 export async function freeTopicLocks(
   service: SupabaseClient,
-  input: { userId: string; prepId: string; nodes: readonly { id: string; kind: string; sessionMeta: unknown; topicLabel: string }[] },
+  input: {
+    userId: string;
+    prepId: string;
+    nodes: readonly { id: string; kind: string; sessionMeta: unknown; topicLabel: string }[];
+    /**
+     * Faz 2 (madde 2): sayfa çizimi plan kararını oturum bağlamından verir (abone ya da önizlemesi kapalı kurucu =
+     * sınırsız). Verilmezse taze okunur (başlatma isteği her zaman taze).
+     */
+    plan?: { unlimited: boolean };
+  },
 ): Promise<{ summary: FirstTopicSummary; lockedIds: string[] } | null> {
-  const row = await loadFirstTopic(service, input.userId, input.prepId);
+  const row = await loadFirstTopic(service, input.userId, input.prepId, input.plan);
   if (!row) return null;
   const candidates = input.nodes.filter((node) =>
     nodeLockedForFree(row.first, {

@@ -2,7 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isFeatureEnabled, MARKETING_EMAIL_FLAG } from "@/lib/admin/feature-flags";
 import { sendEmail } from "@/lib/email/mailer";
-import { claimOnce, settleOnce } from "@/lib/email/once";
+import { claimDispatch, dedupeKeys, settleDispatch } from "@/lib/notifications/dispatch-guard";
 import { renderReferralGiftMail, renderReferralInviteMail } from "@/lib/email/templates";
 import { signUnsubscribeToken, unsubscribeHeaders, unsubscribePageUrl } from "@/lib/email/unsubscribe";
 import { ensureReferralCode, inviteUrlFor } from "@/lib/credits/invite-code";
@@ -40,9 +40,12 @@ export async function sendReferralInviteMails(
   const result = await runWithBudget(
     rows,
     async (row) => {
-      const key = "once:referral_invite";
+      // Faz 6: gönderim kaydı (kampanya e-postası: yaşam döngüsü kategorisi, gece sessizliği ve 24 saat kuralı geçerli).
+      const request = { userId: row.user_id, templateKey: "referral_invite", dedupeKey: dedupeKeys.referralInvite(row.user_id), category: "lifecycle" as const };
       const token = signUnsubscribeToken(row.user_id, "marketing");
-      if (!token || !(await claimOnce(service, row.user_id, key))) return false;
+      if (!token) return false;
+      const held = await claimDispatch(service, request);
+      if (!held.ok) return false;
       const code = await ensureReferralCode(service, row.user_id, row.referral_code);
       const mail = renderReferralInviteMail({
         firstName: row.first_name,
@@ -59,7 +62,7 @@ export async function sendReferralInviteMails(
         headers: unsubscribeHeaders(token),
         idempotencyKey: `referral-invite-${row.user_id}`,
       });
-      await settleOnce(service, row.user_id, key, sent.ok);
+      await settleDispatch(service, request, held, sent.ok);
       return sent.ok;
     },
     { concurrency: 4, deadline: options.deadline },
@@ -78,7 +81,15 @@ export async function sendReferralGiftMails(
   const result = await runWithBudget(
     rows,
     async (row) => {
-      if (!(await claimOnce(service, row.user_id, row.mail_key))) return false;
+      // Hediye bildirimi hesap bilgisidir (işlem kategorisi). Eski "once:" anahtarı yeni biçime: <anahtar>:<kullanıcı>.
+      const request = {
+        userId: row.user_id,
+        templateKey: "referral_gift",
+        dedupeKey: `${row.mail_key.replace(/^once:/, "")}:${row.user_id}`.slice(0, 200),
+        category: "transactional" as const,
+      };
+      const held = await claimDispatch(service, request);
+      if (!held.ok) return false;
       const mail = renderReferralGiftMail({
         firstName: row.first_name,
         lessons: REFERRAL_GIFT_LESSONS,
@@ -91,7 +102,7 @@ export async function sendReferralGiftMails(
         text: mail.text,
         idempotencyKey: `referral-gift-${row.user_id}-${row.mail_key}`.slice(0, 200),
       });
-      await settleOnce(service, row.user_id, row.mail_key, sent.ok);
+      await settleDispatch(service, request, held, sent.ok);
       return sent.ok;
     },
     { concurrency: 4, deadline: options.deadline },

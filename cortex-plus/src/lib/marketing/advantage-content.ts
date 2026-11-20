@@ -123,10 +123,72 @@ export const ADVANTAGE_ROWS: AdvantageRow[] = [
     },
     evidence: [
       "src/lib/payments/parent-link.ts",
-      "src/components/billing/parent-pay-link-button.tsx",
+      "src/components/billing/parent-whatsapp-link.tsx",
       "src/lib/learning/prep-invite.ts",
       "src/components/parity/prep-share-tools.tsx",
     ],
+  },
+  /*
+    Faz 7 (20 Kasım 2026): büyüme ve sınav dönemi araçları. Ana sayfada bu beşi satır olarak değil, "Aynı not, iki ayrı
+    sonuç" bölümündeki dokunulabilir kartlarla anlatılır (`fark-vitrini.ts`); burada /ozellikler tablosunun satırları.
+    Koşullar metinde: +50 kredi arkadaş 1. ünitenin konu testini bitirince ve ayda en çok 5 arkadaş; podcast üretimi,
+    "Kâğıtta çöz" ve sınav sabahı kâğıdı Plus'ta.
+  */
+  {
+    id: "sinif-klonlama",
+    feature: "📲 Sınıf Klonlama +50 Kredi",
+    cortex: {
+      verdict: "Var",
+      body: "Hazırladığın yolu WhatsApp sınıf grubuna at; arkadaşın 1. üniteyi ücretsiz klonlar, 1. ünitenin konu testini bitirince sen +50 kredi kazanırsın (ayda en çok 5 arkadaş).",
+    },
+    others: { verdict: "Yok", body: "Kişiye özel sohbette hapis kalır, sınıfla klonlanamaz." },
+    evidence: ["src/lib/learning/viral-clone.ts (cloneSharedPrepForUser)", "src/lib/learning/viral-clone-reward.ts", "src/app/davet/[shareCode]/page.tsx", "supabase/migrations/20261120140000_faz7_sinif_klonlama.sql (claim_clone_referral_reward)"],
+  },
+  {
+    id: "qr-sinav-sabahi",
+    feature: "🧾 QR Kodlu Sınav Sabahı PDF'i",
+    cortex: {
+      verdict: "Var",
+      body: "Sınav sabahı kâğıdını PDF olarak kaydet; köşesindeki QR kodu okutan sınıf arkadaşın aynı hazırlığı kendi hesabında açar (kâğıt Plus'ta).",
+    },
+    others: { verdict: "Yok", body: "Özet istersen düz metin verir; yazdırılıp sınıfta dolaşan, kodla paylaşılan bir kâğıt kurmaz." },
+    evidence: ["src/lib/utils/qr-svg.ts", "src/app/deneme-sinavlari/[prepId]/sinav-sabahi/page.tsx", "src/lib/learning/prep-share-code.ts"],
+  },
+  {
+    id: "sinav-radyosu",
+    feature: "🎧 Kesintisiz Sınav Radyosu",
+    cortex: {
+      verdict: "Var",
+      body: "Ürettiğin ünite podcastleri otobüste radyo gibi sırayla çalar; kilit ekranından ve kulaklıktan yönetilir, dinlemek kredi harcamaz (podcast üretimi Plus'ta).",
+    },
+    others: { verdict: "Yok", body: "Ekrana düz yazı döker; kilit ekranında sıralı bir ders radyosu kuramaz." },
+    evidence: ["src/components/parity/prep-radio.tsx", "src/lib/learning/radio-media-session.ts", "src/lib/learning/audio-cache.ts (cachedAudioOnly)", "src/app/api/learning/exam-prep/radio/route.ts"],
+  },
+  {
+    id: "kirmizi-kalem",
+    feature: "🖊️ Kırmızı Kalemli Hoca Puanlaması",
+    cortex: {
+      verdict: "Basamak Basamak",
+      body: "Yazılı denemeyi kâğıda çözüp fotoğrafını çekersin; doğru kurduğun basamakların puanı ve hocanın puan kıracağı basamak kırmızı kalemle tek tek gösterilir (Plus'ta, “Kâğıtta çöz”).",
+    },
+    others: { verdict: "Yalnız Sonuç", body: "Yalnız sonuca bakar; ara basamakta kaybedilen puanı yakalayamaz." },
+    evidence: [
+      "src/lib/learning/paper-exam.ts",
+      "src/lib/learning/mock-exam/work-steps.ts",
+      "src/lib/learning/mock-exam/grade.ts (stepPartialCredit)",
+      "src/lib/learning/mock-exam/red-pen.ts",
+      "src/components/parity/red-pen-sheet.tsx",
+    ],
+  },
+  {
+    id: "basari-karnesi",
+    feature: "🎓 Sınav Sonrası Başarı Karnesi",
+    cortex: {
+      verdict: "Var",
+      body: "Sınav günü geçince gerçek notunu yazarsın (istersen kısa bir yorumla); başlangıç ölçümünden sınav notuna gelişimin tek kartta görünür.",
+    },
+    others: { verdict: "Yok", body: "Sınav bitince iz bırakmaz; başlangıcınla gerçek notunu yan yana koymaz." },
+    evidence: ["src/lib/learning/exam-result.ts", "src/components/parity/exam-result-card.tsx", "src/lib/learning/exam-feedback.ts"],
   },
 ];
 
@@ -175,11 +237,14 @@ export const SAME_NOTE_CASE = {
     file: "Köklü_Sayılar_Ders_Notu.pdf",
     lines: ["Hoca uyarısı: “√(x²) sorusunda x'in işaretine dikkat edin.”", "3. sayfada şekil ve tablo"],
   },
+  /*
+    Faz 9 (20 Kasım 2026): kart ana sayfadaki akordeonun 1. sahnesi oldu (`fark-scenes.tsx`); sahne yalnız gösterdiğini
+    taşır. Şekil okuma cümlesi akordeonun başlık metninde ("sayfadaki şekil ve tabloyu derse alır"), çift kontrolün
+    açıklaması sahnenin üç halkasında (`NOTE_SCENE.checks`); kanıtları `FARK_ITEMS`te.
+  */
   others: {
     points: [
       "Notu sıradan metin gibi okur; hocanın uyarısını ayrı bir kural olarak tutmaz.",
-      "Sayfadaki şekil ve tablo değerlerini göremeyebilir.",
-      "Sorduğunda yalnız cevabı gösterip geçer.",
       "Soruları sabit 4 şıkla (A–D) üretir.",
     ],
   },
@@ -187,16 +252,8 @@ export const SAME_NOTE_CASE = {
     badge: "Çift kontrollü yazım",
     points: [
       {
-        text: "Bir model dersi ve soruyu notundan yazar; ikinci bir kontrol çağrısı soruyu kendisi çözer, kod da anahtarı hesapla karşılaştırır.",
-        evidence: ["src/lib/learning/lesson-sanity.ts", "src/lib/learning/quiz-sanity.ts", "src/lib/learning/question-integrity.ts"],
-      },
-      {
         text: "Hocanın nota yazdığı özel kural ve değer derste de testte de esas alınır.",
         evidence: ["src/lib/learning/source-rules.ts", "src/lib/learning/teaching-rubric.ts (SOURCE_NUMBER_PRIORITY)"],
-      },
-      {
-        text: "Şekilli sayfa “Belgedeki Şema” kartıyla dersin içine gelir.",
-        evidence: ["src/lib/learning/figure-pages.ts"],
       },
       {
         text: "Lise, YKS, KPSS ve vizede 5 şık (A–E), LGS'de 4 şık (A–D).",

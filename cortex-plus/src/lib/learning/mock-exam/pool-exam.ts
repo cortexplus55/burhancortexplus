@@ -7,6 +7,7 @@ import { loadMockExamSetup } from "@/lib/learning/mock-exam/create";
 import { pickPoolExamItems, type PoolExamItem, type PoolExamRow } from "@/lib/learning/mock-exam/pool-pick";
 import type { MockLengthPreset } from "@/lib/learning/mock-exam/types";
 import { applyOrder, poolChoiceOrders } from "@/lib/learning/option-balance";
+import { isValidChoiceIndex, keepAnswerKeyed } from "@/lib/learning/answer-key";
 
 /**
  * Havuz hazırlığında yazılı deneme (3 Kasım 2026): canlıda "Kısa · 10 soru" 3,5-4 dk hazırlanıyordu. Belgesiz
@@ -111,7 +112,13 @@ export async function tryPoolMockExam(input: {
     new Set((answered ?? []).map((r) => String(r.item_id))),
   );
   if (!picked) return null;
-  const flat = picked.flatMap(({ row, items: list }) => list.map((item) => ({ row, item })));
+  // Faz 2 (madde 7.2): havuz öğesinin anahtarı şıkların içinde değilse kâğıda girmez; sayı tutmazsa kâğıt havuzdan
+  // kurulmaz (çağıran üretime düşer).
+  const flat = keepAnswerKeyed(
+    picked.flatMap(({ row, items: list }) => list.map((item) => ({ row, item }))),
+    ({ item }) => isValidChoiceIndex(item.choices, item.answer),
+    "mock_exam_pool",
+  );
   if (flat.length !== blueprint.questionCount) return null;
 
   const [{ data: exam, error: examError }, { data: explained }] = await Promise.all([

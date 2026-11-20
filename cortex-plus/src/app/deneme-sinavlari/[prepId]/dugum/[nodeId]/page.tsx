@@ -14,6 +14,7 @@ import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import {
   examPrepLessonRewriteHref,
+  examPrepRegenerateHref,
   examPrepLockedHref,
   needsExamIntro,
   opensSavedLesson,
@@ -21,6 +22,10 @@ import {
 import { parseMood, type Familiarity } from "@/lib/learning/session-signals";
 import { moodAskedSince } from "@/lib/learning/lesson-open";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
+import { CARD_DECK_KINDS, nextRestudyHref, parseRestudyToken } from "@/lib/learning/free-restudy";
+import { LEARNED_SKIP_KINDS, topicReviewStateForNode } from "@/lib/learning/learned-skip";
+import { TARGETED_FIRST_KINDS } from "@/lib/learning/learned-skip-copy";
+import { LearnedSkipBar, TargetedFirstBar } from "@/components/parity/learned-skip-bar";
 import { createServiceClient } from "@/lib/supabase/server";
 import { parseSessionMeta } from "@/lib/learning/teaching-standards";
 import {
@@ -72,10 +77,10 @@ export default async function ExamNodePage({
   searchParams,
 }: {
   params: Promise<{ prepId: string; nodeId: string }>;
-  searchParams: Promise<{ konu?: string; tekrar?: string; incele?: string; farkli?: string }>;
+  searchParams: Promise<{ konu?: string; tekrar?: string; incele?: string; farkli?: string; yeni?: string; yeniden?: string }>;
 }) {
   const { prepId, nodeId } = await params;
-  const { konu, tekrar, incele, farkli } = await searchParams;
+  const { konu, tekrar, incele, farkli, yeni, yeniden } = await searchParams;
   const requestedTopic = typeof konu === "string" ? konu.trim().slice(0, 400) : "";
   // Açılış kritik yolu (3 Kasım 2026): canlıda havuz dersi tıklamadan ilk metne 3,1–4,9 sn. Sorgular sıralıydı
   // (~12 gidiş-dönüş) ve kayıtlı oturum ayrı bir istemci POST'uyla ("resume") okunuyordu. Şimdi bağımsız okumalar
@@ -89,7 +94,7 @@ export default async function ExamNodePage({
     isFeatureEnabled(service, PDF_LEARNING_V2_FLAG),
     supabase
       .from("exam_preps")
-      .select("id, title, exam_type, active_topic_id, intro_completed_at, intro_deferred_at, document_id, learning_preferences")
+      .select("id, title, exam_type, active_topic_id, intro_completed_at, intro_deferred_at, document_id, learning_preferences, target_score")
       .eq("id", prepId)
       .eq("user_id", user.id)
       .maybeSingle(),
@@ -382,7 +387,41 @@ export default async function ExamNodePage({
   }
   // Doğrudan açılış (3 Kasım 2026, canlı ölçüm): belgesiz hazırlıkta havuzda dersi olan konu ve "Farklı anlat"
   // "Önerilen ders / Ders oluştur" kartı göstermeden açılır. Havuz denetimi bellekte (müfredat eşlemesi), sorgu yok.
-  const lessonReviewSaved = opensSavedLesson({ kind: node.kind as string, status: node.status as string, query: { incele, tekrar, farkli, konu } });
+  const lessonReviewSaved = opensSavedLesson({ kind: node.kind as string, status: node.status as string, query: { incele, tekrar, farkli, konu, yeni } });
+  // Faz 4 "Yolu Yeniden Çalış (Ücretsiz)": turun sıradaki adımı (belirteç adreste; tur bittiyse karne).
+  const restudyNextHref = parseRestudyToken(yeniden)
+    ? await (async () => {
+        const { data: rows } = await supabase
+          .from("exam_prep_nodes")
+          .select("id, kind, status, sort_order")
+          .eq("exam_prep_id", prepId)
+          .order("sort_order");
+        return nextRestudyHref({
+          prepId,
+          token: String(yeniden),
+          currentNodeId: nodeId,
+          nodes: (rows ?? []).map((row) => ({
+            id: String(row.id),
+            kind: String(row.kind),
+            status: String(row.status),
+            sortOrder: Number(row.sort_order ?? 0),
+          })),
+        });
+      })()
+    : null;
+  // Faz 4 madde 3.4: konusu "Öğrendin" olan tekrar adımı 0 kredi ile atlanabilir; Zayıf / Gelişiyor / tuzak konuda
+  // zayıf nokta ve odaklı pratik önce ücretsiz hedefli tekrarı önerir. Açık deneme sürerken gösterilmez.
+  const reviewState =
+    LEARNED_SKIP_KINDS.has(String(node.kind)) && node.status !== "done" && !openAttempt
+      ? await topicReviewStateForNode(service, {
+          userId: user.id,
+          prepId,
+          topicLabel: String(topicLabel ?? ""),
+          targetScore: typeof prep.target_score === "number" ? prep.target_score : null,
+        })
+      : { learned: false, targeted: false };
+  const learnedSkip = reviewState.learned;
+  const targetedFirst = !learnedSkip && reviewState.targeted && TARGETED_FIRST_KINDS.has(String(node.kind));
   const autoOpenLesson = shouldAutoOpenLesson({
     kind: node.kind as string,
     reviewSaved: lessonReviewSaved,
@@ -410,6 +449,9 @@ export default async function ExamNodePage({
   ];
 
   const session = (
+    <>
+      {learnedSkip ? <LearnedSkipBar prepId={prep.id as string} nodeId={node.id as string} /> : null}
+      {targetedFirst ? <TargetedFirstBar prepId={prep.id as string} /> : null}
       <ExamNodeSession
         prepId={prep.id}
         nodeId={node.id}
@@ -441,7 +483,11 @@ export default async function ExamNodePage({
         unitTitle={sessionMeta?.unitTitle ?? null}
         activityMinutes={sessionMeta?.activityMinutes ?? null}
         nodeDone={node.status === "done"}
+        regenerate={yeni === "1" && node.status === "done"}
+        regenerateHref={CARD_DECK_KINDS.has(node.kind as string) ? examPrepRegenerateHref(prepId, nodeId) : null}
+        restudyNextHref={restudyNextHref}
       />
+    </>
   );
   return (
     <ParitySorShell {...shell} chrome="session">

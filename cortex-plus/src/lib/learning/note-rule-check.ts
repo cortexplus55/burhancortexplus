@@ -25,6 +25,10 @@ export const NOTE_RULE_SYSTEM =
   'Yalnız JSON döndür: {"items": [{"found": "notta geçen eşitlik, harfi harfine", "standard": "doğru eşitlik", ' +
   '"confidence": "yuksek" | "orta" | "dusuk"}]}. Hata yoksa {"items": []}. En çok 3 öğe.';
 
+/** Kaynak düzeltme görevi eklenince yanıt biçimi (Faz 1-A §2.1): iki alan tek JSON nesnesinde. */
+export const NOTE_RULE_JSON_WITH_CORRECTION =
+  'Tek JSON nesnesi döndür: {"items": [...], "corrections": [...]}. Eşitlik hatası yoksa "items": []; bilimsel hata yoksa "corrections": [].';
+
 /** Modele giden not metni sınırı (karakter). */
 export const NOTE_RULE_TEXT_CAP = 12_000;
 

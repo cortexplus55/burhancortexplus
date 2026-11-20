@@ -14,7 +14,7 @@ export type PromoGrant = "plus" | "credit";
 export const PROMO_PLUS_DAYS_MIN = 1;
 export const PROMO_PLUS_DAYS_MAX = 90;
 export const PROMO_CREDIT_MIN = 1;
-/** Hediye kredinin üst sınırı: Plus'ın bir aylık hakkı 7.200; yanlış yazılan sıfır bütün bütçeyi dağıtmasın. */
+/** Hediye kredinin üst sınırı: Plus'ın bir aylık hakkı 4.350 (Faz 4); yanlış yazılan sıfır bütün bütçeyi dağıtmasın. */
 export const PROMO_CREDIT_MAX = 10_000;
 export const PROMO_USES_MIN = 1;
 export const PROMO_USES_MAX = 1000;

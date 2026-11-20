@@ -30,9 +30,16 @@ describe("kayıt ön seçimi", () => {
     expect(signupPresetFor(null)).toBeNull();
   });
 
+  it("Faz 9: TUS kendi ön seçimi (önce akademik sekmenin içindeydi, kayıtta KPSS'ye düşüyordu)", () => {
+    const tus = signupPresetFor("tus")!;
+    expect(tus).toEqual({ hedef: "tus", gradeLevel: "Mezun", learningGoal: "TUS hazırlık", suggestedGrades: ["Mezun", "Üniversite"] });
+    expect(signupPresetFor("TUS")?.learningGoal).toBe("TUS hazırlık");
+    expect(tus.goalForGrade).toBeUndefined();
+  });
+
   it("ön seçimdeki her değer kayıt seçeneklerinde var", () => {
     const goals = GOAL_OPTIONS.map((goal) => goal.label);
-    for (const hedef of ["lise", "yks-lgs", "universite", "akademik"]) {
+    for (const hedef of ["lise", "yks-lgs", "universite", "akademik", "tus"]) {
       const preset = signupPresetFor(hedef)!;
       expect(goals).toContain(preset.learningGoal);
       if (preset.gradeLevel) expect(GRADE_OPTIONS).toContain(preset.gradeLevel);

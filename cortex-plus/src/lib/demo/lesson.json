@@ -141,7 +141,19 @@
         "H2O ve C6H12O6"
       ],
       "correct": 1,
-      "explanation": "Fotosentez, karbondioksit (CO2) ve su (H2O) kullanarak glikoz ve oksijen üretir."
+      "explanation": "Fotosentez, karbondioksit (CO2) ve su (H2O) kullanarak glikoz ve oksijen üretir.",
+      "pairHint": "Fotosentezde kullanılan maddeler tepkimenin girdileridir, ürünler ise sonunda ortaya çıkar. Seçtiğin şıklardaki maddelerden hangileri tepkimenin sonunda oluşuyor?",
+      "twin": {
+        "text": "Fotosentez sonucunda hangi maddeler üretilir?",
+        "options": [
+          "CO2 ve H2O",
+          "C6H12O6 ve O2",
+          "H2O ve O2",
+          "CO2 ve O2"
+        ],
+        "correct": 1,
+        "explanation": "Fotosentezde karbondioksit (CO2) ve su (H2O) kullanılır; ürün olarak glikoz (C6H12O6) ve oksijen (O2) oluşur."
+      }
     },
     {
       "text": "Fotosentez olayının gerçekleştiği yer nedir?",
@@ -152,7 +164,19 @@
         "Stomalar"
       ],
       "correct": 2,
-      "explanation": "Fotosentez, bitkilerin yapraklarındaki kloroplastlarda gerçekleşir."
+      "explanation": "Fotosentez, bitkilerin yapraklarındaki kloroplastlarda gerçekleşir.",
+      "pairHint": "Soru bir organı mı, yoksa hücrenin içindeki belirli bir yapıyı mı soruyor? Işığı soğuran klorofil tam olarak nerede bulunur?",
+      "twin": {
+        "text": "Fotosentezde ışığı soğuran klorofil pigmenti hücrenin hangi yapısında bulunur?",
+        "options": [
+          "Mitokondri",
+          "Kloroplast",
+          "Ribozom",
+          "Hücre zarı"
+        ],
+        "correct": 1,
+        "explanation": "Klorofil, kloroplastların içindeki zarlarda bulunur; ışık enerjisi burada soğurulur."
+      }
     },
     {
       "text": "Aşağıdaki faktörlerden hangisi fotosentez hızını etkilemez?",
@@ -163,7 +187,19 @@
         "Toprak pH'ı"
       ],
       "correct": 3,
-      "explanation": "Fotosentez hızı üzerinde doğrudan etkili olan etkenler ışık şiddeti, sıcaklık ve karbondioksit derişimidir. Toprak pH'ı doğrudan fotosentez hızını etkilemez."
+      "explanation": "Fotosentez hızı üzerinde doğrudan etkili olan etkenler ışık şiddeti, sıcaklık ve karbondioksit derişimidir. Toprak pH'ı doğrudan fotosentez hızını etkilemez.",
+      "pairHint": "Fotosentezi doğrudan etkileyen etkenler tepkimenin girdileri ve yapraktaki koşullardır. Seçtiğin iki etkenden hangisi yapraktaki tepkimeyi doğrudan değiştirmiyor?",
+      "twin": {
+        "text": "Aşağıdakilerden hangisi fotosentez hızını doğrudan artırabilir?",
+        "options": [
+          "Ortamdaki karbondioksit derişiminin uygun ölçüde artması",
+          "Toprağın renginin koyulaşması",
+          "Saksının büyütülmesi",
+          "Gece süresinin uzaması"
+        ],
+        "correct": 0,
+        "explanation": "Karbondioksit fotosentezin girdisidir; belirli bir sınıra kadar derişiminin artması fotosentez hızını artırır."
+      }
     }
   ],
   "oral": [

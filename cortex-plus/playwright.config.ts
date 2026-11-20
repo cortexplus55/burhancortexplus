@@ -34,10 +34,18 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   webServer: LIVE_BASE_URL ? undefined : {
-    command: "npx next dev -p 3005",
+    /*
+      CI'da üretim derlemesi (20 Kasım 2026): geliştirme sunucusu her rotayı istek anında derliyor ve bellekte
+      tutuyordu; 12 GB'a izin verilen sunucu, iki Chromium işçisiyle 16 GB'lık makineyi boğdu ve #714'ten sonra
+      üç koşu üst üste "The hosted runner lost communication with the server" ile düştü (test değil, makine).
+      `next build` + `next start` derlemeyi bir kez yapar, sayfaları anında sunar ve birkaç yüz MB ile çalışır.
+      Fikstür sayfaları `E2E_FIXTURE`'ı okuduğu için derleme de aşağıdaki ortamla yapılır. Yerelde geliştirme
+      sunucusu aynen (sıcak yeniden yükleme).
+    */
+    command: process.env.CI ? "npx next build && npx next start -p 3005" : "npx next dev -p 3005",
     url: "http://127.0.0.1:3005",
     reuseExistingServer: !process.env.CI,
-    timeout: 120000,
+    timeout: process.env.CI ? 900000 : 120000,
     /*
       Sunucu, yapılandırma bekçisini geçen bir ortamla kalkıyor.
 
@@ -63,12 +71,11 @@ export default defineConfig({
         process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "sb-e2e-local-only",
       E2E_FIXTURE: "1",
       /*
-        Next geliştirme sunucusu yığının %80'ine gelince kendini yeniden başlatıyor ("Server is approaching the used
-        memory threshold, restarting..."); o arada gelen istek ERR_CONNECTION_REFUSED alıyor. Varsayılan sınır makine
-        belleğinin yarısı (CI'da 16 GB → 8 GB) ve 220 testlik paket bunu aşıyordu: sonlara denk gelen rotalar düşüyordu
-        (13–14 Kasım 2026, dört koşuda). CI'da sınır 12 GB; yerelde Next'in varsayılanı.
+        CI'da yığın sınırı yalnız derleme için (`next build` ~5 GB ister). Geliştirme sunucusunun 12 GB sınırı
+        (13–14 Kasım 2026) üretim sunucusuna geçince kalktı: makinenin yarısını sunucuya bırakmak, Chromium
+        işçileriyle birlikte belleği tüketiyordu.
       */
-      ...(process.env.CI ? { NODE_OPTIONS: "--max-old-space-size=12288" } : {}),
+      ...(process.env.CI ? { NODE_OPTIONS: "--max-old-space-size=6144" } : {}),
     },
   },
   projects: [

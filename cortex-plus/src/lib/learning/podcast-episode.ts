@@ -66,6 +66,19 @@ export function podcastTopicKey(label: string): string {
   return label.trim().toLocaleLowerCase("tr-TR").replace(/s+/g, " ");
 }
 
+/**
+ * Önbellek türü (19 Kasım 2026, Faz 1-A §4.2). `checked`: dinleme kontrollü bölüm (yol ve hazırlık podcast'i).
+ * `plain`: ders sonu "Şimdi dinle" (kontrolsüz) bölümü; ayrı anahtarla saklanır, kontrollü bölümün yerine geçmez ve
+ * yoldaki podcast adımı onu kontrol yok diye almaz. Aynı konuda ikinci "Şimdi dinle" senaryoyu yeniden yazmaz.
+ */
+export type PodcastCacheVariant = "checked" | "plain";
+export const PLAIN_PODCAST_KEY_SUFFIX = "#plain";
+
+export function podcastCacheKey(label: string, variant: PodcastCacheVariant = "checked"): string {
+  const key = podcastTopicKey(label);
+  return variant === "plain" ? `${key}${PLAIN_PODCAST_KEY_SUFFIX}` : key;
+}
+
 function stripBeatMarker(text: string): { text: string; beat?: PodcastBeat } {
   const trimmed = text.trim();
   const ask = trimmed.match(/^(?:\[dur\]|dur ve düşün\s*:)\s*/i);
@@ -476,6 +489,7 @@ export async function readPodcastCache(
   prepId: string,
   topicLabel: string,
   length: PodcastLength,
+  variant: PodcastCacheVariant = "checked",
 ): Promise<(PodcastEpisode & { check: QuizQuestion[] }) | null> {
   let data: { title?: string; chapters?: unknown; length?: string; listening_check?: unknown } | null = null;
   let error: { code?: string; message?: string } | null = null;
@@ -484,7 +498,7 @@ export async function readPodcastCache(
       .from("exam_prep_podcasts")
       .select("*")
       .eq("exam_prep_id", prepId)
-      .eq("topic_key", podcastTopicKey(topicLabel))
+      .eq("topic_key", podcastCacheKey(topicLabel, variant))
       .eq("length", length)
       .maybeSingle();
     data = result.data;
@@ -521,13 +535,15 @@ export async function writePodcastCache(
     episode: PodcastEpisode;
     /** Dinleme kontrolü (20 Ekim 2026); yoksa sütun boş kalır. */
     check?: QuizQuestion[];
+    /** Kontrolsüz ders sonu bölümü ayrı anahtarla (Faz 1-A §4.2). */
+    variant?: PodcastCacheVariant;
   },
 ): Promise<void> {
   try {
     const row = {
       exam_prep_id: input.prepId,
       user_id: input.userId,
-      topic_key: podcastTopicKey(input.topicLabel),
+      topic_key: podcastCacheKey(input.topicLabel, input.variant),
       topic_label: input.topicLabel.trim(),
       length: input.episode.length,
       title: input.episode.title,

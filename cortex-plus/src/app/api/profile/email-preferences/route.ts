@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
-import { loadEmailPreferences, setMarketingPreference, setReminderPreference } from "@/lib/email/preferences";
+import { loadEmailPreferences, setMarketingPreference } from "@/lib/email/preferences";
+import { applyPreferencePatch } from "@/lib/notifications/preference-api";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +27,12 @@ export async function PATCH(request: Request) {
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return errorResponse(400, "invalid_input");
 
-  if (parsed.data.reminders !== undefined && !(await setReminderPreference(service, userId, parsed.data.reminders))) {
+  // Faz 6 (20 Kasım 2026): hatırlatma anahtarı yeni tercih deposundan geçer (Ayarlar artık
+  // `/api/notification-preferences`'ı kullanıyor; bu alan eski sekmeler için duruyor).
+  if (
+    parsed.data.reminders !== undefined &&
+    !(await applyPreferencePatch(service, userId, { studyRemindersEmail: parsed.data.reminders }))
+  ) {
     return errorResponse(503, "update_failed");
   }
   if (

@@ -25,6 +25,10 @@ export function actionForKind(kind: PlanNodeKind) {
   if (kind === "lesson") return "STUDY_PLAN_GENERATE" as const;
   if (kind === "podcast") return "PODCAST_GENERATE" as const;
   if (kind === "oral") return "ORAL_EXAM_GENERATE" as const;
+  // Faz 4 (19 Kasım 2026): doğru/yanlış testten ayrı fiyat (3); yazılı deneme başlangıçta tek atomik ücret (17,
+  // notlandırma ve karne dahil; bitişte ayrı ücret yok).
+  if (kind === "true_false") return "TRUE_FALSE_GENERATE" as const;
+  if (kind === "written_exam") return "PRACTICE_EXAM_GENERATE" as const;
   return "QUIZ_GENERATE" as const;
 }
 

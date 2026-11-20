@@ -1,4 +1,4 @@
-import { allowanceInWork } from "@/lib/credits/price-table";
+import { planWorkEquivalent } from "@/lib/credits/price-table";
 import { formatTryWhole } from "@/lib/format";
 import { EXAM_WEEK_OFFER_THRESHOLD_DAYS, FREE_DAILY_LIMITS, PAID_PLANS, actionCost } from "@/lib/entitlements/config";
 import type { Action, Gate, GateReason } from "@/lib/entitlements/types";
@@ -129,8 +129,9 @@ export function sheetContent(input: SheetInput): SheetContent | null {
   const now = input.now ?? new Date();
   const plusPrice = price(input.prices.plusMonthly);
   const sigmaPrice = price(input.prices.sigmaMonthly);
-  const plusWork = allowanceInWork(PAID_PLANS.plus.allowance);
-  const sigmaWork = allowanceInWork(PAID_PLANS.sigma.allowance);
+  // Faz 4: plan karşılığı fiyat sayfasıyla aynı (`planWorkEquivalent`).
+  const plusWork = planWorkEquivalent(PAID_PLANS.plus.allowance);
+  const sigmaWork = planWorkEquivalent(PAID_PLANS.sigma.allowance);
   const resetAt = input.gate?.resetAt;
 
   if (reason === "free_first_lesson_used") {
@@ -169,7 +170,7 @@ export function sheetContent(input: SheetInput): SheetContent | null {
     return {
       reason,
       title: `Bugünkü ${limit} mesajın bitti`,
-      body: [`Hakkın yarın yenilenir. Plus'ta ayda yaklaşık ${thousands(plusWork.messages)} mesaj var.`],
+      body: [`Hakkın yarın yenilenir. Plus'ta ayda yaklaşık ${thousands(plusWork.chats)} sohbet mesajı var.`],
       meter: `${limit} / ${limit} kullanıldı`,
       ...(left ? { reset: `Yenilenme ${left}` } : {}),
       options: [],
@@ -182,12 +183,13 @@ export function sheetContent(input: SheetInput): SheetContent | null {
     const left = resetAt ? resetLeft(resetAt, now) : null;
     return {
       reason,
-      title: "Bugünkü fotoğraf hakkın bitti",
-      body: ["Hakkın yarın yenilenir."],
+      // Faz 4: fotoğraftan çözüm ücretsizde ayda 7 (aylık sayaç, İstanbul ay başı).
+      title: "Bu ayki fotoğraf hakkın bitti",
+      body: ["Hakkın ay başında yenilenir."],
       ...(left ? { reset: `Yenilenme ${left}` } : {}),
       options: [],
       primary: { label: "Plus ile devam et", href: payHref("plus", input.action), plan: "plus" },
-      secondary: { label: "Yarın devam ederim" },
+      secondary: { label: "Ay başında devam ederim" },
     };
   }
 

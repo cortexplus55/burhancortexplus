@@ -62,3 +62,30 @@
     padding-block: 8px;
   }
 }
+
+/*
+  Simge düğmeleri telefonda en az 44×44 px dokunma alanı (20 Kasım 2026, Faz 3; depo kararı 5). Görünen kutu
+  aynı kalır (üst çubuk ve oynatıcı satırı 375–390 px'e sığsın, yana taşmasın); tıklanan alan ortalanmış 44×44
+  `::after` (haftalık anketin kapat düğmesiyle aynı yöntem). Bu sınıfların başka `::after` kullanımı yok.
+*/
+@media (max-width: 767px) {
+  :root .cp-prep-icon,
+  :root .cp-video-speed,
+  :root .cp-video-icon,
+  :root .cp-cal-month button {
+    position: relative;
+  }
+
+  :root .cp-prep-icon::after,
+  :root .cp-video-speed::after,
+  :root .cp-video-icon::after,
+  :root .cp-cal-month button::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+  }
+}

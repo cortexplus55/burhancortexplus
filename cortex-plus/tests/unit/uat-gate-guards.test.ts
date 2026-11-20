@@ -105,18 +105,25 @@ describe("entitlement sorgusu dönem bitişini SQL'de filtreler", () => {
   cron eklendiği an tüm production deploy'lar reddediliyor ve bunu ne build ne
   test yakalıyor. Bu bekçi o hatayı push'tan önce kızartır.
 */
-describe("vercel.json cron kotası (Hobby)", () => {
+describe("vercel.json cron kotası (Pro, Kasım 2026)", () => {
   const cfg = JSON.parse(read("vercel.json")) as { crons?: { path: string; schedule: string }[] };
   const crons = cfg.crons ?? [];
   it("en fazla iki cron", () => {
     expect(crons.length).toBeLessThanOrEqual(2);
   });
-  it("her cron günde en fazla bir kez (dakika ve saat sabit)", () => {
+  it("günlük iş günde bir kez; yaşam döngüsü bildirimleri 30 dakikada bir (Faz 6, 20 Kasım 2026)", () => {
+    // Ürün sahibinin kararı: saatli gönderim (18:30, 19:00, öğrencinin saati) için tek 30 dakikalık cron, eski günlük
+    // hatırlatma zamanlamasının yerine; cron sayısı 2 kalır. Başka sık cron eklenmez.
     for (const c of crons) {
+      if (c.path === "/api/cron/lifecycle-notifications") {
+        expect(c.schedule).toBe("*/30 * * * *");
+        continue;
+      }
       const [minute, hour] = c.schedule.trim().split(/\s+/);
       expect(minute).toMatch(/^\d+$/);
       expect(hour).toMatch(/^\d+$/);
     }
+    expect(crons.map((c) => c.path).sort()).toEqual(["/api/cron/lifecycle-notifications", "/api/cron/subscription-renewal"]);
   });
   it("veri silme kuyruğu günlük abonelik işine bağlı", () => {
     const src = read("src/app/api/cron/subscription-renewal/route.ts");

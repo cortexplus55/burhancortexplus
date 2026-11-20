@@ -29,6 +29,12 @@ import {
 import { DemoVisualFeast } from "@/components/demo/demo-visual-feast";
 import { SourceUpload } from "@/components/demo/source-upload";
 import type { DemoPipeline } from "@/lib/demo/lesson";
+import type { DemoQuiz } from "@/lib/demo/demo-quiz";
+import { QuestionReportButton } from "@/components/learning/question-report-button";
+import { TwinQuestionCard } from "@/components/learning/twin-question-card";
+import { TwoOptionHint } from "@/components/learning/two-option-hint";
+import { eliminateDistractor } from "@/lib/learning/two-option-eliminate";
+import { chemSubscripts } from "@/lib/text/chem-subscripts";
 
 /**
  * Örnek akış.
@@ -182,7 +188,7 @@ export function DemoWalkthrough({
   podcastTitle: string;
   chapters: PodcastChapter[];
   audio: { url: string; durationMs: number }[];
-  quiz: { text: string; options: string[]; correct: number; explanation: string }[];
+  quiz: DemoQuiz[];
   oral: { prompt: string; hint?: string }[];
 }) {
   const [step, setStep] = useState(0);
@@ -321,7 +327,7 @@ function TopicsStep({ topics }: { topics: string[] }) {
           style={{ ["--pm-i" as string]: i }}
         >
           <span className="dm-topic-no">{i + 1}</span>
-          <span>{t}</span>
+          <span>{chemSubscripts(t)}</span>
           {i === 0 ? <em className="dm-topic-tag">buradan başlanır</em> : null}
         </li>
       ))}
@@ -447,7 +453,7 @@ function PodcastStep({
                 </span>
                 <span className="dm-pod-said">
                   <span className="dm-pod-who">{SPEAKER_LABEL[line.speaker]}</span>
-                  <span>{line.text}</span>
+                  <span>{chemSubscripts(line.text)}</span>
                 </span>
               </button>
             </li>
@@ -458,14 +464,18 @@ function PodcastStep({
   );
 }
 
-function QuizStep({
-  quiz,
-}: {
-  quiz: { text: string; options: string[]; correct: number; explanation: string }[];
-}) {
+/**
+ * 4. adım "Kendini dene" (Faz 5 §3.1, 19 Kasım 2026): ürün içindeki test ekranının üç yardımcısı burada da çalışır.
+ * - Cevaptan önce "🤔 İki Şık Arasında Kaldım": iki şık seçilir, Sokratik ipucu gelir ve dışarıdan bir çeldirici elenir.
+ * - Yanlış cevapta açıklamanın hemen altında "🔥 Yanlışın İkiziyle Anında Telafi Et": aynı kazanımdan kardeş soru.
+ * - Kartın sağ üstünde "🚩 Soruda Hata Bildir": modal açılır, bildirim `question_reports`a yazılır.
+ * Bütün içerik `lesson.json`da hazır; model çağrısı yok. Kimyasal formüller alt simgeli gösterilir (`chemSubscripts`).
+ */
+function QuizStep({ quiz }: { quiz: DemoQuiz[] }) {
   const [index, setIndex] = useState(0);
   const [picked, setPicked] = useState<number | null>(null);
   const [correctCount, setCorrectCount] = useState(0);
+  const [eliminated, setEliminated] = useState<string[]>([]);
   const q = quiz[index];
   const answered = picked !== null;
   const isLast = index === quiz.length - 1;
@@ -499,36 +509,71 @@ function QuizStep({
   }
 
   if (!q) return null;
+  const correctOption = q.options[q.correct] ?? "";
 
   return (
-    <div className="dm-quiz">
-      <p className="dm-quiz-count">
-        Soru {index + 1} / {quiz.length}
-      </p>
-      <h3 className="dm-quiz-text">{q.text}</h3>
+    <div className="dm-quiz" data-testid="demo-quiz">
+      <div className="dm-quiz-head">
+        <p className="dm-quiz-count">
+          Soru {index + 1} / {quiz.length}
+        </p>
+        <QuestionReportButton key={`demo-report:${index}`} source="demo" questionRef={`q:${index}`} />
+      </div>
+      <h3 className="dm-quiz-text">{chemSubscripts(q.text)}</h3>
       <ul className="dm-quiz-options">
-        {q.options.map((opt, i) => (
-          <li key={i}>
-            <button
-              type="button"
-              className={cn(
-                "dm-quiz-option",
-                answered && i === q.correct && "is-right",
-                answered && i === picked && i !== q.correct && "is-wrong",
-              )}
-              onClick={(event) => pick(i, event)}
-              disabled={answered}
-            >
-              <span className="dm-quiz-letter">{String.fromCharCode(65 + i)}</span>
-              <span>{opt}</span>
-            </button>
-          </li>
-        ))}
+        {q.options.map((opt, i) => {
+          const struck = !answered && eliminated.includes(opt);
+          return (
+            <li key={i}>
+              <button
+                type="button"
+                className={cn(
+                  "dm-quiz-option",
+                  answered && i === q.correct && "is-right",
+                  answered && i === picked && i !== q.correct && "is-wrong",
+                )}
+                onClick={(event) => pick(i, event)}
+                disabled={answered || struck}
+                data-eliminated={struck ? "true" : undefined}
+                aria-label={struck ? `${String.fromCharCode(65 + i)} şıkkı elendi` : undefined}
+              >
+                <span className="dm-quiz-letter">{String.fromCharCode(65 + i)}</span>
+                <span>{chemSubscripts(opt)}</span>
+              </button>
+            </li>
+          );
+        })}
       </ul>
+      {!answered ? (
+        <TwoOptionHint
+          key={`demo-two:${index}`}
+          attemptId="demo"
+          index={index}
+          options={q.options}
+          onEliminate={(option) => setEliminated((current) => [...current, option])}
+          resolve={(pair) => ({
+            hint: q.pairHint ? chemSubscripts(q.pairHint) : null,
+            eliminated: eliminateDistractor({ text: q.text, options: q.options, correct: [correctOption], pair }),
+          })}
+        />
+      ) : null}
       {answered ? (
         <div className="dm-quiz-explain">
           <strong>{picked === q.correct ? "Doğru." : "Doğrusu şu:"}</strong>{" "}
-          {q.explanation}
+          {chemSubscripts(q.explanation)}
+          {picked !== q.correct && q.twin ? (
+            <TwinQuestionCard
+              key={`demo-twin:${index}`}
+              attemptId="demo"
+              index={index}
+              demo={{
+                text: chemSubscripts(q.twin.text),
+                options: q.twin.options.map(chemSubscripts),
+                correct: [chemSubscripts(q.twin.options[q.twin.correct] ?? "")],
+                explanation: chemSubscripts(q.twin.explanation),
+              }}
+            />
+          ) : null}
         </div>
       ) : null}
       {answered ? (
@@ -538,6 +583,7 @@ function QuizStep({
           onClick={() => {
             setIndex((i) => i + 1);
             setPicked(null);
+            setEliminated([]);
           }}
         >
           Sonraki soru
@@ -555,8 +601,8 @@ function OralStep({ oral }: { oral: { prompt: string; hint?: string }[] }) {
       <ol className="dm-oral-list">
         {oral.map((q, i) => (
           <li key={i} className="pm-stagger" style={{ ["--pm-i" as string]: i }}>
-            <p className="dm-oral-q">{q.prompt}</p>
-            {q.hint ? <p className="dm-oral-hint">İpucu: {q.hint}</p> : null}
+            <p className="dm-oral-q">{chemSubscripts(q.prompt)}</p>
+            {q.hint ? <p className="dm-oral-hint">İpucu: {chemSubscripts(q.hint)}</p> : null}
           </li>
         ))}
       </ol>

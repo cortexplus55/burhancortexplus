@@ -33,6 +33,7 @@ const CACHE_MS = 30 * 60_000;
 const EXEMPT_PREFIXES = [
   "/kvkk",
   "/kullanim-kosullari",
+  "/kullanim-sartlari",
   "/cerez-politikasi",
   "/gizlilik",
   "/mesafeli-satis",
@@ -48,7 +49,11 @@ const EXEMPT_PREFIXES = [
   "/sifremi-unuttum",
   "/email-dogrula",
   "/eposta",
+  // Faz 6 (20 Kasım 2026): e-postadaki tercih bağlantısı oturumsuz çalışır; çıkış hakkı onay kapısının arkasında kalmaz.
+  "/bildirim-tercihleri",
   "/onboarding",
+  // Faz 2: Google ile ilk girişin onay ekranı kapının kendisini sayfa olarak gösterir.
+  "/onay",
   "/odeme",
   "/e2e",
 ];

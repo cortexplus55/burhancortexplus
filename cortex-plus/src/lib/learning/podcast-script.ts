@@ -1,3 +1,4 @@
+import { splitTurkishSentencesInline } from "@/lib/text/turkish-sentences";
 /**
  * İki sesli podcast senaryosu.
  *
@@ -51,66 +52,13 @@ function asSpeaker(value: unknown, fallback: SpeakerId): SpeakerId {
 }
 
 /**
- * Türkçe cümle ayırıcı. Ondalık sayı (3.14) ve yaygın kısaltmalarda
- * (vb., örn., Dr., M.Ö.) bölmemesi gerekiyor; yoksa tek cümle ortasından
- * kesilir ve ses parçaları anlamsız yerlerden başlar.
+ * Türkçe cümle ayırıcı: karaoke ve ses parçalarının birimi. Merkezi bölücüye (`splitTurkishSentencesInline`,
+ * 19 Kasım 2026, Faz 1-A §4.1) devredilir: Roma rakamı ("II."), sıra sayısı ve madde numarası ("116. madde"),
+ * kısaltma ("Prof. Dr.", "vb.", "TL.") ve noktalı kısaltmada ("T.C.", "M.Ö.") bölmez; ondalık sayı (3.14) zaten
+ * boşluk taşımaz. Yoksa tek cümle ortasından kesilir ve ses parçaları anlamsız yerlerden başlar.
  */
 export function splitSentences(text: string): string[] {
-  const clean = text.replace(/\s+/g, " ").trim();
-  if (!clean) return [];
-
-  const out: string[] = [];
-  let buffer = "";
-
-  for (let i = 0; i < clean.length; i += 1) {
-    const ch = clean[i];
-    buffer += ch;
-    if (ch !== "." && ch !== "!" && ch !== "?" && ch !== "…") continue;
-
-    const next = clean[i + 1];
-    const afterNext = clean[i + 2];
-    // Cümle sonu ancak boşluk (ya da metin sonu) geliyorsa.
-    if (next && next !== " ") continue;
-    if (ch === "." && isAbbreviation(buffer)) continue;
-    // "3. sınıf" gibi sıra sayılarında bölme.
-    if (ch === "." && /\d\.$/.test(buffer) && afterNext && !/[A-ZÇĞİÖŞÜ]/.test(afterNext)) {
-      continue;
-    }
-    // 28 Ekim 2026 (Paket A): "1. Dünya Savaşı", "II. Meşrutiyet" büyük harfle sürüyor; Türkçe cümle çıplak bir
-    // sayıyla ya da Roma rakamıyla nadiren biter, bölünce ses parçası "Dünya Savaşı…" diye ortadan başlıyordu.
-    if (ch === "." && afterNext && /(?:^|[\s(])(?:\d{1,4}|[IVX]{1,5}|[IVXLC]{2,6})\.$/.test(buffer)) continue;
-
-    out.push(buffer.trim());
-    buffer = "";
-    i += 1; // tüketilen boşluk
-  }
-
-  const rest = buffer.trim();
-  if (rest) out.push(rest);
-  return out;
-}
-
-const ABBREVIATIONS = [
-  "vb.",
-  "vs.",
-  "örn.",
-  "bkz.",
-  "dr.",
-  "prof.",
-  "doç.",
-  "sn.",
-  "no.",
-  "ör.",
-  "m.ö.",
-  "m.s.",
-  "yy.",
-];
-
-function isAbbreviation(buffer: string): boolean {
-  const tail = buffer.toLowerCase();
-  if (ABBREVIATIONS.some((abbr) => tail.endsWith(abbr))) return true;
-  // Noktalı baş harf kısaltması: "T.C.", "A.Ş.", "A.B.D." (en az iki harf-nokta çifti).
-  return /(?:^|[\s("'])(?:\p{Lu}\.){2,}$/u.test(buffer);
+  return splitTurkishSentencesInline(text);
 }
 
 /**

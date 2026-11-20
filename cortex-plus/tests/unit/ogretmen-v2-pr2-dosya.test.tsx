@@ -137,12 +137,17 @@ function fakeService(data: Record<string, unknown>) {
 describe("dosya yükleyicisi: yalnız kendi satırları, sınırlı, vektör yok, önbellek", () => {
   afterEach(() => clearDossierCache());
 
-  it("her sorgu öğrencinin user_id'si ya da indeksli üst kaydıyla, LIMIT ya da sayımla; rpc yok", async () => {
+  it("her sorgu öğrencinin user_id'si ya da indeksli üst kaydıyla, LIMIT ya da sayımla; vektör araması yok", async () => {
     const service = fakeService({
       exam_preps: { data: [{ id: "p1", title: "TYT", exam_type: "tyt", exam_date: "2026-12-01", created_at: "2026-11-01T00:00:00Z" }], error: null },
     });
     await readDossierInput(service as never, USER, new Date("2026-11-15T09:00:00Z"));
-    expect(service.rpc).not.toHaveBeenCalled();
+    // 19 Kasım 2026'dan (ana dal, Faz 2 madde 2) beri seri okuması tek oturum bağlamı RPC'sinden geçer
+    // (`get_session_user_context`; düşerse aynı bağlamın yedek okumaları `current_account_active`, `is_admin`). Hepsi
+    // kullanıcı başına sınırlı. Başka RPC (özellikle vektör araması) yok.
+    const allowed = new Set(["get_session_user_context", "current_account_active", "is_admin"]);
+    const rpcNames = (service.rpc as unknown as { mock: { calls: unknown[][] } }).mock.calls.map((call) => String(call[0]));
+    expect(rpcNames.filter((name) => !allowed.has(name)), String(rpcNames)).toEqual([]);
     const tables = service.calls.map((call) => call.table);
     expect(tables).toEqual(
       expect.arrayContaining(["student_learning_memory", "mistake_entries", "exam_preps", "exam_prep_review_items", "general_review_cards", "documents", "user_streaks", "exam_prep_nodes"]),
@@ -150,6 +155,8 @@ describe("dosya yükleyicisi: yalnız kendi satırları, sınırlı, vektör yok
     for (const call of service.calls) {
       const ops = call.ops.join(" ");
       if (call.table === "exam_prep_nodes") expect(ops).toContain('in:"exam_prep_id"');
+      // Oturum bağlamının yedek profil okuması kullanıcının kendi satırı (`profiles.id` = kullanıcı kimliği).
+      else if (call.table === "profiles") expect(ops).toContain(`eq:"id"`);
       else expect(ops).toContain(`eq:"user_id"`);
       const bounded = /limit:|maybeSingle|"head":true|"count":"exact"/.test(ops);
       expect(bounded, `${call.table}: ${ops}`).toBe(true);

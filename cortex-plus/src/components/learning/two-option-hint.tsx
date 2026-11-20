@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { RichBody } from "@/components/parity/lesson-rich-text";
-import { TWO_OPTION_CHIP, TWO_OPTION_FALLBACK, TWO_OPTION_PICK } from "@/lib/learning/twin-question-copy";
+import { TWO_OPTION_CHIP, TWO_OPTION_FALLBACK, TWO_OPTION_PICK, TWO_OPTION_USED, twoOptionEliminatedLine } from "@/lib/learning/twin-question-copy";
 import "@/styles/twin-question.css";
 
 /**
@@ -13,31 +13,53 @@ import "@/styles/twin-question.css";
  *
  * `resolve` (11 Kasım 2026): ipucunu sunucu yerine çağıranın verdiği işlev üretir. Ana sayfadaki tanıtım turu aynı
  * bileşeni örnek veriyle, istek atmadan kullanır; ürün içinde verilmez ve davranış değişmez.
+ *
+ * Faz 5 §3.1 (19 Kasım 2026): ipucuyla birlikte bir çeldirici elenir. Sunucu (ya da `resolve`) seçilen iki şıkkın
+ * dışından, doğru olmayan bir şıkkı döner; `onEliminate` onu şıklarda üstü çizili ve seçilemez yapar.
  */
+export type TwoOptionResolved = string | { hint: string | null; eliminated?: string | null } | null;
+
 export function TwoOptionHint({
   attemptId,
   index,
   options,
   onUsed,
+  onEliminate,
   resolve,
 }: {
   attemptId: string;
   index: number;
   options: string[];
   onUsed?: () => void;
-  resolve?: (pair: string[]) => string | null | Promise<string | null>;
+  onEliminate?: (option: string) => void;
+  resolve?: (pair: string[]) => TwoOptionResolved | Promise<TwoOptionResolved>;
 }) {
   const [open, setOpen] = useState(false);
+  // Soru başına bir ipucu (20 Kasım 2026): ipucu alındıktan sonra çip kapanır; sunucu da aynı soruda ikinci şık elemez.
+  const [used, setUsed] = useState(false);
   const [pair, setPair] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
+  const [eliminated, setEliminated] = useState<string | null>(null);
+
+  function eliminate(option: string | null | undefined) {
+    if (!option || !options.includes(option)) return;
+    setEliminated(option);
+    onEliminate?.(option);
+  }
 
   async function ask(next: string[]) {
     setLoading(true);
     onUsed?.();
     try {
       if (resolve) {
-        setHint((await resolve(next)) || TWO_OPTION_FALLBACK);
+        const out = await resolve(next);
+        if (out && typeof out === "object") {
+          setHint(out.hint || TWO_OPTION_FALLBACK);
+          eliminate(out.eliminated);
+        } else {
+          setHint(out || TWO_OPTION_FALLBACK);
+        }
         return;
       }
       const response = await fetch("/api/learning/two-option-hint", {
@@ -45,8 +67,10 @@ export function TwoOptionHint({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ attemptId, index, options: next }),
       });
-      const data = (await response.json().catch(() => ({}))) as { hint?: string };
+      const data = (await response.json().catch(() => ({}))) as { hint?: string; eliminated?: string | null; used?: boolean };
       setHint(response.ok && data.hint ? data.hint : TWO_OPTION_FALLBACK);
+      if (response.ok) eliminate(data.eliminated);
+      if (response.ok && data.used) setUsed(true);
     } catch {
       setHint(TWO_OPTION_FALLBACK);
     } finally {
@@ -63,8 +87,15 @@ export function TwoOptionHint({
 
   if (!open) {
     return (
-      <button type="button" className="cp-two-chip" onClick={() => setOpen(true)}>
-        {TWO_OPTION_CHIP}
+      <button
+        type="button"
+        className="cp-two-chip"
+        data-testid="two-option-chip"
+        onClick={() => setOpen(true)}
+        disabled={used}
+        aria-disabled={used}
+      >
+        {used ? TWO_OPTION_USED : TWO_OPTION_CHIP}
       </button>
     );
   }
@@ -72,9 +103,16 @@ export function TwoOptionHint({
   return (
     <div className="cp-two" role="group" aria-label={TWO_OPTION_CHIP}>
       {hint ? (
-        <p className="cp-two-hint" role="status" aria-live="polite">
-          💡 <RichBody text={hint} />
-        </p>
+        <div role="status" aria-live="polite" data-used={used ? "true" : undefined}>
+          <p className="cp-two-hint">
+            💡 <RichBody text={hint} />
+          </p>
+          {eliminated ? (
+            <p className="cp-two-eliminated" data-testid="two-option-eliminated">
+              {twoOptionEliminatedLine(String.fromCharCode(65 + options.indexOf(eliminated)))}
+            </p>
+          ) : null}
+        </div>
       ) : (
         <>
           <p className="cp-two-title">{TWO_OPTION_PICK}</p>

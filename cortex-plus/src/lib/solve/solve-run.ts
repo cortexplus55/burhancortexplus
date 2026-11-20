@@ -8,7 +8,7 @@ import { withGenerationSlot } from "@/lib/ai/generation-slots";
 import { visionImage } from "@/lib/ai/vision";
 import { isPremiumUser } from "@/lib/billing/entitlements";
 import { commitCredits, recordUsage, refundCredits, refusalCode, reserveCredits, type ReservationResult } from "@/lib/credits/service";
-import { FREE_CHAT_PER_DAY, FREE_PHOTO_PER_DAY } from "@/lib/billing/free-meters";
+import { FREE_CHAT_PER_DAY, FREE_PHOTO_PER_MONTH } from "@/lib/billing/free-meters";
 import { recordUnreadablePhoto } from "@/lib/billing/photo-abuse-guard";
 import { fastAllowedFor } from "@/lib/learning/fast-access";
 import { studentPedagogyBlock, withStudentProfile } from "@/lib/learning/student-pedagogy";
@@ -31,7 +31,7 @@ import {
 
 /*
   Soru çözücünün sunucu akışı (25 Ekim 2026, sıfır-hata). Sıra:
-  1. Ücret: fotoğrafta Plus/Sigma `IMAGE_SOLUTION`; ücretsiz öğrenci günde 1 fotoğraf ve günde 3 mesaj
+  1. Ücret: fotoğrafta Plus/Sigma `IMAGE_SOLUTION`; ücretsiz öğrenci ayda 7 fotoğraf ve günde 3 mesaj
      (credit_reserve_metered). Yazılı soru sohbet mesajı fiyatında (`AI_CHAT_STANDARD`). Değişmez.
   2. İki bağımsız luna çağrısı aynı anda, farklı açı: analitik adım adım + şeytanın avukatı / şık eleyici.
      İkisi de görseli `detail: "high"` ile okur; çözmeden önce soruyu birebir döker.
@@ -88,7 +88,7 @@ function userContent(input: SolveInput, text: string): ChatCompletionContentPart
 function solveRefusalMessage(result: Extract<ReservationResult, { ok: false }>): string {
   const refusal = result.refusal;
   if (refusal?.kind === "free_limit" && refusal.meter === "photo") {
-    return `Ücretsiz hesapta günde ${FREE_PHOTO_PER_DAY} fotoğraftan çözüm var; bugünkü hakkın bitti. Gece yarısı yenilenir; dilersen Plus'a geçip beklemeden devam edebilirsin.`;
+    return `Ücretsiz hesapta ayda ${FREE_PHOTO_PER_MONTH} fotoğraftan çözüm var; bu ayki hakkın bitti. Ay başında yenilenir; dilersen Plus'a geçip beklemeden devam edebilirsin.`;
   }
   if (refusal?.kind === "free_limit" && refusal.meter === "chat") {
     return `Bugünkü ${FREE_CHAT_PER_DAY} ücretsiz mesaj hakkın bitti; yazılı soru da mesaj sayılır. Gece yarısı yenilenir; dilersen Plus'a geçip beklemeden devam edebilirsin.`;
@@ -110,7 +110,7 @@ export async function runSolve(input: SolveInput, emit: (event: SolveEvent) => v
 
   const premium = await isPremiumUser(service, userId);
   const actionCode: ActionCode = image ? "IMAGE_SOLUTION" : "AI_CHAT_STANDARD";
-  // 24 Ekim 2026: ücretsiz hesapta günde 1 fotoğraf ve günde 3 mesaj, kredi ayırmasının sayacıyla
+  // 24 Ekim 2026: ücretsiz hesapta fotoğraf (Faz 4: ayda 7) ve günde 3 mesaj, kredi ayırmasının sayacıyla
   // (credit_reserve_metered). Okunmayan fotoğraf iade edilir, hak geri döner. Kurucu ve abone sayaçsız.
   const reservation = await reserveCredits(service, userId, actionCode, input.idempotencyKey);
   if (!reservation.ok) {

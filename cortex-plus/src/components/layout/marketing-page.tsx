@@ -8,11 +8,14 @@ export function MarketingPage({
   description,
   children,
   variant = "marketing",
+  contentClassName,
 }: {
   title: string;
   description?: string;
   children?: React.ReactNode;
   variant?: "marketing" | "auth" | "legal";
+  /** İçerik kabının ek sınıfları (ör. uzun liste sayfasında daha geniş alt boşluk). */
+  contentClassName?: string;
 }) {
   return (
     <ParityMarketingPage
@@ -21,7 +24,7 @@ export function MarketingPage({
       variant={variant}
     >
       {variant === "marketing" ? (
-        <div className="mx-auto max-w-6xl px-4 pb-16" data-cinematic-reveal>
+        <div className={cn("mx-auto max-w-6xl px-4 pb-16", contentClassName)} data-cinematic-reveal>
           {children}
         </div>
       ) : (

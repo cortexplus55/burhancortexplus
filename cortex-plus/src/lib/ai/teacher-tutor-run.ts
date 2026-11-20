@@ -11,7 +11,7 @@ import {
   tutorVerifyUserPrompt,
   type TutorContext,
 } from "@/lib/ai/teacher-tutor";
-import { answerFirstLine, stuckPointIssue } from "@/lib/learning/tutor-answer";
+import { answerFirstLine, misconceptionFirstLine, stuckPointIssue } from "@/lib/learning/tutor-answer";
 import { simplifyLine } from "@/lib/ai/simplify-request";
 import { parseTutorIssueRows, settleLabelOnlyIssues } from "@/lib/ai/tutor-general-label";
 import type { TutorStyle } from "@/lib/learning/tutor-style";
@@ -57,7 +57,7 @@ export async function runTeacherTutor(input: {
   const simplify = simplifyLine(input.message);
   // Tura özel satırlar (10 Kasım 2026: adım kilidi, aktif soru, duygu açılışı) en sonda: bu cevapta son söz onlarındır.
   const turn = (input.turnLines ?? []).filter(Boolean);
-  const system = `${tutorSystemPrompt(input.context)}\n\n${answerFirstLine(input.message, input.style)}${simplify ? `\n\n${simplify}` : ""}${turn.length ? `\n\n${turn.join("\n\n")}` : ""}`;
+  const system = `${tutorSystemPrompt(input.context)}\n\n${answerFirstLine(input.message, input.style)}\n${misconceptionFirstLine(input.message)}${simplify ? `\n\n${simplify}` : ""}${turn.length ? `\n\n${turn.join("\n\n")}` : ""}`;
   let reasons: string[] = [];
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const note = reasons.length ? `\n\n${tutorRetryNote(reasons)}` : "";

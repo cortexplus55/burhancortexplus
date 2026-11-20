@@ -164,7 +164,7 @@ describe("hatırlatma kuralları", () => {
     const facts = read("src/lib/learning/reminder-facts.ts");
     expect(facts).toContain(".or(`exam_date.gte.${today},exam_date.is.null`)");
     expect(facts).toContain(".range(from, from + REMINDER_PAGE - 1)");
-    const cron = read("src/app/api/cron/study-reminders/route.ts");
+    const cron = read("src/lib/notifications/jobs/daily-reminders.ts");
     expect(cron).toContain("for await (const preps of reminderPrepPages(service, today))");
     expect(cron).toContain("if (!undatedPrepIsLive(prep, last, now)) continue;");
     expect(cron).toContain("deadline: startedAt + MAIL_BUDGET_MS");

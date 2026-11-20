@@ -51,7 +51,8 @@ describe("freePathUnblockIds: düzeltmeden önce takılan yol bir kez açılır"
 describe("Plus adımını atlayan yerler", () => {
   it("hazırlık sayfası, değerlendirme ve tamamlama aynı kararı kullanır", () => {
     const page = readSource("src/app/deneme-sinavlari/[prepId]/page.tsx");
-    expect(page).toContain("pathSkipKinds(service, user.id)");
+    // Faz 2 (madde 2): sayfa aynı kararı oturum bağlamından verir (`pathSkipKindsForView`, aynı kural).
+    expect(page).toContain("pathSkipKindsForView(service, user.id, supabase)");
     expect(page).toMatch(/node\.status === "ready" && !skipKinds\.has\(node\.kind\)/);
     expect(readSource("src/app/deneme-sinavlari/[prepId]/degerlendirme/page.tsx")).toContain("skipKinds,");
     const route = readSource("src/app/api/learning/exam-prep/node/route.ts");

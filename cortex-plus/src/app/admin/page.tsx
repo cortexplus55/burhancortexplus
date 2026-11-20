@@ -5,12 +5,14 @@ import { CockpitQuarantine } from "@/components/admin/cockpit-quarantine";
 import { CockpitSuperseded } from "@/components/admin/cockpit-superseded";
 import { FreePreviewToggle } from "@/components/admin/free-preview-toggle";
 import { FxRateForm } from "@/components/admin/fx-rate-form";
+import { GrowthFunnelCard } from "@/components/admin/growth-funnel-card";
 import { SpendCapForm } from "@/components/admin/spend-cap-form";
 import { AdminBadge, AdminCard, AdminEmpty, AdminTableFrame } from "@/components/admin/admin-ui";
 import { requireAdminPage } from "@/lib/auth/admin-guard";
 import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
 import { loadCockpit } from "@/lib/admin/cockpit";
+import { loadGrowthFunnel } from "@/lib/admin/funnel";
 import { spendKurus, WINDOW_KEYS, WINDOW_LABEL, type WindowCounts } from "@/lib/admin/cockpit-math";
 import { formatDate, formatNumber, formatTry } from "@/lib/format";
 import { reportReasonLabel, type ReportReason } from "@/lib/learning/question-report/copy";
@@ -46,8 +48,9 @@ export default async function AdminPage() {
   const isFounder = role === "founder";
   const service = createServiceClient();
 
-  const [cockpit, pending, recentPayments, preview] = await Promise.all([
+  const [cockpit, funnel, pending, recentPayments, preview] = await Promise.all([
     loadCockpit(service),
+    loadGrowthFunnel(service),
     countPendingApplications(service),
     service
       .from("payments")
@@ -104,10 +107,12 @@ export default async function AdminPage() {
           {conversions.byPlan.map((plan) => (
             <CountRow key={plan.slug} label={`· ${plan.label}`} counts={plan.counts} />
           ))}
-          <CountRow label="Velime ödeme linkiyle ödeme" counts={conversions.parentLink} />
+          <CountRow label="Veli ödemesi (velime ödeme bağlantısı ya da veli hesabı)" counts={conversions.parentLink} />
           <CountRow label="Gelir" counts={conversions.revenueKurus} format={formatTry} />
         </AdminTableFrame>
       </AdminCard>
+
+      <GrowthFunnelCard funnel={funnel} />
 
       <AdminCard
         title="Birim ekonomisi (kâr / zarar)"
@@ -203,7 +208,7 @@ export default async function AdminPage() {
             {reports.map((row) => (
               <tr key={row.id}>
                 <td className="adm-num">{formatDate(row.createdAt)}</td>
-                <td>{row.source === "mock" ? "Yazılı deneme" : "Yol testi"}</td>
+                <td>{row.source === "mock" ? "Yazılı deneme" : row.source === "demo" ? "Tanıtım turu" : "Yol testi"}</td>
                 <td>
                   {reportReasonLabel(row.reason as ReportReason)}
                   {row.note ? <span className="block text-xs text-[var(--adm-muted)]">{row.note}</span> : null}
@@ -244,7 +249,7 @@ export default async function AdminPage() {
         actions={<FreePreviewToggle on={Boolean(preview.data)} className="adm-btn adm-btn--primary" />}
       >
         <p className="text-sm text-[var(--adm-muted)]">
-          Açıkken yalnız ilk hazırlığın ilk dersi açık (Stüdyo üretimleri ve &quot;Farklı anlat&quot; Plus kapısına gider), günde 3 mesaj ve 1 fotoğraf, 1 sınav hazırlığı ve toplam 25 sayfa belge geçerli; yükseltme
+          Açıkken yalnız ilk hazırlığın ilk dersi açık (Stüdyo üretimleri ve &quot;Farklı anlat&quot; Plus kapısına gider), günde 3 mesaj ve ayda 7 fotoğraf, 1 sınav hazırlığı ve toplam 25 sayfa belge geçerli; yükseltme
           kapıları ücretsiz hesaptaki gibi çıkar. Kredin düşmez, eski belge ve hazırlıkların sayılmaz. Kapatmak için öğrenci ekranlarının üstündeki şeridi kullan.
         </p>
       </AdminCard>

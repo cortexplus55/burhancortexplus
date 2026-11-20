@@ -98,7 +98,8 @@ describe("sayfa ve boyut tavanları", () => {
   it("belgenin sayfa sayısında ürün tavanı yok (eski 1.000 sayfa kalktı); hak sınırlar", () => {
     const ingestion = read("src/lib/documents/pdf-ingestion.ts");
     expect(ingestion).not.toMatch(/: 1000, 1000\)/);
-    expect(ingestion).toContain("const affordable = Math.min(toRead, Number.isFinite(spendable) ? Math.floor(spendable / pageCost) : toRead);");
+    // Faz 4: bir kredi 5 metin sayfası okutur (`TEXT_PAGES_PER_CREDIT`); tavan yine hak.
+    expect(ingestion).toContain("Number.isFinite(spendable) ? Math.floor(spendable / pageCost) * TEXT_PAGES_PER_CREDIT : toRead,");
   });
 
   it("Word ve sunu 50 MB'a kadar (depolamanın tavanı); fotoğraf ve metin 15 MB", () => {

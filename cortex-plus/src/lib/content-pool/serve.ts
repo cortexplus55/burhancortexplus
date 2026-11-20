@@ -11,6 +11,7 @@ import { LESSON_V3_FORMAT, LESSON_SCREEN_HARD_CAP } from "@/lib/learning/lesson-
 import { poolLessonText } from "@/lib/content-pool/lesson-text";
 import { applyOrder, poolChoiceOrders } from "@/lib/learning/option-balance";
 import { POOL_LESSON_MIN_CHECKS, interleavePoolChecks, type PoolCheckItem } from "@/lib/content-pool/lesson-checks";
+import { splitTurkishSentences, splitTurkishSentencesInline } from "@/lib/text/turkish-sentences";
 
 /**
  * Havuzdan sunum (2 Kasım 2026, ürün sahibinin kararı): resmî kurulumdan gelen konunun doğrulanmış ünite
@@ -124,7 +125,7 @@ function chunks(text: string, max: number): string[] {
 
 /** Anlatımın ilk cümlesi (≤200 karakter, özet listesi için). */
 export function screenLead(explanation: string): string | null {
-  const first = explanation.replace(/\*\*/g, "").trim().split(/(?<=[.!?])\s+/)[0]?.trim() ?? "";
+  const first = splitTurkishSentences(explanation.replace(/\*\*/g, "").trim())[0]?.trim() ?? "";
   if (first.length < 8) return null;
   return first.length <= 200 ? first : `${first.slice(0, 197).replace(/\s+\S*$/, "")}…`;
 }
@@ -177,8 +178,7 @@ export function poolLessonV3(body: LessonBody, title: string, programKind = "", 
       blocks: blocks.slice(0, 12),
     });
   }
-  const summary = body.summary
-    .split(/(?<=[.!?])\s+/)
+  const summary = splitTurkishSentencesInline(body.summary)
     .map((s) => s.trim())
     .filter((s) => s.length >= 2)
     .slice(0, 8)

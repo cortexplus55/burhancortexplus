@@ -33,7 +33,8 @@ import {
   presetQuestionCount,
   promisedAllocation,
 } from "@/lib/learning/mock-exam/allocate";
-import { TWIN_EXAM_LABEL } from "@/lib/learning/mock-exam/past-questions";
+import { TWIN_EXAM_LABEL, TWIN_EXAM_QUESTION_COUNT, TWIN_EXAM_SHORT_LABEL } from "@/lib/learning/mock-exam/past-questions";
+import Link from "next/link";
 import { MOCK_CUSTOM_MAX, MOCK_CUSTOM_MIN } from "@/lib/learning/mock-exam/types";
 
 /** Uzunluk seçeneğinin önerdiği süre; öğrenci değiştirebilir. */
@@ -59,6 +60,8 @@ export function MockExamSetup({
   realMinutes = null,
   realQuestionCount = null,
   pastQuestions = null,
+  initialTwin = false,
+  uploadHref = null,
   isAdmin,
 }: {
   prepId: string;
@@ -70,11 +73,15 @@ export function MockExamSetup({
   realQuestionCount?: number | null;
   /** Belgedeki çıkmış sorular (Paket J3 #11): sayı ve ikiz sınavın konu ağırlıkları (konu kimliğiyle). */
   pastQuestions?: { count: number; weights: Record<string, number | null> } | null;
+  /** `?mod=ikiz` (hazırlık ana sayfasındaki giriş): ikiz sınav modu açık gelir (çıkmış soru varsa). */
+  initialTwin?: boolean;
+  /** Çıkmış sınav yoksa ikiz sınav kartının yönlendirdiği belge ekleme sayfası. */
+  uploadHref?: string | null;
   isAdmin: boolean;
 }) {
   const router = useRouter();
   const [scope, setScope] = useState<"all" | "topics">("all");
-  const [twin, setTwin] = useState(false);
+  const [twin, setTwinState] = useState(Boolean(initialTwin && pastQuestions));
   const [selected, setSelected] = useState<Set<string>>(new Set(topics.map((t) => t.id)));
   const [preset, setPreset] = useState<LengthChoice>(formatSummary ? "real" : "standard");
   const [customCount, setCustomCount] = useState(realQuestionCount && realQuestionCount >= MOCK_CUSTOM_MIN ? Math.min(MOCK_CUSTOM_MAX, realQuestionCount) : 25);
@@ -94,9 +101,27 @@ export function MockExamSetup({
       : value === "real"
         ? (realMinutes ?? PRESET_MINUTES.standard)
         : PRESET_MINUTES[value];
-  const countFor = (value: LengthChoice) => (value === "custom" ? customCount : presetQuestionCount(value, realQuestionCount));
+  // Faz 5 §3.2: "Hocanın İkiz Sınavı" açıkken uzunluk sabit 20 soru (sunucu da zorlar).
+  const countFor = (value: LengthChoice) =>
+    twin && pastQuestions ? TWIN_EXAM_QUESTION_COUNT : value === "custom" ? customCount : presetQuestionCount(value, realQuestionCount);
   // kıyas ürünü gibi serbest süre (1 Ekim 2026). Uzunluk değişince önerilen süreye döner.
-  const [minutes, setMinutes] = useState(() => presetMinutes(formatSummary ? "real" : "standard"));
+  const [minutes, setMinutes] = useState(() =>
+    initialTwin && pastQuestions ? presetMinutes("custom", TWIN_EXAM_QUESTION_COUNT) : presetMinutes(formatSummary ? "real" : "standard"),
+  );
+  function setTwin(next: boolean) {
+    if (!pastQuestions) return;
+    setTwinState(next);
+    setMinutes(next ? presetMinutes("custom", TWIN_EXAM_QUESTION_COUNT) : presetMinutes(preset));
+  }
+  const twinCard = (
+    <TwinExamModeCard
+      available={Boolean(pastQuestions)}
+      pastCount={pastQuestions?.count ?? 0}
+      on={twin}
+      onToggle={() => setTwin(!twin)}
+      uploadHref={uploadHref}
+    />
+  );
   const [untimed, setUntimed] = useState(false);
   /** kıyas ürünü: "Nasıl çözmek istiyorsun?" — uygulamada ya da kâğıtta (17 Ekim 2026). */
   const [answerMode, setAnswerMode] = useState<"app" | "paper" | null>(null);
@@ -303,7 +328,11 @@ export function MockExamSetup({
   function requestBody(extra?: { resumeId?: string; retry?: boolean }) {
     return {
       prepId,
-      ...(preset === "custom" ? { questionCount: customCount } : { preset }),
+      ...(twin && pastQuestions
+        ? { questionCount: TWIN_EXAM_QUESTION_COUNT }
+        : preset === "custom"
+          ? { questionCount: customCount }
+          : { preset }),
       scope,
       topicIds: scope === "topics" ? [...selected] : undefined,
       durationMinutes: untimed ? UNTIMED_MINUTES : minutes,
@@ -440,6 +469,7 @@ export function MockExamSetup({
         <p className="mt-2 text-[15px] text-[color:var(--cp-muted)]">
           Uygulamada çöz ya da çalışma kâğıdını yazdırıp kâğıt üzerinde çöz.
         </p>
+        {twinCard}
         <div className="cp-answer-modes">
           <button type="button" className="cp-answer-mode" onClick={() => setAnswerMode("app")}>
             <Smartphone className="h-6 w-6" aria-hidden />
@@ -472,6 +502,7 @@ export function MockExamSetup({
       <p className="mt-2 text-[15px] text-[color:var(--cp-muted)]">
         Süre var, yardım yok. Açıklamalar sınavın sonunda.
       </p>
+      {twinCard}
 
       <section className="mt-8">
         <h2 className="text-sm font-semibold">Kapsam</h2>
@@ -533,28 +564,14 @@ export function MockExamSetup({
         ) : null}
       </section>
 
-      {pastQuestions ? (
+      {twin && pastQuestions ? (
         <section className="mt-8">
-          <button
-            type="button"
-            aria-pressed={twin}
-            onClick={() => setTwin((value) => !value)}
-            className={`w-full rounded-2xl border p-4 text-left transition ${
-              twin ? "border-[color:var(--cp-action)] bg-[color:var(--cp-surface-2)]" : "border-[color:var(--cp-border)]"
-            }`}
-          >
-            <span className="block text-sm font-semibold">{TWIN_EXAM_LABEL}</span>
-            <span className="mt-1 block text-xs text-[color:var(--cp-muted)]">
-              Belgende {pastQuestions.count} çıkmış soru bulduk. Açarsan deneme onların konu dağılımını, soru kökü tarzını ve
-              zorluğunu örnek alır; aynı soruları sormaz.
-            </span>
-            <span className="mt-2 inline-block text-xs font-semibold text-[color:var(--cp-action)]">
-              {twin ? "Açık · ikiz sınav hazırlanacak" : "Açmak için dokun"}
-            </span>
-          </button>
+          <h2 className="text-sm font-semibold">Uzunluk</h2>
+          <p className="mt-2 rounded-2xl border border-[var(--c-action)] p-4 text-sm" data-testid="twin-length">
+            {TWIN_EXAM_SHORT_LABEL} · {TWIN_EXAM_QUESTION_COUNT} soru, hocanın tarzı ve konu ağırlıklarıyla
+          </p>
         </section>
-      ) : null}
-
+      ) : (
       <section className="mt-8">
         <h2 className="text-sm font-semibold">Uzunluk</h2>
         <div className="mt-2 grid gap-3 sm:grid-cols-2">
@@ -630,6 +647,7 @@ export function MockExamSetup({
           </p>
         ) : null}
       </section>
+      )}
 
       <section className="mt-8" aria-labelledby="mock-time-title">
         <h2 id="mock-time-title" className="text-sm font-semibold">
@@ -745,5 +763,64 @@ export function MockExamSetup({
         returnPath={`/deneme-sinavlari/${prepId}`}
       />
     </div>
+  );
+}
+
+/**
+ * "🎯 Çıkmış Sorulardan Hocanın İkiz Sınavı (20 Soru)" modu (Faz 5 §3.2, 19 Kasım 2026). Deneme başlangıç ekranında
+ * ve kurulumda aynı kart. Belgede çıkmış soru varsa açılıp kapanır (açıkken uzunluk sabit 20 soru, konu dağılımı ve
+ * kök tarzı çıkmış sorulardan); yoksa kapalı durur ve çıkmış sınavı yükleme yolunu gösterir.
+ */
+function TwinExamModeCard({
+  available,
+  pastCount,
+  on,
+  onToggle,
+  uploadHref,
+}: {
+  available: boolean;
+  pastCount: number;
+  on: boolean;
+  onToggle: () => void;
+  uploadHref: string | null;
+}) {
+  if (!available) {
+    return (
+      <section className="mt-6 rounded-2xl border border-dashed border-[color:var(--cp-border)] p-4" data-testid="twin-mode-card" data-available="false">
+        <p className="text-sm font-semibold">{TWIN_EXAM_LABEL}</p>
+        <p className="mt-1 text-xs text-[color:var(--cp-muted)]">
+          Hocanın çıkmış sınav kâğıdını (PDF ya da fotoğraf) bu hazırlığa yükleyince açılır: deneme tam {TWIN_EXAM_QUESTION_COUNT} soru,
+          hocanın soru tarzına ve konu ağırlıklarına göre hazırlanır.
+        </p>
+        {uploadHref ? (
+          <Link href={uploadHref} className="mt-2 inline-block text-xs font-semibold text-[color:var(--cp-action)] underline underline-offset-2">
+            Çıkmış sınavı yükle
+          </Link>
+        ) : null}
+      </section>
+    );
+  }
+  return (
+    <section className="mt-6">
+      <button
+        type="button"
+        aria-pressed={on}
+        onClick={onToggle}
+        data-testid="twin-mode-card"
+        data-available="true"
+        className={`w-full rounded-2xl border p-4 text-left transition ${
+          on ? "border-[color:var(--cp-action)] bg-[color:var(--cp-surface-2)]" : "border-[color:var(--cp-border)]"
+        }`}
+      >
+        <span className="block text-sm font-semibold">{TWIN_EXAM_LABEL}</span>
+        <span className="mt-1 block text-xs text-[color:var(--cp-muted)]">
+          Belgende {pastCount} çıkmış soru bulduk. {TWIN_EXAM_SHORT_LABEL}: tam {TWIN_EXAM_QUESTION_COUNT} soru; konu dağılımı, soru kökü
+          tarzı ve zorluğu onlardan; aynı soruları sormaz.
+        </span>
+        <span className="mt-2 inline-block text-xs font-semibold text-[color:var(--cp-action)]">
+          {on ? "Açık · ikiz sınav hazırlanacak" : "Açmak için dokun"}
+        </span>
+      </button>
+    </section>
   );
 }

@@ -271,6 +271,38 @@ export async function loadDueReviewItems(
   }
 }
 
+/**
+ * Faz 4 — uyarlamalı hedefli tekrar (ücretsiz): Zayıf / Gelişiyor / tuzak konuların kayıtlı soruları, günü gelmemiş
+ * olsalar da. Konu listesi boşsa hazırlığın bütün etkin kayıtlı soruları. Model yok, kredi yok.
+ */
+export async function loadTargetedReviewItems(
+  service: SupabaseClient,
+  input: { userId: string; prepId: string; topicLabels: string[]; limit?: number },
+): Promise<{ items: ServedReviewItem[]; total: number }> {
+  const wanted = new Set(input.topicLabels.map((label) => label.trim().toLocaleLowerCase("tr-TR")).filter(Boolean));
+  const { data, error } = await service
+    .from(TABLE)
+    .select(ROW_COLUMNS)
+    .eq("user_id", input.userId)
+    .eq("exam_prep_id", input.prepId)
+    .eq("status", "active")
+    .order("due_on", { ascending: true })
+    .limit(300);
+  if (error) {
+    console.error("targeted_review_read_failed", { prepId: input.prepId, message: error.message });
+    return { items: [], total: 0 };
+  }
+  const rows = (data ?? []) as ReviewItemRow[];
+  const matching = wanted.size
+    ? rows.filter((row) => wanted.has(String(row.topic_label ?? "").trim().toLocaleLowerCase("tr-TR")))
+    : rows;
+  const sealed = interleaveDue(matching).flatMap((row) => {
+    const item = sealReviewItem(row);
+    return item ? [item] : [];
+  });
+  return { items: sealed.slice(0, input.limit ?? REVIEW_SESSION_SIZE), total: sealed.length };
+}
+
 type AnswerRow = ReviewItemRow & {
   correct_count: number;
   last_answered_on: string | null;
@@ -334,8 +366,13 @@ export async function answerReviewItem(
     answer: ReviewAnswer;
     examDate: string | null;
     now?: Date;
+    /**
+     * Faz 4 hedefli tekrar: günü gelmemiş kayıtlı soru da sorulur; cevap notlanır ve gösterilir, tekrar takvimi
+     * değişmez (günü gelince yine sorulur). Günü gelmiş soru her zamanki gibi takvimi ilerletir.
+     */
+    practice?: boolean;
   },
-): Promise<ReviewAnswerOutcome | ReviewAnswerError> {
+): Promise<(ReviewAnswerOutcome & { topicLabel: string | null; practiced: boolean }) | ReviewAnswerError> {
   const today = istanbulDay(input.now);
   const examDate = examDay(input.examDate);
   const remaining = () => countDueReviewItems(service, { userId: input.userId, prepId: input.prepId, examDate, now: input.now });
@@ -354,7 +391,27 @@ export async function answerReviewItem(
   if (!row) return { error: "not_found" };
   const item = readStoredReviewItem(row.item);
   if (!item) return { error: "not_found" };
-  if (row.last_answered_on === today && row.ask_count > 0) return storedOutcome(row, item, today, await remaining());
+  const topicLabel = (row.topic_label as string | null) ?? null;
+  const due = row.status === "active" && row.due_on <= today && !(row.last_answered_on === today && row.ask_count > 0);
+  if (input.practice && !due) {
+    if (row.status !== "active" && row.status !== "learned") return { error: "not_found" };
+    const practiced = gradeReviewAnswer(item, row.ask_count, input.answer);
+    if (practiced === null) return { error: "invalid_answer" };
+    return {
+      ...outcomeFor(
+        item,
+        row.ask_count,
+        { correct: practiced, step: row.interval_step, dueOn: row.status === "active" ? row.due_on : null, status: (row.status as ReviewStatus) ?? "active" },
+        today,
+        await remaining(),
+      ),
+      topicLabel,
+      practiced: true,
+    };
+  }
+  if (row.last_answered_on === today && row.ask_count > 0) {
+    return { ...storedOutcome(row, item, today, await remaining()), topicLabel, practiced: false };
+  }
   if (row.status !== "active" || row.due_on > today) return { error: "not_due" };
 
   const correct = gradeReviewAnswer(item, row.ask_count, input.answer);
@@ -391,27 +448,26 @@ export async function answerReviewItem(
   if (error) return { error: "save_failed" };
   if (Array.isArray(updated) && updated.length) {
     // Tekrar doğruluğu basamak basamak (23 Ekim 2026): cevap anındaki basamak (0 = 1. gün … 3 = 14. gün).
-    // Ölçü kaydıdır; yazılamazsa (tablo yoksa) cevap yine geçerli.
-    try {
-      await service.from("exam_prep_review_answers").insert({
-        user_id: input.userId,
-        exam_prep_id: input.prepId,
-        item_id: row.id,
-        topic_label: row.topic_label ?? null,
-        step: Math.max(0, Math.min(3, row.interval_step ?? 0)),
-        correct,
-        answered_on: today,
-      });
-    } catch {
-      /* ölçü kaydı isteğe bağlı */
+    // Faz 4: yazım hatası yutulmaz — günlüğe iner; öğrencinin cevabı (kart ilerlemesi) yine geçerli kalır.
+    const { error: answerLogError } = await service.from("exam_prep_review_answers").insert({
+      user_id: input.userId,
+      exam_prep_id: input.prepId,
+      item_id: row.id,
+      topic_label: row.topic_label ?? null,
+      step: Math.max(0, Math.min(3, row.interval_step ?? 0)),
+      correct,
+      answered_on: today,
+    });
+    if (answerLogError) {
+      console.error("review_answer_insert_failed", { prepId: input.prepId, itemId: row.id, message: answerLogError.message });
     }
   }
   if (!Array.isArray(updated) || !updated.length) {
     const again = await read();
     if (again && again.last_answered_on === today && again.ask_count > row.ask_count) {
-      return storedOutcome(again, item, today, await remaining());
+      return { ...storedOutcome(again, item, today, await remaining()), topicLabel, practiced: false };
     }
     return { error: "save_failed" };
   }
-  return outcomeFor(item, row.ask_count, { correct, ...next }, today, await remaining());
+  return { ...outcomeFor(item, row.ask_count, { correct, ...next }, today, await remaining()), topicLabel, practiced: false };
 }

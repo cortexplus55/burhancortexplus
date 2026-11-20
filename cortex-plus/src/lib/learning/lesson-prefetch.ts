@@ -10,6 +10,7 @@ import { prepTopicMatch } from "@/lib/learning/prep-topic-lookup";
 import { PATH_LOOKAHEAD } from "@/lib/learning/study-path-window";
 import { pathSkipKinds } from "@/lib/billing/node-free-meter";
 import { blockPracticeNodes, type PracticeNode } from "@/lib/learning/quiz-delivery";
+import { subtopicListFingerprint } from "@/lib/learning/subtopic-list";
 
 /**
  * Sıradaki dersin önceden hazırlanması (3 Ekim 2026, ürün sahibinin kararı).
@@ -214,11 +215,16 @@ export function prefetchVariant(
     lessonKey?: string | null;
     /** Şık sayısı (28 Ekim 2026, Paket A): 4 şıkla yazılmış hazır test 5 şıklı öğrenciye verilmez. */
     optionCount?: number | null;
+    /**
+     * Bölünmüş ünitenin bu derse düşen alt konuları (20 Kasım 2026, düğümün `lessonSubtopics`): başka bir alt konu
+     * kümesiyle yazılmış hazır ders verilmez. Yoksa anahtar eskisiyle aynı ("lesson").
+     */
+    lessonSubtopics?: readonly string[] | null;
   },
 ): string {
   const options = input.optionCount ? `:o${input.optionCount}` : "";
   if (kind === "quiz") return prefetchQuizVariant(input) + options;
-  if (kind === "lesson") return "lesson";
+  if (kind === "lesson") return input.lessonSubtopics?.length ? `lesson:s${subtopicListFingerprint(input.lessonSubtopics)}` : "lesson";
   if (kind === "podcast") return `podcast:${input.podcastLength ?? PREFETCH_DEFAULTS.podcastLength}`;
   if (kind === "oral") {
     const topic = input.oralScope === "all" ? "*" : input.topicLabel.trim().toLocaleLowerCase("tr");

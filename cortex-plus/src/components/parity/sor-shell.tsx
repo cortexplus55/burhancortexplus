@@ -27,12 +27,15 @@ import { formatDate } from "@/lib/format";
 import { ACCOUNT_REFRESH_EVENT } from "@/lib/credits/spendable";
 import { FreePreviewToggle } from "@/components/admin/free-preview-toggle";
 import { EmailVerifyBanner } from "@/components/auth/email-verify-banner";
+import { InstallPromptCapture } from "@/components/pwa/install-prompt-capture";
 import { profilePlanView } from "@/lib/billing/tier-presentation";
 import { ExamChatMenu } from "@/components/parity/exam-chat-menu";
 import { ExamCountdownBadge } from "@/components/parity/exam-countdown-badge";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import type { ExamCountdown } from "@/lib/learning/exam-countdown";
 import type { RecentConversation } from "@/lib/student/conversation-time";
 import "@/styles/parity-shell.css";
+import { MAIN_CONTENT_ID } from "@/lib/ui/main-content";
 import "@/styles/cx-shell.css";
 import "@/styles/cx-pages.css";
 import "@/styles/home-cockpit.css";
@@ -315,6 +318,8 @@ export function ParitySorShell({
       ) : null}
       {/* Tek şerit, her öğrenci kabuğunda (Paket J takip #3): oturum ekranları dahil; kurucuda hiç. */}
       {account?.isAdmin ? null : <EmailVerifyBanner initialUnverified={emailUnverified} />}
+      {/* Telefona kurulum olayı (20 Kasım 2026, Faz 8): sayfa geçişlerinde de saklanır; "Ana Ekrana Ekle" kartı okur. */}
+      <InstallPromptCapture />
       {showTopBar ? (
         <header className="cx-home-top">
           {/* Logo (13 Kasım 2026, tasarım tahtası): depodaki dosya düz <img>; üstünde iki maskeli katman (parıltı, renk
@@ -366,7 +371,7 @@ export function ParitySorShell({
           <div className="cx-home-actions">
             <button type="button" className="cx-home-start cx-glass" onClick={startTeacher}>
               <Sparkles aria-hidden />
-              Başla
+              <span className="cx-home-start-label">Başla</span>
             </button>
             <button
               type="button"
@@ -389,6 +394,8 @@ export function ParitySorShell({
                 <span className="cx-home-buy-short">Plus</span>
               </Link>
             ) : null}
+            {/* Bildirim çanı (Faz 6, 20 Kasım 2026): kapsülün solunda; telefonda kapsül yokken de görünür. */}
+            <NotificationBell />
             <AccountCapsule
               name={displayName}
               initial={initial}
@@ -430,7 +437,7 @@ export function ParitySorShell({
       {promo && showBuy && !examChrome ? <PromoBanner campaign={promo} /> : null}
 
       {/* cx-app-main: girişli sayfa kuralları (cx-pages.css, 13 Kasım 2026); odak görünümleri (ders, test, fiyat) almaz. */}
-      <main className={cn("cp-sor-main", chrome === "app" && !closeHref && "cx-app-main")}>{children}</main>
+      <main id={MAIN_CONTENT_ID} className={cn("cp-sor-main", chrome === "app" && !closeHref && "cx-app-main")}>{children}</main>
 
       {/* Telefon alt çubuğu (13 Kasım 2026, Faz 2): Ana Sayfa, Sınavlar, Stüdyo, Kütüphane, Profil. Profil sekmesinde
           planlı 28 px halka; Kütüphane paneli açar. */}

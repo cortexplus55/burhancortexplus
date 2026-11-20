@@ -183,6 +183,9 @@ export function MistakeNotebookView({
               const sourceText = [
                 sources.has("deneme") ? "deneme" : null,
                 sources.has("quiz") ? "quiz" : null,
+                sources.has("true_false") ? "doğru/yanlış" : null,
+                sources.has("lesson_check") ? "ders sorusu" : null,
+                sources.has("podcast") ? "dinleme" : null,
               ]
                 .filter(Boolean)
                 .join(" + ");

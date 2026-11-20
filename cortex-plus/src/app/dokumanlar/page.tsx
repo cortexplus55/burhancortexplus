@@ -4,6 +4,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { DocumentRetryButton } from "@/components/documents/document-retry-button";
 import { DocumentDeleteButton } from "@/components/documents/document-delete-button";
 import { DocumentStatusPoller } from "@/components/documents/document-status-poller";
+import { DocumentsBrowser, type DocumentBrowserItem } from "@/components/documents/documents-browser";
 import { EmptyState } from "@/components/ui-kit/empty-state";
 import { requireUser } from "@/lib/auth/session";
 import { formatDate } from "@/lib/format";
@@ -20,8 +21,27 @@ import {
 } from "@/lib/documents/error-labels";
 import { DOCUMENT_EMPTY_DESCRIPTION } from "@/lib/documents/upload-labels";
 import { isProcessingStuck } from "@/lib/documents/processing-stale";
+import { coverageBadgeText, processedCoverage } from "@/lib/documents/page-coverage";
+import { missingColumn } from "@/lib/learning/missing-column";
+import { documentKind, documentStatusBucket } from "@/lib/documents/document-filter";
 
 export const metadata = { title: "Belgelerim" };
+
+type DocumentListRow = {
+  id: string;
+  file_name: string;
+  status: string;
+  size_bytes: number | null;
+  created_at: string;
+  updated_at: string | null;
+  error_message: string | null;
+  topic_map_status: string | null;
+  topic_map_error: string | null;
+  page_count: number | null;
+  source_page_count: number | null;
+  scan_pages_skipped: number | null;
+  page_range_start?: number | null;
+};
 
 const statusLabels: Record<string, string> = {
   pending: "Bekliyor",
@@ -54,17 +74,25 @@ export default async function DokumanlarPage() {
   const service = createServiceClient();
   const pdfLearningV2 = await isFeatureEnabled(service, PDF_LEARNING_V2_FLAG);
 
-  const { data: documents } = await supabase
-    .from("documents")
-    .select(
-      "id, file_name, status, size_bytes, created_at, updated_at, error_message, topic_map_status, topic_map_error, page_count, source_page_count, scan_pages_skipped",
-    )
-    .eq("user_id", user.id)
-    .is("deleted_at", null)
-    // Hızlı başlatmanın gizli baş kopyası listelenmez (document-head.ts).
-    .is("part_of", null)
-    .order("created_at", { ascending: false })
-    .limit(30);
+  const listDocuments = (columns: string) =>
+    supabase
+      .from("documents")
+      .select(columns)
+      .eq("user_id", user.id)
+      .is("deleted_at", null)
+      // Hızlı başlatmanın gizli baş kopyası listelenmez (document-head.ts).
+      .is("part_of", null)
+      .order("created_at", { ascending: false })
+      .limit(30)
+      .returns<DocumentListRow[]>();
+  const baseColumns =
+    "id, file_name, status, size_bytes, created_at, updated_at, error_message, topic_map_status, topic_map_error, page_count, source_page_count, scan_pages_skipped";
+  // Faz 2 (madde 5): seçilen aralığın başı kapsam rozeti için okunur; sütun göçten önce yoksa eski okuma.
+  const firstList = await listDocuments(`${baseColumns}, page_range_start`);
+  let documents = firstList.data;
+  if (firstList.error && missingColumn(firstList.error)) {
+    documents = (await listDocuments(baseColumns)).data;
+  }
 
   // Her belgenin kendi yolu (3 Ekim 2026). Düğme eskiden her basışta yeni
   // hazırlık kuruyordu; aynı belgenin üç ayrı yolu olmuştu.
@@ -113,8 +141,9 @@ export default async function DokumanlarPage() {
       <div className="cp-docs">
 
         {documents?.length ? (
-          <ul className="cp-docs-list">
-            {documents.map((document) => {
+          /* 20 Kasım 2026 (Faz 3): kartlar burada çizilir; arama ve süzgeç tarayıcıda (`DocumentsBrowser`). */
+          <DocumentsBrowser
+            items={documents.map((document): DocumentBrowserItem => {
               // Ekranda tek marka düğmesi (13 Kasım 2026): yalnız hazır olan ilk belgenin birincil düğmesi.
               const brandPrimary = document.id === brandDocumentId;
               const ready =
@@ -127,6 +156,11 @@ export default async function DokumanlarPage() {
                 (document.status === "processing" || document.status === "completed") &&
                 document.topic_map_status === "failed";
               const prepId = prepByDocument.get(document.id);
+              const coverage = processedCoverage({
+                pageCount: document.page_count,
+                sourcePageCount: document.source_page_count,
+                rangeStart: document.page_range_start,
+              });
               const meta = [
                 document.page_count
                   ? pageCountLabel(document.file_name, document.page_count)
@@ -145,7 +179,12 @@ export default async function DokumanlarPage() {
                 mapStopped && document.topic_map_error ? topicMapErrorLabel(document.topic_map_error) : null,
               ].filter(Boolean);
 
-              return (
+              return {
+                id: document.id,
+                fileName: document.file_name,
+                status: documentStatusBucket({ status: document.status, mapStopped }),
+                kind: documentKind(document.file_name),
+                card: (
                 <li key={document.id} className="cp-docs-card">
                   <div className="cp-docs-head">
                     <span className="cp-docs-icon" aria-hidden>
@@ -154,11 +193,13 @@ export default async function DokumanlarPage() {
                     <div className="min-w-0 flex-1">
                       <p className="cp-docs-name">{document.file_name}</p>
                       <p className="cp-docs-meta">{meta.join(" · ")}</p>
-                      {/* Ücretsiz plan: toplam 5 sayfa; resim sayfası hakkı (3 Ekim 2026). */}
-                      {document.source_page_count && document.page_count && document.source_page_count > document.page_count ? (
-                        <p className="cp-docs-note">
-                          Ücretsiz planda {document.source_page_count} sayfanın ilk {document.page_count} sayfası işlendi.{" "}
-                          <Link href="/pay?returnTo=%2Fdokumanlar">Tamamı için Plus</Link>
+                      {/* Faz 2 (madde 5): kısmen işlenen belge sessizce geçilmez (hak ya da seçilen aralık). */}
+                      {coverage ? (
+                        <p className="cp-docs-note" data-coverage-badge>
+                          {coverageBadgeText(coverage)}{" "}
+                          {document.page_range_start == null ? (
+                            <Link href="/pay?returnTo=%2Fdokumanlar">Tamamı için Plus</Link>
+                          ) : null}
                         </p>
                       ) : null}
                       {document.scan_pages_skipped ? (
@@ -204,9 +245,10 @@ export default async function DokumanlarPage() {
                     </span>
                   </div>
                 </li>
-              );
+                ),
+              };
             })}
-          </ul>
+          />
         ) : (
           <EmptyState
             variant="parity"

@@ -23,6 +23,9 @@ import {
   type VideoStyle,
 } from "@/lib/learning/video-lesson";
 import "@/styles/video-lesson.css";
+import { ReelSceneRenderer } from "@/components/learning/visual-scenes";
+import type { AcademicDomain } from "@/lib/learning/visual-scenes/archetype";
+import type { ReelBeat, ReelVisual } from "@/lib/learning/visual-scenes/schema";
 
 type Topic = { id: string; label: string };
 
@@ -242,6 +245,10 @@ type PlayerScene = {
   sceneTitle?: string;
   formula?: string;
   diagram?: SketchDiagram;
+  /** Faz 1-B: 5 sahneli akışta branşa özel SVG sahnesi (eski kayıtlarda yok; onlar `diagram` tahtasını açar). */
+  beat?: ReelBeat;
+  reel?: ReelVisual;
+  academicDomain?: AcademicDomain;
 };
 
 type FrameRatio = "9:16" | "16:9";
@@ -314,7 +321,13 @@ export function VideoLessonPlayer({
   const elapsed = (starts.list[scene] ?? 0) + offset;
   const captionChunk = chunks[scene]?.find((chunk) => offset >= chunk.startMs && offset < chunk.endMs) ?? chunks[scene]?.at(-1);
   const caption = captionChunk?.text ?? "";
-  const sketch = Boolean(current?.diagram) && !current?.imageUrl;
+  const reel = current?.reel && !current.imageUrl ? current.reel : null;
+  const sketch = !reel && Boolean(current?.diagram) && !current?.imageUrl;
+  // İlk oynatmadan önce sahne tam çizili durur (kapak); oynatınca çizim sesle birlikte akar, duraklayınca durur.
+  const [reelStarted, setReelStarted] = useState(false);
+  useEffect(() => {
+    if (playing) setReelStarted(true);
+  }, [playing]);
   const draw = current && current.durationMs > 0 ? Math.max(0, Math.min(1, offset / current.durationMs)) : 0;
   const formulaSteps = current?.formula ? sketchFormulaSteps(current.formula) : [];
   const formulaShown = formulaSteps.length ? Math.max(1, Math.ceil(draw * formulaSteps.length)) : 0;
@@ -443,10 +456,21 @@ export function VideoLessonPlayer({
       </div>
       <div
         ref={frame}
-        className={cn("cp-video-frame", ratio === "16:9" ? "is-landscape" : "is-portrait", sketch && "is-sketch")}
+        className={cn("cp-video-frame", ratio === "16:9" ? "is-landscape" : "is-portrait", sketch && "is-sketch", reel && "is-reel")}
         data-ratio={ratio}
       >
-        {sketch && current?.diagram ? (
+        {reel ? (
+          <div className="cp-video-reel" data-beat={current?.beat}>
+            <ReelSceneRenderer
+              key={`${scene}-${ratio}`}
+              visual={reel}
+              mode={ratio}
+              domain={current?.academicDomain}
+              animate={reelStarted ? "sync" : "none"}
+              playing={playing}
+            />
+          </div>
+        ) : sketch && current?.diagram ? (
           <SketchBoard
             key={scene}
             title={current.sceneTitle || title}
@@ -492,7 +516,7 @@ export function VideoLessonPlayer({
             resim yazısız kalır, yazıyı oynatıcı çizer. */}
         {/* Çizimli sahnede kilit bilgi tahtanın akışında (SketchBoard): üstte durunca "Dersi tamamla" düğmesine ve
             sahne başlığına biniyordu (30 Ekim 2026, canlı tur). */}
-        {current?.keyFact && !sketch ? (
+        {current?.keyFact && !sketch && !reel ? (
           <p key={`fact-${scene}`} className="cp-video-fact">
             {current.keyFact}
           </p>

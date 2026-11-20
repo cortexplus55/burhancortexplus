@@ -77,10 +77,9 @@ describe("kredi fiyat tablosu", () => {
       expect(costs[code], code).toBe(price.credits);
     }
     expect(PLUS_CHAT_IS_FREE).toBe(false);
-    // Kredi v3 (24 Ekim 2026): 1 kredi ≈ $0,001 gerçek maliyet. Ders 6 → 30 (ölçülen ~$0,03);
-    // mesaj 3 kalır (ürün sahibinin kararı: denetim luna'da, genel cevap tek çağrı).
-    expect(CREDIT_PRICE_TABLE.AI_CHAT_STANDARD.credits).toBe(3);
-    expect(CREDIT_PRICE_TABLE.STUDY_PLAN_GENERATE.credits).toBe(30);
+    // Faz 4 (19 Kasım 2026, ürün sahibinin kararı): mesaj 3 → 1, ders 30 → 22 (göç 20261119120000).
+    expect(CREDIT_PRICE_TABLE.AI_CHAT_STANDARD.credits).toBe(1);
+    expect(CREDIT_PRICE_TABLE.STUDY_PLAN_GENERATE.credits).toBe(22);
     // 19 Ekim 2026: 2 → 15 (ölçülen maliyet 900 karakter ≈ $0,015, ürün sahibinin kararı).
     expect(CREDIT_PRICE_TABLE.AUDIO_SYNTHESIZE.credits).toBe(15);
   });

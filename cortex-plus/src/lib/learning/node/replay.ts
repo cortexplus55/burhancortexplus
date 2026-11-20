@@ -1,23 +1,73 @@
-/** "Dersi tekrarla" ve "Tekrar incele": kayıtlı gövde yeni bir denemede açılır (anında, kredisiz). */
+/**
+ * "Dersi tekrarla", "Tekrar incele" ve Faz 4 "Yolu Yeniden Çalış (Ücretsiz)": kayıtlı gövde yeni bir denemede açılır —
+ * anında, kredisiz; kredi ayırma, kullanım kaydı ve model çağrısı yok. Test ve doğru/yanlışta sıra yeni denemenin
+ * kimliğiyle karışır (`savedReviewPayload`).
+ */
 import "server-only";
 import { NextResponse } from "next/server";
 import { errorResponse } from "@/lib/api/guards";
 import { savedReviewPayload } from "@/lib/learning/saved-review";
 import { prepLanguage } from "@/lib/learning/teacher-brain";
 import { attemptStartResponse, upsertGenerationJob } from "@/lib/learning/attempt-lifecycle-persist";
+import { writtenExamDeadline } from "@/lib/learning/attempt-lifecycle";
 import { countTotal, readWalletBalance } from "@/lib/learning/node/shared";
 import { publicPayloadForUser } from "@/lib/learning/node/payload";
 import type { NodeContext } from "./context";
 import type { StartLocals } from "./start-types";
 
-export async function reopenSavedAttempt(context: NodeContext, state: Pick<StartLocals, "topic" | "topicLabel" | "title" | "clientRequestId" | "voiceSession">) {
+export async function reopenSavedAttempt(
+  context: NodeContext,
+  state: Pick<StartLocals, "topic" | "topicLabel" | "title" | "clientRequestId" | "voiceSession"> & {
+    /** Faz 4: açık bayrak olmadan bitmiş adımın kaydı (bulunamazsa sessizce üretime devam edilir). */
+    implicit?: boolean;
+  },
+) {
   const { userId, service, parsed, prepId, nodeId, lessonFormat, prefetch, teachingV2, prep, kind, difficulty, familiarity, mood, lessonReviewCards } = context;
   const { topic, topicLabel, title, clientRequestId, voiceSession } = state;
   // "Dersi tekrarla" (18 Ekim 2026) ve "Tekrar incele" (25 Ekim 2026): kayıtlı gövde
   // yeni bir denemede açılır — anında, kredisiz. Kayıt yoksa inceleme üretim başlatmaz.
-  const reopenSaved = parsed.data.review === true && !voiceSession && !prefetch && kind !== "written_exam";
+  // Faz 4: yazılı deneme de kayıttan yeniden çözülür (yeni süreyle); yeni deneme yalnız "Yeni Deneme Başlat".
+  const reopenSaved = (parsed.data.review === true || state.implicit === true) && !voiceSession && !prefetch;
   const replayLesson = kind === "lesson" && teachingV2 && !voiceSession && !prefetch && parsed.data.replay === true;
   if (reopenSaved || replayLesson) {
+    // Boş kayıt şişmesi (19 Kasım 2026, Faz 4 denetimi): her "Tekrar incele" / "Dersi tekrarla" yeni bir `active`
+    // kayıt ekliyordu; öğrenci cevap vermeden çıkıp yeniden açtıkça cevapsız satırlar birikiyordu. Bu adımda hiç cevap
+    // almamış bir tekrar kaydı varsa (ve süresi geçmemişse) o açılır; yeni satır yalnız öğrenci tekrarı gerçekten
+    // çözmeye başladıktan sonraki açılışta yazılır.
+    const { data: idle } = await service
+      .from("exam_prep_node_attempts")
+      .select(
+        "id, status, payload, answers, answer_meta, score, total, generation_id, client_request_id, complete_request_id, content_version, updated_at, difficulty, voice_mode, started_at, expires_at",
+      )
+      .eq("node_id", nodeId)
+      .eq("user_id", userId)
+      .eq("exam_prep_id", prepId)
+      .eq("status", "active")
+      .eq("payload->>reviewed", "true")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (idle && idleReplayReusable(idle)) {
+      console.info("lesson_replay_reused", { nodeId, kind });
+      return NextResponse.json({
+        ...attemptStartResponse(idle, {
+          kind,
+          title,
+          topicLabel,
+          publicPayload: await publicPayloadForUser(
+            service,
+            userId,
+            idle.payload as Record<string, unknown>,
+            lessonReviewCards,
+            kind,
+            prepLanguage(prep.learning_preferences),
+            lessonFormat,
+          ),
+          resumed: false,
+        }),
+        ...(await readWalletBalance(service, userId)),
+      });
+    }
     const { data: previous } = await service
       .from("exam_prep_node_attempts")
       .select("payload")
@@ -28,13 +78,16 @@ export async function reopenSavedAttempt(context: NodeContext, state: Pick<Start
       .order("created_at", { ascending: false })
       .limit(5);
     const requestId = clientRequestId ?? crypto.randomUUID();
+    // Karıştırma tuzu yeni denemenin kimliği: kimlik önceden üretilir, kayıt bu kimlikle yazılır.
+    const replayAttemptId = crypto.randomUUID();
     const replayed = (previous ?? [])
-      .map((row) => savedReviewPayload(row.payload, requestId))
+      .map((row) => savedReviewPayload(row.payload, replayAttemptId))
       .find((item): item is Record<string, unknown> => Boolean(item));
     if (replayed) {
       const { data: replayAttempt, error: replayError } = await service
         .from("exam_prep_node_attempts")
         .insert({
+          id: replayAttemptId,
           node_id: nodeId,
           exam_prep_id: prepId,
           user_id: userId,
@@ -50,6 +103,7 @@ export async function reopenSavedAttempt(context: NodeContext, state: Pick<Start
           mood,
           content_version: 1,
           updated_at: new Date().toISOString(),
+          ...(kind === "written_exam" ? writtenExamDeadline() : {}),
         })
         .select(
           "id, status, payload, answers, answer_meta, score, total, generation_id, client_request_id, complete_request_id, content_version, updated_at, difficulty, voice_mode, started_at, expires_at",
@@ -66,7 +120,7 @@ export async function reopenSavedAttempt(context: NodeContext, state: Pick<Start
           status: "ready",
         });
         await service.from("study_session_moods").insert({ user_id: userId, exam_prep_id: prepId, node_id: nodeId, mood });
-        console.info("lesson_replayed", { nodeId });
+        console.info("lesson_replayed", { nodeId, kind, implicit: state.implicit === true });
         return NextResponse.json({
           ...attemptStartResponse(replayAttempt, {
             kind,
@@ -79,7 +133,28 @@ export async function reopenSavedAttempt(context: NodeContext, state: Pick<Start
         });
       }
     }
-    if (reopenSaved) return errorResponse(404, "not_found");
+    if (reopenSaved && !state.implicit) return errorResponse(404, "not_found");
   }
   return null;
+}
+
+/**
+ * Cevapsız tekrar kaydı yeniden açılabilir mi: gövdesi var, hiç cevap ya da cevap izi yok, süresi (yazılı denemede)
+ * geçmemiş. Saf (test edilir).
+ */
+export function idleReplayReusable(row: {
+  payload?: unknown;
+  answers?: unknown;
+  answer_meta?: unknown;
+  expires_at?: unknown;
+}, now = Date.now()): boolean {
+  if (!row.payload || typeof row.payload !== "object") return false;
+  const empty = (value: unknown) =>
+    value == null || (Array.isArray(value) ? value.length === 0 : typeof value === "object" && Object.keys(value).length === 0);
+  if (!empty(row.answers) || !empty(row.answer_meta)) return false;
+  if (typeof row.expires_at === "string" && row.expires_at) {
+    const deadline = Date.parse(row.expires_at);
+    if (Number.isFinite(deadline) && deadline <= now) return false;
+  }
+  return true;
 }

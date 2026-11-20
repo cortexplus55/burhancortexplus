@@ -209,7 +209,8 @@ describe("kalan sayfalar ve materyal ekle yola eklenir", () => {
     // `documents_unavailable` fırlatıp her eklemede 500 dönüyordu (canlıda 65 sayfalık belgenin kalan 27 konusu eklenemedi).
     // Ekleme işi ortak modülde (31 Ekim 2026): add-source ve büyük belgenin pencere işçisi aynı yoldan ekler.
     const attach = read("src/lib/learning/prep-attach.ts");
-    expect(attach).toContain("loadScheduleTopics(service, newDocumentIds, [], userId)");
+    // Faz 10: ünite modelli hazırlıkta beşinci bağımsız değişken (`mainUnits`); kimlik yine dördüncü ve zorunlu.
+    expect(attach).toMatch(/loadScheduleTopics\(\s*service,\s*newDocumentIds,\s*\[\],\s*userId,/);
     // 31 Ekim 2026 (ikinci tur): analiz hiç beklenmez (canlıda ekleme 15 sn bekliyordu).
     expect(attach).not.toContain("ANALYSIS_INLINE_WAIT_MS");
     expect(attach).toContain("after(() => analyses);");
@@ -217,7 +218,7 @@ describe("kalan sayfalar ve materyal ekle yola eklenir", () => {
     expect(route).toContain("attachDocumentsToPrep(service, { userId, prepId: parsed.data.prepId, documentIds })");
     expect(route).toContain("export const maxDuration = 300");
     const schedule = read("src/lib/learning/prep-schedule-topics.ts");
-    expect(schedule).toMatch(/hardTopics: string\[\],[\s\S]{0,400}\r?\n  userId: string,\r?\n\): Promise<PrepScheduleTopics>/);
+    expect(schedule).toMatch(/hardTopics: string\[\],[\s\S]{0,400}\r?\n  userId: string,\r?\n[\s\S]{0,600}\): Promise<PrepScheduleTopics>/);
   });
 });
 

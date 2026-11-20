@@ -19,6 +19,8 @@ const bodySchema = z.object({
   prepId: z.string().uuid(),
   topicId: z.string().uuid(),
   clientRequestId: z.string().uuid().optional(),
+  /** Üretim durumu kimliği (19 Kasım 2026, Faz 1-A §4.2); hazırlık podcast'ine aynen geçer. */
+  statusId: z.string().uuid().optional(),
 });
 
 export async function POST(request: Request) {
@@ -37,6 +39,7 @@ export async function POST(request: Request) {
       length: DEFAULT_PODCAST_LENGTH,
       listeningCheck: false,
       ...(parsed.data.clientRequestId ? { clientRequestId: parsed.data.clientRequestId } : {}),
+      ...(parsed.data.statusId ? { statusId: parsed.data.statusId } : {}),
     }),
   });
   const response = await preparePrepPodcast(forwarded);

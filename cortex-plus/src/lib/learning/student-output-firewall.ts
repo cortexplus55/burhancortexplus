@@ -110,7 +110,9 @@ export function studentOutputText(text: string): string {
   for (const pattern of LEAKS) out = out.replace(pattern, "");
   out = out.replace(/\bemerging\b/gi, "Gelişiyor");
   // "İpucu:" / "İpucu," ham öneki her yerde düşer (26 Ekim 2026 bekçisi): not kutusunun etiketi başlıktan gelir, metinden değil.
-  out = out.replace(/[İIıi]pucu[:,]\s*/gu, "");
+  // Faz 2: kutu etiketinin kendisi ("📌 Sınav ipucu:") korunur. Eskiden "ipucu:" silinip kayıtta "📌 Sınav …" kalıyordu;
+  // ekranda akan metin ile kaydedilen metin ayrışıyordu. Sözcüğün ortası ("…ipucu:") da artık eşleşmez.
+  out = out.replace(/(?<![\p{L}])(?<!s[ıi]nav\s{1,3})(?<!S[ıI]NAV\s{1,3})(?<!S[ıi]nav\s{1,3})[İIıi]pucu[:,]\s*/gu, "");
   out = out.replace(/^\s*kaynakta[:,]\s*/giu, "");
   out = out.replace(SPEAKER_PREFIX, "");
   out = out.replace(FABRICATED_MEMORY, " ");

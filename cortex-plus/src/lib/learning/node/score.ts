@@ -6,6 +6,9 @@ import { normalizeQuizQuestion, sameOptionSet, scoreQuizAnswers, selectedOptions
 import { activityTally, tallyScore } from "@/lib/learning/answer-tally";
 import { scoreLessonChecks } from "@/lib/learning/lesson-claims";
 import { readLessonV2 } from "@/lib/learning/lesson-v3";
+import { reviewDraftsFromAttempt } from "@/lib/learning/review-items";
+import type { MistakeDraft } from "@/lib/learning/mistake-notebook";
+import { storedTrueFalseKey } from "@/lib/learning/answer-key-consistency";
 
 export function scoreAttempt(
   kind: PlanNodeKind,
@@ -62,7 +65,11 @@ export function lessonScoreForClient(
   return { score: fallbackScore, total: fallbackTotal, retried: 0 };
 }
 
-/** Exam-prep quiz/TF yanlışlarını mistake_entries şemasına çevirir. */
+/**
+ * Hazırlık yolu etkinliklerinin yanlışlarını mistake_entries şemasına çevirir.
+ * Kimlik etkinlik içi sıradır (`${attemptId}:q:0`, `:pc:`, `:tf:`, `:lc:`) ve `source_ref`e yazılır (Faz 2 madde 3);
+ * kaynak etkinliğin türüdür (quiz, podcast, true_false, lesson_check).
+ */
 export function mistakeDraftsFromAttempt(
   attemptId: string,
   payload: unknown,
@@ -70,16 +77,7 @@ export function mistakeDraftsFromAttempt(
   topicLabel: string | null,
 ) {
   const data = (payload ?? {}) as Record<string, unknown>;
-  const drafts: {
-    source: "quiz";
-    sourceQuestionId: string;
-    topicLabel: string | null;
-    questionText: string;
-    options: string[] | null;
-    correctAnswer: string | null;
-    wrongAnswer: string | null;
-    explanation: string | null;
-  }[] = [];
+  const drafts: MistakeDraft[] = [];
 
   if (data.type === "quiz") {
     const questions = ((data.questions as Parameters<typeof normalizeQuizQuestion>[0][]) ?? [])
@@ -108,7 +106,7 @@ export function mistakeDraftsFromAttempt(
       const selected = selectedOptions(answers[String(index)]);
       if (!selected.length || sameOptionSet(selected, question.correct)) return;
       drafts.push({
-        source: "quiz",
+        source: "podcast",
         sourceQuestionId: `${attemptId}:pc:${index}`,
         topicLabel,
         questionText: question.text,
@@ -127,19 +125,45 @@ export function mistakeDraftsFromAttempt(
     items.forEach((item, index) => {
       const value = answers[String(index)];
       if (value == null || value === "") return;
-      const ok = value === item.correct || value === String(item.correct);
+      const key = storedTrueFalseKey(item);
+      const ok = value === key || value === String(key);
       if (ok) return;
       drafts.push({
-        source: "quiz",
+        source: "true_false",
         sourceQuestionId: `${attemptId}:tf:${index}`,
         topicLabel,
         questionText: item.statement ?? item.text ?? `Doğru/Yanlış #${index + 1}`,
         options: ["Doğru", "Yanlış"],
-        correctAnswer: item.correct ? "Doğru" : "Yanlış",
+        correctAnswer: key ? "Doğru" : "Yanlış",
         wrongAnswer: String(value) === "true" || value === true ? "Doğru" : "Yanlış",
         explanation: item.explanation ?? null,
       });
     });
+  }
+
+  // Ders içi kontrol sorusu (lesson_check): kaçan soru deftere de düşer. Okuma ve notlama tekrar
+  // taslaklarıyla aynı işlevden (`reviewDraftsFromAttempt`): kayıtlı, denetlenmiş soru; metin kodla kurulmaz.
+  if (data.type === "lesson") {
+    const lessonAnswers = answers.lessonAnswers && typeof answers.lessonAnswers === "object" && !Array.isArray(answers.lessonAnswers)
+      ? (answers.lessonAnswers as Record<string, { pick?: unknown } | undefined>)
+      : {};
+    for (const draft of reviewDraftsFromAttempt({ attemptId, kind: "lesson", payload, answers, topicLabel })) {
+      if (draft.sourceKind !== "lesson_check" || draft.reason !== "miss" || draft.item.mode !== "choice") continue;
+      const index = Number(draft.sourceRef.split(":").pop());
+      if (!Number.isInteger(index)) continue;
+      const pick = lessonAnswers[String(index)]?.pick;
+      const wrong = typeof pick === "number" ? draft.item.options[pick] ?? null : null;
+      drafts.push({
+        source: "lesson_check",
+        sourceQuestionId: `${attemptId}:lc:${index}`,
+        topicLabel: draft.topicLabel ?? topicLabel,
+        questionText: draft.item.prompt,
+        options: draft.item.options,
+        correctAnswer: draft.item.correct.join(" · ") || null,
+        wrongAnswer: wrong,
+        explanation: draft.item.explanation ?? null,
+      });
+    }
   }
 
   return drafts;

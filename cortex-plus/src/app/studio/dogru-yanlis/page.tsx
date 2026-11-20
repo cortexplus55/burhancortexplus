@@ -14,7 +14,7 @@ export default async function StudioPage({
 }) {
   const { supabase, user } = await requireStudentArea();
   const [creditCost, documents, params] = await Promise.all([
-    getCreditCost("QUIZ_GENERATE"),
+    getCreditCost("TRUE_FALSE_GENERATE"),
     loadCompletedDocumentOptions(supabase, user.id),
     searchParams,
   ]);

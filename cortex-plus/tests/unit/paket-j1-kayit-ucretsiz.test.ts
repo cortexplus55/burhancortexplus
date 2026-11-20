@@ -103,6 +103,10 @@ const VALID = {
   tutorStyle: "step_by_step",
   consentAcceptedAt: "2026-10-31T10:00:00.000Z",
   referralCode: "ABC123",
+  // Faz 2 (madde 6): sunucu üç onayı da ister.
+  termsAccepted: true,
+  kvkkAccepted: true,
+  ageConfirmed: true,
 };
 
 beforeEach(() => {
