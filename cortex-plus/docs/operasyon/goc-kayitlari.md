@@ -136,6 +136,21 @@ kurucu oturumuyla hazırlık sayfasında "📲 Sınıfla Paylaş" ve "🎧 Sına
 notu `learning_preferences`'e). Silmek yıkıcı işlemdir (yalnız Burhan'ın kararıyla): paylaşım kodları, klon bağı, ödül kayıtları
 ve sınav sonrası yorumlar kaybolur.
 
+## 20261120160000 · faz8_davet_ip_gunluk (PR #714)
+
+| | |
+|---|---|
+| Onaylayan | Burhan (Faz 8 istemi, 20 Kasım 2026: klon ödülünde katı aynı IP engeli yerine "aynı IP'den günde en fazla 3 davet ödülü"; ekleyici göçler yayından sonra uygulanır) |
+| Uygulama | 20 Kasım 2026, TR akşam; #714 birleşme commit'i `5e4ebd18` Vercel'de "success" ve üretim duman testi 7/7 geçtikten sonra. Supabase SQL ekranı, tek çalıştırma + kayıt satırı |
+| Uygulayan | Claude, Burhan'ın onayıyla |
+| Değişen | `referral_credit_rewards`'a `referred_ip_hash text` sütunu ve `referral_credit_rewards_ip_created` kısmi dizini (yalnız ekleme; var olan satırlarda boş). `claim_clone_referral_reward(uuid)` aynı imzayla yeniden tanımlandı: `same_ip` engeli kalktı, aynı IP'den İstanbul gününde en çok 3 ödül (`ip_daily_cap`, IP'nin kendi danışma kilidi altında). Kendini davet, aynı posta kutusu, doğrulanmamış hesap, çift başına tek ödül ve aylık 5 tavanı aynen |
+
+**Doğrulama:** sütun 1, dizin 1; işlev gövdesinde `ip_daily_cap` var, `same_ip` yok; `anon` / `authenticated` çalıştırma izni yok,
+`service_role` var; kayıt satırı 1; boş kimlikle salt okuma denemesi `{"status": "not_clone"}`.
+
+**Geri alma:** gerekmez. Kod iki işlev sürümüyle de çalışır (`same_ip` ve `ip_daily_cap` ikisi de tanınır). Eski davranışa dönmek
+işlevi 20261120140000'daki gövdesiyle yeniden tanımlamaktır (yalnız Burhan'ın kararıyla); sütun ve dizin zararsız kalır.
+
 ## İstatistik işlemleri (göç değil)
 
 | Zaman (UTC) | İşlem | Onay | Sonuç |
