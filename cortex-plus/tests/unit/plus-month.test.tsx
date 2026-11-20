@@ -17,7 +17,7 @@ import {
   workCount,
 } from "@/lib/billing/plan-value";
 import { AUDIO_CHARS_PER_CREDIT_PRICE, CREDIT_PRICE_TABLE, PLAN_ALLOWANCES } from "@/lib/credits/price-table";
-import { FREE_CHAT_PER_DAY, FREE_LIMITS, FREE_PHOTO_PER_DAY, isPlusOnlyAction, needsPlusOutsideFirstLesson } from "@/lib/billing/free-meters";
+import { FREE_CHAT_PER_DAY, FREE_LIMITS, FREE_PHOTO_PER_MONTH, isPlusOnlyAction, needsPlusOutsideFirstLesson } from "@/lib/billing/free-meters";
 import type { ActionCode } from "@/lib/env";
 
 /*
@@ -58,17 +58,18 @@ describe("Plus'ın bir ayı: sayılar kredi tablosundan", () => {
       video: Math.floor(plus / CREDIT_PRICE_TABLE.VIDEO_GENERATE.credits),
       chat: Math.floor(plus / CREDIT_PRICE_TABLE.AI_CHAT_STANDARD.credits),
     });
-    // Bugünkü değerler (kredi v3, 24 Ekim 2026): tablo değişirse bu satır da değişir, cümleler kendiliğinden.
+    // Bugünkü değerler (Faz 4, 19 Kasım 2026: 4.350 kredi; ders 22, test 14, kart 8, podcast 16, sözlü 3, deneme 17,
+    // fotoğraf 4, video 280, mesaj 1): tablo değişirse bu satır da değişir, cümleler kendiliğinden.
     expect(counts).toEqual({
-      lesson: 240,
-      quiz: 720,
-      cards: 1800,
-      podcast: 100,
-      oral: 1200,
-      written: 480,
-      photo: 1800,
-      video: 25,
-      chat: 2400,
+      lesson: 197,
+      quiz: 310,
+      cards: 543,
+      podcast: 57,
+      oral: 1450,
+      written: 255,
+      photo: 1087,
+      video: 15,
+      chat: 4350,
     });
   });
 
@@ -86,7 +87,7 @@ describe("Plus'ın bir ayı: sayılar kredi tablosundan", () => {
       if (work.plusOnly) expect(freeMonthlyCount(work), work.id).toBe(0);
     }
     // 11 Kasım 2026 akşamı (ürün sahibinin kararı): ücretsiz hesap = tek ders. "Ayda ~12 ders" artık yanlış: ders
-    // yalnız ilk ders, test ve kartlar o derse dahil; günde 3 mesaj, günde 1 fotoğraf.
+    // yalnız ilk ders, test ve kartlar o derse dahil; günde 3 mesaj, ayda 7 fotoğraf (Faz 4).
     expect(FREE_LIMITS.lesson).toBe(0);
     expect(PLAN_WORK_BY_ID.lesson.free).toBe("first");
     expect(freeMonthlyCount(PLAN_WORK_BY_ID.lesson)).toBe(1);
@@ -99,7 +100,7 @@ describe("Plus'ın bir ayı: sayılar kredi tablosundan", () => {
       expect(lessonMetered, work.id).toBe(!work.plusOnly && needsPlusOutsideFirstLesson(WORK_ACTION[work.id]!));
     }
     expect(freeMonthlyCount(PLAN_WORK_BY_ID.chat)).toBe(FREE_CHAT_PER_DAY * 30);
-    expect(freeMonthlyCount(PLAN_WORK_BY_ID.photo)).toBe(FREE_PHOTO_PER_DAY * 30);
+    expect(freeMonthlyCount(PLAN_WORK_BY_ID.photo)).toBe(FREE_PHOTO_PER_MONTH);
   });
 
   it("hazır tempolar Plus hakkına sığar ve gittikçe yoğunlaşır", () => {
@@ -109,9 +110,9 @@ describe("Plus'ın bir ayı: sayılar kredi tablosundan", () => {
       expect(share).toBeLessThanOrEqual(1);
     }
     expect([...shares].sort((a, b) => a - b)).toEqual(shares);
-    // Ana ekran kartının cümlesi "sınav ayı" temposundan okunur (kredi v3: günde 2 ders, 3 test, haftada 5 podcast).
+    // Ana ekran kartının cümlesi "sınav ayı" temposundan okunur (Faz 4: günde 1 ders, 2 test, haftada 3 podcast).
     const examMonth = TEMPO_PRESETS.find((preset) => preset.id === "sinav-ayi")!.tempo;
-    expect(examMonth).toMatchObject({ lessonsPerDay: 2, quizzesPerDay: 3, podcastsPerWeek: 5 });
+    expect(examMonth).toMatchObject({ lessonsPerDay: 1, quizzesPerDay: 2, podcastsPerWeek: 3 });
     // En yoğun tempo bile hakkın dörtte üçünü geçmez: öğrenci "yetmez" diye korkmasın.
     expect(Math.max(...shares)).toBeLessThan(0.75);
   });
@@ -124,17 +125,18 @@ describe("Plus'ın bir ayı: sayılar kredi tablosundan", () => {
     expect(freeDaysFor({ lesson: 3, quiz: 3 })).toBeNull();
     expect(freeDaysFor({ quiz: 1 })).toBeNull();
     expect(freeDaysFor({ lesson: 1, quiz: 1, cards: 1 })).toBe(1);
-    // Mesaj günde 3, fotoğraf günde 1; en uzun süren sayaç belirler.
+    // Mesaj günde 3; fotoğraf ayda 7 (Faz 4): ayın hakkı içindeki fotoğraf bir günde biter, aşan karışım yürümez.
     expect(freeDaysFor({ chat: 9 })).toBe(3);
-    expect(freeDaysFor({ photo: 2, chat: 3 })).toBe(2);
+    expect(freeDaysFor({ photo: 2, chat: 3 })).toBe(1);
+    expect(freeDaysFor({ photo: FREE_PHOTO_PER_MONTH + 1 })).toBeNull();
     // Hazır tempoların hepsi günde en az bir ders ister: hiçbiri ücretsizle yürümez.
     for (const preset of TEMPO_PRESETS) expect(freeDaysFor(tempoMix(preset.tempo)), preset.id).toBeNull();
   });
 
   it("ücretsiz–Plus satırları ve günlük fiyat", () => {
     const rows = freeVsPlusRows(fmt);
-    expect(rows[0]).toEqual({ label: "Ders (ayda)", free: "İlk ders", plus: "240" });
-    expect(rows[1]).toEqual({ label: "Konu testi (ayda)", free: "İlk derse dahil", plus: "720" });
+    expect(rows[0]).toEqual({ label: "Ders (ayda)", free: "İlk ders", plus: "197" });
+    expect(rows[1]).toEqual({ label: "Konu testi (ayda)", free: "İlk derse dahil", plus: "310" });
     expect(rows.find((row) => row.label.startsWith("Podcast"))?.free).toBe("Kapalı");
     expect(perDayKurus(59900)).toBe(1997);
   });
@@ -151,7 +153,7 @@ describe("ekranda", () => {
       />,
     );
     expect(container.querySelectorAll(".pm-tile")).toHaveLength(9);
-    expect(screen.getAllByText("240").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("197").length).toBeGreaterThan(0);
     expect(screen.getByText("Kendi ayını kur")).toBeTruthy();
     expect(screen.getByRole("link", { name: /Plus ile başla/ }).getAttribute("href")).toBe("/kayit?next=%2Fpay");
     expect(container.textContent).toContain("Otomatik yenileme yok");
@@ -171,7 +173,7 @@ describe("ekranda", () => {
     expect(screen.getByRole("link", { name: /Plus'a geç/ }).getAttribute("href")).toBe("/pay");
     // Fiyat okunamadıysa günlük fiyat yazılmaz, sayfa düşmez.
     expect(container.textContent).not.toContain("Günde ₺");
-    expect(container.textContent).toContain("25");
+    expect(container.textContent).toContain("15");
     expect(container.textContent?.toLocaleLowerCase("tr")).not.toContain("kredi");
   });
 });
@@ -182,8 +184,11 @@ describe("nerede görünür", () => {
     // ana sayfadan kalktı. Plus'ın aylık hakkı yine kredi tablosundan hesaplanıp karşılaştırma kartında yazılır.
     const landing = readFileSync("src/components/landing/landing-page.tsx", "utf8");
     expect(landing).not.toContain("<PlusMonth");
-    expect(landing).toContain("allowanceInWork(PLAN_ALLOWANCES.plusMonthly)");
-    expect(landing).toContain("{fmtCount(plus.lessons)} ders ya da {fmtCount(plus.messages)} mesaj");
+    // Faz 4: plan satırı "~200 ders / 310 test / 4.350 sohbet" (`planWorkEquivalent`).
+    // Faz 5 §4.2: ana sayfa sayıları merkezi metinden okur; orası `planWorkEquivalent` kullanır.
+    expect(landing).toContain("PLAN_MARKETING_COPY");
+    expect(readFileSync("src/lib/marketing/plan-copy.ts", "utf8")).toContain("planWorkEquivalent(allowance)");
+    expect(landing).toContain("{plus.periodLine}");
   });
 
   it("ücretsiz öğrenci: ödeme sayfasında bölüm, kapıda sayılar; ana ekranda (öğretmen sohbeti) yok", () => {

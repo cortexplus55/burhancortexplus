@@ -2528,6 +2528,35 @@
   font-size: 0.875rem;
 }
 
+/* Telefon sayfasında dokunma hedefi en az 44 px; "Fotoğraf çek" ikincil (20 Kasım 2026, sayfa tepsisi). */
+.cp-phone-card .cp-upload-pick {
+  min-height: 44px;
+}
+
+.cp-phone-camera {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  margin: 0.55rem 0 0 0.5rem;
+  padding: 0 1.15rem;
+  border: 1px solid var(--c-border-strong);
+  border-radius: 9999px;
+  background: transparent;
+  color: inherit;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* Kart `bg-2` yüzey: tepsinin kartları ve araçları bir basamak yukarıda. */
+.cp-phone-card .cx-ptray {
+  --ptray-card: var(--cx-bg-3);
+  --ptray-tool: var(--cx-bg-4);
+  --ptray-tool-hover: var(--cx-bg-4);
+  margin-top: 0.85rem;
+}
+
 .cp-more-actions {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -7723,6 +7752,19 @@
 .cp-exam-material span {
   color: var(--cp-muted);
   font-size: 0.8125rem;
+}
+
+/* Faz 2 (madde 5): kısmen işlenen belge rozeti — metin rengi temanın ana rengi (AA), kenarlık vurgu. */
+.cp-exam-material .cp-exam-material-coverage {
+  margin-top: 0.25rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 0.6rem;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-bg);
+  color: inherit;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .cp-exam-tab.is-active .cp-exam-tab-count {
@@ -13271,7 +13313,7 @@ a.cp-exam-search {
 }
 
 /* =============================================================================
-   kıyas ürünü kabuğu (17 Ekim 2026, tasarım 3. adım; ölçümler docs/delivery/TASARIM-ASTRA-17-EKIM.md).
+   kıyas ürünü kabuğu (17 Ekim 2026, tasarım 3. adım; ölçümler tasarım notlarında).
    Üst çubuk 96 px; ortada simgeli sekme grubu (#141414 kapsül, 48 px, iç boşluk 4 px;
    sekme 40 px, 0 14 px, simge 20 px, 13 px / 600) ve yanında ayrı "Daha fazla" kapsülü;
    seçili sekme ve sağ üstteki küçük düğmeler "cam" yüzey. Önceki katmanların üzerine yazar.

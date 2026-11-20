@@ -3,7 +3,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MarketingPage } from "@/components/layout/marketing-page";
 import { programSources } from "@/lib/curriculum/registry";
-import { outcomePath, shortText, SITE_BASE, treeLabelFor, unitBySlug, unitPath } from "@/lib/curriculum/seo";
+import { outcomePath, shortText, treeLabelFor, unitBySlug, unitPath } from "@/lib/curriculum/seo";
+import { pageMetadata } from "@/lib/seo/page-metadata";
+import { breadcrumbJsonLd } from "@/lib/seo/structured-data";
+import { curriculumBreadcrumb } from "@/lib/seo/curriculum-breadcrumb";
+import { JsonLd } from "@/components/seo/json-ld";
 
 type Params = { params: Promise<{ programId: string; unitId: string }> };
 
@@ -17,12 +21,12 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { programId, unitId } = await params;
   const hit = unitBySlug(programId, unitId);
   if (!hit) return { title: "Resmî Müfredat" };
-  const path = unitPath(programId, hit.index);
-  return {
+  // 20 Kasım 2026 (Faz 3): kanonik adresin yanında sayfaya özel paylaşım bilgisi (önce kökün ana sayfa adresi gidiyordu).
+  return pageMetadata({
     title: `${hit.title} — ${hit.program.label}`,
     description: shortText(`${hit.program.label} · ${hit.title}: ${hit.unit.outcomes.length} kazanım. ${hit.unit.outcomes[0]?.text ?? ""}`, 155),
-    alternates: { canonical: `${SITE_BASE}${path}` },
-  };
+    path: unitPath(programId, hit.index),
+  });
 }
 
 export default async function UnitPage({ params }: Params) {
@@ -33,6 +37,7 @@ export default async function UnitPage({ params }: Params) {
   const label = treeLabelFor(program);
   return (
     <MarketingPage title={title} description={`${program.label} · ${unit.outcomes.length} kazanım`}>
+      <JsonLd data={breadcrumbJsonLd(curriculumBreadcrumb({ program, unit: { index, title } }))} />
       <p className="mk-eyebrow">
         <Link href={`/mufredat/${program.id}`}>← {program.label}</Link>
       </p>

@@ -76,6 +76,8 @@ async function runWithTeacherModelInner<R>(
     /** Günlük satırının adı ("teacher_cards"). */
     label: string;
     topic: string;
+    /** Hazırlığın adı (20 Kasım 2026): seviye kalibrasyonu sınavı ve branşı buradan da okur. */
+    prepTitle?: string | null;
     work: (ask: AskJson, started: number) => Promise<{ ok: true; result: R; log?: Record<string, unknown> } | { ok: false; reasons: string[]; log?: Record<string, unknown> }>;
   },
 ): Promise<TeacherRunOutcome<R>> {
@@ -104,7 +106,12 @@ async function runWithTeacherModelInner<R>(
   let calls = 0;
   // Öğrenci bekliyor: hızlı işlem. Önceden yazım ve tek ücretli çok parçalı iş (yazılı deneme) normal.
   // Hızlı işlem yalnız Plus/Sigma ve kurucuya (19 Ekim 2026, `fast-access.ts`).
-  const profileLoad = studentPedagogyBlock(service, options.userId, pedagogySurface(options.label));
+  // Seviye kalibrasyonu (20 Kasım 2026): hazırlığın adı + konu; çizimli videoda görsel yoğunluk satırıyla.
+  const profileLoad = studentPedagogyBlock(service, options.userId, pedagogySurface(options.label), {
+    prepTitle: options.prepTitle ?? null,
+    subject: [options.prepTitle, options.topic].filter(Boolean).join(" ") || null,
+    ...(options.label === "teacher_video" ? { calibration: "video" as const } : {}),
+  });
   const tier = fastTier(!free && !held && (await fastAllowedFor(service, options.userId)));
   const profile = shared ? "" : await profileLoad;
   const ask: AskJson = async (system, user) => {

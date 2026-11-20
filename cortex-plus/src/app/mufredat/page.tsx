@@ -1,14 +1,18 @@
 import Link from "next/link";
 import { MarketingPage } from "@/components/layout/marketing-page";
 import { CURRICULUM, listProgramSummaries } from "@/lib/curriculum/registry";
+import { programGroupLabel } from "@/lib/curriculum/program-group";
+import { pageMetadata } from "@/lib/seo/page-metadata";
 
-export const metadata = {
+// Kanonik adres ve sayfaya özel paylaşım bilgisi (20 Kasım 2026, Faz 3).
+export const metadata = pageMetadata({
   title: "Resmî Müfredat",
-  description: "MEB öğretim programları ve ortak yazılı senaryolarından çıkarılan kazanım listesi, kaynaklarıyla.",
-};
+  description:
+    "MEB öğretim programları ve ortak yazılı senaryolarından çıkarılan kazanım listesi, kaynaklarıyla.",
+  path: "/mufredat",
+});
 
 const EXAM_LABEL: Record<string, string> = { d1y1: "1. Yazılı", d1y2: "2. Yazılı" };
-const KIND_GROUP: Record<string, string> = { yks: "YKS (TYT / AYT)", lgs: "LGS", kpss: "KPSS" };
 
 function topicLine(counts: Record<string, number>): string {
   if ("all" in counts) return `${counts.all} konu`;
@@ -25,14 +29,16 @@ export default function MufredatPage() {
   const programs = listProgramSummaries();
   const groups = new Map<string, typeof programs>();
   for (const p of programs) {
-    const key = KIND_GROUP[p.kind] ?? `${p.grade}. sınıf`;
+    const key = programGroupLabel(p);
     groups.set(key, [...(groups.get(key) ?? []), p]);
   }
   const outcomeTotal = programs.reduce((n, p) => n + p.outcomeCount, 0);
+  // Uzun liste: son bölümün kartları altbilgiye ve çerez bandına yapışmasın (Faz 9, 20 Kasım 2026; pb-16 → pb-24).
   return (
     <MarketingPage
       title="Resmî Müfredat"
       description={`${programs.length} program, ${outcomeTotal} kazanım. Veri sürümü ${CURRICULUM.version}; kaynaklar MEB, ÖDSGM ve ÖSYM belgeleri.`}
+      contentClassName="pb-24"
     >
       <p className="mk-eyebrow">
         <Link href="/resmi">Resmî takvim, sınav yapıları ve eksik veri →</Link>

@@ -138,6 +138,10 @@ export function SignupWizard() {
       consentEvidence: consentEvidence(),
       ageDeclaration: ageDeclarationOf(age) ?? undefined,
       marketingEmail: marketing || undefined,
+      // Faz 2 (madde 6): Google ile kayıtta da aynı üç onay sunucuya gider (yük `/kayit/tamamla`da okunur).
+      ...(kvkkRead.checked && kvkkRead.evidence ? { kvkkAccepted: true as const } : {}),
+      ...(termsRead.checked && termsRead.evidence ? { termsAccepted: true as const } : {}),
+      ...(!ageProblem(ageDeclarationOf(age)) ? { ageConfirmed: true as const } : {}),
     };
   }
 
@@ -147,7 +151,8 @@ export function SignupWizard() {
       // Satın almaya basan misafir /kayit?next=/pay'e geliyor; kayıt
       // bitince oraya dönmeli, dashboard'a değil. Doğrulama bağlantısı
       // aynı tarayıcıda açılınca tamamla sayfası bunu okuyor.
-      const target = searchParams.get("next");
+      // Yalnız güvenli iç yol saklanır (okuyan yer de süzer; iki kat koruma).
+      const target = safeNextPath(searchParams.get("next"), "");
       if (target) localStorage.setItem(SIGNUP_NEXT_KEY, target);
       else localStorage.removeItem(SIGNUP_NEXT_KEY);
     } catch {
@@ -269,6 +274,10 @@ export function SignupWizard() {
             marketingEmail: payload.marketingEmail,
             next: safeNextPath(searchParams.get("next"), ""),
             referralCode: payload.referralCode,
+            // Faz 2 (madde 6): sunucu üç onayı da `true` olarak ister; buraya yalnız consentIssue() geçince gelinir.
+            termsAccepted: termsRead.checked === true,
+            kvkkAccepted: kvkkRead.checked === true,
+            ageConfirmed: !ageProblem(ageDeclarationOf(age)),
           }),
         });
         const body = (await response.json().catch(() => ({}))) as { error?: string; fallback?: boolean };
@@ -346,8 +355,8 @@ export function SignupWizard() {
       <div className="signup-wizard flex flex-1 flex-col">
         {guestDocument ? (
           <p className="signup-guest-doc" role="status">
-            <span aria-hidden>📎</span> Ana sayfada seçtiğin {guestDocument} bu cihazda bekliyor; hesabın açılınca kurulumda
-            tek dokunuşla eklenir.
+            <span aria-hidden>📎</span> Ana sayfada seçtiğin {guestDocument} bu cihazda bekliyor; hesabın açılınca kurulum
+            sihirbazına kendiliğinden aktarılır.
           </p>
         ) : null}
         {step === "level" ? (

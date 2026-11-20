@@ -1,3 +1,4 @@
+import { TWIN_EXAM_QUESTION_COUNT } from "@/lib/learning/mock-exam/past-questions";
 import { after, NextResponse } from "next/server";
 import { createTimer } from "@/lib/learning/mock-exam/timing";
 import { z } from "zod";
@@ -100,6 +101,8 @@ export async function POST(request: Request) {
 
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return errorResponse(400, "invalid_input");
+  // Faz 5 §3.2: "Hocanın İkiz Sınavı" her zaman tam 20 soru; istemcinin uzunluk seçimi yok sayılır.
+  const body = parsed.data.twin === true ? { ...parsed.data, preset: undefined, questionCount: TWIN_EXAM_QUESTION_COUNT } : parsed.data;
   timer.mark("guard");
 
   // Plus, yönetici rolü, eski kâğıt kurtarma ve süren kurulum denetimi tek round-trip'te (paralel). Kurtarma yalnız
@@ -110,33 +113,33 @@ export async function POST(request: Request) {
     recoverStaleMockBuilds({
       service,
       userId,
-      prepId: parsed.data.prepId,
-      resumeId: parsed.data.resumeId,
+      prepId: body.prepId,
+      resumeId: body.resumeId,
       specKey: mockExamSpecKey({
-        preset: parsed.data.preset,
-        scope: parsed.data.scope,
-        topicIds: parsed.data.topicIds,
-        durationMinutes: clampMockMinutes(parsed.data.durationMinutes) ?? undefined,
-        questionCount: parsed.data.questionCount,
-        twin: parsed.data.twin === true || undefined,
+        preset: body.preset,
+        scope: body.scope,
+        topicIds: body.topicIds,
+        durationMinutes: clampMockMinutes(body.durationMinutes) ?? undefined,
+        questionCount: body.questionCount,
+        twin: body.twin === true || undefined,
       }),
     }),
-    hasInFlightMockBuild(service, userId, parsed.data.prepId),
+    hasInFlightMockBuild(service, userId, body.prepId),
   ]);
   timer.mark("checks");
   const fields: FallbackExamInput = {
     service,
     userId,
     isPremium: premium,
-    prepId: parsed.data.prepId,
-    preset: parsed.data.preset,
-    scope: parsed.data.scope,
-    topicIds: parsed.data.topicIds,
-    durationMinutes: clampMockMinutes(parsed.data.durationMinutes) ?? undefined,
-    questionCount: parsed.data.questionCount,
-    twin: parsed.data.twin === true || undefined,
-    resumeId: parsed.data.resumeId,
-    explicitRetry: parsed.data.retry === true,
+    prepId: body.prepId,
+    preset: body.preset,
+    scope: body.scope,
+    topicIds: body.topicIds,
+    durationMinutes: clampMockMinutes(body.durationMinutes) ?? undefined,
+    questionCount: body.questionCount,
+    twin: body.twin === true || undefined,
+    resumeId: body.resumeId,
+    explicitRetry: body.retry === true,
     signal: request.signal,
   };
   const stream = request.headers.get("accept")?.includes("application/x-ndjson") === true;

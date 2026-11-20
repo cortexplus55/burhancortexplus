@@ -161,7 +161,7 @@ describe("yükseltme penceresi: altı neden", () => {
   it("free_first_lesson_used: Plus önerilen; sınav 14 gün içindeyse Sınav Haftası ikinci seçenek", () => {
     const near = sheetContent({ ...base, reason: "free_first_lesson_used", action: "lesson.create", examDaysLeft: 2 })!;
     expect(near.title).toBe("Yeni ders için Plus gerekli");
-    expect(near.body[0]).toBe("Ücretsiz hakkın olan ilk ders kullanıldı. Plus'ta ayda yaklaşık 240 ders hazırlayabilirsin.");
+    expect(near.body[0]).toBe("Ücretsiz hakkın olan ilk ders kullanıldı. Plus'ta ayda yaklaşık 200 ders hazırlayabilirsin.");
     expect(near.options).toEqual([
       { plan: "plus", title: "Plus", note: null, price: "₺599 / ay", recommended: true },
       { plan: "week", title: "Sınav Haftası", note: "Sınavına 2 gün var", price: "₺349 / 7 gün" },
@@ -184,7 +184,7 @@ describe("yükseltme penceresi: altı neden", () => {
   it("daily_messages_used: 3 / 3, yenilenme süresi, iki düğme", () => {
     const sheet = sheetContent({ ...base, reason: "daily_messages_used", action: "teacher.message", gate: { state: "locked", reason: "daily_messages_used", limit: 3, remaining: 0, resetAt: "2026-11-15T02:20:00+03:00" } })!;
     expect(sheet.title).toBe("Bugünkü 3 mesajın bitti");
-    expect(sheet.body).toEqual(["Hakkın yarın yenilenir. Plus'ta ayda yaklaşık 2.400 mesaj var."]);
+    expect(sheet.body).toEqual(["Hakkın yarın yenilenir. Plus'ta ayda yaklaşık 4.350 sohbet mesajı var."]);
     expect(sheet.meter).toBe("3 / 3 kullanıldı");
     expect(sheet.reset).toBe("Yenilenme 14 sa 20 dk");
     expect(sheet.primary.label).toBe("Plus ile devam et");
@@ -192,16 +192,16 @@ describe("yükseltme penceresi: altı neden", () => {
   });
   it("daily_photo_used", () => {
     const sheet = sheetContent({ ...base, reason: "daily_photo_used", action: "photo.solve", gate: { state: "locked", reason: "daily_photo_used", resetAt: MIDNIGHT } })!;
-    expect(sheet.title).toBe("Bugünkü fotoğraf hakkın bitti");
-    expect(sheet.body).toEqual(["Hakkın yarın yenilenir."]);
+    expect(sheet.title).toBe("Bu ayki fotoğraf hakkın bitti");
+    expect(sheet.body).toEqual(["Hakkın ay başında yenilenir."]);
     expect(sheet.reset).toBe("Yenilenme 12 sa 0 dk");
   });
   it("plus_quota_90: yüzde, sıfırlanma günü, kalan ders, Sigma kartı", () => {
     const sheet = sheetContent({ ...base, reason: "plus_quota_90", action: "lesson.create", gate: { state: "limited", reason: "plus_quota_90", limit: 7200, remaining: 720, resetAt: "2026-12-12T00:00:00.000Z" } })!;
     expect(sheet.title).toBe("Aylık limitine yaklaşıyorsun");
     expect(sheet.figure).toBe("%90");
-    expect(sheet.body).toEqual(["12 Aralık'ta sıfırlanır · yaklaşık 24 ders kaldı"]);
-    expect(sheet.options[0]).toMatchObject({ plan: "sigma", note: "Ayda yaklaşık 2.000 ders", price: "₺1.999 / ay" });
+    expect(sheet.body).toEqual(["12 Aralık'ta sıfırlanır · yaklaşık 32 ders kaldı"]);
+    expect(sheet.options[0]).toMatchObject({ plan: "sigma", note: "Ayda yaklaşık 660 ders", price: "₺1.999 / ay" });
     expect(sheet.primary).toMatchObject({ label: "Sigma'ya geç", href: "/pay?plan=sigma&from=lesson.create" });
     expect(sheet.secondary).toEqual({ label: "Sıfırlanmayı beklerim" });
   });

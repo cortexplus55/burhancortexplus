@@ -906,7 +906,12 @@ export function mergeOutlinePatch(
         (gap?.inTopic ? unitOfTopic(gap.inTopic) : undefined) ??
         before;
       if (!target) {
-        target = { title: patchUnit.title, examWeight: patchUnit.examWeight, topics: [] };
+        target = {
+          title: patchUnit.title,
+          examWeight: patchUnit.examWeight,
+          ...(patchUnit.stage ? { stage: patchUnit.stage } : {}),
+          topics: [],
+        };
         next.push(target);
       }
       const at = target.topics.filter((item) => comparePosition(positionOf(item), position) <= 0).length;

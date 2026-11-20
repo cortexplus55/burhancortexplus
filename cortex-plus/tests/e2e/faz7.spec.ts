@@ -165,6 +165,8 @@ for (const width of WIDTHS) {
       }
       // Dolgu alanına dokunmak sözleşmeyi açar, kutuyu işaretlemez; iki onay kutusu kendi dokunuşunu alır.
       const link = page.locator("#planlar .cp-legal-link");
+      // Faz 5 §2: kartların altına veli bağlantısı bölümü geldi; bağlantı son ölçülen öğeden uzakta kalabilir.
+      await link.scrollIntoViewIfNeeded();
       const first = await link.evaluate((node) => {
         const rect = node.getClientRects()[0];
         return { x: rect.left + 12, y: rect.top + 3 };
@@ -174,6 +176,7 @@ for (const width of WIDTHS) {
       await page.keyboard.press("Escape");
       await expect(page.getByRole("dialog")).toHaveCount(0);
       for (const checkbox of await page.locator("[data-payment-consent] [role='checkbox']").all()) {
+        await checkbox.scrollIntoViewIfNeeded();
         const rect = (await checkbox.boundingBox())!;
         const self = await checkbox.evaluate(
           (node, point) => {

@@ -19,6 +19,7 @@ import { kindListFilter, pathSkipKinds } from "@/lib/billing/node-free-meter";
 import { cardsAsShown, extractMisconceptions, freezeShownCards } from "@/lib/learning/teaching-standards";
 import { prepLanguage } from "@/lib/learning/teacher-brain";
 import { recordLearningTrackingAfterComplete, stripAnswerMeta } from "@/lib/learning/learning-tracking-persist";
+import { recordNodeCardReviews } from "@/lib/learning/node-card-reviews";
 import { recordMistakes } from "@/lib/learning/mistake-notebook";
 import { scheduleReviewsAfterComplete } from "@/lib/learning/review-items-store";
 import { recordUserActivity } from "@/lib/streak/record-activity";
@@ -32,6 +33,7 @@ import {
   onNodeFailure,
   readWalletBalance,
   scheduleAfter,
+  TEACHER_CARD_KINDS,
 } from "@/lib/learning/node/shared";
 import { reviewSourceBlock, writtenReviewForPayload } from "@/lib/learning/node/written-review";
 import { gradeOralSemantics, oralCorpus, oralHasAnswerText, oralNeedsJudge, oralReviewFromPayload } from "@/lib/learning/node/oral";
@@ -42,6 +44,8 @@ import { mistakeDraftsFromAttempt, nonPoolQuizAnswers, poolQuizAnswers, scoreAtt
 import { recordAnswerEvidence } from "@/lib/mastery-map/exam-evidence";
 import { recordPoolAnswers } from "@/lib/content-pool/record-answers";
 import { refreshStudentMemory } from "@/lib/learning/student-memory";
+import { rewardCloneReferral } from "@/lib/learning/viral-clone-reward";
+import { notifyBlindSpots, notifyTopicLearned } from "@/lib/notifications/events";
 import type { NodeContext } from "./context";
 
 export async function completeAction(context: NodeContext): Promise<NextResponse> {
@@ -291,6 +295,18 @@ export async function completeAction(context: NodeContext): Promise<NextResponse
             question_preview: d.questionPreview,
           })),
         );
+        // Faz 6: yeni sınav tuzağı çanda (etkinlik başına bir bildirim, 0 maliyet).
+        deferTask(
+          () =>
+            notifyBlindSpots(service, {
+              userId,
+              prepId,
+              attemptId: attempt.id,
+              count: drafts.length,
+              topicLabel: topicLabel || null,
+            }),
+          background,
+        );
       }
     }
 
@@ -347,6 +363,31 @@ export async function completeAction(context: NodeContext): Promise<NextResponse
             question_preview: d.questionPreview,
           })),
         );
+        // Faz 6: yeni sınav tuzağı çanda (etkinlik başına bir bildirim, 0 maliyet).
+        deferTask(
+          () =>
+            notifyBlindSpots(service, {
+              userId,
+              prepId,
+              attemptId: attempt.id,
+              count: fresh.length,
+              topicLabel: canonicalTopicLabel(doneTopicLabel ?? topicLabel) || null,
+            }),
+          background,
+        );
+      }
+
+      // Faz 4: kart düğümünün öz bildirimleri SM-2 ile kart tekrar kaydına (hata günlüğe iner, tamamlama sürer).
+      // İki kart türü de yazılır: canlıda destelerin çoğu "Kartlarla tekrar" (spaced) adımı; yalnız "flashcards"
+      // yazılınca o destelerin değerlendirmeleri sessizce düşüyordu (20 Kasım 2026).
+      if (TEACHER_CARD_KINDS.has(kind)) {
+        await recordNodeCardReviews(service, {
+          userId,
+          prepId,
+          topicLabel: doneTopicLabel ?? topicLabel,
+          payload: payloadForEvidence,
+          answers: mergedAnswers,
+        });
       }
 
       try {
@@ -366,6 +407,9 @@ export async function completeAction(context: NodeContext): Promise<NextResponse
         });
         learningTracking = tracked.tracking;
         topicGain = tracked.topicGain;
+        // Faz 6: konu "Öğrendin" rozetine ulaştıysa çanda (konu başına bir kez).
+        const learnedLabel = tracked.topicGain?.badge === "learned" ? tracked.topicGain.label : null;
+        if (learnedLabel) deferTask(() => notifyTopicLearned(service, { userId, prepId, topicLabel: learnedLabel }), background);
         // Sonuç sayfası "+%X" aşamasını kayıttan okur (29 Ekim 2026); kazanç yoksa kayda bir şey yazılmaz.
         if (tracked.topicGain) {
           await awaitLoggedWrite(
@@ -438,7 +482,11 @@ export async function completeAction(context: NodeContext): Promise<NextResponse
         mergedAnswers,
         doneTopicLabel ?? topicLabel,
       );
-      if (drafts.length) await recordMistakes(service, userId, drafts);
+      if (drafts.length) {
+        // Faz 2 (madde 3): sonuç okunur; düşen yazım günlüğe iner (recordMistakes kendi adımını da yazar).
+        const saved = await recordMistakes(service, userId, drafts);
+        if (!saved.ok) logNodeFailure("node_complete_mistakes_failed", { nodeId, savedCount: saved.savedCount }, new Error(saved.error ?? "mistakes_failed"));
+      }
       await recordUserActivity(service, userId, `exam_prep_${kind}`);
     } catch (error) {
       // Notebook / streak must not roll back a completed node. Hata yutulmaz, günlüğe iner (6 Kasım 2026).
@@ -488,6 +536,14 @@ export async function completeAction(context: NodeContext): Promise<NextResponse
     // Öğrenme hafızası (5 Kasım 2026): yanlış türleri, zayıf kazanımlar ve açık yanılgılar kayıtlardan modelsiz
     // özetlenir; öğretmen sohbeti ve ders yazımı okur. Yanıttan sonra koşar, öğrenciyi bekletmez; düşerse uyarı.
     deferTask(() => refreshStudentMemory(service, userId), background);
+
+    // Sınıfla paylaşım ödülü (Faz 7, 20 Kasım 2026): klonlanan hazırlığın 1. konusunun konu testi bitince paylaşana
+    // +50 kredi. Kurallar SQL'de (`claim_clone_referral_reward`); yanıttan sonra koşar, asla atmaz, tamamlamayı
+    // bekletmez. Göç yokken atlanır. Yalnız konu testi: öbür türlerde iş planlanmaz.
+    if (kind === "quiz" && attempt.status !== "completed") {
+      const rewardTopicId = spansTopics ? null : (tested?.id ?? (topic?.id as string | undefined) ?? null);
+      deferTask(() => rewardCloneReferral(service, { userId, prepId, kind, topicId: rewardTopicId }), background);
+    }
 
     const body: Record<string, unknown> = {
       ok: true,

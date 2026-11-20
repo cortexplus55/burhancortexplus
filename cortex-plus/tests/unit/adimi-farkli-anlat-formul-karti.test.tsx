@@ -94,7 +94,7 @@ describe("adımı farklı anlat", () => {
       previous: ["Bir düzine yumurta gibi düşün."],
     });
     expect(prompt).toContain("ADIMIN İLK ANLATIMI:\nMol kütlesi gram cinsinden ölçülür.");
-    expect(prompt).toContain("DAHA ÖNCE VERİLEN FARKLI ANLATIMLAR");
+    expect(prompt).toContain("ÖNCEKİ AÇILIŞLAR");
     expect(plainStepText("a".repeat(5000)).length).toBe(2400);
   });
 
@@ -102,10 +102,10 @@ describe("adımı farklı anlat", () => {
     const route = read("src/app/api/learning/exam-prep/reexplain/route.ts");
     expect(route).toContain('.eq("user_id", userId)');
     expect(route).toContain('.eq("exam_prep_id", parsed.data.prepId)');
-    expect(route).toContain('freeMeter: "included"');
+    expect(route).toContain('freeMeter: "reexplain"');
     expect(route).toContain("studentOutputText(outcome.data.reply)");
-    // Rota dosyası yalnız HTTP metodunu dışa aktarır.
-    expect(route.match(/^export /gm)).toHaveLength(1);
+    // Rota dosyası yalnız HTTP metotlarını dışa aktarır (Faz 4: GET ücretsiz deneme sayacını "X/10" okur).
+    expect(route.match(/^export /gm)).toHaveLength(route.match(/^export async function (GET|POST)\(/gm)?.length ?? -1);
     const hook = read("src/components/parity/exam-node/use-node-lifecycle.ts");
     expect(hook).toContain('fetch("/api/learning/exam-prep/reexplain"');
     expect(read("src/components/parity/exam-node/lesson.tsx")).toContain("onReexplain={reexplainStep}");
@@ -166,6 +166,7 @@ describe("kaynaktaki açık formül formül kartında gösterilir", () => {
     const lesson = read("src/lib/learning/teacher-lesson.ts");
     expect(lesson).toContain("formulas: equationsWithoutCard(lesson.screens, facts).slice(0, 3).map((fact) => fact.text)");
     expect(lesson).toContain("- Formül (bir 'formula' bloğunda, kaynaktaki yazımıyla göster): ");
-    expect(lesson).toContain("sourceEquationsBlock(lessonFacts(input.pages, input.noteWarnings))");
+    // Faz 1-A §2.1: kaynak düzeltmesinin yanlış iddiası anlatılacak bilgi listesine girmez.
+    expect(lesson).toContain("sourceEquationsBlock(lessonFacts(input.pages, input.noteWarnings, lessonCorrectionNow(input)))");
   });
 });

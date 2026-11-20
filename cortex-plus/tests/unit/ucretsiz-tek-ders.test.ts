@@ -3,6 +3,7 @@ import { readFileSync } from "fs";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { makeRecordingDb, type RpcHandler } from "./helpers/recording-db";
 import { readSource } from "./helpers/node-sources";
+import { CREDIT_PRICE_TABLE } from "@/lib/credits/price-table";
 
 /*
   Ücretsiz hesap = deneme için TEK ders (11 Kasım 2026 akşamı, ürün sahibinin kararı).
@@ -78,16 +79,15 @@ type Row = Record<string, unknown>;
 
 const read = (path: string) => readSource(path).replace(/\r\n/g, "\n");
 
-/** Ücretsiz hesap: abonelik yok, yönetici değil. `balance` cüzdan bakiyesi (davet hediyesi 90 = 3 ders). */
+/** Ücretsiz hesap: abonelik yok, yönetici değil. `balance` cüzdan bakiyesi (davet hediyesi 90 kredi). */
 function tables(options: { balance?: number; premium?: boolean; preview?: boolean; extra?: Record<string, Row[]> } = {}) {
   return {
     credit_wallets: [{ user_id: USER, balance: options.balance ?? 0 }],
     credit_rules: [
-      { action_code: "STUDY_PLAN_GENERATE", credit_cost: 30, active: true },
-      { action_code: "QUIZ_GENERATE", credit_cost: 10, active: true },
-      { action_code: "FLASHCARD_GENERATE", credit_cost: 4, active: true },
-      { action_code: "AI_CHAT_STANDARD", credit_cost: 3, active: true },
-      { action_code: "IMAGE_SOLUTION", credit_cost: 4, active: true },
+      // Canlı kural satırları fiyat tablosuyla aynı (Faz 4: göç 20261119120000).
+      ...(["STUDY_PLAN_GENERATE", "QUIZ_GENERATE", "FLASHCARD_GENERATE", "AI_CHAT_STANDARD", "IMAGE_SOLUTION"] as const).map(
+        (code) => ({ action_code: code, credit_cost: CREDIT_PRICE_TABLE[code].credits, active: true }),
+      ),
     ],
     subscriptions: options.premium
       ? [
@@ -161,14 +161,16 @@ describe("kod kapısı: ders sayacına düşecek iş ücretsiz hesapta açılmaz
 
   it("cüzdan bakiyesi (davet hediyesi) işi karşılıyorsa 'gift'; yetmiyorsa 'plus'", async () => {
     const { freeLessonGate } = await import("@/lib/billing/free-lesson-gate");
-    // Davet hediyesi 90 kredi = 3 ders.
+    // Davet hediyesi 90 kredi (Faz 4: ders 22, test 14 → en az 3 ders).
+    const lesson = CREDIT_PRICE_TABLE.STUDY_PLAN_GENERATE.credits;
+    const quiz = CREDIT_PRICE_TABLE.QUIZ_GENERATE.credits;
     expect(await freeLessonGate(client(tables({ balance: 90 }), sql().rpc), USER, "STUDY_PLAN_GENERATE")).toBe("gift");
-    expect(await freeLessonGate(client(tables({ balance: 30 }), sql().rpc), USER, "STUDY_PLAN_GENERATE")).toBe("gift");
-    expect(await freeLessonGate(client(tables({ balance: 29 }), sql().rpc), USER, "STUDY_PLAN_GENERATE")).toBe("plus");
-    expect(await freeLessonGate(client(tables({ balance: 10 }), sql().rpc), USER, "QUIZ_GENERATE")).toBe("gift");
-    expect(await freeLessonGate(client(tables({ balance: 9 }), sql().rpc), USER, "QUIZ_GENERATE")).toBe("plus");
-    // Kural satırı okunamazsa bedel fiyat tablosundan (ders 30).
-    const noRules = tables({ balance: 29 });
+    expect(await freeLessonGate(client(tables({ balance: lesson }), sql().rpc), USER, "STUDY_PLAN_GENERATE")).toBe("gift");
+    expect(await freeLessonGate(client(tables({ balance: lesson - 1 }), sql().rpc), USER, "STUDY_PLAN_GENERATE")).toBe("plus");
+    expect(await freeLessonGate(client(tables({ balance: quiz }), sql().rpc), USER, "QUIZ_GENERATE")).toBe("gift");
+    expect(await freeLessonGate(client(tables({ balance: quiz - 1 }), sql().rpc), USER, "QUIZ_GENERATE")).toBe("plus");
+    // Kural satırı okunamazsa bedel fiyat tablosundan.
+    const noRules = tables({ balance: lesson - 1 });
     noRules.credit_rules = [];
     expect(await freeLessonGate(client(noRules, sql().rpc), USER, "STUDY_PLAN_GENERATE")).toBe("plus");
   });
@@ -341,7 +343,7 @@ describe("uçlar: Çalışma Stüdyosu üretimi kaynak okumadan ve motordan önc
     expect(read("src/app/api/learning/exam-prep/duel/route.ts")).toContain('const duelAction = duelV2 ? DUEL_V2_ACTION_CODE : "QUIZ_GENERATE";');
     order("src/app/api/learning/quiz/generate/route.ts", 'freeLessonRefused(service, userId, "QUIZ_GENERATE")', ["loadDocumentGenerationContext(service", "const outcome = await generateExamQuiz({"]);
     order("src/app/api/learning/flashcards/generate/route.ts", 'freeLessonRefused(service, userId, "FLASHCARD_GENERATE")', ["studioTeacherSource(service", "runWithTeacherModel(service"]);
-    order("src/app/api/learning/true-false/generate/route.ts", 'freeLessonRefused(service, userId, "QUIZ_GENERATE")', ["studioTeacherSource(service", "runWithTeacherModel(service"]);
+    order("src/app/api/learning/true-false/generate/route.ts", 'freeLessonRefused(service, userId, "TRUE_FALSE_GENERATE")', ["studioTeacherSource(service", "runWithTeacherModel(service"]);
     order("src/app/api/learning/study-plan/generate/route.ts", 'freeLessonRefused(service, userId, "STUDY_PLAN_GENERATE")', ["const outcome = await generateJson({"]);
     // Kayıtlı zor soru seti kapıdan ÖNCE ücretsiz döner.
     const challenge = read("src/app/api/learning/exam-prep/challenge/route.ts");
@@ -377,13 +379,13 @@ describe("uçlar: Çalışma Stüdyosu üretimi kaynak okumadan ve motordan önc
 });
 
 describe("metinler: tek kaynak, haftalık ders ve geri sayım yok, Plus kapısının dili", () => {
-  it("sabitler: ders sayacında hak yok; ücretsiz cümlesi ilk ders + günlük mesaj + günlük fotoğraf", async () => {
+  it("sabitler: ders sayacında hak yok; ücretsiz cümlesi ilk ders + günlük mesaj + aylık fotoğraf", async () => {
     const meters = await import("@/lib/billing/free-meters");
     const copy = await import("@/lib/billing/free-tier-copy");
-    expect(meters.FREE_LIMITS).toEqual({ lesson: 0, chat: 3, photo: 1, included: 40 });
+    expect(meters.FREE_LIMITS).toEqual({ lesson: 0, chat: 3, photo: 7, included: 40, reexplain: 10 });
     expect("FREE_LESSONS_PER_WEEK" in meters).toBe(false);
     expect(meters.VISIBLE_FREE_METERS).toEqual(["chat", "photo"]);
-    expect(meters.FREE_TIER_SENTENCE).toBe(`${copy.FREE_FIRST_LESSON_CLAUSE}; ayrıca günde 3 sohbet mesajı ve günde 1 fotoğraftan soru çözümü`);
+    expect(meters.FREE_TIER_SENTENCE).toBe(`${copy.FREE_FIRST_LESSON_CLAUSE}; ayrıca günde 3 sohbet mesajı ve ayda 7 fotoğraftan soru çözümü`);
     expect(copy.FREE_FIRST_LESSON_SENTENCE).toBe(
       "İlk hazırlığında ilk dersin (Konu Anlatımı + Kartlar + Doğru/Yanlış + Konu Testi) süre sınırı olmadan ücretsiz.",
     );
@@ -444,7 +446,9 @@ describe("metinler: tek kaynak, haftalık ders ve geri sayım yok, Plus kapısı
     // Rozet, stüdyonun uçta ayırdığı kodla aynı kuraldan.
     expect(read("src/app/api/learning/quiz/generate/route.ts")).toContain('"QUIZ_GENERATE"');
     expect(read("src/app/api/learning/flashcards/generate/route.ts")).toContain('actionCode: "FLASHCARD_GENERATE"');
-    expect(read("src/app/api/learning/true-false/generate/route.ts")).toContain('actionCode: "QUIZ_GENERATE"');
+    // Faz 4: doğru/yanlış testten ayrı kod (3 kredi), aynı ders sayacı.
+    expect(read("src/app/api/learning/true-false/generate/route.ts")).toContain('actionCode: "TRUE_FALSE_GENERATE"');
+    expect(defaultFreeMeter("TRUE_FALSE_GENERATE")).toBe("lesson");
     for (const code of ["QUIZ_GENERATE", "FLASHCARD_GENERATE", "STUDY_PLAN_GENERATE"] as const) {
       expect(defaultFreeMeter(code)).toBe("lesson");
       expect(needsPlusOutsideFirstLesson(code)).toBe(true);
@@ -457,7 +461,7 @@ describe("metinler: tek kaynak, haftalık ders ve geri sayım yok, Plus kapısı
     const { PLAN_WORK_BY_ID, freeVsPlusRows, freeDaysFor, FREE_FIRST_LESSON_CELL } = await import("@/lib/billing/plan-value");
     const rows = tierComparisonRows();
     for (const row of rows) expect(`${row.label} ${row.free}`, row.label).not.toMatch(/[Hh]aftada|haftalık/);
-    expect(rows.find((row) => row.label === "AI kullanımı")?.free).toBe("İlk ders, günde 3 mesaj, günde 1 fotoğraftan çözüm");
+    expect(rows.find((row) => row.label === "AI kullanımı")?.free).toBe("İlk ders, günde 3 mesaj, ayda 7 fotoğraftan çözüm");
     expect(rows.find((row) => row.label === "Sınav hazırlığı")?.free).toBe("1 (yenisi Plus'ta)");
     expect(rows.find((row) => row.label === "Belge işleme")?.free).toBe("Toplam 25 sayfa (fazlası Plus'ta)");
     expect(profilePlanView({ audience: "free", resetsAtLabel: "", periodKind: "daily", subscriptionPeriodEnd: null })?.hint).not.toMatch(/hafta|Pazartesi/);
@@ -638,11 +642,13 @@ describe("göç 20261111180000_free_lesson_trial: ders sınırı 0, gerisi aynen
       expect(body).toContain("GRANT EXECUTE ON FUNCTION public.credit_reserve_metered(uuid, text, text, integer, text) TO service_role;");
     });
 
-    it("sınırlar kodla aynı: ders 0, mesaj 3, fotoğraf 1, derse dahil 40", async () => {
+    // Faz 4 (19 Kasım 2026): fotoğraf sınırı 20261119120000'de ayda 7'ye çıktı; bu göçün kendi değeri günde 1.
+    it("sınırlar kodla aynı: ders 0, mesaj 3, derse dahil 40; fotoğraf bu göçte 1 (Faz 4 göçü 7 yapar)", async () => {
       const { FREE_LIMITS } = await import("@/lib/billing/free-meters");
-      for (const meter of ["lesson", "chat", "photo", "included"] as const) {
+      for (const meter of ["lesson", "chat", "included"] as const) {
         expect(await limit(meter), meter).toBe(FREE_LIMITS[meter]);
       }
+      expect(await limit("photo")).toBe(1);
       expect(await limit("lesson")).toBe(0);
     });
 

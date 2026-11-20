@@ -82,7 +82,7 @@ describe("#11 çıkmış sorulardan ikiz sınav", () => {
     const base = { preset: "standard" as const, scope: "all" as const };
     expect(mockExamSpecKey(base)).toBe(JSON.stringify({ preset: "standard", scope: "all", topicIds: [], durationMinutes: null, topicLabel: null, questionCount: null }));
     expect(mockExamSpecKey({ ...base, twin: true })).not.toBe(mockExamSpecKey(base));
-    expect(TWIN_EXAM_LABEL).toBe("🎯 Çıkmış Sorulara Göre İkiz Sınav");
+    expect(TWIN_EXAM_LABEL).toBe("🎯 Çıkmış Sorulardan Hocanın İkiz Sınavı (20 Soru)");
   });
 
   it("seçenek kurulumdan üretime kadar taşınır; önizleme üretimle aynı ağırlığı okur", () => {

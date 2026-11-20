@@ -55,7 +55,7 @@ import {
 import { tierComparisonRows } from "@/lib/billing/tier-presentation";
 import { beyondFreeMessage } from "@/lib/billing/free-reach";
 import { CRAM_SHEET_NAME, CRAM_SHEET_TITLE, examPrepCramSheetHref } from "@/lib/learning/cram-sheet";
-import { FAQ } from "@/lib/marketing/landing-content";
+import { FAQ, PLUS_PLAN_POINTS, WEEK_PLAN_POINTS } from "@/lib/marketing/landing-content";
 import { homeLine } from "@/lib/companion/voice";
 import { renderWelcomeMail } from "@/lib/email/lifecycle-templates";
 
@@ -153,7 +153,7 @@ describe("sınav sabahı kâğıdı: sayfa kapısı", () => {
 
 describe("hazırlık sayfasındaki düğme", () => {
   it("ücretsizde 'Plus' rozeti taşır ve yükseltme ekranını yerinde açar; adres durur", () => {
-    render(<PrepShareTools prepId={PREP} inviteUrl={null} whatsappHref={null} cramSheetLocked />);
+    render(<PrepShareTools prepId={PREP} cramSheetLocked />);
     const link = screen.getByText(CRAM_SHEET_TITLE).closest("a")!;
     expect(link.getAttribute("href")).toBe(examPrepCramSheetHref(PREP));
     expect(screen.getByTestId("cram-sheet-plus").textContent).toBe("Plus");
@@ -168,7 +168,7 @@ describe("hazırlık sayfasındaki düğme", () => {
   });
 
   it("Plus'ta rozet ve kapı yok; bağlantı kâğıda gider", () => {
-    render(<PrepShareTools prepId={PREP} inviteUrl={null} whatsappHref={null} />);
+    render(<PrepShareTools prepId={PREP} />);
     const link = screen.getByText(CRAM_SHEET_TITLE).closest("a")!;
     expect(screen.queryByTestId("cram-sheet-plus")).toBeNull();
     expect(link.getAttribute("aria-label")).toBeNull();
@@ -217,7 +217,7 @@ describe("metinler gerçek davranışı söyler", () => {
     expect(FREE_LIMITS.lesson).toBe(0);
     expect(FREE_TIER_SENTENCE).not.toMatch(/hafta|Stüdyo|Farklı anlat/);
     expect(FREE_TIER_SENTENCE).toContain(`günde ${FREE_LIMITS.chat} sohbet mesajı`);
-    expect(FREE_TIER_SENTENCE).toContain(`günde ${FREE_LIMITS.photo} fotoğraftan soru çözümü`);
+    expect(FREE_TIER_SENTENCE).toContain(`ayda ${FREE_LIMITS.photo} fotoğraftan soru çözümü`);
     expect(beyondFreeMessage(CRAM_SHEET_NAME)).toBe(
       `${CRAM_SHEET_NAME} Plus'ta. Ücretsiz hesapta ${lower(FREE_TIER_SENTENCE.charAt(0))}${FREE_TIER_SENTENCE.slice(1)} açık.`,
     );
@@ -232,7 +232,7 @@ describe("metinler gerçek davranışı söyler", () => {
     expect(rows.find((row) => row.label === "Sınav sabahı kâğıdı")).toMatchObject({ free: "Plus'ta", plus: "Açık", sigma: "Açık" });
     expect(rows.find((row) => row.label === "Podcast, sözlü ve yazılı deneme")?.free).toBe("Plus'ta");
     expect(rows.find((row) => row.label === "AI kullanımı")?.free).toBe(
-      `İlk ders, günde ${FREE_LIMITS.chat} mesaj, günde ${FREE_LIMITS.photo} fotoğraftan çözüm`,
+      `İlk ders, günde ${FREE_LIMITS.chat} mesaj, ayda ${FREE_LIMITS.photo} fotoğraftan çözüm`,
     );
     // Ücretsiz hesap = tek ders: dersin devamı ve Stüdyo üretimleri tabloda "Plus'ta".
     expect(rows.find((row) => row.label.startsWith("Öbür konular ve yeni anlatım"))).toMatchObject({ free: "Plus'ta", plus: "Açık" });
@@ -257,9 +257,11 @@ describe("metinler gerçek davranışı söyler", () => {
     expect(read("src/app/yardim/page.tsx")).toContain("${PLUS_ONLY_SENTENCE}");
   });
 
-  it("SSS: 'Ücretsiz neler yapabilirim?' ve 'Plus'ta ne değişiyor?' Plus'a özel her maddeyi adıyla söyler", () => {
+  it("SSS 'Ücretsiz neler yapabilirim?' ve ana sayfanın Plus kartı Plus'a özel her maddeyi adıyla söyler", () => {
     const free = FAQ.find((item) => item.q === "Ücretsiz neler yapabilirim?")!.a;
-    const plus = FAQ.find((item) => item.q === "Plus'ta ne değişiyor?")!.a;
+    // Faz 9 (20 Kasım 2026): "Plus'ta ne değişiyor?" SSS'den çıktı (beş soru); Plus'ta neyin açıldığını ana sayfada
+    // Plus kartı ve Sınav Haftası kartı söyler.
+    const plus = `${PLUS_PLAN_POINTS.join(" ")} ${WEEK_PLAN_POINTS.join(" ")}`;
     expect(free).toContain(`${lower(FREE_TIER_SENTENCE.charAt(0))}${FREE_TIER_SENTENCE.slice(1)}`);
     expect(free).toContain(`toplam ${FREE_PAGE_TOTAL} sayfa belge`);
     expect(free).toContain("Bir sınav hazırlığı");
@@ -284,7 +286,7 @@ describe("metinler gerçek davranışı söyler", () => {
     expect(mail.text).toContain(FREE_FIRST_LESSON_SENTENCE.replace(/\.$/, ""));
     expect(mail.text).toContain(PLUS_ONLY_SENTENCE);
     expect(mail.text).not.toMatch(/Haftada|haftalık ders/);
-    expect(mail.text).toContain(`Günde ${FREE_LIMITS.chat} öğretmen mesajı ve günde ${FREE_LIMITS.photo} fotoğraftan çözüm`);
+    expect(mail.text).toContain(`Günde ${FREE_LIMITS.chat} öğretmen mesajı ve ayda ${FREE_LIMITS.photo} fotoğraftan çözüm`);
     expect(mail.text).not.toContain("1. konusu tamamen açık");
   });
 

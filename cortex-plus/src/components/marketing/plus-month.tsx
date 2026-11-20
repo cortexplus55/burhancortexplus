@@ -20,13 +20,26 @@ import {
   type Tempo,
 } from "@/lib/billing/plan-value";
 import { PLAN_ALLOWANCES } from "@/lib/credits/price-table";
-import { FREE_CHAT_PER_DAY, FREE_PHOTO_PER_DAY } from "@/lib/billing/free-meters";
+import { PLAN_MARKETING_COPY } from "@/lib/marketing/plan-copy";
+import { FREE_CHAT_PER_DAY, FREE_PHOTO_PER_MONTH } from "@/lib/billing/free-meters";
 import { formatTry } from "@/lib/format";
 import { possessiveSuffix } from "@/lib/text/number-suffix";
 import { cn } from "@/lib/utils";
 import "@/styles/plus-month.css";
 
 const fmt = (n: number) => new Intl.NumberFormat("tr-TR").format(n);
+
+/**
+ * Faz 5 §4 (19 Kasım 2026): ders, test ve sohbet sayısı fiyat kartlarıyla aynı tek merkezden (`plan-copy.ts`):
+ * "~200 ders / 310 test / 4.350 sohbet". Öbür işler (podcast, deneme, video…) kredi tablosundan tek başına sayılır.
+ */
+function plusCount(work: { id: PlanWorkId; credits: number }): { value: number; approx: boolean } {
+  const copy = PLAN_MARKETING_COPY.plus.work;
+  if (work.id === "lesson") return { value: copy.lessons, approx: true };
+  if (work.id === "quiz") return { value: copy.tests, approx: false };
+  if (work.id === "chat") return { value: copy.chats, approx: false };
+  return { value: workCount(PLAN_ALLOWANCES.plusMonthly, work as Parameters<typeof workCount>[1]), approx: false };
+}
 
 /** Kaydırıcıların ve enerji çubuğunun renkleri; altın yalnız Plus'ın kendisi için. */
 const WORK_COLOR: Partial<Record<PlanWorkId, string>> = {
@@ -64,8 +77,8 @@ export function PlusMonth(props: PlusMonthProps) {
 function PlusMonthFull({ monthlyKurus, primary, secondary, headingLevel = "h2", id = "plus-ay" }: PlusMonthProps) {
   const Heading = headingLevel;
   const plus = PLAN_ALLOWANCES.plusMonthly;
-  const lessons = workCount(plus, PLAN_WORK_BY_ID.lesson);
-  const quizzes = workCount(plus, PLAN_WORK_BY_ID.quiz);
+  const lessons = plusCount(PLAN_WORK_BY_ID.lesson).value;
+  const quizzes = plusCount(PLAN_WORK_BY_ID.quiz).value;
   const podcasts = workCount(plus, PLAN_WORK_BY_ID.podcast);
   const docs = documentPagesFor(plus);
   return (
@@ -82,7 +95,7 @@ function PlusMonthFull({ monthlyKurus, primary, secondary, headingLevel = "h2", 
             Plus · bir ayda
           </p>
           <Heading id={`${id}-title`} className="pm-title">
-            Bir ayda <span className="pm-gold">{fmt(lessons)} ders</span>.{" "}
+            Bir ayda <span className="pm-gold">~{fmt(lessons)} ders</span>.{" "}
             <span className="pm-dim">Ya da {fmt(quizzes)} test. Ya da {fmt(podcasts)} podcast.</span>
           </Heading>
           <p className="pm-lead">
@@ -104,7 +117,8 @@ function PlusMonthFull({ monthlyKurus, primary, secondary, headingLevel = "h2", 
                 ) : null}
               </div>
               <p className="pm-count">
-                <CountUp value={workCount(plus, work)} />
+                {plusCount(work).approx ? "~" : null}
+                <CountUp value={plusCount(work).value} />
               </p>
               <p className="pm-noun">{work.noun}</p>
               <p className="pm-blurb">{work.blurb}</p>
@@ -116,7 +130,7 @@ function PlusMonthFull({ monthlyKurus, primary, secondary, headingLevel = "h2", 
           <li>
             <Check className="h-4 w-4" aria-hidden />
             <span>
-              <strong>Sınırsız</strong> sınav hazırlığı
+              <strong>Birden çok</strong> sınav hazırlığı
             </span>
           </li>
           <li>
@@ -167,7 +181,6 @@ function PlusMonthFull({ monthlyKurus, primary, secondary, headingLevel = "h2", 
 
 /** Ücretsiz öğrencinin ana ekranındaki kart: dört sayı, enerji halkası, tek düğme. */
 function PlusMonthCompact({ monthlyKurus, primary, secondary }: PlusMonthProps) {
-  const plus = PLAN_ALLOWANCES.plusMonthly;
   const items: PlanWorkId[] = ["lesson", "quiz", "podcast", "video"];
   return (
     <section className="pm-card pm-card--plain" aria-labelledby="pm-card-title">
@@ -186,7 +199,8 @@ function PlusMonthCompact({ monthlyKurus, primary, secondary }: PlusMonthProps) 
             return (
               <li key={id}>
                 <b>
-                  <CountUp value={workCount(plus, work)} />
+                  {plusCount(work).approx ? "~" : null}
+                  <CountUp value={plusCount(work).value} />
                 </b>
                 <span>{work.noun}</span>
               </li>
@@ -328,7 +342,7 @@ function TempoMixer() {
           </p>
           <p className="pm-meter-free">
             {freeDays == null
-              ? `Bu tempo ücretsiz planla yürümez: ücretsizde ilk dersin, günde ${FREE_CHAT_PER_DAY} mesaj ve günde ${FREE_PHOTO_PER_DAY} fotoğraftan çözüm var.`
+              ? `Bu tempo ücretsiz planla yürümez: ücretsizde ilk dersin, günde ${FREE_CHAT_PER_DAY} mesaj ve ayda ${FREE_PHOTO_PER_MONTH} fotoğraftan çözüm var.`
               : freeDays > 0
                 ? `Aynı tempo ücretsiz planla ${fmt(freeDays)} gün sürerdi.`
                 : null}
@@ -411,10 +425,9 @@ function CountUp({ value }: { value: number }) {
 
 /**
  * Yükseltme kapısındaki kısa satır: hakkı dolan öğrenciye Plus'ın bir ayında ne olduğunu dört sayıyla
- * söyler (eskiden yalnız "ayda yaklaşık 2.400 mesaj ya da 1.200 ders" yazıyordu; sayılar kredi tablosundan).
+ * söyler (eskiden yalnız tek bir mesaj/ders sayısı yazıyordu; sayılar kredi tablosundan).
  */
 export function PlusCountsInline() {
-  const plus = PLAN_ALLOWANCES.plusMonthly;
   const ids: PlanWorkId[] = ["lesson", "quiz", "podcast", "video"];
   return (
     <div className="pm-inline">
@@ -424,7 +437,10 @@ export function PlusCountsInline() {
           const work = PLAN_WORK_BY_ID[id];
           return (
             <li key={id}>
-              <b>{fmt(workCount(plus, work))}</b>
+              <b>
+                {plusCount(work).approx ? "~" : ""}
+                {fmt(plusCount(work).value)}
+              </b>
               <span>{work.noun}</span>
             </li>
           );

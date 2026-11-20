@@ -1,3 +1,4 @@
+import { invalidateSessionUserContext } from "@/lib/auth/session-context";
 import { NextResponse } from "next/server";
 import { AVATAR_OPTIONS } from "@/lib/parity/signup";
 import { z } from "zod";
@@ -98,6 +99,8 @@ export async function PATCH(request: Request) {
   if (error) {
     return NextResponse.json({ error: "update_failed" }, { status: 500 });
   }
+  // Faz 2: ad, avatar, öğretmen stili gibi alanlar kabukta önbellekten okunur; güncelleme anında görünsün.
+  await invalidateSessionUserContext(userId);
 
   return NextResponse.json({ ok: true });
 }

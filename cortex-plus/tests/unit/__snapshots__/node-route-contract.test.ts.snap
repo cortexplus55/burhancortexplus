@@ -531,7 +531,7 @@ exports[`yol etkinliği rotası: eylem sözleşmesi > complete: sözlü yanıtta
         "correct": false,
         "exam_prep_id": "00000000-0000-4000-8000-0000000000a1",
         "hint_assisted": false,
-        "id": "exam_prep_answer_evidence-2",
+        "id": "exam_prep_answer_evidence-3",
         "independent_success": false,
         "is_first_attempt": true,
         "learning_objective": null,
@@ -552,7 +552,7 @@ exports[`yol etkinliği rotası: eylem sözleşmesi > complete: sözlü yanıtta
         "error_code": null,
         "exam_prep_id": "00000000-0000-4000-8000-0000000000a1",
         "generation_id": "00000000-0000-4000-8000-0000000000e1",
-        "id": "exam_prep_generation_jobs-4",
+        "id": "exam_prep_generation_jobs-5",
         "node_id": "00000000-0000-4000-8000-0000000000b1",
         "status": "completed",
         "updated_at": "2026-10-30T09:00:00.000Z",
@@ -704,7 +704,7 @@ exports[`yol etkinliği rotası: eylem sözleşmesi > complete: sözlü yanıtta
         "due_on": "2026-10-31",
         "exam_prep_id": "00000000-0000-4000-8000-0000000000a1",
         "first_missed_on": "2026-10-30",
-        "id": "exam_prep_review_items-7",
+        "id": "exam_prep_review_items-8",
         "interval_step": 0,
         "item": {
           "back": "Profaz, metafaz, anafaz, telofaz.",
@@ -733,11 +733,29 @@ exports[`yol etkinliği rotası: eylem sözleşmesi > complete: sözlü yanıtta
         "exam_prep_id": "00000000-0000-4000-8000-0000000000a1",
         "first_attempt_correct": 0,
         "first_attempt_total": 1,
-        "id": "exam_prep_topic_mastery-3",
+        "id": "exam_prep_topic_mastery-4",
         "independent_correct": 0,
         "independent_total": 1,
         "last_practiced_at": "2026-10-30T09:00:00.000Z",
-        "measured_level": "weak",
+        "measured_level": "unmeasured",
+        "policy": {
+          "cards": {
+            "hard": 0,
+            "knew": 0,
+            "miss": 0,
+          },
+          "distinctAttempts": 1,
+          "evidenceCount": 1,
+          "guidance": null,
+          "hintAssisted": 0,
+          "independentCorrect": 0,
+          "measured": false,
+          "objectiveCount": 1,
+          "pct": 0,
+          "rawPct": 0,
+          "recentMisses": 1,
+          "version": 1,
+        },
         "topic_key": "hücre bölünmesi",
         "updated_at": "2026-10-30T09:00:00.000Z",
         "user_id": "00000000-0000-4000-8000-00000000aaaa",
@@ -792,19 +810,31 @@ exports[`yol etkinliği rotası: eylem sözleşmesi > complete: sözlü yanıtta
         "user_id": "00000000-0000-4000-8000-00000000aaaa",
       },
     ],
+    "in_app_notifications": [
+      {
+        "action_url": "/deneme-sinavlari/00000000-0000-4000-8000-0000000000a1/tekrar",
+        "body": "Hücre Bölünmesi konusunda karıştırılan noktayı not ettik. Günü gelen tekrarda yeniden sorulacak; tekrarlar kredi harcamaz.",
+        "dedupe_key": "blind_spot:00000000-0000-4000-8000-0000000000d1",
+        "id": "in_app_notifications-2",
+        "kind": "blind_spot_detected",
+        "title": "Yeni bir sınav tuzağı yakaladık",
+        "user_id": "00000000-0000-4000-8000-00000000aaaa",
+      },
+    ],
     "subscriptions": [],
     "user_activity_days": [
       {
         "activity_date": "2026-10-30",
-        "id": "user_activity_days-5",
+        "id": "user_activity_days-6",
         "source": "exam_prep_oral",
         "user_id": "00000000-0000-4000-8000-00000000aaaa",
       },
     ],
+    "user_notification_preferences": [],
     "user_streaks": [
       {
         "current_streak": 1,
-        "id": "user_streaks-6",
+        "id": "user_streaks-7",
         "last_activity_date": "2026-10-30",
         "longest_streak": 1,
         "updated_at": "2026-10-30T09:00:00.000Z",
@@ -841,13 +871,16 @@ exports[`yol etkinliği rotası: eylem sözleşmesi > complete: sözlü yanıtta
     "db select subscriptions [status, current_period_end, cancel_at_period_end, plans(is_premium, tier, name, slug, monthly_allowance)] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(status,"active") or(current_period_end.is.null,current_period_end.gt.2026-10-30T09:00:00.000Z) maybe",
     "db select admin_free_preview [user_id] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
     "db select exam_prep_node_attempts [id] eq(node_id,"00000000-0000-4000-8000-0000000000b2") limit(1)",
+    "db select user_notification_preferences [user_id, study_reminders_email, exam_countdown_email, weekly_digest_email, in_app_notifications, preferred_study_hour, unsubscribe_token] in(user_id,["00000000-0000-4000-8000-00000000aaaa"])",
     "db select exam_prep_prefetch [node_id, status, updated_at] eq(node_id,"00000000-0000-4000-8000-0000000000b2") maybe",
+    "db upsert in_app_notifications payload=[{"user_id":"00000000-0000-4000-8000-00000000aaaa","kind":"blind_spot_detected","title":"Yeni bir sınav tuzağı yakaladık","body":"Hücre Bölünmesi konusunda karıştırılan noktayı not ettik. Günü gelen tekrarda yeniden sorulacak; tekrarlar kredi harcamaz.","action_url":"/deneme-sinavlari/00000000-0000-4000-8000-0000000000a1/tekrar","dedupe_key":"blind_spot:00000000-0000-4000-8000-0000000000d1"}]",
     "db select exam_prep_node_attempts [id] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") eq(node_id,"00000000-0000-4000-8000-0000000000b1") eq(status,"completed") neq(id,"00000000-0000-4000-8000-0000000000d1")",
     "db select exam_prep_topics [id, label] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1")",
     "db update exam_prep_node_attempts eq(id,"00000000-0000-4000-8000-0000000000d1") payload={"attempt_ordinal":1,"answer_meta":{"hintsUsed":{},"isFirstAttempt":true}}",
     "db insert exam_prep_answer_evidence payload=[{"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","attempt_id":"00000000-0000-4000-8000-0000000000d1","topic_key":"hücre bölünmesi","learning_objective":null,"question_index":0,"correct":false,"is_first_attempt":true,"hint_assisted":false,"independent_success":false,"wrong_type":"oral_miss","source_kind":"oral","question_preview":"Mitozun evrelerini anlat."}]",
-    "db select exam_prep_topic_mastery [topic_key, measured_level, confidence, evidence_count, first_attempt_correct, first_attempt_total, independent_correct, independent_total, last_practiced_at] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1")",
-    "db upsert exam_prep_topic_mastery payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","topic_key":"hücre bölünmesi","measured_level":"weak","confidence":0,"evidence_count":1,"first_attempt_correct":0,"first_attempt_total":1,"independent_correct":0,"independent_total":1,"last_practiced_at":"2026-10-30T09:00:00.000Z","updated_at":"2026-10-30T09:00:00.000Z"}",
+    "db select exam_prep_topic_mastery [topic_key, measured_level, confidence, evidence_count, first_attempt_correct, first_attempt_total, independent_correct, independent_total, last_practiced_at, policy] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1")",
+    "db select exam_prep_answer_evidence [topic_key, source_kind, correct, hint_assisted, is_first_attempt, attempt_id, created_at] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") order(created_at,desc) limit(5000)",
+    "db upsert exam_prep_topic_mastery payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","topic_key":"hücre bölünmesi","measured_level":"unmeasured","confidence":0,"evidence_count":1,"first_attempt_correct":0,"first_attempt_total":1,"independent_correct":0,"independent_total":1,"last_practiced_at":"2026-10-30T09:00:00.000Z","policy":{"version":1,"pct":0,"rawPct":0,"measured":false,"evidenceCount":1,"objectiveCount":1,"independentCorrect":0,"distinctAttempts":1,"recentMisses":1,"hintAssisted":0,"cards":{"knew":0,"hard":0,"miss":0},"guidance":null},"updated_at":"2026-10-30T09:00:00.000Z"}",
     "db select exam_prep_nodes [id, kind, status, sort_order, session_meta] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") order(sort_order,asc)",
     "db select exam_prep_misconceptions [id] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") eq(user_id,"00000000-0000-4000-8000-00000000aaaa") is(resolved_at,null)",
     "db select exam_preps [learning_tracking] eq(id,"00000000-0000-4000-8000-0000000000a1") eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
@@ -1153,7 +1186,25 @@ exports[`yol etkinliği rotası: eylem sözleşmesi > complete: test notlanır, 
         "independent_correct": 1,
         "independent_total": 2,
         "last_practiced_at": "2026-10-30T09:00:00.000Z",
-        "measured_level": "weak",
+        "measured_level": "unmeasured",
+        "policy": {
+          "cards": {
+            "hard": 0,
+            "knew": 0,
+            "miss": 0,
+          },
+          "distinctAttempts": 1,
+          "evidenceCount": 2,
+          "guidance": null,
+          "hintAssisted": 0,
+          "independentCorrect": 1,
+          "measured": false,
+          "objectiveCount": 2,
+          "pct": 42,
+          "rawPct": 50,
+          "recentMisses": 1,
+          "version": 1,
+        },
         "topic_key": "hücre bölünmesi",
         "updated_at": "2026-10-30T09:00:00.000Z",
         "user_id": "00000000-0000-4000-8000-00000000aaaa",
@@ -1208,6 +1259,17 @@ exports[`yol etkinliği rotası: eylem sözleşmesi > complete: test notlanır, 
         "user_id": "00000000-0000-4000-8000-00000000aaaa",
       },
     ],
+    "in_app_notifications": [
+      {
+        "action_url": "/deneme-sinavlari/00000000-0000-4000-8000-0000000000a1/tekrar",
+        "body": "Hücre Bölünmesi konusunda karıştırılan noktayı not ettik. Günü gelen tekrarda yeniden sorulacak; tekrarlar kredi harcamaz.",
+        "dedupe_key": "blind_spot:00000000-0000-4000-8000-0000000000d1",
+        "id": "in_app_notifications-10",
+        "kind": "blind_spot_detected",
+        "title": "Yeni bir sınav tuzağı yakaladık",
+        "user_id": "00000000-0000-4000-8000-00000000aaaa",
+      },
+    ],
     "mistake_entries": [
       {
         "correct_answer": "4",
@@ -1223,7 +1285,8 @@ exports[`yol etkinliği rotası: eylem sözleşmesi > complete: test notlanır, 
         ],
         "question_text": "Mayozun sonunda kaç hücre oluşur?",
         "source": "quiz",
-        "source_question_id": "00000000-0000-4000-8000-0000000000d1:q:1",
+        "source_question_id": null,
+        "source_ref": "00000000-0000-4000-8000-0000000000d1:q:1",
         "topic_label": "Hücre Bölünmesi",
         "user_id": "00000000-0000-4000-8000-00000000aaaa",
       },
@@ -1237,6 +1300,7 @@ exports[`yol etkinliği rotası: eylem sözleşmesi > complete: test notlanır, 
         "user_id": "00000000-0000-4000-8000-00000000aaaa",
       },
     ],
+    "user_notification_preferences": [],
     "user_streaks": [
       {
         "current_streak": 1,
@@ -1260,6 +1324,7 @@ exports[`yol etkinliği rotası: eylem sözleşmesi > complete: test notlanır, 
     "after:scheduled",
     "db update exam_prep_node_attempts eq(id,"00000000-0000-4000-8000-0000000000d1") is(complete_request_id,null) payload={"complete_request_id":"00000000-0000-4000-8000-0000000000f2","updated_at":"2026-10-30T09:00:00.000Z"}",
     "db insert exam_prep_misconceptions payload=[{"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","attempt_id":"00000000-0000-4000-8000-0000000000d1","topic_label":"Hücre Bölünmesi","claim":"Mayozun sonunda kaç hücre oluşur?","corrected":"4","wrong_type":"quiz_miss","source_kind":"quiz","question_preview":null}]",
+    "after:scheduled",
     "db select subscriptions [status, current_period_end, cancel_at_period_end, plans(is_premium, tier, name, slug, monthly_allowance)] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(status,"active") or(current_period_end.is.null,current_period_end.gt.2026-10-30T09:00:00.000Z) maybe",
     "db select admin_free_preview [user_id] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
     "rpc is_admin {"uid":"00000000-0000-4000-8000-00000000aaaa"}",
@@ -1268,15 +1333,16 @@ exports[`yol etkinliği rotası: eylem sözleşmesi > complete: test notlanır, 
     "db update exam_prep_node_attempts eq(id,"00000000-0000-4000-8000-0000000000d1") payload={"attempt_ordinal":1,"answer_meta":{"hintsUsed":{},"isFirstAttempt":true}}",
     "db insert exam_prep_answer_evidence payload=[{"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","attempt_id":"00000000-0000-4000-8000-0000000000d1","topic_key":"hücre bölünmesi","learning_objective":null,"question_index":0,"correct":true,"is_first_attempt":true,"hint_assisted":false,"independent_success":true,"wrong_type":null,"source_kind":"quiz","question_preview":"Mitozda kromozom sayısı nasıl değişir?"},{"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","attempt_id":"00000000-0000-4000-8000-0000000000d1","topic_key":"hücre bölünmesi","learning_objective":null,"question_index":1,"correct":false,"is_first_attempt":true,"hint_assisted":false,"independent_success":false,"wrong_type":"quiz_miss","source_kind":"quiz","question_preview":"Mayozun sonunda kaç hücre oluşur?"}]",
     "db select exam_prep_misconceptions [id, topic_label, attempt_id, created_at] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") is(resolved_at,null) order(created_at,asc) limit(200)",
-    "db select exam_prep_topic_mastery [topic_key, measured_level, confidence, evidence_count, first_attempt_correct, first_attempt_total, independent_correct, independent_total, last_practiced_at] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1")",
-    "db upsert exam_prep_topic_mastery payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","topic_key":"hücre bölünmesi","measured_level":"weak","confidence":0,"evidence_count":2,"first_attempt_correct":1,"first_attempt_total":2,"independent_correct":1,"independent_total":2,"last_practiced_at":"2026-10-30T09:00:00.000Z","updated_at":"2026-10-30T09:00:00.000Z"}",
+    "db select exam_prep_topic_mastery [topic_key, measured_level, confidence, evidence_count, first_attempt_correct, first_attempt_total, independent_correct, independent_total, last_practiced_at, policy] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1")",
+    "db select exam_prep_answer_evidence [topic_key, source_kind, correct, hint_assisted, is_first_attempt, attempt_id, created_at] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") order(created_at,desc) limit(5000)",
+    "db upsert exam_prep_topic_mastery payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","topic_key":"hücre bölünmesi","measured_level":"unmeasured","confidence":0,"evidence_count":2,"first_attempt_correct":1,"first_attempt_total":2,"independent_correct":1,"independent_total":2,"last_practiced_at":"2026-10-30T09:00:00.000Z","policy":{"version":1,"pct":42,"rawPct":50,"measured":false,"evidenceCount":2,"objectiveCount":2,"independentCorrect":1,"distinctAttempts":1,"recentMisses":1,"hintAssisted":0,"cards":{"knew":0,"hard":0,"miss":0},"guidance":null},"updated_at":"2026-10-30T09:00:00.000Z"}",
     "db select exam_prep_nodes [id, kind, status, sort_order, session_meta] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") order(sort_order,asc)",
     "db select exam_prep_misconceptions [id] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") eq(user_id,"00000000-0000-4000-8000-00000000aaaa") is(resolved_at,null)",
     "db select exam_preps [learning_tracking] eq(id,"00000000-0000-4000-8000-0000000000a1") eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
     "db update exam_preps eq(id,"00000000-0000-4000-8000-0000000000a1") eq(user_id,"00000000-0000-4000-8000-00000000aaaa") payload={"learning_tracking":{"version":1,"updatedAt":"2026-10-30T09:00:00.000Z","programProgressPct":0,"topicMasteryPct":null,"examReadinessPct":0,"claimFullyReady":false,"measuredTopicCount":0,"unmeasuredTopicCount":1,"openMisconceptions":0},"readiness_score":0}",
     "db upsert exam_prep_generation_jobs payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","attempt_id":"00000000-0000-4000-8000-0000000000d1","client_request_id":"00000000-0000-4000-8000-0000000000f1","generation_id":"00000000-0000-4000-8000-0000000000e1","credit_idempotency_key":"exam_node_start_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_00000000-0000-4000-8000-0000000000f1","status":"completed","error_code":null,"updated_at":"2026-10-30T09:00:00.000Z"}",
-    "db select mistake_entries [id, source_question_id, wrong_count] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") in(source_question_id,["00000000-0000-4000-8000-0000000000d1:q:1"])",
-    "db insert mistake_entries payload=[{"user_id":"00000000-0000-4000-8000-00000000aaaa","source":"quiz","source_question_id":"00000000-0000-4000-8000-0000000000d1:q:1","topic_label":"Hücre Bölünmesi","question_text":"Mayozun sonunda kaç hücre oluşur?","options":["1","2","3","4","8"],"correct_answer":"4","first_wrong_answer":"2","explanation":"Mayoz dört hücre verir."}]",
+    "db select mistake_entries [id, source, source_question_id, source_ref, wrong_count] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") in(source_ref,["00000000-0000-4000-8000-0000000000d1:q:1"])",
+    "db insert mistake_entries payload=[{"user_id":"00000000-0000-4000-8000-00000000aaaa","source":"quiz","source_question_id":null,"source_ref":"00000000-0000-4000-8000-0000000000d1:q:1","topic_label":"Hücre Bölünmesi","question_text":"Mayozun sonunda kaç hücre oluşur?","options":["1","2","3","4","8"],"correct_answer":"4","first_wrong_answer":"2","explanation":"Mayoz dört hücre verir."}]",
     "db upsert user_activity_days payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","activity_date":"2026-10-30","source":"exam_prep_quiz"}",
     "db select user_streaks [current_streak, longest_streak, last_activity_date] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
     "db select user_activity_days [activity_date] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(source,"streak_freeze") gte(activity_date,"2026-10-26") lte(activity_date,"2026-11-01")",
@@ -1287,6 +1353,7 @@ exports[`yol etkinliği rotası: eylem sözleşmesi > complete: test notlanır, 
     "db select exam_prep_review_items [id, prompt_key, source_ref, lapse_count, first_missed_on] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") in(prompt_key,["18efd9ac012620c3"])",
     "db upsert exam_prep_review_items payload=[{"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","topic_id":"00000000-0000-4000-8000-0000000000c1","topic_label":"Hücre Bölünmesi","node_id":"00000000-0000-4000-8000-0000000000b1","attempt_id":"00000000-0000-4000-8000-0000000000d1","source_kind":"quiz","reason":"miss","source_ref":"00000000-0000-4000-8000-0000000000d1:quiz:1","prompt_key":"18efd9ac012620c3","item":{"mode":"choice","prompt":"Mayozun sonunda kaç hücre oluşur?","options":["1","2","3","4","8"],"correct":["4"],"multi":false,"explanation":"Mayoz dört hücre verir.","sm2":{"easeFactor":2.5,"intervalDays":1,"repetitions":0}},"interval_step":0,"due_on":"2026-10-31","first_missed_on":"2026-10-30"}]",
     "rpc award_stars {"p_user":"00000000-0000-4000-8000-00000000aaaa","p_source":"prep","p_ref":"attempt:00000000-0000-4000-8000-0000000000d1","p_amount":12}",
+    "after:scheduled",
     "after:scheduled",
     "db select exam_prep_node_attempts [score, total, node_id] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") eq(status,"completed") gt(total,1) order(updated_at,desc) limit(8)",
     "db select exam_prep_topics [familiarity] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1")",
@@ -1299,7 +1366,12 @@ exports[`yol etkinliği rotası: eylem sözleşmesi > complete: test notlanır, 
     "db select exam_prep_node_attempts [id] eq(node_id,"00000000-0000-4000-8000-0000000000b2") limit(1)",
     "db select exam_prep_prefetch [node_id, status, updated_at] eq(node_id,"00000000-0000-4000-8000-0000000000b2") maybe",
     "after:run",
+    "db select user_notification_preferences [user_id, study_reminders_email, exam_countdown_email, weekly_digest_email, in_app_notifications, preferred_study_hour, unsubscribe_token] in(user_id,["00000000-0000-4000-8000-00000000aaaa"])",
+    "db upsert in_app_notifications payload=[{"user_id":"00000000-0000-4000-8000-00000000aaaa","kind":"blind_spot_detected","title":"Yeni bir sınav tuzağı yakaladık","body":"Hücre Bölünmesi konusunda karıştırılan noktayı not ettik. Günü gelen tekrarda yeniden sorulacak; tekrarlar kredi harcamaz.","action_url":"/deneme-sinavlari/00000000-0000-4000-8000-0000000000a1/tekrar","dedupe_key":"blind_spot:00000000-0000-4000-8000-0000000000d1"}]",
+    "after:run",
     "call refreshStudentMemory ["00000000-0000-4000-8000-00000000aaaa"]",
+    "after:run",
+    "db select exam_preps [cloned_from_prep_id] eq(id,"00000000-0000-4000-8000-0000000000a1") eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
   ],
 }
 `;
@@ -2141,6 +2213,7 @@ exports[`yol etkinliği rotası: eylem sözleşmesi > progress: süren ders ve b
     "building": false,
     "ok": true,
     "payload": {
+      "answerCheck": "server",
       "generationFailed": true,
       "questions": [],
       "type": "quiz",
@@ -2284,7 +2357,7 @@ exports[`yol etkinliği rotası: eylem sözleşmesi > progress: süren ders ve b
     "db select document_topic_nodes [document_id] eq(id,"dtn1") maybe",
     "db select exam_prep_node_attempts [id, payload, generation_id, client_request_id] eq(id,"00000000-0000-4000-8000-0000000000d1") eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") eq(node_id,"00000000-0000-4000-8000-0000000000b1") maybe",
     "db update exam_prep_node_attempts eq(id,"00000000-0000-4000-8000-0000000000d1") eq(generation_id,"00000000-0000-4000-8000-0000000000e1") payload={"payload":{"type":"quiz","questions":[],"generationFailed":true}}",
-    "response 200 {"ok":true,"building":false,"payload":{"type":"quiz","questions":[],"generationFailed":true}}",
+    "response 200 {"ok":true,"building":false,"payload":{"type":"quiz","questions":[],"generationFailed":true,"answerCheck":"server"}}",
   ],
 }
 `;
@@ -2552,12 +2625,9 @@ exports[`yol etkinliği rotası: eylem sözleşmesi > resume: açık kayıt, bit
     "kind": "quiz",
     "ok": true,
     "payload": {
+      "answerCheck": "server",
       "questions": [
         {
-          "correct": [
-            "Değişmez",
-          ],
-          "explanation": "Mitozda kromozom sayısı korunur.",
           "multi": false,
           "options": [
             "Yarıya iner",
@@ -2569,10 +2639,6 @@ exports[`yol etkinliği rotası: eylem sözleşmesi > resume: açık kayıt, bit
           "text": "Mitozda kromozom sayısı nasıl değişir?",
         },
         {
-          "correct": [
-            "4",
-          ],
-          "explanation": "Mayoz dört hücre verir.",
           "multi": false,
           "options": [
             "1",
@@ -2765,7 +2831,7 @@ exports[`yol etkinliği rotası: eylem sözleşmesi > resume: açık kayıt, bit
     "db select document_topic_nodes [document_id] eq(id,"dtn1") maybe",
     "db select exam_prep_node_attempts [id, status, payload, answers, answer_meta, score, total, generation_id, client_request_id, complete_request_id, content_version, updated_at, difficulty, voice_mode, started_at, expires_at] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") eq(node_id,"00000000-0000-4000-8000-0000000000b1") eq(status,"active") order(updated_at,desc) limit(1) maybe",
     "db select credit_wallets [balance] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
-    "response 200 {"ok":true,"attemptId":"00000000-0000-4000-8000-0000000000d1","generationId":"00000000-0000-4000-8000-0000000000e1","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"quiz","title":"Testler","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false,"correct":["Değişmez"],"explanation":"Mitozda kromozom sayısı korunur."},{"text":"Mayozun sonunda kaç hücre oluşur?","options":["1","2","3","4","8"],"multi":false,"correct":["4"],"explanation":"Mayoz dört hücre verir."}]},"answers":{},"cursorIndex":0,"score":null,"total":2,"resumed":true,"startedAt":"2026-10-30T09:00:00.000Z","expiresAt":null,"timeLeftSec":900,"updatedAt":"2026-10-30T09:00:00.000Z","balance":500}",
+    "response 200 {"ok":true,"attemptId":"00000000-0000-4000-8000-0000000000d1","generationId":"00000000-0000-4000-8000-0000000000e1","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"quiz","title":"Testler","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false},{"text":"Mayozun sonunda kaç hücre oluşur?","options":["1","2","3","4","8"],"multi":false}],"answerCheck":"server"},"answers":{},"cursorIndex":0,"score":null,"total":2,"resumed":true,"startedAt":"2026-10-30T09:00:00.000Z","expiresAt":null,"timeLeftSec":900,"updatedAt":"2026-10-30T09:00:00.000Z","balance":500}",
   ],
 }
 `;
@@ -4056,12 +4122,9 @@ exports[`yol etkinliği rotası: start × tür > aynı istek kimliği: hazır ka
     "kind": "quiz",
     "ok": true,
     "payload": {
+      "answerCheck": "server",
       "questions": [
         {
-          "correct": [
-            "Değişmez",
-          ],
-          "explanation": "Mitozda kromozom sayısı korunur.",
           "multi": false,
           "options": [
             "Yarıya iner",
@@ -4241,7 +4304,7 @@ exports[`yol etkinliği rotası: start × tür > aynı istek kimliği: hazır ka
     "after:scheduled",
     "db select exam_prep_node_attempts [id, status, payload, answers, answer_meta, score, total, generation_id, client_request_id, complete_request_id, content_version, updated_at, difficulty, voice_mode, started_at, expires_at] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(node_id,"00000000-0000-4000-8000-0000000000b1") eq(client_request_id,"00000000-0000-4000-8000-0000000000f1") maybe",
     "db select credit_wallets [balance] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
-    "response 200 {"ok":true,"attemptId":"00000000-0000-4000-8000-0000000000d1","generationId":"00000000-0000-4000-8000-0000000000e1","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"quiz","title":"Testler","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false,"correct":["Değişmez"],"explanation":"Mitozda kromozom sayısı korunur."}]},"answers":{},"cursorIndex":0,"score":null,"total":2,"resumed":true,"startedAt":"2026-10-30T09:00:00.000Z","expiresAt":null,"timeLeftSec":900,"balance":500}",
+    "response 200 {"ok":true,"attemptId":"00000000-0000-4000-8000-0000000000d1","generationId":"00000000-0000-4000-8000-0000000000e1","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"quiz","title":"Testler","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false}],"answerCheck":"server"},"answers":{},"cursorIndex":0,"score":null,"total":2,"resumed":true,"startedAt":"2026-10-30T09:00:00.000Z","expiresAt":null,"timeLeftSec":900,"balance":500}",
     "after:run",
     "db select subscriptions [status, current_period_end, cancel_at_period_end, plans(is_premium, tier, name, slug, monthly_allowance)] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(status,"active") or(current_period_end.is.null,current_period_end.gt.2026-10-30T09:00:00.000Z) maybe",
     "db select admin_free_preview [user_id] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
@@ -4267,12 +4330,9 @@ exports[`yol etkinliği rotası: start × tür > aynı istek kimliği: hazır ka
     "kind": "quiz",
     "ok": true,
     "payload": {
+      "answerCheck": "server",
       "questions": [
         {
-          "correct": [
-            "Değişmez",
-          ],
-          "explanation": "Mitozda kromozom sayısı korunur.",
           "multi": false,
           "options": [
             "Yarıya iner",
@@ -4452,7 +4512,7 @@ exports[`yol etkinliği rotası: start × tür > aynı istek kimliği: hazır ka
     "after:scheduled",
     "db select exam_prep_node_attempts [id, status, payload, answers, answer_meta, score, total, generation_id, client_request_id, complete_request_id, content_version, updated_at, difficulty, voice_mode, started_at, expires_at] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") eq(node_id,"00000000-0000-4000-8000-0000000000b1") eq(status,"active") order(updated_at,desc) limit(1) maybe",
     "db select credit_wallets [balance] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
-    "response 200 {"ok":true,"attemptId":"00000000-0000-4000-8000-0000000000d1","generationId":"00000000-0000-4000-8000-0000000000e1","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"quiz","title":"Testler","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false,"correct":["Değişmez"],"explanation":"Mitozda kromozom sayısı korunur."}]},"answers":{},"cursorIndex":0,"score":null,"total":2,"resumed":true,"startedAt":"2026-10-30T09:00:00.000Z","expiresAt":null,"timeLeftSec":900,"balance":500}",
+    "response 200 {"ok":true,"attemptId":"00000000-0000-4000-8000-0000000000d1","generationId":"00000000-0000-4000-8000-0000000000e1","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"quiz","title":"Testler","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false}],"answerCheck":"server"},"answers":{},"cursorIndex":0,"score":null,"total":2,"resumed":true,"startedAt":"2026-10-30T09:00:00.000Z","expiresAt":null,"timeLeftSec":900,"balance":500}",
     "after:run",
     "db select subscriptions [status, current_period_end, cancel_at_period_end, plans(is_premium, tier, name, slug, monthly_allowance)] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(status,"active") or(current_period_end.is.null,current_period_end.gt.2026-10-30T09:00:00.000Z) maybe",
     "db select admin_free_preview [user_id] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
@@ -4940,12 +5000,15 @@ exports[`yol etkinliği rotası: start × tür > ders akışla açılır, kalan�
     "db insert exam_prep_node_attempts payload={"node_id":"00000000-0000-4000-8000-0000000000b1","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","user_id":"00000000-0000-4000-8000-00000000aaaa","topic_id":"00000000-0000-4000-8000-0000000000c1","difficulty":"orta","voice_mode":false,"payload":null,"total":1,"status":"creating","generation_id":"00000000-0000-4000-8000-900000000001","client_request_id":"00000000-0000-4000-8000-0000000000f1","familiarity":"basics","mood":"ready","content_version":1,"updated_at":"2026-10-30T09:00:00.000Z"} one",
     "db upsert exam_prep_generation_jobs payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","attempt_id":"exam_prep_node_attempts-1","client_request_id":"00000000-0000-4000-8000-0000000000f1","generation_id":"00000000-0000-4000-8000-900000000001","credit_idempotency_key":"exam_node_slot_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_exam_prep_node_attempts-1","status":"creating","error_code":null,"updated_at":"2026-10-30T09:00:00.000Z"}",
     "db select exam_preps [document_id, source_document_ids] eq(id,"00000000-0000-4000-8000-0000000000a1") eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
+    "db select exam_prep_lessons [content_json] eq(topic_id,"00000000-0000-4000-8000-0000000000c1") not(content_json,is,null) order(created_at,desc) limit(1) maybe",
     "db select exam_prep_topics [label, sort_order] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") order(sort_order,asc)",
+    "db select exam_prep_topics [id, label, source_refs, document_topic_node_id] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") limit(120)",
     "db select document_pages [page_number, headings] eq(document_id,"doc1") in(page_number,[1,2]) order(page_number,asc)",
     "db select student_learning_memory [memory] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
     "db select exam_prep_topics [label] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") limit(80)",
     "call ensureCleanPages [{"userId":"00000000-0000-4000-8000-00000000aaaa","documentId":"doc1","pages":[1,2],"edges":[]}]",
     "log.info ["lesson_pre_timing",{"headersMs":0,"cleanMs":0,"pages":1,"cleanedByModelNow":0}]",
+    "log.info ["lesson_source_correction_wait",{"ms":0,"correction":false}]",
     "db select exam_preps [learning_preferences] eq(id,"00000000-0000-4000-8000-0000000000a1") maybe",
     "call runTeacherLesson [{"mode":"document","userId":"00000000-0000-4000-8000-00000000aaaa","actionCode":"STUDY_PLAN_GENERATE","idempotencyKey":"exam_node_slot_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_exam_prep_node_attempts-1","freeMeter":"lesson","topicLabel":"Hücre Bölünmesi","prepTitle":"YKS Biyoloji","pages":[{"page":1,"text":"Mitozda kromozom sayısı korunur."}],"optionCount":5,"upcomingTopics":[],"learnerLine":"Öğrenci temel bilgilere sahip: tanımları kısa geç, ağırlığı uygulamaya ve problem çözümüne ver. Öğrenci nötr: dengeli, sıcak ve net bir tonla anlat.","examPoints":["Mitozda kromozom sayısı değişmez."],"runningHeaders":[],"siblingTopics":["Hücre Bölünmesi"],"officialOutcome":null,"lateNoteWarnings":"[fn]","startedAt":1793350800000,"charge":true,"fast":true,"onPublish":"[fn]"}]",
     "db update exam_prep_node_attempts eq(id,"exam_prep_node_attempts-1") eq(generation_id,"00000000-0000-4000-8000-900000000001") in(status,["creating","active"]) payload={"payload":{"type":"lesson","lesson":{"format":3,"title":"Hücre Bölünmesi","overview":"Mitoz eş hücre verir.","screens":[{"heading":"Mitoz","concept":"Mitoz","blocks":[{"type":"text","text":"Mitoz eş hücre verir."},{"type":"check","check":{"type":"mcq","prompt":"Kromozomlar hangi evrede dizilir?","options":["Profaz","Metafaz","Anafaz","Telofaz","İnterfaz"],"answerIndex":1,"explanation":"Kromozomlar metafazda ortada dizilir.","optionWhy":["Erken evre.","Doğru.","Ayrılma.","Son evre.","Bölünme dışı."],"review":{"prompt":"Dizilme hangi evrede?"}}}]}]},"title":"Hücre Bölünmesi","teachingStandard":"lesson","qualityReport":null,"refunded":false,"engine":"teacher","upcoming":["Mayoz"],"plannedScreens":2,"building":true,"builtAt":"2026-10-30T09:00:00.000Z"},"status":"active","updated_at":"2026-10-30T09:00:00.000Z"}",
@@ -5479,12 +5542,15 @@ exports[`yol etkinliği rotası: start × tür > ders akışsız (eski sekme) ve
     "db insert exam_prep_node_attempts payload={"node_id":"00000000-0000-4000-8000-0000000000b1","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","user_id":"00000000-0000-4000-8000-00000000aaaa","topic_id":"00000000-0000-4000-8000-0000000000c1","difficulty":"orta","voice_mode":false,"payload":null,"total":1,"status":"creating","generation_id":"00000000-0000-4000-8000-900000000001","client_request_id":"00000000-0000-4000-8000-0000000000f1","familiarity":"basics","mood":"neutral","content_version":1,"updated_at":"2026-10-30T09:00:00.000Z"} one",
     "db upsert exam_prep_generation_jobs payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","attempt_id":"exam_prep_node_attempts-1","client_request_id":"00000000-0000-4000-8000-0000000000f1","generation_id":"00000000-0000-4000-8000-900000000001","credit_idempotency_key":"exam_node_slot_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_exam_prep_node_attempts-1","status":"creating","error_code":null,"updated_at":"2026-10-30T09:00:00.000Z"}",
     "db select exam_preps [document_id, source_document_ids] eq(id,"00000000-0000-4000-8000-0000000000a1") eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
+    "db select exam_prep_lessons [content_json] eq(topic_id,"00000000-0000-4000-8000-0000000000c1") not(content_json,is,null) order(created_at,desc) limit(1) maybe",
     "db select exam_prep_topics [label, sort_order] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") order(sort_order,asc)",
+    "db select exam_prep_topics [id, label, source_refs, document_topic_node_id] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") limit(120)",
     "db select document_pages [page_number, headings] eq(document_id,"doc1") in(page_number,[1,2]) order(page_number,asc)",
     "db select student_learning_memory [memory] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
     "db select exam_prep_topics [label] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") limit(80)",
     "call ensureCleanPages [{"userId":"00000000-0000-4000-8000-00000000aaaa","documentId":"doc1","pages":[1,2],"edges":[]}]",
     "log.info ["lesson_pre_timing",{"headersMs":0,"cleanMs":0,"pages":1,"cleanedByModelNow":0}]",
+    "log.info ["lesson_source_correction_wait",{"ms":0,"correction":false}]",
     "db select exam_preps [learning_preferences] eq(id,"00000000-0000-4000-8000-0000000000a1") maybe",
     "call runTeacherLesson [{"mode":"document","userId":"00000000-0000-4000-8000-00000000aaaa","actionCode":"STUDY_PLAN_GENERATE","idempotencyKey":"exam_node_slot_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_exam_prep_node_attempts-1","freeMeter":"lesson","topicLabel":"Hücre Bölünmesi","prepTitle":"YKS Biyoloji","pages":[{"page":1,"text":"Mitozda kromozom sayısı korunur."}],"optionCount":5,"upcomingTopics":[],"learnerLine":"Öğrenci temel bilgilere sahip: tanımları kısa geç, ağırlığı uygulamaya ve problem çözümüne ver. Öğrenci nötr: dengeli, sıcak ve net bir tonla anlat.","examPoints":["Mitozda kromozom sayısı değişmez."],"runningHeaders":[],"siblingTopics":["Hücre Bölünmesi"],"officialOutcome":null,"lateNoteWarnings":"[fn]","startedAt":1793350800000,"charge":true,"fast":true}]",
     "log.error ["lesson_generation_failure",{"prepId":"00000000-0000-4000-8000-0000000000a1","topicId":"00000000-0000-4000-8000-0000000000c1","kind":"lesson","stage":"draft","reason":"draft_unreadable","reasons":["okunamadı"]}]",
@@ -5591,6 +5657,7 @@ exports[`yol etkinliği rotası: start × tür > ders üretimi düşer: kayıt b
         "user_id": "00000000-0000-4000-8000-00000000aaaa",
       },
     ],
+    "exam_prep_lessons": [],
     "exam_prep_node_attempts": [
       {
         "client_request_id": "00000000-0000-4000-8000-0000000000f1",
@@ -5728,12 +5795,15 @@ exports[`yol etkinliği rotası: start × tür > ders üretimi düşer: kayıt b
     "db insert exam_prep_node_attempts payload={"node_id":"00000000-0000-4000-8000-0000000000b1","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","user_id":"00000000-0000-4000-8000-00000000aaaa","topic_id":"00000000-0000-4000-8000-0000000000c1","difficulty":"orta","voice_mode":false,"payload":null,"total":1,"status":"creating","generation_id":"00000000-0000-4000-8000-900000000001","client_request_id":"00000000-0000-4000-8000-0000000000f1","familiarity":"basics","mood":"neutral","content_version":1,"updated_at":"2026-10-30T09:00:00.000Z"} one",
     "db upsert exam_prep_generation_jobs payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","attempt_id":"exam_prep_node_attempts-1","client_request_id":"00000000-0000-4000-8000-0000000000f1","generation_id":"00000000-0000-4000-8000-900000000001","credit_idempotency_key":"exam_node_slot_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_exam_prep_node_attempts-1","status":"creating","error_code":null,"updated_at":"2026-10-30T09:00:00.000Z"}",
     "db select exam_preps [document_id, source_document_ids] eq(id,"00000000-0000-4000-8000-0000000000a1") eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
+    "db select exam_prep_lessons [content_json] eq(topic_id,"00000000-0000-4000-8000-0000000000c1") not(content_json,is,null) order(created_at,desc) limit(1) maybe",
     "db select exam_prep_topics [label, sort_order] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") order(sort_order,asc)",
+    "db select exam_prep_topics [id, label, source_refs, document_topic_node_id] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") limit(120)",
     "db select document_pages [page_number, headings] eq(document_id,"doc1") in(page_number,[1,2]) order(page_number,asc)",
     "db select student_learning_memory [memory] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
     "db select exam_prep_topics [label] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") limit(80)",
     "call ensureCleanPages [{"userId":"00000000-0000-4000-8000-00000000aaaa","documentId":"doc1","pages":[1,2],"edges":[]}]",
     "log.info ["lesson_pre_timing",{"headersMs":0,"cleanMs":0,"pages":1,"cleanedByModelNow":0}]",
+    "log.info ["lesson_source_correction_wait",{"ms":0,"correction":false}]",
     "db select exam_preps [learning_preferences] eq(id,"00000000-0000-4000-8000-0000000000a1") maybe",
     "call runTeacherLesson [{"mode":"document","userId":"00000000-0000-4000-8000-00000000aaaa","actionCode":"STUDY_PLAN_GENERATE","idempotencyKey":"exam_node_slot_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_exam_prep_node_attempts-1","freeMeter":"lesson","topicLabel":"Hücre Bölünmesi","prepTitle":"YKS Biyoloji","pages":[{"page":1,"text":"Mitozda kromozom sayısı korunur."}],"optionCount":5,"upcomingTopics":[],"learnerLine":"Öğrenci temel bilgilere sahip: tanımları kısa geç, ağırlığı uygulamaya ve problem çözümüne ver. Öğrenci nötr: dengeli, sıcak ve net bir tonla anlat.","examPoints":["Mitozda kromozom sayısı değişmez."],"runningHeaders":[],"siblingTopics":["Hücre Bölünmesi"],"officialOutcome":null,"lateNoteWarnings":"[fn]","startedAt":1793350800000,"charge":true,"fast":true,"onPublish":"[fn]"}]",
     "log.error ["node_generation_failed",{"kind":"lesson","requestId":"00000000-0000-4000-8000-0000000000f1","code":"generation_failed","status":503,"reasons":["kavram geçmedi"],"refunded":true}]",
@@ -5760,13 +5830,13 @@ exports[`yol etkinliği rotası: start × tür > dersi tekrarla ve tekrar incele
 {
   "json": {
     "answers": {},
-    "attemptId": "exam_prep_node_attempts-1",
+    "attemptId": "00000000-0000-4000-8000-900000000002",
     "balance": 500,
     "clientRequestId": "00000000-0000-4000-8000-900000000001",
     "contentVersion": 1,
     "cursorIndex": 0,
     "expiresAt": null,
-    "generationId": "00000000-0000-4000-8000-900000000002",
+    "generationId": "00000000-0000-4000-8000-900000000003",
     "kind": "lesson",
     "ok": true,
     "payload": {
@@ -5783,11 +5853,11 @@ exports[`yol etkinliği rotası: start × tür > dersi tekrarla ve tekrar incele
               {
                 "check": {
                   "options": [
-                    "Anafaz",
                     "İnterfaz",
-                    "Metafaz",
-                    "Profaz",
                     "Telofaz",
+                    "Profaz",
+                    "Anafaz",
+                    "Metafaz",
                   ],
                   "prompt": "Kromozomlar hangi evrede dizilir?",
                   "type": "mcq",
@@ -5807,11 +5877,11 @@ exports[`yol etkinliği rotası: start × tür > dersi tekrarla ve tekrar incele
               {
                 "check": {
                   "options": [
-                    "Anafaz",
                     "Telofaz",
-                    "Profaz",
                     "İnterfaz",
                     "Metafaz",
+                    "Anafaz",
+                    "Profaz",
                   ],
                   "prompt": "Mayozda dizilme?",
                   "type": "mcq",
@@ -5872,13 +5942,13 @@ exports[`yol etkinliği rotası: start × tür > dersi tekrarla ve tekrar incele
     ],
     "exam_prep_generation_jobs": [
       {
-        "attempt_id": "exam_prep_node_attempts-1",
+        "attempt_id": "00000000-0000-4000-8000-900000000002",
         "client_request_id": "00000000-0000-4000-8000-900000000001",
         "credit_idempotency_key": "exam_node_start_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_00000000-0000-4000-8000-900000000001",
         "error_code": null,
         "exam_prep_id": "00000000-0000-4000-8000-0000000000a1",
-        "generation_id": "00000000-0000-4000-8000-900000000002",
-        "id": "exam_prep_generation_jobs-2",
+        "generation_id": "00000000-0000-4000-8000-900000000003",
+        "id": "exam_prep_generation_jobs-1",
         "node_id": "00000000-0000-4000-8000-0000000000b1",
         "status": "ready",
         "updated_at": "2026-10-30T09:00:00.000Z",
@@ -5999,8 +6069,8 @@ exports[`yol etkinliği rotası: start × tür > dersi tekrarla ve tekrar incele
         "difficulty": "orta",
         "exam_prep_id": "00000000-0000-4000-8000-0000000000a1",
         "familiarity": "basics",
-        "generation_id": "00000000-0000-4000-8000-900000000002",
-        "id": "exam_prep_node_attempts-1",
+        "generation_id": "00000000-0000-4000-8000-900000000003",
+        "id": "00000000-0000-4000-8000-900000000002",
         "mood": "neutral",
         "node_id": "00000000-0000-4000-8000-0000000000b1",
         "payload": {
@@ -6016,21 +6086,21 @@ exports[`yol etkinliği rotası: start × tür > dersi tekrarla ve tekrar incele
                   },
                   {
                     "check": {
-                      "answerIndex": 2,
+                      "answerIndex": 4,
                       "explanation": "Kromozomlar metafazda ortada dizilir.",
                       "optionWhy": [
-                        "Ayrılma.",
                         "Bölünme dışı.",
-                        "Doğru.",
-                        "Erken evre.",
                         "Son evre.",
+                        "Erken evre.",
+                        "Ayrılma.",
+                        "Doğru.",
                       ],
                       "options": [
-                        "Anafaz",
                         "İnterfaz",
-                        "Metafaz",
-                        "Profaz",
                         "Telofaz",
+                        "Profaz",
+                        "Anafaz",
+                        "Metafaz",
                       ],
                       "prompt": "Kromozomlar hangi evrede dizilir?",
                       "review": {
@@ -6052,21 +6122,21 @@ exports[`yol etkinliği rotası: start × tür > dersi tekrarla ve tekrar incele
                   },
                   {
                     "check": {
-                      "answerIndex": 4,
+                      "answerIndex": 2,
                       "explanation": "Kromozomlar metafazda ortada dizilir.",
                       "optionWhy": [
-                        "Ayrılma.",
                         "Son evre.",
-                        "Erken evre.",
                         "Bölünme dışı.",
                         "Doğru.",
+                        "Ayrılma.",
+                        "Erken evre.",
                       ],
                       "options": [
-                        "Anafaz",
                         "Telofaz",
-                        "Profaz",
                         "İnterfaz",
                         "Metafaz",
+                        "Anafaz",
+                        "Profaz",
                       ],
                       "prompt": "Mayozda dizilme?",
                       "review": {
@@ -6175,7 +6245,7 @@ exports[`yol etkinliği rotası: start × tür > dersi tekrarla ve tekrar incele
     "study_session_moods": [
       {
         "exam_prep_id": "00000000-0000-4000-8000-0000000000a1",
-        "id": "study_session_moods-3",
+        "id": "study_session_moods-2",
         "mood": "neutral",
         "node_id": "00000000-0000-4000-8000-0000000000b1",
         "user_id": "00000000-0000-4000-8000-00000000aaaa",
@@ -6191,14 +6261,15 @@ exports[`yol etkinliği rotası: start × tür > dersi tekrarla ve tekrar incele
     "after:scheduled",
     "after:scheduled",
     "db select exam_prep_node_attempts [id, status, payload, answers, answer_meta, score, total, generation_id, client_request_id, complete_request_id, content_version, updated_at, difficulty, voice_mode, started_at, expires_at] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") eq(node_id,"00000000-0000-4000-8000-0000000000b1") eq(status,"active") order(updated_at,desc) limit(1) maybe",
+    "db select exam_prep_node_attempts [id, status, payload, answers, answer_meta, score, total, generation_id, client_request_id, complete_request_id, content_version, updated_at, difficulty, voice_mode, started_at, expires_at] eq(node_id,"00000000-0000-4000-8000-0000000000b1") eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") eq(status,"active") eq(payload->>reviewed,"true") order(created_at,desc) limit(1) maybe",
     "db select exam_prep_node_attempts [payload] eq(node_id,"00000000-0000-4000-8000-0000000000b1") eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") in(status,["completed","active"]) order(created_at,desc) limit(5)",
-    "db insert exam_prep_node_attempts payload={"node_id":"00000000-0000-4000-8000-0000000000b1","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","user_id":"00000000-0000-4000-8000-00000000aaaa","topic_id":"00000000-0000-4000-8000-0000000000c1","difficulty":"orta","voice_mode":false,"payload":{"type":"lesson","lesson":{"format":3,"title":"Hücre Bölünmesi","overview":"Mitoz eş hücre verir.","screens":[{"heading":"Mitoz","concept":"Mitoz","blocks":[{"type":"text","text":"Mitoz eş hücre verir."},{"type":"check","check":{"type":"mcq","prompt":"Kromozomlar hangi evrede dizilir?","options":["Anafaz","İnterfaz","Metafaz","Profaz","Telofaz"],"answerIndex":2,"explanation":"Kromozomlar metafazda ortada dizilir.","optionWhy":["Ayrılma.","Bölünme dışı.","Doğru.","Erken evre.","Son evre."],"review":{"prompt":"Dizilme hangi evrede?"}}}]},{"heading":"Mayoz","concept":"Mayoz","blocks":[{"type":"text","text":"Mayoz dört hücre verir."},{"type":"check","check":{"type":"mcq","prompt":"Mayozda dizilme?","options":["Anafaz","Telofaz","Profaz","İnterfaz","Metafaz"],"answerIndex":4,"explanation":"Kromozomlar metafazda ortada dizilir.","optionWhy":["Ayrılma.","Son evre.","Erken evre.","Bölünme dışı.","Doğru."],"review":{"prompt":"Dizilme hangi evrede?"}}}]}],"summary":["Mitoz eş hücre verir.","Mayoz dört hücre verir."]},"replayed":true},"total":1,"status":"active","generation_id":"00000000-0000-4000-8000-900000000002","client_request_id":"00000000-0000-4000-8000-900000000001","familiarity":"basics","mood":"neutral","content_version":1,"updated_at":"2026-10-30T09:00:00.000Z"} one",
-    "db upsert exam_prep_generation_jobs payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","attempt_id":"exam_prep_node_attempts-1","client_request_id":"00000000-0000-4000-8000-900000000001","generation_id":"00000000-0000-4000-8000-900000000002","credit_idempotency_key":"exam_node_start_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_00000000-0000-4000-8000-900000000001","status":"ready","error_code":null,"updated_at":"2026-10-30T09:00:00.000Z"}",
+    "db insert exam_prep_node_attempts payload={"id":"00000000-0000-4000-8000-900000000002","node_id":"00000000-0000-4000-8000-0000000000b1","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","user_id":"00000000-0000-4000-8000-00000000aaaa","topic_id":"00000000-0000-4000-8000-0000000000c1","difficulty":"orta","voice_mode":false,"payload":{"type":"lesson","lesson":{"format":3,"title":"Hücre Bölünmesi","overview":"Mitoz eş hücre verir.","screens":[{"heading":"Mitoz","concept":"Mitoz","blocks":[{"type":"text","text":"Mitoz eş hücre verir."},{"type":"check","check":{"type":"mcq","prompt":"Kromozomlar hangi evrede dizilir?","options":["İnterfaz","Telofaz","Profaz","Anafaz","Metafaz"],"answerIndex":4,"explanation":"Kromozomlar metafazda ortada dizilir.","optionWhy":["Bölünme dışı.","Son evre.","Erken evre.","Ayrılma.","Doğru."],"review":{"prompt":"Dizilme hangi evrede?"}}}]},{"heading":"Mayoz","concept":"Mayoz","blocks":[{"type":"text","text":"Mayoz dört hücre verir."},{"type":"check","check":{"type":"mcq","prompt":"Mayozda dizilme?","options":["Telofaz","İnterfaz","Metafaz","Anafaz","Profaz"],"answerIndex":2,"explanation":"Kromozomlar metafazda ortada dizilir.","optionWhy":["Son evre.","Bölünme dışı.","Doğru.","Ayrılma.","Erken evre."],"review":{"prompt":"Dizilme hangi evrede?"}}}]}],"summary":["Mitoz eş hücre verir.","Mayoz dört hücre verir."]},"replayed":true},"total":1,"status":"active","generation_id":"00000000-0000-4000-8000-900000000003","client_request_id":"00000000-0000-4000-8000-900000000001","familiarity":"basics","mood":"neutral","content_version":1,"updated_at":"2026-10-30T09:00:00.000Z"} one",
+    "db upsert exam_prep_generation_jobs payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","attempt_id":"00000000-0000-4000-8000-900000000002","client_request_id":"00000000-0000-4000-8000-900000000001","generation_id":"00000000-0000-4000-8000-900000000003","credit_idempotency_key":"exam_node_start_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_00000000-0000-4000-8000-900000000001","status":"ready","error_code":null,"updated_at":"2026-10-30T09:00:00.000Z"}",
     "db insert study_session_moods payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","mood":"neutral"}",
-    "log.info ["lesson_replayed",{"nodeId":"00000000-0000-4000-8000-0000000000b1"}]",
+    "log.info ["lesson_replayed",{"nodeId":"00000000-0000-4000-8000-0000000000b1","kind":"lesson","implicit":false}]",
     "rpc is_admin {"uid":"00000000-0000-4000-8000-00000000aaaa"}",
     "db select credit_wallets [balance] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
-    "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","generationId":"00000000-0000-4000-8000-900000000002","clientRequestId":"00000000-0000-4000-8000-900000000001","contentVersion":1,"state":"ready","kind":"lesson","title":"Giriş Dersi","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"lesson","lesson":{"format":3,"title":"Hücre Bölünmesi","overview":"Mitoz eş hücre verir.","screens":[{"heading":"Mitoz","concept":"Mitoz","blocks":[{"type":"text","text":"Mitoz eş hücre verir."},{"type":"check","check":{"type":"mcq","prompt":"Kromozomlar hangi evrede dizilir?","options":["Anafaz","İnterfaz","Metafaz","Profaz","Telofaz"]}}]},{"heading":"Mayoz","concept":"Mayoz","blocks":[{"type":"text","text":"Mayoz dört hücre verir."},{"type":"check","check":{"type":"mcq","prompt":"Mayozda dizilme?","options":["Anafaz","Telofaz","Profaz","İnterfaz","Metafaz"]}}]}],"summary":["Mitoz eş hücre verir.","Mayoz dört hücre verir."]},"replayed":true},"answers":{},"cursorIndex":0,"total":1,"resumed":false,"startedAt":null,"expiresAt":null,"timeLeftSec":900,"balance":500}",
+    "response 200 {"ok":true,"attemptId":"00000000-0000-4000-8000-900000000002","generationId":"00000000-0000-4000-8000-900000000003","clientRequestId":"00000000-0000-4000-8000-900000000001","contentVersion":1,"state":"ready","kind":"lesson","title":"Giriş Dersi","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"lesson","lesson":{"format":3,"title":"Hücre Bölünmesi","overview":"Mitoz eş hücre verir.","screens":[{"heading":"Mitoz","concept":"Mitoz","blocks":[{"type":"text","text":"Mitoz eş hücre verir."},{"type":"check","check":{"type":"mcq","prompt":"Kromozomlar hangi evrede dizilir?","options":["İnterfaz","Telofaz","Profaz","Anafaz","Metafaz"]}}]},{"heading":"Mayoz","concept":"Mayoz","blocks":[{"type":"text","text":"Mayoz dört hücre verir."},{"type":"check","check":{"type":"mcq","prompt":"Mayozda dizilme?","options":["Telofaz","İnterfaz","Metafaz","Anafaz","Profaz"]}}]}],"summary":["Mitoz eş hücre verir.","Mayoz dört hücre verir."]},"replayed":true},"answers":{},"cursorIndex":0,"total":1,"resumed":false,"startedAt":null,"expiresAt":null,"timeLeftSec":900,"balance":500}",
     "after:run",
     "db select subscriptions [status, current_period_end, cancel_at_period_end, plans(is_premium, tier, name, slug, monthly_allowance)] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(status,"active") or(current_period_end.is.null,current_period_end.gt.2026-10-30T09:00:00.000Z) maybe",
     "db select admin_free_preview [user_id] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
@@ -6217,28 +6288,26 @@ exports[`yol etkinliği rotası: start × tür > dersi tekrarla ve tekrar incele
 {
   "json": {
     "answers": {},
-    "attemptId": "exam_prep_node_attempts-1",
+    "attemptId": "00000000-0000-4000-8000-900000000005",
     "balance": 500,
-    "clientRequestId": "00000000-0000-4000-8000-900000000003",
+    "clientRequestId": "00000000-0000-4000-8000-900000000004",
     "contentVersion": 1,
     "cursorIndex": 0,
     "expiresAt": null,
-    "generationId": "00000000-0000-4000-8000-900000000004",
+    "generationId": "00000000-0000-4000-8000-900000000006",
     "kind": "quiz",
     "ok": true,
     "payload": {
+      "answerCheck": "server",
+      "explanationFillAttempted": true,
       "questions": [
         {
-          "correct": [
-            "Değişmez",
-          ],
-          "explanation": "Mitozda kromozom sayısı korunur.",
           "multi": false,
           "options": [
             "Yarıya iner",
-            "Değişmez",
             "İki katına çıkar",
             "Dörde katlanır",
+            "Değişmez",
             "Sıfırlanır",
           ],
           "text": "Mitozda kromozom sayısı nasıl değişir?",
@@ -6287,13 +6356,13 @@ exports[`yol etkinliği rotası: start × tür > dersi tekrarla ve tekrar incele
     ],
     "exam_prep_generation_jobs": [
       {
-        "attempt_id": "exam_prep_node_attempts-1",
-        "client_request_id": "00000000-0000-4000-8000-900000000003",
-        "credit_idempotency_key": "exam_node_start_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_00000000-0000-4000-8000-900000000003",
+        "attempt_id": "00000000-0000-4000-8000-900000000005",
+        "client_request_id": "00000000-0000-4000-8000-900000000004",
+        "credit_idempotency_key": "exam_node_start_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_00000000-0000-4000-8000-900000000004",
         "error_code": null,
         "exam_prep_id": "00000000-0000-4000-8000-0000000000a1",
-        "generation_id": "00000000-0000-4000-8000-900000000004",
-        "id": "exam_prep_generation_jobs-2",
+        "generation_id": "00000000-0000-4000-8000-900000000006",
+        "id": "exam_prep_generation_jobs-1",
         "node_id": "00000000-0000-4000-8000-0000000000b1",
         "status": "ready",
         "updated_at": "2026-10-30T09:00:00.000Z",
@@ -6343,16 +6412,17 @@ exports[`yol etkinliği rotası: start × tür > dersi tekrarla ve tekrar incele
         "voice_mode": false,
       },
       {
-        "client_request_id": "00000000-0000-4000-8000-900000000003",
+        "client_request_id": "00000000-0000-4000-8000-900000000004",
         "content_version": 1,
         "difficulty": "orta",
         "exam_prep_id": "00000000-0000-4000-8000-0000000000a1",
         "familiarity": "basics",
-        "generation_id": "00000000-0000-4000-8000-900000000004",
-        "id": "exam_prep_node_attempts-1",
+        "generation_id": "00000000-0000-4000-8000-900000000006",
+        "id": "00000000-0000-4000-8000-900000000005",
         "mood": "neutral",
         "node_id": "00000000-0000-4000-8000-0000000000b1",
         "payload": {
+          "explanationFillAttempted": true,
           "questions": [
             {
               "correct": [
@@ -6362,9 +6432,9 @@ exports[`yol etkinliği rotası: start × tür > dersi tekrarla ve tekrar incele
               "multi": false,
               "options": [
                 "Yarıya iner",
-                "Değişmez",
                 "İki katına çıkar",
                 "Dörde katlanır",
+                "Değişmez",
                 "Sıfırlanır",
               ],
               "text": "Mitozda kromozom sayısı nasıl değişir?",
@@ -6458,7 +6528,7 @@ exports[`yol etkinliği rotası: start × tür > dersi tekrarla ve tekrar incele
     "study_session_moods": [
       {
         "exam_prep_id": "00000000-0000-4000-8000-0000000000a1",
-        "id": "study_session_moods-3",
+        "id": "study_session_moods-2",
         "mood": "neutral",
         "node_id": "00000000-0000-4000-8000-0000000000b1",
         "user_id": "00000000-0000-4000-8000-00000000aaaa",
@@ -6473,13 +6543,14 @@ exports[`yol etkinliği rotası: start × tür > dersi tekrarla ve tekrar incele
     "db select document_topic_nodes [document_id] eq(id,"dtn1") maybe",
     "after:scheduled",
     "db select exam_prep_node_attempts [id, status, payload, answers, answer_meta, score, total, generation_id, client_request_id, complete_request_id, content_version, updated_at, difficulty, voice_mode, started_at, expires_at] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") eq(node_id,"00000000-0000-4000-8000-0000000000b1") eq(status,"active") order(updated_at,desc) limit(1) maybe",
+    "db select exam_prep_node_attempts [id, status, payload, answers, answer_meta, score, total, generation_id, client_request_id, complete_request_id, content_version, updated_at, difficulty, voice_mode, started_at, expires_at] eq(node_id,"00000000-0000-4000-8000-0000000000b1") eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") eq(status,"active") eq(payload->>reviewed,"true") order(created_at,desc) limit(1) maybe",
     "db select exam_prep_node_attempts [payload] eq(node_id,"00000000-0000-4000-8000-0000000000b1") eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") in(status,["completed","active"]) order(created_at,desc) limit(5)",
-    "db insert exam_prep_node_attempts payload={"node_id":"00000000-0000-4000-8000-0000000000b1","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","user_id":"00000000-0000-4000-8000-00000000aaaa","topic_id":"00000000-0000-4000-8000-0000000000c1","difficulty":"orta","voice_mode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"correct":["Değişmez"],"multi":false,"explanation":"Mitozda kromozom sayısı korunur."}],"reviewed":true},"total":1,"status":"active","generation_id":"00000000-0000-4000-8000-900000000004","client_request_id":"00000000-0000-4000-8000-900000000003","familiarity":"basics","mood":"neutral","content_version":1,"updated_at":"2026-10-30T09:00:00.000Z"} one",
-    "db upsert exam_prep_generation_jobs payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","attempt_id":"exam_prep_node_attempts-1","client_request_id":"00000000-0000-4000-8000-900000000003","generation_id":"00000000-0000-4000-8000-900000000004","credit_idempotency_key":"exam_node_start_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_00000000-0000-4000-8000-900000000003","status":"ready","error_code":null,"updated_at":"2026-10-30T09:00:00.000Z"}",
+    "db insert exam_prep_node_attempts payload={"id":"00000000-0000-4000-8000-900000000005","node_id":"00000000-0000-4000-8000-0000000000b1","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","user_id":"00000000-0000-4000-8000-00000000aaaa","topic_id":"00000000-0000-4000-8000-0000000000c1","difficulty":"orta","voice_mode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","İki katına çıkar","Dörde katlanır","Değişmez","Sıfırlanır"],"correct":["Değişmez"],"multi":false,"explanation":"Mitozda kromozom sayısı korunur."}],"explanationFillAttempted":true,"reviewed":true},"total":1,"status":"active","generation_id":"00000000-0000-4000-8000-900000000006","client_request_id":"00000000-0000-4000-8000-900000000004","familiarity":"basics","mood":"neutral","content_version":1,"updated_at":"2026-10-30T09:00:00.000Z"} one",
+    "db upsert exam_prep_generation_jobs payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","attempt_id":"00000000-0000-4000-8000-900000000005","client_request_id":"00000000-0000-4000-8000-900000000004","generation_id":"00000000-0000-4000-8000-900000000006","credit_idempotency_key":"exam_node_start_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_00000000-0000-4000-8000-900000000004","status":"ready","error_code":null,"updated_at":"2026-10-30T09:00:00.000Z"}",
     "db insert study_session_moods payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","mood":"neutral"}",
-    "log.info ["lesson_replayed",{"nodeId":"00000000-0000-4000-8000-0000000000b1"}]",
+    "log.info ["lesson_replayed",{"nodeId":"00000000-0000-4000-8000-0000000000b1","kind":"quiz","implicit":false}]",
     "db select credit_wallets [balance] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
-    "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","generationId":"00000000-0000-4000-8000-900000000004","clientRequestId":"00000000-0000-4000-8000-900000000003","contentVersion":1,"state":"ready","kind":"quiz","title":"Testler","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false,"correct":["Değişmez"],"explanation":"Mitozda kromozom sayısı korunur."}],"reviewed":true},"answers":{},"cursorIndex":0,"total":1,"resumed":false,"startedAt":null,"expiresAt":null,"timeLeftSec":900,"balance":500}",
+    "response 200 {"ok":true,"attemptId":"00000000-0000-4000-8000-900000000005","generationId":"00000000-0000-4000-8000-900000000006","clientRequestId":"00000000-0000-4000-8000-900000000004","contentVersion":1,"state":"ready","kind":"quiz","title":"Testler","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","İki katına çıkar","Dörde katlanır","Değişmez","Sıfırlanır"],"multi":false}],"explanationFillAttempted":true,"reviewed":true,"answerCheck":"server"},"answers":{},"cursorIndex":0,"total":1,"resumed":false,"startedAt":null,"expiresAt":null,"timeLeftSec":900,"balance":500}",
     "after:run",
     "db select subscriptions [status, current_period_end, cancel_at_period_end, plans(is_premium, tier, name, slug, monthly_allowance)] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(status,"active") or(current_period_end.is.null,current_period_end.gt.2026-10-30T09:00:00.000Z) maybe",
     "db select admin_free_preview [user_id] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
@@ -6610,6 +6681,7 @@ exports[`yol etkinliği rotası: start × tür > dersi tekrarla ve tekrar incele
     "db select document_topic_nodes [document_id] eq(id,"dtn1") maybe",
     "after:scheduled",
     "db select exam_prep_node_attempts [id, status, payload, answers, answer_meta, score, total, generation_id, client_request_id, complete_request_id, content_version, updated_at, difficulty, voice_mode, started_at, expires_at] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") eq(node_id,"00000000-0000-4000-8000-0000000000b1") eq(status,"active") order(updated_at,desc) limit(1) maybe",
+    "db select exam_prep_node_attempts [id, status, payload, answers, answer_meta, score, total, generation_id, client_request_id, complete_request_id, content_version, updated_at, difficulty, voice_mode, started_at, expires_at] eq(node_id,"00000000-0000-4000-8000-0000000000b1") eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") eq(status,"active") eq(payload->>reviewed,"true") order(created_at,desc) limit(1) maybe",
     "db select exam_prep_node_attempts [payload] eq(node_id,"00000000-0000-4000-8000-0000000000b1") eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") in(status,["completed","active"]) order(created_at,desc) limit(5)",
     "response 404 {"error":"Kayıt bulunamadı.","code":"not_found"}",
     "after:run",
@@ -6715,6 +6787,7 @@ exports[`yol etkinliği rotası: start × tür > kartlar, doğru/yanlış, sözl
         "user_id": "00000000-0000-4000-8000-00000000aaaa",
       },
     ],
+    "exam_prep_lessons": [],
     "exam_prep_misconceptions": [],
     "exam_prep_node_attempts": [
       {
@@ -6860,7 +6933,7 @@ exports[`yol etkinliği rotası: start × tür > kartlar, doğru/yanlış, sözl
     "db select exam_preps [target_score] eq(id,"00000000-0000-4000-8000-0000000000a1") maybe",
     "db select exam_prep_misconceptions [topic_label, wrong_type, source_kind, question_preview] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") is(resolved_at,null) order(created_at,desc) limit(40)",
     "db select exam_prep_topics [id, label, document_topic_node_id, source_refs, measured_level] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") order(sort_order,asc)",
-    "db select exam_prep_topic_mastery [topic_key, measured_level, confidence, evidence_count, first_attempt_correct, first_attempt_total, independent_correct, independent_total, last_practiced_at] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1")",
+    "db select exam_prep_topic_mastery [topic_key, measured_level, confidence, evidence_count, first_attempt_correct, first_attempt_total, independent_correct, independent_total, last_practiced_at, policy] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1")",
     "db select subscriptions [status, current_period_end, cancel_at_period_end, plans(is_premium, tier, name, slug, monthly_allowance)] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(status,"active") or(current_period_end.is.null,current_period_end.gt.2026-10-30T09:00:00.000Z) maybe",
     "db select admin_free_preview [user_id] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
     "db select exam_prep_prefetch [status, updated_at, payload] eq(node_id,"00000000-0000-4000-8000-0000000000b1") eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
@@ -6872,10 +6945,12 @@ exports[`yol etkinliği rotası: start × tür > kartlar, doğru/yanlış, sözl
     "db insert exam_prep_node_attempts payload={"node_id":"00000000-0000-4000-8000-0000000000b1","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","user_id":"00000000-0000-4000-8000-00000000aaaa","topic_id":"00000000-0000-4000-8000-0000000000c1","difficulty":"orta","voice_mode":false,"payload":null,"total":1,"status":"creating","generation_id":"00000000-0000-4000-8000-900000000001","client_request_id":"00000000-0000-4000-8000-0000000000f1","familiarity":"basics","mood":"neutral","content_version":1,"updated_at":"2026-10-30T09:00:00.000Z"} one",
     "db upsert exam_prep_generation_jobs payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","attempt_id":"exam_prep_node_attempts-1","client_request_id":"00000000-0000-4000-8000-0000000000f1","generation_id":"00000000-0000-4000-8000-900000000001","credit_idempotency_key":"exam_node_slot_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_exam_prep_node_attempts-1","status":"creating","error_code":null,"updated_at":"2026-10-30T09:00:00.000Z"}",
     "db select exam_preps [document_id, source_document_ids] eq(id,"00000000-0000-4000-8000-0000000000a1") eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
+    "db select exam_prep_lessons [content_json] eq(topic_id,"00000000-0000-4000-8000-0000000000c1") not(content_json,is,null) order(created_at,desc) limit(1) maybe",
+    "db select exam_prep_topics [id, label, source_refs, document_topic_node_id] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") limit(120)",
     "call ensureCleanPages [{"userId":"00000000-0000-4000-8000-00000000aaaa","documentId":"doc1","pages":[1,2],"edges":[]}]",
     "db select exam_prep_node_attempts [payload, topic_id] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") not(payload,is,null) order(created_at,desc) limit(30)",
     "db select exam_prep_prefetch [payload] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") eq(status,"ready") neq(node_id,"00000000-0000-4000-8000-0000000000b1") limit(10)",
-    "call runWithTeacherModel [{"userId":"00000000-0000-4000-8000-00000000aaaa","actionCode":"FLASHCARD_GENERATE","idempotencyKey":"exam_node_slot_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_exam_prep_node_attempts-1","freeMeter":null,"charge":true,"startedAt":1793350800000,"label":"teacher_cards","topic":"Hücre Bölünmesi","work":"[fn]"}]",
+    "call runWithTeacherModel [{"userId":"00000000-0000-4000-8000-00000000aaaa","actionCode":"FLASHCARD_GENERATE","idempotencyKey":"exam_node_slot_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_exam_prep_node_attempts-1","freeMeter":null,"charge":true,"startedAt":1793350800000,"label":"teacher_cards","prepTitle":"YKS Biyoloji","topic":"Hücre Bölünmesi","work":"[fn]"}]",
     "db update exam_prep_nodes eq(id,"00000000-0000-4000-8000-0000000000b1") payload={"session_meta":{"topicId":"dtn1","topicTitle":"Hücre Bölünmesi","sourcePages":[1,2],"activityMinutes":2}}",
     "db update exam_prep_node_attempts eq(id,"exam_prep_node_attempts-1") eq(generation_id,"00000000-0000-4000-8000-900000000001") in(status,["creating"]) payload={"payload":{"type":"cards","cards":[{"front":"Mitoz","back":"Eş hücre bölünmesi"}],"teachingStandard":"flashcards","masteryClaim":false,"engine":"teacher","reviewCardsFrozen":true},"total":1,"status":"active","updated_at":"2026-10-30T09:00:00.000Z"} maybe",
     "db upsert exam_prep_generation_jobs payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","attempt_id":"exam_prep_node_attempts-1","client_request_id":"00000000-0000-4000-8000-0000000000f1","generation_id":"00000000-0000-4000-8000-900000000001","credit_idempotency_key":"exam_node_slot_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_exam_prep_node_attempts-1","status":"ready","error_code":null,"updated_at":"2026-10-30T09:00:00.000Z"}",
@@ -6909,17 +6984,13 @@ exports[`yol etkinliği rotası: start × tür > kartlar, doğru/yanlış, sözl
     "kind": "true_false",
     "ok": true,
     "payload": {
+      "answerCheck": "server",
       "engine": "teacher",
       "items": [
         {
-          "correct": false,
-          "correctedStatement": "Mitozda kromozom sayısı korunur.",
-          "explanation": "Korunur.",
           "text": "Mitozda kromozom sayısı yarıya iner.",
         },
         {
-          "correct": true,
-          "explanation": "Dört hücre.",
           "text": "Mayoz dört hücre verir.",
         },
       ],
@@ -6992,6 +7063,7 @@ exports[`yol etkinliği rotası: start × tür > kartlar, doğru/yanlış, sözl
         "user_id": "00000000-0000-4000-8000-00000000aaaa",
       },
     ],
+    "exam_prep_lessons": [],
     "exam_prep_node_attempts": [
       {
         "client_request_id": "00000000-0000-4000-8000-0000000000f1",
@@ -7148,10 +7220,12 @@ exports[`yol etkinliği rotası: start × tür > kartlar, doğru/yanlış, sözl
     "db insert exam_prep_node_attempts payload={"node_id":"00000000-0000-4000-8000-0000000000b1","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","user_id":"00000000-0000-4000-8000-00000000aaaa","topic_id":"00000000-0000-4000-8000-0000000000c1","difficulty":"orta","voice_mode":false,"payload":null,"total":1,"status":"creating","generation_id":"00000000-0000-4000-8000-900000000002","client_request_id":"00000000-0000-4000-8000-0000000000f1","familiarity":"basics","mood":"neutral","content_version":1,"updated_at":"2026-10-30T09:00:00.000Z"} one",
     "db upsert exam_prep_generation_jobs payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","attempt_id":"exam_prep_node_attempts-1","client_request_id":"00000000-0000-4000-8000-0000000000f1","generation_id":"00000000-0000-4000-8000-900000000002","credit_idempotency_key":"exam_node_slot_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_exam_prep_node_attempts-1","status":"creating","error_code":null,"updated_at":"2026-10-30T09:00:00.000Z"}",
     "db select exam_preps [document_id, source_document_ids] eq(id,"00000000-0000-4000-8000-0000000000a1") eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
+    "db select exam_prep_lessons [content_json] eq(topic_id,"00000000-0000-4000-8000-0000000000c1") not(content_json,is,null) order(created_at,desc) limit(1) maybe",
+    "db select exam_prep_topics [id, label, source_refs, document_topic_node_id] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") limit(120)",
     "call ensureCleanPages [{"userId":"00000000-0000-4000-8000-00000000aaaa","documentId":"doc1","pages":[1,2],"edges":[]}]",
     "db select exam_prep_node_attempts [payload, topic_id] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") not(payload,is,null) order(created_at,desc) limit(30)",
     "db select exam_prep_prefetch [payload] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") eq(status,"ready") neq(node_id,"00000000-0000-4000-8000-0000000000b1") limit(10)",
-    "call runWithTeacherModel [{"userId":"00000000-0000-4000-8000-00000000aaaa","actionCode":"QUIZ_GENERATE","idempotencyKey":"exam_node_slot_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_exam_prep_node_attempts-1","freeMeter":null,"charge":true,"startedAt":1793350800000,"label":"teacher_true_false","topic":"Hücre Bölünmesi","work":"[fn]"}]",
+    "call runWithTeacherModel [{"userId":"00000000-0000-4000-8000-00000000aaaa","actionCode":"TRUE_FALSE_GENERATE","idempotencyKey":"exam_node_slot_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_exam_prep_node_attempts-1","freeMeter":null,"charge":true,"startedAt":1793350800000,"label":"teacher_true_false","prepTitle":"YKS Biyoloji","topic":"Hücre Bölünmesi","work":"[fn]"}]",
     "db update exam_prep_nodes eq(id,"00000000-0000-4000-8000-0000000000b1") payload={"session_meta":{"topicId":"dtn1","topicTitle":"Hücre Bölünmesi","sourcePages":[1,2],"activityMinutes":2}}",
     "db update exam_prep_node_attempts eq(id,"exam_prep_node_attempts-1") eq(generation_id,"00000000-0000-4000-8000-900000000002") in(status,["creating"]) payload={"payload":{"type":"true_false","items":[{"text":"Mitozda kromozom sayısı yarıya iner.","correct":false,"explanation":"Korunur.","correctedStatement":"Mitozda kromozom sayısı korunur."},{"text":"Mayoz dört hücre verir.","correct":true,"explanation":"Dört hücre."}],"teachingStandard":"true_false","engine":"teacher"},"total":2,"status":"active","updated_at":"2026-10-30T09:00:00.000Z"} maybe",
     "db upsert exam_prep_generation_jobs payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","attempt_id":"exam_prep_node_attempts-1","client_request_id":"00000000-0000-4000-8000-0000000000f1","generation_id":"00000000-0000-4000-8000-900000000002","credit_idempotency_key":"exam_node_slot_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_exam_prep_node_attempts-1","status":"ready","error_code":null,"updated_at":"2026-10-30T09:00:00.000Z"}",
@@ -7159,7 +7233,7 @@ exports[`yol etkinliği rotası: start × tür > kartlar, doğru/yanlış, sözl
     "db insert study_session_moods payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","mood":"neutral"}",
     "db update exam_prep_nodes eq(id,"00000000-0000-4000-8000-0000000000b1") payload={"status":"ready"}",
     "db select credit_wallets [balance] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
-    "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","generationId":"00000000-0000-4000-8000-900000000002","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"true_false","title":"Doğru/Yanlış","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"true_false","items":[{"text":"Mitozda kromozom sayısı yarıya iner.","correct":false,"explanation":"Korunur.","correctedStatement":"Mitozda kromozom sayısı korunur."},{"text":"Mayoz dört hücre verir.","correct":true,"explanation":"Dört hücre."}],"teachingStandard":"true_false","engine":"teacher"},"answers":{},"cursorIndex":0,"total":2,"resumed":false,"startedAt":null,"expiresAt":null,"timeLeftSec":900,"balance":500}",
+    "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","generationId":"00000000-0000-4000-8000-900000000002","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"true_false","title":"Doğru/Yanlış","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"true_false","items":[{"text":"Mitozda kromozom sayısı yarıya iner."},{"text":"Mayoz dört hücre verir."}],"teachingStandard":"true_false","engine":"teacher","answerCheck":"server"},"answers":{},"cursorIndex":0,"total":2,"resumed":false,"startedAt":null,"expiresAt":null,"timeLeftSec":900,"balance":500}",
     "after:run",
     "db select subscriptions [status, current_period_end, cancel_at_period_end, plans(is_premium, tier, name, slug, monthly_allowance)] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(status,"active") or(current_period_end.is.null,current_period_end.gt.2026-10-30T09:00:00.000Z) maybe",
     "db select admin_free_preview [user_id] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
@@ -7427,7 +7501,7 @@ exports[`yol etkinliği rotası: start × tür > kartlar, doğru/yanlış, sözl
     "db select exam_prep_topics [label] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") limit(80)",
     "db select exam_prep_node_attempts [payload, topic_id] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") not(payload,is,null) order(created_at,desc) limit(30)",
     "db select exam_prep_prefetch [payload] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") eq(status,"ready") neq(node_id,"00000000-0000-4000-8000-0000000000b1") limit(10)",
-    "call runWithTeacherModel [{"userId":"00000000-0000-4000-8000-00000000aaaa","actionCode":"ORAL_EXAM_GENERATE","idempotencyKey":"exam_node_slot_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_exam_prep_node_attempts-1","freeMeter":null,"charge":true,"startedAt":1793350800000,"label":"teacher_oral","topic":"Hücre Bölünmesi","reasoningEffort":"low","work":"[fn]"}]",
+    "call runWithTeacherModel [{"userId":"00000000-0000-4000-8000-00000000aaaa","actionCode":"ORAL_EXAM_GENERATE","idempotencyKey":"exam_node_slot_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_exam_prep_node_attempts-1","freeMeter":null,"charge":true,"startedAt":1793350800000,"label":"teacher_oral","prepTitle":"YKS Biyoloji","topic":"Hücre Bölünmesi","reasoningEffort":"low","work":"[fn]"}]",
     "db update exam_prep_nodes eq(id,"00000000-0000-4000-8000-0000000000b1") payload={"session_meta":{"topicId":"dtn1","topicTitle":"Hücre Bölünmesi","sourcePages":[1,2],"activityMinutes":2}}",
     "db update exam_prep_node_attempts eq(id,"exam_prep_node_attempts-1") eq(generation_id,"00000000-0000-4000-8000-900000000003") in(status,["creating"]) payload={"payload":{"type":"oral","testedTopic":"Hücre Bölünmesi","questions":[{"prompt":"Mitozun evrelerini anlat.","expectedPoints":["Profaz"],"rubricCriteria":[],"modelAnswer":"Profaz.","probeKind":"detail","sourceFile":"Biyoloji.pdf","sourcePage":"s.1,2"}],"oralPending":{"target":3},"teachingStandard":"oral","engine":"teacher"},"total":1,"status":"active","updated_at":"2026-10-30T09:00:00.000Z"} maybe",
     "db upsert exam_prep_generation_jobs payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","attempt_id":"exam_prep_node_attempts-1","client_request_id":"00000000-0000-4000-8000-0000000000f1","generation_id":"00000000-0000-4000-8000-900000000003","credit_idempotency_key":"exam_node_slot_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_exam_prep_node_attempts-1","status":"ready","error_code":null,"updated_at":"2026-10-30T09:00:00.000Z"}",
@@ -7445,7 +7519,7 @@ exports[`yol etkinliği rotası: start × tür > kartlar, doğru/yanlış, sözl
     "db select exam_prep_node_attempts [id] eq(node_id,"00000000-0000-4000-8000-0000000000b2") limit(1)",
     "db select exam_prep_prefetch [node_id, status, updated_at] eq(node_id,"00000000-0000-4000-8000-0000000000b2") maybe",
     "after:run",
-    "call runWithTeacherModel [{"userId":"00000000-0000-4000-8000-00000000aaaa","actionCode":"ORAL_EXAM_GENERATE","idempotencyKey":"oral_rest:exam_node_slot_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_exam_prep_node_attempts-1","charge":false,"startedAt":1793350800000,"label":"teacher_oral_rest","topic":"Hücre Bölünmesi","work":"[fn]"}]",
+    "call runWithTeacherModel [{"userId":"00000000-0000-4000-8000-00000000aaaa","actionCode":"ORAL_EXAM_GENERATE","idempotencyKey":"oral_rest:exam_node_slot_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_exam_prep_node_attempts-1","charge":false,"startedAt":1793350800000,"label":"teacher_oral_rest","prepTitle":"YKS Biyoloji","topic":"Hücre Bölünmesi","work":"[fn]"}]",
     "db select exam_prep_node_attempts [payload, status] eq(id,"exam_prep_node_attempts-1") maybe",
     "db update exam_prep_node_attempts eq(id,"exam_prep_node_attempts-1") eq(status,"active") payload={"payload":{"type":"oral","testedTopic":"Hücre Bölünmesi","questions":[{"prompt":"Mitozun evrelerini anlat.","expectedPoints":["Profaz"],"rubricCriteria":[],"modelAnswer":"Profaz.","probeKind":"detail","sourceFile":"Biyoloji.pdf","sourcePage":"s.1,2"}],"teachingStandard":"oral","engine":"teacher"},"total":1}",
     "log.info ["oral_rest_later",{"attemptId":"exam_prep_node_attempts-1","added":0,"ok":true}]",
@@ -7467,16 +7541,13 @@ exports[`yol etkinliği rotası: start × tür > konu testi soğuk yazılır, il
     "kind": "quiz",
     "ok": true,
     "payload": {
+      "answerCheck": "server",
       "building": true,
       "builtAt": "2026-10-30T09:00:00.000Z",
       "engine": "teacher",
       "promised": 5,
       "questions": [
         {
-          "correct": [
-            "Değişmez",
-          ],
-          "explanation": "Mitozda kromozom sayısı korunur.",
           "multi": false,
           "options": [
             "Yarıya iner",
@@ -7749,12 +7820,14 @@ exports[`yol etkinliği rotası: start × tür > konu testi soğuk yazılır, il
     "db insert exam_prep_node_attempts payload={"node_id":"00000000-0000-4000-8000-0000000000b1","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","user_id":"00000000-0000-4000-8000-00000000aaaa","topic_id":"00000000-0000-4000-8000-0000000000c1","difficulty":"orta","voice_mode":false,"payload":null,"total":1,"status":"creating","generation_id":"00000000-0000-4000-8000-900000000001","client_request_id":"00000000-0000-4000-8000-0000000000f1","familiarity":"basics","mood":"neutral","content_version":1,"updated_at":"2026-10-30T09:00:00.000Z"} one",
     "db upsert exam_prep_generation_jobs payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","attempt_id":"exam_prep_node_attempts-1","client_request_id":"00000000-0000-4000-8000-0000000000f1","generation_id":"00000000-0000-4000-8000-900000000001","credit_idempotency_key":"exam_node_slot_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_exam_prep_node_attempts-1","status":"creating","error_code":null,"updated_at":"2026-10-30T09:00:00.000Z"}",
     "db select exam_preps [document_id, source_document_ids] eq(id,"00000000-0000-4000-8000-0000000000a1") eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
+    "db select exam_prep_lessons [content_json] eq(topic_id,"00000000-0000-4000-8000-0000000000c1") not(content_json,is,null) order(created_at,desc) limit(1) maybe",
+    "db select exam_prep_topics [id, label, source_refs, document_topic_node_id] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") limit(120)",
     "db select exam_prep_topics [label] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") limit(80)",
     "call ensureCleanPages [{"userId":"00000000-0000-4000-8000-00000000aaaa","documentId":"doc1","pages":[1,2],"edges":[]}]",
     "db select exam_prep_node_attempts [payload, topic_id] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") not(payload,is,null) order(created_at,desc) limit(30)",
     "db select exam_prep_prefetch [payload] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") eq(status,"ready") neq(node_id,"00000000-0000-4000-8000-0000000000b1") limit(10)",
     "db select exam_preps [learning_preferences] eq(id,"00000000-0000-4000-8000-0000000000a1") maybe",
-    "call runTeacherQuiz [{"mode":"document","focus":"practice","previousStems":[],"coverage":"Temel düzey: tanım, sınıflama, sayısal kural ve eşik soruları. Yalnız bu konunun KAYNAK sayfalarından sor; başka konunun bilgisini sorma.","userId":"00000000-0000-4000-8000-00000000aaaa","actionCode":"QUIZ_GENERATE","idempotencyKey":"exam_node_slot_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_exam_prep_node_attempts-1","freeMeter":"lesson","charge":true,"topicLabel":"Hücre Bölünmesi","prepTitle":"YKS Biyoloji","pages":[{"page":1,"text":"Mitozda kromozom sayısı korunur."}],"count":5,"learnerLine":"Öğrenci temel bilgilere sahip: tanımları kısa geç, ağırlığı uygulamaya ve problem çözümüne ver. Öğrenci nötr: dengeli, sıcak ve net bir tonla anlat.","examPoints":["Mitozda kromozom sayısı değişmez."],"runningHeaders":[],"officialOutcome":null,"difficulty":"orta","multi":true,"scope":"topic_test","urgent":true,"startedAt":1793350800000,"onPlayable":"[fn]"}]",
+    "call runTeacherQuiz [{"mode":"document","focus":"practice","previousStems":[],"coverage":"Temel düzey: tanım, sınıflama, sayısal kural ve eşik soruları. Yalnız bu konunun KAYNAK sayfalarından sor; başka konunun bilgisini sorma.","userId":"00000000-0000-4000-8000-00000000aaaa","actionCode":"QUIZ_GENERATE","idempotencyKey":"exam_node_slot_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_exam_prep_node_attempts-1","freeMeter":"lesson","charge":true,"topicLabel":"Hücre Bölünmesi","prepTitle":"YKS Biyoloji","pages":[{"page":1,"text":"Mitozda kromozom sayısı korunur."}],"count":5,"learnerLine":"Öğrenci temel bilgilere sahip: tanımları kısa geç, ağırlığı uygulamaya ve problem çözümüne ver. Öğrenci nötr: dengeli, sıcak ve net bir tonla anlat.","examPoints":["Mitozda kromozom sayısı değişmez."],"runningHeaders":[],"officialOutcome":null,"difficulty":"orta","multi":false,"scope":"topic_test","urgent":true,"startedAt":1793350800000,"onPlayable":"[fn]"}]",
     "db update exam_prep_node_attempts eq(id,"exam_prep_node_attempts-1") eq(generation_id,"00000000-0000-4000-8000-900000000001") in(status,["creating","active"]) payload={"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"correct":["Değişmez"],"multi":false,"explanation":"Mitozda kromozom sayısı korunur."}],"promised":5,"teachingStandard":"quiz","engine":"teacher","building":true,"builtAt":"2026-10-30T09:00:00.000Z"},"status":"active","updated_at":"2026-10-30T09:00:00.000Z"}",
     "log.info ["quiz_open_stages",{"topic":"Hücre Bölünmesi","kind":"quiz","kept":2,"streamed":true,"prefetched":false,"playableTargetMs":45000,"prefetchedTargetMs":3000}]",
     "after:scheduled",
@@ -7763,7 +7836,7 @@ exports[`yol etkinliği rotası: start × tür > konu testi soğuk yazılır, il
     "after:scheduled",
     "after:scheduled",
     "db select credit_wallets [balance] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
-    "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","generationId":"00000000-0000-4000-8000-900000000001","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"quiz","title":"Testler","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false,"correct":["Değişmez"],"explanation":"Mitozda kromozom sayısı korunur."}],"promised":5,"teachingStandard":"quiz","engine":"teacher","building":true,"builtAt":"2026-10-30T09:00:00.000Z"},"answers":{},"cursorIndex":0,"total":1,"resumed":false,"startedAt":null,"expiresAt":null,"timeLeftSec":900,"balance":500}",
+    "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","generationId":"00000000-0000-4000-8000-900000000001","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"quiz","title":"Testler","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false}],"promised":5,"teachingStandard":"quiz","engine":"teacher","building":true,"builtAt":"2026-10-30T09:00:00.000Z","answerCheck":"server"},"answers":{},"cursorIndex":0,"total":1,"resumed":false,"startedAt":null,"expiresAt":null,"timeLeftSec":900,"balance":500}",
     "after:run",
     "db select subscriptions [status, current_period_end, cancel_at_period_end, plans(is_premium, tier, name, slug, monthly_allowance)] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(status,"active") or(current_period_end.is.null,current_period_end.gt.2026-10-30T09:00:00.000Z) maybe",
     "db select admin_free_preview [user_id] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
@@ -7794,12 +7867,9 @@ exports[`yol etkinliği rotası: start × tür > odaklı pratik ve hazır olma y
     "kind": "focused",
     "ok": true,
     "payload": {
+      "answerCheck": "server",
       "questions": [
         {
-          "correct": [
-            "Değişmez",
-          ],
-          "explanation": "Mitozda kromozom sayısı korunur.",
           "multi": false,
           "options": [
             "Yarıya iner",
@@ -7971,7 +8041,7 @@ exports[`yol etkinliği rotası: start × tür > odaklı pratik ve hazır olma y
     "db insert exam_prep_node_attempts payload={"node_id":"00000000-0000-4000-8000-0000000000b1","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","user_id":"00000000-0000-4000-8000-00000000aaaa","topic_id":"00000000-0000-4000-8000-0000000000c1","difficulty":"orta","voice_mode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"correct":["Değişmez"],"multi":false,"explanation":"Mitozda kromozom sayısı korunur."}],"testedTopic":"Hücre Bölünmesi"},"total":1,"status":"active","familiarity":"basics","mood":"neutral","client_request_id":"00000000-0000-4000-8000-0000000000f1"} one",
     "db update exam_prep_nodes eq(id,"00000000-0000-4000-8000-0000000000b1") payload={"status":"ready","title":"Hücre Bölünmesi · Odaklı pratik","session_meta":{"topicId":"dtn1","topicTitle":"Hücre Bölünmesi","sourcePages":[1,2]}}",
     "db select credit_wallets [balance] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
-    "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","kind":"focused","title":"Hücre Bölünmesi · Odaklı pratik","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false,"correct":["Değişmez"],"explanation":"Mitozda kromozom sayısı korunur."}],"testedTopic":"Hücre Bölünmesi"},"balance":500}",
+    "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","kind":"focused","title":"Hücre Bölünmesi · Odaklı pratik","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false}],"testedTopic":"Hücre Bölünmesi","answerCheck":"server"},"balance":500}",
     "after:run",
     "db select subscriptions [status, current_period_end, cancel_at_period_end, plans(is_premium, tier, name, slug, monthly_allowance)] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(status,"active") or(current_period_end.is.null,current_period_end.gt.2026-10-30T09:00:00.000Z) maybe",
     "db select admin_free_preview [user_id] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
@@ -8348,7 +8418,7 @@ exports[`yol etkinliği rotası: start × tür > podcast: Plus'ta yazılır, kon
       "checkPending": true,
       "engine": "teacher",
       "length": "diyalog",
-      "scriptCredits": 12,
+      "scriptCredits": 16,
       "teachingStandard": "podcast",
       "title": "Hücre Bölünmesi",
       "type": "podcast",
@@ -8463,7 +8533,7 @@ exports[`yol etkinliği rotası: start × tür > podcast: Plus'ta yazılır, kon
           ],
           "engine": "teacher",
           "length": "diyalog",
-          "scriptCredits": 12,
+          "scriptCredits": 16,
           "teachingStandard": "podcast",
           "title": "Hücre Bölünmesi",
           "type": "podcast",
@@ -8635,6 +8705,8 @@ exports[`yol etkinliği rotası: start × tür > podcast: Plus'ta yazılır, kon
     "db upsert exam_prep_generation_jobs payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","attempt_id":"exam_prep_node_attempts-1","client_request_id":"00000000-0000-4000-8000-0000000000f1","generation_id":"00000000-0000-4000-8000-900000000001","credit_idempotency_key":"exam_node_slot_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_exam_prep_node_attempts-1","status":"creating","error_code":null,"updated_at":"2026-10-30T09:00:00.000Z"}",
     "db select exam_preps [document_id, source_document_ids] eq(id,"00000000-0000-4000-8000-0000000000a1") eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
     "db select exam_prep_lessons [content_json] eq(topic_id,"00000000-0000-4000-8000-0000000000c1") not(content_json,is,null) order(created_at,desc) limit(1) maybe",
+    "db select exam_prep_topics [id, label, source_refs, document_topic_node_id] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") limit(120)",
+    "db select exam_prep_lessons [content_json] eq(topic_id,"00000000-0000-4000-8000-0000000000c1") not(content_json,is,null) order(created_at,desc) limit(1) maybe",
     "db select document_teacher_analyses [status, analysis] eq(document_id,"doc1") maybe",
     "db select exam_prep_podcasts [*] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") eq(topic_key,"hücre bölünme i") eq(length,"diyalog") maybe",
     "db select exam_preps [document_id, source_document_ids, learning_preferences] eq(id,"00000000-0000-4000-8000-0000000000a1") maybe",
@@ -8642,14 +8714,14 @@ exports[`yol etkinliği rotası: start × tür > podcast: Plus'ta yazılır, kon
     "db select exam_prep_topics [label] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") limit(80)",
     "call runTeacherPodcast [{"mode":"document","length":"diyalog","userId":"00000000-0000-4000-8000-00000000aaaa","actionCode":"PODCAST_GENERATE","idempotencyKey":"exam_node_slot_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_exam_prep_node_attempts-1","freeMeter":null,"charge":true,"topicLabel":"Hücre Bölünmesi","prepTitle":"YKS Biyoloji","pages":[{"page":1,"text":"Mitozda kromozom sayısı korunur."}],"learnerLine":"Öğrenci temel bilgilere sahip: tanımları kısa geç, ağırlığı uygulamaya ve problem çözümüne ver. Öğrenci nötr: dengeli, sıcak ve net bir tonla anlat.","examPoints":["Mitozda kromozom sayısı değişmez."],"runningHeaders":[],"startedAt":1793350800000,"listeningCheck":true,"deferListeningCheck":true}]",
     "db update exam_prep_nodes eq(id,"00000000-0000-4000-8000-0000000000b1") payload={"session_meta":{"topicId":"dtn1","topicTitle":"Hücre Bölünmesi","sourcePages":[1,2],"activityMinutes":6}}",
-    "db update exam_prep_node_attempts eq(id,"exam_prep_node_attempts-1") eq(generation_id,"00000000-0000-4000-8000-900000000001") in(status,["creating"]) payload={"payload":{"type":"podcast","title":"Hücre Bölünmesi","chapters":[{"title":"Mitoz","lines":[{"speaker":"Ada","text":"Mitoz eş hücre verir."}]}],"length":"diyalog","scriptCredits":12,"teachingStandard":"podcast","engine":"teacher","checkPending":true},"total":1,"status":"active","updated_at":"2026-10-30T09:00:00.000Z"} maybe",
+    "db update exam_prep_node_attempts eq(id,"exam_prep_node_attempts-1") eq(generation_id,"00000000-0000-4000-8000-900000000001") in(status,["creating"]) payload={"payload":{"type":"podcast","title":"Hücre Bölünmesi","chapters":[{"title":"Mitoz","lines":[{"speaker":"Ada","text":"Mitoz eş hücre verir."}]}],"length":"diyalog","scriptCredits":16,"teachingStandard":"podcast","engine":"teacher","checkPending":true},"total":1,"status":"active","updated_at":"2026-10-30T09:00:00.000Z"} maybe",
     "db upsert exam_prep_generation_jobs payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","attempt_id":"exam_prep_node_attempts-1","client_request_id":"00000000-0000-4000-8000-0000000000f1","generation_id":"00000000-0000-4000-8000-900000000001","credit_idempotency_key":"exam_node_slot_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_exam_prep_node_attempts-1","status":"ready","error_code":null,"updated_at":"2026-10-30T09:00:00.000Z"}",
     "after:scheduled",
     "db update exam_prep_topics eq(id,"00000000-0000-4000-8000-0000000000c1") payload={"familiarity":"basics"}",
     "db insert study_session_moods payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","mood":"neutral"}",
     "db update exam_prep_nodes eq(id,"00000000-0000-4000-8000-0000000000b1") payload={"status":"ready"}",
     "db select credit_wallets [balance] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
-    "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","generationId":"00000000-0000-4000-8000-900000000001","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"podcast","title":"Podcast","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"podcast","title":"Hücre Bölünmesi","chapters":[{"title":"Mitoz","lines":[{"speaker":"Ada","text":"Mitoz eş hücre verir."}]}],"length":"diyalog","scriptCredits":12,"teachingStandard":"podcast","engine":"teacher","checkPending":true},"answers":{},"cursorIndex":0,"total":1,"resumed":false,"startedAt":null,"expiresAt":null,"timeLeftSec":900,"balance":500}",
+    "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","generationId":"00000000-0000-4000-8000-900000000001","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"podcast","title":"Podcast","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"podcast","title":"Hücre Bölünmesi","chapters":[{"title":"Mitoz","lines":[{"speaker":"Ada","text":"Mitoz eş hücre verir."}]}],"length":"diyalog","scriptCredits":16,"teachingStandard":"podcast","engine":"teacher","checkPending":true},"answers":{},"cursorIndex":0,"total":1,"resumed":false,"startedAt":null,"expiresAt":null,"timeLeftSec":900,"balance":500}",
     "after:run",
     "db select subscriptions [status, current_period_end, cancel_at_period_end, plans(is_premium, tier, name, slug, monthly_allowance)] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(status,"active") or(current_period_end.is.null,current_period_end.gt.2026-10-30T09:00:00.000Z) maybe",
     "db select admin_free_preview [user_id] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
@@ -8660,7 +8732,7 @@ exports[`yol etkinliği rotası: start × tür > podcast: Plus'ta yazılır, kon
     "after:run",
     "db select exam_prep_node_attempts [payload, status] eq(id,"exam_prep_node_attempts-1") maybe",
     "db upsert exam_prep_podcasts payload={"exam_prep_id":"00000000-0000-4000-8000-0000000000a1","user_id":"00000000-0000-4000-8000-00000000aaaa","topic_key":"hücre bölünme i","topic_label":"Hücre Bölünmesi","length":"diyalog","title":"Hücre Bölünmesi","chapters":[{"title":"Mitoz","lines":[{"speaker":"Ada","text":"Mitoz eş hücre verir."}]}],"listening_check":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"correct":["Değişmez"],"multi":false,"explanation":"Mitozda kromozom sayısı korunur."}]}",
-    "db update exam_prep_node_attempts eq(id,"exam_prep_node_attempts-1") eq(status,"active") payload={"payload":{"type":"podcast","title":"Hücre Bölünmesi","chapters":[{"title":"Mitoz","lines":[{"speaker":"Ada","text":"Mitoz eş hücre verir."}]}],"length":"diyalog","scriptCredits":12,"teachingStandard":"podcast","engine":"teacher","check":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"correct":["Değişmez"],"multi":false,"explanation":"Mitozda kromozom sayısı korunur."}]},"total":1}",
+    "db update exam_prep_node_attempts eq(id,"exam_prep_node_attempts-1") eq(status,"active") payload={"payload":{"type":"podcast","title":"Hücre Bölünmesi","chapters":[{"title":"Mitoz","lines":[{"speaker":"Ada","text":"Mitoz eş hücre verir."}]}],"length":"diyalog","scriptCredits":16,"teachingStandard":"podcast","engine":"teacher","check":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"correct":["Değişmez"],"multi":false,"explanation":"Mitozda kromozom sayısı korunur."}]},"total":1}",
     "log.info ["podcast_check_later",{"attemptId":"exam_prep_node_attempts-1","check":1,"attached":true}]",
   ],
 }
@@ -8818,12 +8890,9 @@ exports[`yol etkinliği rotası: start × tür > son kontrol konu başına doldu
     "kind": "final_check",
     "ok": true,
     "payload": {
+      "answerCheck": "server",
       "questions": [
         {
-          "correct": [
-            "Değişmez",
-          ],
-          "explanation": "Mitozda kromozom sayısı korunur.",
           "multi": false,
           "options": [
             "Yarıya iner",
@@ -9076,7 +9145,7 @@ exports[`yol etkinliği rotası: start × tür > son kontrol konu başına doldu
     "db insert study_session_moods payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","mood":"neutral"}",
     "db update exam_prep_nodes eq(id,"00000000-0000-4000-8000-0000000000b1") payload={"status":"ready"}",
     "db select credit_wallets [balance] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
-    "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","generationId":"00000000-0000-4000-8000-900000000001","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"final_check","title":"Son kontrol","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false,"correct":["Değişmez"],"explanation":"Mitozda kromozom sayısı korunur."}],"teachingStandard":"quiz","uncoveredTopics":[]},"answers":{},"cursorIndex":0,"total":1,"resumed":false,"startedAt":null,"expiresAt":null,"timeLeftSec":900,"balance":500}",
+    "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","generationId":"00000000-0000-4000-8000-900000000001","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"final_check","title":"Son kontrol","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false}],"teachingStandard":"quiz","uncoveredTopics":[],"answerCheck":"server"},"answers":{},"cursorIndex":0,"total":1,"resumed":false,"startedAt":null,"expiresAt":null,"timeLeftSec":900,"balance":500}",
     "after:run",
     "db select subscriptions [status, current_period_end, cancel_at_period_end, plans(is_premium, tier, name, slug, monthly_allowance)] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(status,"active") or(current_period_end.is.null,current_period_end.gt.2026-10-30T09:00:00.000Z) maybe",
     "db select admin_free_preview [user_id] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
@@ -9102,6 +9171,7 @@ exports[`yol etkinliği rotası: start × tür > son kontrol konu başına doldu
     "kind": "written_exam",
     "ok": true,
     "payload": {
+      "answerCheck": "server",
       "questions": [
         {
           "multi": false,
@@ -9446,7 +9516,7 @@ exports[`yol etkinliği rotası: start × tür > son kontrol konu başına doldu
     "call loadPageSourceAcrossDocuments ["00000000-0000-4000-8000-00000000aaaa",["doc1","doc1","doc1"],[1,2],{"sourceBoundaryMode":"documents_only","topicLabel":"Hücre Bölünmesi","mode":"strict"}]",
     "db insert exam_prep_node_attempts payload={"node_id":"00000000-0000-4000-8000-0000000000b1","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","user_id":"00000000-0000-4000-8000-00000000aaaa","topic_id":"00000000-0000-4000-8000-0000000000c1","difficulty":"orta","voice_mode":false,"payload":null,"total":1,"status":"creating","generation_id":"00000000-0000-4000-8000-900000000002","client_request_id":"00000000-0000-4000-8000-0000000000f1","familiarity":"basics","mood":"neutral","content_version":1,"updated_at":"2026-10-30T09:00:00.000Z"} one",
     "db upsert exam_prep_generation_jobs payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","attempt_id":"exam_prep_node_attempts-1","client_request_id":"00000000-0000-4000-8000-0000000000f1","generation_id":"00000000-0000-4000-8000-900000000002","credit_idempotency_key":"exam_node_slot_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_exam_prep_node_attempts-1","status":"creating","error_code":null,"updated_at":"2026-10-30T09:00:00.000Z"}",
-    "call generateExamQuiz [{"userId":"00000000-0000-4000-8000-00000000aaaa","isPremium":true,"teachingV2":true,"difficulty":"hard","sourceExcerpt":"[s.1] Mitozda kromozom sayısı korunur.","requireSourceSupport":true,"sourcePages":[1,2],"idempotencyKey":"exam_node_slot_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_exam_prep_node_attempts-1","freeMeter":null,"count":5,"topicLabel":"Hücre Bölünmesi","prepTitle":"YKS Biyoloji","schemaHintExtra":"İsteğe bağlı \\"topic\\" yalnızca hazırlığın konu adıdır. explanation zorunlu. İpucu yazma.","userPrompt":"Sınav: YKS Biyoloji. Konu: Hücre Bölünmesi. Zorluk: Zorluk isteği: orta. Temeli kısa geç, uygulamada kal.. Öğrenci temel bilgilere sahip: tanımları kısa geç, ağırlığı uygulamaya ve problem çözümüne ver. Öğrenci nötr: dengeli, sıcak ve net bir tonla anlat. Öğretim konusu: Hücre Bölünmesi. Kaynak sayfalar: 1, 2. Yalnızca bu konu ve hedefe bağlı kal; başka konulara sapma. Yazılı deneme: yardım/ipucu yok. Her soruda learningObjective + rubrik. Eşdeğer doğrular kabul; kısmi puan gerekçeye bağlı. Uzun ilgisiz metin = yanlış. Skor gerekçesi ve kaçırılan hedefler için explanation net olsun. Öğrenme tercihi: örneklerle anlat. Öğrenciye görünen metin Türkçe.\\nÖğretmen notu yalnızca vurgu ve sıradır. Formül, tanım ve sayı ancak aşağıdaki kaynak sayfalarında da yazıyorsa kullanılır.\\nFormül, tanım ve yasa YALNIZCA aşağıdaki kaynak sayfalarının metninde yazıyorsa kullanılır. Kaynak sayfada olmayan, ders kitabından bildiğin formülü içeri alma. Öğretmen notu vurgu ve sıradır; notta geçen bir ifade kaynak sayfada yoksa dersin olgusu olmaz. Çözümlü örnek yalnızca bu düğümün kaynak sayfalarındaki sayı ve formülü kullanır. Sayısal örnekte formül, birimli yerine koyma ve sonuç ayrı yazılır. Birim dönüşümünde iki tarafta farklı birim olsun ve arada işlem olmasın. commonMistake yalnız bu konunun kaynak sayfalarından gelsin: claim öğrencinin yanlış inancı, correction kaynağın doğrusudur. Kaynakta olmayan birimi veya formülü hata diye de yazma.[s.1] Mitozda kromozom sayısı korunur. 5 çoktan seçmeli soru. multi=true yalnızca gerçekten birden fazla bağımsız doğru varken; aksi halde multi false. Her soruda learningObjective ve explanation yaz. Sınav disiplini: ipucu yok, her soruda explanation yaz, doğru cevabı soru metnine koyma.  ","urgent":true}]",
+    "call generateExamQuiz [{"userId":"00000000-0000-4000-8000-00000000aaaa","isPremium":true,"teachingV2":true,"difficulty":"hard","sourceExcerpt":"[s.1] Mitozda kromozom sayısı korunur.","requireSourceSupport":true,"sourcePages":[1,2],"idempotencyKey":"exam_node_slot_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_exam_prep_node_attempts-1","freeMeter":null,"count":5,"topicLabel":"Hücre Bölünmesi","prepTitle":"YKS Biyoloji","schemaHintExtra":"İsteğe bağlı \\"topic\\" yalnızca hazırlığın konu adıdır. explanation zorunlu. İpucu yazma.","userPrompt":"Sınav: YKS Biyoloji. Konu: Hücre Bölünmesi. Zorluk: Zorluk isteği: orta. Temeli kısa geç, uygulamada kal.. Öğrenci temel bilgilere sahip: tanımları kısa geç, ağırlığı uygulamaya ve problem çözümüne ver. Öğrenci nötr: dengeli, sıcak ve net bir tonla anlat. Öğretim konusu: Hücre Bölünmesi. Kaynak sayfalar: 1, 2. Yalnızca bu konu ve hedefe bağlı kal; başka konulara sapma. Yazılı deneme: yardım/ipucu yok. Her soruda learningObjective + rubrik. Eşdeğer doğrular kabul; kısmi puan gerekçeye bağlı. Uzun ilgisiz metin = yanlış. Skor gerekçesi ve kaçırılan hedefler için explanation net olsun. Öğrenme tercihi: örneklerle anlat. Öğrenciye görünen metin Türkçe.\\nÖğretmen notu yalnızca vurgu ve sıradır. Formül, tanım ve sayı ancak aşağıdaki kaynak sayfalarında da yazıyorsa kullanılır.\\nFormül, tanım ve yasa YALNIZCA aşağıdaki kaynak sayfalarının metninde yazıyorsa kullanılır. Kaynak sayfada olmayan, ders kitabından bildiğin formülü içeri alma. Öğretmen notu vurgu ve sıradır; notta geçen bir ifade kaynak sayfada yoksa dersin olgusu olmaz. Çözümlü örnek yalnızca bu düğümün kaynak sayfalarındaki sayı ve formülü kullanır. Sayısal örnekte formül, birimli yerine koyma ve sonuç ayrı yazılır. Birim dönüşümünde iki tarafta farklı birim olsun ve arada işlem olmasın. commonMistake yalnız bu konunun kaynak sayfalarından gelsin: claim öğrencinin yanlış inancı, correction kaynağın doğrusudur. Kaynakta olmayan birimi veya formülü hata diye de yazma.[s.1] Mitozda kromozom sayısı korunur. 5 çoktan seçmeli soru. Her soru tek doğru şıklıdır: multi false, correct dizisinde yalnız bir şık ve o şık options içinde birebir geçer; kök doğru şıkkın metnini (parantez içinde de) vermez. Her soruda learningObjective ve explanation yaz. Sınav disiplini: ipucu yok, her soruda explanation yaz, doğru cevabı soru metnine koyma.  ","urgent":true}]",
     "db update exam_prep_nodes eq(id,"00000000-0000-4000-8000-0000000000b1") payload={"session_meta":{"topicId":"dtn1","topicTitle":"Hücre Bölünmesi","sourcePages":[1,2],"activityMinutes":30}}",
     "db update exam_prep_node_attempts eq(id,"exam_prep_node_attempts-1") eq(generation_id,"00000000-0000-4000-8000-900000000002") in(status,["creating"]) payload={"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir? (1)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"correct":["Değişmez"],"multi":false,"explanation":"Mitozda kromozom sayısı korunur."},{"text":"Mayozun sonunda kaç hücre oluşur? (2)","options":["1","2","3","4","8"],"correct":["4"],"multi":false,"explanation":"Mayoz dört hücre verir."},{"text":"Mitozda kromozom sayısı nasıl değişir? (3)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"correct":["Değişmez"],"multi":false,"explanation":"Mitozda kromozom sayısı korunur."},{"text":"Mayozun sonunda kaç hücre oluşur? (4)","options":["1","2","3","4","8"],"correct":["4"],"multi":false,"explanation":"Mayoz dört hücre verir."},{"text":"Mitozda kromozom sayısı nasıl değişir? (5)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"correct":["Değişmez"],"multi":false,"explanation":"Mitozda kromozom sayısı korunur."}],"teachingStandard":"written"},"total":5,"status":"active","updated_at":"2026-10-30T09:00:00.000Z","started_at":"2026-10-30T09:00:00.000Z","expires_at":"2026-10-30T09:15:00.000Z"} maybe",
     "db upsert exam_prep_generation_jobs payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","attempt_id":"exam_prep_node_attempts-1","client_request_id":"00000000-0000-4000-8000-0000000000f1","generation_id":"00000000-0000-4000-8000-900000000002","credit_idempotency_key":"exam_node_slot_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_exam_prep_node_attempts-1","status":"ready","error_code":null,"updated_at":"2026-10-30T09:00:00.000Z"}",
@@ -9454,7 +9524,7 @@ exports[`yol etkinliği rotası: start × tür > son kontrol konu başına doldu
     "db insert study_session_moods payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","mood":"neutral"}",
     "db update exam_prep_nodes eq(id,"00000000-0000-4000-8000-0000000000b1") payload={"status":"ready"}",
     "db select credit_wallets [balance] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
-    "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","generationId":"00000000-0000-4000-8000-900000000002","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"written_exam","title":"Yazılı deneme","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir? (1)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false},{"text":"Mayozun sonunda kaç hücre oluşur? (2)","options":["1","2","3","4","8"],"multi":false},{"text":"Mitozda kromozom sayısı nasıl değişir? (3)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false},{"text":"Mayozun sonunda kaç hücre oluşur? (4)","options":["1","2","3","4","8"],"multi":false},{"text":"Mitozda kromozom sayısı nasıl değişir? (5)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false}],"teachingStandard":"written"},"answers":{},"cursorIndex":0,"total":5,"resumed":false,"startedAt":"2026-10-30T09:00:00.000Z","expiresAt":"2026-10-30T09:15:00.000Z","timeLeftSec":900,"balance":500}",
+    "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","generationId":"00000000-0000-4000-8000-900000000002","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"written_exam","title":"Yazılı deneme","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir? (1)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false},{"text":"Mayozun sonunda kaç hücre oluşur? (2)","options":["1","2","3","4","8"],"multi":false},{"text":"Mitozda kromozom sayısı nasıl değişir? (3)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false},{"text":"Mayozun sonunda kaç hücre oluşur? (4)","options":["1","2","3","4","8"],"multi":false},{"text":"Mitozda kromozom sayısı nasıl değişir? (5)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false}],"teachingStandard":"written","answerCheck":"server"},"answers":{},"cursorIndex":0,"total":5,"resumed":false,"startedAt":"2026-10-30T09:00:00.000Z","expiresAt":"2026-10-30T09:15:00.000Z","timeLeftSec":900,"balance":500}",
     "after:run",
     "db select subscriptions [status, current_period_end, cancel_at_period_end, plans(is_premium, tier, name, slug, monthly_allowance)] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(status,"active") or(current_period_end.is.null,current_period_end.gt.2026-10-30T09:00:00.000Z) maybe",
     "db select admin_free_preview [user_id] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
@@ -9480,12 +9550,9 @@ exports[`yol etkinliği rotası: start × tür > son kontrol konu başına doldu
     "kind": "qa",
     "ok": true,
     "payload": {
+      "answerCheck": "server",
       "questions": [
         {
-          "correct": [
-            "Değişmez",
-          ],
-          "explanation": "Mitozda kromozom sayısı korunur.",
           "multi": false,
           "options": [
             "Yarıya iner",
@@ -9497,10 +9564,6 @@ exports[`yol etkinliği rotası: start × tür > son kontrol konu başına doldu
           "text": "Mitozda kromozom sayısı nasıl değişir? (1)",
         },
         {
-          "correct": [
-            "4",
-          ],
-          "explanation": "Mayoz dört hücre verir.",
           "multi": false,
           "options": [
             "1",
@@ -9512,10 +9575,6 @@ exports[`yol etkinliği rotası: start × tür > son kontrol konu başına doldu
           "text": "Mayozun sonunda kaç hücre oluşur? (2)",
         },
         {
-          "correct": [
-            "Değişmez",
-          ],
-          "explanation": "Mitozda kromozom sayısı korunur.",
           "multi": false,
           "options": [
             "Yarıya iner",
@@ -9527,10 +9586,6 @@ exports[`yol etkinliği rotası: start × tür > son kontrol konu başına doldu
           "text": "Mitozda kromozom sayısı nasıl değişir? (3)",
         },
         {
-          "correct": [
-            "4",
-          ],
-          "explanation": "Mayoz dört hücre verir.",
           "multi": false,
           "options": [
             "1",
@@ -9542,10 +9597,6 @@ exports[`yol etkinliği rotası: start × tür > son kontrol konu başına doldu
           "text": "Mayozun sonunda kaç hücre oluşur? (4)",
         },
         {
-          "correct": [
-            "Değişmez",
-          ],
-          "explanation": "Mitozda kromozom sayısı korunur.",
           "multi": false,
           "options": [
             "Yarıya iner",
@@ -9844,7 +9895,7 @@ exports[`yol etkinliği rotası: start × tür > son kontrol konu başına doldu
     "call loadPageSourceAcrossDocuments ["00000000-0000-4000-8000-00000000aaaa",["doc1","doc1","doc1"],[1,2],{"sourceBoundaryMode":"documents_only","topicLabel":"Hücre Bölünmesi","mode":"strict"}]",
     "db insert exam_prep_node_attempts payload={"node_id":"00000000-0000-4000-8000-0000000000b1","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","user_id":"00000000-0000-4000-8000-00000000aaaa","topic_id":"00000000-0000-4000-8000-0000000000c1","difficulty":"orta","voice_mode":false,"payload":null,"total":1,"status":"creating","generation_id":"00000000-0000-4000-8000-900000000003","client_request_id":"00000000-0000-4000-8000-0000000000f1","familiarity":"basics","mood":"neutral","content_version":1,"updated_at":"2026-10-30T09:00:00.000Z"} one",
     "db upsert exam_prep_generation_jobs payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","attempt_id":"exam_prep_node_attempts-1","client_request_id":"00000000-0000-4000-8000-0000000000f1","generation_id":"00000000-0000-4000-8000-900000000003","credit_idempotency_key":"exam_node_slot_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_exam_prep_node_attempts-1","status":"creating","error_code":null,"updated_at":"2026-10-30T09:00:00.000Z"}",
-    "call generateExamQuiz [{"userId":"00000000-0000-4000-8000-00000000aaaa","isPremium":true,"teachingV2":true,"difficulty":"hard","sourceExcerpt":"[s.1] Mitozda kromozom sayısı korunur.","requireSourceSupport":true,"sourcePages":[1,2],"idempotencyKey":"exam_node_slot_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_exam_prep_node_attempts-1","freeMeter":null,"count":5,"topicLabel":"Hücre Bölünmesi","prepTitle":"YKS Biyoloji","charge":true,"urgent":true,"userPrompt":"Soru-cevap öğretimi: explanation'ın ilk cümlesi doğru cevabı ve tek cümlelik nedenini söyler; sonra en güçlü yanlış şıkkın neden tutmadığı. 'Takıldığın nokta' gibi kalıp yazma. Yanlış şık bir yanılgıdır; misconceptionTag dolu olur ve açıklama o şıkkı çürütür. Filler yok. Kaynak varsa ona bağlı kal. Sorular farklı kalıplarda: aynı soru kökü kalıbı en çok iki soruda; tanım, durum (vaka), neden ve karşılaştırma sorularını karıştır, her soru konunun başka bir noktasını yoklar. Sınav: YKS Biyoloji. Konu: Hücre Bölünmesi. Zorluk: Zorluk isteği: orta. Temeli kısa geç, uygulamada kal.. Öğrenci temel bilgilere sahip: tanımları kısa geç, ağırlığı uygulamaya ve problem çözümüne ver. Öğrenci nötr: dengeli, sıcak ve net bir tonla anlat. Öğretim konusu: Hücre Bölünmesi. Kaynak sayfalar: 1, 2. Yalnızca bu konu ve hedefe bağlı kal; başka konulara sapma. Soru-cevap öğretimi: tek kavram/problemle başla. Öğrenci düşünmeden cevabı verme. Yanlışı sınıflandır (tanım / işlem / kavram yanılgısı). İpuçlarını kademeli ver. Doğru sonra kısa kavram kontrolü. Döngüde sıkıştırma: yeterince deneme veya öğrenci isterse çözümü göster. Her soruda learningObjective ve misconceptionTag yaz. Açıklama en az bir yanlış şıkkın gerçekte ne olduğunu söylesin. Filler yok. Öğrenme tercihi: örneklerle anlat. Öğrenciye görünen metin Türkçe.\\nÖğretmen notu yalnızca vurgu ve sıradır. Formül, tanım ve sayı ancak aşağıdaki kaynak sayfalarında da yazıyorsa kullanılır.\\nFormül, tanım ve yasa YALNIZCA aşağıdaki kaynak sayfalarının metninde yazıyorsa kullanılır. Kaynak sayfada olmayan, ders kitabından bildiğin formülü içeri alma. Öğretmen notu vurgu ve sıradır; notta geçen bir ifade kaynak sayfada yoksa dersin olgusu olmaz. Çözümlü örnek yalnızca bu düğümün kaynak sayfalarındaki sayı ve formülü kullanır. Sayısal örnekte formül, birimli yerine koyma ve sonuç ayrı yazılır. Birim dönüşümünde iki tarafta farklı birim olsun ve arada işlem olmasın. commonMistake yalnız bu konunun kaynak sayfalarından gelsin: claim öğrencinin yanlış inancı, correction kaynağın doğrusudur. Kaynakta olmayan birimi veya formülü hata diye de yazma.[s.1] Mitozda kromozom sayısı korunur. 5 alıştırma sorusu. Tek kavramdan başla; her explanation ilk cümlede doğru cevabı söylesin. multi=true yalnızca gerçekten birden fazla bağımsız doğru varken."}]",
+    "call generateExamQuiz [{"userId":"00000000-0000-4000-8000-00000000aaaa","isPremium":true,"teachingV2":true,"difficulty":"hard","sourceExcerpt":"[s.1] Mitozda kromozom sayısı korunur.","requireSourceSupport":true,"sourcePages":[1,2],"idempotencyKey":"exam_node_slot_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_exam_prep_node_attempts-1","freeMeter":null,"count":5,"topicLabel":"Hücre Bölünmesi","prepTitle":"YKS Biyoloji","charge":true,"urgent":true,"userPrompt":"Soru-cevap öğretimi: explanation'ın ilk cümlesi doğru cevabı ve tek cümlelik nedenini söyler; sonra en güçlü yanlış şıkkın neden tutmadığı. 'Takıldığın nokta' gibi kalıp yazma. Yanlış şık bir yanılgıdır; misconceptionTag dolu olur ve açıklama o şıkkı çürütür. Filler yok. Kaynak varsa ona bağlı kal. Sorular farklı kalıplarda: aynı soru kökü kalıbı en çok iki soruda; tanım, durum (vaka), neden ve karşılaştırma sorularını karıştır, her soru konunun başka bir noktasını yoklar. Sınav: YKS Biyoloji. Konu: Hücre Bölünmesi. Zorluk: Zorluk isteği: orta. Temeli kısa geç, uygulamada kal.. Öğrenci temel bilgilere sahip: tanımları kısa geç, ağırlığı uygulamaya ve problem çözümüne ver. Öğrenci nötr: dengeli, sıcak ve net bir tonla anlat. Öğretim konusu: Hücre Bölünmesi. Kaynak sayfalar: 1, 2. Yalnızca bu konu ve hedefe bağlı kal; başka konulara sapma. Soru-cevap öğretimi: tek kavram/problemle başla. Öğrenci düşünmeden cevabı verme. Yanlışı sınıflandır (tanım / işlem / kavram yanılgısı). İpuçlarını kademeli ver. Doğru sonra kısa kavram kontrolü. Döngüde sıkıştırma: yeterince deneme veya öğrenci isterse çözümü göster. Her soruda learningObjective ve misconceptionTag yaz. Açıklama en az bir yanlış şıkkın gerçekte ne olduğunu söylesin. Filler yok. Öğrenme tercihi: örneklerle anlat. Öğrenciye görünen metin Türkçe.\\nÖğretmen notu yalnızca vurgu ve sıradır. Formül, tanım ve sayı ancak aşağıdaki kaynak sayfalarında da yazıyorsa kullanılır.\\nFormül, tanım ve yasa YALNIZCA aşağıdaki kaynak sayfalarının metninde yazıyorsa kullanılır. Kaynak sayfada olmayan, ders kitabından bildiğin formülü içeri alma. Öğretmen notu vurgu ve sıradır; notta geçen bir ifade kaynak sayfada yoksa dersin olgusu olmaz. Çözümlü örnek yalnızca bu düğümün kaynak sayfalarındaki sayı ve formülü kullanır. Sayısal örnekte formül, birimli yerine koyma ve sonuç ayrı yazılır. Birim dönüşümünde iki tarafta farklı birim olsun ve arada işlem olmasın. commonMistake yalnız bu konunun kaynak sayfalarından gelsin: claim öğrencinin yanlış inancı, correction kaynağın doğrusudur. Kaynakta olmayan birimi veya formülü hata diye de yazma.[s.1] Mitozda kromozom sayısı korunur. 5 alıştırma sorusu. Tek kavramdan başla; her explanation ilk cümlede doğru cevabı söylesin. Her soru tek doğru şıklıdır: multi false, correct dizisinde yalnız bir şık ve o şık options içinde birebir geçer; kök doğru şıkkın metnini (parantez içinde de) vermez."}]",
     "db update exam_prep_nodes eq(id,"00000000-0000-4000-8000-0000000000b1") payload={"session_meta":{"topicId":"dtn1","topicTitle":"Hücre Bölünmesi","sourcePages":[1,2],"activityMinutes":8}}",
     "db update exam_prep_node_attempts eq(id,"exam_prep_node_attempts-1") eq(generation_id,"00000000-0000-4000-8000-900000000003") in(status,["creating"]) payload={"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir? (1)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"correct":["Değişmez"],"multi":false,"explanation":"Mitozda kromozom sayısı korunur."},{"text":"Mayozun sonunda kaç hücre oluşur? (2)","options":["1","2","3","4","8"],"correct":["4"],"multi":false,"explanation":"Mayoz dört hücre verir."},{"text":"Mitozda kromozom sayısı nasıl değişir? (3)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"correct":["Değişmez"],"multi":false,"explanation":"Mitozda kromozom sayısı korunur."},{"text":"Mayozun sonunda kaç hücre oluşur? (4)","options":["1","2","3","4","8"],"correct":["4"],"multi":false,"explanation":"Mayoz dört hücre verir."},{"text":"Mitozda kromozom sayısı nasıl değişir? (5)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"correct":["Değişmez"],"multi":false,"explanation":"Mitozda kromozom sayısı korunur."}],"teachingStandard":"intro_qa"},"total":5,"status":"active","updated_at":"2026-10-30T09:00:00.000Z"} maybe",
     "db upsert exam_prep_generation_jobs payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","attempt_id":"exam_prep_node_attempts-1","client_request_id":"00000000-0000-4000-8000-0000000000f1","generation_id":"00000000-0000-4000-8000-900000000003","credit_idempotency_key":"exam_node_slot_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_exam_prep_node_attempts-1","status":"ready","error_code":null,"updated_at":"2026-10-30T09:00:00.000Z"}",
@@ -9852,7 +9903,7 @@ exports[`yol etkinliği rotası: start × tür > son kontrol konu başına doldu
     "db insert study_session_moods payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","mood":"neutral"}",
     "db update exam_prep_nodes eq(id,"00000000-0000-4000-8000-0000000000b1") payload={"status":"ready"}",
     "db select credit_wallets [balance] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
-    "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","generationId":"00000000-0000-4000-8000-900000000003","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"qa","title":"Soru-Cevap","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir? (1)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false,"correct":["Değişmez"],"explanation":"Mitozda kromozom sayısı korunur."},{"text":"Mayozun sonunda kaç hücre oluşur? (2)","options":["1","2","3","4","8"],"multi":false,"correct":["4"],"explanation":"Mayoz dört hücre verir."},{"text":"Mitozda kromozom sayısı nasıl değişir? (3)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false,"correct":["Değişmez"],"explanation":"Mitozda kromozom sayısı korunur."},{"text":"Mayozun sonunda kaç hücre oluşur? (4)","options":["1","2","3","4","8"],"multi":false,"correct":["4"],"explanation":"Mayoz dört hücre verir."},{"text":"Mitozda kromozom sayısı nasıl değişir? (5)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false,"correct":["Değişmez"],"explanation":"Mitozda kromozom sayısı korunur."}],"teachingStandard":"intro_qa"},"answers":{},"cursorIndex":0,"total":5,"resumed":false,"startedAt":null,"expiresAt":null,"timeLeftSec":900,"balance":500}",
+    "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","generationId":"00000000-0000-4000-8000-900000000003","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"qa","title":"Soru-Cevap","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir? (1)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false},{"text":"Mayozun sonunda kaç hücre oluşur? (2)","options":["1","2","3","4","8"],"multi":false},{"text":"Mitozda kromozom sayısı nasıl değişir? (3)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false},{"text":"Mayozun sonunda kaç hücre oluşur? (4)","options":["1","2","3","4","8"],"multi":false},{"text":"Mitozda kromozom sayısı nasıl değişir? (5)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false}],"teachingStandard":"intro_qa","answerCheck":"server"},"answers":{},"cursorIndex":0,"total":5,"resumed":false,"startedAt":null,"expiresAt":null,"timeLeftSec":900,"balance":500}",
     "after:run",
     "db select subscriptions [status, current_period_end, cancel_at_period_end, plans(is_premium, tier, name, slug, monthly_allowance)] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(status,"active") or(current_period_end.is.null,current_period_end.gt.2026-10-30T09:00:00.000Z) maybe",
     "db select admin_free_preview [user_id] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
@@ -10246,12 +10297,9 @@ exports[`yol etkinliği rotası: start × tür > önceden yazılmış test hazı
     "kind": "quiz",
     "ok": true,
     "payload": {
+      "answerCheck": "server",
       "questions": [
         {
-          "correct": [
-            "Değişmez",
-          ],
-          "explanation": "Mitozda kromozom sayısı korunur.",
           "multi": false,
           "options": [
             "Yarıya iner",
@@ -10263,10 +10311,6 @@ exports[`yol etkinliği rotası: start × tür > önceden yazılmış test hazı
           "text": "Mitozda kromozom sayısı nasıl değişir?",
         },
         {
-          "correct": [
-            "4",
-          ],
-          "explanation": "Mayoz dört hücre verir.",
           "multi": false,
           "options": [
             "1",
@@ -10521,7 +10565,7 @@ exports[`yol etkinliği rotası: start × tür > önceden yazılmış test hazı
     "after:scheduled",
     "after:scheduled",
     "db select credit_wallets [balance] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
-    "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","generationId":"00000000-0000-4000-8000-900000000001","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"quiz","title":"Testler","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false,"correct":["Değişmez"],"explanation":"Mitozda kromozom sayısı korunur."},{"text":"Mayozun sonunda kaç hücre oluşur?","options":["1","2","3","4","8"],"multi":false,"correct":["4"],"explanation":"Mayoz dört hücre verir."}]},"answers":{},"cursorIndex":0,"total":2,"resumed":false,"startedAt":null,"expiresAt":null,"timeLeftSec":900,"balance":500}",
+    "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","generationId":"00000000-0000-4000-8000-900000000001","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"quiz","title":"Testler","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false},{"text":"Mayozun sonunda kaç hücre oluşur?","options":["1","2","3","4","8"],"multi":false}],"answerCheck":"server"},"answers":{},"cursorIndex":0,"total":2,"resumed":false,"startedAt":null,"expiresAt":null,"timeLeftSec":900,"balance":500}",
     "after:run",
     "db select subscriptions [status, current_period_end, cancel_at_period_end, plans(is_premium, tier, name, slug, monthly_allowance)] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(status,"active") or(current_period_end.is.null,current_period_end.gt.2026-10-30T09:00:00.000Z) maybe",
     "db select admin_free_preview [user_id] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
@@ -10740,12 +10784,14 @@ exports[`yol etkinliği rotası: start × tür > önceden yazım isteği (imzal�
     "db insert exam_prep_prefetch payload={"node_id":"00000000-0000-4000-8000-0000000000b1","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","user_id":"00000000-0000-4000-8000-00000000aaaa","topic_id":"00000000-0000-4000-8000-0000000000c1","familiarity":"basics","status":"creating","payload":null,"created_at":"2026-10-30T09:00:00.000Z","updated_at":"2026-10-30T09:00:00.000Z"}",
     "db update exam_prep_prefetch eq(node_id,"00000000-0000-4000-8000-0000000000b1") eq(status,"creating") payload={"payload":{"prefetchVariant":"quiz:orta:o5"}}",
     "db select exam_preps [document_id, source_document_ids] eq(id,"00000000-0000-4000-8000-0000000000a1") eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
+    "db select exam_prep_lessons [content_json] eq(topic_id,"00000000-0000-4000-8000-0000000000c1") not(content_json,is,null) order(created_at,desc) limit(1) maybe",
+    "db select exam_prep_topics [id, label, source_refs, document_topic_node_id] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") limit(120)",
     "db select exam_prep_topics [label] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") limit(80)",
     "call ensureCleanPages [{"userId":"00000000-0000-4000-8000-00000000aaaa","documentId":"doc1","pages":[1,2],"edges":[]}]",
     "db select exam_prep_node_attempts [payload, topic_id] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") not(payload,is,null) order(created_at,desc) limit(30)",
     "db select exam_prep_prefetch [payload] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") eq(status,"ready") neq(node_id,"00000000-0000-4000-8000-0000000000b1") limit(10)",
     "db select exam_preps [learning_preferences] eq(id,"00000000-0000-4000-8000-0000000000a1") maybe",
-    "call runTeacherQuiz [{"mode":"document","focus":"practice","previousStems":[],"coverage":"Temel düzey: tanım, sınıflama, sayısal kural ve eşik soruları. Yalnız bu konunun KAYNAK sayfalarından sor; başka konunun bilgisini sorma.","userId":"00000000-0000-4000-8000-00000000aaaa","actionCode":"QUIZ_GENERATE","idempotencyKey":"quiz:00000000-0000-4000-8000-0000000000a1:Hücre Bölünmesi:1793350800000","freeMeter":"lesson","charge":false,"topicLabel":"Hücre Bölünmesi","prepTitle":"YKS Biyoloji","pages":[{"page":1,"text":"Mitozda kromozom sayısı korunur."}],"count":5,"learnerLine":"Öğrenci temel bilgilere sahip: tanımları kısa geç, ağırlığı uygulamaya ve problem çözümüne ver. Öğrenci nötr: dengeli, sıcak ve net bir tonla anlat.","examPoints":["Mitozda kromozom sayısı değişmez."],"runningHeaders":[],"officialOutcome":null,"difficulty":"orta","multi":true,"scope":"topic_test","urgent":false,"startedAt":1793350800000}]",
+    "call runTeacherQuiz [{"mode":"document","focus":"practice","previousStems":[],"coverage":"Temel düzey: tanım, sınıflama, sayısal kural ve eşik soruları. Yalnız bu konunun KAYNAK sayfalarından sor; başka konunun bilgisini sorma.","userId":"00000000-0000-4000-8000-00000000aaaa","actionCode":"QUIZ_GENERATE","idempotencyKey":"quiz:00000000-0000-4000-8000-0000000000a1:Hücre Bölünmesi:1793350800000","freeMeter":"lesson","charge":false,"topicLabel":"Hücre Bölünmesi","prepTitle":"YKS Biyoloji","pages":[{"page":1,"text":"Mitozda kromozom sayısı korunur."}],"count":5,"learnerLine":"Öğrenci temel bilgilere sahip: tanımları kısa geç, ağırlığı uygulamaya ve problem çözümüne ver. Öğrenci nötr: dengeli, sıcak ve net bir tonla anlat.","examPoints":["Mitozda kromozom sayısı değişmez."],"runningHeaders":[],"officialOutcome":null,"difficulty":"orta","multi":false,"scope":"topic_test","urgent":false,"startedAt":1793350800000}]",
     "log.info ["quiz_open_stages",{"topic":"Hücre Bölünmesi","kind":"quiz","kept":2,"streamed":false,"prefetched":true,"playableTargetMs":45000,"prefetchedTargetMs":3000}]",
     "log.error ["lesson_generation_failure",{"prepId":"00000000-0000-4000-8000-0000000000a1","topicId":"00000000-0000-4000-8000-0000000000c1","kind":"quiz","stage":"set","reason":"pedagogy_salvaged","reasons":["1 soru düzelmeden geri kondu","kalıp"]}]",
     "db insert lesson_generation_failures payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","prep_id":"00000000-0000-4000-8000-0000000000a1","topic_id":"00000000-0000-4000-8000-0000000000c1","topic_label":"Hücre Bölünmesi","kind":"quiz","stage":"set","reason":"pedagogy_salvaged","reasons":["1 soru düzelmeden geri kondu","kalıp"],"source_trace":{}}",
@@ -10883,12 +10929,9 @@ exports[`yol etkinliği rotası: start × tür > özellik kapalı (v1): soru-cev
     "kind": "qa",
     "ok": true,
     "payload": {
+      "answerCheck": "server",
       "questions": [
         {
-          "correct": [
-            "Değişmez",
-          ],
-          "explanation": "Mitozda kromozom sayısı korunur.",
           "multi": false,
           "options": [
             "Yarıya iner",
@@ -10900,10 +10943,6 @@ exports[`yol etkinliği rotası: start × tür > özellik kapalı (v1): soru-cev
           "text": "Mitozda kromozom sayısı nasıl değişir? (1)",
         },
         {
-          "correct": [
-            "4",
-          ],
-          "explanation": "Mayoz dört hücre verir.",
           "multi": false,
           "options": [
             "1",
@@ -10915,10 +10954,6 @@ exports[`yol etkinliği rotası: start × tür > özellik kapalı (v1): soru-cev
           "text": "Mayozun sonunda kaç hücre oluşur? (2)",
         },
         {
-          "correct": [
-            "Değişmez",
-          ],
-          "explanation": "Mitozda kromozom sayısı korunur.",
           "multi": false,
           "options": [
             "Yarıya iner",
@@ -10930,10 +10965,6 @@ exports[`yol etkinliği rotası: start × tür > özellik kapalı (v1): soru-cev
           "text": "Mitozda kromozom sayısı nasıl değişir? (3)",
         },
         {
-          "correct": [
-            "4",
-          ],
-          "explanation": "Mayoz dört hücre verir.",
           "multi": false,
           "options": [
             "1",
@@ -10945,10 +10976,6 @@ exports[`yol etkinliği rotası: start × tür > özellik kapalı (v1): soru-cev
           "text": "Mayozun sonunda kaç hücre oluşur? (4)",
         },
         {
-          "correct": [
-            "Değişmez",
-          ],
-          "explanation": "Mitozda kromozom sayısı korunur.",
           "multi": false,
           "options": [
             "Yarıya iner",
@@ -11203,14 +11230,14 @@ exports[`yol etkinliği rotası: start × tür > özellik kapalı (v1): soru-cev
     "db select admin_free_preview [user_id] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
     "db select exam_preps [document_id, source_document_ids] eq(id,"00000000-0000-4000-8000-0000000000a1") eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
     "call loadSourceContext ["00000000-0000-4000-8000-00000000aaaa","YKS Biyoloji Hücre Bölünmesi",{"documentId":"doc1","sourceBoundaryMode":null}]",
-    "call generateExamQuiz [{"userId":"00000000-0000-4000-8000-00000000aaaa","isPremium":true,"teachingV2":false,"sourceExcerpt":"[s.1] Mitozda kromozom sayısı korunur.","requireSourceSupport":false,"idempotencyKey":"exam_node_v1_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_1793350800000","freeMeter":null,"count":5,"topicLabel":"Hücre Bölünmesi","prepTitle":"YKS Biyoloji","charge":true,"urgent":true,"userPrompt":"Sınav: YKS Biyoloji. Konu: Hücre Bölünmesi. Zorluk: orta. Öğrenci temel bilgilere sahip: tanımları kısa geç, ağırlığı uygulamaya ve problem çözümüne ver. Öğrenci nötr: dengeli, sıcak ve net bir tonla anlat.  \\nFormül, tanım ve yasa YALNIZCA aşağıdaki kaynak sayfalarının metninde yazıyorsa kullanılır. Kaynak sayfada olmayan, ders kitabından bildiğin formülü içeri alma. Öğretmen notu vurgu ve sıradır; notta geçen bir ifade kaynak sayfada yoksa dersin olgusu olmaz. Çözümlü örnek yalnızca bu düğümün kaynak sayfalarındaki sayı ve formülü kullanır. Sayısal örnekte formül, birimli yerine koyma ve sonuç ayrı yazılır. Birim dönüşümünde iki tarafta farklı birim olsun ve arada işlem olmasın. commonMistake yalnız bu konunun kaynak sayfalarından gelsin: claim öğrencinin yanlış inancı, correction kaynağın doğrusudur. Kaynakta olmayan birimi veya formülü hata diye de yazma.[s.1] Mitozda kromozom sayısı korunur. 5 çoktan seçmeli alıştırma sorusu. Şıklar A/B/C/D gibi net olsun. En az 1 soruda birden fazla doğru şık olsun (multi true, correct dizi)."}]",
+    "call generateExamQuiz [{"userId":"00000000-0000-4000-8000-00000000aaaa","isPremium":true,"teachingV2":false,"sourceExcerpt":"[s.1] Mitozda kromozom sayısı korunur.","requireSourceSupport":false,"idempotencyKey":"exam_node_v1_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_1793350800000","freeMeter":null,"count":5,"topicLabel":"Hücre Bölünmesi","prepTitle":"YKS Biyoloji","charge":true,"urgent":true,"userPrompt":"Sınav: YKS Biyoloji. Konu: Hücre Bölünmesi. Zorluk: orta. Öğrenci temel bilgilere sahip: tanımları kısa geç, ağırlığı uygulamaya ve problem çözümüne ver. Öğrenci nötr: dengeli, sıcak ve net bir tonla anlat.  \\nFormül, tanım ve yasa YALNIZCA aşağıdaki kaynak sayfalarının metninde yazıyorsa kullanılır. Kaynak sayfada olmayan, ders kitabından bildiğin formülü içeri alma. Öğretmen notu vurgu ve sıradır; notta geçen bir ifade kaynak sayfada yoksa dersin olgusu olmaz. Çözümlü örnek yalnızca bu düğümün kaynak sayfalarındaki sayı ve formülü kullanır. Sayısal örnekte formül, birimli yerine koyma ve sonuç ayrı yazılır. Birim dönüşümünde iki tarafta farklı birim olsun ve arada işlem olmasın. commonMistake yalnız bu konunun kaynak sayfalarından gelsin: claim öğrencinin yanlış inancı, correction kaynağın doğrusudur. Kaynakta olmayan birimi veya formülü hata diye de yazma.[s.1] Mitozda kromozom sayısı korunur. 5 çoktan seçmeli alıştırma sorusu. Şıklar A/B/C/D gibi net olsun. Her soru tek doğru şıklıdır: multi false, correct dizisinde yalnız bir şık ve o şık options içinde birebir geçer; kök doğru şıkkın metnini (parantez içinde de) vermez."}]",
     "db update exam_prep_nodes eq(id,"00000000-0000-4000-8000-0000000000b1") payload={"session_meta":{"topicId":"dtn1","topicTitle":"Hücre Bölünmesi","sourcePages":[1,2],"activityMinutes":8}}",
     "db insert exam_prep_node_attempts payload={"node_id":"00000000-0000-4000-8000-0000000000b1","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","user_id":"00000000-0000-4000-8000-00000000aaaa","topic_id":"00000000-0000-4000-8000-0000000000c1","difficulty":"orta","voice_mode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir? (1)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"correct":["Değişmez"],"multi":false,"explanation":"Mitozda kromozom sayısı korunur."},{"text":"Mayozun sonunda kaç hücre oluşur? (2)","options":["1","2","3","4","8"],"correct":["4"],"multi":false,"explanation":"Mayoz dört hücre verir."},{"text":"Mitozda kromozom sayısı nasıl değişir? (3)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"correct":["Değişmez"],"multi":false,"explanation":"Mitozda kromozom sayısı korunur."},{"text":"Mayozun sonunda kaç hücre oluşur? (4)","options":["1","2","3","4","8"],"correct":["4"],"multi":false,"explanation":"Mayoz dört hücre verir."},{"text":"Mitozda kromozom sayısı nasıl değişir? (5)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"correct":["Değişmez"],"multi":false,"explanation":"Mitozda kromozom sayısı korunur."}],"teachingStandard":"intro_qa"},"total":5,"status":"active","familiarity":"basics","mood":"neutral"} one",
     "db update exam_prep_topics eq(id,"00000000-0000-4000-8000-0000000000c1") payload={"familiarity":"basics"}",
     "db insert study_session_moods payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","mood":"neutral"}",
     "db update exam_prep_nodes eq(id,"00000000-0000-4000-8000-0000000000b1") payload={"status":"ready"}",
     "db select credit_wallets [balance] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
-    "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","kind":"qa","title":"Soru-Cevap","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir? (1)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false,"correct":["Değişmez"],"explanation":"Mitozda kromozom sayısı korunur."},{"text":"Mayozun sonunda kaç hücre oluşur? (2)","options":["1","2","3","4","8"],"multi":false,"correct":["4"],"explanation":"Mayoz dört hücre verir."},{"text":"Mitozda kromozom sayısı nasıl değişir? (3)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false,"correct":["Değişmez"],"explanation":"Mitozda kromozom sayısı korunur."},{"text":"Mayozun sonunda kaç hücre oluşur? (4)","options":["1","2","3","4","8"],"multi":false,"correct":["4"],"explanation":"Mayoz dört hücre verir."},{"text":"Mitozda kromozom sayısı nasıl değişir? (5)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false,"correct":["Değişmez"],"explanation":"Mitozda kromozom sayısı korunur."}],"teachingStandard":"intro_qa"},"balance":500}",
+    "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","kind":"qa","title":"Soru-Cevap","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir? (1)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false},{"text":"Mayozun sonunda kaç hücre oluşur? (2)","options":["1","2","3","4","8"],"multi":false},{"text":"Mitozda kromozom sayısı nasıl değişir? (3)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false},{"text":"Mayozun sonunda kaç hücre oluşur? (4)","options":["1","2","3","4","8"],"multi":false},{"text":"Mitozda kromozom sayısı nasıl değişir? (5)","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false}],"teachingStandard":"intro_qa","answerCheck":"server"},"balance":500}",
     "after:run",
     "db select subscriptions [status, current_period_end, cancel_at_period_end, plans(is_premium, tier, name, slug, monthly_allowance)] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(status,"active") or(current_period_end.is.null,current_period_end.gt.2026-10-30T09:00:00.000Z) maybe",
     "db select admin_free_preview [user_id] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",

@@ -1,13 +1,14 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getUserEntitlements, type Audience } from "@/lib/billing/entitlements";
-import { freePreview, previewWallet } from "@/lib/billing/free-preview";
+import { getUserEntitlements, type Audience, type UserEntitlements } from "@/lib/billing/entitlements";
+import { freePreview, previewWallet, type FreePreview } from "@/lib/billing/free-preview";
 import { allowanceShare, formatResetAt, quotaView, type PeriodKind } from "@/lib/credits/period";
 import { type SubscriptionBadge } from "@/lib/student/subscription-badge";
 import { isAdminUser } from "@/lib/auth/roles";
 import { createServiceClient } from "@/lib/supabase/server";
 import { loadFreeMeters } from "@/lib/billing/free-usage-server";
 import type { FreeMeterView } from "@/lib/billing/free-meters";
+import { getSessionUserContext } from "@/lib/auth/session-context";
 
 export type StudentAccountContext = {
   audience: Audience;
@@ -77,60 +78,37 @@ function freeView(meters: FreeMeterView[]): Pick<StudentAccountContext, "freeMet
   };
 }
 
-export async function getStudentAccountContext(
-  supabase: SupabaseClient,
-  userId: string,
-): Promise<StudentAccountContext> {
-  const [{ data: wallet }, entitlements, isAdmin] = await Promise.all([
-    supabase
-      .from("credit_wallets")
-      .select(
-        "balance, free_allowance_remaining, period_allowance, period_ends_at, period_kind",
-      )
-      .eq("user_id", userId)
-      .maybeSingle(),
-    getUserEntitlements(supabase, userId),
-    isAdminUser(supabase, userId),
-  ]);
+export type AccountWalletRow = {
+  balance?: number | null;
+  free_allowance_remaining?: number | null;
+  period_allowance?: number | null;
+  period_ends_at?: string | null;
+  period_kind?: string | null;
+} | null;
 
-  // Önizleme tablosu yalnız sunucu anahtarıyla okunur.
-  const preview = isAdmin ? await freePreview(createServiceClient(), userId).catch(() => null) : null;
-  if (preview) {
-    const quota = quotaView(previewWallet(preview), false);
-    const meters = await loadFreeMeters(createServiceClient(), userId);
-    return {
-      audience: "free",
-      balance: 0,
-      freeAllowanceRemaining: quota.remaining,
-      isPremium: false,
-      showsUpgradeChrome: true,
-      subscriptionBadge: null,
-      subscriptionAllowance: null,
-      subscriptionPeriodEnd: null,
-      // Sayaçlar SQL'de; kapı kalan hakkı ve yenilenme saatini buradan okur.
-      canSpend: true,
-      isAdmin: false,
-      freePreview: true,
-      adminPanel: true,
-      periodKind: quota.kind,
-      extraPercent: null,
-      ...freeView(meters),
-    };
-  }
-
+/**
+ * Ham satırlardan hesap bağlamı (Faz 2): tek bağlam RPC'si (`get_session_user_context`) ile ayrı okumalar aynı
+ * kuraldan geçer. Saf; ağ çağrısı yok.
+ */
+export function buildStudentAccountContext(input: {
+  wallet: AccountWalletRow;
+  entitlements: UserEntitlements;
+  isAdmin: boolean;
+  /** Ücretsiz sayaçlar; abone ve yöneticide null. */
+  meters: FreeMeterView[] | null;
+}): StudentAccountContext {
+  const { wallet, entitlements, isAdmin, meters } = input;
   const subscriptionBadge = entitlements.badge;
   const isPremium = entitlements.isPremium;
   const balance = wallet?.balance ?? 0;
   const freeAllowanceRemaining = wallet?.free_allowance_remaining ?? 0;
   const quota = quotaView(
-    wallet,
+    wallet as Parameters<typeof quotaView>[0],
     isPremium,
     new Date(),
     entitlements.monthlyAllowance ?? undefined,
     entitlements.subscriptionPeriodEnd,
   );
-
-  const meters = !isPremium && !isAdmin ? await loadFreeMeters(createServiceClient(), userId) : null;
   return {
     audience: entitlements.audience,
     balance,
@@ -152,4 +130,74 @@ export async function getStudentAccountContext(
     ...(isPremium ? { quotaRemaining: quota.remaining, quotaAllowance: quota.allowance } : {}),
     ...(meters ? { ...freeView(meters), canSpend: true } : {}),
   };
+}
+
+/** Yöneticinin "ücretsiz gibi gör" önizlemesindeki görünüm. */
+export function buildPreviewAccountContext(preview: FreePreview, meters: FreeMeterView[]): StudentAccountContext {
+  const quota = quotaView(previewWallet(preview), false);
+  return {
+    audience: "free",
+    balance: 0,
+    freeAllowanceRemaining: quota.remaining,
+    isPremium: false,
+    showsUpgradeChrome: true,
+    subscriptionBadge: null,
+    subscriptionAllowance: null,
+    subscriptionPeriodEnd: null,
+    // Sayaçlar SQL'de; kapı kalan hakkı ve yenilenme saatini buradan okur.
+    canSpend: true,
+    isAdmin: false,
+    freePreview: true,
+    adminPanel: true,
+    periodKind: quota.kind,
+    extraPercent: null,
+    ...freeView(meters),
+  };
+}
+
+/**
+ * Önbelleksiz, doğrudan okuma (oturum bağlamı RPC'si yokken ya da sunucu işinde). Sayfalar ve API'ler
+ * `getStudentAccountContext` kullanır: istek içinde tek okuma + 45 sn paylaşımlı önbellek.
+ */
+export async function loadStudentAccountContextDirect(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<{ account: StudentAccountContext; entitlements: UserEntitlements; isAdmin: boolean }> {
+  const [{ data: wallet }, entitlements, isAdmin] = await Promise.all([
+    supabase
+      .from("credit_wallets")
+      .select(
+        "balance, free_allowance_remaining, period_allowance, period_ends_at, period_kind",
+      )
+      .eq("user_id", userId)
+      .maybeSingle(),
+    getUserEntitlements(supabase, userId),
+    isAdminUser(supabase, userId),
+  ]);
+
+  // Önizleme tablosu yalnız sunucu anahtarıyla okunur.
+  const preview = isAdmin ? await freePreview(createServiceClient(), userId).catch(() => null) : null;
+  if (preview) {
+    const meters = await loadFreeMeters(createServiceClient(), userId);
+    return { account: buildPreviewAccountContext(preview, meters), entitlements, isAdmin };
+  }
+
+  const meters = !entitlements.isPremium && !isAdmin ? await loadFreeMeters(createServiceClient(), userId) : null;
+  return {
+    account: buildStudentAccountContext({ wallet: wallet as AccountWalletRow, entitlements, isAdmin, meters }),
+    entitlements,
+    isAdmin,
+  };
+}
+
+/**
+ * Hesap bağlamı (abonelik + kredi özeti + ücretsiz sayaçlar). Faz 2: istek boyunca bir kez okunur (`React.cache`)
+ * ve 45 sn paylaşımlı önbellekte durur (`getSessionUserContext`). Kredi düşümü, ödeme ve profil güncellemesi
+ * önbelleği anında temizler. Harcama kararı bu değere dayanmaz; SQL kendi atomik denetimini yapar.
+ */
+export async function getStudentAccountContext(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<StudentAccountContext> {
+  return (await getSessionUserContext(userId, { client: supabase })).account;
 }

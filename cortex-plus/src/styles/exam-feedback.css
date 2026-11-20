@@ -1,0 +1,110 @@
+/* Sınav sonrası başarı toplayıcı (Faz 7, 20 Kasım 2026): "🎓 Sınavın Nasıl Geçti?" kartının formu. Kart kabı
+   `cram-sheet.css`teki `.cp-exam-result`; burada yalnız form, izin kutusu ve kapatma. Gönder düğmesi cam (sayfanın tek
+   marka düğmesi yoldaki "Devam et"); dokunma alanları 44 px, en küçük yazı 12 px. */
+
+.cp-exam-feedback {
+  position: relative;
+}
+.cp-exam-feedback .cp-exam-result-title {
+  padding-right: var(--cx-tap-min);
+}
+
+.cp-exam-feedback-close {
+  position: absolute;
+  top: var(--cx-space-4);
+  right: var(--cx-space-4);
+  display: grid;
+  place-items: center;
+  width: var(--cx-tap-min);
+  height: var(--cx-tap-min);
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  background: transparent;
+  color: var(--cx-text-secondary);
+  cursor: pointer;
+  transition: color var(--cx-dur-color) ease, background-color var(--cx-dur-color) ease;
+}
+.cp-exam-feedback-close:hover,
+.cp-exam-feedback-close:focus-visible {
+  background: var(--cx-bg-2);
+  color: var(--cx-text-primary);
+}
+.cp-exam-feedback-close:focus-visible,
+.cp-exam-feedback-send:focus-visible,
+.cp-exam-feedback-consent input:focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}
+.cp-exam-feedback-close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.cp-exam-feedback-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cx-space-12);
+}
+
+.cp-exam-feedback-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cx-space-6);
+  min-width: 0;
+  font: var(--cx-t-label-13);
+  color: var(--cx-text-secondary);
+}
+.cp-exam-feedback-field .cp-exam-result-input {
+  width: 100%;
+}
+.cp-exam-feedback-comment {
+  min-height: 88px;
+  resize: vertical;
+  font: var(--cx-t-body-14);
+  line-height: 1.4;
+}
+
+.cp-exam-feedback-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cx-space-10);
+  min-height: var(--cx-tap-min);
+  font: var(--cx-t-body-12);
+  color: var(--cx-text-secondary);
+  cursor: pointer;
+}
+.cp-exam-feedback-consent input {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin: 1px 0 0;
+  accent-color: var(--cx-brand-strong);
+  cursor: pointer;
+}
+
+.cp-exam-feedback-send {
+  align-self: flex-start;
+  min-height: var(--cx-tap-min);
+  padding: 0 var(--cx-space-24);
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  font: var(--cx-t-button-s);
+  cursor: pointer;
+  transition: scale var(--cx-dur-scale) var(--cx-ease-out), opacity var(--cx-dur-color) ease;
+}
+.cp-exam-feedback-send:hover:not(:disabled) {
+  scale: var(--cx-scale-hover);
+}
+.cp-exam-feedback-send:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-exam-feedback-send {
+    transition: opacity var(--cx-dur-color) ease;
+  }
+  .cp-exam-feedback-send:hover:not(:disabled) {
+    scale: none;
+  }
+}

@@ -139,18 +139,59 @@ export function examResultWhatsappHref(cardText: string, landingUrl: string): st
   return whatsappShareHref(examResultShareText(cardText), landingUrl);
 }
 
-/** Sınav günü (İstanbul) geçti mi. */
+/**
+ * Sınav günü (İstanbul) geçti mi. Sınav tarihi gün olarak tutulur (saat ayrı, isteğe bağlı): sınav gününün başından
+ * 24 saat geçince, yani ertesi gün (İstanbul) true. Faz 7'nin "sınav + 24 saat" kuralı bu.
+ */
 export function examDatePassed(examDate: string | null | undefined, today: string): boolean {
   return typeof examDate === "string" && DAY_RE.test(examDate) && examDate < today;
 }
 
-/** Not sorulsun mu: sınav geçti, not yok, erteleme bitti. */
+/**
+ * Not sorulsun mu: sınav geçti, not yok, sınav sonrası yorumu (Faz 7) verilmedi, erteleme bitti. Yorum harf notuyla
+ * ("AA") verildiyse `examResult` yazılmaz; `feedbackAt` soruyu yine kapatır.
+ */
 export function examResultDue(input: {
   examDate: string | null | undefined;
   today: string;
   result?: StoredExamResult | null;
   snoozedUntil?: string | null;
+  feedbackAt?: string | null;
 }): boolean {
-  if (!examDatePassed(input.examDate, input.today) || input.result) return false;
+  if (!examDatePassed(input.examDate, input.today) || input.result || input.feedbackAt) return false;
   return !(input.snoozedUntil && input.snoozedUntil > input.today);
+}
+
+/* ---------- Sınav sonrası başarı toplayıcı (Faz 7, 20 Kasım 2026) ---------- */
+
+export const EXAM_FEEDBACK_TITLE = "🎓 Sınavın Nasıl Geçti?";
+export const EXAM_FEEDBACK_SAVE = "Gönder";
+export const EXAM_FEEDBACK_THANKS = "Teşekkürler! Notun ve yorumun kaydedildi.";
+/** Tablo henüz yokken (göçten önce): not kaydedildi, yorum kaydedilmedi. */
+export const EXAM_FEEDBACK_COMMENT_LATER = "Notun kaydedildi. Yorumunu bu sefer kaydedemedik.";
+/** Tablo yokken ve not 0-100 arası bir sayı değilken. */
+export const EXAM_FEEDBACK_NEEDS_NUMBER =
+  "Yorumunu şu an kaydedemiyoruz. Notunu 0 ile 100 arasında bir sayı olarak yazarsan hemen kaydederiz.";
+/** Açık izin kutusu (varsayılan işaretsiz). Gösterim yüzeyi henüz yok; izin yalnız kayıtta durur. */
+export const EXAM_FEEDBACK_SHOWCASE_CONSENT =
+  "Notum, yorumum ve yazdıysam görünen adım Cortex Plus'ın tanıtım sayfalarında gösterilebilir. Bu izni vermezsem " +
+  "yorumum herkese açık hiçbir yerde gösterilmez; izni geri çekmek için Destek sayfasından yazmam yeterli.";
+export const EXAM_FEEDBACK_LIMITS = { score: 40, comment: 1000, name: 60 } as const;
+
+/** Kartın soru cümlesi; hazırlık puanı ölçülmediyse (yok ya da 0) yalnız soru. */
+export function examFeedbackLead(readinessPct: number | null | undefined): string {
+  const pct = typeof readinessPct === "number" && Number.isFinite(readinessPct) ? Math.round(readinessPct) : null;
+  return pct != null && pct >= 1 && pct <= 100
+    ? `Sınav öncesi Cortex Plus hazırlık puanın %${pct} idi. Gerçek sınavdan kaç aldın?`
+    : "Gerçek sınavdan kaç aldın?";
+}
+
+/** Serbest metin: boşluklar sadeleşir, sınırda kesilir (reddedilmez). */
+export function cleanFeedbackText(raw: unknown, max: number): string {
+  return typeof raw === "string" ? raw.replace(/\s+/g, " ").trim().slice(0, max).trim() : "";
+}
+
+/** `learning_preferences.examFeedbackAt`: yorumun verildiği an (ISO). */
+export function parseFeedbackAt(raw: unknown): string | undefined {
+  return typeof raw === "string" && !Number.isNaN(Date.parse(raw)) ? raw : undefined;
 }

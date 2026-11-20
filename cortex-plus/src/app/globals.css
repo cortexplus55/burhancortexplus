@@ -27,9 +27,62 @@
   color: #ffffff;
 }
 
-.dark :focus-visible {
+/*
+  Klavye odağı her temada görünür (20 Kasım 2026, Faz 3): önce yalnız `.dark` altındaydı, açık temada çerçeve hiç
+  çizilmiyordu. `:root` öneki eski `.dark` kuralıyla aynı özgüllüğü (0,2,0) korur: tek sınıflı "outline: none"
+  kuralları yine ezilir, iki sınıflı ve kendi odak görünümünü çizen kurallar kendi işini görür. Renk `--c-focus`
+  (açıkta koyu camgöbeği, koyuda açık camgöbeği; ikisi de zeminde 3:1'in üstünde).
+*/
+:root :focus-visible {
   outline: 2px solid var(--c-focus);
   outline-offset: 2px;
+}
+
+/*
+  Kenarsız yazma alanı ve arama kutuları: çerçeve alanın kendisine değil, gördüğün kutuya çizilir (alanın
+  kendi çizgisi kutunun içinde kalıyordu). Tarayıcı :has() bilmiyorsa alanın kendi çerçevesi kalır.
+*/
+@supports selector(:has(*)) {
+  :root :is(.cp-sor-composer-box, .cp-exam-search, .cp-search, .cp-exam-history-search):has(:is(input, textarea):focus-visible) {
+    outline: 2px solid var(--c-focus);
+    outline-offset: 2px;
+  }
+
+  :root :is(.cp-sor-composer-box, .cp-exam-search, .cp-search, .cp-exam-history-search) :is(input, textarea):focus-visible {
+    outline: none;
+  }
+}
+
+/* Pazarlama sayfasındaki arama alanı (`.mk-prompt-bar input`, 0,2,1) çerçeveyi kaldırıyordu; yerine kutunun halkası. */
+:is(.cinematic-home, .cinematic-marketing) .mk-prompt-bar:focus-within {
+  outline: 2px solid var(--c-focus);
+  outline-offset: 2px;
+}
+
+/* "İçeriğe atla" (kökte, `SkipLink`): yalnız klavye odağında ekrana iner. */
+.cx-skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 1000;
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: var(--cx-bg-0);
+  color: var(--cx-text-primary);
+  font: var(--cx-t-button-s);
+  text-decoration: none;
+  box-shadow: var(--cx-shadow-popover);
+  transform: translateY(calc(-100% - 16px));
+}
+
+.cx-skip-link:focus,
+.cx-skip-link:focus-visible {
+  transform: none;
+}
+
+/* Atlanan hedef bir kap: odak oraya geçince bütün sayfanın çevresine çerçeve çizilmez. */
+#icerik:focus {
+  outline: none;
 }
 
 /* Kaydırma çubukları nötr gri (17 Ekim 2026, kıyas ürünü paleti: durum rengi altın değil). */

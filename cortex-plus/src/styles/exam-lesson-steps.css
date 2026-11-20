@@ -798,6 +798,30 @@
   cursor: progress;
 }
 
+/* Faz 4: düğme + "Ücretsiz deneme: X/10" rozeti yan yana; dar ekranda (390px) alta kayar, taşmaz. */
+.als-reexplain-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.als-reexplain-trial {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+  padding: 0 0.65rem;
+  border-radius: 9999px;
+  border: 1px solid #a7f3d0;
+  background: #ecfdf5;
+  color: #065f46;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .als-reexplain-btn:focus-visible {
   outline: 2px solid var(--als-action);
   outline-offset: 2px;
@@ -905,6 +929,30 @@
 .als-note-typo-title {
   font-weight: 700;
   color: var(--cp-gold, #e2b340);
+}
+
+/* Kaynak Düzeltme Uyarısı (19 Kasım 2026, Faz 1-A §2.1): ilk adımda, başlığın altında. Mevcut not kutusunun
+   ölçüleri; uzun formül ya da cümle 390 px'te taşmaz (kelime kırılır). */
+.als-note--correction {
+  margin-top: 0.75rem;
+  border-color: #e2b340;
+  background: rgba(226, 179, 64, 0.14);
+  overflow-wrap: anywhere;
+}
+
+.als-note-correction-title {
+  margin: 0;
+  font-weight: 700;
+  color: var(--cp-gold, #e2b340);
+}
+
+.als-note-correction-label {
+  font-weight: 600;
+}
+
+.als-note-correction-claim {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
 }
 
 /*

@@ -1,4 +1,3 @@
-import { scaledSize } from "@/lib/documents/image-compress";
 import {
   PHOTO_SET_MAX_SIDE,
   PHOTO_SET_MIN_PHOTOS,
@@ -9,11 +8,13 @@ import {
   splitPhotoSet,
   type PhotoPage,
 } from "@/lib/documents/photo-set-pdf";
+import { encodeImage, isCompressibleImage } from "@/lib/upload/compress-image";
 
 /**
- * Fotoğraf seti, tarayıcı tarafı (31 Ekim 2026). Tek seçimdeki fotoğraflar seçim sırasıyla küçültülür (1600 piksel,
- * JPEG %80) ve tek bir taranmış PDF'e konur. Hızlı başlatmada ilk sayfalar ayrı küçük bir parça olarak hemen gider:
- * öğrenci onlarla hazırlığı kurar, kalan sayfalar ikinci parça olarak arkada okunur ve hazırlığa eklenir.
+ * Fotoğraf seti, tarayıcı tarafı (31 Ekim 2026). Tek seçimdeki fotoğraflar seçim sırasıyla küçültülür (tek küçültücü
+ * `@/lib/upload/compress-image`: 1600 piksel, JPEG %82) ve tek bir taranmış PDF'e konur. Hızlı başlatmada ilk sayfalar
+ * ayrı küçük bir parça olarak hemen gider: öğrenci onlarla hazırlığı kurar, kalan sayfalar ikinci parça olarak arkada
+ * okunur ve hazırlığa eklenir.
  *
  * Tarayıcının çözemediği fotoğraf (HEIC'i çözemeyen tarayıcı, bozuk dosya) sete girmez, tek dosya olarak eskisi gibi
  * yüklenir: sunucu HEIC'i kendisi çevirir.
@@ -26,11 +27,8 @@ export const FAST_START_MIN_PHOTOS = 15;
 /** Aynı anda küçültülen fotoğraf: telefonun belleğini taşırmadan sırayı hızlandırır. */
 const ENCODE_LANES = 3;
 
-const PHOTO_TYPE = /^image\/(jpeg|jpg|png|webp|heic|heif)$/i;
-const PHOTO_NAME = /\.(png|webp|jpe?g|heic|heif)$/i;
-
 export function isPhotoFile(file: { name: string; type: string }): boolean {
-  return PHOTO_TYPE.test(file.type) || PHOTO_NAME.test(file.name);
+  return isCompressibleImage(file);
 }
 
 /** Seçimi ikiye ayırır: sete girecek fotoğraflar (en az iki) ve tek tek yüklenecek dosyalar. Sıra korunur. */
@@ -47,28 +45,14 @@ export function fastStartCut(photoCount: number, fastStart: boolean): number | n
 
 /** Fotoğrafı sete hazırlar: döndürme düzeltilir, uzun kenar 1600 piksel, beyaz zemin, JPEG. Çözülemezse null. */
 export async function encodePhotoPage(file: File): Promise<PhotoPage | null> {
-  if (typeof createImageBitmap !== "function" || typeof document === "undefined") return null;
-  let bitmap: ImageBitmap | null = null;
+  const encoded = await encodeImage(file, { maxSide: PHOTO_SET_MAX_SIDE, quality: PHOTO_SET_QUALITY });
+  if (!encoded) return null;
   try {
-    bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
-    const target = scaledSize(bitmap.width, bitmap.height, PHOTO_SET_MAX_SIDE);
-    const canvas = document.createElement("canvas");
-    canvas.width = target.width;
-    canvas.height = target.height;
-    const context = canvas.getContext("2d");
-    if (!context) return null;
-    context.fillStyle = "#ffffff";
-    context.fillRect(0, 0, target.width, target.height);
-    context.drawImage(bitmap, 0, 0, target.width, target.height);
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", PHOTO_SET_QUALITY));
-    if (!blob || !blob.size) return null;
-    const jpeg = new Uint8Array(await blob.arrayBuffer());
+    const jpeg = new Uint8Array(await encoded.blob.arrayBuffer());
     if (jpeg[0] !== 0xff || jpeg[1] !== 0xd8) return null;
-    return { jpeg, width: target.width, height: target.height };
+    return { jpeg, width: encoded.width, height: encoded.height };
   } catch {
     return null;
-  } finally {
-    bitmap?.close();
   }
 }
 

@@ -185,3 +185,17 @@ describe("sohbet ucu düzelticiyi kayıttan önce uygular", () => {
     expect(route).toMatch(/console\.warn\("chat_math_separator_fixed", \{ operationId, fixes: mathFix\.fixes \}\)/);
   });
 });
+
+describe("Faz 2 denetimi (19 Kasım 2026): formül ve cebir dokunulmaz", () => {
+  it("LaTeX içindeki eşitlik ve cebir/kimya ifadeleri değişmez", async () => {
+    const { verifyAndFixTurkishMathExpressions } = await import("@/lib/learning/turkish-math-fix");
+    for (const text of [
+      "Denklem: 2x + 7 = 19 ise x = 6.",
+      "x^2 - 4 = 0 ise x = 2 ya da x = -2.",
+      "Tepkime: 2H2 + O2 -> 2H2O; denge N2 + 3H2 ⇌ 2NH3.",
+    ]) {
+      expect(verifyAndFixTurkishMathExpressions(text).text).toBe(text);
+    }
+  });
+});
+

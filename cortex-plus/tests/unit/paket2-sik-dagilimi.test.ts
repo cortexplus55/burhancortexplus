@@ -201,7 +201,7 @@ describe("havuz yüzeyleri aynı sırayı kayda/belirtece yazar", () => {
     expect(read("src/lib/content-pool/serve.ts")).toMatch(/poolChoiceOrders\(/);
     expect(read("src/app/api/level-check/start/route.ts")).toMatch(/levelChoiceOrders\(/);
     expect(read("src/app/api/level-check/answer/route.ts")).toMatch(/decodeOrder\(claims\.ord/);
-    expect(read("src/lib/learning/mock-exam/create.ts")).toMatch(/balanceExamDrafts\(drafts\)/);
+    expect(read("src/lib/learning/mock-exam/create.ts")).toMatch(/balanceExamDrafts\(keepAnswerKeyed\(drafts, mockDraftHasAnswerKey/);
     expect(read("src/lib/learning/mock-exam/create.ts")).not.toMatch(/function rotateCorrectOptions/);
     const run = read("src/lib/learning/teacher-quiz-run.ts");
     expect(run).toMatch(/balanceQuizQuestions\(questions, Math\.min\(published\.length/);

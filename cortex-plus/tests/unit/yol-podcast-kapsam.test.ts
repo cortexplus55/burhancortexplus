@@ -39,8 +39,11 @@ describe("belgeli podcast hazırlığın öbür konularını anlatmaz, kendi say
   it("yol podcast'i ve hazırlık podcast sayfası öbür konuları yükleyip satırı yazara verir (belgeli olunca)", () => {
     const node = readFileSync("src/lib/learning/node/podcast.ts", "utf8");
     expect(node).toContain("core && input.prepId && input.topicLabel !== ALL_TOPICS_LABEL ? await prepTopicLabels(input.service, input.prepId) : []");
-    expect(node).toContain("siblings.length ? prepTopicScopeLine(input.topicLabel, siblings) : \"\"");
+    // Faz 1-A §1: aynı sayfaları paylaşan kardeş üniteler kapsam satırından çıkar, katı sınır bloğuna girer.
+    expect(node).toContain("siblings.length ? prepTopicScopeLine(input.topicLabel, siblingsOutsideBoundary(siblings, input.excludedSiblingTopics)) : \"\"");
+    expect(node).toContain("siblingBoundaryLine(input, core)");
     const prep = readFileSync("src/app/api/learning/exam-prep/podcast/route.ts", "utf8");
-    expect(prep).toContain("topicDocumentId ? prepTopicScopeLine(topic.label, await prepTopicLabels(service, prepId)) : \"\"");
+    expect(prep).toContain("prepTopicScopeLine(topic.label, siblingsOutsideBoundary(await prepTopicLabels(service, prepId), excluded))");
+    expect(prep).toContain("excludedSiblingBoundaryBlock(topic.label, excluded)");
   });
 });

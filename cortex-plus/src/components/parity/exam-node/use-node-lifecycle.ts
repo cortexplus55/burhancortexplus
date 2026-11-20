@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { LESSON_PROGRESS_POLL_MS, LESSON_PROGRESS_FAST_POLL_MS, LESSON_PROGRESS_FAST_POLLS, lessonProgressDelay } from "@/components/parity/lesson-wait";
 import { takeNodeClick } from "@/lib/learning/node-open-click";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { freeLimitReachedLine, freeReexplainBadge } from "@/lib/billing/free-meters";
 import { toast } from "sonner";
 import { COMPLETE_TIMEOUT_MS, SAVE_RETRY_DELAYS_MS, SAVE_TIMEOUT_MS, fetchWithRetry, isTransportFailure } from "@/lib/learning/retry-fetch";
 import { answerSaveSummary, clearAttemptDraft, countAnswerKeys, diffAnswerKeys, markAttemptDraftSaved, mergeDraftIntoServer, readAttemptDraft, writeAttemptDraft } from "@/lib/learning/attempt-draft";
@@ -90,7 +91,9 @@ export type Payload = {
     voided?: boolean;
     keyFixed?: boolean;
   }[];
-  items?: { text: string; correct: boolean; explanation: string; correctedStatement?: string }[];
+  /** Faz 2 (madde 7.3): items/questions anahtarsız geldi; "Kontrol et" sunucuda (`answer-check`). */
+  answerCheck?: "server";
+  items?: { text: string; correct?: boolean; explanation?: string; correctedStatement?: string }[];
   cards?: { front: string; back: string }[];
   practice?: string;
   reused?: boolean;
@@ -115,6 +118,8 @@ export type Payload = {
   writingDone?: boolean;
   /** Notta yanlış yazılmış evrensel formüller (Paket J3 #13); okuma `readNoteWarnings` ile. */
   noteWarnings?: unknown;
+  /** Kaynak düzeltme uyarısı (Faz 1-A §2.1); okuma `readSourceCorrectionWarning` ile. */
+  sourceCorrectionWarning?: unknown;
 };
 
 export { LESSON_PROGRESS_POLL_MS, LESSON_PROGRESS_FAST_POLL_MS, LESSON_PROGRESS_FAST_POLLS, lessonProgressDelay };
@@ -185,6 +190,12 @@ export type ExamNodeSessionProps = {
   unitTitle?: string | null;
   /** Düğüm daha önce bitirildiyse hazırlık ekranı kendiliğinden yeniden kaydedilmez. */
   nodeDone?: boolean;
+  /** Faz 4: bitmiş adımda açık yeni üretim (`?yeni=1`, "Yeni 8 Kart Üret (8 Kredi)"). */
+  regenerate?: boolean;
+  /** Faz 4: bitmiş adımın yeni üretim adresi (kart destesinde "Yeni 8 Kart Üret (8 Kredi)"). */
+  regenerateHref?: string | null;
+  /** Faz 4 "Yolu Yeniden Çalış (Ücretsiz)": sıradaki bitmiş adımın kayıtlı açılışı; yol bittiyse karne. */
+  restudyNextHref?: string | null;
   /** Yol kartındaki süre. Kapı ve ders çubuğu aynı sayıyı gösterir. */
   activityMinutes?: number | null;
   prepId: string;
@@ -276,6 +287,9 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     unitTitle = null,
     nodeDone = false,
     activityMinutes = null,
+    regenerate = false,
+    regenerateHref = null,
+    restudyNextHref = null,
   } = props;
   const router = useRouter();
   const isAdmin = useIsFounder();
@@ -447,6 +461,12 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     title: string;
     chapters: unknown[];
   } | null>(null);
+  /**
+   * Ders sonu "Şimdi dinle" durum adımları (19 Kasım 2026, Faz 1-A §4.2): istek kimliği sunucudaki adımı okur
+   * (sıraya alındı → senaryo → ses); ilk bölümün sesi hazır olunca "Dinlemeye hazır".
+   */
+  const [lessonPodcastStatusId, setLessonPodcastStatusId] = useState<string | null>(null);
+  const [lessonPodcastAudioReady, setLessonPodcastAudioReady] = useState(false);
   /**
    * Stage 6: cevaplanmadan önce eğitmenden yardım alınan sorular. 20 Ekim 2026'ya kadar her
    * çizimde boş bir nesneydi ve hiç doldurulmuyordu: eğitmenle çözülen soru bağımsız doğru
@@ -916,6 +936,15 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     }
     refreshUnsaved(nextAnswers);
     revealedRef.current = new Set(lockedKeys(nextAnswers));
+    // Faz 2 (madde 7.3): paket anahtarsız gelir; yenilenen sayfada kilitli (D/Y'de cevaplanmış) soruların anahtarı
+    // sunucudan geri alınır.
+    if (data.attemptId && data.payload?.answerCheck === "server") {
+      const reveal =
+        data.payload.type === "true_false"
+          ? Object.keys(nextAnswers).filter((key) => /^\d+$/.test(key) && typeof nextAnswers[key] === "boolean")
+          : lockedKeys(nextAnswers);
+      if (reveal.length) void revealCheckedAnswers(data.attemptId, reveal.map(Number));
+    }
     if (typeof data.cursorIndex === "number" || nextAnswers !== serverAnswers || cursorFromDraft) {
       setIndex((current) => Math.max(current, nextCursor));
     }
@@ -1197,6 +1226,8 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
           ...(kind === "lesson" && (overrides?.rewrite ?? rewriteMode) && !overrides?.replay && !overrides?.review ? { rewrite: true } : {}),
           ...((overrides?.sharedTries ?? 0) > 0 ? { twin: true } : {}),
           ...(overrides?.review ? { review: true } : {}),
+          // Faz 4: bitmiş adımda yeni üretim yalnız açık istekle; yoksa sunucu kaydı ücretsiz açar.
+          ...(regenerate && !overrides?.review && !overrides?.replay ? { regenerate: true } : {}),
           difficulty: overrides?.difficulty ?? difficulty,
           voiceMode: overrides?.voiceMode ?? voiceMode,
           familiarity,
@@ -1332,7 +1363,8 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     }
     if (payload.type === "true_false") {
       const items = payload.items ?? [];
-      if (!items.length) return null;
+      // Anahtarı henüz gelmemiş önerme varsa tahmini sayım yok (not sunucudan gelir).
+      if (!items.length || items.some((item) => typeof item.correct !== "boolean")) return null;
       return tallyScore(activityTally(payload, base));
     }
     return null;
@@ -1537,6 +1569,88 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     if (revealedRef.current.has(key)) return;
     revealedRef.current.add(key);
     updateAnswer(ANSWER_LOCK_KEY, [...revealedRef.current]);
+    // Faz 2 (madde 7.3): anahtar pakette yok; cevap sunucuda kilitlenir ve bu sorunun anahtarı o an gelir.
+    if (payload.answerCheck === "server" && !isTimedExam) void checkAnswerOnServer(Number(key), answersRef.current[key] ?? "");
+  }
+
+  const [answerCheckError, setAnswerCheckError] = useState<string | null>(null);
+
+  async function postAnswerCheck(body: Record<string, unknown>) {
+    const res = await fetch("/api/learning/exam-prep/node", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prepId, nodeId, attemptId: attemptIdRef.current, action: "answer-check", ...body }),
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      question?: Record<string, unknown>;
+      item?: Record<string, unknown>;
+      answer?: unknown;
+      revealed?: Record<string, Record<string, unknown>>;
+      error?: string;
+    };
+    if (!res.ok || !data.ok) throw new Error(data.error ?? "answer_check_failed");
+    return data;
+  }
+
+  /** Sunucunun döndürdüğü anahtarı pakette o soruya ekler (ekran geri bildirimi bununla açılır). */
+  function mergeAnswerKeys(byIndex: Record<string, Record<string, unknown>>) {
+    setPayload((current) => {
+      if (current.type === "quiz" && current.questions) {
+        return {
+          ...current,
+          questions: current.questions.map((row, i) => (byIndex[String(i)] ? { ...row, ...byIndex[String(i)] } : row)),
+        };
+      }
+      if (current.type === "true_false" && current.items) {
+        return {
+          ...current,
+          items: current.items.map((row, i) => (byIndex[String(i)] ? { ...row, ...byIndex[String(i)] } : row)),
+        };
+      }
+      return current;
+    });
+  }
+
+  async function checkAnswerOnServer(index: number, answer: unknown): Promise<boolean> {
+    setAnswerCheckError(null);
+    try {
+      const data = await postAnswerCheck({ questionIndex: index, answer });
+      const key = data.question ?? data.item;
+      if (key) mergeAnswerKeys({ [String(index)]: key });
+      // Sunucu kilitli cevabı döner: ekrandaki cevap kayıttakiyle aynı olsun.
+      if (data.answer !== undefined && data.answer !== answersRef.current[String(index)]) updateAnswer(String(index), data.answer);
+      return true;
+    } catch {
+      setAnswerCheckError("Cevabın kontrol edilemedi. Bağlantını kontrol edip tekrar dene.");
+      return false;
+    }
+  }
+
+  async function revealCheckedAnswers(forAttempt: string, indexes: number[]) {
+    try {
+      const data = await postAnswerCheck({ attemptId: forAttempt, revealIndexes: indexes.slice(0, 60) });
+      if (data.revealed && Object.keys(data.revealed).length) mergeAnswerKeys(data.revealed);
+    } catch {
+      // Açıklamalar gelmezse soru yine çözülür; not sunucuda.
+    }
+  }
+
+  /** D/Y: önerme seçilince cevap sunucuda kilitlenir, doğrusu gelince kart açılır. */
+  async function pickTrueFalse(index: number, value: boolean) {
+    updateAnswer(String(index), value);
+    if (payload.answerCheck !== "server") {
+      setTfRevealed(true);
+      return;
+    }
+    const ok = await checkAnswerOnServer(index, value);
+    if (ok) setTfRevealed(true);
+    else {
+      const next = { ...answersRef.current };
+      delete next[String(index)];
+      answersRef.current = next;
+      setAnswers(next);
+    }
   }
 
   function updateAnswer(key: string, value: unknown, options?: { typing?: boolean }) {
@@ -1589,12 +1703,16 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
   async function loadLessonPodcast() {
     if (!topicId) return;
     setPodcastLoading(true);
+    // Bir dinleme isteği, bir durum kimliği: kendiliğinden yeniden denemede de aynı satır ilerler.
+    const statusId = crypto.randomUUID();
+    setLessonPodcastStatusId(statusId);
+    setLessonPodcastAudioReady(false);
     try {
       // 30 Ekim 2026 (Paket I #9): hazırlık podcast'iyle aynı hat; düşerse bir kez kendiliğinden, her denemede yeni
       // istek kimliğiyle (aynı kimlik "işlem tamamlandı" döner).
       const { res, data } = await postJsonWithRetry<{ code?: string; title?: string; chapters?: unknown }>(
         "/api/learning/exam-prep/lesson-podcast",
-        () => ({ prepId, topicId, clientRequestId: crypto.randomUUID() }),
+        () => ({ prepId, topicId, clientRequestId: crypto.randomUUID(), statusId }),
       );
       if (res.status === 402) {
         // Ücretsiz hesapta sesli tekrar Plus'ta: kapı "doldu" demez, Pazartesi'ye geri saymaz.
@@ -1873,8 +1991,25 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
 
   /**
    * Ders adımını farklı anlat (10 Kasım 2026): ders içi yardım ucu. Hata öğrenciye kısa bir cümleyle döner;
-   * ders akışı etkilenmez.
+   * ders akışı etkilenmez. Faz 4: ücretsiz hesapta toplam 10 deneme; rozet "Ücretsiz deneme: X/10" sunucunun
+   * sayacından (`freeTrial`) okunur, abonede rozet yok.
    */
+  const [reexplainTrial, setReexplainTrial] = useState<{ used: number; limit: number } | null>(null);
+  const lessonOnScreen = stage === "play" && payload.type === "lesson";
+  useEffect(() => {
+    if (!lessonOnScreen) return;
+    let stopped = false;
+    void fetch("/api/learning/exam-prep/reexplain", { method: "GET" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { freeTrial?: { used: number; limit: number } | null } | null) => {
+        if (!stopped && data) setReexplainTrial(data.freeTrial ?? null);
+      })
+      .catch(() => {});
+    return () => {
+      stopped = true;
+    };
+  }, [lessonOnScreen]);
+
   async function reexplainStep(input: { heading: string; text: string; previous: string[] }): Promise<{ reply: string } | { error: string }> {
     try {
       const res = await fetch("/api/learning/exam-prep/reexplain", {
@@ -1882,8 +2017,16 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prepId, nodeId, heading: input.heading, text: input.text, previous: input.previous.slice(-4) }),
       });
-      const data = (await res.json().catch(() => ({}))) as { reply?: string };
-      if (res.status === 402) return { error: "Bugünkü ders içi yardım hakkın doldu; yarın yenilenir." };
+      const data = (await res.json().catch(() => ({}))) as {
+        reply?: string;
+        error?: string;
+        freeTrial?: { used: number; limit: number } | null;
+      };
+      if (data && "freeTrial" in data) setReexplainTrial(data.freeTrial ?? null);
+      if (res.status === 402) {
+        if (data.error === "free_reexplain_limit") return { error: freeLimitReachedLine("reexplain") };
+        return { error: "Bu iş için hakkın yetmiyor." };
+      }
       if (res.status === 429) return { error: "Biraz hızlı gittik; birkaç saniye sonra tekrar dene." };
       if (!res.ok || !data.reply) return { error: "Bu sefer anlatılamadı. Tekrar dene." };
       return { reply: data.reply };
@@ -1891,6 +2034,7 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
       return { error: "Şu an ulaşılamadı. İnternetini kontrol edip tekrar dene." };
     }
   }
+  const reexplainBadge = reexplainTrial ? freeReexplainBadge(reexplainTrial.used) : null;
 
   // Sözlü sıradaki soru henüz yazılmadıysa (t260u): kayıttan yoklanır; 90 sn'de gelmezse sınav eldeki
   // sorularla biter (öğrenci takılmaz).
@@ -1942,6 +2086,9 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
   return {
     gradeLessonCheck,
     reexplainStep,
+    reexplainBadge,
+    regenerateHref,
+    restudyNextHref,
     finishPodcast,
     prepId,
     nodeId,
@@ -2046,11 +2193,16 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     feedbackLoading,
     tfRevealed,
     setTfRevealed,
+    pickTrueFalse,
+    answerCheckError,
     podcastLoading,
     podcastCheckOpen,
     setPodcastCheckOpen,
     lessonPodcast,
     setLessonPodcast,
+    lessonPodcastStatusId,
+    lessonPodcastAudioReady,
+    setLessonPodcastAudioReady,
     revealedRef,
     lockAnswer,
     saveCursorRef,

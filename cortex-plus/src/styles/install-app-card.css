@@ -1,0 +1,218 @@
+/*
+ * "📱 Telefonuna Uygulama Gibi Ekle" kartı (20 Kasım 2026, Faz 8). Değerler tokens.css'teki --cx-*'tan; açık ve koyu
+ * temada aynı kurallar (renkler temadan). Kart kenarlıksız, `bg-1` basamağı (skill §1); sabit kartta ayrıca bant gölgesi.
+ * Ekranın tek marka düğmesi sayfanınkidir: "Ana Ekrana Ekle" cam, "Şimdi değil" zayıf. Dokunma alanları 44 px.
+ */
+
+.cx-install-card {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cx-space-12);
+  width: 100%;
+  min-width: 0;
+  padding: var(--cx-space-16);
+  border: 0;
+  border-radius: var(--cx-radius-l);
+  background: var(--cx-bg-1);
+  color: var(--cx-text-primary);
+  font-family: var(--cx-font-sans);
+  text-align: left;
+  /* Kartın içinde bir üst basamak (simge dairesi, kapat düğmesinin üzeri). */
+  --cx-install-raise: var(--cx-bg-2);
+}
+
+/* Sabit: alt sekme çubuğunun (ve hazırlık sayfasında "Devam et" kartının) üstünde. Bileşen üstündeki sabit parçaları
+   ölçüp `--cx-install-dock`'u yazar; ölçülemezse alt çubuğun payı (8 + 64 + 8 px) ve çentik. */
+.cx-install-card--dock {
+  position: fixed;
+  left: var(--cx-gutter);
+  right: var(--cx-gutter);
+  bottom: var(
+    --cx-install-dock,
+    calc(var(--cx-space-24) + var(--cx-space-48) + var(--cx-space-8) + env(safe-area-inset-bottom, 0px))
+  );
+  z-index: 35;
+  width: auto;
+  max-width: var(--cx-w-dialog);
+  margin-inline: auto;
+  box-shadow: var(--cx-shadow-banner);
+  animation: cx-install-in var(--cx-dur-scale) var(--cx-ease-out) both;
+}
+@media (min-width: 768px) {
+  /* Alt çubuk yok (tablet): ekranın altına 24 px. */
+  .cx-install-card--dock {
+    bottom: var(--cx-install-dock, calc(var(--cx-space-24) + env(safe-area-inset-bottom, 0px)));
+  }
+}
+/* Akışta: sonuç kartının (`bg-1`) içinde bir basamak yukarı. */
+.cx-install-card--inline {
+  margin-block: var(--cx-space-8);
+  background: var(--cx-bg-2);
+  --cx-install-raise: var(--cx-bg-3);
+}
+.cx-install-card-spacer {
+  flex: none;
+}
+
+@keyframes cx-install-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--cx-enter-shift));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.cx-install-card__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cx-space-8);
+}
+.cx-install-card__text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--cx-space-4);
+  min-width: 0;
+  padding-top: var(--cx-space-10);
+}
+.cx-install-card__title {
+  margin: 0;
+  font: var(--cx-t-title-s);
+  letter-spacing: var(--cx-ls-heading);
+  color: var(--cx-text-primary);
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+.cx-install-card__note {
+  margin: 0;
+  font: var(--cx-t-body-14);
+  color: var(--cx-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.cx-install-card__close {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--cx-tap-min);
+  height: var(--cx-tap-min);
+  margin: calc(var(--cx-space-4) * -1) calc(var(--cx-space-8) * -1) 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  background: transparent;
+  color: var(--cx-text-secondary);
+  cursor: pointer;
+  transition:
+    color var(--cx-dur-color) ease,
+    background-color var(--cx-dur-color) ease;
+}
+.cx-install-card__close svg {
+  width: var(--cx-space-18);
+  height: var(--cx-space-18);
+}
+.cx-install-card__close:hover,
+.cx-install-card__close:focus-visible {
+  background: var(--cx-install-raise);
+  color: var(--cx-text-primary);
+}
+
+/* iPhone: iki adım. Numara mono, simge `bg-2` dairede, metin okuma tonu. */
+.cx-install-card__steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cx-space-8);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cx-install-card__step {
+  display: flex;
+  align-items: center;
+  gap: var(--cx-space-12);
+  min-width: 0;
+}
+.cx-install-card__step-num {
+  flex: none;
+  width: var(--cx-space-12);
+  font: var(--cx-t-meta-m);
+  color: var(--cx-text-tertiary);
+  text-align: center;
+}
+.cx-install-card__step-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--cx-control-mini);
+  height: var(--cx-control-mini);
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-install-raise);
+  color: var(--cx-text-brand);
+}
+.cx-install-card__step-icon svg {
+  width: var(--cx-space-18);
+  height: var(--cx-space-18);
+}
+.cx-install-card__step-text {
+  min-width: 0;
+  font: var(--cx-t-label-15);
+  letter-spacing: var(--cx-ls-label);
+  color: var(--cx-text-reading);
+  overflow-wrap: anywhere;
+}
+.cx-install-card__step-text strong {
+  font-weight: 600;
+  color: var(--cx-text-primary);
+}
+
+.cx-install-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cx-space-8);
+}
+.cx-install-card__btn {
+  display: inline-flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cx-space-8);
+  min-width: 0;
+  min-height: var(--cx-control-m);
+  padding: 0 var(--cx-space-18);
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  font: var(--cx-t-button-s);
+  cursor: pointer;
+  transition: scale var(--cx-dur-scale) var(--cx-ease-out);
+}
+.cx-install-card__btn svg {
+  width: var(--cx-space-18);
+  height: var(--cx-space-18);
+  flex: none;
+}
+.cx-install-card__btn--later {
+  flex: 0 1 auto;
+}
+/* iPhone'da tek düğme ("Şimdi değil") sağda. */
+.cx-install-card[data-install-card="ios"] .cx-install-card__actions {
+  justify-content: flex-end;
+}
+.cx-install-card__btn:hover,
+.cx-install-card__btn:focus-visible {
+  scale: var(--cx-scale-hover);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cx-install-card--dock {
+    animation: none;
+  }
+  .cx-install-card__btn {
+    transition: none;
+  }
+}

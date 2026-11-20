@@ -21,7 +21,7 @@ const base = {
 describe("hoş geldin e-postası", () => {
   it("adı baş harfi büyük, ücretsiz katman sayıları sabitlerden, ilk 10 dakika adımları", async () => {
     const { renderWelcomeMail } = await import("@/lib/email/lifecycle-templates");
-    const { FREE_CHAT_PER_DAY, FREE_PHOTO_PER_DAY } = await import("@/lib/billing/free-meters");
+    const { FREE_CHAT_PER_DAY, FREE_PHOTO_PER_MONTH } = await import("@/lib/billing/free-meters");
     const { FREE_FIRST_LESSON_SENTENCE, FREE_PAGE_TOTAL } = await import("@/lib/billing/free-tier-copy");
     const mail = renderWelcomeMail({ firstName: "burhan önder", via: "google", ...base });
     expect(mail.subject).toBe("Burhan, hoş geldin! Cortex Plus'ta ilk 10 dakikan");
@@ -31,7 +31,7 @@ describe("hoş geldin e-postası", () => {
     expect(mail.text).not.toMatch(/Haftada|haftalık/);
     expect(mail.text).toContain(`Tek sınav hazırlığı; belgelerin ${FREE_PAGE_TOTAL} sayfasına kadar işlenir`);
     expect(mail.text).toContain("Çalışma Stüdyosu'ndaki test, kart ve doğru/yanlış üretimi de Plus'ta açılır");
-    expect(mail.text).toContain(`Günde ${FREE_CHAT_PER_DAY} öğretmen mesajı ve günde ${FREE_PHOTO_PER_DAY} fotoğraftan çözüm`);
+    expect(mail.text).toContain(`Günde ${FREE_CHAT_PER_DAY} öğretmen mesajı ve ayda ${FREE_PHOTO_PER_MONTH} fotoğraftan çözüm`);
     expect(mail.text).toContain("1. Notunu yükle ya da hazır müfredattan seç");
     expect(mail.html).toContain(base.createUrl);
     expect(mail.text).toContain("Cortex Plus ekibi");
@@ -93,7 +93,8 @@ describe("satın alma e-postası pakete göre değişir", () => {
     const weekLessons = workCount(PLAN_ALLOWANCES.plusWeekly, PLAN_WORK_BY_ID.lesson).toLocaleString("tr-TR");
     expect(weekly.text).toContain(`- ${weekLessons} ders`);
     expect(weekly.text).toContain("Sınav Sabahı kâğıdını");
-    expect(weekly.text).toMatch(/^Haftada yaklaşık/m);
+    // Faz 4: plan satırı fiyat sayfasıyla aynı ("Haftada ~115 ders / 178 test / 2.500 sohbet").
+    expect(weekly.text).toMatch(/^Haftada ~115 ders \/ 178 test \/ 2\.500 sohbet/m);
 
     const sigma = renderPurchaseMail({ kind: "sigma", firstName: "ada", planName: "Sigma", endsAt: ends, ...base });
     expect(sigma.subject).toContain("Sigma'ya hoş geldin");
@@ -117,7 +118,8 @@ describe("satın alma e-postası pakete göre değişir", () => {
     expect(trial.subject).toBe("Ada, 14 günlük Plus denemen başladı");
     expect(trial.text).toContain("ücret alınmaz");
     expect(trial.text).not.toContain("sözleşme örneğin");
-    expect(allowanceForPurchase({ kind: "trial", trialDays: 14 })).toBe(3360);
+    // Faz 4: Plus 4.350 kredi / 30 gün × 14 gün.
+    expect(allowanceForPurchase({ kind: "trial", trialDays: 14 })).toBe(Math.round((4350 * 14) / 30));
     const gift = renderPurchaseMail({ kind: "plus_monthly", firstName: "ada", planName: "Plus", giftedByParent: true, ...base });
     expect(gift.text).toContain("velinin yaptığı ödemeyle");
     expect(gift.text).not.toContain("sözleşme örneğin");
@@ -141,14 +143,21 @@ describe("bir kez gönderim", () => {
         },
       },
       from: (table: string) => {
-        if (table === "email_events") {
+        // Faz 6 (20 Kasım 2026): "bir kez" kaydı `email_dispatch_log` (dedupe_key tekil); işlem e-postası 24 saat
+        // kuralına girmez, bu yüzden son gönderim okunmaz.
+        if (table === "email_dispatch_log") {
           return {
-            insert: async (row: { template_key: string }) => {
-              state.events.push(row.template_key);
-              return { error: state.claimFails ? { code: "23505" } : null };
-            },
-            update: () => ({ eq: () => ({ eq: async () => ({}) }) }),
-            delete: () => ({ eq: () => ({ eq: () => ({ eq: async () => ((state.deletes += 1), {}) }) }) }),
+            insert: (row: { dedupe_key: string }) => ({
+              select: () => ({
+                maybeSingle: async () => {
+                  state.events.push(row.dedupe_key);
+                  return state.claimFails
+                    ? { data: null, error: { code: "23505", message: "duplicate key value" } }
+                    : { data: { id: "log-1" }, error: null };
+                },
+              }),
+            }),
+            delete: () => ({ eq: async () => ((state.deletes += 1), { error: null }) }),
           };
         }
         return { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { full_name: "Ada Yılmaz" } }) }) }) };
@@ -172,7 +181,7 @@ describe("bir kez gönderim", () => {
   it("ilk çağrı gönderir; kayıt zaten varsa (ikinci çağrı) göndermez", async () => {
     const { sendWelcomeOnce } = await load();
     expect(await sendWelcomeOnce(service(), "u1", "https://cortexplus.app")).toBe("sent");
-    expect(state.events).toEqual(["once:welcome"]);
+    expect(state.events).toEqual(["welcome:u1"]);
     state.claimFails = true;
     expect(await sendWelcomeOnce(service(), "u1", "https://cortexplus.app")).toBe("skipped");
     expect(state.sends).toBe(1);
@@ -198,6 +207,6 @@ describe("tetikleyiciler", () => {
     expect(read("src/app/onboarding/page.tsx")).toContain("void triggerWelcomeEmail().catch(() => undefined);");
     expect(read("src/app/api/payments/paytr/callback/route.ts")).toContain("sendPurchaseMail(service, merchantOid, appOrigin())");
     expect(read("src/app/api/promo/redeem/route.ts")).toContain("sendTrialMail(service, userId,");
-    expect(read("src/app/api/cron/study-reminders/route.ts")).toContain("sendWelcomeCatchUp(service,");
+    expect(read("src/lib/notifications/jobs/daily-reminders.ts")).toContain("sendWelcomeCatchUp(service,");
   });
 });

@@ -13,9 +13,11 @@ import { sameOptionSet, selectedOptions } from "@/lib/learning/exam-quiz";
 import type { NodeLifecycle } from "./use-node-lifecycle";
 
 export function QuizPlay({ life }: { life: NodeLifecycle }) {
-  const { sources, stage, loading, payload, setPayload, attemptId, markHint, index, setIndex, answers, revealedRef, lockAnswer, isTimedExam, finish, updateAnswer, questions, quizBuilding, mood } = life;
+  const { sources, stage, loading, payload, setPayload, attemptId, markHint, index, setIndex, answers, revealedRef, lockAnswer, isTimedExam, finish, updateAnswer, questions, quizBuilding, mood, answerCheckError } = life;
   // Koç katmanı (7 Kasım 2026): bu sorudan önceki art arda doğrular (yalnız kilitlenmiş cevaplar) ve bu soruda ipucu.
   const [hintAt, setHintAt] = useState<Record<string, boolean>>({});
+  // Faz 5 §3.1: "İki Şık Arasında Kaldım" ile elenen çeldirici (soru sırasına göre).
+  const [eliminatedAt, setEliminatedAt] = useState<Record<string, string[]>>({});
   let streakBefore = 0;
   for (let at = index - 1; at >= 0; at -= 1) {
     const question = questions[at];
@@ -61,6 +63,9 @@ export function QuizPlay({ life }: { life: NodeLifecycle }) {
             streakBefore={isTimedExam ? 0 : streakBefore}
             mood={isTimedExam ? null : mood}
             usedHint={Boolean(hintAt[String(index)])}
+            eliminated={eliminatedAt[String(index)]}
+            serverCheck={payload.answerCheck === "server" && !isTimedExam}
+            checkError={answerCheckError}
             onContinue={() => {
               if (index + 1 < questions.length) {
                 setIndex(index + 1);
@@ -96,12 +101,15 @@ export function QuizPlay({ life }: { life: NodeLifecycle }) {
                         markHint();
                         setHintAt((current) => ({ ...current, [String(at)]: true }));
                       }}
+                      onEliminate={(option) =>
+                        setEliminatedAt((current) => ({ ...current, [String(at)]: [...(current[String(at)] ?? []), option] }))
+                      }
                     />
                   )
                 : undefined
             }
             report={
-              // "🚩 Soruda hata bildir" (31 Ekim 2026, Paket J2 #10): açıklama açılınca; test yazılırken değil.
+              // "🚩 Soruda Hata Bildir" (Paket J2 #10; Faz 5 §3.1): kartın sağ üstünde, cevaptan önce de; test yazılırken değil.
               attemptId && !isTimedExam && !quizBuilding
                 ? (at) => (
                     <QuestionReportButton

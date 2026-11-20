@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import {
+  Fragment,
   startTransition,
   useCallback,
   useEffect,
@@ -9,12 +10,11 @@ import {
   useRef,
   useState,
   type ComponentType,
-  type DragEvent,
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import { AlertTriangle, ArrowRight, Check, FileText, Lock, Upload, X } from "lucide-react";
-import { CortexMark } from "@/components/brand/cortex-mark";
+import { AlertTriangle, ArrowRight, Check, FileText, Lock, X } from "lucide-react";
+import { isFileDrag, LessonCore, type CorePhase } from "@/components/landing/lesson-core";
 import type { TourPlusPreviewProps } from "@/components/landing/tour/plus-previews";
 import type { TourScreenProps } from "@/components/landing/tour/product-screens";
 import {
@@ -28,28 +28,37 @@ import {
 } from "@/lib/documents/guest-handoff";
 import { DOCUMENT_UPLOAD_ACCEPT } from "@/lib/documents/upload-accept";
 import { streakBadge } from "@/lib/learning/coach-reactions";
+import { warmMathFonts } from "@/lib/learning/math-fonts";
+import { trackForSegment, type GuestTrackId } from "@/lib/marketing/guest-demo-tracks";
 import {
+  DEFAULT_EXAM_DAYS,
   JOURNEY_COPY,
+  JOURNEY_DATE,
   JOURNEY_FILE,
   JOURNEY_FINAL,
   JOURNEY_NEXT_LABEL,
   JOURNEY_OWN,
   JOURNEY_PLUS_ALSO,
-  JOURNEY_PLUS_PREVIEWS,
   JOURNEY_RESULT,
-  JOURNEY_ROADMAP,
   JOURNEY_STEPS,
-  JOURNEY_WARNING,
   JOURNEY_WARNING_STEPS,
   isProductStep,
+  journeyDayPlan,
+  journeyFile,
   journeyGoals,
   journeyGuideLine,
+  JOURNEY_OUTPUTS,
+  journeyPlusPreviews,
+  journeyRoadmap,
   journeyScanFindings,
   journeyScore,
+  journeyLoginHref,
   journeySignupHref,
   journeyStepIndex,
+  journeyWarning,
   nextJourneyStep,
   ownReadyTitle,
+  type JourneyExamDays,
   type JourneyPlusPreviewId,
   type JourneyStepId,
 } from "@/lib/marketing/landing-journey";
@@ -66,9 +75,14 @@ const RING = 2 * Math.PI * 34;
 /** Stüdyoda içerik ekrana sığmazsa küçültülür; bunun altına inmez (çok kısa ekran). */
 const FIT_MIN = 0.5;
 
-/** Sürüklenen şey işletim sisteminden bir dosya mı (örnek not kartı değil)? */
-function isFileDrag(event: DragEvent<HTMLElement>): boolean {
-  return Array.from(event.dataTransfer?.types ?? []).includes("Files");
+/**
+ * Turun kendi yazılarında (tarama bulguları, uyarı) alt simge: "d_sıvı" → d<sub>sıvı</sub>. Ürün ekranlarında aynı
+ * gösterimi ürünün metin bileşeni kurar; tur çerçevesi KaTeX yüklemez.
+ */
+function withSubscripts(text: string): ReactNode {
+  const parts = text.split(/(?<=\p{L})_([\p{L}\p{N}]{1,8})/u);
+  if (parts.length === 1) return text;
+  return parts.map((part, at) => (at % 2 ? <sub key={at}>{part}</sub> : <Fragment key={at}>{part}</Fragment>));
 }
 
 type Lazy<Props> = { status: "idle" | "loading" | "failed" } | { status: "ready"; View: ComponentType<Props> };
@@ -164,15 +178,58 @@ function FitStage({ children, fitKey }: { children: ReactNode; fitKey: string })
  * sayfayı boşaltıyor). `import()` bir geçişin içinde çağrılır: stil dosyaları inerken tıklamalar donmasın (aşağıdaki
  * `loadScreens` notu). Tur model çağırmaz, sunucuya istek atmaz. Hareket yalnız CSS'te ve `prefers-reduced-motion`da
  * durur; tarama beklemesi de o zaman atlanır.
+ *
+ * Faz 7 (20 Kasım 2026): tur seçilen branşın örnek notuyla oynanır. Branş değişince tur notun kendisinden, birinci
+ * adımdan yeniden kurulur: cevaplar o notun sorularınındı.
+ *
+ * Faz 9 (20 Kasım 2026, ürün sahibi: "birinci adımda üç kutu yarışıyor, iki seçici kafa karıştırıyor"): branş şeridi
+ * kalktı; branş kahramanın tek seçicisinden gelir (`AudienceHero` → `trackId`). Canlı rozeti, konsol başlığı ve
+ * bağlam satırı kalktı; bölümün başlığı ekran okuyucuda.
+ *
+ * Faz 9.1 (20 Kasım 2026, ürün sahibi Faz 9'un tek kartını geri çevirdi): birinci adım "Çekirdeğe bırak"
+ * (`LessonCore`). Ziyaretçi seçili branşın örnek notunu ders çekirdeğine kendi eliyle götürür (sürükle ya da dokun);
+ * tarama ana sayfada olur, "Sınavın ne zaman?" sorulur, gün seçilince çekirdekten ilk ders doğar (üç kart, günlere
+ * yayılmış küçük yol) ve "İlk ekranı aç" stüdyoyu doğrudan dersin ilk ekranında açar. Ray yol haritasına (2. adım)
+ * yine götürür. Seçilen gün stüdyodaki "Sınavına N gün var" çipine ve tur kaydına (`cp:guest-tour`) yazılır.
  */
-export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegmentId }) {
+/**
+ * Uzun dosya adı telefonda kelimenin ortasından ("…Notu.pd / f") kırılıyordu: alt çizgilerden sonra kırılma fırsatı
+ * (`<wbr>`) verilir, ".pdf" son parçada bütün kalır. Metin aynı (ekran okuyucu ve testler için).
+ */
+function breakableFileName(name: string): ReactNode {
+  const parts = name.split("_");
+  return parts.map((part, at) => (
+    <Fragment key={`${part}-${at}`}>
+      {part}
+      {at < parts.length - 1 ? (
+        <>
+          _<wbr />
+        </>
+      ) : null}
+    </Fragment>
+  ));
+}
+
+export function FuturisticGuidedJourney({
+  segmentId,
+  trackId: trackProp,
+}: {
+  segmentId: AudienceSegmentId;
+  /** Seçili branş; verilmezse profilin branşı. */
+  trackId?: GuestTrackId;
+}) {
+  const trackId = trackProp ?? trackForSegment(segmentId);
   const [step, setStep] = useState<JourneyStepId>("upload");
   /** Tam ekran stüdyo açık mı. */
   const [studio, setStudio] = useState(false);
   /** Stüdyo `document.body`'ye çizilir; sunucuda ve ilk çizimde yok. */
   const [portalReady, setPortalReady] = useState(false);
-  const [scanning, setScanning] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
+  /** Ana sayfadaki birinci adımın hâli: not çekirdekte değil, tarama ve sınav günü, dersin doğuşu. */
+  const [phase, setPhase] = useState<CorePhase>("idle");
+  /** Birinci adımda seçilen sınav günü; seçilmediyse null (stüdyoda 7 gün yazılır). */
+  const [examDays, setExamDays] = useState<JourneyExamDays | null>(null);
+  /** Tarama bulgularının anı bitti mi (ya da atlandı). */
+  const [findingsShown, setFindingsShown] = useState(false);
   /** Konu testi sorusu ilk kilitlendiğinde doğru muydu; cevaplanmadıysa null. */
   const [questionCorrect, setQuestionCorrect] = useState<boolean | null>(null);
   /** Doğru/yanlış önermelerinin sonucu; bitmediyse null. */
@@ -196,23 +253,35 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
   const stageRef = useRef<HTMLDivElement>(null);
   const studioRef = useRef<HTMLDivElement>(null);
   const ownInput = useRef<HTMLInputElement>(null);
-  const scanMoment = useRef<MomentHandle | null>(null);
+  /** Tarama bulgularının anı (ana sayfada). */
+  const findingsMoment = useRef<MomentHandle | null>(null);
   /** Stüdyoyu açan öğe: kapanınca odak ona döner. */
   const opener = useRef<HTMLElement | null>(null);
-  /** Escape tarama anını atlatırken stüdyoyu kapatmasın (an aynı olayda bitiyor; durum henüz güncellenmedi). */
-  const scanningRef = useRef(false);
-  scanningRef.current = scanning;
   /** Bileşen sayfada mı: sayfadan çıkılınca biten an yolu açmaya çalışmasın. */
   const alive = useRef(true);
   const loadingScreens = useRef(false);
   const loadingPreviews = useRef(false);
+  /** Branş bu ziyarette en az bir kez değişti mi: örnek notun rozeti yalnız o zaman yeniden belirir (ilk yükte hareket yok). */
+  const [switched, setSwitched] = useState(false);
 
   const segment = audienceSegment(segmentId);
+  const file = journeyFile(trackId);
+  const warning = journeyWarning(trackId);
+  const roadmap = journeyRoadmap(trackId);
+  const plusPreviews = journeyPlusPreviews(trackId);
+  /** Branşın podcast kesiti yoksa seçici o kartı hiç göstermez; seçim ilk gösterilen önizlemeye düşer. */
+  const activePreview = plusPreviews.some((item) => item.id === preview) ? preview : plusPreviews[0]!.id;
   const index = journeyStepIndex(step);
+  /*
+    Ana sayfadaki ray: ders doğunca birinci adım bitmiş, yol (2. adım) önünde sayılır; doğan dersin altındaki küçük
+    yol o adımın ön izlemesidir. Stüdyoda ray adımın kendisini gösterir.
+  */
+  const homeIndex = !studio && step === "upload" && phase === "born" ? 1 : index;
   const score = journeyScore({ questionCorrect, truth });
   const product = isProductStep(step);
   /** Birinci adımda misafirin kendi dosyası bekliyor: örnek not ve çekirdek yerine onay kartı durur. */
-  const ownReady = guest !== null && !scanning;
+  const ownReady = guest !== null && phase === "idle";
+  const shownDays = examDays ?? DEFAULT_EXAM_DAYS;
   /** Doğru/yanlış bitti: çerçevenin yerinde sonuç durur. */
   const showResult = step === "check" && truth !== null;
   const acted = actedStep === step;
@@ -255,10 +324,17 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
   }, []);
 
   const go = useCallback((next: JourneyStepId) => {
-    setScanning(false);
-    setDragOver(false);
     setActedStep(null);
     setStep(next);
+  }, []);
+
+  /** Birinci adım baştan: not yeniden çekirdeğin dışında, gün seçilmemiş. */
+  const resetCore = useCallback(() => {
+    findingsMoment.current?.end();
+    findingsMoment.current = null;
+    setPhase("idle");
+    setExamDays(null);
+    setFindingsShown(false);
   }, []);
 
   /** Stüdyoyu açar (birinci adım dışındaki her adım stüdyoda oynar). */
@@ -273,11 +349,27 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
 
   /** Stüdyoyu kapatır: ana sayfa birinci adımla kalır, tur ilerlemesi (ray, cevaplar) korunur. */
   const closeStudio = useCallback(() => {
-    scanMoment.current?.end();
-    scanMoment.current = null;
-    setScanning(false);
     setStudio(false);
   }, []);
+
+  /*
+    Branş değişince tur o branşın notundan yeniden kurulur: birinci adım (yeni not, yeni tarama), cevaplar ve
+    sonuç sıfır, ürün ekranları baştan. Tur ortadaysa (stüdyo kapatılıp ilerleme korunmuşsa) ray da başa döner; eski
+    notun cevapları yeni notun sonucuna karışmaz.
+  */
+  const shownTrack = useRef(trackId);
+  useEffect(() => {
+    if (shownTrack.current === trackId) return;
+    shownTrack.current = trackId;
+    resetCore();
+    setQuestionCorrect(null);
+    setTruth(null);
+    setRun((current) => current + 1);
+    setPreview("podcast");
+    setStudio(false);
+    setSwitched(true);
+    go("upload");
+  }, [trackId, go, resetCore]);
 
   // Bu sekmede bekleyen dosya varsa (kayıttan dönen ziyaretçi) kart yeniden görünür; süresi geçmiş kayıt silinir.
   useEffect(() => {
@@ -294,8 +386,16 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
   }, [product, step, loadScreens, loadPreviews]);
 
   /*
+    Ürün ekranları hazır olunca (stil dosyaları, dolayısıyla KaTeX'in yazı tipi tanımları yüklendi) formül yazı tipleri
+    hemen istenir: derste ilk formül kartı geldiğinde harfler görünmez kalıp yalnız √ çizilmesin (Faz 9, `math-fonts.ts`).
+  */
+  useEffect(() => {
+    if (screens.status === "ready") warmMathFonts();
+  }, [screens.status]);
+
+  /*
     Stüdyo açıkken sayfa arkada kilitli (kaydırma yalnız stüdyoda da yok), odak stüdyoya gelir; Escape ve ✕ kapatır,
-    odak açan öğeye döner. Tarama anı sürerken Escape yalnız anı atlatır (depo kararı 11).
+    odak açan öğeye döner. Tarama anı stüdyoda değil, ana sayfada (Faz 9.1).
   */
   useEffect(() => {
     if (!studio) return;
@@ -306,7 +406,7 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
     document.body.style.overflow = "hidden";
     studioRef.current?.focus({ preventScroll: true });
     const onKey = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || scanningRef.current) return;
+      if (event.key !== "Escape") return;
       event.preventDefault();
       closeStudio();
     };
@@ -320,10 +420,12 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
   }, [studio, closeStudio]);
 
   // Turdan kayda süreklilik (C3): stüdyoda ulaşılan adım bu sekmenin oturumuna yazılır; kayıttan sonra ana ekran
-  // "turda denemiştin" kartını yalnız buna bakarak gösterir. Sunucuya gitmez; cevaplar ölçüm sayılmaz.
+  // "turda denemiştin" kartını yalnız buna bakarak gösterir. Sunucuya gitmez; cevaplar ölçüm sayılmaz. Kart turdaki
+  // konuyu (Köklü Sayılar) resmî kurulumda açar: yalnız lise branşı yazar, öbür branşların notu o kurulumda yok.
+  // Faz 9.1: birinci adımda seçilen sınav günü de yazılır; kurulum sihirbazı taslağı yoksa tarihi bugün + o gün açar.
   useEffect(() => {
-    if (studio && step !== "upload") writeTourProgress({ step, segment: segmentId });
-  }, [studio, step, segmentId]);
+    if (studio && step !== "upload" && trackId === "lise") writeTourProgress({ step, segment: segmentId, days: examDays });
+  }, [studio, step, segmentId, trackId, examDays]);
 
   // Adım değişince sahne odağa gelir (ekran okuyucu yeni adımı okur); sayfa kaymaz.
   useEffect(() => {
@@ -349,30 +451,42 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
     () => {
       alive.current = true;
       return () => {
-        // Sayfadan çıkılırsa an sessizce kapanır (yol açılmaz).
+        // Sayfadan çıkılırsa an sessizce kapanır.
         alive.current = false;
-        scanMoment.current?.end();
-        scanMoment.current = null;
+        findingsMoment.current?.end();
+        findingsMoment.current = null;
       };
     },
     [],
   );
 
   /*
-    Tarama anı (A2): stüdyo açılır, not çekirdeğe kayar, halkalar bir kez atar, örnek notun bulguları sırayla belirir,
-    sonra yol açılır. Bir an (depo kararı 11): en çok 2,5 sn; tıklama ya da Enter / Space / Escape hemen yolu açar;
-    hareket azaltmada beklenmez.
+    Tarama anı (A2, Faz 9.1'de ana sayfaya taşındı): not çekirdeğe girer, halkalardan bir dalga atar, örnek notun
+    bulguları sırayla belirir; aynı anda "Sınavın ne zaman?" sorulur. Bir an (depo kararı 11): 1,2 sn; tıklama ya da
+    Enter / Space / Escape hepsini hemen gösterir; hareket azaltmada beklenmez. Ürün ekranları şimdiden istenir: ders
+    açılınca hazır olsun.
   */
-  function startScan() {
-    if (scanning) return;
+  function absorbSample() {
+    if (phase !== "idle") return;
     loadScreens();
-    openStudio("upload");
-    setScanning(true);
-    const handle = startMoment(JOURNEY_FILE.scanMs, () => {
-      scanMoment.current = null;
-      if (alive.current) go("roadmap");
+    setFindingsShown(false);
+    setPhase("scanning");
+    const handle = startMoment(JOURNEY_FILE.findingsMs, () => {
+      findingsMoment.current = null;
+      if (alive.current) setFindingsShown(true);
     });
-    if (!handle.instant) scanMoment.current = handle;
+    if (!handle.instant) findingsMoment.current = handle;
+  }
+
+  // Bulgular görünüp sınav günü seçilince ders doğar (çip bulgulardan önce seçilirse bulgular bitince).
+  useEffect(() => {
+    if (phase === "scanning" && findingsShown && examDays) setPhase("born");
+  }, [phase, findingsShown, examDays]);
+
+  /** Dersin doğuşunun birincil düğmesi: stüdyo doğrudan dersin ilk ekranında açılır. */
+  function openLesson() {
+    loadScreens();
+    openStudio("lesson");
   }
 
   /** B kapısı: dosya sunucuya gitmez; tarayıcıda bekletilir ve onay kartı açılır. */
@@ -395,27 +509,20 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
     void clearGuestDocuments();
   }
 
-  function onZoneDrop(event: DragEvent<HTMLElement>) {
-    event.preventDefault();
-    event.stopPropagation();
-    setDragOver(false);
-    const files = Array.from(event.dataTransfer?.files ?? []);
-    if (files.length) void takeOwn(files);
-    else startScan();
-  }
-
   function restart() {
     setQuestionCorrect(null);
     setTruth(null);
     setRun((current) => current + 1);
     closeStudio();
+    resetCore();
     go("upload");
   }
 
-  /** Raydaki durak: birinci adım ana sayfada, öbürleri stüdyoda açılır. */
+  /** Raydaki durak: birinci adım ana sayfada (not yeniden çekirdeğin dışında), öbürleri stüdyoda açılır. */
   function goStep(id: JourneyStepId) {
     if (id === "upload") {
       closeStudio();
+      resetCore();
       go("upload");
       return;
     }
@@ -427,144 +534,47 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
   const streak = allRight ? streakBadge(score.correct) : null;
   const following = nextJourneyStep(step);
   const signupHref = journeySignupHref(segmentId, { withDocument: Boolean(guest) });
-  const shownPreviews = JOURNEY_PLUS_PREVIEWS.filter((item) => item.id === preview);
+  const shownPreviews = plusPreviews.filter((item) => item.id === activePreview);
 
   /** İlerleme rayı: logonun şeridi. Her durak tıklanır; dolan kısım geçilen adımlardır. */
-  const rail = (
-    <ol className="lj-rail" style={{ ["--lj-progress" as string]: index / (JOURNEY_STEPS.length - 1) }}>
-      {JOURNEY_STEPS.map((item, at) => (
-        <li key={item.id} className="lj-rail-item">
-          <button
-            type="button"
-            className={cn("lj-stop", at < index && "is-done", at === index && "is-on")}
-            aria-current={at === index ? "step" : undefined}
-            aria-label={`Adım ${at + 1}: ${item.title}`}
-            onClick={() => goStep(item.id)}
-          >
-            <span className="lj-stop-dot" aria-hidden>
-              {at < index ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : at + 1}
-            </span>
-            <span className="lj-stop-label" aria-hidden>
-              {item.short}
-            </span>
-          </button>
-        </li>
-      ))}
-    </ol>
-  );
-
-  /** Birinci adımın iki kapısı. Ana sayfada çağrılır; tarama sırasında aynı düzen stüdyoda oynar. */
-  function renderDoors(inStudio: boolean) {
-    const scanningHere = inStudio && scanning;
+  function renderRail(at: number) {
     return (
-      <div className={cn("lj-upload", scanningHere && "is-scanning")}>
-        <button
-          type="button"
-          className="lj-file"
-          draggable={!scanningHere}
-          disabled={scanningHere}
-          onDragStart={(event) => {
-            event.dataTransfer.setData("text/plain", JOURNEY_FILE.name);
-            event.dataTransfer.effectAllowed = "copy";
-          }}
-          onClick={startScan}
-        >
-          <span className="lj-file-sheet" aria-hidden>
-            <FileText className="h-6 w-6" />
-            <span className="lj-file-badge">PDF</span>
-          </span>
-          <span className="lj-file-text">
-            <strong>{JOURNEY_FILE.name}</strong>
-            <span>{JOURNEY_FILE.meta}</span>
-            <span className="lj-file-go">
-              {JOURNEY_FILE.sampleCta}
-              <ArrowRight className="h-4 w-4" aria-hidden />
-            </span>
-          </span>
-        </button>
-
-        <span className="lj-flight" aria-hidden />
-
-        <button
-          type="button"
-          className={cn("lj-zone", dragOver && "is-over")}
-          disabled={scanningHere}
-          aria-label={`${JOURNEY_FILE.zoneTitle}: ${JOURNEY_FILE.zoneHint}`}
-          onClick={startScan}
-          onDragOver={(event) => {
-            event.preventDefault();
-            setDragOver(true);
-          }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={onZoneDrop}
-        >
-          <span className="lj-zone-rings" aria-hidden>
-            <span />
-            <span />
-            <span />
-          </span>
-          <span className="lj-zone-core" aria-hidden>
-            <CortexMark size={56} />
-          </span>
-          {scanningHere ? (
-            <span className="lj-scan" role="status" aria-live="polite">
-              <span className="lj-scan-sheet" aria-hidden>
-                <span className="lj-scan-laser" />
+      <ol className="lj-rail" style={{ ["--lj-progress" as string]: at / (JOURNEY_STEPS.length - 1) }}>
+        {JOURNEY_STEPS.map((item, stop) => (
+          <li key={item.id} className="lj-rail-item">
+            <button
+              type="button"
+              className={cn("lj-stop", stop < at && "is-done", stop === at && "is-on")}
+              aria-current={stop === at ? "step" : undefined}
+              aria-label={`Adım ${stop + 1}: ${item.title}`}
+              onClick={() => goStep(item.id)}
+            >
+              <span className="lj-stop-dot" aria-hidden>
+                {stop < at ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : stop + 1}
               </span>
-              <span className="lj-scan-line">{JOURNEY_FILE.scanning[0]}</span>
-              <span className="lj-scan-finds" data-scan-findings>
-                {journeyScanFindings().map((finding, at) => (
-                  <span key={finding.id} className="lj-scan-find" data-finding={finding.id} style={{ ["--lj-i" as string]: at }}>
-                    <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden />
-                    {finding.text}
-                  </span>
-                ))}
+              <span className="lj-stop-label" aria-hidden>
+                {item.short}
               </span>
-            </span>
-          ) : (
-            <span className="lj-zone-copy">
-              <strong>{JOURNEY_FILE.zoneTitle}</strong>
-              <span>{JOURNEY_FILE.zoneHint}</span>
-            </span>
-          )}
-        </button>
-
-        {inStudio ? null : (
-          <div className="lj-own">
-            <p className="lj-own-title">{JOURNEY_OWN.title}</p>
-            <p className="lj-own-hint">{JOURNEY_OWN.hint}</p>
-            <button type="button" className="lj-ghost lj-own-pick" disabled={holding} onClick={() => ownInput.current?.click()}>
-              <Upload className="h-4 w-4" aria-hidden />
-              {JOURNEY_OWN.pick}
             </button>
-            {ownProblems.length ? (
-              <ul className="lj-own-problems" role="alert">
-                {ownProblems.map((problem) => (
-                  <li key={problem}>{problem}</li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-        )}
-      </div>
+          </li>
+        ))}
+      </ol>
     );
   }
 
-  /** Stüdyonun sahnesindeki adım (birinci adım yalnız tarama anı olarak). */
+  /** Stüdyonun sahnesindeki adım (birinci adım ana sayfada; stüdyo yol haritasından başlar). */
   function renderStudioStep() {
     return (
       <>
-        {step === "upload" ? renderDoors(true) : null}
-
         {step === "roadmap" ? (
-          <div className="lj-road">
+          <div className="lj-road" data-track={trackId}>
             <ul className="lj-goals" aria-label="Hedef">
-              {journeyGoals(segment.examWord).map((goal) => (
+              {journeyGoals(segment.examWord, shownDays).map((goal) => (
                 <li key={goal}>{goal}</li>
               ))}
             </ul>
             <ol className="lj-days">
-              {JOURNEY_ROADMAP.days.map((day, at) => (
+              {roadmap.days.map((day, at) => (
                 <li key={day.day} className={cn("lj-day", day.ready && "is-ready")} style={{ ["--lj-i" as string]: at }}>
                   <span className="lj-day-node" aria-hidden />
                   <div className="lj-day-body">
@@ -586,8 +596,9 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
             <p className="lj-real">{JOURNEY_COPY.real}</p>
             {screens.status === "ready" ? (
               <screens.View
-                key={`${run}:${step}`}
+                key={`${run}:${trackId}:${step}`}
                 screen={step}
+                track={trackId}
                 onDone={() => {
                   if (step !== "check" && following) go(following);
                 }}
@@ -654,15 +665,15 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
         {step === "plus" ? (
           <div className="lj-plus">
             <div className="lj-plus-tabs" role="tablist" aria-label="Plus önizlemeleri">
-              {/* Seçici aşağıdaki kart listesini yönetir. */}
-              {JOURNEY_PLUS_PREVIEWS.map((item) => (
+              {/* Seçici aşağıdaki kart listesini yönetir. Branşın podcast kesiti yoksa podcast sekmesi yok. */}
+              {plusPreviews.map((item) => (
                 <button
                   key={item.id}
                   type="button"
                   role="tab"
-                  aria-selected={item.id === preview}
+                  aria-selected={item.id === activePreview}
                   aria-controls="lj-plus-previews"
-                  className={cn("lj-plus-tab", item.id === preview && "is-on")}
+                  className={cn("lj-plus-tab", item.id === activePreview && "is-on")}
                   onClick={() => setPreview(item.id)}
                 >
                   <span aria-hidden>{item.icon}</span>
@@ -685,7 +696,7 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
                   </p>
                   <p className="lj-plus-body">{item.body}</p>
                   {previews.status === "ready" ? (
-                    <previews.View key={`${run}:${item.id}`} preview={item.id} />
+                    <previews.View key={`${run}:${trackId}:${item.id}`} preview={item.id} track={trackId} />
                   ) : (
                     <div className="lj-plus-wait">
                       {previews.status === "failed" ? (
@@ -734,7 +745,7 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
         <div className="lj-stage-foot">
           <button type="button" className="lj-cta lj-cta--pulse lj-cta--wide" onClick={() => go("lesson")}>
             <span aria-hidden>👉</span>
-            {JOURNEY_ROADMAP.cta}
+            {roadmap.cta}
             <ArrowRight className="h-4 w-4" aria-hidden />
           </button>
         </div>
@@ -792,13 +803,13 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
             }}
           >
             <div className="lj-studio-top">
-              {rail}
+              {renderRail(index)}
               {/* Taramadan sonra (2-7. adımlar) örnek notun hoca uyarısı üst çubukta kalır (A4). */}
               {step !== "upload" ? (
-                <span className={cn("lj-warn", warningGlow && "is-glow")} title={JOURNEY_WARNING.line} data-warning>
+                <span className={cn("lj-warn", warningGlow && "is-glow")} title={warning.line} data-warning data-track={trackId}>
                   <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
-                  {JOURNEY_WARNING.label}
-                  <span className="sr-only">{JOURNEY_WARNING.line.slice(JOURNEY_WARNING.label.length)}</span>
+                  {warning.label}
+                  <span className="sr-only">{withSubscripts(warning.line.slice(warning.label.length))}</span>
                 </span>
               ) : (
                 <span className="lj-warn-slot" aria-hidden />
@@ -811,10 +822,10 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
               <div className="lj-stage-head">
                 <h2 className="lj-step-title">{JOURNEY_STEPS[index]!.title}</h2>
                 <p className="lj-guide" role="status" aria-live="polite">
-                  <span aria-hidden>{step === "upload" || step === "cards" ? "👆" : "👉"}</span> {journeyGuideLine(step)}
+                  <span aria-hidden>{step === "cards" ? "👆" : "👉"}</span> {journeyGuideLine(step)}
                 </p>
               </div>
-              <FitStage fitKey={`${run}:${step}:${showResult ? "r" : ""}:${screens.status}:${previews.status}:${preview}`}>
+              <FitStage fitKey={`${run}:${trackId}:${step}:${showResult ? "r" : ""}:${screens.status}:${previews.status}:${activePreview}`}>
                 {renderStudioStep()}
               </FitStage>
               {renderFoot()}
@@ -825,10 +836,12 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
       : null;
 
   return (
-    <section id="nasil" className="lj" aria-labelledby="lj-title">
+    <section id="nasil" className="lj" aria-labelledby="lj-title" data-track={trackId}>
       <div className="lj-wrap" inert={studio || undefined} aria-hidden={studio || undefined}>
+        {/* Birinci adım (Faz 9.1): ray ve ders çekirdeği. İç kaydırma yok; sayfa tek parça kayar. */}
         <div
           className="lj-console"
+          data-segment={segmentId}
           onPointerEnter={loadScreens}
           onPointerDown={loadScreens}
           onFocusCapture={loadScreens}
@@ -842,36 +855,23 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
             void takeOwn(Array.from(event.dataTransfer.files));
           }}
         >
-          <div className="lj-console-head">
-            <p className="lj-live">
-              <span className="lj-live-dot" aria-hidden />
-              {JOURNEY_COPY.live}
-              <span className="lj-live-sep" aria-hidden>
-                ·
-              </span>
-              {JOURNEY_COPY.kicker}
+          <h2 id="lj-title" className="sr-only">
+            {JOURNEY_COPY.card}
+          </h2>
+
+          {renderRail(homeIndex)}
+
+          <div className="lj-door" data-step="upload" data-phase={phase}>
+            {/* Adımın durumu ekran okuyucuda: yönlendirme, tarama sonrası soru, dersin doğuşu. */}
+            <p className="sr-only" role="status" aria-live="polite">
+              {phase === "scanning"
+                ? JOURNEY_DATE.scanned
+                : phase === "born" && examDays
+                  ? JOURNEY_DATE.born(examDays)
+                  : journeyGuideLine("upload", { ownDocument: ownReady })}
             </p>
-            <h2 id="lj-title" className="lj-title">
-              {JOURNEY_COPY.title}
-            </h2>
-            {/* Seçili sekmenin bağlamı: örnek not aynı kalır, cümle sekmeyle değişir (anahtar animasyonu yeniden başlatır). */}
-            <p key={segmentId} className="lj-context" data-segment={segmentId}>
-              {segment.tourContext}
-            </p>
-          </div>
 
-          {rail}
-
-          {/* Birinci adım ana sayfada: iki kapı. İç kaydırma yok; sayfa tek parça kayar. */}
-          <div className="lj-door" data-step="upload">
-            <div className="lj-stage-head">
-              <h3 className="lj-step-title">{JOURNEY_STEPS[0]!.title}</h3>
-              <p className="lj-guide" role="status" aria-live="polite">
-                <span aria-hidden>{ownReady ? "👇" : "👆"}</span> {journeyGuideLine("upload", { ownDocument: ownReady })}
-              </p>
-            </div>
-
-            {/* B kapısı sonrası: misafirin kendi dosyası tarayıcıda bekliyor. */}
+            {/* Kendi dosyası seçildikten sonra: dosya tarayıcıda bekliyor. */}
             {ownReady && guest ? (
               <div className="lj-ready" data-guest-document>
                 <p className="lj-ready-title">
@@ -894,8 +894,12 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
                   <ArrowRight className="h-5 w-5" aria-hidden />
                 </Link>
                 <p className="lj-final-fine">{JOURNEY_OWN.fine}</p>
+                {/* Faz 5 §1.3: hesabı olan misafir de dosyasını kaybetmez; girişten sonra kurulum sihirbazına aktarılır. */}
+                <Link href={journeyLoginHref()} className="lj-link lj-ready-login" data-guest-login>
+                  {JOURNEY_OWN.login}
+                </Link>
                 <div className="lj-ready-row">
-                  <button type="button" className="lj-ghost" onClick={startScan}>
+                  <button type="button" className="lj-ghost" onClick={absorbSample}>
                     {JOURNEY_OWN.playSample}
                   </button>
                   <button type="button" className="lj-link" onClick={removeOwn}>
@@ -911,10 +915,29 @@ export function FuturisticGuidedJourney({ segmentId }: { segmentId: AudienceSegm
                 ) : null}
               </div>
             ) : (
-              renderDoors(false)
+              <LessonCore
+                phase={phase}
+                trackId={trackId}
+                switched={switched}
+                fileName={breakableFileName(file.name)}
+                fileLabel={file.name}
+                pagesLabel={file.pagesLabel}
+                findings={journeyScanFindings(trackId).map((finding) => ({ id: finding.id, text: withSubscripts(finding.text) }))}
+                findingsShown={findingsShown}
+                examDays={examDays}
+                outputs={JOURNEY_OUTPUTS}
+                plan={examDays ? journeyDayPlan(examDays) : null}
+                holding={holding}
+                problems={ownProblems}
+                onAbsorb={absorbSample}
+                onOwnFiles={(files) => void takeOwn(files)}
+                onPickOwn={() => ownInput.current?.click()}
+                onDays={setExamDays}
+                onOpenLesson={openLesson}
+              />
             )}
 
-            {/* B kapısının dosya seçicisi: görünmez; düğme açar. Dosya yalnız tarayıcıda tutulur. */}
+            {/* Kendi dosyasının seçicisi: görünmez; "Kendi notunu bırak" yuvası açar. Dosya yalnız tarayıcıda tutulur. */}
             <input
               ref={ownInput}
               type="file"

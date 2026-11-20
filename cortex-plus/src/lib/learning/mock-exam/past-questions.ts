@@ -13,7 +13,13 @@ export type PastQuestion = { text: string; kind: "mcq" | "open"; optionCount: nu
 export type PastStyle = { count: number; samples: string[] };
 
 export const PAST_MIN_QUESTIONS = 4;
-export const TWIN_EXAM_LABEL = "🎯 Çıkmış Sorulara Göre İkiz Sınav";
+/**
+ * Faz 5 §3.2 (19 Kasım 2026, harfiyen): mod adı ve kısa adı. Mod her zaman tam 20 soru üretir (sunucu zorlar:
+ * `mock-exam` rotası ve `buildMockExamPlan`).
+ */
+export const TWIN_EXAM_LABEL = "🎯 Çıkmış Sorulardan Hocanın İkiz Sınavı (20 Soru)";
+export const TWIN_EXAM_SHORT_LABEL = "Hocanın İkiz Sınavı (20 Soru)";
+export const TWIN_EXAM_QUESTION_COUNT = 20;
 
 const QUESTION_START = /^\s*(?:soru\s*)?(\d{1,3})\s*[).:\-–](?!\d)\s*(.+)$/i;
 const OPTION_LINE = /^\s*\(?([A-Ea-e])\s*[).:\-–]\s*\S/;

@@ -240,7 +240,10 @@ describe("ders içi soru tekrarı deterministik olarak düşer", () => {
     const dup = screen("İki", [text("Metin."), tf("Mitoz bölünmede kromozom sayısı yarıya iner ve dört hücre oluşur.")]);
     const issues = repetitionIssues([first, dup], [1]);
     expect(issues.some((issue) => issue.severity === "medium" && /zaten soruldu/.test(issue.problem))).toBe(true);
-    expect(readSource("src/lib/learning/teacher-lesson-run.ts")).toContain("dropRepeatedChecks(published, outcome.screens)");
+    // 20 Kasım 2026: kavramın ekranları önce kaynak düzeltme bekçisinden geçer, kapı onun çıktısında çalışır.
+    const run = readSource("src/lib/learning/teacher-lesson-run.ts");
+    expect(run).toContain("const corrected = guardScreensForCorrection(outcome.screens,");
+    expect(run).toContain("dropRepeatedChecks(published, corrected.screens)");
   });
 });
 

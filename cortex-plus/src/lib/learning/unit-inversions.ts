@@ -1,4 +1,5 @@
 import { foldTr } from "@/lib/documents/page-analysis";
+import { splitTurkishSentences } from "@/lib/text/turkish-sentences";
 
 /**
  * Klasik birim tanımlarının ters çevrilmesi.
@@ -159,8 +160,7 @@ function pressureEquationHits(text: string): InversionHit[] {
 }
 
 function statementsOf(text: string): string[] {
-  const parts = text
-    .split(/\n+|(?<=[.!?])\s+/)
+  const parts = splitTurkishSentences(text)
     .map((part) => part.trim())
     .filter((part) => part.length >= 12);
   return parts.length ? parts : text.trim() ? [text.trim()] : [];

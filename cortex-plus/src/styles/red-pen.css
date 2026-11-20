@@ -1,0 +1,164 @@
+/* Kırmızı Kalemli Hoca (Faz 7, 20 Kasım 2026): açık uçlu sorunun notu sınav kâğıdı gibi.
+   Kâğıt iki temada da açık zemin + koyu mürekkep (sınav sabahı kâğıdının A4 görünümüyle aynı karar: kâğıt kâğıttır).
+   Renkler kâğıdın kendi değişkenleri; kontrast [hesaplandı, WCAG 2.1]:
+     mürekkep #1c1915 / kâğıt #fffdf7 ≈ 17:1     kırmızı kalem #b42318 / kâğıt ≈ 6,4:1
+     yeşil #166534 / kâğıt ≈ 7,0:1               soluk mürekkep #57514a / kâğıt ≈ 7,6:1
+   Koyu temada kâğıt bir ton kırık (#f4eee2; göz almasın): en düşük çift kırmızı ≈ 5,7:1.
+   En küçük yazı 12 px; kart kenarlıksız, derinlik yalnız gölgeyle değil zemin farkıyla. */
+
+.cp-redpen {
+  --redpen-paper: #fffdf7;
+  --redpen-rule: #e9e1d2;
+  --redpen-margin: #f0b8b3;
+  --redpen-ink: #1c1915;
+  --redpen-ink-soft: #57514a;
+  --redpen-red: #b42318;
+  --redpen-red-weak: #fbe9e6;
+  --redpen-green: #166534;
+  --redpen-green-weak: #e3f3e8;
+  position: relative;
+  overflow: hidden;
+  min-width: 0;
+  padding: var(--cx-space-16) var(--cx-space-16) var(--cx-space-16) calc(var(--cx-space-16) + var(--cx-space-24));
+  border-radius: var(--cx-radius-m);
+  background-color: var(--redpen-paper);
+  /* Çizgili kâğıt ve sol kenar boşluğunun kırmızı çizgisi. */
+  background-image:
+    linear-gradient(90deg, transparent calc(var(--cx-space-24) - 1px), var(--redpen-margin) calc(var(--cx-space-24) - 1px), var(--redpen-margin) calc(var(--cx-space-24) + 1px), transparent calc(var(--cx-space-24) + 1px)),
+    repeating-linear-gradient(180deg, transparent 0, transparent 27px, var(--redpen-rule) 27px, var(--redpen-rule) 28px);
+  color: var(--redpen-ink);
+  font-family: var(--cx-font-sans);
+}
+.dark .cp-redpen {
+  --redpen-paper: #f4eee2;
+  --redpen-rule: #e2d8c6;
+}
+
+.cp-redpen-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--cx-space-8);
+  margin-bottom: var(--cx-space-12);
+}
+.cp-redpen-kicker {
+  margin: 0;
+  font: var(--cx-t-meta-m);
+  letter-spacing: var(--cx-ls-meta);
+  text-transform: uppercase;
+  color: var(--redpen-red);
+}
+.cp-redpen-total {
+  margin: 0;
+  color: var(--redpen-ink);
+  font: var(--cx-t-label-15);
+  font-variant-numeric: tabular-nums;
+}
+.cp-redpen-total-num {
+  font: var(--cx-t-title-l);
+  color: var(--redpen-green);
+}
+.cp-redpen-total.is-lost .cp-redpen-total-num {
+  display: inline-block;
+  padding: 0 var(--cx-space-8);
+  border: 2px solid var(--redpen-red);
+  border-radius: 50%;
+  color: var(--redpen-red);
+  rotate: -4deg;
+}
+.cp-redpen-total-max {
+  color: var(--redpen-ink-soft);
+}
+
+.cp-redpen-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cx-space-10);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cp-redpen-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cx-space-10);
+  min-width: 0;
+  padding: var(--cx-space-8) var(--cx-space-10);
+  border-radius: var(--cx-radius-s);
+}
+.cp-redpen-row.is-earned {
+  background: var(--redpen-green-weak);
+}
+.cp-redpen-row.is-lost {
+  background: var(--redpen-red-weak);
+}
+.cp-redpen-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font: var(--cx-t-body-14);
+  color: var(--redpen-ink);
+  overflow-wrap: anywhere;
+}
+.cp-redpen-tick {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin-top: 1px;
+  border-radius: var(--cx-radius-max);
+  background: var(--redpen-green);
+  color: var(--redpen-paper);
+}
+.cp-redpen-tick svg {
+  width: 14px;
+  height: 14px;
+}
+.cp-redpen-plus {
+  color: var(--redpen-green);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.cp-redpen-sep {
+  color: var(--redpen-ink-soft);
+}
+/* Kırmızı kalemle halkalanmış puan: elle çizilmiş gibi hafif eğik elips. */
+.cp-redpen-circle {
+  flex: none;
+  padding: var(--cx-space-2) var(--cx-space-10);
+  border: 2px solid var(--redpen-red);
+  border-radius: 50%;
+  color: var(--redpen-red);
+  font: 700 0.8125rem / 1.4 var(--cx-font-sans);
+  white-space: nowrap;
+  rotate: -3deg;
+}
+.cp-redpen-step {
+  margin: 0;
+  font-weight: 600;
+  color: var(--redpen-ink);
+  text-decoration: underline wavy var(--redpen-red);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+}
+.cp-redpen-note {
+  margin: var(--cx-space-4) 0 0;
+  color: var(--redpen-ink);
+}
+.cp-redpen-note strong {
+  color: var(--redpen-red);
+  font-weight: 700;
+}
+
+@media (max-width: 480px) {
+  .cp-redpen {
+    padding-left: calc(var(--cx-space-12) + var(--cx-space-24));
+    padding-right: var(--cx-space-12);
+  }
+  .cp-redpen-row.is-lost {
+    flex-direction: column;
+    gap: var(--cx-space-6);
+  }
+}

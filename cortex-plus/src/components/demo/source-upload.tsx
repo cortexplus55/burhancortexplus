@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { chemSubscripts } from "@/lib/text/chem-subscripts";
 import Link from "next/link";
 import { Check, Download, FileText, Loader2, Upload } from "lucide-react";
 import {
@@ -228,7 +229,7 @@ export function SourceUpload({
           <p className="dm-source-kicker">
             <FileText className="h-4 w-4" aria-hidden /> Çıkarılan metin
           </p>
-          <div className="dm-source-text">{text}</div>
+          <div className="dm-source-text">{chemSubscripts(text)}</div>
           <p className="dm-source-note">
             Bu örneğin dersi, podcast’i ve soruları bir kez üretilip kaydedildi;
             sayfa hiçbir üretim yapmıyor. Kendi notunda bu adımlar sana özel çalışır.

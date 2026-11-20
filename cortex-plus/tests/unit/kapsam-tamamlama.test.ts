@@ -137,7 +137,8 @@ const completion = JSON.stringify({
   ],
 });
 
-const input = { topicLabel: "Kuvvetler ayrılığı", prepTitle: "KPSS Vatandaşlık", pages: [{ page: 2, text: LAW_SOURCE }], upcomingTopics: [], sanity: false };
+// Görsel sahne çağrısı (Faz 1-B) ayrı bir çağrı; bu test onu saymaz (kendi testi visual-scenes-integration).
+const input = { topicLabel: "Kuvvetler ayrılığı", prepTitle: "KPSS Vatandaşlık", pages: [{ page: 2, text: LAW_SOURCE }], upcomingTopics: [], sanity: false, visualScene: false };
 
 async function run(drafts: string[]) {
   const { teacherLessonPipeline } = await import("@/lib/learning/teacher-lesson-run");

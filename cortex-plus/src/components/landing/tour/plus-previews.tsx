@@ -1,14 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Pause, Play, RotateCcw } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import { Maximize2, Minimize2, Pause, Play, RotateCcw } from "lucide-react";
+import { ReelSceneRenderer } from "@/components/learning/visual-scenes";
 import { CramSheetView } from "@/components/parity/cram-sheet-view";
 import { PodcastKaraokeLine } from "@/components/parity/podcast-karaoke";
 import { SketchBoard } from "@/components/parity/video-lesson";
-import { TOUR_LESSON, TOUR_PODCAST_SAMPLE, TOUR_PREP, TOUR_SKETCH } from "@/lib/demo/guest-tour";
+import { DEMO_PODCASTS, type DemoPodcast, type GuestTrackId } from "@/lib/demo/demo-podcasts";
+import { guestTourContent } from "@/lib/demo/guest-tour-tracks";
+import type { GuestTourContent, TourBoardSketch, TourReelSketch } from "@/lib/demo/guest-tour-types";
 import { buildCramSheet } from "@/lib/learning/cram-sheet";
 import { captionChunks, sketchFormulaSteps } from "@/lib/learning/video-lesson";
+import { parseReelVisual } from "@/lib/learning/visual-scenes/schema";
 import { JOURNEY_PLUS_PLAY, type JourneyPlusPreviewId } from "@/lib/marketing/landing-journey";
 import { cn } from "@/lib/utils";
 import "@/styles/parity-shell.css";
@@ -19,22 +24,29 @@ import "@/styles/tour-previews.css";
  * Kokpitin Plus adımındaki canlı önizlemeler (11 Kasım 2026). Kuru metin kutuları yerine ürünün kendi parçaları:
  *
  *   podcast → gerçek bir bölümün sesinden kısa bir kesit; kelime vurgusunu ürünün karaoke bileşeni çizer
- *   video   → ürünün çizim tahtası (`SketchBoard`) ve alt yazı parçalayıcısı; ses yerine bir sayaç sürer
+ *   video   → ürünün çizim tahtası (`SketchBoard`) ya da branşa özel sahnesi (`ReelSceneRenderer`) ve alt yazı
+ *             parçalayıcısı; ses yerine bir sayaç sürer
  *   kâğıt   → ürünün derleyicisi (`buildCramSheet`) turdaki örnek dersten çıkarır, ürünün görünümü çizer
  *
  * Hiçbiri model çağırmaz, sunucuya istek atmaz: ses depoda sabit bir dosyadır, tahta ve kâğıt tarayıcıda hesaplanır.
  * Dosya ana sayfanın ilk yükünde yoktur; ziyaretçi Plus adımına yaklaşınca ayrı parça olarak yüklenir.
+ *
+ * Faz 7 (20 Kasım 2026): önizlemeler seçili branşın (`track`): podcast kesiti yalnız `DEMO_PODCASTS`tan (kesiti olmayan
+ * branşta tur podcast sekmesini hiç göstermez); lise ürünün çizim tahtasıyla, öbür branşlar ürünün branşa özel
+ * sahneleriyle (mühendislikte kuvvet diyagramı, TUS'ta kanal blokajı, hukukta karar ağacı ve çoğunluk barometresi).
  */
 
-export type TourPlusPreviewProps = { preview: JourneyPlusPreviewId };
+export type TourPlusPreviewProps = { preview: JourneyPlusPreviewId; track?: GuestTrackId };
 
 /** Önizleme uygulamanın kendi kabuk sınıflarının içinde çizilir: parçalar üründeki renk ve ölçüleri alır. */
-export function TourPlusPreview({ preview }: TourPlusPreviewProps) {
+export function TourPlusPreview({ preview, track = "lise" }: TourPlusPreviewProps) {
+  const content = guestTourContent(track);
+  const podcast = DEMO_PODCASTS[track];
   return (
-    <div className="tp-app dark cp-sor-root cp-sor-root--session tpp-shell" data-preview-shell={preview}>
-      {preview === "podcast" ? <PodcastPreview /> : null}
-      {preview === "video" ? <VideoPreview /> : null}
-      {preview === "sheet" ? <SheetPreview /> : null}
+    <div className="tp-app dark cp-sor-root cp-sor-root--session tpp-shell" data-preview-shell={preview} data-track={track}>
+      {preview === "podcast" && podcast ? <PodcastPreview sample={podcast} /> : null}
+      {preview === "video" ? content.sketch.kind === "board" ? <VideoPreview sketch={content.sketch} /> : <ReelPreview sketch={content.sketch} /> : null}
+      {preview === "sheet" ? <SheetPreview content={content} /> : null}
     </div>
   );
 }
@@ -58,8 +70,7 @@ const WAVE_BARS = 28;
  * Gerçek bölümden kesit. Ses çalarken saat sesin konumudur; ses yüklenemezse (ağ, engellenen oynatma) kelimeler
  * duvar saatiyle sessiz akar ve ekran bunu söyler: ziyaretçi boş bir düğmeye bakmaz.
  */
-function PodcastPreview() {
-  const sample = TOUR_PODCAST_SAMPLE;
+function PodcastPreview({ sample }: { sample: DemoPodcast }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const position = useRef(0);
   const wall = useRef({ startedAt: 0, base: 0 });
@@ -192,12 +203,11 @@ const VIDEO_TICK_MS = 100;
 const DRAW_SHARE = 0.7;
 
 /**
- * Sessiz önizleme: ürünün çizim tahtası, sesin yerine bir sayaçla. Kendiliğinden başlar ve iki sahne arasında döner;
- * hareket azaltmada çizilmiş hâliyle durur ve düğmeyle oynatılır.
+ * Sessiz önizlemenin saati: sesin yerine bir sayaç. Kendiliğinden başlar ve sahneler arasında döner; hareket
+ * azaltmada ilk sahne çizilmiş hâliyle durur ve düğmeyle oynatılır.
  */
-function VideoPreview() {
-  const { scenes, sceneMs } = TOUR_SKETCH;
-  const total = scenes.length * sceneMs;
+function useSceneClock(count: number, sceneMs: number) {
+  const total = count * sceneMs;
   const [reduced] = useState(prefersReducedMotion);
   const position = useRef(reduced ? sceneMs - 1 : 0);
   const [elapsed, setElapsed] = useState(position.current);
@@ -215,55 +225,222 @@ function VideoPreview() {
     return () => window.clearInterval(timer);
   }, [playing, total]);
 
-  const index = Math.min(scenes.length - 1, Math.floor(elapsed / sceneMs));
-  const scene = scenes[index]!;
+  const index = Math.min(count - 1, Math.floor(elapsed / sceneMs));
   const within = elapsed - index * sceneMs;
   const draw = Math.max(0, Math.min(1, within / (sceneMs * DRAW_SHARE)));
-  const steps = useMemo(() => (scene.formula ? sketchFormulaSteps(scene.formula) : []), [scene.formula]);
-  const shown = steps.length ? Math.max(1, Math.ceil(draw * steps.length)) : 0;
-  const chunks = useMemo(() => captionChunks(scene.narration, sceneMs), [scene.narration, sceneMs]);
-  const chunk = chunks.find((item) => within >= item.startMs && within < item.endMs) ?? chunks.at(-1);
+  return { index, within, draw, playing, setPlaying };
+}
 
+/** Alt yazı: anlatım ürünün parçalayıcısıyla 2-4 kelimelik parçalara bölünür; anahtar kelime vurgulu. */
+function SceneCaption({ narration, sceneMs, within }: { narration: string; sceneMs: number; within: number }) {
+  const chunks = useMemo(() => captionChunks(narration, sceneMs), [narration, sceneMs]);
+  const chunk = chunks.find((item) => within >= item.startMs && within < item.endMs) ?? chunks.at(-1);
+  if (!chunk) return null;
   return (
-    <div className="tpp-video" data-preview="video">
-      <div className="tpp-video-slot">
-        <div
-          className="cp-video-frame is-portrait is-sketch tpp-video-frame"
-          data-ratio="9:16"
-          style={{ ["--cp-top-h" as string]: "0.4rem" }}
-        >
-          <SketchBoard
-            key={index}
-            title={scene.sceneTitle}
-            diagram={scene.diagram}
-            sceneKey={index}
-            draw={draw}
-            playing={playing}
-            formulaSteps={steps}
-            formulaShown={shown}
-            keyFact={scene.keyFact}
-          />
-          {chunk ? (
-            <p className="cp-video-caption" aria-live="off">
-              {chunk.words.map((item, at) => (
-                <span key={at} className={item.key ? "cp-video-key" : undefined}>
-                  {at ? " " : ""}
-                  {item.word}
-                </span>
-              ))}
-            </p>
-          ) : null}
+    <p className="cp-video-caption" aria-live="off">
+      {chunk.words.map((item, at) => (
+        <span key={at} className={item.key ? "cp-video-key" : undefined}>
+          {at ? " " : ""}
+          {item.word}
+        </span>
+      ))}
+    </p>
+  );
+}
+
+function VideoControls({
+  playing,
+  onToggle,
+  index,
+  count,
+  onEnlarge,
+}: {
+  playing: boolean;
+  onToggle: () => void;
+  index: number;
+  count: number;
+  onEnlarge: (trigger: HTMLButtonElement) => void;
+}) {
+  return (
+    <div className="tpp-controls">
+      <button type="button" className="tpp-play" onClick={onToggle}>
+        {playing ? <Pause className="h-4 w-4" aria-hidden /> : <Play className="h-4 w-4" aria-hidden />}
+        {playing ? JOURNEY_PLUS_PLAY.pause : JOURNEY_PLUS_PLAY.video}
+      </button>
+      <button type="button" className="tpp-enlarge-open" onClick={(event) => onEnlarge(event.currentTarget)} aria-haspopup="dialog">
+        <Maximize2 className="h-4 w-4" aria-hidden />
+        {JOURNEY_PLUS_PLAY.enlarge}
+      </button>
+      <span className="tpp-time">
+        Sahne {index + 1}/{count}
+      </span>
+    </div>
+  );
+}
+
+/*
+  Büyüt (Faz 7, 20 Kasım 2026): tur sahnesi küçültülmüş çizildiği için (yuva + sığdırma) dikey videonun yazısı telefonda
+  ~7 px kalıyordu. Büyütünce aynı çerçeve, sığdırma katmanının dışında (portal) ekrana sığan en büyük 9:16 boyutta
+  açılır: yazı telefonda da 12 px'in üstünde. Esc ve "Küçült" kapatır, odak açan düğmeye döner; zemine dokunmak da kapatır.
+  Çerçeve doğal genişliğinde (20 rem = 320 px; branş sahnesi viewBox 360 × 640) çizilir, ölçek açılışta ve pencere
+  boyutu değişince hesaplanır.
+*/
+const FRAME_W = 320;
+const FRAME_H = (FRAME_W * 16) / 9;
+
+function enlargeScale(): number {
+  if (typeof window === "undefined") return 1;
+  return Math.max(0.5, Math.min((window.innerWidth * 0.92) / FRAME_W, (window.innerHeight * 0.82) / FRAME_H, 2.4));
+}
+
+function EnlargeOverlay({ open, onClose, trigger, title, children }: { open: boolean; onClose: () => void; trigger: HTMLButtonElement | null; title: string; children: ReactNode }) {
+  const [scale, setScale] = useState(1);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  // Esc en son verilen kapatma işlevini çağırır; etki yalnız açılıp kapanınca kurulur (her çizimde odak arkadaki
+  // düğmeye gidip geri gelmesin).
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+
+  useEffect(() => {
+    if (!open) return;
+    const fit = () => setScale(enlargeScale());
+    fit();
+    closeRef.current?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        onCloseRef.current();
+      }
+    };
+    window.addEventListener("resize", fit);
+    window.addEventListener("keydown", onKey, true);
+    return () => {
+      window.removeEventListener("resize", fit);
+      window.removeEventListener("keydown", onKey, true);
+      trigger?.focus();
+    };
+  }, [open, trigger]);
+
+  if (!open || typeof document === "undefined") return null;
+  return createPortal(
+    <div className="tp-app dark cp-sor-root cp-sor-root--session tpp-enlarge" role="dialog" aria-modal="true" aria-label={title} onClick={onClose}>
+      <div className="tpp-enlarge-stage" style={{ width: FRAME_W * scale, height: FRAME_H * scale }} onClick={(event) => event.stopPropagation()}>
+        <div className="tpp-enlarge-frame" style={{ transform: `scale(${scale})` }}>
+          {children}
         </div>
       </div>
-      <div className="tpp-controls">
-        <button type="button" className="tpp-play" onClick={() => setPlaying((current) => !current)}>
-          {playing ? <Pause className="h-4 w-4" aria-hidden /> : <Play className="h-4 w-4" aria-hidden />}
-          {playing ? JOURNEY_PLUS_PLAY.pause : JOURNEY_PLUS_PLAY.video}
-        </button>
-        <span className="tpp-time">
-          Sahne {index + 1}/{scenes.length}
-        </span>
-      </div>
+      <button ref={closeRef} type="button" className="tpp-enlarge-close" onClick={onClose}>
+        <Minimize2 className="h-4 w-4" aria-hidden />
+        {JOURNEY_PLUS_PLAY.shrink}
+      </button>
+    </div>,
+    document.body,
+  );
+}
+
+function useEnlarge() {
+  const [open, setOpen] = useState(false);
+  const [trigger, setTrigger] = useState<HTMLButtonElement | null>(null);
+  // Kararlı işlevler: eskiden her çizimde yeni işlev pencerenin etkisini yeniden kuruyor, odak oynarken saniyede birkaç
+  // kez arkadaki düğmeye gidip geri geliyordu (pencere artık Esc için son işlevi ref'ten okur).
+  const show = useCallback((button: HTMLButtonElement) => {
+    setTrigger(button);
+    setOpen(true);
+  }, []);
+  const hide = useCallback(() => setOpen(false), []);
+  return { open, trigger, show, hide };
+}
+
+/** Lise: ürünün çizim tahtası. Şema `--draw` ile çizilir, formül adımları sırayla belirir. */
+function VideoPreview({ sketch }: { sketch: TourBoardSketch }) {
+  const { scenes, sceneMs } = sketch;
+  const { index, within, draw, playing, setPlaying } = useSceneClock(scenes.length, sceneMs);
+  const scene = scenes[index]!;
+  const steps = useMemo(() => (scene.formula ? sketchFormulaSteps(scene.formula) : []), [scene.formula]);
+  const shown = steps.length ? Math.max(1, Math.ceil(draw * steps.length)) : 0;
+  const enlarge = useEnlarge();
+  const frame = (
+    <div
+      className="cp-video-frame is-portrait is-sketch tpp-video-frame"
+      data-ratio="9:16"
+      style={{ ["--cp-top-h" as string]: "0.4rem" }}
+    >
+      <SketchBoard
+        key={index}
+        title={scene.sceneTitle}
+        diagram={scene.diagram}
+        sceneKey={index}
+        draw={draw}
+        playing={playing}
+        formulaSteps={steps}
+        formulaShown={shown}
+        keyFact={scene.keyFact}
+      />
+      <SceneCaption narration={scene.narration} sceneMs={sceneMs} within={within} />
+    </div>
+  );
+
+  return (
+    <div className="tpp-video" data-preview="video" data-video="board">
+      <div className="tpp-video-slot">{enlarge.open ? null : frame}</div>
+      <VideoControls playing={playing} onToggle={() => setPlaying((current) => !current)} index={index} count={scenes.length} onEnlarge={enlarge.show} />
+      <EnlargeOverlay open={enlarge.open} onClose={enlarge.hide} trigger={enlarge.trigger} title={scene.sceneTitle}>
+        {frame}
+      </EnlargeOverlay>
+    </div>
+  );
+}
+
+/**
+ * Mühendislik, TUS ve hukuk: ürünün çizimli video oynatıcısındaki branşa özel SVG sahnesi (`ReelSceneRenderer`).
+ * Sahne verisi ürünün ayrıştırıcısından geçer (`parseReelVisual`); her sahne değişiminde çizim baştan akar.
+ *
+ * Büyüt ve küçült çerçeveyi başka bir kaba taşır, sahne yeniden kurulur ve CSS çizim animasyonu baştan başlar. Duraklatılmış
+ * önizlemede animasyon ilk karede donuyordu: büyütülen sahne boştu (yazılar görünmez, ortası karanlık), oynarken de
+ * çizim altyazının ortasında yeniden akıyordu (Faz 9, 20 Kasım 2026, canlı misafir denetimi). Taşınan sahne bu yüzden
+ * tam çizilmiş hâliyle açılır (`animate="none"`); sıradaki sahne yine çizilerek gelir.
+ */
+function ReelPreview({ sketch }: { sketch: TourReelSketch }) {
+  const { scenes, sceneMs } = sketch;
+  const visuals = useMemo(() => scenes.map((scene) => parseReelVisual(scene.visual, scene.beat)), [scenes]);
+  const { index, within, playing, setPlaying } = useSceneClock(scenes.length, sceneMs);
+  const scene = scenes[index]!;
+  const visual = visuals[index];
+  const enlarge = useEnlarge();
+  /** Büyüt/küçült ile yeniden kurulan sahnenin sırası: o sahne animasyonsuz, tam çizilmiş açılır. */
+  const [moved, setMoved] = useState<number | null>(null);
+  const openEnlarge = (button: HTMLButtonElement) => {
+    setMoved(index);
+    enlarge.show(button);
+  };
+  const closeEnlarge = () => {
+    setMoved(index);
+    enlarge.hide();
+  };
+  const frame = (
+    <div
+      className="cp-video-frame is-portrait is-reel tpp-video-frame"
+      data-ratio="9:16"
+      style={{ ["--cp-top-h" as string]: "0.4rem" }}
+    >
+      {visual ? (
+        <div className="cp-video-reel" data-beat={scene.beat}>
+          <ReelSceneRenderer key={index} visual={visual} mode="9:16" domain={sketch.domain} animate={moved === index ? "none" : "sync"} playing={playing} />
+        </div>
+      ) : null}
+      <SceneCaption narration={scene.narration} sceneMs={sceneMs} within={within} />
+    </div>
+  );
+
+  return (
+    <div className="tpp-video" data-preview="video" data-video="reel">
+      <div className="tpp-video-slot">{enlarge.open ? null : frame}</div>
+      <VideoControls playing={playing} onToggle={() => setPlaying((current) => !current)} index={index} count={scenes.length} onEnlarge={openEnlarge} />
+      <EnlargeOverlay open={enlarge.open} onClose={closeEnlarge} trigger={enlarge.trigger} title={scene.narration.slice(0, 80)}>
+        {frame}
+      </EnlargeOverlay>
     </div>
   );
 }
@@ -271,15 +448,16 @@ function VideoPreview() {
 /* ---------- Sınav sabahı kâğıdı ---------- */
 
 /** Kâğıt turdaki örnek dersten, ürünün derleyicisiyle; baskıdaki gibi açık zeminde gösterilir. */
-function SheetPreview() {
+function SheetPreview({ content }: { content: GuestTourContent }) {
+  const { prep, lesson } = content;
   const sheet = useMemo(
-    () => buildCramSheet({ topics: [{ key: "tur", label: TOUR_PREP.topic }], lessons: [{ topicKey: "tur", lesson: TOUR_LESSON }] }),
-    [],
+    () => buildCramSheet({ topics: [{ key: "tur", label: prep.topic }], lessons: [{ topicKey: "tur", lesson }] }),
+    [prep.topic, lesson],
   );
   return (
     <div className="tpp-sheet" data-preview="sheet">
       <div className="tpp-paper">
-        <CramSheetView preview sheet={sheet} prepTitle={TOUR_PREP.title} examDay={null} homeHref="/kayit" />
+        <CramSheetView preview sheet={sheet} prepTitle={prep.title} examDay={null} homeHref="/kayit" />
       </div>
     </div>
   );

@@ -29,25 +29,39 @@ export const PREP_REVIEW_COPY = {
   multiHint: "Birden fazla yanıt seçebilirsin",
 } as const;
 
+/** Faz 4 — ücretsiz hedefli tekrar (Zayıf / Gelişiyor / tuzak konuların kayıtlı soruları). */
+export const TARGETED_REVIEW_COPY = {
+  title: "Eksik & Tuzak Soruları (Ücretsiz)",
+  empty: "Bu konular için kayıtlı soru yok. Yanlış yaptığın sorular çözdükçe burada birikir.",
+  done: "Hedefli tekrar bitti",
+} as const;
+
 type Feedback = ReviewAnswerOutcome & { picks: string[] };
 
 /**
  * Günü gelen tekrarın oynatıcısı (20 Ekim 2026). Her seferde bir soru; not sunucuda (doğru cevap ve
  * açıklama cevaptan önce sayfada yok). Seçmeli soruda şık(lar) seçilip kontrol edilir; kart ve sözlü
  * cevapta önce hatırlanır, cevap açılır, "Hatırladın mı?" ile öğrenci kendini değerlendirir.
- * Ağ düşerse soru geçilmez: "yeniden dene". Tek çıkış ×.
+ * Ağ düşerse soru geçilmez: "yeniden dene". Tek çıkış ×. Kabuk zaten main öğesini veriyor; burası div
+ * (20 Kasım 2026, iç içe main yok).
  */
 export function PrepReviewSession({
   prepId,
   prepTitle,
   items,
   total,
+  practice = false,
 }: {
   prepId: string;
   prepTitle: string;
   items: ServedReviewItem[];
   total: number;
+  /** Hedefli tekrar: günü gelmemiş kayıtlı sorular da sorulur, takvim değişmez (kredi yok). */
+  practice?: boolean;
 }) {
+  const copy = practice
+    ? { title: TARGETED_REVIEW_COPY.title, empty: TARGETED_REVIEW_COPY.empty, done: TARGETED_REVIEW_COPY.done, roundDone: PREP_REVIEW_COPY.roundDone }
+    : PREP_REVIEW_COPY;
   const router = useRouter();
   const home = examPrepHomeHref(prepId);
   const [index, setIndex] = useState(0);
@@ -69,13 +83,14 @@ export function PrepReviewSession({
   );
 
   if (!items.length || finished) {
-    const left = remaining ?? Math.max(0, total - items.length);
+    // Hedefli turda takvim değişmez: yenileme aynı soruları getirir, "kalan" yok.
+    const left = practice ? 0 : (remaining ?? Math.max(0, total - items.length));
     return (
-      <main className="cp-review">
+      <div className="cp-review">
         {close}
         <section className="cp-review-done" aria-live="polite">
-          <h1>{items.length ? (left > 0 ? PREP_REVIEW_COPY.roundDone : PREP_REVIEW_COPY.done) : PREP_REVIEW_COPY.title}</h1>
-          <p>{items.length ? (answered > 0 ? `${answered} sorudan ${right} doğru · ${prepTitle}` : prepTitle) : PREP_REVIEW_COPY.empty}</p>
+          <h1>{items.length ? (left > 0 ? copy.roundDone : copy.done) : copy.title}</h1>
+          <p>{items.length ? (answered > 0 ? `${answered} sorudan ${right} doğru · ${prepTitle}` : prepTitle) : copy.empty}</p>
           <div className="cp-review-actions">
             {items.length && left > 0 ? (
               <button type="button" className="cp-review-btn cp-review-btn--primary" onClick={() => router.refresh()}>
@@ -87,7 +102,7 @@ export function PrepReviewSession({
             </Link>
           </div>
         </section>
-      </main>
+      </div>
     );
   }
 
@@ -103,7 +118,7 @@ export function PrepReviewSession({
       const res = await fetch("/api/learning/exam-prep/review", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prepId, itemId: item.id, ...body }),
+        body: JSON.stringify({ prepId, itemId: item.id, ...body, ...(practice ? { practice: true } : {}) }),
       });
       // Başka bir sekmede bitmiş ya da günü değişmiş: soru geçilir, hata ekranı yok.
       if (res.status === 404 || res.status === 409) {
@@ -151,10 +166,10 @@ export function PrepReviewSession({
   const pct = Math.round(((index + (settled ? 1 : 0)) / items.length) * 100);
 
   return (
-    <main className="cp-review">
+    <div className="cp-review">
       {close}
       <header className="cp-review-head">
-        <h1 className="cp-review-kicker">{PREP_REVIEW_COPY.title}</h1>
+        <h1 className="cp-review-kicker">{copy.title}</h1>
         <p className="cp-review-count">
           {index + 1} / {items.length}
         </p>
@@ -291,6 +306,6 @@ export function PrepReviewSession({
           />
         )}
       </div>
-    </main>
+    </div>
   );
 }

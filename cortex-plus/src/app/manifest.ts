@@ -5,7 +5,7 @@ import type { MetadataRoute } from "next";
  *
  * Android'deki paket bir TWA olacak (Trusted Web Activity): mağazadaki
  * uygulama bu siteyi kendi kabuğunda açıyor, ayrı bir yerel uygulama
- * yazılmıyor. kıyas ürünü da aynı yöntemi kullanıyor (`co.astra_ai.app.twa`).
+ * yazılmıyor.
  * Ayrıntı: `docs/delivery/MAGAZA-UYGULAMASI.md`.
  */
 export default function manifest(): MetadataRoute.Manifest {
@@ -17,7 +17,8 @@ export default function manifest(): MetadataRoute.Manifest {
     */
     id: "/",
     name: "Cortex Plus",
-    short_name: "Cortex+",
+    // Ana ekrandaki simgenin altındaki ad (20 Kasım 2026, Faz 8, ürün sahibi): markanın tam adı, "Cortex+" değil.
+    short_name: "Cortex Plus",
     description: "AI destekli öğrenme platformu",
     start_url: "/",
     // Kabuğun dışına çıkan bağlantı tarayıcıda açılsın diye kapsam kökte.

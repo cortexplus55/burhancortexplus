@@ -5,14 +5,17 @@ import { SubscriptionCards } from "@/components/parity/subscription-cards";
 import { createClient } from "@/lib/supabase/server";
 import { isPaytrConfigured } from "@/lib/payments/paytr";
 import { FREE_FIRST_LESSON_SENTENCE, PLUS_ONLY_SENTENCE } from "@/lib/billing/free-tier-copy";
+import { pageMetadata } from "@/lib/seo/page-metadata";
 
 /** 11 Kasım 2026: ücretsizde ilk dersin döngüsü açık, Plus'a özel olanlar adıyla (tek kaynak `free-tier-copy.ts`). */
 const PRICING_DESCRIPTION = `${FREE_FIRST_LESSON_SENTENCE} ${PLUS_ONLY_SENTENCE} Plus ayrıca bütün konuları ve geniş aylık hakkı açar; Sigma en yüksek hakkı verir.`;
 
-export const metadata = {
+// Kanonik adres ve sayfaya özel paylaşım bilgisi (20 Kasım 2026, Faz 3).
+export const metadata = pageMetadata({
   title: "Fiyatlandırma",
   description: PRICING_DESCRIPTION,
-};
+  path: "/fiyatlandirma",
+});
 
 export const dynamic = "force-dynamic";
 

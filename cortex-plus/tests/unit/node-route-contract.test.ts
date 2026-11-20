@@ -17,6 +17,9 @@ const h = vi.hoisted(() => ({
   service: null as unknown,
   flag: true,
   gate: null as Promise<void> | null,
+  /** Ünite dersi senaryosu (20 Kasım 2026): çözücünün döndürdüğü alt konular ve temiz sayfa metni; öbür senaryolarda null. */
+  unitSubtopics: null as { unit: string[]; others: string[] } | null,
+  cleanText: null as string | null,
   releaseGate: null as (() => void) | null,
   engines: {} as Record<string, (input: Record<string, unknown>) => unknown>,
   engine(name: string, fallback: (input: Record<string, unknown>) => unknown) {
@@ -116,7 +119,7 @@ vi.mock("@/lib/documents/clean-pages", () => ({
   documentRunningHeaders: async () => [],
   ensureCleanPages: async (_s: unknown, input: Record<string, unknown>) => {
     h.record("ensureCleanPages", [input]);
-    return [{ page: 1, text: "Mitozda kromozom sayısı korunur.", cleaned: false }];
+    return [{ page: 1, text: h.cleanText ?? "Mitozda kromozom sayısı korunur.", cleaned: false }];
   },
 }));
 vi.mock("@/lib/documents/teacher-analysis-run", async (importOriginal) => ({
@@ -151,6 +154,7 @@ vi.mock("@/lib/learning/lesson-source-resolver", () => ({
       context: { block: "[s.1] Mitozda kromozom sayısı korunur.", matches: [], documentName: "Biyoloji.pdf", formulas: [] },
       trace: { steps: [] },
       unavailable: null,
+      ...(h.unitSubtopics ? { unitSubtopics: h.unitSubtopics } : {}),
     };
   },
   enrichLessonSource: async (_s: unknown, _u: unknown, context: unknown) => context,
@@ -360,6 +364,8 @@ beforeEach(() => {
   h.flag = true;
   h.engines = {};
   h.gate = null;
+  h.unitSubtopics = null;
+  h.cleanText = null;
   h.releaseGate = null;
   uuidSeq = 0;
   vi.useFakeTimers({ toFake: ["Date"] });
@@ -562,6 +568,34 @@ describe("yol etkinliği rotası: start × tür", () => {
     expect(await run(seed("lesson"), { prepId: PREP, nodeId: NODE, action: "start", clientRequestId: REQ })).toMatchSnapshot();
   });
 
+  // Ünite dersi (20 Kasım 2026): anlık görüntü değil, açık beklenti (eski senaryoların görüntüsü değişmez). Çözücü
+  // alt konuları döndürür, düğüm bölünmüş ünitenin kendi kısmını taşır; motor planı, dışarıda kalan alt konuları ve
+  // öbür ünitenin bölümü çıkarılmış sayfaları alır.
+  it("ünite dersi: alt konu planı motora gider, öbür ünitenin bölümü kaynaktan çıkar", async () => {
+    const filler = "kendi kuralını, istisnasını ve örneğini ayrıntılı biçimde anlatır; sınavda sorulan noktaları sırayla verir.";
+    h.unitSubtopics = { unit: ["Alfa evresi", "Beta evresi", "Gama evresi"], others: ["Kappa evresi"] };
+    h.cleanText = ["## Alfa evresi", `Alfa bölümü ${filler}`, "## Kappa evresi", `Kappa bölümü ${filler}`, "## Beta evresi", `Beta bölümü ${filler}`].join("\n");
+    let engineInput: Record<string, unknown> | null = null;
+    h.engines.runTeacherLesson = async (input) => {
+      engineInput = input;
+      return { ok: true, lesson: LESSON, calls: 1, ms: 0, remainingLow: [], fixTriggers: [], dropped: [], draftNote: null };
+    };
+    const tables = seed("lesson");
+    const node = tables.exam_prep_nodes![0]!;
+    node.session_meta = { ...(node.session_meta as Record<string, unknown>), lessonSubtopics: ["Alfa evresi", "Beta evresi"] };
+    await run(tables, { prepId: PREP, nodeId: NODE, action: "start", clientRequestId: REQ });
+    expect(engineInput).toMatchObject({
+      subtopics: ["Alfa evresi", "Beta evresi"],
+      excludedSubtopics: ["Gama evresi"],
+      // Hazırlığın konu adları (kendi adı motorda süzülür) ve öbür ünitenin alt konusu.
+      siblingTopics: ["Hücre Bölünmesi", "Kappa evresi"],
+    });
+    const pages = (engineInput as unknown as { pages: { text: string }[] }).pages.map((page) => page.text).join("\n");
+    expect(pages).toContain("Alfa bölümü");
+    expect(pages).toContain("Beta bölümü");
+    expect(pages).not.toContain("Kappa bölümü");
+  });
+
   it("ders üretimi düşer: kayıt başarısız, kredi iadesi bildirilir", async () => {
     h.engines.runTeacherLesson = async () => ({ ok: false, status: 503, error: "generation_failed", reasons: ["kavram geçmedi"] });
     expect(await run(seed("lesson"), { prepId: PREP, nodeId: NODE, action: "start", clientRequestId: REQ, lessonStream: true, lessonFormat: 3 })).toMatchSnapshot();
@@ -579,6 +613,20 @@ describe("yol etkinliği rotası: start × tür", () => {
     expect(await run(quiz, { prepId: PREP, nodeId: NODE, action: "start", review: true })).toMatchSnapshot();
     h.timeline.length = 0;
     expect(await run(seed("quiz"), { prepId: PREP, nodeId: NODE, action: "start", review: true })).toMatchSnapshot();
+  });
+
+  it("cevapsız tekrar kaydı yeniden açılır; ikinci açılış yeni satır yazmaz (Faz 4 denetimi)", async () => {
+    const reviewed = { type: "quiz", questions: [QUIZ_Q1], reviewed: true };
+    const tables = seed("quiz", {
+      exam_prep_node_attempts: [
+        attemptRow({ type: "quiz", questions: [QUIZ_Q1] }, { status: "completed", client_request_id: "00000000-0000-4000-8000-0000000000f9" }),
+        attemptRow(reviewed, { id: "00000000-0000-4000-8000-0000000000e1", status: "active", answers: {}, answer_meta: {} }),
+      ],
+    });
+    await run(tables, { prepId: PREP, nodeId: NODE, action: "start", review: true });
+    const writes = h.timeline.filter((line) => line.startsWith("db insert exam_prep_node_attempts"));
+    expect(writes).toEqual([]);
+    expect(h.timeline.some((line) => line.includes("00000000-0000-4000-8000-0000000000e1"))).toBe(true);
   });
 
   it("aynı istek kimliği: hazır kayıt yeniden döner, açık kayıt sürdürülür", async () => {

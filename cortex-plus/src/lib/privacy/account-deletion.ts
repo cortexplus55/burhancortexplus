@@ -1,4 +1,5 @@
 import "server-only";
+import { invalidateSessionUserContext } from "@/lib/auth/session-context";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isOwnedDocumentStoragePath } from "@/lib/documents/storage-path";
 import { missingRelation } from "@/lib/learning/missing-column";
@@ -51,6 +52,11 @@ const USER_CONTENT_TABLES = [
   "email_campaign_recipients",
   // 8 Kasım 2026: genel tekrar destesi (sohbetin "Akılda kalsın" kartları). Göç canlıda yoksa atlanır.
   "general_review_cards",
+  // 19 Kasım 2026 (Faz 4): "Farklı anlat" adım önbelleği. Hazırlık silinince CASCADE; tablo yoksa atlanır.
+  "exam_prep_step_reexplains",
+  // 20 Kasım 2026 (Faz 7): sınav sonrası not, yorum ve gösterim izni. Hazırlık silinince CASCADE da siler; açıkça
+  // burada da (sıra ya da kısıt değişse de satır kalmasın). Göç canlıda yoksa atlanır.
+  "exam_feedback_testimonials",
 ] as const;
 
 const OPTIONAL_PURGE_TABLES = new Set([
@@ -63,6 +69,8 @@ const OPTIONAL_PURGE_TABLES = new Set([
   "email_preferences",
   "email_campaign_recipients",
   "general_review_cards",
+  "exam_prep_step_reexplains",
+  "exam_feedback_testimonials",
 ]);
 
 /**
@@ -120,6 +128,8 @@ export async function purgeUserData(service: SupabaseClient, userId: string): Pr
     const { error: disableError } = await service.from("profiles")
       .update({ deleted_at: new Date().toISOString() }).eq("id", userId);
     if (disableError) return { ok: false, error: step };
+    // Faz 2: silinen hesap önbellekteki "etkin" kaydıyla bir an bile geçmesin.
+    await invalidateSessionUserContext(userId);
 
     step = "subscription_cancel";
     const { error: subscriptionError } = await service.from("subscriptions")
@@ -136,6 +146,14 @@ export async function purgeUserData(service: SupabaseClient, userId: string): Pr
     for (const table of ["classroom_members", "assignment_submissions"]) {
       step = `purge_${table}`;
       const { error } = await service.from(table).delete().eq("student_id", userId);
+      if (error) return { ok: false, error: step };
+    }
+    // 20 Kasım 2026 (Faz 7): sınıfla paylaşım ödül kayıtları; öğrenci paylaşan ya da klonlayan taraf olabilir. Kredi
+    // hareketinin kendisi deftere (credit_ledger) kalır. Göç canlıda yoksa atlanır.
+    for (const column of ["referrer_user_id", "referred_user_id"]) {
+      step = "purge_referral_credit_rewards";
+      const { error } = await service.from("referral_credit_rewards").delete().eq(column, userId);
+      if (error && missingRelation(error)) break;
       if (error) return { ok: false, error: step };
     }
 
