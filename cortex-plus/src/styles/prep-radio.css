@@ -1,0 +1,297 @@
+/* Sınav Radyosu (Faz 7, 20 Kasım 2026): hazırlık sayfasındaki giriş düğmesi ve ekranın altına sabit radyo çubuğu.
+   Çubuk sabit konumlu: sayfa içeriğini itmez (düzen kayması yok). Telefonda (<768 px) alt sekme çubuğunun hemen
+   üstünde (çubuk: 8 + 64 px + güvenli alan), daha genişte ekranın altında ortada. Açıkken sayfanın sabit "Sıradaki"
+   kartı ve sayfanın sonu çubuğun üstünde kalır (`html[data-cx-radio]`, yükseklik `--cx-radio-h` ölçülür).
+   Kart kenarlıksız (bg-1); bütün düğmeler cam, dokunma alanı en az 44 px; sayfanın tek marka düğmesi yoldaki "Devam et". */
+
+/* ---------- Giriş: hazırlık kartında, eylemlerin altında ---------- */
+.cp-prep-radio-entry {
+  order: 7;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--cx-space-2);
+  width: 100%;
+  min-height: var(--cx-tap-min);
+  margin-top: var(--cx-space-12);
+  padding: var(--cx-space-10) var(--cx-space-16);
+  border: 0;
+  border-radius: var(--cx-radius-l);
+  background: var(--cx-bg-2);
+  color: var(--cx-text-primary);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--cx-dur-color) ease;
+}
+.cp-prep-radio-entry:hover,
+.cp-prep-radio-entry[aria-expanded="true"] {
+  background: var(--cx-bg-3);
+}
+.cp-prep-radio-entry:focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}
+.cp-prep-radio-entry-title {
+  font: var(--cx-t-title-s);
+  letter-spacing: var(--cx-ls-heading);
+}
+.cp-prep-radio-entry-sub {
+  font: var(--cx-t-meta-s);
+  letter-spacing: var(--cx-ls-meta);
+  text-transform: uppercase;
+  color: var(--cx-text-secondary);
+}
+
+/* ---------- Çubuk ---------- */
+.cp-prep-radio-bar {
+  position: fixed;
+  z-index: 35;
+  left: var(--cx-gutter);
+  right: var(--cx-gutter);
+  bottom: calc(var(--cx-space-8) * 2 + 64px + env(safe-area-inset-bottom, 0px));
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "info close"
+    "controls controls";
+  align-items: center;
+  column-gap: var(--cx-space-8);
+  row-gap: var(--cx-space-8);
+  box-sizing: border-box;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: var(--cx-space-12) var(--cx-space-12) var(--cx-space-10);
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--cx-radius-l);
+  background: var(--cx-bg-1);
+  box-shadow: var(--cx-shadow-banner);
+  color: var(--cx-text-primary);
+  animation: cp-prep-radio-in var(--cx-dur-panel) var(--cx-ease-settle);
+}
+@media (min-width: 768px) {
+  .cp-prep-radio-bar {
+    left: var(--cx-space-24);
+    right: var(--cx-space-24);
+    bottom: calc(var(--cx-space-16) + env(safe-area-inset-bottom, 0px));
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas: "info controls close";
+    column-gap: var(--cx-space-12);
+    padding: var(--cx-space-14) var(--cx-space-16) var(--cx-space-12);
+  }
+}
+@keyframes cp-prep-radio-in {
+  from {
+    opacity: 0;
+    translate: 0 var(--cx-enter-shift);
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+.cp-prep-radio-progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--cx-bg-2);
+}
+.cp-prep-radio-progress > span {
+  display: block;
+  height: 100%;
+  background: var(--cx-gradient-signature);
+  transition: width 250ms linear;
+}
+
+.cp-prep-radio-info {
+  grid-area: info;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cx-space-2);
+  min-width: 0;
+}
+.cp-prep-radio-kicker {
+  display: flex;
+  align-items: center;
+  gap: var(--cx-space-6);
+  min-width: 0;
+  margin: 0;
+  font: var(--cx-t-meta-s);
+  letter-spacing: var(--cx-ls-meta);
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+  color: var(--cx-text-secondary);
+}
+.cp-prep-radio-kicker > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cp-prep-radio-kicker svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: var(--cx-text-brand);
+}
+.cp-prep-radio-title {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font: var(--cx-t-title-s);
+  letter-spacing: var(--cx-ls-heading);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cp-prep-radio-retry {
+  align-self: flex-start;
+  min-height: var(--cx-tap-min);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--cx-text-brand);
+  font: var(--cx-t-button-s);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.cp-prep-radio-controls {
+  grid-area: controls;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cx-space-6);
+  min-width: 0;
+}
+@media (min-width: 768px) {
+  .cp-prep-radio-controls {
+    justify-content: flex-end;
+    gap: var(--cx-space-8);
+  }
+}
+.cp-prep-radio-btn {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cx-space-2);
+  width: var(--cx-tap-min);
+  height: var(--cx-tap-min);
+  padding: 0;
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  color: var(--cx-text-primary);
+  font: var(--cx-t-button-s);
+  cursor: pointer;
+  transition: scale var(--cx-dur-scale) var(--cx-ease-out), opacity var(--cx-dur-color) ease;
+}
+.cp-prep-radio-btn svg {
+  width: 18px;
+  height: 18px;
+}
+.cp-prep-radio-btn:hover:not(:disabled) {
+  scale: var(--cx-scale-hover);
+}
+.cp-prep-radio-btn:focus-visible,
+.cp-prep-radio-close:focus-visible,
+.cp-prep-radio-retry:focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}
+.cp-prep-radio-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.cp-prep-radio-speed {
+  width: auto;
+  min-width: 56px;
+  padding: 0 var(--cx-space-10);
+  font-variant-numeric: tabular-nums;
+}
+.cp-prep-radio-skip {
+  position: relative;
+}
+.cp-prep-radio-skip > span {
+  position: absolute;
+  font: 700 0.6875rem / 1 var(--cx-font-sans);
+  translate: 0 1px;
+}
+.cp-prep-radio-skip svg {
+  width: 26px;
+  height: 26px;
+  opacity: 0.85;
+}
+.cp-prep-radio-play {
+  width: 52px;
+  height: 52px;
+}
+.cp-prep-radio-play svg {
+  width: 22px;
+  height: 22px;
+}
+.cp-prep-radio-spin {
+  animation: cp-prep-radio-spin 900ms linear infinite;
+}
+@keyframes cp-prep-radio-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+
+.cp-prep-radio-close {
+  grid-area: close;
+  display: grid;
+  place-items: center;
+  width: var(--cx-tap-min);
+  height: var(--cx-tap-min);
+  padding: 0;
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  background: transparent;
+  color: var(--cx-text-secondary);
+  cursor: pointer;
+  transition: color var(--cx-dur-color) ease, background-color var(--cx-dur-color) ease;
+}
+.cp-prep-radio-close:hover {
+  background: var(--cx-bg-2);
+  color: var(--cx-text-primary);
+}
+.cp-prep-radio-close svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* ---------- Çubuk açıkken sayfa ---------- */
+html[data-cx-radio="open"] .cp-prep-layout .cp-prep-main :is(.cp-path-next, .cp-path-next--focus, .cp-path-next--locked) {
+  bottom: calc(var(--cx-space-24) + var(--cx-radio-h, 0px) + var(--cx-space-8));
+}
+html[data-cx-radio="open"] .cp-prep-layout {
+  padding-bottom: calc(var(--cx-radio-h, 0px) + var(--cx-space-32));
+}
+@media (max-width: 767px) {
+  html[data-cx-radio="open"] .cp-prep-layout .cp-prep-main :is(.cp-path-next, .cp-path-next--focus, .cp-path-next--locked) {
+    bottom: calc(var(--cx-space-8) * 2 + 64px + env(safe-area-inset-bottom, 0px) + var(--cx-radio-h, 0px) + var(--cx-space-8));
+  }
+  html[data-cx-radio="open"] .cp-prep-layout:has(.cp-path-next) {
+    padding-bottom: calc(104px + var(--cx-space-32) + var(--cx-radio-h, 0px) + var(--cx-space-8));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-prep-radio-bar,
+  .cp-prep-radio-spin {
+    animation: none;
+  }
+  .cp-prep-radio-btn {
+    transition: opacity var(--cx-dur-color) ease;
+  }
+  .cp-prep-radio-btn:hover:not(:disabled) {
+    scale: none;
+  }
+  .cp-prep-radio-progress > span {
+    transition: none;
+  }
+}

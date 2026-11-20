@@ -14,6 +14,7 @@ import {
   type OpenJudgement,
 } from "@/lib/learning/mock-exam/open-grade";
 import { analyzeWorkSteps, mergeStepVerdicts, workStepFeedback } from "@/lib/learning/mock-exam/work-steps";
+import { deriveRedPen } from "@/lib/learning/mock-exam/red-pen";
 import { parseModelJson } from "@/lib/learning/teaching-standards";
 import { maybeRescheduleMissedDays } from "@/lib/learning/missed-day-reschedule";
 import { writeBackMockToPrep } from "@/lib/learning/mock-exam/prep-writeback";
@@ -196,6 +197,8 @@ export async function gradeMockExam(input: GradeMockExamInput): Promise<GradeMoc
           tuned.earned <= 0 ? "yanlis" : tuned.earned >= graded.max ? "dogru" : "kismen";
         // Tam puan kuralı çalıştıysa "eksik" ölçüt kalmaz: kısa çözümün ölçütleri karşılanmış sayılır.
         const full = tuned.earned >= graded.max && tuned.step === SHORT_SOLUTION_FULL_CREDIT;
+        const metCriteria = new Set(full ? [...graded.met, ...graded.missed] : graded.met);
+        const contradicted = new Set(judgement.contradicted);
         return {
           questionId: q.id,
           userAnswer: answerText,
@@ -211,6 +214,19 @@ export async function gradeMockExam(input: GradeMockExamInput): Promise<GradeMoc
             quotes: judgement.quotes,
             contradicted: judgement.contradicted,
             ...workStepFeedback(steps, tuned.step),
+            // Kırmızı Kalemli Hoca (Faz 7): aynı karardan, ek model çağrısı yok (`red-pen.ts`).
+            ...deriveRedPen({
+              maxPoints: graded.max,
+              awarded: tuned.earned,
+              criteria: rubric.map((row) => ({
+                criterion: row.criterion,
+                points: Number(row.points) || 0,
+                met: metCriteria.has(row.criterion),
+                contradicted: contradicted.has(row.criterion),
+              })),
+              steps,
+              scoreNote: tuned.step,
+            }),
           },
           topicId: q.topicId ?? null,
           topicLabel: q.topicLabel?.trim() || "Konu",
@@ -269,6 +285,18 @@ export async function gradeMockExam(input: GradeMockExamInput): Promise<GradeMoc
           invalid: graded.invalid,
           quotes: expanded,
           ...workStepFeedback(codeSteps, tuned.step),
+          ...deriveRedPen({
+            maxPoints: graded.max,
+            awarded: tuned.earned,
+            criteria: rubric.map((row) => ({
+              criterion: row.criterion,
+              points: Number(row.points) || 0,
+              met: graded.met.includes(row.criterion),
+            })),
+            steps: codeSteps,
+            scoreNote: tuned.step,
+            blank: !answerText.trim(),
+          }),
         },
         topicId: q.topicId ?? null,
         topicLabel: q.topicLabel?.trim() || "Konu",

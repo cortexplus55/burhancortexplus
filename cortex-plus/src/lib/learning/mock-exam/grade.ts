@@ -8,6 +8,13 @@ import { stepArithmeticIssues } from "@/lib/solve/step-arithmetic";
 import { allValuesIn, finalResults, matchesExpected, modelResult } from "@/lib/learning/result-values";
 import { verdictCounts } from "@/lib/learning/mock-exam/verdict-counts";
 import { firstError, stepFeedbackLine, type WorkStepVerdict } from "@/lib/learning/mock-exam/work-steps";
+import {
+  BARE_RESULT_NOTE,
+  DATE_CONFLICT_NOTE,
+  RESULT_CONFLICT_NOTE,
+  SETUP_OK_ARITHMETIC_NOTE,
+  SHORT_SOLUTION_FULL_CREDIT,
+} from "@/lib/learning/mock-exam/score-notes";
 
 export type GradeableQuestion = {
   id: string;
@@ -126,8 +133,11 @@ function showsRelation(answer: string): boolean {
   return /[=⇒→]/.test(answer) || /\d\s*[+\-*/×·÷:]\s*\d/.test(answer);
 }
 
-/** Kısa ama doğru çözümün notu (Paket G, 29 Ekim 2026). */
-export const SHORT_SOLUTION_FULL_CREDIT = "Sonuç ve bağıntı doğru; çözümün kısa olması puan düşürmez.";
+/*
+  Puan notları `score-notes.ts`te (Faz 7, 20 Kasım 2026): "Kırmızı Kalemli Hoca" bloğu (`red-pen.ts`, istemci de
+  okur) notun nedenini oradan tanır. Adlar buradan da dışa aktarılır; çağıranlar değişmedi.
+*/
+export { SHORT_SOLUTION_FULL_CREDIT } from "@/lib/learning/mock-exam/score-notes";
 
 /**
  * Öğrencinin son sonucu beklenen değeri tutuyor mu: `finalResults` (örnek cevabın sonuç değişkeni, "=" kuyruğu,
@@ -194,7 +204,7 @@ export function partialWorkCredit(input: {
   if (inRange && markers.length && bare) {
     const cap = Math.round(input.maxPoints * 0.6 * 1000) / 1000;
     if (input.alreadyEarned <= cap) return null;
-    return { earned: cap, step: "Yöntem yazılmadan yalnız sonuç verilmiş." };
+    return { earned: cap, step: BARE_RESULT_NOTE };
   }
   if (inRange && !bare) {
     const justified = hits.length > 0 || showsRelation(answer) || input.alreadyEarned > 0;
@@ -206,11 +216,11 @@ export function partialWorkCredit(input: {
     const ratio = Math.min(0.8, 0.5 + 0.3 * (hits.length / Math.max(1, markers.length)));
     const earned = Math.round(input.maxPoints * ratio * 1000) / 1000;
     if (earned <= input.alreadyEarned) return null;
-    return { earned, step: "Kurulum doğru; son aritmetik adım hatalı." };
+    return { earned, step: SETUP_OK_ARITHMETIC_NOTE };
   }
   // Çelişki yalnız cevaptaki HİÇBİR sayı beklenen değeri tutmuyorsa: tek tutan sayı kararı düşürür.
   if (!inRange && !reaches && num != null && !hits.length && input.alreadyEarned >= input.maxPoints * 0.7) {
-    return { earned: 0, step: "Sonuç beklenen değerle çelişiyor." };
+    return { earned: 0, step: RESULT_CONFLICT_NOTE };
   }
   return null;
 }
@@ -271,7 +281,7 @@ export function adjustScoredAnswer(input: {
   const corpus = `${input.modelAnswer ?? ""}\n${(input.criteria ?? []).join("\n")}`;
   if (dateContradiction(input.answer, corpus)) {
     const cap = Math.round(input.maxPoints * 0.4 * 1000) / 1000;
-    return { earned: Math.min(input.earned, cap), step: "Tarih beklenenle çelişiyor." };
+    return { earned: Math.min(input.earned, cap), step: DATE_CONFLICT_NOTE };
   }
   const partial = partialWorkCredit({ ...input, expected, alreadyEarned: input.earned });
   const base: { earned: number; step?: string } = partial ? { earned: partial.earned, step: partial.step } : { earned: input.earned };

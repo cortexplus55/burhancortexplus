@@ -54,6 +54,9 @@ const USER_CONTENT_TABLES = [
   "general_review_cards",
   // 19 Kasım 2026 (Faz 4): "Farklı anlat" adım önbelleği. Hazırlık silinince CASCADE; tablo yoksa atlanır.
   "exam_prep_step_reexplains",
+  // 20 Kasım 2026 (Faz 7): sınav sonrası not, yorum ve gösterim izni. Hazırlık silinince CASCADE da siler; açıkça
+  // burada da (sıra ya da kısıt değişse de satır kalmasın). Göç canlıda yoksa atlanır.
+  "exam_feedback_testimonials",
 ] as const;
 
 const OPTIONAL_PURGE_TABLES = new Set([
@@ -67,6 +70,7 @@ const OPTIONAL_PURGE_TABLES = new Set([
   "email_campaign_recipients",
   "general_review_cards",
   "exam_prep_step_reexplains",
+  "exam_feedback_testimonials",
 ]);
 
 /**

@@ -72,6 +72,8 @@ import { createPrepInviteToken, prepInviteUrl } from "@/lib/learning/prep-invite
 import { prepInviteWhatsappHref } from "@/lib/learning/prep-share";
 import { examDatePassed, examResultDue } from "@/lib/learning/exam-result";
 import { loadExamBaseline } from "@/lib/learning/exam-result-load";
+import { createReadinessToken } from "@/lib/learning/readiness-snapshot";
+import { loadPrepRadio } from "@/lib/learning/prep-radio-server";
 import { appOrigin } from "@/lib/app-url";
 import { freeTopicLocks } from "@/lib/billing/free-topic-gate";
 import { poolLessonPreview } from "@/lib/content-pool/lesson-preview";
@@ -668,6 +670,17 @@ export default async function ExamPrepDetailPage({
   // Kaydedilmiş notun başlangıcı boşsa (eski kural ya da sonradan gelen kayıt) okurken yeniden hesaplanır (Paket J takip #2).
   const storedResult = resultPrefs.examResult;
 
+  // Sınav Radyosu (Faz 7, 20 Kasım 2026): sesi tamamen önbellekte olan kayıtlı podcast'ler, konu ve yol sırasıyla.
+  // Dalga 4 ile aynı anda okunur; düşerse boş liste (düğme yok). Hiçbir şey üretilmez, kredi düşmez.
+  const radioRead = loadPrepRadio(service, {
+    prepId,
+    userId: user.id,
+    topicLabels: [
+      ...prepTopics.map((topic) => String(topic.label ?? "")),
+      ...nodes.map((node) => String((node.sessionMeta as { topicTitle?: string } | undefined)?.topicTitle ?? "")),
+    ],
+  });
+
   // Dalga 4: kilit + havuz önizlemesi, sınav sonrası başlangıç, ünite kontrolü, hakimiyet haritası ve kamp kartı
   // birbirini beklemez (kilit, dalga 3'teki yol açma yazımından sonra okunur).
   // Faz 2: bekleyen materyal ve tekrar sayıları da bu turda (eskiden sayfanın sonunda iki ayrı sıralı turdu).
@@ -747,6 +760,7 @@ export default async function ExamPrepDetailPage({
         examDate: (prep.exam_date as string | null) ?? null,
       }),
     ]);
+  const radioItems = await radioRead;
   const pathNodes = lockedIds.size
     ? homeNodes.map((node) => (lockedIds.has(node.id) ? { ...node, planLocked: true } : node))
     : homeNodes;
@@ -759,7 +773,12 @@ export default async function ExamPrepDetailPage({
           today: resultToday,
           result: resultPrefs.examResult ?? null,
           snoozedUntil: resultPrefs.examResultSnoozedUntil ?? null,
+          feedbackAt: resultPrefs.examFeedbackAt ?? null,
         }),
+        // Faz 7 (20 Kasım 2026): "Sınav öncesi hazırlık puanın %X idi" — sayfanın gösterdiği "Hazırlık" puanı; kayıt
+        // tarayıcının yazdığı sayıyı değil sunucunun imzaladığı anlık görüntüyü okur.
+        readinessPct: progressView.scorePct,
+        readinessToken: createReadinessToken({ prepId: prep.id as string, userId: user.id, pct: progressView.scorePct }),
         stored: storedResult
           ? {
               score: storedResult.score,
@@ -857,6 +876,7 @@ export default async function ExamPrepDetailPage({
         lockedPickId={typeof kilitli === "string" ? kilitli : null}
         pendingMaterials={pendingMaterials}
         dueReviews={dueReviews}
+        radioItems={radioItems}
       />
     </ParitySorShell>
   );

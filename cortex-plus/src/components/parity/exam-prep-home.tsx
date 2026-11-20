@@ -106,6 +106,8 @@ import { PrepMaterialAdder } from "@/components/parity/prep-add-material";
 import { PendingMaterialsBanner } from "@/components/parity/pending-materials-banner";
 import { PrepShareTools } from "@/components/parity/prep-share-tools";
 import { ExamResultCard, type ExamResultCardProps } from "@/components/parity/exam-result-card";
+import { PrepRadio } from "@/components/parity/prep-radio";
+import type { RadioItem } from "@/lib/learning/prep-radio";
 import "@/styles/prep-home-cx.css";
 import "@/styles/report-card.css";
 import { BADGE_LABEL, BADGE_TONE, type MasteryBadge } from "@/lib/learning/mastery-policy";
@@ -309,8 +311,11 @@ export function ExamPrepHome({
   examResult = null,
   firstTopicLock = null,
   officialNote = null,
+  radioItems = [],
 }: {
   prepId: string;
+  /** Sınav Radyosu (Faz 7): sesi önbellekte olan kayıtlı podcast bölümleri, sırayla; boşsa düğme yok. */
+  radioItems?: RadioItem[];
   /** Resmî müfredattan kurulduysa kaynak notu (sunucuda kayıttan üretilir). */
   officialNote?: string | null;
   /** 1. konu özeti; ücretsiz hesapta kilitli adım varsa dolu (`freeTopicLocks`). */
@@ -816,6 +821,8 @@ export function ExamPrepHome({
           <span className="cp-prep-twin-entry-title">{TWIN_EXAM_LABEL}</span>
           <span className="cp-prep-twin-entry-sub">Hocanın çıkmış sorularının tarzında ve konu ağırlığında tam {TWIN_EXAM_QUESTION_COUNT} soru</span>
         </Link>
+        {/* Sınav Radyosu (Faz 7, 20 Kasım 2026): hazır podcast bölümleri sırayla, 0 kredi; liste boşsa düğme yok. */}
+        <PrepRadio prepId={prepId} prepTitle={title} items={radioItems} />
       </header>
       </aside>
 

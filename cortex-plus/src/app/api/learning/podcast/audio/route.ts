@@ -4,7 +4,7 @@ import { errorResponse, withUser } from "@/lib/api/guards";
 import { getUserEntitlements, requireFeature } from "@/lib/billing/entitlements";
 import { countNewAudioChars, synthesizeCharged, synthesizeShared, type AudioTrack } from "@/lib/learning/audio-cache";
 import { isSharedPodcastScript, sharedBudgetAllows } from "@/lib/content-pool/shared-media";
-import { speakVerified } from "@/lib/learning/speech-normalizer";
+import { podcastLineSpeech } from "@/lib/learning/podcast-speech";
 import { flattenLines, normalizeChapters } from "@/lib/learning/podcast-script";
 import { MAX_PODCAST_AUDIO_CHARS, MAX_PODCAST_AUDIO_LINES, MAX_SPEECH_LINE_CHARS } from "@/lib/learning/podcast-audio-contract";
 import { durationVerdict, stampChapterDurations, sumDurationMs } from "@/lib/learning/podcast-duration";
@@ -51,10 +51,6 @@ function logMeasuredDuration(
   return { stamped, measuredMs };
 }
 
-function speechOf(line: { text: string; spoken?: string }): string {
-  return line.spoken?.trim() || speakVerified(line.text);
-}
-
 export async function POST(request: Request) {
   const guard = await withUser(request, { scope: "podcast-audio", limit: 12 });
   if (!guard.ok) return guard.response;
@@ -75,7 +71,7 @@ export async function POST(request: Request) {
     return errorResponse(400, "invalid_input");
   }
 
-  const speech = lines.map((line) => ({ text: speechOf(line), speaker: line.speaker }));
+  const speech = lines.map((line) => ({ text: podcastLineSpeech(line), speaker: line.speaker }));
   if (speech.some((line) => line.text.length > MAX_SPEECH_LINE_CHARS) ||
       speech.reduce((sum, line) => sum + line.text.length, 0) > MAX_PODCAST_AUDIO_CHARS) {
     return errorResponse(400, "invalid_input");
