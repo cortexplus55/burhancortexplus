@@ -29,7 +29,8 @@ import { JOURNEY_COPY, JOURNEY_FILE, JOURNEY_OWN, journeyFile } from "@/lib/mark
 
 /*
   Faz 9 (20 Kasım 2026), ürün sahibinin misafir sayfası turu:
-  - Kahramanın altı tek satır; birinci adım tek kart ("Akıllı Not Stüdyosu").
+  - Kahramanın altı tek satır. Birinci adım Faz 9'da tek kart ("Akıllı Not Stüdyosu") idi; Faz 9.1'de ürün sahibi
+    onu geri çevirdi: örnek not ders çekirdeğine kendi elinle götürülür (`LessonCore`).
   - "Formül & Kural → ÇİFT DERECELİ KÖK" kartında yalnız çıplak bir √ görünüyordu: KaTeX yazı tiplerini
     `font-display: block` ile tanımlar, tarayıcı onları ancak formül ekrana gelince ister; inene kadar harfler görünmez,
     kök işareti (SVG) görünür. Yazı tipleri artık formülden önce istenir. Formülün kendisi eksiksiz çizilir.
@@ -143,73 +144,103 @@ describe("kahramanın altı tek satır", () => {
     ]);
     expect(HERO_FOOT.facts).toEqual(["Kart istemiyoruz", "İlk dersin süresiz ücretsiz"]);
     expect(container.querySelector(".lp-facts, .lp-inputs, .hm-foot-links")).toBeNull();
-    // Birinci adımın bırakma alanında kabul edilen türler yazılı (kahramandan taşındı).
-    expect(container.querySelector(".lj-drop-line")?.textContent).toBe(JOURNEY_FILE.dropLine);
+    // Birinci adımda kendi notunun yuvası kabul edilen türleri yazar (kahramandan taşındı).
+    expect(container.querySelector(".lj-own-types")?.textContent).toBe(JOURNEY_OWN.types);
     const css = read("src/styles/home-cinema.css");
     expect(css).toMatch(/\.hm-foot-link \{[^}]*min-height: 2\.75rem;/);
     expect(css).not.toMatch(/\.hm-facts|\.hm-foot-links|\.lp-aud-tab/);
   });
 });
 
-describe("birinci adım: tek kart (Akıllı Not Stüdyosu)", () => {
-  it("ray, bırakma alanı ve iki düğme; canlı rozeti, konsol başlığı ve bağlam satırı yok; başlık ekran okuyucuda", () => {
+describe("birinci adım: ders çekirdeği (Faz 9.1)", () => {
+  it("ray, örnek not, kendi notunun yuvası ve çekirdek; Faz 9'un tek kartı ve iki düğmesi yok; başlık ekran okuyucuda", () => {
     const { container } = render(<FuturisticGuidedJourney segmentId="lise" />);
     const card = container.querySelector(".lj-console") as HTMLElement;
-    // Sıra: gizli başlık, ray (üstte), birinci adım (bırakma alanı ve düğmeler).
+    // Sıra: gizli başlık, ray (üstte), birinci adım (not ve çekirdek).
     expect([...card.children].map((child) => child.tagName + "." + child.className.split(" ")[0])).toEqual(["H2.sr-only", "OL.lj-rail", "DIV.lj-door"]);
     expect(within(card).getAllByRole("button", { name: /^Adım \d: / })).toHaveLength(7);
     expect(screen.getByRole("heading", { level: 2, name: JOURNEY_COPY.card }).className).toContain("sr-only");
     expect(container.querySelector("section#nasil")?.getAttribute("aria-labelledby")).toBe("lj-title");
-    for (const gone of [".lj-live", ".lj-console-head", ".lj-context", ".lj-own", "button.lj-zone", "button.lj-file", "[data-tracks]"]) {
+    for (const gone of [
+      ".lj-live",
+      ".lj-console-head",
+      ".lj-context",
+      ".lj-own",
+      "button.lj-zone",
+      "button.lj-file",
+      "[data-tracks]",
+      "[data-drop]",
+      ".lj-drop",
+      ".lj-door-actions",
+      ".lj-door-start",
+    ]) {
       expect(card.querySelector(gone), gone).toBeNull();
     }
-    // Bırakma alanı: örnek notun rozeti ve tek cümle.
-    const drop = card.querySelector("[data-drop]") as HTMLElement;
-    expect(drop.querySelector(".lj-drop-name")?.textContent).toBe(journeyFile("lise").name);
-    expect(drop.querySelector(".lj-drop-pages")?.textContent).toBe("· 6 sayfa");
-    expect(drop.textContent).toContain(JOURNEY_FILE.dropLine);
-    // Tam olarak iki düğme yan yana: birincil örnek tur, ikincil kendi dosyası (süs simgeleri adın parçası değil).
-    const actions = card.querySelector(".lj-door-actions") as HTMLElement;
-    const buttons = within(actions).getAllByRole("button");
-    expect(buttons.map((button) => button.textContent)).toEqual(["✨Örnek Notla 7 Adımı İzle", "📎Kendi Notunu Seç"]);
-    expect(screen.getByRole("button", { name: JOURNEY_FILE.start })).toBe(buttons[0]);
-    expect(screen.getByRole("button", { name: JOURNEY_OWN.pick })).toBe(buttons[1]);
-    expect(buttons[0]!.className).toContain("lj-cta");
-    expect(buttons[1]!.className).toContain("lj-ghost");
+    // Örnek not: kâğıt kart, adı, sayfası ve "Tut ve sürükle"; düğmenin adı ne yaptığını söyler.
+    const note = card.querySelector("[data-sample-start]") as HTMLButtonElement;
+    expect(note.tagName).toBe("BUTTON");
+    expect(note.querySelector(".lj-note-name")?.textContent).toBe(journeyFile("lise").name);
+    expect(note.querySelector(".lj-note-meta")?.textContent).toBe(`6 sayfa${JOURNEY_FILE.grip}`);
+    expect(screen.getByRole("button", { name: `${JOURNEY_FILE.send}: ${journeyFile("lise").name}, 6 sayfa` })).toBe(note);
+    // Çekirdek: düğme, adı ve yazısı.
+    const core = card.querySelector("[data-core]") as HTMLButtonElement;
+    expect(core.textContent).toContain(JOURNEY_FILE.coreLabel);
+    expect(screen.getByRole("button", { name: `${JOURNEY_FILE.coreName}: ${JOURNEY_FILE.coreLabel}` })).toBe(core);
+    // Kendi notunun yuvası: adı ve kabul edilen türler.
+    const slot = card.querySelector("[data-own-pick]") as HTMLButtonElement;
+    expect(slot.textContent).toBe(`${JOURNEY_OWN.pick}${JOURNEY_OWN.types}`);
+    // Yön ipucu: geniş ve dar ekranın cümlesi.
+    expect(card.querySelector(".lj-core-hint")?.textContent).toBe(`${JOURNEY_FILE.hintWide}${JOURNEY_FILE.hintNarrow}`);
     // Adımın yönlendirmesi ekran okuyucuda.
-    expect(screen.getByRole("status").textContent).toBe("Adım 1/7: Örnek notla yedi adımı izle ya da kendi notunu seç");
+    expect(screen.getByRole("status").textContent).toBe("Adım 1/7: Örnek notu ders çekirdeğine götür ya da kendi notunu bırak");
   });
 
-  it("birincil düğme kayıt istemeden stüdyoyu açar ve tarama anını oynatır; ikincil düğme dosya seçiciyi açar", () => {
+  it("not kayıt istemeden ana sayfada taranır; gün seçilince ders doğar; 'İlk ekranı aç' stüdyoyu derste açar; yuva dosya seçiciyi açar", () => {
     vi.useFakeTimers();
     const { container } = render(<FuturisticGuidedJourney segmentId="universite" />);
     const input = container.querySelector("input[data-guest-input]") as HTMLInputElement;
     const pick = vi.spyOn(input, "click").mockImplementation(() => undefined);
-    fireEvent.click(screen.getByRole("button", { name: JOURNEY_OWN.pick }));
+    fireEvent.click(screen.getByRole("button", { name: new RegExp(`^${JOURNEY_OWN.pick}`) }));
     expect(pick).toHaveBeenCalledTimes(1);
-    expect(document.querySelector(".lj-studio")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: JOURNEY_FILE.start }));
-    expect(screen.getByRole("dialog", { name: JOURNEY_COPY.title })).toBeTruthy();
-    expect(document.querySelector(".lj-studio [data-scan-findings]")).toBeTruthy();
+    fireEvent.click(container.querySelector("[data-sample-start]")!);
     act(() => {
-      vi.advanceTimersByTime(JOURNEY_FILE.scanMs);
+      vi.advanceTimersByTime(JOURNEY_FILE.absorbMs + JOURNEY_FILE.findingsMs);
     });
-    expect(screen.getByRole("heading", { name: "Yol haritan çıktı" })).toBeTruthy();
+    expect(document.querySelector(".lj-studio")).toBeNull();
+    expect(container.querySelector(".lj-console [data-scan-findings]")).toBeTruthy();
+    fireEvent.click(screen.getByRole("radio", { name: "7 gün" }));
+    expect(container.querySelector("[data-born]")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /İlk ekranı aç/ }));
+    expect(screen.getByRole("dialog", { name: JOURNEY_COPY.title }).getAttribute("data-step")).toBe("lesson");
     vi.useRealTimers();
   });
 
-  it("bırakma alanına bırakılan dosya misafirin kendi dosyasıdır: sunucuya gitmez, onay kartı açılır", async () => {
+  it("çekirdeğe ya da yuvaya bırakılan dosya misafirin kendi dosyasıdır: sunucuya gitmez, onay kartı açılır", async () => {
     const fetchSpy = vi.fn();
     vi.stubGlobal("fetch", fetchSpy);
     const { container } = render(<FuturisticGuidedJourney segmentId="lise" />);
-    const drop = container.querySelector("[data-drop]") as HTMLElement;
+    const core = container.querySelector("[data-core]") as HTMLElement;
     const file = new File([new Uint8Array(1024)], "Kimya_notu.pdf", { type: "application/pdf" });
-    fireEvent.dragOver(drop, { dataTransfer: { types: ["Files"], files: [file] } });
-    expect(drop.className).toContain("is-over");
-    fireEvent.drop(drop, { dataTransfer: { types: ["Files"], files: [file] } });
+    fireEvent.dragOver(core, { dataTransfer: { types: ["Files"], files: [file] } });
+    // Üstünde dosya tutulurken çekirdek "Bırak" der.
+    expect(container.querySelector(".lj-core-stage")?.hasAttribute("data-near")).toBe(true);
+    expect(core.textContent).toContain(JOURNEY_FILE.coreNear);
+    fireEvent.drop(core, { dataTransfer: { types: ["Files"], files: [file] } });
     expect(await screen.findByText("“Kimya_notu.pdf” taramaya hazır!")).toBeTruthy();
     expect(document.querySelector(".lj-studio")).toBeNull();
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("yuvaya bırakılan dosya da aynı yoldan gider", async () => {
+    const { container } = render(<FuturisticGuidedJourney segmentId="lise" />);
+    const slot = container.querySelector("[data-own-pick]") as HTMLElement;
+    const file = new File([new Uint8Array(512)], "Fizik.pptx", {
+      type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    });
+    fireEvent.dragOver(slot, { dataTransfer: { types: ["Files"], files: [file] } });
+    expect(slot.className).toContain("is-over");
+    fireEvent.drop(slot, { dataTransfer: { types: ["Files"], files: [file] } });
+    expect(await screen.findByText("“Fizik.pptx” taramaya hazır!")).toBeTruthy();
   });
 });
 

@@ -113,8 +113,8 @@ test.describe("branşa özel misafir demosu", { tag: ["@public"] }, () => {
       // Eski bağlantı ?hedef=universite: kahramanın tek seçicisinde "Üniversite" seçili, tur mühendislik notuyla.
       await expect(page.getByRole("radio", { name: "Üniversite · Mühendislik" })).toHaveAttribute("aria-checked", "true");
       await expect(page.getByRole("link", { name: /Vize-final kampını ücretsiz başlat/ })).toHaveAttribute("href", "/kayit?hedef=universite");
-      await expect(home.locator(".lj-drop-badge")).toContainText("Akiskanlar_ve_Termodinamik_Vize_Notu.pdf");
-      await expect(home.locator(".lj-drop-badge")).toContainText("14 sayfa");
+      await expect(home.locator(".lj-note")).toContainText("Akiskanlar_ve_Termodinamik_Vize_Notu.pdf");
+      await expect(home.locator(".lj-note")).toContainText("14 sayfa");
       // Turun içinde ikinci bir seçici yok.
       await expect(page.getByRole("radiogroup")).toHaveCount(1);
       await expect(home.locator("[data-tracks], .lj-track")).toHaveCount(0);
@@ -140,12 +140,19 @@ test.describe("branşa özel misafir demosu", { tag: ["@public"] }, () => {
         await expect.poll(fit, { message: `${step}: ölçek`, timeout: 3000 }).toBeGreaterThanOrEqual(minScale);
       };
 
-      // 1-2. Not ve yol: tarama bulguları ve yol haritası branşın.
+      // 1. Not (Faz 9.1): örnek not ders çekirdeğine gider; branşın bulguları ana sayfada, gün seçilince ders doğar.
+      // Not kartı sürekli süzülür: tıklama zorlanır.
       await expect(async () => {
         const start = home.locator(SAMPLE_START);
-        if ((await tour.count()) === 0 && (await start.isEnabled({ timeout: 500 }).catch(() => false))) await start.click();
-        await expect(tour.getByRole("button", { name: "Şimdi 1. dersi aç" })).toBeVisible({ timeout: 4000 });
+        if ((await start.count()) && (await start.isEnabled({ timeout: 500 }).catch(() => false))) await start.click({ force: true });
+        await expect(home.getByRole("radio", { name: "7 gün" })).toBeVisible({ timeout: 4000 });
       }).toPass({ timeout: 25_000 });
+      await expect(home.locator("[data-scan-findings]")).toContainText("14 sayfa");
+      await home.getByRole("radio", { name: "7 gün" }).click();
+      await home.getByRole("button", { name: /İlk ekranı aç/ }).click();
+      await expect(tour.locator(".lj-stage")).toHaveAttribute("data-step", "lesson");
+      // 2. Yol raydan: branşın konuları, seçilen gün, branşın uyarısı.
+      await tour.getByRole("button", { name: /^Adım 2: / }).click();
       await expect(tour.getByText("Kaldırma Kuvveti Vektörleri")).toBeVisible();
       await expect(tour.getByText("Bernoulli Denklemi")).toBeVisible();
       await expect(tour.getByText("Vizene 7 gün var")).toBeVisible();
@@ -255,7 +262,7 @@ test.describe("branşa özel misafir demosu", { tag: ["@public"] }, () => {
     // Faz 9: TUS kendi profili (önce akademik sekmenin içindeydi).
     expect(page.url()).toContain("hedef=tus");
     await expect(page.getByRole("link", { name: /TUS kampını ücretsiz başlat/ })).toHaveAttribute("href", "/kayit?hedef=tus");
-    await expect(page.locator(".lj-drop-badge")).toContainText("Kardiyoloji_Antiaritmikler_TUS_Notu.pdf");
+    await expect(page.locator(".lj-note")).toContainText("Kardiyoloji_Antiaritmikler_TUS_Notu.pdf");
     // Seçili seçenek yüksek kontrastlı (seçili olmayan sönük şerit kalktı); renk geçişi bitince ölçülür.
     await expect.poll(async () => (await stripLayout(page)).onContrast).toBeGreaterThanOrEqual(4.5);
     // Konu testine raydan gidilir: TUS sorusu, K⁺ karakteri düşmeden.

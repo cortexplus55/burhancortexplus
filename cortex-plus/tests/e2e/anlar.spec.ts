@@ -14,7 +14,7 @@ const STEP_IDS = ["upload", "roadmap", "lesson", "question", "cards", "check", "
 
 /**
  * Raydan adıma geç; geliştirme sunucusunda ilk tıklama sayfa canlanmadan düşebilir: adım açılana kadar yeniden dene.
- * 1. durak ana sayfadaki birinci adıma (Akıllı Not Stüdyosu kartı) döner, stüdyo kapanır; öbür duraklar tam ekran
+ * 1. durak ana sayfadaki birinci adıma (ders çekirdeği, Faz 9.1) döner, stüdyo kapanır; öbür duraklar tam ekran
  * stüdyoyu o adımda açar.
  */
 async function goStep(page: Page, at: number) {
@@ -23,6 +23,16 @@ async function goStep(page: Page, at: number) {
     if (at === 1) await expect(page.locator(".lj-studio")).toHaveCount(0, { timeout: 1500 });
     else await expect(page.locator(".lj-studio .lj-stage")).toHaveAttribute("data-step", STEP_IDS[at - 1]!, { timeout: 1500 });
   }).toPass({ timeout: 20_000 });
+}
+
+/**
+ * Örnek notu ders çekirdeğine gönderir (Faz 9.1). Kart sürekli hafifçe süzülür; Playwright'ın "kıpırdamıyor" beklemesi
+ * hiç bitmez, tıklama zorlanır (kartın her noktası aynı düğme).
+ */
+async function sendSample(page: Page) {
+  const note = page.locator("[data-sample-start]");
+  await note.evaluate((node) => node.scrollIntoView({ block: "center" }));
+  await note.click({ force: true });
 }
 
 /** Stüdyonun kaydırmasız olduğu ölçü: stüdyo, sahne ve sayfa kaymaz; sığdırılan içerik sahnenin içinde kalır. */
@@ -87,7 +97,7 @@ for (const size of SIZES) {
     expect(await page.evaluate(() => document.documentElement.style.overflow)).toBe("");
   });
 
-  test(`A2 ${size.width} px: tarama anında dört bulgu sırayla belirir, sonra yol açılır; dokunuş anı atlar`, { tag: ["@public"] }, async ({ page }) => {
+  test(`A2 ${size.width} px: not çekirdeğe girer, dört bulgu sırayla belirir, gün seçilince ders doğar; dokunuş anı atlar`, { tag: ["@public"] }, async ({ page }) => {
     await page.setViewportSize(size);
     await page.goto("/");
     /*
@@ -106,27 +116,59 @@ for (const size of SIZES) {
       };
       requestAnimationFrame(tick);
     });
-    await page.locator("[data-sample-start]").evaluate((start) => start.scrollIntoView({ block: "center" }));
-    await page.locator("[data-sample-start]").click();
-    const finds = page.locator("[data-scan-findings] [data-finding]");
+    // Faz 9.1: tarama ana sayfada, ders çekirdeğinin altında; stüdyo açılmaz.
+    await sendSample(page);
+    const finds = page.locator(".lj-console [data-scan-findings] [data-finding]");
     await expect(finds).toHaveCount(4);
     await expect(finds.nth(0)).toHaveText("6 sayfa");
     await expect(finds.nth(2)).toContainText("Hoca uyarısı");
-    // Son bulgu anın sonunda görünür (opaklık 1), yol kendiliğinden açılır.
+    await expect(page.getByRole("radiogroup", { name: "Sınavın ne zaman?" })).toBeVisible();
+    // Son bulgu anın sonunda görünür (opaklık 1).
     await expect
       .poll(() => page.evaluate(() => (window as unknown as { __findMax: number[] }).__findMax[3] ?? 0))
       .toBeGreaterThan(0.95);
-    await expect(page.getByRole("heading", { name: "Yol haritan çıktı" })).toBeVisible({ timeout: 4000 });
+    await expect(page.locator(".lj-studio")).toHaveCount(0);
+    // Gün seçilince ders doğar; "İlk ekranı aç" stüdyoyu dersin ilk ekranında açar.
+    await page.getByRole("radio", { name: "7 gün" }).click();
+    await expect(page.locator(".lj-console [data-born]")).toBeVisible();
+    await page.getByRole("button", { name: /İlk ekranı aç/ }).click();
+    await expect(page.locator(".lj-studio .lj-stage")).toHaveAttribute("data-step", "lesson");
 
-    // İkinci tur: dokunuş anı atlar, yol 2,4 sn beklemeden açılır.
+    // İkinci tur (raydan 1. durak birinci adımı baştan kurar): dokunuş anı atlar, bulgular 1,2 sn beklemeden görünür.
     await goStep(page, 1);
-    await page.locator("[data-sample-start]").evaluate((start) => start.scrollIntoView({ block: "center" }));
-    await page.locator("[data-sample-start]").click();
+    const note = page.locator("[data-sample-start]");
+    await note.evaluate((node) => node.scrollIntoView({ block: "center" }));
+    // Süre tarayıcının içinde ve taramanın başladığı anla aynı yerde ölçülür (20 Kasım 2026): Playwright'ın tıklama ve
+    // bekleme gidiş-dönüşü CI yükünde tek başına 1,1-1,3 sn tutuyordu (test makineyi ölçüyordu); tarama ile ölçüm
+    // arasına zaman girerse de doğal 1,2 sn'lik an ölçüm penceresine düşüp bozuk atlatmayı gizleyebilirdi. Not çekirdeğe
+    // gönderilir, gün sorusu belirir belirmez dokunulur: bulgular doğal anı beklemeden, birkaç kare içinde görünmeli.
+    const skip = await page.evaluate(async () => {
+      const frame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      const card = document.querySelector<HTMLElement>("[data-sample-start]");
+      if (!card) return { before: true, shown: false, ms: Number.POSITIVE_INFINITY };
+      const sent = performance.now();
+      card.click();
+      let title: HTMLElement | null = null;
+      while (!title && performance.now() - sent < 1000) {
+        await frame();
+        title = document.querySelector<HTMLElement>(".lj-console .lj-date-title");
+      }
+      // Liste her karede yeniden sorgulanır: atlatınca gün zaten seçili olduğundan ders doğar ve React listeyi yeniden kurar.
+      const shown = () => Boolean(document.querySelector(".lj-console [data-scan-findings].is-shown"));
+      if (!title) return { before: true, shown: false, ms: Number.POSITIVE_INFINITY };
+      const before = shown();
+      // `startMoment` atlatma dinleyicisini bir sonraki karede bağlar.
+      await frame();
+      // Anı atlatan dinleyici pencerede `pointerdown` bekler (`startMoment`); `click()` onu üretmez.
+      title.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, isPrimary: true, pointerType: "mouse" }));
+      while (!shown() && performance.now() - sent < 1150) await frame();
+      return { before, shown: shown(), ms: performance.now() - sent };
+    });
+    // Dokunuştan önce bulgular görünmüyordu (doğal an daha dolmamıştı), dokunuştan sonra doğal 1,2 sn'den çok önce göründü.
+    expect(skip.before).toBe(false);
+    expect(skip.shown).toBe(true);
+    expect(skip.ms).toBeLessThan(600);
     await expect(finds).toHaveCount(4);
-    const t0 = Date.now();
-    await page.locator(".lj-studio .lj-stage-head").click();
-    await expect(page.getByRole("heading", { name: "Yol haritan çıktı" })).toBeVisible();
-    expect(Date.now() - t0).toBeLessThan(1500);
   });
 }
 
@@ -201,9 +243,9 @@ for (const size of SIZES) {
     await page.goto("/");
     const badge = page.locator(".lj-studio [data-warning]");
     await expect(badge).toHaveCount(0);
-    await page.locator("[data-sample-start]").evaluate((start) => start.scrollIntoView({ block: "center" }));
-    await page.locator("[data-sample-start]").click();
-    await expect(page.getByRole("heading", { name: "Yol haritan çıktı" })).toBeVisible({ timeout: 4000 });
+    // Ana sayfada etiket yok; stüdyo yol haritasında açılır (raydan).
+    await goStep(page, 2);
+    await expect(page.getByRole("heading", { name: "Yol haritan çıktı" })).toBeVisible();
     await expect(badge).toBeVisible();
     await expect(badge).toContainText("Hoca uyarısı");
     await expect(badge).not.toHaveClass(/is-glow/);
@@ -250,12 +292,13 @@ test("A3: hareket azaltmada tur düğmesi geçişsiz ana düğme olur", { tag: [
   expect(await next.evaluate((node) => Number(getComputedStyle(node, "::before").opacity))).toBe(1);
 });
 
-test("A2: hareket azaltmada tarama anı oynamaz, yol hemen açılır", { tag: ["@public"] }, async ({ page }) => {
+test("A2: hareket azaltmada an oynamaz: bulgular hemen, gün seçilince ders hemen doğar", { tag: ["@public"] }, async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
-  await page.locator("[data-sample-start]").evaluate((start) => start.scrollIntoView({ block: "center" }));
-  await page.locator("[data-sample-start]").click();
-  await expect(page.getByRole("heading", { name: "Yol haritan çıktı" })).toBeVisible({ timeout: 800 });
+  await sendSample(page);
+  await expect(page.locator(".lj-console [data-scan-findings]")).toHaveClass(/is-shown/, { timeout: 800 });
+  await page.getByRole("radio", { name: "14 gün" }).click();
+  await expect(page.locator(".lj-console [data-born]")).toBeVisible({ timeout: 800 });
 });
 
 /* ---------------- B: uygulamanın içi ---------------- */

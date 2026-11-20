@@ -51,9 +51,10 @@ afterEach(async () => {
 const noop = () => undefined;
 const picker = () => screen.getByRole("radiogroup", { name: HERO_PICK_ARIA });
 const option = (track: (typeof GUEST_TRACK_IDS)[number]) => within(picker()).getByRole("radio", { name: heroPickName(track) });
-const start = () => screen.getByRole("button", { name: JOURNEY_FILE.start });
-/** Ana sayfadaki bırakma alanının rozeti: seçili branşın örnek notu. */
-const badge = (container: HTMLElement) => container.querySelector(".lj-drop-badge") as HTMLElement;
+/** Ana sayfadaki örnek not kartı (Faz 9.1): dokununca not ders çekirdeğine gider, tarama ana sayfada başlar. */
+const start = () => document.querySelector<HTMLButtonElement>(".lj-console [data-sample-start]")!;
+/** Örnek not kartı: seçili branşın notu. */
+const badge = (container: HTMLElement) => container.querySelector(".lj-note") as HTMLElement;
 
 describe("tek seçici: kahramanda dört seçenek, turda seçici yok", () => {
   it("dört seçenek sırayla; tek seçimli grup; ok tuşları, Home ve End seçimi ve odağı birlikte kaydırır", () => {
@@ -116,7 +117,7 @@ describe("tek seçici: kahramanda dört seçenek, turda seçici yok", () => {
     expect(cta().getAttribute("href")).toBe("/kayit?hedef=akademik");
     expect(badge(container).textContent).toContain("Anayasa_Yasama_Sureci_Notu.pdf");
     expect(window.location.search).toBe("?hedef=akademik");
-    // Bırakma alanının rozeti branş değişince yeniden belirir (ilk yükte hareket yok).
+    // Örnek not kartı branş değişince yeniden belirir (ilk yükte hareket yok).
     expect(badge(container).className).toContain("is-switched");
   });
 
@@ -196,13 +197,22 @@ describe("tek seçici: kahramanda dört seçenek, turda seçici yok", () => {
     render(<FuturisticGuidedJourney segmentId="tus" />);
     const file = journeyFile("tus");
     fireEvent.click(start());
-    const finds = [...document.body.querySelectorAll(".lj-studio [data-scan-findings] [data-finding]")].map((node) => node.textContent);
+    act(() => {
+      vi.advanceTimersByTime(file.absorbMs);
+    });
+    // Tarama ana sayfada, ders çekirdeğinin altında.
+    const finds = [...document.querySelectorAll(".lj-console [data-scan-findings] [data-finding]")].map((node) => node.textContent);
     expect(finds[0]).toBe("18 sayfa");
     expect(finds[1]).toBe("4 konu");
     expect(finds[2]).toContain("Amiodaron");
+    fireEvent.click(screen.getByRole("radio", { name: "14 gün" }));
     act(() => {
-      vi.advanceTimersByTime(file.scanMs);
+      vi.advanceTimersByTime(file.findingsMs);
     });
+    fireEvent.click(screen.getByRole("button", { name: /İlk ekranı aç/ }));
+    // Ray yol haritasına götürür; hedef çipi seçilen günü söyler.
+    fireEvent.click(screen.getByRole("button", { name: /^Adım 2: / }));
+    expect(screen.getByText("Sınavına 14 gün var")).toBeTruthy();
     for (const day of journeyRoadmap("tus").days) expect(screen.getByText(day.title)).toBeTruthy();
     const warn = document.body.querySelector<HTMLElement>(".lj-studio [data-warning]")!;
     expect(warn.textContent).toContain(journeyWarning("tus").label);
@@ -210,20 +220,28 @@ describe("tek seçici: kahramanda dört seçenek, turda seçici yok", () => {
   });
 
   it("mühendislik uyarısının alt simgesi turun yazısında da düşmez (d_sıvı → d<sub>sıvı</sub>)", () => {
+    vi.useFakeTimers();
     render(<FuturisticGuidedJourney segmentId="universite" />);
     fireEvent.click(start());
-    const warning = document.body.querySelector(".lj-studio [data-finding='warning']")!;
+    act(() => {
+      vi.advanceTimersByTime(JOURNEY_FILE.absorbMs);
+    });
+    const warning = document.querySelector(".lj-console [data-finding='warning']")!;
     expect(warning.querySelector("sub")?.textContent).toBe("sıvı");
     expect(warning.textContent).not.toContain("_");
   });
 
-  it("stüdyo kapalıyken tur ilerlemesi yalnız lise branşında yazılır (kayıttan sonraki kart Köklü Sayılar'ı açar)", () => {
+  it("tur ilerlemesi yalnız lise branşında yazılır (kayıttan sonraki kart Köklü Sayılar'ı açar)", () => {
     vi.stubGlobal(
       "matchMedia",
       vi.fn((query: string) => ({ matches: query.includes("reduce"), media: query, addEventListener: noop, removeEventListener: noop })),
     );
     render(<FuturisticGuidedJourney segmentId="universite" />);
     fireEvent.click(start());
+    fireEvent.click(screen.getByRole("radio", { name: "7 gün" }));
+    fireEvent.click(screen.getByRole("button", { name: /İlk ekranı aç/ }));
+    // Stüdyo derste açık, ama mühendislik notu resmî kurulumda yok: kayıt yazılmaz.
+    expect(document.querySelector('.lj-studio[data-step="lesson"]')).toBeTruthy();
     expect(window.sessionStorage.getItem("cp:guest-tour")).toBeNull();
   });
 });
