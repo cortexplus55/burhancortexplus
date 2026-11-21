@@ -236,7 +236,10 @@ describe("düşünme satırı", () => {
     expect(container.querySelectorAll(".cs-sor-typing")).toHaveLength(0);
   });
 
-  it("öğrenci akış sırasında yukarı kaydırınca ekran zorla sona inmez", async () => {
+  it.each([
+    ["teacher.v2", { teacherV2: true }],
+    ["bayrak kapalı, ui.v2.ogretmen", { followUser: true }],
+  ] as const)("öğrenci akış sırasında yukarı kaydırınca ekran zorla sona inmez (%s)", async (_label, mode) => {
     let pushChunk!: (text: string) => void;
     const stream = new ReadableStream<Uint8Array>({
       start(controller) {
@@ -244,7 +247,7 @@ describe("düşünme satırı", () => {
       },
     });
     mockFetch({ "/api/ai/chat": () => new Response(stream, { status: 200, headers: { "X-Message-Id": mid(9) } }) });
-    const { container } = renderPanel({ teacherV2: true, initialConversationId: CONV, initialMessages: QUESTION_THREAD });
+    const { container } = renderPanel({ ...mode, initialConversationId: CONV, initialMessages: QUESTION_THREAD });
     const scroller = container.querySelector<HTMLDivElement>(".cp-sor-messages")!;
     let height = 2000;
     Object.defineProperty(scroller, "scrollHeight", { configurable: true, get: () => height });
@@ -626,6 +629,29 @@ describe("Durdur, Yeniden üret, Kopyala", () => {
       fireEvent.click(screen.getAllByRole("button", { name: "Kopyala" }).at(-1)!);
     });
     expect(writeText).toHaveBeenCalled();
+  });
+
+  it("bayrak kapalıyken de Yeniden üret ders etiketini ikinci kez eklemez", async () => {
+    const sent: string[] = [];
+    mockFetch({
+      "/api/ai/chat": (init) => {
+        sent.push(JSON.parse(String(init?.body)).message);
+        return chatReply("Kuvvet çarpı yol.");
+      },
+    });
+    renderPanel({ teacherV2: false, showSubjectPicker: true });
+    fireEvent.click(screen.getByRole("button", { name: "Ders seç" }));
+    fireEvent.click(await screen.findByRole("button", { name: /Fizik/ }));
+    const box = screen.getByPlaceholderText("Sor, konuş veya dosya gönder");
+    fireEvent.change(box, { target: { value: "İş nasıl hesaplanır?" } });
+    await act(async () => {
+      fireEvent.keyDown(box, { key: "Enter" });
+    });
+    await waitFor(() => expect(screen.getByText("Kuvvet çarpı yol.")).toBeTruthy());
+    await act(async () => {
+      fireEvent.click(screen.getAllByRole("button", { name: "Yeniden üret" }).at(-1)!);
+    });
+    expect(sent).toEqual(["[Fizik] İş nasıl hesaplanır?", "[Fizik] İş nasıl hesaplanır?"]);
   });
 });
 

@@ -716,15 +716,15 @@ function ChatPanelSession({
     if (!box) return;
     stickToEndRef.current = true;
     /*
-      Faz 11 (teacher.v2): akış sürerken her parça kutuyu sona yapıştırıyor ve 250 ms'lik "programın kaydırması" penceresini
-      yeniliyordu; pencere hiç kapanmadığı için öğrencinin yukarı kaydırması yok sayılıyor, ekran zorla aşağı iniyordu.
-      Program kutuyu yalnız aşağı kaydırır: yukarı doğru kaydırma pencere açıkken de öğrencinindir.
+      Faz 11 (21 Kasım 2026, bütün kiplerde): akış sürerken her parça kutuyu sona yapıştırıyor ve 250 ms'lik "programın
+      kaydırması" penceresini yeniliyordu; pencere hiç kapanmadığı için öğrencinin yukarı kaydırması yok sayılıyor, ekran
+      zorla aşağı iniyordu. Program kutuyu yalnız aşağı kaydırır: yukarı doğru kaydırma pencere açıkken de öğrencinindir.
     */
     let lastTop = box.scrollTop;
     const onScroll = () => {
       const upward = box.scrollTop < lastTop - 1;
       lastTop = box.scrollTop;
-      if (Date.now() < programmaticScrollRef.current && !(v2Main && upward)) return;
+      if (Date.now() < programmaticScrollRef.current && !upward) return;
       stickToEndRef.current = box.scrollHeight - box.scrollTop - box.clientHeight < 120;
       setAwayFromEnd(!stickToEndRef.current);
     };
@@ -746,7 +746,7 @@ function ChatPanelSession({
       mutations?.disconnect();
       sizes?.disconnect();
     };
-  }, [threadOpen, v2Main]);
+  }, [threadOpen]);
 
   useEffect(() => {
     if (!isMinimalSor && !isParitySor) return;
@@ -1414,9 +1414,9 @@ function ChatPanelSession({
       }
       return next;
     });
-    // Faz 11 (teacher.v2): kayıtlı mesaj ders etiketini ("[Ders] …") zaten taşıyor; `send` yeniden eklerse soru iki
-    // etiketle gidiyordu. Etiket yalnız `send` yeniden ekleyecekse atılır.
-    const relabels = v2Main && variant === "parity" && showSubjectPicker && Boolean(subject) && !activeDocumentId.current;
+    // Faz 11 (21 Kasım 2026, bütün kiplerde): kayıtlı mesaj ders etiketini ("[Ders] …") zaten taşıyor; `send` yeniden
+    // eklerse soru iki etiketle gidiyordu. Etiket yalnız `send` yeniden ekleyecekse atılır.
+    const relabels = variant === "parity" && showSubjectPicker && Boolean(subject) && !activeDocumentId.current;
     void send(relabels ? displayUserText(lastUser.content) : lastUser.content);
   }
 
