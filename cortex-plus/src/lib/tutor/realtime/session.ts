@@ -36,12 +36,7 @@ import {
   type RealtimeTickResponse,
   type RealtimeUsageSnapshot,
 } from "@/lib/tutor/realtime/config";
-import {
-  createRealtimeCall,
-  hangupRealtimeCall,
-  realtimeSessionConfig,
-  type MicProfile,
-} from "@/lib/tutor/realtime/openai-call";
+import { createRealtimeCall, hangupRealtimeCall, realtimeSessionConfig } from "@/lib/tutor/realtime/openai-call";
 import { loadVoiceContext, recordRealtimeUsage, saveVoiceConversation, type VoiceContext } from "@/lib/tutor/realtime/persist";
 import { defaultRealtimeStore, type RealtimeSessionState, type RealtimeStore } from "@/lib/tutor/realtime/store";
 import { composeSavedTurns, type SavedTurn } from "@/lib/tutor/realtime/transcript";
@@ -117,7 +112,6 @@ export const createBodySchema = z.object({
   sdp: z.string().min(10).max(SDP_MAX_CHARS),
   conversationId: z.string().uuid().nullish(),
   prepId: z.string().uuid().nullish(),
-  micProfile: z.enum(["near", "far"]).optional(),
 });
 
 export const tickBodySchema = z.object({
@@ -363,7 +357,7 @@ export async function createRealtimeSession(
   const call = await deps.createCall({
     apiKey: deps.apiKey,
     sdp: body.sdp,
-    session: realtimeSessionConfig({ instructions: context.instructions, micProfile: body.micProfile as MicProfile | undefined }),
+    session: realtimeSessionConfig({ instructions: context.instructions, sttTerms: context.sttTerms ?? [] }),
     userId,
   });
   if (!call.ok) {

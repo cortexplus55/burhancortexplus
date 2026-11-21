@@ -69,6 +69,7 @@ export function fixtureDeps(access: "paid" | "trial", voiceOverride: string | nu
       }),
       conversationId: null,
       prepId: null,
+      sttTerms: [],
     }),
     // Ses karşılaştırması için yalnız fikstürde başka ses denenebilir (/api/e2e/realtime-session/paid-cedar).
     createCall: (input) => {

@@ -21,8 +21,20 @@ export const REALTIME_MODEL = "gpt-realtime-2.1-mini";
  */
 export const REALTIME_VOICE = "marin";
 
-/** Öğrencinin konuşmasını yazıya döken model (canlı transkript). */
-export const REALTIME_TRANSCRIBE_MODEL = "gpt-4o-mini-transcribe";
+/**
+ * Öğrencinin konuşmasını yazıya döken model (canlı transkript). 21 Kasım 2026 (Burhan): küçük model Türkçe bir
+ * kısaltmanın son sesini düşürdü; Türkçede daha doğru olan büyük model, dil "tr" ve terim ipucuyla (`stt-prompt.ts`).
+ * Gider: dakikada ~0,006 $ (küçük modelin iki katı; fiyat satırı göç 20261121230000).
+ */
+export const REALTIME_TRANSCRIBE_MODEL = "gpt-4o-transcribe";
+export const REALTIME_TRANSCRIBE_LANGUAGE = "tr";
+
+/**
+ * Dönüş algılama (sunucu tarafı ses etkinliği). Sessizlik 700 ms: kelimenin sondaki zayıf sesi (kısaltmanın son harfi)
+ * söz bitti sayılıp kesilmesin; baş payı 350 ms: sözün ilk hecesi kayda girsin.
+ */
+export const REALTIME_VAD_SILENCE_MS = 700;
+export const REALTIME_VAD_PREFIX_MS = 350;
 
 export const REALTIME_MINUTE_SECONDS = 60;
 /**

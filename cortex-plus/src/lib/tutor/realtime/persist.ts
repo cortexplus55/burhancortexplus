@@ -8,6 +8,7 @@ import { bindConversationPrep } from "@/lib/tutor/conversation-groups";
 import { buildTutorStudentContext } from "@/lib/tutor/student-context";
 import { buildRealtimeInstructions, type VoiceHistoryTurn } from "@/lib/tutor/realtime-instructions";
 import { REALTIME_MODEL, type RealtimeUsageSnapshot } from "@/lib/tutor/realtime/config";
+import { sttTermsFromPrep, type SttTopicRow } from "@/lib/tutor/realtime/stt-prompt";
 import { conversationTitleFrom, type SavedTurn } from "@/lib/tutor/realtime/transcript";
 import { realtimeUsageRows, REALTIME_PRICES_PER_1K } from "@/lib/tutor/realtime/usage";
 
@@ -27,7 +28,24 @@ export type VoiceContext = {
   conversationId: string | null;
   /** Öğrencinin kendi hazırlığı; değilse null. */
   prepId: string | null;
+  /**
+   * Yazıya döküm ipucuna ve talimata giren terimler: sohbetin hazırlığının (yoksa öğrencinin en yeni hazırlığının) adı,
+   * konu başlıkları ve alt başlıkları. Okunamazsa boş (ders yine başlar, ipucu evrensel terimlerle kalır).
+   */
+  sttTerms?: string[];
 };
+
+const STT_TOPIC_LIMIT = 60;
+
+/** Hazırlığın konu satırları (yolun sırasıyla). Alt başlık sütunu yoksa (göçten önce) yalnız başlıklar. */
+async function loadPrepTopicRows(service: SupabaseClient, prepId: string): Promise<SttTopicRow[]> {
+  const read = (columns: string) =>
+    service.from("exam_prep_topics").select(columns).eq("exam_prep_id", prepId).order("sort_order").limit(STT_TOPIC_LIMIT);
+  const first = await read("title, subtopics");
+  if (!first.error) return (first.data as SttTopicRow[] | null) ?? [];
+  const second = await read("title");
+  return second.error ? [] : ((second.data as SttTopicRow[] | null) ?? []);
+}
 
 async function settle<T>(work: PromiseLike<T>, fallback: T, source: string): Promise<T> {
   try {
@@ -53,7 +71,7 @@ export async function loadVoiceContext(
   input: { conversationId: string | null; prepId: string | null; trial: boolean; now?: Date },
 ): Promise<VoiceContext> {
   const now = input.now ?? new Date();
-  const [profile, conversation, prep, context] = await Promise.all([
+  const [profile, conversation, prep, context, latestPrep] = await Promise.all([
     settle(
       Promise.resolve(service.from("profiles").select("full_name").eq("id", userId).maybeSingle()).then(({ data }) => data as Row | null),
       null,
@@ -84,12 +102,31 @@ export async function loadVoiceContext(
         )
       : Promise.resolve(null),
     settle(buildTutorStudentContext(service, userId, { now }), null, "student_context"),
+    // Sohbet bir hazırlığa bağlı değilse terimler öğrencinin en yeni hazırlığından (yalnız yazıya döküm ipucu için).
+    input.prepId
+      ? Promise.resolve(null)
+      : settle(
+          Promise.resolve(
+            service
+              .from("exam_preps")
+              .select("id, title")
+              .eq("user_id", userId)
+              .not("exam_type", "in", "(deneme,hedef)")
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle(),
+          ).then(({ data }) => data as Row | null),
+          null,
+          "latest_prep",
+        ),
   ]);
   const conversationId = typeof conversation?.id === "string" ? conversation.id : null;
   const prepId = typeof prep?.id === "string" ? prep.id : null;
   const prepTitle = typeof prep?.title === "string" ? prep.title.trim() : "";
+  // Terimlerin kaynağı: sahipliği doğrulanmış hazırlık; yoksa öğrencinin kendi en yeni hazırlığı.
+  const termsPrep = prepId ? { id: prepId, title: prepTitle } : typeof latestPrep?.id === "string" ? { id: latestPrep.id, title: latestPrep.title } : null;
 
-  const [history, calibration] = await Promise.all([
+  const [history, calibration, topicRows] = await Promise.all([
     conversationId
       ? settle(
           Promise.resolve(
@@ -106,7 +143,9 @@ export async function loadVoiceContext(
         )
       : Promise.resolve([] as Row[]),
     settle(studentCalibration(service, userId, "chat", { prepTitle: prepTitle || null }), null, "calibration"),
+    termsPrep ? settle(loadPrepTopicRows(service, termsPrep.id), [] as SttTopicRow[], "stt_terms") : Promise.resolve([] as SttTopicRow[]),
   ]);
+  const sttTerms = termsPrep ? sttTermsFromPrep(termsPrep.title, topicRows) : [];
 
   const greeting = parityGreetingName(typeof profile?.full_name === "string" ? profile.full_name : null);
   const turns: VoiceHistoryTurn[] = history
@@ -120,8 +159,9 @@ export async function loadVoiceContext(
     prep: prepId ? { title: prepTitle || "Sınav hazırlığı", daysLeft: daysLeft(prep?.exam_date, now) } : null,
     history: turns,
     trial: input.trial,
+    terms: sttTerms,
   });
-  return { instructions, conversationId, prepId };
+  return { instructions, conversationId, prepId, sttTerms };
 }
 
 /**

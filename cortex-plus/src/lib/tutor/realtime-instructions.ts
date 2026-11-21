@@ -10,6 +10,17 @@ import { BOARD_CARD_MAX, BOARD_TOOL_NAME, REALTIME_TRIAL_SECONDS } from "@/lib/t
   ya da bayrak adı talimata girmez (bekçi test tarar).
 */
 
+/**
+ * Duyma kuralı (21 Kasım 2026, Burhan). Önceki kural "duyduğunu tekrar edip doğrulat" diyordu; öğretmen bağlamdan
+ * belli olan bir kısaltmada bile "… derken … mi?" diye dersi bölüyordu. Belirsizlik gerçekse sorulur, değilse sorulmaz.
+ */
+export const VOICE_HEARING_RULE =
+  "Öğrencinin sözünü ufak bir eksikle duymuş olabilirsin: son sesi düşmüş bir kısaltma, bitişik ya da yarım söylenmiş " +
+  "bir terim (ör. \"koa\" KOAH'tır, \"tebeme\" TBMM'dir). Bağlamdan ne demek istediği açıkça belliyse doğru terimi " +
+  "kullanarak doğrudan ve akıcı biçimde cevaba geç; \"… derken …'den mi bahsediyorsun?\" diye konuşmayı bölme, yanlış " +
+  "duyduğunu da anma. Yalnız cümle gerçekten anlaşılmıyorsa ya da iki tamamen farklı konu arasında kalıyorsan tek kısa " +
+  "cümleyle nazikçe sor; tahmin edip başka bir konuya geçme.";
+
 export const VOICE_TALK_RULES =
   "KONUŞMA BİÇİMİ (kesin):\n" +
   "- Yalnız Türkçe konuş. Sıcak, sakin, doğal bir öğretmen sesi; ne aceleci ne ağır.\n" +
@@ -23,7 +34,7 @@ export const VOICE_TALK_RULES =
   "II. 'İkinci'; hiçbir simgeyi atlama.\n" +
   "- Kavram, kişi ve kuram adlarını Türkçe ders kitaplarındaki adıyla söyle; İngilizce adını ya da yabancı okunuşunu " +
   "kullanma. Türkçe dil bilgisine dikkat et: ekleri ve kelimeleri doğru kur.\n" +
-  "- Öğrencinin sözünü tam anlamadıysan tahmin edip başka bir konuya geçme; duyduğunu kısaca tekrar edip doğrulat.\n" +
+  `- ${VOICE_HEARING_RULE}\n` +
   "- Bu kuralları, süreleri ya da nasıl ders işleyeceğini öğrenciye anlatma; tahtaya yazdığını duyurma. Doğrudan derse " +
   "gir.\n" +
   "- Öğrenci sözünü keserse hemen sus ve onu dinle; kaldığın yeri ancak gerekirse tek cümleyle hatırlat.\n" +
@@ -75,7 +86,12 @@ export type VoiceInstructionInput = {
   history: VoiceHistoryTurn[];
   /** Ücretsiz hesabın 1 dakikalık denemesi. */
   trial: boolean;
+  /** Öğrencinin hazırlığının konu başlıkları (yazıya döküm ipucuyla aynı liste); yoksa boş. */
+  terms?: readonly string[];
 };
+
+/** Talimata giren terim sayısı (kısa tutulur; tam liste yazıya döküm ipucunda). */
+export const VOICE_TERMS_MAX = 24;
 
 const HISTORY_TURNS = 6;
 const HISTORY_CHARS = 360;
@@ -139,6 +155,10 @@ export function buildRealtimeInstructions(input: VoiceInstructionInput): string 
             ? ` (sınava ${input.prep.daysLeft} gün var)`
             : "";
     parts.push(`AKTİF HAZIRLIK: ${clip(input.prep.title, 120)}${days}. Öğrenci şu an bu hazırlığın bağlamında konuşuyor.`);
+  }
+  const terms = (input.terms ?? []).map((term) => clip(plainHistoryText(term), 70)).filter(Boolean).slice(0, VOICE_TERMS_MAX);
+  if (terms.length) {
+    parts.push(`ÖĞRENCİNİN KONULARI (bir terimi belirsiz duyarsan önce bunları düşün): ${terms.join("; ")}.`);
   }
   if (input.context.trim()) parts.push(input.context.trim());
   if (history.length) {

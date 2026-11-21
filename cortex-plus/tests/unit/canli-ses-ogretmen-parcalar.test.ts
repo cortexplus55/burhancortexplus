@@ -162,10 +162,10 @@ describe("kullanım kaydı", () => {
       { model: REALTIME_MODEL, tokensIn: 1000, tokensOut: 200 },
       { model: `${REALTIME_MODEL}-audio`, tokensIn: 300, tokensOut: 1500 },
       { model: `${REALTIME_MODEL}-cached-text`, tokensIn: 4000, tokensOut: 0 },
-      { model: "gpt-4o-mini-transcribe", tokensIn: 30, tokensOut: 0 },
+      { model: "gpt-4o-transcribe", tokensIn: 30, tokensOut: 0 },
     ]);
-    // 1000×0,6 + 200×2,4 + 300×10 + 1500×20 + 4000×0,06 (1M başına) + 30 KB × 0,016667/1000
-    expect(estimateRealtimeUsd(usage)).toBeCloseTo(0.03432 + 0.0005, 4);
+    // 1000×0,6 + 200×2,4 + 300×10 + 1500×20 + 4000×0,06 (1M başına) + 30 KB × 0,033333/1000
+    expect(estimateRealtimeUsd(usage)).toBeCloseTo(0.03432 + 0.001, 4);
   });
 
   it("bozuk sayılar kırpılır; kümülatif görüntü geri gitmez", () => {
@@ -196,8 +196,8 @@ describe("kullanım kaydı", () => {
 });
 
 describe("OpenAI çağrısı (SDP sunucu üzerinden)", () => {
-  it("oturum ayarı: model, ses, Türkçe döküm, anlamsal dönüş algılama, tahta aracı", () => {
-    const config = realtimeSessionConfig({ instructions: "x", micProfile: "near" });
+  it("oturum ayarı: model, ses, Türkçe döküm, sessizlikle dönüş algılama, tahta aracı", () => {
+    const config = realtimeSessionConfig({ instructions: "x" });
     expect(config).toMatchObject({
       type: "realtime",
       model: "gpt-realtime-2.1-mini",
@@ -205,15 +205,14 @@ describe("OpenAI çağrısı (SDP sunucu üzerinden)", () => {
       audio: {
         input: {
           noise_reduction: { type: "near_field" },
-          transcription: { model: "gpt-4o-mini-transcribe", language: "tr" },
-          turn_detection: { type: "semantic_vad", interrupt_response: true, create_response: true },
+          transcription: { model: "gpt-4o-transcribe", language: "tr" },
+          turn_detection: { type: "server_vad", interrupt_response: true, create_response: true },
         },
         output: { voice: REALTIME_VOICE },
       },
       tool_choice: "auto",
     });
     expect(config.tools.map((tool) => tool.name)).toEqual(["tahtaya_yaz"]);
-    expect(realtimeSessionConfig({ instructions: "x" }).audio.input.noise_reduction.type).toBe("far_field");
   });
 
   it("Location başlığından çağrı kimliği", () => {

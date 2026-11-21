@@ -19,8 +19,8 @@ import {
     <model>-cached-text     önbellekli metin girdi
     <model>-cached-audio    önbellekli ses girdi
     <model>-cached-image    önbellekli görsel girdi
-  Öğrencinin konuşmasının yazıya dökümü var olan `gpt-4o-mini-transcribe` satırına KİLOBAYT birimiyle yazılır (o satırın
-  birimi; tohum göçü: dakikada ~180 KB). [varsayım] Girdi sesi saniyede ~10 jeton: kilobayt = jeton / 10 × 3.
+  Öğrencinin konuşmasının yazıya dökümü yazıya döküm modelinin satırına KİLOBAYT birimiyle yazılır (tohum göçündeki küçük
+  modelin birimi: dakikada ~180 KB; büyük modelin satırı aynı birimle, iki katı fiyatla: göç 20261121230000). [varsayım] Girdi sesi saniyede ~10 jeton: kilobayt = jeton / 10 × 3.
 */
 
 /** Bir oturumda makul üst sınır (30 dk konuşmanın birkaç katı): bozuk ya da şişirilmiş sayı kayda girmez. */
@@ -82,7 +82,8 @@ export const REALTIME_PRICES_PER_1K: Record<string, { input: number; output: num
   [`${REALTIME_MODEL}-cached-text`]: { input: 0.00006, output: 0 },
   [`${REALTIME_MODEL}-cached-audio`]: { input: 0.0003, output: 0 },
   [`${REALTIME_MODEL}-cached-image`]: { input: 0.00008, output: 0 },
-  [REALTIME_TRANSCRIBE_MODEL]: { input: 0.016667, output: 0 },
+  // gpt-4o-transcribe: dakikada ~0,006 $ (180 KB × 0,033333 / 1000).
+  [REALTIME_TRANSCRIBE_MODEL]: { input: 0.033333, output: 0 },
 };
 
 export function estimateRealtimeUsd(usage: RealtimeUsageSnapshot | null): number {
