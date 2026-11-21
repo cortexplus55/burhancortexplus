@@ -1,5 +1,5 @@
--- YAZILDI, UYGULANMADI (21 Kasım 2026, Faz 11). Ürün sahibinin onayıyla, kod yayınından sonra SQL ekranında uygulanır ve
--- aynı oturumda kayıt satırı yazılır (docs/operasyon/goc-kayitlari.md):
+-- UYGULANDI: 21 Kasım 2026, #722 yayınından sonra (Supabase SQL ekranı + kayıt satırı; docs/operasyon/goc-kayitlari.md).
+-- Kayıt satırı (SQL ekranında aynı oturumda):
 --   insert into supabase_migrations.schema_migrations (version, name)
 --   values ('20261121150000', 'tutor_memory_notes') on conflict (version) do nothing;
 --

@@ -179,6 +179,24 @@ işlevi 20261120140000'daki gövdesiyle yeniden tanımlamaktır (yalnız Burhan'
 **Geri alma:** gerekmez. Kod sütun olmadan da çalışır (alt başlıklar düğümün `session_meta.lessonSubtopics` alanında). Eski işleve
 dönmek 20261119100500'deki gövdeyle yeniden tanımlamaktır (yalnız Burhan'ın kararıyla); sütun zararsız kalır.
 
+## 20261121150000 · tutor_memory_notes (PR #722)
+
+| | |
+|---|---|
+| Onaylayan | Burhan (Faz 11 istemi, 21 Kasım 2026: "ekleyici göç varsa ardından uygulayıp `docs/operasyon/goc-kayitlari.md`'ye işle"; aynı gün sohbette: "iki yeni tablonun göçünü canlıya uygulayıp göç kayıt dosyasına işle") |
+| Uygulama | 21 Kasım 2026; #722 birleşme commit'i `7a102279` Vercel'de "success" ve üretim duman testi 7/7 geçtikten sonra. Supabase SQL ekranı, tek çalıştırma (`begin … commit`) + kayıt satırı |
+| Uygulayan | Claude, Burhan'ın onayıyla |
+| Değişen | Yalnız ekleme: iki yeni tablo, `tutor_memory_notes` (öğretmen notları) ve `tutor_conversation_preps` (konuşmanın bağlandığı hazırlık), ikisinin dizinleri, satır güvenliği ve yetkileri. Var olan hiçbir tablo, sütun, kısıt ya da satır değişmedi (Yanlışlar Defteri kaynak kısıtı dahil) |
+
+**Uygulamadan önce kontrol (salt okuma):** iki tablo yoktu; bağlandıkları `profiles`, `conversations`, `exam_preps` vardı; kayıt satırı
+yoktu. `mistake_entries.source_ref` sütunu canlıda var ve kaynak kısıtı `lesson_check`'i kabul ediyor ("Bunu Yanlışlar Defterime ekle" bu
+göçe bağlı değil).
+
+**Doğrulama:** iki tabloda satır güvenliği açık; `authenticated` okuyamıyor, `anon` yazamıyor, `service_role` yazıyor; kayıt satırı 1.
+
+**Geri alma:** gerekmez. Kod iki tablo olmadan da çalışır (not yazımı ve okuması atlanır, sohbet geçmişi düz listede kalır). Tabloları
+kaldırmak yalnız Burhan'ın kararıyla olur; yeni tablolardır, başka hiçbir şey onlara bağlı değil.
+
 ## İstatistik işlemleri (göç değil)
 
 | Zaman (UTC) | İşlem | Onay | Sonuç |

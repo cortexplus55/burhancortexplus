@@ -938,7 +938,7 @@ describe("göç: öğretmen notları; defter kısıtına dokunulmaz (PGlite)", (
 
   it("göç dosyası yalnız ekler; başlık ve kayıt satırı var", () => {
     const sql = read(MIGRATION);
-    expect(sql.split("\n")[0]).toContain("YAZILDI, UYGULANMADI");
+    expect(sql.split("\n")[0]).toContain("UYGULANDI: 21 Kasım 2026, #722");
     expect(sql).toContain("values ('20261121150000', 'tutor_memory_notes') on conflict (version) do nothing;");
     expect(sql).not.toMatch(/^\s*(?:DELETE|UPDATE|TRUNCATE|DROP)\b/im);
     // ALTER TABLE yalnız bu dosyada kurulan tablolarda (RLS açma); var olan hiçbir tablo değişmez.
