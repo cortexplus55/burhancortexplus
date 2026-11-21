@@ -129,6 +129,7 @@ import { logOpsEvent } from "@/lib/observability/ops-log";
 import { pickStudyTopics } from "@/lib/learning/diagnostic";
 import { recordLessonTiming } from "@/lib/admin/beta-metrics";
 import { chatRequestHash, chatResultResponse, prepareChatOperation, streamedChatResultResponse, type SavedChatResult } from "@/lib/ai/chat-operation";
+import { bindConversationPrep } from "@/lib/tutor/conversation-groups";
 
 export const maxDuration = 300;
 const PARAGRAPH = "\n\n";
@@ -1095,6 +1096,17 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
       after(() =>
         titleConversation(service, { userId, conversationId: savedConversationId, message, answer: content }),
       );
+    }
+    // Faz 11: sohbet geçmişi hazırlığa göre. Yalnız bayrak açıkken ana sohbette; seçili hazırlık materyal okumasında
+    // öğrencinin kendi listesinde bulunduysa konuşma ona bağlanır. Yanıttan sonra; tablo yoksa ya da yazım düşerse atlanır.
+    const linkedConversationId = rest.conversationId ?? savedConversationId ?? null;
+    if (teacherV2 && !rest.prepId && rest.contextPrepId && linkedConversationId) {
+      const selectedPrepId = rest.contextPrepId;
+      after(async () => {
+        const link = await materialEarly.catch(() => null);
+        if (link?.ownedContextPrepId !== selectedPrepId) return;
+        await bindConversationPrep(service, { userId, conversationId: linkedConversationId, prepId: selectedPrepId });
+      });
     }
     stage("saved");
     if (auditCandidate && charge && shouldSampleChatAudit()) {

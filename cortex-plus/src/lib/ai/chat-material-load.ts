@@ -86,6 +86,11 @@ export type ChatMaterialLink = {
   /** Hazırlık eşleşmedi ama öğrenci kendi notundan söz ediyor: bütün belgelerinde ara. */
   searchAll: boolean;
   actions: ChatAction[];
+  /**
+   * İstekteki seçili hazırlık öğrencinin kendi listesindeyse onun kimliği, değilse null (Faz 11: sohbet geçmişi bu
+   * konuşmayı o hazırlığa bağlar). Mesaj başka bir hazırlığı ansa da seçili hazırlığın sahipliği burada okunur.
+   */
+  ownedContextPrepId: string | null;
 };
 
 /**
@@ -102,6 +107,7 @@ export async function resolveChatMaterial(
 ): Promise<ChatMaterialLink | null> {
   const index = await loadChatMaterialIndex(service, userId);
   if (!index.preps.length && !index.documents.length) return null;
+  const ownedContextPrepId = contextPrepId && index.preps.some((prep) => prep.id === contextPrepId) ? contextPrepId : null;
   let match = matchChatMaterial(message, index, { contextPrepId });
   // "Bu konudan test hazırla" (15 Kasım 2026, canlı): mesajda ad yoksa konuşmanın son öğrenci mesajlarında adı geçen
   // hazırlık geçerli; seçili hazırlık ancak onlarda da ad yoksa.
@@ -163,5 +169,6 @@ export async function resolveChatMaterial(
     documentIds,
     searchAll: wantsSearch && !documentIds.length && match.materialCue,
     actions: buildChatActions({ intent, match, nodesByPrep }),
+    ownedContextPrepId,
   };
 }
