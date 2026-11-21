@@ -28,6 +28,16 @@ import {
   type QuickAnswer,
   type Solution,
 } from "@/lib/solve/question-solver";
+import {
+  CHECK_USER_LINE,
+  checkActive,
+  parseStudentWork,
+  studentWorkSideSystem,
+  studentWorkSolverSystem,
+  withStudentCheck,
+  type StudentWorkMode,
+  type StudentWorkRead,
+} from "@/lib/solve/student-work";
 
 /*
   Soru çözücünün sunucu akışı (25 Ekim 2026, sıfır-hata). Sıra:
@@ -39,6 +49,9 @@ import {
      varsa hakem (gpt-4.1) soruyu baştan kendisi çözer — ilk tahmin gösterilmez.
   4. Çift sağlama tuttuysa denetçi arkadan bakar; yanlış derse çözüm "düzeltildi" olarak güncellenir.
   Okunamayan fotoğraf ücret almaz.
+  5. El yazısı çözüm kontrolü (21 Kasım 2026, `teacher.v2`, `input.work`): analitik çağrı öğrencinin satırlarını ayrı
+     okur ve denetler; satırlar modelsiz adım denetiminden geçer ve kesinleşen cevapla karşılaştırılır. Çağrı sayısı ve
+     ücret aynı; çözüm olayı `solution.check` taşır, ekran doğru cevabı "Doğrusunu göster"e kadar gizler.
 */
 
 export type SolveStatus = "checked" | "uncertain";
@@ -64,6 +77,12 @@ export type SolveInput = {
   imageDataUrl?: string;
   text?: string;
   idempotencyKey: string;
+  /**
+   * El yazısı çözüm kontrolü (21 Kasım 2026, `teacher.v2`; route bayrağa ve isteğe göre seçer). "off" ya da verilmezse
+   * bugünkü çözücü: istemler ve olaylar bayt bayt aynı. "auto"/"check": analitik çağrı öğrencinin satırlarını da okur
+   * ve denetler, öbür çağrılar satırlara bakmaz; çağrı sayısı değişmez.
+   */
+  work?: StudentWorkMode;
 };
 
 const VERIFY_SYSTEM =
@@ -102,11 +121,36 @@ function sameAnswer(a: Solution, b: Solution): boolean {
 }
 
 /** Bir çözümü uçtan uca yürütür; olayları `emit` ile sırayla verir. */
-export async function runSolve(input: SolveInput, emit: (event: SolveEvent) => void): Promise<void> {
+export async function runSolve(input: SolveInput, send: (event: SolveEvent) => void): Promise<void> {
   const started = Date.now();
   const elapsed = () => Date.now() - started;
   const { service, userId } = input;
   const image = Boolean(input.imageDataUrl);
+  const work: StudentWorkMode = input.work ?? "off";
+  // El yazısı çözüm kontrolü (21 Kasım 2026): kontrol açıksa çözüm ve düzeltme olayı öğrencinin satırlarının
+  // kontrolünü taşır; kontrol kesinleşen cevaba göre her olayda yeniden kurulur (denetim cevabı değiştirebilir).
+  let studentRead: StudentWorkRead | null = null;
+  let checking = false;
+  const emit = (event: SolveEvent) => {
+    if (!checking || (event.type !== "solution" && event.type !== "revised")) {
+      send(event);
+      return;
+    }
+    const solution = withStudentCheck(event.solution, studentRead);
+    if (event.type === "solution") {
+      const check = solution.studentCheck!;
+      console.info("solve_student_check", {
+        mode: work,
+        image,
+        state: check.state,
+        lines: check.lines.length,
+        firstErrorLine: check.firstError?.line ?? null,
+        firstErrorKind: check.firstError?.kind ?? null,
+        result: check.result,
+      });
+    }
+    send({ ...event, solution });
+  };
 
   const premium = await isPremiumUser(service, userId);
   const actionCode: ActionCode = image ? "IMAGE_SOLUTION" : "AI_CHAT_STANDARD";
@@ -135,9 +179,14 @@ export async function runSolve(input: SolveInput, emit: (event: SolveEvent) => v
   const tier = fastTier(premium && (await fastAllowedFor(service, userId)));
   const profile = await profileLoad;
   // Profil çözümün anlatımını değiştirir (çözen ve uzlaştıran); hızlı cevap ve denetçi cevabın kendisine bakar.
-  const solverSystem = withStudentProfile(SOLVER_SYSTEM, profile);
-  const advocateSystem = withStudentProfile(ADVOCATE_SYSTEM, profile);
-  const reconcileSystem = withStudentProfile(RECONCILE_SYSTEM, profile);
+  // Satır okuma açıkken (21 Kasım 2026) analitik çözücü öğrencinin satırlarını da okuyup denetler; şık eleyici, hakem
+  // ve denetçi satırlara bakmaz. "off"ta istemler bugünküyle aynı.
+  const side = (system: string) => (work === "off" ? system : studentWorkSideSystem(system));
+  const solverSystem = withStudentProfile(work === "off" ? SOLVER_SYSTEM : studentWorkSolverSystem(SOLVER_SYSTEM, work), profile);
+  const advocateSystem = withStudentProfile(side(ADVOCATE_SYSTEM), profile);
+  const reconcileSystem = withStudentProfile(side(RECONCILE_SYSTEM), profile);
+  const verifySystem = side(VERIFY_SYSTEM);
+  const solverText = work === "check" ? `${solverUserText()}\n${CHECK_USER_LINE}` : solverUserText();
   const ask = async (
     system: string,
     text: string,
@@ -172,11 +221,15 @@ export async function runSolve(input: SolveInput, emit: (event: SolveEvent) => v
       async () => {
         emit({ type: "stage", stage: "solving" });
         const [rawSolution, rawAdvocate] = await Promise.all([
-          ask(solverSystem, solverUserText(), { effort: "low" }),
+          ask(solverSystem, solverText, { effort: "low" }),
           ask(advocateSystem, advocateUserText(), { effort: "low" }).catch(() => null),
         ]);
+        let solverRaw: unknown = rawSolution;
         let solution = parseSolution(rawSolution);
-        if (!solution) solution = parseSolution(await ask(solverSystem, solverUserText(), { effort: "low" }));
+        if (!solution) {
+          solverRaw = await ask(solverSystem, solverText, { effort: "low" });
+          solution = parseSolution(solverRaw);
+        }
         if (!solution) {
           await settle(false);
           emit({ type: "error", code: "generation_failed", message: "Çözüm bu sefer gelmedi. Hakkın düşmedi. Yeniden dene.", status: 502 });
@@ -189,6 +242,11 @@ export async function runSolve(input: SolveInput, emit: (event: SolveEvent) => v
           if (image) await recordUnreadablePhoto(userId);
           emit({ type: "error", code: "unreadable", message: UNREADABLE_MESSAGE, status: 422 });
           return;
+        }
+        if (work !== "off") {
+          // Aynı analitik çağrının çıktısı: öğrencinin satırları ayrı alanda (ek çağrı yok).
+          studentRead = parseStudentWork(solverRaw);
+          checking = checkActive(work, studentRead);
         }
         const advocate = parseSolution(rawAdvocate);
         const quick: QuickAnswer = quickFrom(rawAdvocate);
@@ -218,7 +276,7 @@ export async function runSolve(input: SolveInput, emit: (event: SolveEvent) => v
 
         if (!agreed || elapsed() > VERIFY_DEADLINE_MS) return;
         emit({ type: "stage", stage: "verifying" });
-        const verdict = (await ask(VERIFY_SYSTEM, `ÇÖZÜM (JSON):\n${JSON.stringify(solution)}`, {
+        const verdict = (await ask(verifySystem, `ÇÖZÜM (JSON):\n${JSON.stringify(solution)}`, {
           model: env.OPENAI_ADVANCED_MODEL,
         }).catch(() => null)) as { approved?: unknown; issue?: unknown } | null;
         if (!verdict || verdict.approved !== false) {

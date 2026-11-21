@@ -15,6 +15,8 @@ import {
   solveDiscussPrompt,
 } from "@/lib/solve/socratic-solve";
 import { parseTutorStyle, type TutorStyle } from "@/lib/learning/tutor-style";
+import { studentCheckDiscussPrompt, type StudentCheck } from "@/lib/solve/student-work";
+import { StudentWorkCheckCard } from "@/components/learning/student-work-check";
 import "@/styles/question-solver.css";
 
 /*
@@ -222,21 +224,91 @@ function stepTitle(step: { title?: string; say: string; math?: string }, index: 
   return `${index + 1}. adım`;
 }
 
-/** Çözüm kartı; soru çöz sayfası ve sohbet aynı kartı çizer. Sohbette "Yeni soru" düğmesi yok. */
-export function SolutionView({
-  phase,
-  onReset,
-  extra,
-  initialTutorStyle,
-  onDiscuss,
-  imageSrc,
-}: {
+export type SolutionViewProps = {
   phase: SolveDone;
   onReset?: () => void;
   extra?: ReactNode;
   initialTutorStyle?: TutorStyle;
   onDiscuss?: (prompt: string) => void;
   imageSrc?: string | null;
+};
+
+/**
+ * Çözüm kartı; soru çöz sayfası ve sohbet aynı kartı çizer. Sohbette "Yeni soru" düğmesi yok. Çözüm öğrencinin el
+ * yazısı satırlarının kontrolünü taşıyorsa (21 Kasım 2026, `solution.check`) önce kontrol kartı çizilir; doğru çözüm
+ * "Doğrusunu göster" ile altında açılır.
+ */
+export function SolutionView(props: SolutionViewProps) {
+  const check = props.phase.solution.studentCheck;
+  if (check) return <CheckedSolutionView {...props} check={check} />;
+  return <FullSolutionView {...props} />;
+}
+
+function CheckedSolutionView({ check, ...props }: SolutionViewProps & { check: StudentCheck }) {
+  const { phase, onReset, extra, onDiscuss, imageSrc } = props;
+  const { solution } = phase;
+  const [revealed, setRevealed] = useState(false);
+  const revealedRef = useRef<HTMLHeadingElement | null>(null);
+  useEffect(() => {
+    if (revealed) revealedRef.current?.focus();
+  }, [revealed]);
+
+  return (
+    <article className="cp-solver-result" aria-live="polite">
+      <StudentWorkCheckCard
+        phase={phase}
+        check={check}
+        imageSrc={imageSrc}
+        revealed={revealed}
+        onReveal={() => setRevealed(true)}
+      />
+      {solution.otherQuestions?.length ? (
+        <p className="cp-solver-note">
+          {otherQuestionsLine({ questionNumber: solution.questionNumber, otherQuestions: solution.otherQuestions })}
+        </p>
+      ) : null}
+      {revealed ? (
+        <section className="cp-solver-revealed" aria-label="Doğru çözüm">
+          <h3 ref={revealedRef} tabIndex={-1} className="cp-solver-revealed-title">
+            Doğru çözüm
+          </h3>
+          {/* Öğrenci doğrusunu istedi: ipucu modu (hints_first) burada yeniden kilitlemez. */}
+          <FullSolutionView {...props} initialTutorStyle="direct_solve" embedded />
+        </section>
+      ) : null}
+      {extra}
+      <div className="cp-solver-actions">
+        {revealed ? (
+          <DiscussAction solution={solution} onDiscuss={onDiscuss} />
+        ) : (
+          <DiscussAction
+            solution={solution}
+            onDiscuss={onDiscuss}
+            prompt={studentCheckDiscussPrompt(solution, check)}
+            label="💬 Hatamı Öğretmenle Bulayım"
+          />
+        )}
+        {onReset ? (
+          <button type="button" className="cp-solver-secondary" onClick={onReset}>
+            📸 Yeni Soru Yükle
+          </button>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
+function FullSolutionView({
+  phase,
+  onReset,
+  extra,
+  initialTutorStyle,
+  onDiscuss,
+  imageSrc,
+  embedded = false,
+}: SolutionViewProps & {
+  /** Kontrol kartının altında açılan doğru çözüm: soru başlığı, ek ve eylemler kartın kendisinde. */
+  embedded?: boolean;
 }) {
   const { solution } = phase;
   const socraticDefault = parseTutorStyle(initialTutorStyle) === "hints_first";
@@ -263,8 +335,10 @@ export function SolutionView({
     setShown((current) => Math.min(steps.length, current === 0 ? 1 : current + 1));
   }
 
+  const Root = embedded ? "div" : "article";
   return (
-    <article className="cp-solver-result" aria-live="polite">
+    <Root className="cp-solver-result" aria-live={embedded ? undefined : "polite"}>
+      {embedded ? null : (
       <header className="cp-solver-readback">
         {imageSrc ? (
           <button type="button" className="cp-solver-thumb" onClick={() => setLightbox(true)} aria-label="Fotoğrafı büyüt">
@@ -298,8 +372,9 @@ export function SolutionView({
           ) : null}
         </div>
       </header>
+      )}
       {phase.note ? <p className="cp-solver-note">{phase.note}</p> : null}
-      {solution.otherQuestions?.length ? (
+      {!embedded && solution.otherQuestions?.length ? (
         <p className="cp-solver-note">
           {otherQuestionsLine({ questionNumber: solution.questionNumber, otherQuestions: solution.otherQuestions })}
         </p>
@@ -388,17 +463,19 @@ export function SolutionView({
           sohbetteki "Akılda kalsın" kartıyla; kilit kısmı işaretliyse "Tekrarıma ekle". */}
       {!locked && solution.tip ? <RememberCard items={[solution.tip]} /> : null}
 
-      {extra}
-      <div className="cp-solver-actions">
-        <DiscussAction solution={solution} onDiscuss={onDiscuss} />
-        {onReset ? (
-          <button type="button" className="cp-solver-secondary" onClick={onReset}>
-            📸 Yeni Soru Yükle
-          </button>
-        ) : null}
-      </div>
+      {embedded ? null : extra}
+      {embedded ? null : (
+        <div className="cp-solver-actions">
+          <DiscussAction solution={solution} onDiscuss={onDiscuss} />
+          {onReset ? (
+            <button type="button" className="cp-solver-secondary" onClick={onReset}>
+              📸 Yeni Soru Yükle
+            </button>
+          ) : null}
+        </div>
+      )}
 
-      {lightbox && imageSrc ? (
+      {!embedded && lightbox && imageSrc ? (
         <div
           className="cp-solver-lightbox"
           role="dialog"
@@ -419,22 +496,27 @@ export function SolutionView({
           <img src={imageSrc} alt="Soru fotoğrafı" />
         </div>
       ) : null}
-    </article>
+    </Root>
   );
 }
 
 function DiscussAction({
   solution,
   onDiscuss,
+  prompt: given,
+  label = "💬 Anlamadığım Yeri Öğretmene Sor",
 }: {
   solution: Parameters<typeof solveDiscussPrompt>[0];
   onDiscuss?: (prompt: string) => void;
+  /** Kontrol kartında doğru cevabı taşımayan istem (`studentCheckDiscussPrompt`). */
+  prompt?: string;
+  label?: string;
 }) {
-  const prompt = solveDiscussPrompt(solution);
+  const prompt = given ?? solveDiscussPrompt(solution);
   if (onDiscuss) {
     return (
       <button type="button" className="cp-solver-discuss" onClick={() => onDiscuss(prompt)}>
-        💬 Anlamadığım Yeri Öğretmene Sor
+        {label}
       </button>
     );
   }
@@ -450,7 +532,7 @@ function DiscussAction({
         }
       }}
     >
-      💬 Anlamadığım Yeri Öğretmene Sor
+      {label}
     </a>
   );
 }

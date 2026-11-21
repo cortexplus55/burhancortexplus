@@ -60,6 +60,12 @@ export type SolveRequest = {
   conversationId?: string;
   /** Hazırlıktan: sunucu tekrar listesine eklenebilir soru için imzalı belirteç gönderir. */
   review?: boolean;
+  /**
+   * El yazısı çözüm kontrolü (21 Kasım 2026, `teacher.v2`): "check" = "Çözümümü kontrol et", "solve" = "Soruyu çöz".
+   * Verilmezse sunucu kendisi karar verir (bayrak açıkken fotoğrafta öğrencinin satırlarını görürse kontrol). Bayrak
+   * kapalıyken "check" 409 `check_unavailable` alır.
+   */
+  intent?: "solve" | "check";
   operationId?: string;
   signal?: AbortSignal;
 };
@@ -81,6 +87,7 @@ export async function requestSolve(request: SolveRequest, onEvent: (event: Solve
   if (request.toChat) form.append("chat", "1");
   if (request.conversationId) form.append("conversationId", request.conversationId);
   if (request.review) form.append("review", "1");
+  if (request.intent) form.append("intent", request.intent);
   let response: Response;
   try {
     response = await fetch("/api/ai/solve", { method: "POST", body: form, signal: request.signal });
