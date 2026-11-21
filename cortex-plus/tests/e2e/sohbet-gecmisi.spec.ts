@@ -5,7 +5,8 @@ import { expect, test, type Page } from "@playwright/test";
   grupları (/e2e/sohbet-gecmisi fikstürü, veritabanısız). Panelin verisi `/api/teacher/conversations`'tan; test o isteği
   kendi cevabıyla karşılar. Telefonda (360, 390) ve masaüstünde (1280): yana taşma yok, çekmece açılır ve kapanır (Esc,
   odak düğmeye döner), geniş ekranda yan panel daralır ve açılır, sohbet sütunu 48rem'in altına inmez, panel yazma alanına
-  ve üst çubuğa binmez, dokunma hedefleri ≥40 px (telefonda ≥44 px).
+  ve üst çubuğa binmez, dokunma hedefleri ≥40 px (telefonda ≥44 px). Öğretmen v3 (21 Kasım 2026): açık sohbette geçmiş
+  48 px şeridin saat düğmesinden ("Sohbet geçmişi") açılır; ana ekrandaki "Geçmiş" düğmesi sohbet açılmadan kalır.
 */
 
 const GROUPS = {
@@ -67,20 +68,22 @@ async function smallestTarget(page: Page, scope: string) {
 }
 
 for (const width of [360, 390] as const) {
-  test(`telefon ${width} px: Geçmiş düğmesi çekmeceyi açar, Esc kapatır, odak düğmeye döner`, { tag: ["@public"] }, async ({ page }) => {
+  test(`telefon ${width} px: şeridin geçmiş düğmesi çekmeceyi açar, Esc kapatır, odak düğmeye döner`, { tag: ["@public"] }, async ({ page }) => {
     await page.setViewportSize({ width, height: 800 });
     const calls = await serveHistory(page);
     await page.goto("/e2e/sohbet-gecmisi?durum=sohbet");
-    await expect(page.locator(".cp-sor-messages")).toBeAttached({ timeout: 30_000 });
-    const toggle = page.getByRole("button", { name: "Geçmiş", exact: true });
+    await expect(page.locator(".cx-v3-thread")).toBeAttached({ timeout: 30_000 });
+    // Ana ekranın "Geçmiş" düğmesi açık sohbette yok; yerine şeridin saat düğmesi.
+    await expect(page.getByRole("button", { name: "Geçmiş", exact: true })).toBeHidden();
+    const toggle = page.getByRole("button", { name: "Sohbet geçmişi", exact: true });
     await expect(toggle).toBeVisible();
     // Gizli yan panel istek atmaz.
     expect(calls()).toBe(0);
     expect(await overflow(page)).toBeLessThanOrEqual(1);
 
-    // Düğme sohbetin "Geri" ile "Yeni sohbet" satırında; ikisine de binmez.
-    const button = await rect(page, ".cx-thist-toggle");
-    const barItems = await page.locator(".cp-thread-bar").first().evaluate((bar) =>
+    // Düğme şeridin "Geri" ile "Yeni sohbet" arasında; ikisine de binmez.
+    const button = await rect(page, ".cx-v3-bar [aria-label='Sohbet geçmişi']");
+    const barItems = await page.locator(".cx-v3-bar").first().evaluate((bar) =>
       [...bar.querySelectorAll("a, button")].map((node) => {
         const box = node.getBoundingClientRect();
         return { left: box.left, right: box.right };
@@ -184,34 +187,36 @@ test("masaüstü 1280 px: yan panel sütunu daraltmaz, daralır ve açılır", {
   expect(calls()).toBe(1);
   expect(await overflow(page)).toBeLessThanOrEqual(1);
 
+  // Öğretmen v3: panel ekranın solunda sabit; şerit, sohbet sütunu ve kapsül onun sağında, sütun daralmaz (44rem).
   const panel = await rect(page, ".cx-thist-dock");
-  const header = await rect(page, ".cx-home-top");
-  const composer = await rect(page, ".cp-sor-composer-zone");
-  const column = await rect(page, ".cp-thread-bar");
-  // Üst çubuğa ve yazma alanına binmez; sohbet sütunu 48rem (768 px) altına inmez.
-  expect(panel.top).toBeGreaterThanOrEqual(header.bottom);
+  const bar = await rect(page, ".cx-v3-bar");
+  const composer = await rect(page, ".cx-v3-capsule");
+  const column = await rect(page, ".cx-v3-col");
+  expect(panel.top).toBeGreaterThanOrEqual(0);
+  expect(panel.bottom).toBeLessThanOrEqual(800);
+  expect(bar.left).toBeGreaterThanOrEqual(panel.right);
   expect(panel.right).toBeLessThanOrEqual(composer.left);
-  expect(composer.width).toBeGreaterThanOrEqual(768);
   expect(column.left).toBeGreaterThanOrEqual(panel.right);
+  expect(column.width).toBeGreaterThanOrEqual(680);
   expect(await smallestTarget(page, ".cx-thist-dock")).toBeGreaterThanOrEqual(40);
-  // Düğme panel açıkken gizli.
+  // Ana ekranın "Geçmiş" düğmesi açık sohbette yok.
   await expect(page.getByRole("button", { name: "Geçmiş", exact: true })).toBeHidden();
 
   await dock.getByRole("button", { name: "Geçmişi daralt" }).click();
   await expect(dock).toBeHidden();
-  const toggle = page.getByRole("button", { name: "Geçmiş", exact: true });
+  const toggle = page.getByRole("button", { name: "Sohbet geçmişi", exact: true });
   await expect(toggle).toBeVisible();
   await expect(toggle).toBeFocused();
-  const collapsedComposer = await rect(page, ".cp-sor-composer-zone");
+  const collapsedComposer = await rect(page, ".cx-v3-capsule");
   expect(Math.round(collapsedComposer.left + collapsedComposer.width / 2)).toBe(640);
   expect(await overflow(page)).toBeLessThanOrEqual(1);
 
   // Tercih yenilemede korunur.
   await page.reload();
-  await expect(page.getByRole("button", { name: "Geçmiş", exact: true })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("button", { name: "Sohbet geçmişi", exact: true })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole("complementary", { name: "Sohbet geçmişi" })).toBeHidden();
 
-  await page.getByRole("button", { name: "Geçmiş", exact: true }).click();
+  await page.getByRole("button", { name: "Sohbet geçmişi", exact: true }).click();
   await expect(page.getByRole("complementary", { name: "Sohbet geçmişi" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Geçmişi daralt" })).toBeFocused();
   // Çekmece açılmadı: geniş ekranda açık sohbette geçmiş yan panelde.

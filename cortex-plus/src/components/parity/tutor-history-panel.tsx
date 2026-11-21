@@ -153,7 +153,11 @@ export function TutorHistoryPanel({ activeConversationId }: { activeConversation
   /** Paneli yeniden açacak görünür düğme: panelin kendi düğmesi ya da (öğretmen v3) şeritteki saat. */
   function reopenTarget(): HTMLElement | null {
     if (visible(toggleRef.current)) return toggleRef.current;
-    return visible(openerRef.current) ? openerRef.current : toggleRef.current;
+    if (visible(openerRef.current)) return openerRef.current;
+    // Öğretmen v3: kendi düğmemiz açık sohbette gizli; panel ilk açılışta açık geldiyse açan düğme de yok. Odak şeridin
+    // geçmiş düğmesine gider.
+    const barButton = document.querySelector<HTMLElement>("[data-tutor-history-opener]");
+    return visible(barButton) ? barButton : toggleRef.current;
   }
 
   function collapseDock() {

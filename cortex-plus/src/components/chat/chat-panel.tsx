@@ -2122,7 +2122,8 @@ function ChatPanelSession({
                 value={input}
                 onChange={setInput}
                 onSubmit={() => void sendComposer()}
-                placeholder={answerPlaceholder ?? placeholder ?? "Sor, konuş veya dosya gönder"}
+                // Öğretmen v3: kapsülün yazısı sabit (ürün sahibinin istemi); "Cevabını yaz" yalnız eski v2 düzeninde.
+                placeholder={placeholder ?? "Sor, konuş veya dosya gönder"}
                 loading={loading}
                 hasPayload={hasComposerPayload}
                 onStop={stopGeneration}

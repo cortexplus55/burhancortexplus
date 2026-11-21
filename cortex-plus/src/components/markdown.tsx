@@ -22,6 +22,12 @@ export function Markdown({
     () => renderMarkdownWith(content, renderer?.renderMath ?? plainRender),
     [content, renderer],
   );
+  /*
+    Aynı nesne (21 Kasım 2026): React her çizimde yeni `{ __html }` nesnesi görünce metin aynı olsa da içeriği baştan
+    yazıyordu. Sohbet akarken eski yanıtlar her parçada yeniden kuruluyor, kilit bilgi vurgusu (==…==) her seferinde
+    baştan çiziliyordu. Metin değişmedikçe DOM'a dokunulmaz.
+  */
+  const inner = useMemo(() => ({ __html: html }), [html]);
 
   return (
     <div
@@ -30,7 +36,7 @@ export function Markdown({
         variant === "parity" &&
           "text-[var(--cs-text)] [&_code]:rounded [&_code]:bg-white/10 [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-amber-100/90 [&_pre]:overflow-x-auto [&_pre]:rounded-lg [&_pre]:border [&_pre]:border-[var(--cs-border)] [&_pre]:bg-black/35 [&_pre]:p-3 [&_pre]:text-xs [&_strong]:text-[var(--cs-text)]",
       )}
-      dangerouslySetInnerHTML={{ __html: html }}
+      dangerouslySetInnerHTML={inner}
     />
   );
 }

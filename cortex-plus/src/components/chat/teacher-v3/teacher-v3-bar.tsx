@@ -31,6 +31,7 @@ export function TeacherV3Bar({
           aria-label="Sohbet geçmişi"
           aria-haspopup="dialog"
           title="Sohbet geçmişi"
+          data-tutor-history-opener=""
           onClick={onHistory}
         >
           <History aria-hidden />

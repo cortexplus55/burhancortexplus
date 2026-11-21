@@ -384,6 +384,20 @@ describe("yazma kapsülü", () => {
     expect(container.querySelector(".cx-v3-capsule")).toBeNull();
   });
 
+  it("kapsülün yazısı sabit: soruyla biten yanıttan sonra da 'Sor, konuş veya dosya gönder'", () => {
+    mockFetch();
+    renderPanel({
+      teacherV2: true,
+      initialConversationId: CONV,
+      initialMessages: [
+        { role: "user" as const, content: "Mol nedir?", id: mid(1) },
+        { role: "assistant" as const, content: "Mol bir sayma birimidir. Sence 1 mol kaç tane tanecik içerir?", id: mid(2) },
+      ],
+    });
+    expect(screen.getByPlaceholderText("Sor, konuş veya dosya gönder")).toBeTruthy();
+    expect(screen.queryByPlaceholderText("Cevabını yaz")).toBeNull();
+  });
+
   it("+ dosya seçicisini, kamera arka kamerayı açar; mikrofon dikte düğmesi", () => {
     mockFetch();
     const { container } = renderPanel({ teacherV2: true, initialConversationId: CONV, initialMessages: THREAD });
