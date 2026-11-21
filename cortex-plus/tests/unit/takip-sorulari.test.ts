@@ -56,3 +56,20 @@ describe("takip soruları biçimi", () => {
     expect(hideStreamingFollowUps("Dizi [[1, 2]] örneği")).toBe("Dizi [[1, 2]] örneği");
   });
 });
+
+describe("Daha fazla komutları", () => {
+  it("altı komut; menünün metni sunucuda aynı komut olarak tanınır, elle değişen metin tanınmaz", async () => {
+    const { MORE_COMMANDS, moreCommandFromMessage } = await import("@/lib/teacher/more-commands");
+    expect(MORE_COMMANDS.map((command) => command.label)).toEqual([
+      "Bana özel ders ver",
+      "5 yaşındaymışım gibi anlat",
+      "Temel kavramları vurgula",
+      "Kavramlar arasında bağlantı kur",
+      "Eksik olduğum noktaları bul",
+      "Konuyu ne kadar iyi anladığımı test et",
+    ]);
+    for (const command of MORE_COMMANDS) expect(moreCommandFromMessage(command.prompt)?.id).toBe(command.id);
+    expect(moreCommandFromMessage(`[Fizik] ${MORE_COMMANDS[1]!.prompt}`)?.id).toBe("explain_simple");
+    expect(moreCommandFromMessage("Bunu bana basit anlat ama örnekle")).toBeNull();
+  });
+});
