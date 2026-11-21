@@ -1,4 +1,5 @@
 import { stepArithmeticIssues } from "@/lib/solve/step-arithmetic";
+import type { StudentCheck } from "@/lib/solve/student-work";
 
 /*
   Soru çözücü (23 Ekim 2026; 25 Ekim 2026: sıfır-hata / zorunlu sağlama).
@@ -36,6 +37,12 @@ export type Solution = {
   otherQuestions?: string[];
   /** Kökteki olumsuz/kritik kelimeler: değildir, yanlıştır, ulaşılamaz, en az, kesinlikle… */
   criticalWords?: string[];
+  /**
+   * Öğrencinin el yazısı çözümünün kontrolü (21 Kasım 2026, `teacher.v2`): varsa ekran ve sohbet metni doğru cevabı
+   * gizler, satırları ve ilk hatayı gösterir; çözüm "Doğrusunu göster" ile açılır. Model çıktısından okunmaz, sunucu
+   * kurar (`student-work.ts`).
+   */
+  studentCheck?: StudentCheck;
 };
 
 export type QuickAnswer = { letter?: string; value?: string };

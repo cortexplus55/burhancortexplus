@@ -145,6 +145,7 @@ export const ACTION_LABELS: Record<string, string> = {
   PREP_TITLE: "Hazırlık adı yazma",
   PREP_INTAKE: "Kurulum sohbeti",
   CHAT_TITLE: "Sohbet başlığı yazma",
+  TUTOR_MEMORY_NOTE: "Öğretmen notu yazma",
   LESSON_PREFETCH: "Dersi önceden yazma (kredisiz)",
   CONTENT_PREFETCH: "İçeriği önceden yazma (kredisiz)",
   SHARED_CONTENT_LESSON: "Hazır müfredat dersi",

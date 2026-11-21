@@ -196,7 +196,9 @@ describe("uç ve sohbet: bayrak arkasında", () => {
   it("sohbet ucu dosyayı yalnız bayrak açıkken ana sohbette okur; blok kriz ve yalnız duygu turunda yok", () => {
     const chat = read("src/app/api/ai/chat/route.ts");
     expect(chat).toContain("const dossierEarly = teacherV2 && !rest.prepId ? loadStudentDossier(service, userId).catch(() => null) : null;");
-    expect(chat).toContain("v2Session && dossierEarly && !turn.crisis && !turn.feelingOnly ? ((await dossierEarly)?.promptBlock ?? \"\") : \"\"");
+    // Faz 11: öğrenci bağlamı dosya bloğunun yerine geçer (çift blok yok); kurulamazsa dosya bloğu. Koşul aynı.
+    expect(chat).toContain("v2Session && dossierEarly && !turn.crisis && !turn.feelingOnly");
+    expect(chat).toContain("((await tutorContextEarly)?.promptBlock || ((await dossierEarly)?.promptBlock ?? \"\"))");
   });
 });
 

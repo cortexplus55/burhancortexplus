@@ -450,6 +450,8 @@ export type UsageCode =
   | "ADAPTIVE_ANSWER_EVAL"
   /** Yeni sohbetin başlığı (0 kredi; küçük model, sohbet başına bir kez). */
   | "CHAT_TITLE"
+  /** Öğretmen notları (Faz 11; 0 kredi; oturum bitince ya da her 8. öğretmen mesajında tek küçük çağrı). */
+  | "TUTOR_MEMORY_NOTE"
   /** Uzun belgenin alt başlıklarını ana konulara toplama (0 kredi, belge başına bir kez). */
   | "TOPIC_MAP_GROUP"
   /** Sayfa temizliği: PDF metin katmanının yazım/tanıma hataları (0 kredi, sayfa başına bir kez). */

@@ -186,6 +186,7 @@ export function MistakeNotebookView({
                 sources.has("true_false") ? "doğru/yanlış" : null,
                 sources.has("lesson_check") ? "ders sorusu" : null,
                 sources.has("podcast") ? "dinleme" : null,
+                sources.has("chat") ? "öğretmen sohbeti" : null,
               ]
                 .filter(Boolean)
                 .join(" + ");

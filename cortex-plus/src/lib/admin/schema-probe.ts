@@ -362,11 +362,19 @@ export async function probeSchema(
     service.from("referral_gift_days").select("day").limit(1),
   ]);
   // Faz 4 (19 Kasım 2026): kavrama politikası sütunu ve "Farklı anlat" önbelleği. Salt okuma.
-  const [masteryPolicy, reexplainCache] = await Promise.all([
+  // Faz 11 (21 Kasım 2026, teacher.v2): öğretmen notları ve konuşma-hazırlık bağı. Salt okuma. Kod tablosuz da çalışır
+  // (not yazılmaz, geçmiş gruplanmaz), bu yüzden kritik değil.
+  const [masteryPolicy, reexplainCache, tutorNotes, conversationPreps] = await Promise.all([
     service.from("exam_prep_topic_mastery").select("policy").limit(1),
     hasTable(service, "exam_prep_step_reexplains"),
+    hasTable(service, "tutor_memory_notes"),
+    hasTable(service, "tutor_conversation_preps"),
   ]);
   const faz4Schema = !masteryPolicy.error && reexplainCache;
+  const missingFaz11 = [
+    tutorNotes ? null : "tutor_memory_notes",
+    conversationPreps ? null : "tutor_conversation_preps",
+  ].filter(Boolean);
   const emailNetworkOk = emailNetwork.every((result) => !result.error);
   const examPrice = CREDIT_PRICE_TABLE.PRACTICE_EXAM_GENERATE.credits;
   const chatPrice = CREDIT_PRICE_TABLE.AI_CHAT_STANDARD.credits;
@@ -578,6 +586,14 @@ export async function probeSchema(
       detail: faz4Schema
         ? "exam_prep_topic_mastery.policy ve exam_prep_step_reexplains yerinde (20261119120100)."
         : "20261119120100 uygulanmamış — rozetler eski hesapla gösterilir, Farklı anlat önbelleği yazılamaz.",
+    },
+    {
+      name: "Öğretmen notları ve sohbet geçmişi bağı (Faz 11)",
+      ok: missingFaz11.length === 0,
+      critical: false,
+      detail: missingFaz11.length === 0
+        ? "tutor_memory_notes ve tutor_conversation_preps yerinde (20261121150000): öğretmen notları yazılır, sohbet geçmişi hazırlığa göre gruplanır."
+        : `Eksik: ${missingFaz11.join(", ")} (20261121150000 uygulanmamış) — öğretmen notları yazılmaz, sohbet geçmişi düz liste kalır.`,
     },
   ];
 }

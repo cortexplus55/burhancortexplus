@@ -8,6 +8,14 @@ import { saveSolveToChat } from "@/lib/solve/solve-chat-save";
 import { solutionMarkdown, solveUserLine } from "@/lib/solve/solution-markdown";
 import type { Solution } from "@/lib/solve/question-solver";
 import { signReviewToken, solutionReviewItem } from "@/lib/solve/solve-review";
+import { isFeatureEnabled } from "@/lib/admin/feature-flags";
+import { TEACHER_V2_FLAG } from "@/lib/ai/teacher-v2";
+import {
+  CHECK_UNAVAILABLE_MESSAGE,
+  checkIntentRefused,
+  parseSolveIntent,
+  studentWorkMode,
+} from "@/lib/solve/student-work";
 
 /*
   Soru çözücü (23 Ekim 2026): fotoğraf ya da yazılı soru → olay akışı (satır başına bir JSON). İlk çözüm ~8-12 sn'de
@@ -41,6 +49,15 @@ export async function POST(request: Request) {
   const hasFile = file instanceof File && file.size > 0;
   if (hasFile && (file.size > MAX_BYTES || !ALLOWED.has(file.type))) return errorResponse(400, "invalid_input");
   if (!hasFile && text.length < MIN_TEXT) return errorResponse(400, "invalid_input");
+
+  // El yazısı çözüm kontrolü (21 Kasım 2026): `teacher.v2` açıkken fotoğrafta öğrencinin satırları görülürse kontrol
+  // kendiliğinden açılır; açık "check" isteği yalnız bayrak açıkken kabul edilir. Bayrak kapalıyken çözücü bugünkü gibi.
+  const intent = parseSolveIntent(form.get("intent"));
+  const checkEnabled = await isFeatureEnabled(service, TEACHER_V2_FLAG, userId).catch(() => false);
+  if (checkIntentRefused(intent, checkEnabled)) {
+    return NextResponse.json({ error: CHECK_UNAVAILABLE_MESSAGE, code: "check_unavailable" }, { status: 409 });
+  }
+  const work = studentWorkMode({ intent, enabled: checkEnabled, image: hasFile });
 
   const imageDataUrl = hasFile ? `data:${file.type};base64,${Buffer.from(await file.arrayBuffer()).toString("base64")}` : undefined;
 
@@ -99,7 +116,7 @@ export async function POST(request: Request) {
         );
       };
       try {
-        await runSolve({ service, userId, imageDataUrl, text: text || undefined, idempotencyKey: `solve:${userId}:${operationId}` }, (event) => {
+        await runSolve({ service, userId, imageDataUrl, text: text || undefined, idempotencyKey: `solve:${userId}:${operationId}`, work }, (event) => {
           emit(event);
           if (reviewable && (event.type === "solution" || event.type === "revised")) {
             const item = event.type === "solution" && event.status === "uncertain" ? null : solutionReviewItem(event.solution);

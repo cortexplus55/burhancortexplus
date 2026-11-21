@@ -16,9 +16,33 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { MASTERY_STREAK } from "@/lib/learning/mistake-notebook-rule";
 export { MASTERY_STREAK };
 
-export type MistakeSource = "deneme" | "quiz" | "true_false" | "lesson_check" | "podcast";
+export type MistakeSource = "deneme" | "quiz" | "true_false" | "lesson_check" | "podcast" | "chat";
 
-export const MISTAKE_SOURCES: readonly MistakeSource[] = ["deneme", "quiz", "true_false", "lesson_check", "podcast"];
+export const MISTAKE_SOURCES: readonly MistakeSource[] = ["deneme", "quiz", "true_false", "lesson_check", "podcast", "chat"];
+
+/**
+ * Faz 11 (teacher.v2): öğretmen sohbetinden "Bunu Yanlışlar Defterime ekle" ile düşen soru. Sohbette doğru şık ve
+ * anahtar yoktur (öğretmen adım adım ilerler); bu yüzden defter onu kendini yoklama kartı olarak sorar: öğrenci
+ * soruyu yeniden düşünür ve iki seçenekten birini seçer. İlki "doğru" sayılır (üst üste iki kez → defterden çıkar).
+ * Kayıtta `options` ve `correct_answer` boş kalır; seçenekler okurken eklenir.
+ */
+export const CHAT_SELF_CHECK_OPTIONS = ["Artık çözebiliyorum", "Hâlâ zorlanıyorum"] as const;
+
+/**
+ * Sohbet satırının kimliği `source_ref` = `chat:<mesaj>`. "chat" yalnız uygulamadaki mantıksal kaynaktır: veritabanında
+ * satır var olan bir kaynak değeriyle (`lesson_check`) yazılır, böylece defterin kaynak kısıtı değişmez (göç yalnız
+ * ekler). Okurken öneki taşıyan satır "chat" sayılır.
+ */
+export const CHAT_MISTAKE_REF_PREFIX = "chat:";
+export const CHAT_MISTAKE_STORED_SOURCE = "lesson_check";
+
+export const isChatMistakeRef = (ref: unknown): boolean =>
+  typeof ref === "string" && ref.startsWith(CHAT_MISTAKE_REF_PREFIX);
+
+/** Kaynağın veritabanındaki değeri: "chat" var olan kısıt kümesindeki `lesson_check` ile yazılır. */
+export function storedMistakeSource(source: string): string {
+  return source === "chat" ? CHAT_MISTAKE_STORED_SOURCE : source;
+}
 
 export type MistakeDraft = {
   source: MistakeSource;
@@ -97,6 +121,8 @@ export function toClientGroups(
 type Row = {
   id: string;
   source: string;
+  /** Okumada istenir; sütun yoksa (eski şema) yok sayılır. */
+  source_ref?: string | null;
   topic_label: string | null;
   question_text: string;
   options: unknown;
@@ -109,16 +135,27 @@ type Row = {
   mastered_at: string | null;
 };
 
-const SELECT =
+const SELECT_BASE =
   "id, source, topic_label, question_text, options, correct_answer, first_wrong_answer, explanation, wrong_count, review_count, correct_streak, mastered_at";
 
+const SELECT = `${SELECT_BASE}, source_ref`;
+
+/** Sütun yok (42703): `source_ref` göçünden önceki şemada okuma sütunsuz bir kez daha denenir. */
+const missingColumn = (error: { code?: string | null } | null | undefined) => error?.code === "42703";
+
 function toEntry(row: Row): MistakeEntry {
+  const source: MistakeSource = isChatMistakeRef(row.source_ref)
+    ? "chat"
+    : (MISTAKE_SOURCES as readonly string[]).includes(row.source)
+      ? (row.source as MistakeSource)
+      : "deneme";
+  const stored = Array.isArray(row.options) ? (row.options as string[]) : [];
   return {
     id: row.id,
-    source: (MISTAKE_SOURCES as readonly string[]).includes(row.source) ? (row.source as MistakeSource) : "deneme",
+    source,
     topicLabel: row.topic_label,
     questionText: row.question_text,
-    options: Array.isArray(row.options) ? (row.options as string[]) : [],
+    options: source === "chat" && !stored.length ? [...CHAT_SELF_CHECK_OPTIONS] : stored,
     correctAnswer: row.correct_answer,
     firstWrongAnswer: row.first_wrong_answer,
     explanation: row.explanation,
@@ -176,7 +213,9 @@ function logWriteFailure(step: string, error: DbError, extra: Record<string, unk
 }
 
 function keyOf(row: { source: string; source_question_id: string | null; source_ref: string | null }): string {
-  return row.source_question_id ? `uuid:${row.source_question_id.toLowerCase()}` : `ref:${row.source}:${row.source_ref}`;
+  return row.source_question_id
+    ? `uuid:${row.source_question_id.toLowerCase()}`
+    : `ref:${storedMistakeSource(row.source)}:${row.source_ref}`;
 }
 
 /**
@@ -248,7 +287,7 @@ export async function recordMistakes(
 
   const toRow = (d: (typeof list)[number]) => ({
     user_id: userId,
-    source: d.source,
+    source: storedMistakeSource(d.source),
     source_question_id: d.identity.source_question_id,
     source_ref: d.identity.source_ref,
     topic_label: d.topicLabel,
@@ -297,7 +336,7 @@ export async function recordMistakes(
           .select("id, wrong_count")
           .eq("user_id", userId)
           .eq(column, value as string);
-        if (column === "source_ref") lookup = lookup.eq("source", draft.source);
+        if (column === "source_ref") lookup = lookup.eq("source", storedMistakeSource(draft.source));
         const { data: row, error: readError } = await lookup.maybeSingle();
         if (readError || !row) {
           logWriteFailure("conflict_read", readError ?? { code: "not_found", message: "conflict row missing" }, { source: draft.source });
@@ -326,17 +365,21 @@ export async function loadOpenMistakes(
   userId: string,
   limit = 200,
 ): Promise<MistakeTopicGroup[]> {
-  const { data } = await supabase
-    .from("mistake_entries")
-    .select(SELECT)
-    .eq("user_id", userId)
-    .is("mastered_at", null)
-    .order("wrong_count", { ascending: false })
-    .order("created_at", { ascending: true })
-    .limit(limit);
+  const read = (columns: string) =>
+    supabase
+      .from("mistake_entries")
+      .select(columns)
+      .eq("user_id", userId)
+      .is("mastered_at", null)
+      .order("wrong_count", { ascending: false })
+      .order("created_at", { ascending: true })
+      .limit(limit);
+  let result = await read(SELECT);
+  if (missingColumn(result.error)) result = await read(SELECT_BASE);
+  const data = result.data as unknown as Row[] | null;
 
   const groups = new Map<string, MistakeEntry[]>();
-  for (const row of (data ?? []) as Row[]) {
+  for (const row of data ?? []) {
     const entry = toEntry(row);
     const key = entry.topicLabel?.trim() || UNLABELLED;
     const bucket = groups.get(key);
@@ -426,19 +469,20 @@ export async function reviewMistake(
   entryId: string,
   answer: string,
 ): Promise<ReviewOutcome | null> {
-  const { data } = await supabase
-    .from("mistake_entries")
-    .select(
-      "id, correct_answer, explanation, first_wrong_answer, correct_streak, review_count, wrong_count",
-    )
-    .eq("id", entryId)
-    .eq("user_id", userId)
-    .maybeSingle();
+  const REVIEW_BASE = "id, source, correct_answer, explanation, first_wrong_answer, correct_streak, review_count, wrong_count";
+  const readEntry = (columns: string) =>
+    supabase.from("mistake_entries").select(columns).eq("id", entryId).eq("user_id", userId).maybeSingle();
+  let read = await readEntry(`${REVIEW_BASE}, source_ref`);
+  if (missingColumn(read.error)) read = await readEntry(REVIEW_BASE);
+  const data = read.data as Record<string, unknown> | null;
 
   if (!data) return null;
 
-  const correct =
-    (data.correct_answer as string | null)?.trim() === answer.trim();
+  // Sohbetten düşen soru kendini yoklama kartıdır: anahtar yok, "Artık çözebiliyorum" doğru sayılır.
+  const selfCheck = isChatMistakeRef(data.source_ref) && !(data.correct_answer as string | null)?.trim();
+  const correct = selfCheck
+    ? answer.trim() === CHAT_SELF_CHECK_OPTIONS[0]
+    : (data.correct_answer as string | null)?.trim() === answer.trim();
   const now = new Date().toISOString();
 
   const next = nextReviewState(

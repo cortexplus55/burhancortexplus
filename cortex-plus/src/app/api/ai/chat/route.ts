@@ -25,7 +25,7 @@ import { visionImage } from "@/lib/ai/vision";
 import { getUserEntitlements, requireFeature } from "@/lib/billing/entitlements";
 import { moderate } from "@/lib/ai/moderation";
 import { recordAbuse } from "@/lib/abuse/record";
-import { parseTutorStyle } from "@/lib/learning/tutor-style";
+import { isTeachModeV2, parseTutorStyle, TEACH_MODE_SUMMARY, TEACH_MODE_TUTOR } from "@/lib/learning/tutor-style";
 import { moodPrompt, parseMood } from "@/lib/learning/session-signals";
 import { loadTodayMood } from "@/lib/companion/today-mood";
 import { env, type ActionCode } from "@/lib/env";
@@ -111,7 +111,6 @@ import {
   answerTurnPlan,
   readTutorSession,
   repeatsAskedQuestion,
-  resolveTeachStyle,
   teacherV2SessionLines,
   v2AnswerFirstLine,
   v2StyleLine,
@@ -119,6 +118,9 @@ import {
 } from "@/lib/ai/teacher-v2-session";
 import { settleVoice } from "@/lib/ai/teacher-voice";
 import { loadStudentDossier } from "@/lib/teacher/dossier-load";
+import { resolveTeachModeV2 } from "@/lib/teacher/tutor-pacing";
+import { buildTutorStudentContext, forgetTutorContext } from "@/lib/tutor/student-context";
+import { maybeWriteTutorNotes } from "@/lib/tutor/memory-notes";
 import { classifyIntent, directorTurnLine } from "@/lib/teacher/director";
 import { ensureDocumentMap } from "@/lib/documents/document-map-load";
 import { dropSourceLabels, settlePedagogicalLabels, stripOrphanCitations } from "@/lib/ai/chat-answer-settle";
@@ -127,6 +129,7 @@ import { logOpsEvent } from "@/lib/observability/ops-log";
 import { pickStudyTopics } from "@/lib/learning/diagnostic";
 import { recordLessonTiming } from "@/lib/admin/beta-metrics";
 import { chatRequestHash, chatResultResponse, prepareChatOperation, streamedChatResultResponse, type SavedChatResult } from "@/lib/ai/chat-operation";
+import { bindConversationPrep } from "@/lib/tutor/conversation-groups";
 
 export const maxDuration = 300;
 const PARAGRAPH = "\n\n";
@@ -150,10 +153,11 @@ const bodySchema = z.object({
   /** "Bugünkü ruh hali" (kıyas ürünü gibi yazı kutusunun ayar düğmesinden). */
   mood: z.string().max(20).optional(),
   /**
-   * Canlı anlatım anahtarı; yoksa profildeki `tutor_style` okunur. "guided" (Rehberli, Faz 13 PR-1) yalnız teacher.v2
-   * açıkken tanınır; bayrak kapalıyken profilin stili geçerli (`resolveTeachStyle`).
+   * Canlı anlatım anahtarı; yoksa profildeki `tutor_style` okunur. "guided" (Rehberli, Faz 13 PR-1) ve Faz 11'in iki modu
+   * (Adım Adım Öğret, Hızlı Özet) yalnız teacher.v2 açıkken tanınır: bayrak açıkken her seçim iki moddan birine eşlenir
+   * (`resolveTeachModeV2`); bayrak kapalıyken bu üç değerde profilin stili geçerli.
    */
-  tutorStyle: z.enum(["step_by_step", "hints_first", "direct_solve", GUIDED_STYLE]).optional(),
+  tutorStyle: z.enum(["step_by_step", "hints_first", "direct_solve", GUIDED_STYLE, TEACH_MODE_TUTOR, TEACH_MODE_SUMMARY]).optional(),
 });
 
 export async function POST(request: Request) {
@@ -355,6 +359,11 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
     // PR-2 (PROMPT-V2 §3): Öğrenci Dosyası yalnız ana sohbette ve bayrak açıkken; öbür hazırlıklarla aynı anda okunur,
     // 10 dk önbellekte. Okunamazsa öğretmen dosyasız konuşur (iddia kurmaz).
     const dossierEarly = teacherV2 && !rest.prepId ? loadStudentDossier(service, userId).catch(() => null) : null;
+    // Faz 11: öğrenci bağlamı (dosya + açık yanlışlar + konu durumu + öğretmen notları). Dosyanın aynı okumasını paylaşır
+    // (ikinci sorgu yok); düşerse dosya bloğu kalır.
+    const tutorContextEarly = dossierEarly
+      ? buildTutorStudentContext(service, userId, { dossier: dossierEarly }).catch(() => null)
+      : null;
     const parallelModeration = (Boolean(rest.prepId) || teacherV2) && !imageUrl;
     const modelAbort = new AbortController();
     const abortModel = () => modelAbort.abort();
@@ -475,15 +484,16 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
       charge = false;
     } else {
       const { data: profile } = await profileEarly;
-      // Faz 13 PR-1: Rehberli ve seans durumu yalnız ana sohbette ve yalnız bayrak açıkken. Bayrak kapalıyken bugünkü yol.
+      // Faz 13 PR-1: seans durumu yalnız ana sohbette ve yalnız bayrak açıkken. Bayrak kapalıyken bugünkü yol.
       const v2Chat = teacherV2 && !rest.prepId;
-      const teach = v2Chat
-        ? resolveTeachStyle({ requested: rest.tutorStyle, profile: profile?.tutor_style, teacherV2: true })
-        : null;
+      // Faz 11: bayrak açıkken iki mod (Adım Adım Öğret, Hızlı Özet); eski seçimler eşlenir. Altındaki makine `base`.
+      const teach = v2Chat ? resolveTeachModeV2({ requested: rest.tutorStyle, profile: profile?.tutor_style }) : null;
       const tutorStyle = teach
         ? teach.base
-        : parseTutorStyle(rest.tutorStyle === GUIDED_STYLE ? profile?.tutor_style : rest.tutorStyle ?? profile?.tutor_style);
-      const teachStyle = teach?.style ?? tutorStyle;
+        : parseTutorStyle(
+            rest.tutorStyle === GUIDED_STYLE || isTeachModeV2(rest.tutorStyle) ? profile?.tutor_style : rest.tutorStyle ?? profile?.tutor_style,
+          );
+      const teachStyle = teach?.mode ?? tutorStyle;
       const studentInstruction = await instructionEarly;
       const examContext = await examContextEarly;
       if (rest.prepId) {
@@ -587,9 +597,12 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
         turnLines.push(...teacherV2SessionLines({ session: v2Session, style: teachStyle, plan: turn.plan, message }));
       }
       const moodLine = turn.mood === "neutral" ? "" : ` ${moodPrompt(turn.mood)}`;
-      // Dosya bloğu tur satırlarından önce (son söz turun kuralı); kriz ve yalnız duygu turunda yok.
+      // Dosya bloğu tur satırlarından önce (son söz turun kuralı); kriz ve yalnız duygu turunda yok. Faz 11: öğrenci
+      // bağlamı dosya bloğunun YERİNE geçer (dosyanın satırlarını içerir; çift blok yok); kurulamazsa dosya bloğu.
       const dossierBlock =
-        v2Session && dossierEarly && !turn.crisis && !turn.feelingOnly ? ((await dossierEarly)?.promptBlock ?? "") : "";
+        v2Session && dossierEarly && !turn.crisis && !turn.feelingOnly
+          ? ((await tutorContextEarly)?.promptBlock || ((await dossierEarly)?.promptBlock ?? ""))
+          : "";
       // PR-3: son belgenin haritası yoksa yanıttan sonra bir kez hesaplanır (sohbet turu beklemez).
       const pendingMap = v2Session && dossierEarly ? ((await dossierEarly)?.pendingMapDocumentId ?? null) : null;
       if (pendingMap) after(() => ensureDocumentMap(service, userId, pendingMap).then(() => undefined));
@@ -1066,12 +1079,34 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
     await recordUserActivity(service, userId, "chat").catch(() => undefined);
     // Yıldızlar (17 Ekim 2026, kıyas ürünü: "Öğretmenle sohbet — günde bir kez, 3 mesajdan sonra").
     after(() => awardChatStars(service, userId));
+    // Faz 11: öğretmen notları. Yalnız bayrak açıkken ana sohbette ve var olan konuşmada; yanıttan sonra, öğrenciden
+    // kredi düşmeden. Tetik (oturum bitti / her 8. öğretmen mesajı) ve tablo denetimi işlevin içinde; yeni not yazılınca
+    // öğretmenin bağlamı bir sonraki turda onu görür.
+    if (teacherV2 && !rest.prepId && rest.conversationId && charge) {
+      const notedConversationId = rest.conversationId;
+      after(() =>
+        maybeWriteTutorNotes(service, { userId, conversationId: notedConversationId }).then((result) => {
+          if (result.written) forgetTutorContext(userId);
+        }),
+      );
+    }
     // Yeni sohbet: kıyas ürünü gibi kısa başlık + emoji, cevap gittikten sonra.
     const savedConversationId = (saved as SavedChatResult).conversationId;
     if (!rest.conversationId && savedConversationId) {
       after(() =>
         titleConversation(service, { userId, conversationId: savedConversationId, message, answer: content }),
       );
+    }
+    // Faz 11: sohbet geçmişi hazırlığa göre. Yalnız bayrak açıkken ana sohbette; seçili hazırlık materyal okumasında
+    // öğrencinin kendi listesinde bulunduysa konuşma ona bağlanır. Yanıttan sonra; tablo yoksa ya da yazım düşerse atlanır.
+    const linkedConversationId = rest.conversationId ?? savedConversationId ?? null;
+    if (teacherV2 && !rest.prepId && rest.contextPrepId && linkedConversationId) {
+      const selectedPrepId = rest.contextPrepId;
+      after(async () => {
+        const link = await materialEarly.catch(() => null);
+        if (link?.ownedContextPrepId !== selectedPrepId) return;
+        await bindConversationPrep(service, { userId, conversationId: linkedConversationId, prepId: selectedPrepId });
+      });
     }
     stage("saved");
     if (auditCandidate && charge && shouldSampleChatAudit()) {

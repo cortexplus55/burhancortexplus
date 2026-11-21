@@ -1,4 +1,5 @@
 import type { Solution } from "@/lib/solve/question-solver";
+import { studentCheckMarkdown, studentCheckUserLine } from "@/lib/solve/student-work";
 
 /*
   Çözümün sohbete kaydedilen metni (23 Ekim 2026). Sohbet yeniden açılınca bu metin görünür ve sonraki sorular
@@ -11,6 +12,8 @@ export function solutionAnswerLine(solution: Solution): string {
 }
 
 export function solutionMarkdown(solution: Solution, note?: string): string {
+  // El yazısı çözüm kontrolünde (21 Kasım 2026) sohbete doğru cevap yazılmaz: satırlar, ilk hata ve yönlendirme.
+  if (solution.studentCheck) return studentCheckMarkdown(solution, solution.studentCheck, note);
   const lines: string[] = [];
   const answer = solutionAnswerLine(solution);
   lines.push(`**Doğru cevap: ${answer}**`);
@@ -42,6 +45,7 @@ export function solutionMarkdown(solution: Solution, note?: string): string {
 
 /** Sohbette öğrencinin satırı: fotoğrafın kendisi saklanmaz, okunan soru yazılır. */
 export function solveUserLine(solution: Solution, note: string | undefined, photo: boolean): string {
+  if (solution.studentCheck) return studentCheckUserLine(solution, solution.studentCheck, note, photo);
   const head = photo ? (note ? `📷 Fotoğraftaki soru · ${note}` : "📷 Fotoğraftaki soru") : "";
   const question = solution.question.length > 600 ? `${solution.question.slice(0, 600)}…` : solution.question;
   const options = solution.options.map((o) => `${o.letter}) ${o.text}`).join("\n");

@@ -6,6 +6,9 @@ import { QuizStudio } from "@/components/learning/studio/quiz-studio";
 import { MistakeNotebookView } from "@/components/parity/mistake-notebook-view";
 import { QuestionSolver, SolutionView } from "@/components/learning/question-solver";
 import { SOLVER_ACCENT, SolverHero } from "@/components/learning/solver-hero";
+import { parseSolution } from "@/lib/solve/question-solver";
+import { parseStudentWork, withStudentCheck } from "@/lib/solve/student-work";
+import type { SolveDone } from "@/lib/solve/solve-client";
 import { PodcastStudio } from "@/components/learning/studio/podcast-studio";
 import { ParityExamPrep, type ExamPrepCard } from "@/components/parity/exam-prep";
 import { ExamPrepHome, type HomeNode } from "@/components/parity/exam-prep-home";
@@ -69,6 +72,51 @@ const PREP_CARDS: ExamPrepCard[] = [
   },
 ];
 
+/**
+ * El yazısı çözüm kontrolü (`?ekran=kontrol`, 21 Kasım 2026): sentetik soru ve öğrencinin uzun satırlı çözümü; işaret
+ * hatası 2. satırda. Çözücünün gerçek ayrıştırıcısı ve kontrol kurucusuyla (model yok).
+ */
+const CHECK_JSON = {
+  readable: true,
+  subject: "Örnek",
+  question: "2x + 7 = 19 ise x kaçtır?",
+  options: [
+    { letter: "A", text: "4" },
+    { letter: "B", text: "6" },
+    { letter: "C", text: "12" },
+    { letter: "D", text: "13" },
+    { letter: "E", text: "26" },
+  ],
+  kind: "mcq",
+  intro: "Bilinmeyeni yalnız bırakıyoruz.",
+  given: ["2x + 7 = 19"],
+  asked: "x",
+  steps: [
+    { title: "Sabiti karşıya geçir", math: "2x = 19 - 7 = 12", say: "7 karşıya eksi olarak geçer." },
+    { title: "Katsayıya böl", math: "x = 12 / 2 = 6", say: "İki tarafı 2'ye böldük." },
+  ],
+  answer: { letter: "B", value: "6", text: "x = 6" },
+  optionsWhy: [],
+  trap: "Sabit karşıya geçerken işareti değişir.",
+  tip: "Önce sabiti, sonra katsayıyı at.",
+  check: "Kontrol: 2·6 + 7 = 19",
+  studentWork: {
+    present: true,
+    lines: ["2x + 7 = 19", "2x = 19 + 7", "2x = 26", "x = 26 / 2 = 13", "Cevap: D şıkkı, yani x = 13 olur ve sağlamada 2·13 + 7 = 33"],
+    answer: { letter: "D", value: "13" },
+    steps: [{ n: 1, ok: true }, { n: 2, ok: false, kind: "isaret" }],
+  },
+};
+const CHECK_SOLUTION = parseSolution(CHECK_JSON)!;
+const CHECK_PHASE: SolveDone = {
+  kind: "done",
+  status: "verified",
+  ms: 5200,
+  verifying: false,
+  agreed: true,
+  solution: withStudentCheck(CHECK_SOLUTION, parseStudentWork(CHECK_JSON)),
+};
+
 /** Yalnız test fikstürü (E2E_FIXTURE=1). */
 export function IcEkranFixture({ screen }: { screen: string }) {
   return (
@@ -131,6 +179,10 @@ export function IcEkranFixture({ screen }: { screen: string }) {
               },
             } as never}
           />
+        </main>
+      ) : screen === "kontrol" ? (
+        <main style={{ padding: "1.5rem 1rem", maxWidth: "44rem", margin: "0 auto" }}>
+          <SolutionView initialTutorStyle="direct_solve" phase={CHECK_PHASE} />
         </main>
       ) : screen === "soru" ? (
         <div className="cp-page">

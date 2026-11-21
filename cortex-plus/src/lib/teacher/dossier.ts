@@ -3,6 +3,7 @@ import { PLAN_NODE_META, type PlanNodeKind } from "@/lib/learning/exam-prep-plan
 import { withoutOutcomeCode } from "@/lib/learning/path-labels";
 import { heaviestSection, type DocumentMap } from "@/lib/documents/document-map";
 import { examPrepNodeHref } from "@/lib/learning/exam-prep-hrefs";
+import type { StudentMemory } from "@/lib/learning/student-memory/summary";
 
 /*
   Öğrenci Dosyası (PROMPT-V2 §3, PR-2), 15 Kasım 2026: öğrencinin KENDİ kayıtlarından ≤300 jetonluk özet. Saf: girdi
@@ -38,6 +39,23 @@ export type Dossier = {
   pendingMapDocumentId: string | null;
   /** Yönlendiricinin (PR-4) okuduğu yapılandırılmış sinyaller; satırlarla aynı kayıtlardan. */
   signals: DossierSignals;
+  /**
+   * Faz 11 (öğrenci bağlamı, `src/lib/tutor/student-context.ts`): aynı okumanın ham parçaları; bağlam kurucusu ikinci kez
+   * sorgu atmasın diye dosyayla birlikte önbellekte durur. Öğrenciye gösterilmez.
+   */
+  preps: DossierPrepRef[];
+  memory: StudentMemory | null;
+  /** Son belgenin haritasından notun kendi kuralları ve formülleri (istem bloğundaki satırlar). */
+  noteLines: string[];
+};
+
+/** Hazırlığın bağlam kurucusuna giden kısa hâli (kimlik, ad, sınav tarihi, hedef puan). */
+export type DossierPrepRef = {
+  id: string;
+  title: string;
+  examDate: string | null;
+  daysLeft: number | null;
+  targetScore: number | null;
 };
 
 /** Her sinyal gerçek bir kayda ve onu açan bir yere (`href`) bağlı; yoksa null ya da boş. */
@@ -55,6 +73,8 @@ export type DossierPrep = {
   title: string;
   examDate: string | null;
   createdAt: string | null;
+  /** Hazırlığın hedef puanı (konu rozeti için); yoksa varsayılan hedef. */
+  targetScore?: number | null;
   nodes: readonly {
     id: string;
     kind: string | null;
@@ -78,6 +98,8 @@ export type DossierInput = {
   /** Son belgenin haritası (PR-3); yoksa null, satır haritasız kurulur. */
   documentMap?: DocumentMap | null;
   streak: number | null;
+  /** Öğrenme hafızası (yükleyicinin zaten okuduğu kayıt); bağlam kurucusu yeniden okumasın diye taşınır. */
+  memory?: StudentMemory | null;
 };
 
 const PROMPT_LIMIT = 1200;
@@ -278,6 +300,15 @@ export function buildDossier(input: DossierInput): Dossier {
     promptBlock,
     pendingMapDocumentId: input.documents.length && !input.documentMap ? input.documents[0]!.id : null,
     signals,
+    preps: input.preps.map((prep) => ({
+      id: prep.id,
+      title: clean(prep.title),
+      examDate: prep.examDate,
+      daysLeft: daysLeft(prep.examDate, input.today),
+      targetScore: typeof prep.targetScore === "number" && Number.isFinite(prep.targetScore) ? prep.targetScore : null,
+    })),
+    memory: input.memory ?? null,
+    noteLines,
   };
 }
 

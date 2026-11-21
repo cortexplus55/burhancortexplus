@@ -226,12 +226,50 @@ export function fixtureCockpit({
   return preps;
 }
 
-/** teacher.v2 (`?ogretmen=v2`, Faz 13 PR-1): son yanıt bir soruyla biter; soru ayrı kartta, altında ipucu ve cevap çipleri. */
+/**
+ * teacher.v2 (`?ogretmen=v2`): son yanıt bir soruyla biter; soru "Sıra sende" kartında, altında Faz 11 tepki çipleri.
+ * Kimlikler kayıtlı sohbet gibi (UUID): "Yanlışlar Defterime ekle" yalnız kayıtlı mesajda çizilir.
+ */
+export const V2_CONVERSATION_ID = "0b0b0b0b-0b0b-4b0b-8b0b-0b0b0b0b0b0b";
 const V2_MESSAGES = [
-  { role: "user" as const, content: "Üslü sayılarda negatif üssü karıştırıyorum. 2^-3 neden 1/8 oluyor?" },
+  { role: "user" as const, id: "0c0c0c0c-0c0c-4c0c-8c0c-0c0c0c0c0c01", content: "Üslü sayılarda negatif üssü karıştırıyorum. 2^-3 neden 1/8 oluyor?" },
   {
     role: "assistant" as const,
+    id: "0c0c0c0c-0c0c-4c0c-8c0c-0c0c0c0c0c02",
     content: "2'nin kuvvetlerine sırayla bak: 2² = 4, 2¹ = 2, 2⁰ = 1. Üs bir azaldıkça sayı ne oluyor?",
+  },
+];
+
+/**
+ * Faz 11 (`?ogretmen=v2&durum=yoklama`): öğretmen yanıtı formül kartı, geniş tablo, kod bloğu ve "Sık hata" kutusuyla
+ * biter, en sonda mini yoklama (canlı kara tahta). Dar ekranda her biri kendi kutusunda kaymalı.
+ */
+const V2_CHECK_MESSAGES = [
+  { role: "user" as const, id: "0c0c0c0c-0c0c-4c0c-8c0c-0c0c0c0c0c03", content: "Dik üçgende hipotenüsü nasıl bulurum?" },
+  {
+    role: "assistant" as const,
+    id: "0c0c0c0c-0c0c-4c0c-8c0c-0c0c0c0c0c04",
+    content: [
+      "Dik üçgende en uzun kenar hipotenüstür; iki dik kenarla bağı **Pisagor bağıntısıdır**.",
+      "",
+      "$$c^2 = a^2 + b^2 \\quad\\Rightarrow\\quad c = \\sqrt{a^2 + b^2} = \\sqrt{3^2 + 4^2} = \\sqrt{9 + 16} = \\sqrt{25} = 5 \\quad\\text{ve}\\quad \\sqrt{5^2 + 12^2} = \\sqrt{169} = 13$$",
+      "",
+      "| Dik kenar a | Dik kenar b | Hipotenüs c | a kare | b kare | c kare | Sağlama |",
+      "|---|---|---|---|---|---|---|",
+      "| 3 | 4 | 5 | 9 | 16 | 25 | 9 + 16 = 25 |",
+      "| 5 | 12 | 13 | 25 | 144 | 169 | 25 + 144 = 169 |",
+      "",
+      "```",
+      "hipotenus = karekok(dik_kenar_a * dik_kenar_a + dik_kenar_b * dik_kenar_b)  # uzun bir satır; dar ekranda kutusunda kayar",
+      "```",
+      "",
+      "> ⚠️ Sık hata: Hipotenüsü dik kenarlardan biri sanmak; hipotenüs her zaman dik açının karşısındadır.",
+      "",
+      "> ❓ Yoklama: Dik kenarları 6 ve 8 olan üçgenin hipotenüsü kaçtır?",
+      "> A) 10",
+      "> B) 12",
+      "> C) 14",
+    ].join("\n"),
   },
 ];
 
@@ -249,9 +287,12 @@ export function AnaEkranFixture({
   rights,
   quota,
   growth = false,
+  quickCheck = false,
 }: {
-  /** `?ogretmen=v2`: öğretmen hissi bayrağı açık (Rehberli, Nasıl anlatayım?, soru kartı). */
+  /** `?ogretmen=v2`: öğretmen hissi bayrağı açık (Faz 11: iki anlatım, tepki çipleri, karşılama kartları). */
   teacherV2?: boolean;
+  /** Faz 11 (`?ogretmen=v2&durum=yoklama`): son yanıtta mini yoklama, formül, tablo, kod ve Sık hata kutusu. */
+  quickCheck?: boolean;
   /** Faz 11C (`?buyume=1`): davet şeridi (bağlantı örnek). */
   growth?: boolean;
   /** Hak durumu (Faz 3B); verilmezse sayaçsız (bugünkü görünüm). */
@@ -290,11 +331,13 @@ export function AnaEkranFixture({
         heroFooter={heroFooter}
         showSubjectPicker
         placeholder="Sor, konuş veya dosya gönder"
-        initialConversationId={conversation ? "fixture" : undefined}
+        initialConversationId={conversation ? (teacherV2 ? V2_CONVERSATION_ID : "fixture") : undefined}
         initialMessages={
           conversation
             ? teacherV2
-              ? V2_MESSAGES
+              ? quickCheck
+                ? V2_CHECK_MESSAGES
+                : V2_MESSAGES
               : unanswered
               ? [...MESSAGES, { role: "user" as const, content: "Aynı mantıkla benzer bir örnek soru üret ve çöz." }]
               : teaching

@@ -22,8 +22,64 @@ import { splitTutorChrome, type ReplyChip, type ReplyQuote } from "@/lib/learnin
 import { splitActionMarkers, type ChatAction } from "@/lib/ai/chat-material-link";
 import { stripOrphanCitations } from "@/lib/ai/chat-answer-settle";
 import "@/styles/chat-teaching.css";
+import "@/styles/teacher-v2-sohbet.css";
 import { LADDER_CHIPS, SOCRATIC_QUICK_CHIPS, stepQuickChips, type TutorStyle } from "@/lib/learning/tutor-style";
 import { splitFinalQuestion } from "@/lib/learning/question-bubble";
+import { parseQuickCheck, type QuickCheckOption } from "@/lib/teacher/quick-check";
+import { chosenQuickCheckLetter, type ReplyAction } from "@/lib/teacher/reply-actions";
+import { TeacherQuickCheck } from "@/components/chat/teacher-quick-check";
+
+/**
+ * Faz 11 (teacher.v2, ana sohbet): yanıtın öğretmen hâli. Verilince yanıtın kendi hızlı çipleri (Rehberli/Sokratik
+ * merdiveni, Adım Adım çipleri) yerine `actions` tek sırada durur; sunucunun `[[chip:…]]` önerileri aynı sıranın sonuna
+ * eklenir (aynı etiket/istem bir kez) ve sıra `maxChips` ile kesilir. `actions` null ise (son yanıt değil) yanıtın
+ * altında çip yoktur. Mini yoklama kart olarak çizilir.
+ */
+export type TutorReplyV2 = {
+  actions: ReplyAction[] | null;
+  /** Soru "Sıra sende" kartında (Adım Adım Öğret). */
+  askCard: boolean;
+  /** Yoklama kartı etkileşimli mi (yalnız son yanıt, akış bitmişken). */
+  interactiveCheck: boolean;
+  /** Yanıtın hemen ardından gelen öğrenci mesajı: yoklamada seçilen şık buradan okunur. */
+  answeredWith?: string | null;
+  onCheckAnswer?: (option: QuickCheckOption) => void;
+  /** Çip sırasının altındaki durum satırı (ör. deftere eklendi). */
+  note?: React.ReactNode;
+};
+
+function V2ActionChip({
+  action,
+  disabled,
+  onPrompt,
+}: {
+  action: ReplyAction;
+  disabled: boolean;
+  onPrompt?: (prompt: string) => void;
+}) {
+  if (action.href) {
+    return (
+      <Link href={action.href} className="cp-tutor-chip cx-v2-chip" data-chip={action.id}>
+        {action.label}
+      </Link>
+    );
+  }
+  return (
+    <button
+      type="button"
+      className="cp-tutor-chip cx-v2-chip"
+      data-chip={action.id}
+      disabled={disabled || action.disabled}
+      aria-busy={action.busy || undefined}
+      onClick={() => {
+        if (action.onSelect) action.onSelect();
+        else if (action.prompt) onPrompt?.(action.prompt);
+      }}
+    >
+      {action.label}
+    </button>
+  );
+}
 
 function TutorBody({
   body,
@@ -104,7 +160,10 @@ export function TutorReplyView({
   quickActions = true,
   maxChips,
   ladderChips = false,
+  v2,
 }: {
+  /** Faz 11 (teacher.v2, ana sohbet): tepki çipleri, "Sıra sende" kartı ve mini yoklama. Verilmezse bugünkü gibi. */
+  v2?: TutorReplyV2;
   /**
    * teacher.v2 (Faz 13 PR-1): Rehberli ve Sokratik yanıtın altında "İpucu ver" ve "Cevabı göster" her zaman; soru
    * cümlesi ayrı kartta ("Sıra sende"). Verilmezse bugünkü gibi.
@@ -142,22 +201,43 @@ export function TutorReplyView({
   const remember = useMemo(() => splitRememberBlock(view.body), [view.body]);
   // Hızlı eylemler: Sokratik modda her yanıtın altında; Adım Adım modunda yalnız adımlı yanıtın ("N. adım" + "Devam et"
   // daveti) ve yalnız son yanıtın altında (eski adımın çipi sıradaki adımı yanlış gösterirdi).
+  const hasV2 = Boolean(v2);
   const quickChips = useMemo(
     () =>
-      ladderChips
+      hasV2
+        ? []
+        : ladderChips
         ? LADDER_CHIPS
         : tutorStyle === "hints_first"
         ? SOCRATIC_QUICK_CHIPS
         : tutorStyle === "step_by_step" && quickActions
           ? stepQuickChips(content)
           : [],
-    [content, quickActions, tutorStyle, ladderChips],
+    [content, quickActions, tutorStyle, ladderChips, hasV2],
   );
+  // Faz 11: öğretmenin mini yoklaması kart olur (yalnız v2); kurala uymayan blok düz metin kalır.
+  const quickCheck = useMemo(() => (hasV2 ? parseQuickCheck(remember.body) : null), [hasV2, remember.body]);
   // Soru ayrı kartta (PROMPT-V2 §7): yalnız bayrak açıkken ve yanıtın kendi "Sıra sende" kartı yokken.
+  const askEnabled = ladderChips || Boolean(v2?.askCard);
   const ask = useMemo(
-    () => (ladderChips && !view.check ? splitFinalQuestion(remember.body) : null),
-    [ladderChips, view.check, remember.body],
+    () => (askEnabled && !view.check && !quickCheck ? splitFinalQuestion(remember.body) : null),
+    [askEnabled, view.check, quickCheck, remember.body],
   );
+  // Faz 11: tek çip sırası. Önce öğretmenin tepki eylemleri, sonra (yer kalırsa) sunucunun önerileri; aynı etiket ya da
+  // istem bir kez. Son yanıt değilse (`actions` null) çip yok.
+  const v2Row = useMemo(() => {
+    if (!v2?.actions) return null;
+    const seen = new Set<string>();
+    const row: ReplyAction[] = [];
+    const extra = hideChips ? [] : view.chips.map((chip, index) => ({ id: `oneri-${index}`, label: chip.label, prompt: chip.prompt }));
+    for (const action of [...v2.actions, ...extra]) {
+      const keys = [action.label, action.prompt].filter((key): key is string => Boolean(key));
+      if (keys.some((key) => seen.has(key))) continue;
+      keys.forEach((key) => seen.add(key));
+      row.push(action);
+    }
+    return maxChips != null ? row.slice(0, maxChips) : row;
+  }, [v2, hideChips, view.chips, maxChips]);
   const chips = useMemo(() => {
     const extra = hideChips ? [] : view.chips;
     const seen = new Set<string>();
@@ -230,8 +310,24 @@ export function TutorReplyView({
           <Markdown content={view.example} variant={variant} />
         </section>
       ) : null}
-      {!ask || ask.body || view.quote ? <TutorBody body={ask ? ask.body : remember.body} quote={view.quote} variant={variant} /> : null}
-      {remember.items.length ? <RememberCard items={remember.items} /> : null}
+      {quickCheck && v2 ? (
+        <>
+          {quickCheck.before || view.quote ? <TutorBody body={quickCheck.before} quote={view.quote} variant={variant} /> : null}
+          {remember.items.length ? <RememberCard items={remember.items} /> : null}
+          <TeacherQuickCheck
+            check={quickCheck}
+            interactive={v2.interactiveCheck && !disabled}
+            chosen={chosenQuickCheckLetter(quickCheck, v2.answeredWith)}
+            onAnswer={v2.onCheckAnswer}
+          />
+          {quickCheck.after ? <TutorBody body={quickCheck.after} quote={null} variant={variant} /> : null}
+        </>
+      ) : (
+        <>
+          {!ask || ask.body || view.quote ? <TutorBody body={ask ? ask.body : remember.body} quote={view.quote} variant={variant} /> : null}
+          {remember.items.length ? <RememberCard items={remember.items} /> : null}
+        </>
+      )}
       {ask ? (
         <div className="cp-tutor-check cp-tutor-ask">
           <p className="cp-tutor-check-kicker">Sıra sende</p>
@@ -299,7 +395,7 @@ export function TutorReplyView({
         </button>
       ) : null}
       <StudioActionCards actions={split.actions} />
-      {chips.length ? (
+      {!v2 && chips.length ? (
         <div className="cp-tutor-chips" role="group" aria-label="Devam önerileri">
           {chips.map((chip) => (
             <button
@@ -314,6 +410,14 @@ export function TutorReplyView({
           ))}
         </div>
       ) : null}
+      {v2Row?.length ? (
+        <div className="cp-tutor-chips cx-v2-chips" role="group" aria-label="Devam önerileri">
+          {v2Row.map((action) => (
+            <V2ActionChip key={action.id} action={action} disabled={disabled} onPrompt={onPrompt} />
+          ))}
+        </div>
+      ) : null}
+      {v2?.note ? v2.note : null}
     </>
   );
 }

@@ -206,3 +206,47 @@ export const LADDER_CHIPS: { label: string; prompt: string }[] = [
   { label: "💡 İpucu ver", prompt: "Bir ipucu ver; cevabı söyleme." },
   { label: "⚡ Cevabı göster", prompt: "Cevabı göster." },
 ];
+
+/*
+  Faz 11 (teacher.v2, 21 Kasım 2026, ürün sahibinin kararı): bayrak açıkken ana sohbette anlatım İKİ: "Adım Adım Öğret"
+  (varsayılan; özel ders ritmi) ve "Hızlı Özet". Eski seçimler eşlenir: step_by_step, hints_first ve guided → Adım Adım
+  Öğret; direct_solve → Hızlı Özet. Profile göç yok: yeni mod seçilince `profiles.tutor_style`'a en yakın eski değer
+  yazılır (`profileStyleForTeachMode`). Bayrak kapalıyken bu tanımlar hiçbir yerde okunmaz (bugünkü dört/üç stil).
+*/
+export const TEACH_MODE_TUTOR = "tutor_steps" as const;
+export const TEACH_MODE_SUMMARY = "quick_summary" as const;
+export type TeachModeV2 = typeof TEACH_MODE_TUTOR | typeof TEACH_MODE_SUMMARY;
+export const DEFAULT_TEACH_MODE_V2: TeachModeV2 = TEACH_MODE_TUTOR;
+
+export const TEACH_MODE_V2_OPTIONS: { id: TeachModeV2; label: string; short: string; emoji: string; description: string }[] = [
+  {
+    id: TEACH_MODE_TUTOR,
+    label: "Adım Adım Öğret",
+    short: "Adım Adım",
+    emoji: "🪜",
+    description: "Özel ders gibi: kısa anlatır, tek soruyla seni bir sonraki adıma götürür. Takılırsan ipucu verir, istersen cevabı gösterir.",
+  },
+  {
+    id: TEACH_MODE_SUMMARY,
+    label: "Hızlı Özet",
+    short: "Hızlı Özet",
+    emoji: "⚡",
+    description: "Doğrudan, kısa ve eksiksiz: çözümün ya da konunun özünü tek mesajda verir.",
+  },
+];
+
+export function isTeachModeV2(value: unknown): value is TeachModeV2 {
+  return value === TEACH_MODE_TUTOR || value === TEACH_MODE_SUMMARY;
+}
+
+/** Eski ya da yeni seçim → iki moddan biri. Tanınmayan ya da boş değer varsayılan (Adım Adım Öğret). */
+export function teachModeFromStyle(value: unknown): TeachModeV2 {
+  if (isTeachModeV2(value)) return value;
+  if (value === "direct_solve") return TEACH_MODE_SUMMARY;
+  return TEACH_MODE_TUTOR;
+}
+
+/** Profil sütununa yazılacak en yakın eski değer (`profiles.tutor_style` CHECK'i üç değer kabul ediyor). */
+export function profileStyleForTeachMode(mode: TeachModeV2): TutorStyle {
+  return mode === TEACH_MODE_SUMMARY ? "direct_solve" : "step_by_step";
+}

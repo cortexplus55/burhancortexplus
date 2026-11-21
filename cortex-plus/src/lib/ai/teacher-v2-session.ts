@@ -6,8 +6,25 @@ import {
   looksLikeQuestion,
   STUCK_POINT_RULE,
 } from "@/lib/learning/tutor-answer";
-import { parseTutorStyle, STEP_CONTINUE_WORD, type TutorStyle } from "@/lib/learning/tutor-style";
-import { asksNewExercise, followUpKind, type TurnHistoryItem, type TurnPlan } from "@/lib/learning/tutor-turn";
+import {
+  parseTutorStyle,
+  STEP_CONTINUE_WORD,
+  TEACH_MODE_SUMMARY,
+  TEACH_MODE_TUTOR,
+  type TeachModeV2,
+  type TutorStyle,
+} from "@/lib/learning/tutor-style";
+import { asksNewExercise, followUpKind, looksLikeProblem, type TurnHistoryItem, type TurnPlan } from "@/lib/learning/tutor-turn";
+import { parseQuickCheck, QUICK_CHECK_RULE } from "@/lib/teacher/quick-check";
+import {
+  PRIVATE_TUTOR_PACING,
+  QUICK_SUMMARY_RULE,
+  QUICK_SUMMARY_TURN_LINE,
+  TUTOR_FIRST_PROBLEM_LINE,
+  TUTOR_REVEAL_LINE,
+  tutorLadderLine,
+  wantsReveal,
+} from "@/lib/teacher/tutor-pacing";
 
 /*
   Faz 13B · ÖĞRETMEN HİSSİ (teacher.v2), 15 Kasım 2026. Kaynak: docs/ogretmen-hissi/PROMPT.md §4 B, C, D.
@@ -26,7 +43,15 @@ import { asksNewExercise, followUpKind, type TurnHistoryItem, type TurnPlan } fr
 */
 
 export const GUIDED_STYLE = "guided" as const;
-export type TeachStyle = TutorStyle | typeof GUIDED_STYLE;
+/**
+ * Faz 11 (21 Kasım 2026): bayrak açıkken ana sohbet iki moddan biriyle çalışır (`TeachModeV2`: Adım Adım Öğret, Hızlı
+ * Özet; `resolveTeachModeV2`). Eski dört stil (Rehberli dahil) bu dosyanın saf işlevlerinde duruyor; sohbet ucu onları
+ * artık bayrak açıkken seçmez.
+ */
+export type TeachStyle = TutorStyle | typeof GUIDED_STYLE | TeachModeV2;
+
+const isTutorMode = (style: TeachStyle): boolean => style === TEACH_MODE_TUTOR;
+const isSummaryMode = (style: TeachStyle): boolean => style === TEACH_MODE_SUMMARY;
 
 /**
  * İstekteki stil. "guided" yalnız bayrak açıkken Rehberli olur (altındaki makine Sokratik'in cevabı saklayan
@@ -48,17 +73,23 @@ export function resolveTeachStyle(input: {
 
 const textOf = (content: unknown) => (typeof content === "string" ? content : "");
 
-/** Öğretmen mesajındaki sorular: kutular (">" satırları) ve $$formül$$ dışındaki düz metinde "?" ile biten cümleler. */
+/**
+ * Öğretmen mesajındaki sorular: kutular (">" satırları) ve $$formül$$ dışındaki düz metinde "?" ile biten cümleler.
+ * Faz 11: mini yoklamanın sorusu ("> ❓ Yoklama: …") kutu içinde olsa da öğretmenin sorusudur (en sona eklenir), böylece
+ * öğrencinin şık cevabı cevap merdiveninde deneme sayılır.
+ */
 export function tutorQuestions(text: string): string[] {
   const plain = textOf(text)
     .replace(/\$\$[\s\S]*?\$\$/g, " ")
     .split("\n")
     .filter((line) => !/^\s*>/.test(line))
     .join("\n");
-  return plain
+  const questions = plain
     .split(/(?<=[.!?…])\s+|\n+/u)
     .map((sentence) => sentence.replace(/[*_`#]/g, "").replace(/\s+/g, " ").trim())
     .filter((sentence) => sentence.length >= 4 && /\?\s*$/.test(sentence));
+  const check = parseQuickCheck(textOf(text));
+  return check ? [...questions, check.question] : questions;
 }
 
 /** Soru karşılaştırması için yalın biçim: küçük harf, harf ve rakam dışı boşluk. */
@@ -220,8 +251,13 @@ export const SOCRATIC_V2_LINE =
   "nihai cevabı, doğru şıkkı, sayısal sonucu ya da 'neden'in son açıklamasını ilk mesajda verme; kavram sorusunda da. " +
   "Konuyu ya da kavramı adıyla an, tek bir ipucu ya da 1. adım ver ve öğrenciye tek bir yönlendirici soru sor.";
 
-/** Bayrak açıkken stil satırı; null ise eski `teacherStyleLine` geçerli (Adım Adım, Doğrudan Çöz). */
+/**
+ * Bayrak açıkken stil satırı; null ise eski `teacherStyleLine` geçerli (Adım Adım, Doğrudan Çöz). Faz 11 modları:
+ * Adım Adım Öğret özel ders ritmi + mini yoklama kuralı, Hızlı Özet doğrudan ve eksiksiz cevap.
+ */
 export function v2StyleLine(style: TeachStyle): string | null {
+  if (isTutorMode(style)) return `${PRIVATE_TUTOR_PACING}\n${QUICK_CHECK_RULE}`;
+  if (isSummaryMode(style)) return QUICK_SUMMARY_RULE;
   if (style === GUIDED_STYLE) return GUIDED_STYLE_LINE;
   if (style === "hints_first") return SOCRATIC_V2_LINE;
   return null;
@@ -245,6 +281,11 @@ function revealTurn(plan: TurnPlan, message: string): boolean {
   return asksDirectAnswer(message) || plan.followUp === "final_answer" || plan.followUp === "full_solution";
 }
 
+/** Adım Adım Öğret'te cevabın açıkça istendiği tur: takip isteği, tam çözüm isteği ya da "tamam göster" (`wantsReveal`). */
+export function tutorRevealTurn(plan: TurnPlan, message: string): boolean {
+  return revealTurn(plan, message) || plan.fullSolution || wantsReveal(message);
+}
+
 /**
  * `answerFirstLine`'ın bayrak açıkken hâli: Rehberli ve Sokratik'te yeni soruda, her stilde cevap denemesinde ve Adım
  * Adım kavram turunda "ilk cümle tam cevap" demez (merdivenle çelişirdi). Cevap açıkça istenirse eskisi gibi.
@@ -257,6 +298,15 @@ export function v2AnswerFirstLine(input: {
   plan: TurnPlan;
 }): string {
   const { message, style, base, session, plan } = input;
+  // Faz 11 · Hızlı Özet: doğrudan çözüm satırı. Adım Adım Öğret: açık istek ya da tam çözümde "ilk cümle tam cevap";
+  // cevap denemesinde ve yeni problemde demez (merdivenle çelişirdi); kavram sorusunda der (tanım saklanmaz).
+  if (isSummaryMode(style)) return answerFirstLine(message, "direct_solve");
+  if (isTutorMode(style)) {
+    if (tutorRevealTurn(plan, message)) return answerFirstLine(message, "direct_solve");
+    if (session.answering || hasOwnSolution(message)) return STUCK_POINT_RULE;
+    if (plan.problem || looksLikeProblem(message)) return STUCK_POINT_RULE;
+    return answerFirstLine(message, base);
+  }
   if (style === "direct_solve" || asksDirectAnswer(message)) return answerFirstLine(message, base);
   if (session.answering || hasOwnSolution(message)) return STUCK_POINT_RULE;
   if (style === GUIDED_STYLE || style === "hints_first") return STUCK_POINT_RULE;
@@ -275,6 +325,24 @@ export function teacherV2SessionLines(input: {
   const lines: string[] = [];
   const continuity = continuityLine(session);
   if (continuity) lines.push(continuity);
+  // Faz 11 · Adım Adım Öğret: açık istekte adımı göster; denemede ipucu merdiveni; yeni problemde yalnız ilk küçük adım.
+  if (isTutorMode(style)) {
+    if (tutorRevealTurn(plan, message)) {
+      lines.push(TUTOR_REVEAL_LINE);
+      return lines;
+    }
+    if (session.answering) lines.push(tutorLadderLine(session.attempt, session.lastQuestion));
+    else if (hasOwnSolution(message)) lines.push(tutorLadderLine(1, null));
+    else if (!plan.followUp && !plan.newExercise && plan.problem) lines.push(TUTOR_FIRST_PROBLEM_LINE);
+    return lines;
+  }
+  // Faz 11 · Hızlı Özet: soru ya da problem turunda eksiksiz çözüm kelime sınırına takılmasın.
+  if (isSummaryMode(style)) {
+    if (!session.answering && (plan.problem || plan.followUp || plan.newExercise || looksLikeQuestion(message))) {
+      lines.push(QUICK_SUMMARY_TURN_LINE);
+    }
+    return lines;
+  }
   if (style === "direct_solve") return lines;
   if (revealTurn(plan, message)) {
     lines.push(REVEAL_LINE);
