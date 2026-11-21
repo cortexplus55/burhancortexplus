@@ -1,64 +1,9 @@
 /*
- * Faz 11 · öğretmen sohbeti (teacher.v2, ana sohbet, 21 Kasım 2026). Yalnız bayrak açıkken çizilen parçalar:
- * anlatım anahtarı, düşünme satırı, akan yanıtın belirmesi, tepki çipleri, mini yoklama (canlı kara tahta), karşılama
- * kartları, fotoğraf seçimi. Değerler tokens.css'teki --cx-*'tan; iki temada aynı kurallar (açık tema değerleri
- * token'ların kendisinde). Bayrak kapalıyken bu sınıfların hiçbiri DOM'da yok.
+ * Faz 11 · öğretmen sohbeti (teacher.v2, ana sohbet, 21 Kasım 2026). Yalnız bayrak açıkken çizilen parçalar: tepki
+ * çipleri, mini yoklama (canlı kara tahta), fotoğraf seçimi. Değerler tokens.css'teki --cx-*'tan; iki temada aynı
+ * kurallar (açık tema değerleri token'ların kendisinde). Bayrak kapalıyken bu sınıfların hiçbiri DOM'da yok. Sohbet
+ * açıkken çizim öğretmen v3'te (teacher-v3.css); anlatım anahtarı, düşünme satırı ve karşılama kartları orada değişti.
  */
-
-/* --- Anlatım anahtarı: bugünkü hap; açık temadaki seçili hap rengi parity-shell.css'te (bütün kiplerde aynı) ------- */
-
-/* --- Düşünme satırı: tek satır, üç nokta; hareket azaltmada durur ------------------------------------------------ */
-.cx-v2-thinking {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  max-width: 100%;
-  min-height: 24px;
-  color: var(--cx-text-secondary);
-  font: var(--cx-t-body-14);
-}
-
-.cx-v2-thinking-text {
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.cx-v2-thinking-dots {
-  display: inline-flex;
-  flex: none;
-  gap: 4px;
-}
-
-.cx-v2-thinking-dots > span {
-  width: 6px;
-  height: 6px;
-  border-radius: var(--cx-radius-max);
-  background: var(--cx-text-brand);
-  opacity: 0.35;
-  animation: cx-v2-dot 1.2s ease-in-out infinite;
-}
-
-.cx-v2-thinking-dots > span:nth-child(2) {
-  animation-delay: 0.15s;
-}
-
-.cx-v2-thinking-dots > span:nth-child(3) {
-  animation-delay: 0.3s;
-}
-
-@keyframes cx-v2-dot {
-  0%,
-  80%,
-  100% {
-    opacity: 0.35;
-  }
-  40% {
-    opacity: 1;
-  }
-}
 
 /* --- Akan yanıt: balon bir kez solarak gelir; yazılan son satır yumuşak belirir (yer değiştirme yok) ---------------- */
 .cx-teacher-v2 .cp-sor-msg-assistant {
@@ -74,15 +19,6 @@
   to {
     opacity: 1;
   }
-}
-
-.cx-v2-reply {
-  min-width: 0;
-}
-
-.cx-v2-reply.is-streaming {
-  -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 1.4em), rgb(0 0 0 / 0.45) 100%);
-  mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 1.4em), rgb(0 0 0 / 0.45) 100%);
 }
 
 /* Formül, tablo ve kod kendi kutusunda kayar; sayfa yana taşmaz. */
@@ -133,8 +69,7 @@
 
 .cp-tutor-chip.cx-v2-chip:focus-visible,
 .cx-v2-photo-intents .cx-v2-chip:focus-visible,
-.cx-v2-option:focus-visible,
-.cx-v2-start:focus-visible {
+.cx-v2-option:focus-visible {
   outline: 1px solid var(--cx-focus);
   outline-offset: 3px;
 }
@@ -256,53 +191,6 @@
   overflow-wrap: anywhere;
 }
 
-/* --- Karşılama kartları: konuşma boşken, öğretmenin ilk sözünün altında ------------------------------------------- */
-.cx-v2-starts {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 8px;
-  max-width: min(94%, 44rem);
-  margin: 4px 0 12px;
-}
-
-@media (min-width: 640px) {
-  .cx-v2-starts {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-.cx-v2-start {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-  min-height: 56px;
-  padding: 12px 16px;
-  border: 0;
-  border-radius: var(--cx-radius-l);
-  background: var(--cx-bg-1);
-  color: var(--cx-text-primary);
-  font: var(--cx-t-label-15);
-  text-align: left;
-  cursor: pointer;
-  transition: background-color var(--cx-dur-color) ease;
-}
-
-.cx-v2-start:hover {
-  background: var(--cx-bg-2);
-}
-
-.cx-v2-start-emoji {
-  flex: none;
-  font-size: 1.25rem;
-  line-height: 1;
-}
-
-.cx-v2-start-label {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
 /* --- Fotoğraf: "Soruyu çöz" / "Çözümümü kontrol et" ---------------------------------------------------------------- */
 .cx-v2-photo-intents {
   display: flex;
@@ -327,11 +215,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cx-v2-thinking-dots > span {
-    animation: none;
-    opacity: 0.7;
-  }
-
   .cx-teacher-v2 .cp-sor-msg-assistant {
     animation: none;
   }

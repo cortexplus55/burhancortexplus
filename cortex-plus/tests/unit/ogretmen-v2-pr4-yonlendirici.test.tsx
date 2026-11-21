@@ -6,8 +6,7 @@
  * Örnekler fizik, tarih, kimya, biyoloji.
  */
 import { readFileSync } from "node:fs";
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   PLAN_MINUTES,
   analysisChips,
@@ -18,10 +17,8 @@ import {
   openingLine,
   prioritize,
   teacherPlanView,
-  type TeacherPlanView,
 } from "@/lib/teacher/director";
 import type { Dossier, DossierSignals } from "@/lib/teacher/dossier";
-import { TeacherOpening } from "@/components/chat/teacher-opening";
 
 const read = (file: string) => readFileSync(file, "utf8").replace(/\r\n/g, "\n");
 
@@ -139,110 +136,24 @@ describe("modelsiz ve kotasız; bayrak kapısı; kişisel veri adreste yok", () 
   it("yönlendirici ve plan ucu model çağırmaz, kredi ayırmaz; ad adreste taşınmaz", () => {
     const director = read("src/lib/teacher/director.ts");
     const route = read("src/app/api/teacher/plan/route.ts");
-    const component = read("src/components/chat/teacher-opening.tsx");
     for (const source of [director, route]) {
       expect(source).not.toMatch(/openai|generateJson|createChatDraft|reserveCredits|credit_reserve/i);
     }
     expect(route).toContain("isFeatureEnabled(service, TEACHER_V2_FLAG, userId)");
     expect(route).toContain('{ status: 404 }');
     expect(route).not.toContain('searchParams.get("ad")');
-    expect(component).toContain('fetch("/api/teacher/plan"');
-    expect(component).not.toMatch(/\?ad=/);
   });
 
-  it("sohbet: açılış yalnız bayrak açıkken (v2Main) kurulur; turda yönlendirici PR-1 satırlarından önce", () => {
+  it("sohbet: öğretmen v3 karşılaması yalnız bayrak açıkken; turda yönlendirici PR-1 satırlarından önce", () => {
     const panel = read("src/components/chat/chat-panel.tsx");
-    expect(panel.match(/local: true, \.\.\.\(v2Main \? \{ opening: true \} : \{\}\)/g)).toHaveLength(2);
-    expect(panel).toContain("message.opening && v2Main ? (");
+    // Öğretmen v3 (21 Kasım 2026): eski açılış akışının yerine karşılama ekranı (selam ve haplar); bayrak kapalıyken yok.
+    expect(panel).not.toContain("TeacherOpening");
+    expect(panel).toContain("const v3 = v2Main && !examChrome;");
+    expect(panel).toContain("<TeacherV3Welcome");
     const chat = read("src/app/api/ai/chat/route.ts");
     const director = chat.indexOf("directorTurnLine(classifyIntent(");
     const session = chat.indexOf("teacherV2SessionLines({ session: v2Session");
     expect(director).toBeGreaterThan(0);
     expect(director).toBeLessThan(session);
-  });
-});
-
-/* ------------------------------------------------------------------------------------------------------------------ */
-/* Ekran                                                                                                                 */
-/* ------------------------------------------------------------------------------------------------------------------ */
-
-function viewWith(plans: TeacherPlanView["plans"], chips = ["Yanlışlarına baktı · 3 kayıt"]): TeacherPlanView {
-  return {
-    empty: false,
-    opening: "Merhaba Elif! Momentum 2 gün gecikti. Bugün ne kadar vaktin var?",
-    chips,
-    diagnosis: "Baktım: Newton yasaları konusunda 3 kez takılmışsın.",
-    plans,
-  };
-}
-
-describe("TeacherOpening", () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-    Object.defineProperty(window, "matchMedia", {
-      configurable: true,
-      value: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }),
-    });
-  });
-  afterEach(() => {
-    cleanup();
-    vi.useRealTimers();
-    vi.unstubAllGlobals();
-  });
-
-  it("plan gelene kadar bugünkü karşılama; plan okunamazsa da o kalır", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, json: async () => ({}) })));
-    render(<TeacherOpening fallback="Merhaba Elif! Bugün ne çalışmak istersin?" />);
-    expect(screen.getByText("Merhaba Elif! Bugün ne çalışmak istersin?")).toBeTruthy();
-    await act(async () => {
-      await vi.runAllTimersAsync();
-    });
-    expect(screen.getByText("Merhaba Elif! Bugün ne çalışmak istersin?")).toBeTruthy();
-    expect(screen.queryByRole("group", { name: "Bugün ne kadar vaktin var?" })).toBeNull();
-  });
-
-  it("süre seçilince gerçek okumalar, teşhis ve süreye eşit plan; Başlayalım ilk maddeye gider", async () => {
-    const plans = {
-      "10": [{ key: "reviews", title: "6 tekrar", activity: "Tekrar" as const, minutes: 10, href: "/deneme-sinavlari/p1/tekrar", reason: "vadesi bugün" }],
-      "20": [
-        { key: "reviews", title: "6 tekrar", activity: "Tekrar" as const, minutes: 6, href: "/deneme-sinavlari/p1/tekrar", reason: "vadesi bugün" },
-        { key: "next", title: "Tork", activity: "Konu anlatımı" as const, minutes: 14, href: "/deneme-sinavlari/p1/dugum/n6", reason: "sıradaki adım" },
-      ],
-      "45": [],
-    };
-    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => viewWith(plans) })));
-    render(<TeacherOpening fallback="Merhaba!" />);
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-    expect(screen.getByText(/Momentum 2 gün gecikti/)).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "20 dk" }));
-    expect(screen.getByText("Bir bakayım…")).toBeTruthy();
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(1000);
-    });
-    expect(screen.getByText("Yanlışlarına baktı · 3 kayıt")).toBeTruthy();
-    expect(screen.getByText(/Newton yasaları konusunda 3 kez/)).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Başlayalım" }).getAttribute("href")).toBe("/deneme-sinavlari/p1/tekrar");
-    expect(screen.getByText(/Konu anlatımı · 14 dk · sıradaki adım/)).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Değiştir" }));
-    expect(screen.getByRole("button", { name: "45 dk" })).toBeTruthy();
-  });
-
-  it("kayıt yokken Başlayalım tanışma isteğini öğrencinin dokunuşuyla gönderir", async () => {
-    const onPrompt = vi.fn();
-    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => viewWith({ "10": [], "20": [], "45": [] }, []) })));
-    render(<TeacherOpening fallback="Merhaba!" onPrompt={onPrompt} />);
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-    fireEvent.click(screen.getByRole("button", { name: "10 dk" }));
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(600);
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Başlayalım" }));
-    expect(onPrompt).toHaveBeenCalledWith("Bugün 10 dakikam var. Beni tanımak için seviyemi ölçen kısa bir soru sor.");
   });
 });

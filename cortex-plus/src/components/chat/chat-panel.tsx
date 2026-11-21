@@ -29,6 +29,7 @@ import {
   ArrowUp,
   AudioLines,
   Camera,
+  ChevronDown,
   ChevronRight,
   ChevronUp,
   ChevronsUpDown,
@@ -70,43 +71,26 @@ import { SubjectModal } from "@/components/parity/subject-modal";
 import { UploadModal } from "@/components/parity/upload-modal";
 import { MathKeyboard } from "@/components/parity/math-keyboard";
 import { useStudentShellAccount } from "@/lib/student/student-shell-context";
-import { HOME_START_EVENT } from "@/lib/ui/home-events";
-import { MessageActions, type Rating } from "@/components/chat/message-actions";
+import { HOME_START_EVENT, TUTOR_HISTORY_EVENT, type TutorHistoryDetail } from "@/lib/ui/home-events";
+import { MessageActions, speechTextFor, type Rating } from "@/components/chat/message-actions";
 import { TutorReplyView } from "@/components/chat/tutor-reply-view";
-import { useSelectCockpitPrep, useSelectedCockpitPrepId, useSelectedCockpitTopic } from "@/components/parity/home-selection";
+import { useSelectedCockpitPrepId, useSelectedCockpitPrepTitle } from "@/components/parity/home-selection";
 import { SourceModePill } from "@/components/chat/source-mode-pill";
 import { TutorModeSwitcher } from "@/components/chat/tutor-mode-switcher";
-import { TeachModeSwitch } from "@/components/chat/teach-mode-switch";
 import { TeacherDossierPanel } from "@/components/chat/teacher-dossier-panel";
-import { TeacherOpening } from "@/components/chat/teacher-opening";
-import { TeacherStartCards } from "@/components/chat/teacher-start-cards";
-import { TeacherThinking } from "@/components/chat/teacher-thinking";
+import { TeacherV3Bar } from "@/components/chat/teacher-v3/teacher-v3-bar";
+import { TeacherV3Composer } from "@/components/chat/teacher-v3/teacher-v3-composer";
+import { TeacherV3Recap } from "@/components/chat/teacher-v3/teacher-v3-recap";
+import { TeacherV3Status } from "@/components/chat/teacher-v3/teacher-v3-thinking";
+import { TeacherV3Turn } from "@/components/chat/teacher-v3/teacher-v3-turn";
+import { TeacherV3Welcome } from "@/components/chat/teacher-v3/teacher-v3-welcome";
 import { splitFinalQuestion } from "@/lib/learning/question-bubble";
-import {
-  DEFAULT_TUTOR_STYLE,
-  TEACH_MODE_SUMMARY,
-  TEACH_MODE_TUTOR,
-  parseTutorStyle,
-  profileStyleForTeachMode,
-  teachModeFromStyle,
-  type TeachModeV2,
-  type TutorStyle,
-} from "@/lib/learning/tutor-style";
-import { thinkingStatus } from "@/lib/teacher/thinking-status";
+import { DEFAULT_TUTOR_STYLE, TEACH_MODE_TUTOR, parseTutorStyle, type TeachModeV2, type TutorStyle } from "@/lib/learning/tutor-style";
 import { quickCheckAnswerPrompt } from "@/lib/teacher/quick-check";
-import {
-  MISTAKE_ALREADY_LINE,
-  MISTAKE_NOTEBOOK_PATH,
-  MISTAKE_SAVED_LINE,
-  miniQuizTopic,
-  mistakeErrorLine,
-  postChatMistake,
-  questionBefore,
-  replyActions,
-  type MistakeStatus,
-} from "@/lib/teacher/reply-actions";
-import type { TutorReplyV2 } from "@/components/chat/tutor-reply-view";
-import type { TutorStartCard } from "@/lib/tutor/student-context";
+import { v3PlainText } from "@/lib/teacher/v3-reply";
+import { lessonRecapItems } from "@/lib/teacher/lesson-recap";
+import { AUTO_SPEAK_GATE_NAME, readAutoSpeak, writeAutoSpeak } from "@/lib/teacher/auto-speak";
+import type { ResumeOffer } from "@/lib/teacher/welcome";
 import { CHAT_UPLOAD_ACCEPT } from "@/lib/documents/upload-accept";
 import { freeLimitReachedLine, type FreeMeter } from "@/lib/billing/free-meters";
 import { beyondFreeMessage } from "@/lib/billing/free-reach";
@@ -125,10 +109,11 @@ import { createSendLock } from "@/lib/ui/send-lock";
 import "@/styles/parity-sor.css";
 import "@/styles/parity-shell.css";
 import "@/styles/teacher-v2-sohbet.css";
+import "@/styles/teacher-v3.css";
 
 /**
- * İsteğin anlatım alanı (`tutorStyle`): bayrak kapalıyken ya da hazırlık sohbetinde bugünkü üç stil; Faz 11'den beri
- * bayrak açıkken ana sohbette iki mod ("Adım Adım Öğret", "Hızlı Özet").
+ * İsteğin anlatım alanı (`tutorStyle`): bayrak kapalıyken ya da hazırlık sohbetinde bugünkü üç stil. Bayrak açıkken ana
+ * sohbette hep "Adım Adım Öğret" (öğretmen v3, 21 Kasım 2026: seçici yok, profil ne olursa olsun).
  */
 type TeachStyle = TutorStyle | TeachModeV2;
 
@@ -151,21 +136,14 @@ type Message = {
    * oylanmaz, devam önerisi çıkarmaz; öğrenci yazınca asıl sohbet başlar.
    */
   local?: boolean;
-  /**
-   * teacher.v2 (PR-4): ilk söz öğretmenin açılış akışıyla çizilir (süre çipleri, gerçek okumalar, teşhis, plan).
-   * `content` bugünkü karşılama: plan gelene kadar ve gelmezse o yazılır. Bayrak kapalıyken hiç kurulmaz.
-   */
-  opening?: boolean;
+  /** Öğretmen v3: bu oturumda akan yanıt (kelime kelime açılır). Kayıtlı mesajda yok. */
+  streamed?: boolean;
+  /** Öğretmen v3: gönderimden ilk parçaya geçen gerçek süre ("💡 N sn düşündü"). Yalnız bu oturumda. */
+  thoughtMs?: number;
 };
 
 function isImageName(name: string): boolean {
   return /\.(jpe?g|png|webp|heic|heif|gif)$/i.test(name);
-}
-
-/** Faz 11 (teacher.v2): öğretmen yanıtının sarmalayıcısı; bayrak kapalıyken DOM değişmez (yalnız çocuklar). */
-function V2ReplyFrame({ on, streaming, children }: { on: boolean; streaming: boolean; children: React.ReactNode }) {
-  if (!on) return <>{children}</>;
-  return <div className={cn("cx-v2-reply", streaming && "is-streaming")}>{children}</div>;
 }
 
 function SorTypingDots({ label }: { label?: string }) {
@@ -219,13 +197,15 @@ function plainForSpeech(content: string) {
 export function chatGateProps(
   code: string | null,
   isPremium: boolean,
+  /** Plus işinin adı (öğretmen v3: "Yanıtları sesli okuma"); verilmezse "Bu iş". */
+  workName?: string | null,
 ): { message: string; meter?: FreeMeter; action?: ActionCode; beyondFreeDaily?: boolean } {
   if (isPremium) return { message: "Kullanım hakkın doldu. Çalışman kayıtlı kalır." };
   if (code === "free_photo_limit") {
     return { message: freeLimitReachedLine("photo"), meter: "photo", action: "IMAGE_SOLUTION" };
   }
   // Plus'taki iş: beklemek çözmez, geri sayım yok.
-  if (code === "premium_required") return { message: beyondFreeMessage("Bu iş"), beyondFreeDaily: true };
+  if (code === "premium_required") return { message: beyondFreeMessage(workName || "Bu iş"), beyondFreeDaily: true };
   return { message: freeLimitReachedLine("chat"), meter: "chat", action: "AI_CHAT_STANDARD" };
 }
 
@@ -340,7 +320,6 @@ function ChatPanelSession({
   initialTutorStyle,
   followUser = false,
   teacherV2 = false,
-  conversationTitle,
   quotaHint,
   starterPrompts,
   feedbackEnabled = false,
@@ -348,7 +327,22 @@ function ChatPanelSession({
   examChrome = false,
   homeCockpit,
   homeTools,
+  onLiveTalk,
+  liveTalkSlot,
+  studentFirstName,
+  fallbackPrep,
 }: {
+  /**
+   * Öğretmen v3 (teacher.v2 ana sohbeti): canlı sesli mod. Verilirse yazma kapsülünde yazı boşken "Konuş" düğmesi
+   * durur ve bunu çağırır; verilmezse "Konuş" hiç çizilmez.
+   */
+  onLiveTalk?: () => void;
+  /** Öğretmen v3: verildiğinde yazma kapsülünün yerine çizilir (sesli oturum çubuğu). */
+  liveTalkSlot?: React.ReactNode;
+  /** Öğretmen v3 karşılamasının adı ("Selam {Ad}!"); yoksa "Selam!". */
+  studentFirstName?: string | null;
+  /** Ana ekranda seçili hazırlık yoksa karşılamanın hazırlığı (en son çalışılan; sayfada zaten okunan). */
+  fallbackPrep?: { id: string; title: string } | null;
   /**
    * Ana ekran göstergesi (13 Kasım 2026, ürün sahibinin kararı: "/ogretmen beş parça"). Verilirse boş ekranda
    * selam, Başla ve kartlar yerine bu çizilir; yazma alanı ince çubuk olur, alana dokununca geniş kutu açılır.
@@ -398,8 +392,6 @@ function ChatPanelSession({
    * hızlı eylemleri) varsa genel devam önerileri gösterilmez. Kapalıyken bugünkü davranış aynen.
    */
   teacherV2?: boolean;
-  /** Faz 11 (teacher.v2): açılan kayıtlı sohbetin başlığı; "mini test" çipinin konusu. */
-  conversationTitle?: string | null;
   quotaHint?: string | null;
   starterPrompts?: { label: string; prompt: string }[];
   /**
@@ -423,8 +415,7 @@ function ChatPanelSession({
   const shellAccount = useStudentShellAccount();
   // Ana ekranda seçili hazırlık (15 Kasım 2026): sohbet o hazırlığın bağlamında başlar; hazırlık sohbetinde prepId geçerli.
   const cockpitPrepId = useSelectedCockpitPrepId();
-  const cockpitTopic = useSelectedCockpitTopic();
-  const selectCockpitPrep = useSelectCockpitPrep();
+  const cockpitPrepTitle = useSelectedCockpitPrepTitle();
   // Kurucuda kota ve mesaj başı maliyet satırı yok: hiçbir mesaj kredi düşürmüyor.
   const founder = shellAccount?.isAdmin === true;
   const allowAdvanced = shellAccount?.audience === "sigma";
@@ -443,24 +434,32 @@ function ChatPanelSession({
     parseTutorStyle(initialTutorStyle) || DEFAULT_TUTOR_STYLE,
   );
   /**
-   * Faz 11 (teacher.v2, yalnız ana sohbet, 21 Kasım 2026): iki anlatım, "Adım Adım Öğret" (varsayılan) ve "Hızlı Özet".
-   * Başlangıç profilin stilinden (`teachModeFromStyle`); seçim bugünkü anahtarın yolundan profile yazılır
-   * (`profileStyleForTeachMode`). Bayrak kapalıyken ya da hazırlık sohbetinde kullanılmaz (bugünkü `tutorStyle`).
+   * teacher.v2, yalnız ana sohbet. Öğretmen v3 (21 Kasım 2026, ürün sahibi): anlatım hep "Adım Adım Öğret" (seçici
+   * yok, profil ne olursa olsun); bayrak kapalıyken ya da hazırlık sohbetinde bugünkü `tutorStyle`.
    */
   const v2Main = teacherV2 && !prepId;
+  /** Öğretmen v3 ekranı: bayrak açık, ana sohbet, sınav kabuğu değil. */
+  const v3 = v2Main && !examChrome;
   /** "Neye baktım" yalnız bayrak açıkken ana sohbette (giriş yapmış öğrenci; misafirde dosya yok). */
   const dossierPanel = v2Main;
-  const [teachStyle, setTeachStyle] = useState<TeachModeV2>(() => teachModeFromStyle(initialTutorStyle));
-  /** Ekrandaki çiplerin ve isteğin stili: bayrak açıkken seçilen anlatım, değilse bugünkü stil. */
-  const activeStyle: TeachStyle = v2Main ? teachStyle : tutorStyle;
-  /**
-   * Yanıt görünümü üç stili tanır: Adım Adım Öğret cevabı saklayan (Sokratik) makineyle, Hızlı Özet doğrudan çözümle
-   * çalışır (sunucudaki `resolveTeachModeV2` ile aynı eşleme).
-   */
-  const replyStyle: TutorStyle = v2Main ? (teachStyle === TEACH_MODE_SUMMARY ? "direct_solve" : "hints_first") : tutorStyle;
-  /** Deftere ekleme durumu (mesaj kimliğine göre); istek sürerken ikinci dokunuş yeni istek açmaz. */
-  const [mistakeStatus, setMistakeStatus] = useState<Record<string, MistakeStatus>>({});
-  const mistakeInFlight = useRef(new Set<string>());
+  /** İsteğin stili: bayrak açıkken hep Adım Adım Öğret, değilse bugünkü stil. */
+  const activeStyle: TeachStyle = v2Main ? TEACH_MODE_TUTOR : tutorStyle;
+  /** Yanıt görünümü: Adım Adım Öğret cevabı saklayan (Sokratik) makineyle çalışır (sunucudaki eşlemeyle aynı). */
+  const replyStyle: TutorStyle = v2Main ? "hints_first" : tutorStyle;
+  /** Öğretmen v3: bekleme satırının başlangıcı (gönderim anı). */
+  const [waitStartedAt, setWaitStartedAt] = useState<number | null>(null);
+  /** Öğretmen v3: "Yanıtları sesli oku" (tarayıcıda saklanır, varsayılan kapalı). */
+  const [autoSpeak, setAutoSpeak] = useState(false);
+  useEffect(() => {
+    if (v3) setAutoSpeak(readAutoSpeak());
+  }, [v3]);
+  /** Öğretmen v3: o an sesli okunan yanıtın sırası (🔊 ve kendiliğinden okuma aynı ses). */
+  const [speakingIndex, setSpeakingIndex] = useState<number | null>(null);
+  const speakTokenRef = useRef(0);
+  /** Öğretmen v3: sohbetten çıkarken açılan ders sonu özeti ve ardından yapılacak çıkış. */
+  const [recap, setRecap] = useState<{ items: string[]; kind: "back" | "new" } | null>(null);
+  const v3Ref = useRef<HTMLDivElement>(null);
+  const historyButtonRef = useRef<HTMLButtonElement>(null);
   /** Sohbette çözülen fotoğrafların önizlemeleri (kontrol kartının küçük resmi); bileşen kapanınca bırakılır. */
   const solveImageUrls = useRef<string[]>([]);
   useEffect(
@@ -474,6 +473,8 @@ function ChatPanelSession({
   const [paywall, setPaywall] = useState(false);
   /** 402'nin kodu: hangi ücretsiz sayacın dolduğu (mesaj ya da fotoğraf). */
   const [paywallCode, setPaywallCode] = useState<string | null>(null);
+  /** Plus işinin adı (kapının cümlesi); yalnız arayüzden açılan kapıda ("Yanıtları sesli okuma"). */
+  const [paywallName, setPaywallName] = useState<string | null>(null);
   // `?belge=` ile gelen öğrenci belgesinden çalışmak istiyor: belge modu
   // açık başlar ve kilit görünür. Aksi hâlde konuşma sessizce genel bilgiye
   // düşerdi ve "belgemi okumadı" şikâyeti gelirdi.
@@ -614,12 +615,6 @@ function ChatPanelSession({
     };
   }, [variant]);
 
-  /** Faz 11: iki moddan biri seçilir; profile en yakın eski değer yazılır (bugünkü anahtarın PATCH'i). */
-  function persistTeachMode(next: TeachModeV2) {
-    setTeachStyle(next);
-    persistTutorStyle(profileStyleForTeachMode(next));
-  }
-
   function persistTutorStyle(next: TutorStyle) {
     setTutorStyle(next);
     void fetch("/api/profile/me", {
@@ -666,6 +661,11 @@ function ChatPanelSession({
   const isParity = variant === "parity";
   const isMinimalSor = isParity && composerMode === "minimal";
   const isParitySor = isParity && composerMode === "parity";
+  /**
+   * Öğretmen v3 sohbet çerçevesi açık mı (mesaj var ya da "Başla"ya basıldı). Açıkken ekran yalnız ince şerit, sohbet
+   * tuvali ve yazma kapsülü; uygulamanın üst ve alt çubukları gizli (teacher-v3.css). Ana ekranın kendisi bugünkü gibi.
+   */
+  const v3Thread = v3 && isParitySor && (messages.length > 0 || loading);
   // Aktif sohbet süresi Aktivitelerim'e yazılır; ders seçici yoksa ders adı boş.
   useLearningTimer("chat", showSubjectPicker ? subject : null, messages.length > 0);
 
@@ -767,12 +767,13 @@ function ChatPanelSession({
   }, [messages, loading, isMinimalSor, isParitySor, scrollThreadToEnd, followUser, v2Main]);
 
   // Faz 6A: yanıt bitince ekran okuyucuya tek duyuru (akışta parça parça okunmaz).
+  // Öğretmen v3'te de (akış parça parça duyurulmaz).
   useEffect(() => {
-    if (!followUser) return;
+    if (!followUser && !v3) return;
     if (wasLoadingRef.current && !loading && messages[messages.length - 1]?.role === "assistant") setDoneNote("Öğretmen yanıtladı");
     if (loading) setDoneNote("");
     wasLoadingRef.current = loading;
-  }, [followUser, loading, messages]);
+  }, [followUser, v3, loading, messages]);
 
   useEffect(() => {
     if (!attachMenuOpen) return;
@@ -925,7 +926,40 @@ function ChatPanelSession({
       observer?.disconnect();
       window.removeEventListener("resize", sync);
     };
-  }, [isParitySor]);
+    // v3 sohbetinden ana ekrana dönünce yazma alanı yeni bir öğe: yeniden ölçülür.
+  }, [isParitySor, v3Thread]);
+
+  /*
+    Öğretmen v3: telefonda klavye açılınca tuval görünen alana (visualViewport) oturur; yazma kapsülü klavyenin hemen
+    üstünde kalır. Klavye kapalıyken CSS (inset: 0, 100dvh) yeter; satır içi ölçü yalnız klavye açıkken yazılır.
+  */
+  useEffect(() => {
+    if (!v3Thread) return;
+    const element = v3Ref.current;
+    const viewport = window.visualViewport;
+    if (!element || !viewport) return;
+    const sync = () => {
+      const keyboard = window.innerHeight - viewport.height > 120;
+      if (keyboard) {
+        element.style.top = `${Math.round(viewport.offsetTop)}px`;
+        element.style.height = `${Math.round(viewport.height)}px`;
+        element.style.bottom = "auto";
+        element.dataset.keyboard = "1";
+      } else {
+        element.style.removeProperty("top");
+        element.style.removeProperty("height");
+        element.style.removeProperty("bottom");
+        delete element.dataset.keyboard;
+      }
+    };
+    viewport.addEventListener("resize", sync);
+    viewport.addEventListener("scroll", sync);
+    sync();
+    return () => {
+      viewport.removeEventListener("resize", sync);
+      viewport.removeEventListener("scroll", sync);
+    };
+  }, [v3Thread]);
 
   function clearPending() {
     if (pendingPreview) URL.revokeObjectURL(pendingPreview);
@@ -1182,8 +1216,11 @@ function ChatPanelSession({
     advanced = false,
     imageDocumentId?: string,
     allowWhileLoading = false,
-    /** Faz 11: karşılama kartı bir hazırlığa bağlıysa ilk mesaj o hazırlığın bağlamında gider (seçim sonraki çizimde gelir). */
-    options?: { contextPrepId?: string },
+    /**
+     * `contextPrepId`: ilk mesaj bir hazırlığın bağlamında gider (seçim sonraki çizimde gelir). `welcomeAnswer`
+     * (öğretmen v3): karşılamadan sonraki ilk mesaj; verilmezse karşılama ekrandayken kendiliğinden true.
+     */
+    options?: { contextPrepId?: string; welcomeAnswer?: boolean },
   ) {
     if (!text.trim() || (loading && !allowWhileLoading)) return;
     // Aynı anda ikinci istek yok (öneri çipine çift tık, art arda Enter): kilit istek bitince ya da hata olunca açılır.
@@ -1191,6 +1228,9 @@ function ChatPanelSession({
     const typed = typedRef.current;
     typedRef.current = null;
     if (imageDocumentId) activeDocumentId.current = imageDocumentId;
+    // Öğretmen v3: karşılama ekrandayken giden ilk mesaj öğrencinin nasıl öğrendiğini anlattığı turdur.
+    const welcomeAnswer = v3 && (options?.welcomeAnswer ?? (messages.length > 0 && messages.every((item) => item.local)));
+    if (v3) stopSpeaking();
     // Belgeyle konuşurken ders etiketi eklenmez: konu belgeden belli.
     const prefixed =
       variant === "parity" && showSubjectPicker && subject && !activeDocumentId.current
@@ -1213,6 +1253,7 @@ function ChatPanelSession({
     }
 
     const startedAt = Date.now();
+    if (v3) setWaitStartedAt(startedAt);
     const contextPrepId = options?.contextPrepId ?? cockpitPrepId;
     try {
       const res = await fetch("/api/ai/chat", {
@@ -1232,6 +1273,7 @@ function ChatPanelSession({
           contextPrepId: prepId ? undefined : (contextPrepId ?? undefined),
           mood: chatMood === DEFAULT_MOOD ? undefined : chatMood,
           tutorStyle: activeStyle,
+          ...(welcomeAnswer ? { welcomeAnswer: true } : {}),
         }),
       });
 
@@ -1304,18 +1346,23 @@ function ChatPanelSession({
       const maskSourceLabels = !useDocuments && !activeDocumentId.current;
       let raw = "";
       let finalId = messageId;
+      // Öğretmen v3: bu oturumda akan yanıt kelime kelime açılır; ilk parçaya kadar geçen gerçek süre "N sn düşündü".
+      let thoughtMs: number | undefined;
+      const v3Fields = () => (v3 ? { streamed: true, ...(thoughtMs != null ? { thoughtMs } : {}) } : {});
       for (;;) {
         const { done, value } = await reader.read();
         if (done) break;
         raw += decoder.decode(value, { stream: true });
         assistant = liveStream ? splitLiveBody(raw).draft : raw;
         if (maskSourceLabels) assistant = dropSourceLabels(assistant);
+        if (thoughtMs == null && assistant.trim()) thoughtMs = Date.now() - startedAt;
         setMessages((prev) => {
           const copy = [...prev];
           copy[copy.length - 1] = {
             role: "assistant",
             content: assistant,
             id: finalId,
+            ...v3Fields(),
           };
           return copy;
         });
@@ -1333,13 +1380,14 @@ function ChatPanelSession({
           setStatus(trailer.sources ? `Kaynak: ${liveCitation}` : useDocuments ? (documentsOnly ? "belgede yok" : "genel bilgi") : "");
         }
         const isError = Boolean(trailer?.error || !trailer);
+        if (thoughtMs == null && assistant.trim()) thoughtMs = Date.now() - startedAt;
         setMessages((prev) => {
           const copy = [...prev];
           copy[copy.length - 1] = {
             role: "assistant",
             content: trailer ? assistant : "Yanıt bu sefer tamamlanamadı. Aynı soruyu yeniden deneyebilirsin.",
             id: finalId,
-            ...(isError ? { isError: true } : {}),
+            ...(isError ? { isError: true } : v3Fields()),
           };
           return copy;
         });
@@ -1512,14 +1560,21 @@ function ChatPanelSession({
     const onStart = (event: Event) => {
       // Dinlendiğini bildirir: kabuk başka sayfaya (ana ekrana) gitmez.
       event.preventDefault();
+      // Öğretmen v3: karşılama ekranı açılır (ilk sözün metni karşılamanın kendisinde).
+      if (v3 && messages.length === 0) {
+        openWelcome();
+        return;
+      }
       if (startGreeting && messages.length === 0) {
-        setMessages([{ role: "assistant", content: startGreeting, local: true, ...(v2Main ? { opening: true } : {}) }]);
+        setMessages([{ role: "assistant", content: startGreeting, local: true }]);
       }
       window.setTimeout(() => composerRef.current?.focus(), 0);
     };
     window.addEventListener(HOME_START_EVENT, onStart);
     return () => window.removeEventListener(HOME_START_EVENT, onStart);
-  }, [examChrome, isParitySor, startGreeting, messages.length, v2Main]);
+    // openWelcome her çizimde yeniden kuruluyor; tetikleyiciler aşağıdakiler.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [examChrome, isParitySor, startGreeting, messages.length, v3]);
 
   // Öneri çipleri yalnızca dolu, hatasız bir yanıtın ardından çıkıyor:
   // yazarken, hata ekranında ya da kullanıcı sırasındayken görünmüyor.
@@ -1549,90 +1604,134 @@ function ChatPanelSession({
       ? "Notunu tarıyor…"
       : "Düşünüyor…";
 
-  /*
-    Faz 11 (teacher.v2, ana sohbet): öğretmenin bağlamsal düşünme satırı (`thinkingStatus`; modelsiz, aynı girdi aynı
-    cümle). Fotoğraf çözülürken iki çözüm karşılaştırılıyorsa çözücünün kendi aşaması daha doğru söyler.
-  */
-  const lastUserMessage = [...messages].reverse().find((item) => item.role === "user");
-  const v2ThinkingText =
-    solveStage === "checking"
-      ? SOLVE_STAGE_LABEL.checking
-      : thinkingStatus({
-          hasImage: solveStage != null,
-          hasDocument: Boolean(activeDocumentId.current) || useDocuments,
-          message: lastUserMessage ? displayUserText(lastUserMessage.content) : null,
-          mode: teachStyle,
-        });
+  /* ---------------------------------------------- Öğretmen v3 ---------------------------------------------- */
 
-  /** "📝 Bunu Yanlışlar Defterime ekle": öğretmen yanıtı ve öncesindeki soru deftere düşer; beklerken ve sonra çip kilitli. */
-  async function addToMistakes(messageId: string) {
-    const conversation = conversationId.current;
-    if (!conversation || mistakeInFlight.current.has(messageId) || mistakeStatus[messageId]) return;
-    mistakeInFlight.current.add(messageId);
-    setMistakeStatus((prev) => ({ ...prev, [messageId]: "saving" }));
-    const result = await postChatMistake({ conversationId: conversation, messageId });
-    mistakeInFlight.current.delete(messageId);
-    if (result.ok) {
-      setMistakeStatus((prev) => ({ ...prev, [messageId]: result.already ? "already" : "saved" }));
-      toast.success(result.already ? MISTAKE_ALREADY_LINE : MISTAKE_SAVED_LINE, {
-        action: { label: "Defteri aç", onClick: () => router.push(MISTAKE_NOTEBOOK_PATH) },
-      });
+  /** Ücretsiz hesapta ses Plus'ta (`PLUS_ONLY_ACTIONS`): "Yanıtları sesli oku" kilitli. Kurucu ve abone açık. */
+  const audioLocked = !founder && !gatePremium && (shellAccount ? shellAccount.showsUpgradeChrome !== false : isPremium === false);
+
+  function stopSpeaking() {
+    speakTokenRef.current += 1;
+    stopSpeech();
+    setSpeakingIndex(null);
+  }
+
+  /** Yanıtı 🔊 ile aynı yoldan okur (tarayıcının Türkçe sesi). */
+  function speakReply(index: number, content: string) {
+    const text = speechTextFor(v3PlainText(content));
+    stopSpeaking();
+    if (!text) return;
+    const token = speakTokenRef.current;
+    setSpeakingIndex(index);
+    const done = () => setSpeakingIndex((current) => (current === index && speakTokenRef.current === token ? null : current));
+    speakTurkish(text, {
+      cancelled: () => speakTokenRef.current !== token,
+      onEnd: done,
+      onError: () => {
+        done();
+        toast.error("Sesli okuma çalışmadı", { description: "Tarayıcında Türkçe ses yüklü olmayabilir." });
+      },
+    });
+  }
+
+  function toggleSpeakReply(index: number, content: string) {
+    if (speakingIndex === index) stopSpeaking();
+    else speakReply(index, content);
+  }
+
+  function toggleAutoSpeak() {
+    if (audioLocked) {
+      // Var olan yükseltme penceresi (Plus işi: beklemek çözmez, geri sayım yok).
+      setPaywallCode("premium_required");
+      setPaywallName(AUTO_SPEAK_GATE_NAME);
+      setPaywall(true);
       return;
     }
-    setMistakeStatus((prev) => {
-      const next = { ...prev };
-      delete next[messageId];
+    setAutoSpeak((current) => {
+      const next = !current;
+      writeAutoSpeak(next);
+      if (!next) stopSpeaking();
       return next;
     });
-    toast.error(mistakeErrorLine(result.status));
+  }
+
+  // Yanıtları sesli oku: akış bitince yeni yanıt kendiliğinden okunur (eski mesajlar okunmaz).
+  const v3WasLoadingRef = useRef(false);
+  useEffect(() => {
+    const was = v3WasLoadingRef.current;
+    v3WasLoadingRef.current = loading;
+    if (!v3 || !was || loading || !autoSpeak || audioLocked) return;
+    const index = messages.length - 1;
+    const last = messages[index];
+    if (!last || last.role !== "assistant" || last.isError || last.local || !last.streamed || !last.content.trim()) return;
+    speakReply(index, last.content);
+    // Tetikleyici yalnız akışın bitişi.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
+
+  // Sayfadan çıkınca okunan ses durur.
+  useEffect(
+    () => () => {
+      speakTokenRef.current += 1;
+    },
+    [],
+  );
+
+  /** Öğretmenin ilk sözü (model çağrısı yok): v3'te karşılama ekranı açılır. */
+  function openWelcome() {
+    setMessages([{ role: "assistant", content: startGreeting ?? "", local: true }]);
+    focusComposerSoon();
   }
 
   /**
-   * Faz 11: öğretmen yanıtının öğretmen hâli. Çipler ve etkileşimli yoklama yalnız son yanıtta ve akış bittikten
-   * sonra; "Sıra sende" kartı Adım Adım Öğret'te. Bayrak kapalıyken undefined (bugünkü görünüm).
+   * Yazma alanına odak. Öğretmen v3'te dokunmatik ekranda klavye kendiliğinden açılmaz (karşılamanın haplarını
+   * örtmesin); yalnız fare/klavye kullanılan ekranda odaklanır.
    */
-  function v2ReplyFor(message: Message, index: number): TutorReplyV2 | undefined {
-    if (!v2Main) return undefined;
-    const live = index === messages.length - 1 && !loading;
-    const next = messages[index + 1];
-    const status = message.id ? (mistakeStatus[message.id] ?? null) : null;
-    return {
-      askCard: teachStyle === TEACH_MODE_TUTOR,
-      interactiveCheck: live,
-      answeredWith: next?.role === "user" ? next.content : null,
-      onCheckAnswer: (option) => void send(quickCheckAnswerPrompt(option)),
-      actions: live
-        ? replyActions({
-            content: message.content,
-            mode: teachStyle,
-            messageId: message.id,
-            conversationId: conversationId.current,
-            mistake: status,
-            quizTopic: miniQuizTopic({ conversationTitle, cockpitTopic }),
-            question: questionBefore(messages, index),
-            onMistake: () => {
-              if (message.id) void addToMistakes(message.id);
-            },
-          })
-        : null,
-      note:
-        live && (status === "saved" || status === "already") ? (
-          <p className="cx-v2-note" role="status">
-            {status === "already" ? MISTAKE_ALREADY_LINE : MISTAKE_SAVED_LINE}.{" "}
-            <Link href={MISTAKE_NOTEBOOK_PATH}>Yanlışlar Defterini aç</Link>
-          </p>
-        ) : null,
-    };
+  function focusComposerSoon() {
+    if (v2Main) {
+      try {
+        if (!window.matchMedia("(pointer: fine)").matches) return;
+      } catch {
+        return;
+      }
+    }
+    window.setTimeout(() => composerRef.current?.focus(), 0);
   }
 
-  /** Karşılama kartı: fotoğraf kartı sohbetin fotoğraf seçicisini açar; öbürleri (hazırlığa bağlıysa önce o seçilir) mesaj olur. */
-  function chooseStartCard(card: TutorStartCard) {
-    if (card.kind === "photo") {
-      openComposerDialog("image_upload");
+  /** Sohbetten çıkış: öğretici yanıt varsa önce "Bugün öğrendiklerin" (madde yoksa doğrudan çıkış). */
+  function leaveThread(kind: "back" | "new") {
+    abortRef.current?.abort();
+    stopSpeaking();
+    const replies = messages
+      .filter((item) => item.role === "assistant" && !item.local && !item.isError && item.content.trim())
+      .map((item) => item.content);
+    const items = replies.length ? lessonRecapItems(replies) : [];
+    if (items.length) {
+      setRecap({ items, kind });
       return;
     }
-    if (card.prepId) selectCockpitPrep(card.prepId);
-    void send(card.prompt, false, undefined, false, card.prepId ? { contextPrepId: card.prepId } : undefined);
+    finishLeave(kind);
+  }
+
+  function finishLeave(kind: "back" | "new") {
+    setRecap(null);
+    resetParityThread();
+    if (kind === "new") openWelcome();
+  }
+
+  /** Saat düğmesi: geçmiş paneli dinliyorsa o açar; yoksa Geçmiş konuşmalar sayfası. */
+  function openHistoryFromBar() {
+    const event = new CustomEvent<TutorHistoryDetail>(TUTOR_HISTORY_EVENT, {
+      cancelable: true,
+      detail: { opener: historyButtonRef.current },
+    });
+    window.dispatchEvent(event);
+    if (!event.defaultPrevented) router.push("/sohbetler");
+  }
+
+  /** "Kaldığımız yerden devam edelim": aynı konuşmanın içinde sürer (öğretmen geçmişi okur, ekran sade kalır). */
+  function resumeFrom(offer: ResumeOffer) {
+    if (offer.conversationId) conversationId.current = offer.conversationId;
+    void send(offer.prompt, false, undefined, false, { welcomeAnswer: false });
   }
 
   /** Faz 11: eklenen fotoğrafla iki seçim; düz "Gönder" bugünkü gibi çözücüye gider ve sunucu kendisi karar verir. */
@@ -1854,6 +1953,232 @@ function ChatPanelSession({
     );
   }
 
+  /*
+    Öğretmen v3 (teacher.v2 ana sohbeti, 21 Kasım 2026, ürün sahibi: "kalabalık, teknik damgalarla boğulmuş"): sohbet
+    açıkken çerçevesiz tuval. Üstte tek 48 px şerit, ortada sohbet (karşılama ya da konuşma), altta tek yuvarlak kapsül.
+    Kaynak hapı, anlatım anahtarı, ders seçimi, imza, kaynak çipleri ve devam çipleri yok. Ana ekran bugünkü gibi
+    (aşağıdaki dal); bayrak kapalıyken ve hazırlık sohbetinde bu dal hiç kurulmaz.
+  */
+  if (v3Thread) {
+    const welcomeOpen = !loading && messages.length > 0 && messages.every((item) => item.local);
+    const lastIndex = messages.length - 1;
+    const pendingRow = loading && (messages.length === 0 || messages[lastIndex]?.role === "user");
+    const preview =
+      pendingFile || pendingRemote ? (
+        <div className="cx-v3-preview">
+          {pendingPreview ? (
+            <span className="cx-v3-thumb">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={pendingPreview} alt="" />
+              <button type="button" aria-label="Kaldır" onClick={clearPending}>
+                <X aria-hidden />
+              </button>
+            </span>
+          ) : (
+            <span className="cx-v3-file">
+              <Paperclip aria-hidden />
+              <span className="cx-v3-file-name">{pendingFile?.name ?? pendingRemote?.fileName}</span>
+              <button type="button" aria-label="Kaldır" onClick={clearPending}>
+                <X aria-hidden />
+              </button>
+            </span>
+          )}
+          {pendingFile?.type.startsWith("image/") ? (
+            <div className="cx-v3-photo-intents" role="group" aria-label="Fotoğrafla ne yapalım?">
+              <button type="button" className="cx-v3-chip" disabled={loading} onClick={() => void sendPhotoIntent("solve")}>
+                Soruyu çöz
+              </button>
+              <button type="button" className="cx-v3-chip" disabled={loading} onClick={() => void sendPhotoIntent("check")}>
+                Çözümümü kontrol et
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ) : null;
+
+    return (
+      <>
+        <div ref={v3Ref} className="cx-v3" data-welcome={welcomeOpen || undefined}>
+          <TeacherV3Bar
+            onBack={() => leaveThread("back")}
+            onHistory={openHistoryFromBar}
+            onNewChat={() => leaveThread("new")}
+            historyRef={historyButtonRef}
+          />
+          <div ref={messagesScrollRef} className="cx-v3-thread" role="log" aria-live="off" aria-label="Sohbet">
+            <div className="cx-v3-col">
+              {welcomeOpen ? (
+                <TeacherV3Welcome
+                  firstName={studentFirstName}
+                  prepTitle={cockpitPrepTitle ?? fallbackPrep?.title ?? null}
+                  disabled={loading}
+                  onPick={(text) => void send(text, false, undefined, false, { welcomeAnswer: true })}
+                  onResume={resumeFrom}
+                />
+              ) : (
+                messages.map((message, index) => {
+                  if (message.local) return null;
+                  if (message.role === "user") {
+                    return (
+                      <div key={index} className="cx-v3-turn cx-v3-turn--student">
+                        <p className="cx-v3-bubble">{displayUserText(message.content)}</p>
+                      </div>
+                    );
+                  }
+                  if (message.isError) {
+                    return (
+                      <article key={index} className="cx-v3-turn cx-v3-turn--teacher">
+                        <div className="cx-v3-error" role="alert">
+                          <p>{message.content}</p>
+                          {index === lastIndex && !loading ? (
+                            <button type="button" className="cx-v3-chip" onClick={regenerateLast}>
+                              Tekrar dene
+                            </button>
+                          ) : null}
+                        </div>
+                      </article>
+                    );
+                  }
+                  const actions = (
+                    <MessageActions
+                      layout="v3"
+                      content={v3PlainText(message.content)}
+                      messageId={feedbackEnabled ? message.id : undefined}
+                      rating={message.rating ?? null}
+                      onRated={(next) => setRating(index, next)}
+                      speech={{ speaking: speakingIndex === index, onToggle: () => toggleSpeakReply(index, message.content) }}
+                    />
+                  );
+                  if (message.solve) {
+                    return (
+                      <article key={index} className="cx-v3-turn cx-v3-turn--teacher cx-v3-turn--solve">
+                        <SolutionView
+                          phase={message.solve}
+                          initialTutorStyle={replyStyle}
+                          onDiscuss={(prompt) => void send(prompt)}
+                          imageSrc={message.solveImage ?? null}
+                        />
+                        {actions}
+                      </article>
+                    );
+                  }
+                  const next = messages[index + 1];
+                  return (
+                    <TeacherV3Turn
+                      key={index}
+                      content={message.content}
+                      streaming={loading && index === lastIndex}
+                      animate={Boolean(message.streamed)}
+                      waitStartedAt={waitStartedAt}
+                      thoughtMs={message.thoughtMs}
+                      isLast={index === lastIndex}
+                      disabled={loading}
+                      answeredWith={next?.role === "user" ? next.content : null}
+                      onCheckAnswer={(option) => void send(quickCheckAnswerPrompt(option))}
+                      onFollowUp={(question) => void send(question)}
+                      actions={actions}
+                    />
+                  );
+                })
+              )}
+              {pendingRow ? (
+                <article className="cx-v3-turn cx-v3-turn--teacher">
+                  <TeacherV3Status startedAt={waitStartedAt} writing={false} />
+                </article>
+              ) : null}
+              {!loading && !welcomeOpen && messages[lastIndex]?.role === "user" ? (
+                <div className="cx-v3-unanswered" role="status">
+                  <span>Bu soruya cevap gelmedi.</span>
+                  <button type="button" className="cx-v3-chip" onClick={regenerateLast}>
+                    Tekrar sor
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          </div>
+          <p className="sr-only" aria-live="polite">
+            {doneNote}
+          </p>
+          {awayFromEnd && loading ? (
+            <button
+              type="button"
+              className="cx-v3-jump"
+              aria-label="Yeni mesaja git"
+              onClick={() => {
+                stickToEndRef.current = true;
+                setAwayFromEnd(false);
+                programmaticScrollRef.current = Date.now() + 700;
+                scrollThreadToEnd(true);
+              }}
+            >
+              <ChevronDown aria-hidden />
+              Yeni mesaja git
+            </button>
+          ) : null}
+          <div className="cx-v3-dock">
+            {liveTalkSlot ?? (
+              <TeacherV3Composer
+                textareaRef={composerRef}
+                value={input}
+                onChange={setInput}
+                onSubmit={() => void sendComposer()}
+                // Öğretmen v3: kapsülün yazısı sabit (ürün sahibinin istemi); "Cevabını yaz" yalnız eski v2 düzeninde.
+                placeholder={placeholder ?? "Sor, konuş veya dosya gönder"}
+                loading={loading}
+                hasPayload={hasComposerPayload}
+                onStop={stopGeneration}
+                onAttach={() => fileInputRef.current?.click()}
+                onCamera={() => cameraInputRef.current?.click()}
+                mic={{ listening, transcribing, onToggle: startVoiceInput }}
+                onLiveTalk={onLiveTalk}
+                onCommand={(prompt) => void send(prompt, false, undefined, false, { welcomeAnswer: false })}
+                autoSpeak={{ on: autoSpeak, locked: audioLocked, onToggle: toggleAutoSpeak }}
+                preview={preview}
+                quota={<MessageQuota variant="inline" />}
+              />
+            )}
+          </div>
+        </div>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          accept={CHAT_UPLOAD_ACCEPT}
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.target.value = "";
+            if (file) attachPending(file);
+          }}
+        />
+        <input
+          ref={cameraInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.target.value = "";
+            if (file) attachPending(file);
+          }}
+        />
+
+        <CreditGate
+          open={paywall}
+          onOpenChange={(open) => {
+            setPaywall(open);
+            if (!open) setPaywallName(null);
+          }}
+          {...chatGateProps(paywallCode, gatePremium, paywallName)}
+          returnPath={returnPath}
+          isPremium={isPremium}
+        />
+        {recap ? <TeacherV3Recap items={recap.items} onClosed={() => finishLeave(recap.kind)} /> : null}
+      </>
+    );
+  }
+
   if (isParitySor) {
     return (
       <>
@@ -1911,8 +2236,13 @@ function ChatPanelSession({
                 aria-label={startLabel}
                 disabled={loading}
                 onClick={() => {
+                  // Öğretmen v3: karşılama ekranı (selam ve haplar).
+                  if (v3) {
+                    openWelcome();
+                    return;
+                  }
                   if (startGreeting) {
-                    setMessages([{ role: "assistant", content: startGreeting, local: true, ...(v2Main ? { opening: true } : {}) }]);
+                    setMessages([{ role: "assistant", content: startGreeting, local: true }]);
                     window.setTimeout(() => composerRef.current?.focus(), 0);
                     return;
                   }
@@ -1951,15 +2281,7 @@ function ChatPanelSession({
                 const assistantBody = message.content ? (
                   <>
                     {message.local ? (
-                      message.opening && v2Main ? (
-                        <TeacherOpening
-                          fallback={message.content}
-                          onWrite={() => composerRef.current?.focus()}
-                          onPrompt={(prompt) => void send(prompt)}
-                        />
-                      ) : (
-                        <p className="cp-teacher-greeting">{message.content}</p>
-                      )
+                      <p className="cp-teacher-greeting">{message.content}</p>
                     ) : message.isError ? (
                       <div role="alert">
                         <TutorReplyView
@@ -1994,20 +2316,16 @@ function ChatPanelSession({
                             {solvedLabel(message.solvedMs)}
                           </p>
                         ) : null}
-                        {/* Faz 11: akan yanıt yumuşak belirir (yalnız CSS); sarmalayıcı yalnız bayrak açıkken. */}
-                        <V2ReplyFrame on={v2Main} streaming={loading && index === messages.length - 1}>
-                          <TutorReplyView
-                            content={loading && index === messages.length - 1 ? maskStreamingMarkdown(message.content) : message.content}
-                            variant="parity"
-                            disabled={loading}
-                            onPrompt={(prompt) => void send(prompt)}
-                            hideChips={!showSuggestions}
-                            tutorStyle={replyStyle}
-                            quickActions={index === messages.length - 1}
-                            maxChips={teacherV2 ? ONE_MOVE_MAX_CHIPS : undefined}
-                            v2={v2ReplyFor(message, index)}
-                          />
-                        </V2ReplyFrame>
+                        <TutorReplyView
+                          content={loading && index === messages.length - 1 ? maskStreamingMarkdown(message.content) : message.content}
+                          variant="parity"
+                          disabled={loading}
+                          onPrompt={(prompt) => void send(prompt)}
+                          hideChips={!showSuggestions}
+                          tutorStyle={replyStyle}
+                          quickActions={index === messages.length - 1}
+                          maxChips={teacherV2 ? ONE_MOVE_MAX_CHIPS : undefined}
+                        />
                         <MessageActions
                           content={message.content}
                           messageId={feedbackEnabled ? message.id : undefined}
@@ -2024,9 +2342,6 @@ function ChatPanelSession({
                   </>
                 ) : loading && examChrome ? (
                   <SorTypingDots label={thinkingLabel} />
-                ) : v2Main && loading && index === messages.length - 1 ? (
-                  // Faz 11: düşünme satırı yanıtın kendi balonunda; ilk parça gelince aynı balonda metne döner (ikinci balon yok).
-                  <TeacherThinking text={v2ThinkingText} />
                 ) : null;
 
                 if (examChrome) {
@@ -2072,10 +2387,6 @@ function ChatPanelSession({
                 </div>
                 );
               })}
-              {/* Faz 11 (teacher.v2): öğretmen ilk sözü söyledi, konuşma henüz boş → öğrencinin kayıtlarından başlangıç kartları. */}
-              {v2Main && !examChrome && !loading && messages.length > 0 && messages.every((item) => item.local) ? (
-                <TeacherStartCards onChoose={chooseStartCard} />
-              ) : null}
               </div>
 
               {/* Kayıtlı sohbet öğrencinin sorusuyla bitiyorsa (cevap yazılamadan bağlantı koptu ya da sayfa kapandı)
@@ -2122,9 +2433,9 @@ function ChatPanelSession({
               {!examChrome && loading &&
               (messages.length === 0 ||
                 messages[messages.length - 1]?.role === "user" ||
-                (!v2Main && messages[messages.length - 1]?.content === "")) ? (
+                messages[messages.length - 1]?.content === "") ? (
                 <div className="cp-sor-msg-assistant">
-                  {v2Main ? <TeacherThinking text={v2ThinkingText} /> : <SorTypingDots label={thinkingLabel} />}
+                  <SorTypingDots label={thinkingLabel} />
                 </div>
               ) : null}
               <div ref={messagesEndRef} className="h-px shrink-0" aria-hidden />
@@ -2257,11 +2568,8 @@ function ChatPanelSession({
                   />
                 ) : null}
                 {v2Main ? (
-                  <>
-                    <TeachModeSwitch value={teachStyle} onChange={persistTeachMode} disabled={loading} />
-                    {/* PR-2: öğretmenin okuduğu kayıtlar ("Neye baktım"); açılınca okunur. */}
-                    {dossierPanel ? <TeacherDossierPanel /> : null}
-                  </>
+                  // Öğretmen v3: anlatım hep Adım Adım Öğret (seçici yok). PR-2: öğretmenin okuduğu kayıtlar ("Neye baktım").
+                  dossierPanel ? <TeacherDossierPanel /> : null
                 ) : (
                   <TutorModeSwitcher value={tutorStyle} onChange={persistTutorStyle} disabled={loading} />
                 )}
