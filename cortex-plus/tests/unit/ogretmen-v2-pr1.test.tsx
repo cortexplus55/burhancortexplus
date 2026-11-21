@@ -266,8 +266,9 @@ describe("sohbet ucu: bayrak arkasında, model çağrısı eklenmez", () => {
 
   it("bayrak kapalıyken stil, stil satırı ve ilk cümle satırı bugünkü (S12)", () => {
     expect(route).toContain("const v2Chat = teacherV2 && !rest.prepId;");
+    // Faz 11: bayrak kapalıyken Rehberli ve iki yeni mod (eski sekmeden gelse de) profilin stiline düşer.
     expect(route).toContain(
-      "parseTutorStyle(rest.tutorStyle === GUIDED_STYLE ? profile?.tutor_style : rest.tutorStyle ?? profile?.tutor_style)",
+      "rest.tutorStyle === GUIDED_STYLE || isTeachModeV2(rest.tutorStyle) ? profile?.tutor_style : rest.tutorStyle ?? profile?.tutor_style",
     );
     expect(route).toContain("const v2Session: TutorSession | null = v2Chat ? readTutorSession(history, message) : null;");
     expect(route).toContain("${(v2Session && v2StyleLine(teachStyle)) || teacherStyleLine(tutorStyle)}");

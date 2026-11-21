@@ -57,6 +57,9 @@ const USER_CONTENT_TABLES = [
   // 20 Kasım 2026 (Faz 7): sınav sonrası not, yorum ve gösterim izni. Hazırlık silinince CASCADE da siler; açıkça
   // burada da (sıra ya da kısıt değişse de satır kalmasın). Göç canlıda yoksa atlanır.
   "exam_feedback_testimonials",
+  // 21 Kasım 2026 (Faz 11): öğretmen notları (oturum sonu öğrenme gözlemleri). Konuşma silinince CASCADE; silme işçisi
+  // konuşmasız kalan notları da burada siler. Göç canlıda yoksa atlanır.
+  "tutor_memory_notes",
 ] as const;
 
 const OPTIONAL_PURGE_TABLES = new Set([
@@ -71,6 +74,7 @@ const OPTIONAL_PURGE_TABLES = new Set([
   "general_review_cards",
   "exam_prep_step_reexplains",
   "exam_feedback_testimonials",
+  "tutor_memory_notes",
 ]);
 
 /**

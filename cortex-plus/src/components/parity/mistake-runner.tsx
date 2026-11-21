@@ -22,6 +22,7 @@ const SOURCE_LABEL: Record<MistakeQuestion["source"], string> = {
   true_false: "Doğru/Yanlış",
   lesson_check: "Ders sorusu",
   podcast: "Dinleme",
+  chat: "Öğretmen sohbeti",
 };
 
 const SAVE_FAILED_FEEDBACK: RunnerFeedback = {

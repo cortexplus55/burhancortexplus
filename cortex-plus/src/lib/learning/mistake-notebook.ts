@@ -16,9 +16,17 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { MASTERY_STREAK } from "@/lib/learning/mistake-notebook-rule";
 export { MASTERY_STREAK };
 
-export type MistakeSource = "deneme" | "quiz" | "true_false" | "lesson_check" | "podcast";
+export type MistakeSource = "deneme" | "quiz" | "true_false" | "lesson_check" | "podcast" | "chat";
 
-export const MISTAKE_SOURCES: readonly MistakeSource[] = ["deneme", "quiz", "true_false", "lesson_check", "podcast"];
+export const MISTAKE_SOURCES: readonly MistakeSource[] = ["deneme", "quiz", "true_false", "lesson_check", "podcast", "chat"];
+
+/**
+ * Faz 11 (teacher.v2): öğretmen sohbetinden "Bunu Yanlışlar Defterime ekle" ile düşen soru. Sohbette doğru şık ve
+ * anahtar yoktur (öğretmen adım adım ilerler); bu yüzden defter onu kendini yoklama kartı olarak sorar: öğrenci
+ * soruyu yeniden düşünür ve iki seçenekten birini seçer. İlki "doğru" sayılır (üst üste iki kez → defterden çıkar).
+ * Kayıtta `options` ve `correct_answer` boş kalır; seçenekler okurken eklenir.
+ */
+export const CHAT_SELF_CHECK_OPTIONS = ["Artık çözebiliyorum", "Hâlâ zorlanıyorum"] as const;
 
 export type MistakeDraft = {
   source: MistakeSource;
@@ -113,12 +121,14 @@ const SELECT =
   "id, source, topic_label, question_text, options, correct_answer, first_wrong_answer, explanation, wrong_count, review_count, correct_streak, mastered_at";
 
 function toEntry(row: Row): MistakeEntry {
+  const source = (MISTAKE_SOURCES as readonly string[]).includes(row.source) ? (row.source as MistakeSource) : "deneme";
+  const stored = Array.isArray(row.options) ? (row.options as string[]) : [];
   return {
     id: row.id,
-    source: (MISTAKE_SOURCES as readonly string[]).includes(row.source) ? (row.source as MistakeSource) : "deneme",
+    source,
     topicLabel: row.topic_label,
     questionText: row.question_text,
-    options: Array.isArray(row.options) ? (row.options as string[]) : [],
+    options: source === "chat" && !stored.length ? [...CHAT_SELF_CHECK_OPTIONS] : stored,
     correctAnswer: row.correct_answer,
     firstWrongAnswer: row.first_wrong_answer,
     explanation: row.explanation,
@@ -429,7 +439,7 @@ export async function reviewMistake(
   const { data } = await supabase
     .from("mistake_entries")
     .select(
-      "id, correct_answer, explanation, first_wrong_answer, correct_streak, review_count, wrong_count",
+      "id, source, correct_answer, explanation, first_wrong_answer, correct_streak, review_count, wrong_count",
     )
     .eq("id", entryId)
     .eq("user_id", userId)
@@ -437,8 +447,11 @@ export async function reviewMistake(
 
   if (!data) return null;
 
-  const correct =
-    (data.correct_answer as string | null)?.trim() === answer.trim();
+  // Sohbetten düşen soru kendini yoklama kartıdır: anahtar yok, "Artık çözebiliyorum" doğru sayılır.
+  const selfCheck = data.source === "chat" && !(data.correct_answer as string | null)?.trim();
+  const correct = selfCheck
+    ? answer.trim() === CHAT_SELF_CHECK_OPTIONS[0]
+    : (data.correct_answer as string | null)?.trim() === answer.trim();
   const now = new Date().toISOString();
 
   const next = nextReviewState(
