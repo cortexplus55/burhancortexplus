@@ -179,7 +179,7 @@ describe("kullanım kaydı", () => {
   it("fiyat satırları göçte; göç yalnız ekler ve uygulanmadı diye işaretli", () => {
     const sql = read("supabase/migrations/20261121170000_realtime_voice_minute.sql");
     expect(sql).toContain("YAZILDI, UYGULANMADI");
-    expect(sql).toContain("('REALTIME_VOICE_MINUTE', 40,");
+    expect(sql).toContain("('REALTIME_VOICE_MINUTE', 60,");
     for (const model of ["", "-audio", "-image", "-cached-text", "-cached-audio", "-cached-image"]) {
       expect(sql).toContain(`'${REALTIME_MODEL}${model}'`);
     }

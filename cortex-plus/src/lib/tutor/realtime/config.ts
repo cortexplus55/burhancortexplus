@@ -27,7 +27,7 @@ export const REALTIME_TRANSCRIBE_MODEL = "gpt-4o-mini-transcribe";
 export const REALTIME_MINUTE_SECONDS = 60;
 /**
  * Dakikanın ödenmesi için geçmesi gereken süre. Başlayan dakika ödenir; ama dakika sınırında basılan "Durdur" ya da
- * bağlantı kurulur kurulmaz kopan oturum, birkaç saniye için 40 kredi ödemesin.
+ * bağlantı kurulur kurulmaz kopan oturum, birkaç saniye için 60 kredi ödemesin.
  */
 export const REALTIME_MINUTE_GRACE_SECONDS = 5;
 /** İstemci bir sonraki dakikayı sınırdan bu kadar önce ister (konuşma kesilmesin). */

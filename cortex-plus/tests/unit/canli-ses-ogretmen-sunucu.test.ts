@@ -70,7 +70,7 @@ function harness(overrides: Partial<RealtimeDeps> = {}): Harness {
     access: vi.fn(async () => ({ kind: "paid" as const })),
     claimTrial: vi.fn(async () => ({ ok: true as const, markerId: "marker-1" })),
     releaseTrial: vi.fn(async () => undefined),
-    reserve: vi.fn(async (_s, _u, key: string) => ({ ok: true as const, reservationId: `res:${key}`, cost: 40 })),
+    reserve: vi.fn(async (_s, _u, key: string) => ({ ok: true as const, reservationId: `res:${key}`, cost: 60 })),
     commit: vi.fn(async () => undefined),
     refund: vi.fn(async () => undefined),
     loadContext: vi.fn(async (_s, _u, input) => ({
@@ -94,8 +94,8 @@ async function open(h: Harness, body: Record<string, unknown> = {}) {
 const sessionIdOf = (outcome: Awaited<ReturnType<typeof open>>) => (outcome.body.ok ? outcome.body.sessionId : "");
 
 describe("ücret kuralı (saf)", () => {
-  it("dakikası 40 kredi; anahtar oturum + dakika", () => {
-    expect(CREDIT_PRICE_TABLE.REALTIME_VOICE_MINUTE).toEqual({ credits: 40, per: "dakika" });
+  it("dakikası 60 kredi; anahtar oturum + dakika", () => {
+    expect(CREDIT_PRICE_TABLE.REALTIME_VOICE_MINUTE).toEqual({ credits: 60, per: "dakika" });
     expect(minuteReservationKey("s1", 3)).toBe("realtime_voice:s1:m3");
   });
 

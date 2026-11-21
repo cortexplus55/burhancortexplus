@@ -78,7 +78,7 @@ export const CREDIT_PRICE_TABLE: Record<ActionCode, CreditPrice> = {
    * (`src/lib/tutor/realtime/billing.ts`). Göç 20261121170000_realtime_voice_minute. Ücretsiz hesapta kredi düşmez:
    * hesap başına bir kez 1 dakikalık deneme, sonrası Plus.
    */
-  REALTIME_VOICE_MINUTE: { credits: 40, per: "dakika" },
+  REALTIME_VOICE_MINUTE: { credits: 60, per: "dakika" },
 };
 
 /** Faz 4: kaç metin sayfası bir kredi eder (metin PDF / DOCX / PPTX). */

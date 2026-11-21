@@ -219,5 +219,5 @@ export type ActionCode =
   | "TRUE_FALSE_GENERATE"
   /** Faz 4: ders adımını "Farklı anlat" (4 kredi, adım başına önbellek, tek çağrı). */
   | "STEP_REEXPLAIN"
-  /** Canlı sesli öğretmen (21 Kasım 2026, Burhan'ın kararı): dakikası 40 kredi; başlayan dakika ödenir. */
+  /** Canlı sesli öğretmen (21 Kasım 2026, Burhan'ın kararı): dakikası 60 kredi (önce 40; dört canlı oturumda dakika ortalama 0,044 $ ölçülünce 60); başlayan dakika ödenir. */
   | "REALTIME_VOICE_MINUTE";

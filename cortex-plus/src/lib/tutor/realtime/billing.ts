@@ -9,7 +9,7 @@ import {
 } from "@/lib/tutor/realtime/config";
 
 /*
-  Canlı sesli öğretmenin ücret kuralı (21 Kasım 2026, Burhan'ın kararı: dakikası 40 kredi, başlayan dakika ödenir).
+  Canlı sesli öğretmenin ücret kuralı (21 Kasım 2026, Burhan'ın kararı: dakikası 60 kredi, başlayan dakika ödenir).
   Saf hesap; zaman her yerde SUNUCU saatidir (istemcinin bildirdiği süre ücrete girmez).
 
   - Dakika n, oturumun başlangıcından (n − 1) × 60 sn sonra başlar ve kredisi o dakika başlamadan ayrılır (dakika 1

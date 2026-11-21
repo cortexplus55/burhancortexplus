@@ -3,7 +3,7 @@
 --     on conflict (version) do nothing;
 --
 -- Canlı sesli öğretmen ("Konuş", teacher.v2 bayrağının arkasında). Burhan'ın kararı: model gpt-realtime-2.1-mini,
--- dakikası 40 kredi. Yalnız EKLER: var olan kredi kuralına, fiyat satırına ve hiçbir SQL işlevine dokunmaz. İki kez
+-- dakikası 60 kredi (önce 40; ölçülen dakika ortalama 0,044 $, 21 Kasım 2026). Yalnız EKLER: var olan kredi kuralına, fiyat satırına ve hiçbir SQL işlevine dokunmaz. İki kez
 -- çalışınca aynı sonuç (ON CONFLICT DO NOTHING). Göçten önce de kod çalışır: ilk ayırmada kod satırı fiyat tablosundan
 -- ekler (Paket H yedeği, `/admin/sistem` "göç yazılmalı" uyarısı gösterir); bu göç açıklamayı kendi metniyle yazmaz,
 -- çünkü satır varsa dokunulmaz — öyle bir durumda açıklamayı /admin/kredi-kurallari'ndan düzeltmek yeter.
@@ -22,7 +22,7 @@
 -- görsel, "-cached-*" önbellekli girdi. Birim bin jeton (sütun adı "per_1k").
 
 INSERT INTO public.credit_rules (action_code, credit_cost, model_tier, description, active)
-VALUES ('REALTIME_VOICE_MINUTE', 40, 'standard', 'Canlı sesli öğretmen: dakika başına 40 kredi (başlayan dakika ödenir)', true)
+VALUES ('REALTIME_VOICE_MINUTE', 60, 'standard', 'Canlı sesli öğretmen: dakika başına 60 kredi (başlayan dakika ödenir)', true)
 ON CONFLICT (action_code) DO NOTHING;
 
 INSERT INTO public.ai_model_prices (model, input_per_1k, output_per_1k)
