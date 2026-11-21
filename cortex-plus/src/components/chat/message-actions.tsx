@@ -33,26 +33,49 @@ const REASONS: { id: RatingReason; label: string }[] = [
  * (sohbet kaydedilmemişse) oy verilecek satır da yok, o yüzden düğmeyi hiç
  * göstermiyoruz. Hiçbir şey yapmayan düğme, olmayan düğmeden kötüdür.
  */
+/** Sesli dinlemenin okuduğu metin: Markdown işaretleri "yıldız yıldız" diye duyulmasın. */
+export function speechTextFor(content: string): string {
+  return plainTutorText(content)
+    .replace(/```[\s\S]*?```/g, " kod bloğu ")
+    .replace(/[*_`#>|-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function MessageActions({
   content,
   messageId,
   rating: initialRating = null,
   onRated,
   onRegenerate,
+  layout = "default",
+  speech,
 }: {
   content: string;
   messageId?: string;
   rating?: Rating;
   onRated?: (rating: Rating) => void;
   onRegenerate?: () => void;
+  /**
+   * Öğretmen v3 (teacher.v2 ana sohbeti): dört soluk simge, sırası beğen, beğenme, sesli dinle, kopyala; yeniden üret
+   * yok. Verilmezse bugünkü düzen birebir.
+   */
+  layout?: "default" | "v3";
+  /** Sesli dinleme dışarıdan yönetilir (öğretmen v3: kendiliğinden okuma ile aynı ses tek yerde). */
+  speech?: { speaking: boolean; onToggle: () => void };
 }) {
   const [copied, setCopied] = useState(false);
-  const [speaking, setSpeaking] = useState(false);
+  const [ownSpeaking, setSpeaking] = useState(false);
   const [rating, setRating] = useState<Rating>(initialRating);
   const [askReason, setAskReason] = useState(false);
   const [sending, setSending] = useState(false);
+  const speaking = speech ? speech.speaking : ownSpeaking;
 
-  useEffect(() => () => stopSpeech(), []);
+  useEffect(() => () => {
+    if (!speech) stopSpeech();
+    // Yalnız kendi okumasını durdurur; dışarıdan yönetilen ses paneldedir.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function copy() {
     try {
@@ -68,6 +91,10 @@ export function MessageActions({
   }
 
   function toggleSpeech() {
+    if (speech) {
+      speech.onToggle();
+      return;
+    }
     if (speaking) {
       stopSpeech();
       setSpeaking(false);
@@ -134,6 +161,70 @@ export function MessageActions({
     // kaydetmezsek, seçenekleri geçen öğrencinin oyu kaybolurdu.
     void rate(-1);
     setAskReason(true);
+  }
+
+  if (layout === "v3") {
+    return (
+      <div className="cx-v3-acts" role="group" aria-label="Yanıt işlemleri">
+        {messageId ? (
+          <>
+            <button
+              type="button"
+              className="cx-v3-act"
+              data-on={rating === 1 || undefined}
+              onClick={onThumbUp}
+              aria-pressed={rating === 1}
+              aria-label={rating === 1 ? "Beğeniyi geri al" : "Faydalı"}
+              title={rating === 1 ? "Beğeniyi geri al" : "Faydalı"}
+            >
+              <ThumbsUp aria-hidden />
+            </button>
+            <button
+              type="button"
+              className="cx-v3-act"
+              data-off={rating === -1 || undefined}
+              onClick={onThumbDown}
+              aria-pressed={rating === -1}
+              aria-label={rating === -1 ? "Oyu geri al" : "Faydalı değil"}
+              title={rating === -1 ? "Oyu geri al" : "Faydalı değil"}
+            >
+              <ThumbsDown aria-hidden />
+            </button>
+          </>
+        ) : null}
+        <button
+          type="button"
+          className="cx-v3-act"
+          data-on={speaking || undefined}
+          onClick={toggleSpeech}
+          aria-label={speaking ? "Okumayı durdur" : "Sesli dinle"}
+          title={speaking ? "Okumayı durdur" : "Sesli dinle"}
+        >
+          {speaking ? <Square aria-hidden /> : <Volume2 aria-hidden />}
+        </button>
+        <button type="button" className="cx-v3-act" onClick={copy} aria-label="Kopyala" title="Kopyala">
+          {copied ? <Check aria-hidden /> : <Copy aria-hidden />}
+        </button>
+        {askReason && rating === -1 ? (
+          <div className="cx-v3-reasons" role="group" aria-label="Sorun neydi?">
+            <span className="cx-v3-reasons-hint">Sorun neydi?</span>
+            {REASONS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className="cx-v3-reason"
+                onClick={() => {
+                  setAskReason(false);
+                  void rate(-1, item.id);
+                }}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    );
   }
 
   return (

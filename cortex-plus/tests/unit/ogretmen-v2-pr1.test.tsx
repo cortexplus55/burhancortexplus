@@ -290,13 +290,13 @@ describe("sohbet ucu: bayrak arkasında, model çağrısı eklenmez", () => {
     }
   });
 
-  // Faz 11 (21 Kasım 2026): bayrak açıkken ana sohbette dört stillik menünün yerine iki modlu anahtar (TeachModeSwitch);
-  // seçim profile en yakın eski değerle yazılır. Bayrak kapalıyken bugünkü üç düğmeli anahtar aynen.
-  it("panel: v2 anahtarı yalnız bayrak açıkken ve ana sohbette; kapalıyken üç düğmeli anahtar", () => {
+  // Öğretmen v3 (21 Kasım 2026, ürün sahibi): bayrak açıkken ana sohbette anlatım seçicisi yok, istek hep "Adım Adım
+  // Öğret" (tutor_steps) gider, profil yazılmaz. Bayrak kapalıyken bugünkü üç düğmeli anahtar aynen.
+  it("panel: bayrak açıkken ana sohbette seçici yok ve hep Adım Adım Öğret; kapalıyken üç düğmeli anahtar", () => {
     expect(panel).toContain("const v2Main = teacherV2 && !prepId;");
-    expect(panel).toContain("const activeStyle: TeachStyle = v2Main ? teachStyle : tutorStyle;");
-    expect(panel).toMatch(/\{v2Main \? \(\s*(?:<>\s*)?<TeachModeSwitch/);
+    expect(panel).toContain("const activeStyle: TeachStyle = v2Main ? TEACH_MODE_TUTOR : tutorStyle;");
+    expect(panel).not.toContain("TeachModeSwitch");
     expect(panel).toContain("<TutorModeSwitcher value={tutorStyle} onChange={persistTutorStyle} disabled={loading} />");
-    expect(panel).toContain("persistTutorStyle(profileStyleForTeachMode(next));");
+    expect(panel).not.toContain("profileStyleForTeachMode");
   });
 });

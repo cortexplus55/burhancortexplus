@@ -26,6 +26,12 @@ export function useSelectedCockpitPrepId(): string | null {
   return value ? (value.preps[value.prepIndex]?.id ?? null) : null;
 }
 
+/** Ana ekranda seçili hazırlığın adı (öğretmen v3 karşılaması). Seçim yokken null. */
+export function useSelectedCockpitPrepTitle(): string | null {
+  const value = useContext(HomeSelectionContext);
+  return value ? (value.preps[value.prepIndex]?.title ?? null) : null;
+}
+
 /** Ana ekranda seçili hazırlığın seçili konusunun adı (Faz 11: "mini test" çipinin konusu). Seçim yokken null. */
 export function useSelectedCockpitTopic(): string | null {
   const value = useContext(HomeSelectionContext);

@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { ChatPanel } from "@/components/chat/chat-panel";
+import { TutorHistoryPanel } from "@/components/parity/tutor-history-panel";
 import { actionMarker } from "@/lib/ai/chat-material-link";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { FirstStepLauncher } from "@/components/parity/first-step-launcher";
@@ -273,9 +275,65 @@ const V2_CHECK_MESSAGES = [
   },
 ];
 
+/**
+ * Öğretmen v3 (`?ogretmen=v2&durum=takip`): sunucunun bugünkü damgalarıyla bir yanıt ("Belgeden", `[1]` atfı, kaynak
+ * işareti, "Kaynaklar:" bloğu, "Genel bilgiden" bölümü, takip soruları). Ekranda yalnız metin, soluk "Notunda geçmiyor"
+ * satırı ve sağa yaslı üç soru görünmeli.
+ */
+export const V3_FOLLOW_MESSAGES = [
+  { role: "user" as const, id: "0c0c0c0c-0c0c-4c0c-8c0c-0c0c0c0c0c11", content: "Fotosentezde ışığın görevi nedir?" },
+  {
+    role: "assistant" as const,
+    id: "0c0c0c0c-0c0c-4c0c-8c0c-0c0c0c0c0c12",
+    content: [
+      "#### Belgeden",
+      "",
+      "Fotosentezde ışık enerjisi **klorofil** tarafından soğurulur ve ==kimyasal enerjiye dönüştürülür== [1]. Bu iş yaprağın tilakoit zarlarında olur.",
+      "",
+      "> 📌 Sınav ipucu: Işığa bağlı evre tilakoitte, ışıktan bağımsız evre stromada gerçekleşir.",
+      "",
+      "#### Genel bilgiden — kaynak gösterilmez",
+      "",
+      "Bitkiler bu enerjiyi glikoz üretmek için kullanır; glikoz da hücrenin yakıtıdır.",
+      "",
+      "[[kaynak:Biyoloji notu|3|sayfa|/dokumanlar/ornek?sayfa=3]]",
+      "",
+      "Kaynaklar:",
+      "- [1] [Biyoloji notu · s.3](/dokumanlar/ornek)",
+      "[[sorular:Işığa bağlı evrede hangi ürünler oluşur?|Klorofil neden yeşil görünür?|Stroma ile tilakoit arasındaki fark nedir?]]",
+    ].join("\n"),
+  },
+];
+
+/** Öğretmen v3 karşılaması (`?ogretmen=v2&durum=karsilama`): "Başla"dan sonraki boş sohbet. */
+const V3_WELCOME = [
+  {
+    role: "assistant" as const,
+    content: "Merhaba Öğrenci! Bugün ne çalışmak istersin?",
+    local: true,
+  },
+];
+
+/** Fikstürün sesli mod yeri (`?konus=1`): "Konuş" düğmesi bunu açar; asıl sesli mod ayrı parçada. */
+function FixtureLiveTalk({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="cx-v3-capsule" role="status" data-testid="fixture-live-talk">
+      <div className="cx-v3-row" style={{ minHeight: 56 }}>
+        <span style={{ paddingInline: 12 }}>Sesli ders açık (örnek)</span>
+        <button type="button" className="cx-v3-chip" onClick={onClose}>
+          Sesli dersi kapat
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function AnaEkranFixture({
   conversation,
   teacherV2 = false,
+  welcome = false,
+  followUps = false,
+  liveTalk = false,
   plus,
   hasPrep,
   unanswered = false,
@@ -289,8 +347,14 @@ export function AnaEkranFixture({
   growth = false,
   quickCheck = false,
 }: {
-  /** `?ogretmen=v2`: öğretmen hissi bayrağı açık (Faz 11: iki anlatım, tepki çipleri, karşılama kartları). */
+  /** `?ogretmen=v2`: öğretmen hissi bayrağı açık (öğretmen v3 ekranı). */
   teacherV2?: boolean;
+  /** Öğretmen v3 karşılaması açık başlar (`&durum=karsilama`). */
+  welcome?: boolean;
+  /** Öğretmen v3: damgalı yanıt ve takip soruları (`&durum=takip`). */
+  followUps?: boolean;
+  /** Öğretmen v3: "Konuş" düğmesi ve sesli mod yeri (`&konus=1`). */
+  liveTalk?: boolean;
   /** Faz 11 (`?ogretmen=v2&durum=yoklama`): son yanıtta mini yoklama, formül, tablo, kod ve Sık hata kutusu. */
   quickCheck?: boolean;
   /** Faz 11C (`?buyume=1`): davet şeridi (bağlantı örnek). */
@@ -318,6 +382,8 @@ export function AnaEkranFixture({
   const heroFooter = conversation || hasPrep ? undefined : (
     <FirstStepLauncher firstName="Öğrenci" gradeLevel="12. sınıf" goalText="YKS hazırlık" />
   );
+  const [talking, setTalking] = useState(false);
+  const v3Messages = welcome ? V3_WELCOME : followUps ? V3_FOLLOW_MESSAGES : null;
   const panel = (
       <ChatPanel
         homeCockpit={cockpit.length ? <HomeCockpit aside={growth ? <InviteStrip url="https://cortexplus.app/kayit?ref=ORNEK" plan="free" /> : undefined} /> : undefined}
@@ -333,7 +399,9 @@ export function AnaEkranFixture({
         placeholder="Sor, konuş veya dosya gönder"
         initialConversationId={conversation ? (teacherV2 ? V2_CONVERSATION_ID : "fixture") : undefined}
         initialMessages={
-          conversation
+          teacherV2 && v3Messages
+            ? v3Messages
+            : conversation
             ? teacherV2
               ? quickCheck
                 ? V2_CHECK_MESSAGES
@@ -352,6 +420,10 @@ export function AnaEkranFixture({
         tutorStyleLabel="Adım adım"
         initialTutorStyle="step_by_step"
         teacherV2={teacherV2}
+        studentFirstName={teacherV2 ? "Öğrenci" : undefined}
+        feedbackEnabled={teacherV2}
+        onLiveTalk={teacherV2 && liveTalk ? () => setTalking(true) : undefined}
+        liveTalkSlot={teacherV2 && talking ? <FixtureLiveTalk onClose={() => setTalking(false)} /> : undefined}
       />
   );
   return (
@@ -363,6 +435,8 @@ export function AnaEkranFixture({
       account={account(planKind ?? plus, rights, quota)}
       entitlements={rights ? { firstLesson: rights === "taze" ? "open" : "done", examDaysLeft: 5 } : undefined}
     >
+      {/* Öğretmen v3: sayfadaki gibi geçmiş paneli (veriyi kendisi ister; e2e isteği karşılar). */}
+      {teacherV2 ? <TutorHistoryPanel activeConversationId={conversation ? V2_CONVERSATION_ID : null} /> : null}
       {cockpit.length ? <HomeSelectionProvider preps={cockpit}>{panel}</HomeSelectionProvider> : panel}
     </ParitySorShell>
   );
