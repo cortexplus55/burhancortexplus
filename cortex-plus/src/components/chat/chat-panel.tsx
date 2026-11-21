@@ -73,22 +73,40 @@ import { useStudentShellAccount } from "@/lib/student/student-shell-context";
 import { HOME_START_EVENT } from "@/lib/ui/home-events";
 import { MessageActions, type Rating } from "@/components/chat/message-actions";
 import { TutorReplyView } from "@/components/chat/tutor-reply-view";
-import { useSelectedCockpitPrepId } from "@/components/parity/home-selection";
+import { useSelectCockpitPrep, useSelectedCockpitPrepId, useSelectedCockpitTopic } from "@/components/parity/home-selection";
 import { SourceModePill } from "@/components/chat/source-mode-pill";
 import { TutorModeSwitcher } from "@/components/chat/tutor-mode-switcher";
-import { TeachStyleMenu } from "@/components/chat/teach-style-menu";
+import { TeachModeSwitch } from "@/components/chat/teach-mode-switch";
 import { TeacherDossierPanel } from "@/components/chat/teacher-dossier-panel";
 import { TeacherOpening } from "@/components/chat/teacher-opening";
+import { TeacherStartCards } from "@/components/chat/teacher-start-cards";
+import { TeacherThinking } from "@/components/chat/teacher-thinking";
 import { splitFinalQuestion } from "@/lib/learning/question-bubble";
 import {
   DEFAULT_TUTOR_STYLE,
-  GUIDED_TEACH_STYLE,
-  TEACH_STYLE_STORAGE_KEY,
-  parseTeachStyle,
+  TEACH_MODE_SUMMARY,
+  TEACH_MODE_TUTOR,
   parseTutorStyle,
-  type TeachStyle,
+  profileStyleForTeachMode,
+  teachModeFromStyle,
+  type TeachModeV2,
   type TutorStyle,
 } from "@/lib/learning/tutor-style";
+import { thinkingStatus } from "@/lib/teacher/thinking-status";
+import { quickCheckAnswerPrompt } from "@/lib/teacher/quick-check";
+import {
+  MISTAKE_ALREADY_LINE,
+  MISTAKE_NOTEBOOK_PATH,
+  MISTAKE_SAVED_LINE,
+  miniQuizTopic,
+  mistakeErrorLine,
+  postChatMistake,
+  questionBefore,
+  replyActions,
+  type MistakeStatus,
+} from "@/lib/teacher/reply-actions";
+import type { TutorReplyV2 } from "@/components/chat/tutor-reply-view";
+import type { TutorStartCard } from "@/lib/tutor/student-context";
 import { CHAT_UPLOAD_ACCEPT } from "@/lib/documents/upload-accept";
 import { freeLimitReachedLine, type FreeMeter } from "@/lib/billing/free-meters";
 import { beyondFreeMessage } from "@/lib/billing/free-reach";
@@ -106,6 +124,13 @@ import { useAutoGrow } from "@/lib/ui/use-auto-grow";
 import { createSendLock } from "@/lib/ui/send-lock";
 import "@/styles/parity-sor.css";
 import "@/styles/parity-shell.css";
+import "@/styles/teacher-v2-sohbet.css";
+
+/**
+ * İsteğin anlatım alanı (`tutorStyle`): bayrak kapalıyken ya da hazırlık sohbetinde bugünkü üç stil; Faz 11'den beri
+ * bayrak açıkken ana sohbette iki mod ("Adım Adım Öğret", "Hızlı Özet").
+ */
+type TeachStyle = TutorStyle | TeachModeV2;
 
 type Message = {
   role: "user" | "assistant";
@@ -119,6 +144,8 @@ type Message = {
   /** Fotoğraftan çözüm (23 Ekim 2026): kart olarak çizilir; `content` sohbete kaydedilen metin. */
   solve?: SolveDone;
   solveKey?: string;
+  /** Faz 11 (teacher.v2): çözülen fotoğrafın önizlemesi; çözüm kontrolü kartının küçük resmi. */
+  solveImage?: string;
   /**
    * Öğretmenin ilk sözü (8 Kasım 2026): "Başla"ya basınca model çağrısı olmadan yazılan karşılama. Kaydedilmez,
    * oylanmaz, devam önerisi çıkarmaz; öğrenci yazınca asıl sohbet başlar.
@@ -133,6 +160,12 @@ type Message = {
 
 function isImageName(name: string): boolean {
   return /\.(jpe?g|png|webp|heic|heif|gif)$/i.test(name);
+}
+
+/** Faz 11 (teacher.v2): öğretmen yanıtının sarmalayıcısı; bayrak kapalıyken DOM değişmez (yalnız çocuklar). */
+function V2ReplyFrame({ on, streaming, children }: { on: boolean; streaming: boolean; children: React.ReactNode }) {
+  if (!on) return <>{children}</>;
+  return <div className={cn("cx-v2-reply", streaming && "is-streaming")}>{children}</div>;
 }
 
 function SorTypingDots({ label }: { label?: string }) {
@@ -307,6 +340,7 @@ function ChatPanelSession({
   initialTutorStyle,
   followUser = false,
   teacherV2 = false,
+  conversationTitle,
   quotaHint,
   starterPrompts,
   feedbackEnabled = false,
@@ -364,6 +398,8 @@ function ChatPanelSession({
    * hızlı eylemleri) varsa genel devam önerileri gösterilmez. Kapalıyken bugünkü davranış aynen.
    */
   teacherV2?: boolean;
+  /** Faz 11 (teacher.v2): açılan kayıtlı sohbetin başlığı; "mini test" çipinin konusu. */
+  conversationTitle?: string | null;
   quotaHint?: string | null;
   starterPrompts?: { label: string; prompt: string }[];
   /**
@@ -386,7 +422,9 @@ function ChatPanelSession({
 }) {
   const shellAccount = useStudentShellAccount();
   // Ana ekranda seçili hazırlık (15 Kasım 2026): sohbet o hazırlığın bağlamında başlar; hazırlık sohbetinde prepId geçerli.
-  const contextPrepId = useSelectedCockpitPrepId();
+  const cockpitPrepId = useSelectedCockpitPrepId();
+  const cockpitTopic = useSelectedCockpitTopic();
+  const selectCockpitPrep = useSelectCockpitPrep();
   // Kurucuda kota ve mesaj başı maliyet satırı yok: hiçbir mesaj kredi düşürmüyor.
   const founder = shellAccount?.isAdmin === true;
   const allowAdvanced = shellAccount?.audience === "sigma";
@@ -405,26 +443,33 @@ function ChatPanelSession({
     parseTutorStyle(initialTutorStyle) || DEFAULT_TUTOR_STYLE,
   );
   /**
-   * Faz 13 PR-1 (teacher.v2, yalnız ana sohbet): dört anlatım, varsayılan Rehberli. Seçim tarayıcıda; öbür üç stil
-   * profile de yazılır. Bayrak kapalıyken ya da hazırlık sohbetinde kullanılmaz (bugünkü `tutorStyle`).
+   * Faz 11 (teacher.v2, yalnız ana sohbet, 21 Kasım 2026): iki anlatım, "Adım Adım Öğret" (varsayılan) ve "Hızlı Özet".
+   * Başlangıç profilin stilinden (`teachModeFromStyle`); seçim bugünkü anahtarın yolundan profile yazılır
+   * (`profileStyleForTeachMode`). Bayrak kapalıyken ya da hazırlık sohbetinde kullanılmaz (bugünkü `tutorStyle`).
    */
   const v2Main = teacherV2 && !prepId;
   /** "Neye baktım" yalnız bayrak açıkken ana sohbette (giriş yapmış öğrenci; misafirde dosya yok). */
   const dossierPanel = v2Main;
-  const [teachStyle, setTeachStyle] = useState<TeachStyle>(GUIDED_TEACH_STYLE);
-  useEffect(() => {
-    if (!v2Main) return;
-    try {
-      const saved = parseTeachStyle(window.localStorage.getItem(TEACH_STYLE_STORAGE_KEY));
-      if (saved) setTeachStyle(saved);
-    } catch {
-      /* depolama kapalı: Rehberli kalır */
-    }
-  }, [v2Main]);
+  const [teachStyle, setTeachStyle] = useState<TeachModeV2>(() => teachModeFromStyle(initialTutorStyle));
   /** Ekrandaki çiplerin ve isteğin stili: bayrak açıkken seçilen anlatım, değilse bugünkü stil. */
   const activeStyle: TeachStyle = v2Main ? teachStyle : tutorStyle;
-  /** Yanıt görünümü üç stili tanır; Rehberli, cevabı saklayan Sokratik çizimle gösterilir. */
-  const replyStyle: TutorStyle = activeStyle === GUIDED_TEACH_STYLE ? "hints_first" : activeStyle;
+  /**
+   * Yanıt görünümü üç stili tanır: Adım Adım Öğret cevabı saklayan (Sokratik) makineyle, Hızlı Özet doğrudan çözümle
+   * çalışır (sunucudaki `resolveTeachModeV2` ile aynı eşleme).
+   */
+  const replyStyle: TutorStyle = v2Main ? (teachStyle === TEACH_MODE_SUMMARY ? "direct_solve" : "hints_first") : tutorStyle;
+  /** Deftere ekleme durumu (mesaj kimliğine göre); istek sürerken ikinci dokunuş yeni istek açmaz. */
+  const [mistakeStatus, setMistakeStatus] = useState<Record<string, MistakeStatus>>({});
+  const mistakeInFlight = useRef(new Set<string>());
+  /** Sohbette çözülen fotoğrafların önizlemeleri (kontrol kartının küçük resmi); bileşen kapanınca bırakılır. */
+  const solveImageUrls = useRef<string[]>([]);
+  useEffect(
+    () => () => {
+      for (const url of solveImageUrls.current) URL.revokeObjectURL(url);
+      solveImageUrls.current = [];
+    },
+    [],
+  );
   const [loading, setLoading] = useState(false);
   const [paywall, setPaywall] = useState(false);
   /** 402'nin kodu: hangi ücretsiz sayacın dolduğu (mesaj ya da fotoğraf). */
@@ -569,14 +614,10 @@ function ChatPanelSession({
     };
   }, [variant]);
 
-  function persistTeachStyle(next: TeachStyle) {
+  /** Faz 11: iki moddan biri seçilir; profile en yakın eski değer yazılır (bugünkü anahtarın PATCH'i). */
+  function persistTeachMode(next: TeachModeV2) {
     setTeachStyle(next);
-    try {
-      window.localStorage.setItem(TEACH_STYLE_STORAGE_KEY, next);
-    } catch {
-      /* depolama kapalı: seçim bu sekmede geçerli */
-    }
-    if (next !== GUIDED_TEACH_STYLE) persistTutorStyle(next);
+    persistTutorStyle(profileStyleForTeachMode(next));
   }
 
   function persistTutorStyle(next: TutorStyle) {
@@ -674,8 +715,16 @@ function ChatPanelSession({
     const box = messagesScrollRef.current;
     if (!box) return;
     stickToEndRef.current = true;
+    /*
+      Faz 11 (teacher.v2): akış sürerken her parça kutuyu sona yapıştırıyor ve 250 ms'lik "programın kaydırması" penceresini
+      yeniliyordu; pencere hiç kapanmadığı için öğrencinin yukarı kaydırması yok sayılıyor, ekran zorla aşağı iniyordu.
+      Program kutuyu yalnız aşağı kaydırır: yukarı doğru kaydırma pencere açıkken de öğrencinindir.
+    */
+    let lastTop = box.scrollTop;
     const onScroll = () => {
-      if (Date.now() < programmaticScrollRef.current) return;
+      const upward = box.scrollTop < lastTop - 1;
+      lastTop = box.scrollTop;
+      if (Date.now() < programmaticScrollRef.current && !(v2Main && upward)) return;
       stickToEndRef.current = box.scrollHeight - box.scrollTop - box.clientHeight < 120;
       setAwayFromEnd(!stickToEndRef.current);
     };
@@ -683,6 +732,7 @@ function ChatPanelSession({
       if (!stickToEndRef.current || box.scrollHeight <= box.clientHeight + 1) return;
       programmaticScrollRef.current = Date.now() + 250;
       box.scrollTop = box.scrollHeight;
+      lastTop = box.scrollTop;
     };
     box.addEventListener("scroll", onScroll, { passive: true });
     const mutations = typeof MutationObserver === "undefined" ? null : new MutationObserver(pin);
@@ -696,7 +746,7 @@ function ChatPanelSession({
       mutations?.disconnect();
       sizes?.disconnect();
     };
-  }, [threadOpen]);
+  }, [threadOpen, v2Main]);
 
   useEffect(() => {
     if (!isMinimalSor && !isParitySor) return;
@@ -708,11 +758,13 @@ function ChatPanelSession({
     const grew = messages.length !== lastLengthRef.current;
     lastLengthRef.current = messages.length;
     if (followUser && !grew) return;
+    // Faz 11 (teacher.v2): akan yanıt öğrenciyi sona çekmez; sona yapışıksa gözlemci zaten indirir.
+    if (v2Main && !grew) return;
     stickToEndRef.current = true;
     setAwayFromEnd(false);
     programmaticScrollRef.current = Date.now() + 700;
     scrollThreadToEnd(true);
-  }, [messages, loading, isMinimalSor, isParitySor, scrollThreadToEnd, followUser]);
+  }, [messages, loading, isMinimalSor, isParitySor, scrollThreadToEnd, followUser, v2Main]);
 
   // Faz 6A: yanıt bitince ekran okuyucuya tek duyuru (akışta parça parça okunmaz).
   useEffect(() => {
@@ -1018,7 +1070,7 @@ function ChatPanelSession({
     olarak çizilir ve sohbete metin olarak kaydedilir (sunucu); sonraki mesajlar onu bağlam olarak okur. Fotoğraf
     belgeye yüklenmez, sonraki mesajlarla da gitmez. İlk çözüm gelince yazma kutusu açılır; denetim arkada sürer.
   */
-  async function solvePhoto(file: File, note: string) {
+  async function solvePhoto(file: File, note: string, intent?: "solve" | "check") {
     const key = crypto.randomUUID();
     const controller = new AbortController();
     abortRef.current?.abort();
@@ -1026,11 +1078,24 @@ function ChatPanelSession({
     setLoading(true);
     setStatus(null);
     setSolveStage("solving");
-    setMessages((prev) => [...prev, { role: "user", content: note ? `📷 ${note}` : "📷 Fotoğraftaki soru" }]);
+    // Faz 11 (teacher.v2): "Çözümümü kontrol et" seçildiyse öğrencinin balonu da bunu söyler; fotoğraf kontrol kartında küçük resim.
+    const label = intent === "check" ? "📷 Çözümümü kontrol et" : "📷 Fotoğraftaki soru";
+    setMessages((prev) => [...prev, { role: "user", content: note ? `📷 ${note}` : label }]);
+    let solveImage: string | undefined;
+    if (v2Main && typeof URL !== "undefined" && typeof URL.createObjectURL === "function") {
+      solveImage = URL.createObjectURL(file);
+      solveImageUrls.current.push(solveImage);
+    }
     let phase: SolvePhase = { kind: "solving", stage: "solving" };
     let placed = false;
     const place = (done: SolveDone) => {
-      const message: Message = { role: "assistant", content: solutionMarkdown(done.solution, done.note), solve: done, solveKey: key };
+      const message: Message = {
+        role: "assistant",
+        content: solutionMarkdown(done.solution, done.note),
+        solve: done,
+        solveKey: key,
+        ...(solveImage ? { solveImage } : {}),
+      };
       setMessages((prev) => {
         const at = prev.findIndex((m) => m.solveKey === key);
         if (at < 0) return [...prev, message];
@@ -1041,7 +1106,7 @@ function ChatPanelSession({
     };
     try {
       await requestSolve(
-        { file, text: note, toChat: true, conversationId: conversationId.current, signal: controller.signal },
+        { file, text: note, toChat: true, conversationId: conversationId.current, signal: controller.signal, ...(v2Main && intent ? { intent } : {}) },
         (event) => {
           if (event.type === "saved") {
             conversationId.current = event.conversationId;
@@ -1117,6 +1182,8 @@ function ChatPanelSession({
     advanced = false,
     imageDocumentId?: string,
     allowWhileLoading = false,
+    /** Faz 11: karşılama kartı bir hazırlığa bağlıysa ilk mesaj o hazırlığın bağlamında gider (seçim sonraki çizimde gelir). */
+    options?: { contextPrepId?: string },
   ) {
     if (!text.trim() || (loading && !allowWhileLoading)) return;
     // Aynı anda ikinci istek yok (öneri çipine çift tık, art arda Enter): kilit istek bitince ya da hata olunca açılır.
@@ -1146,6 +1213,7 @@ function ChatPanelSession({
     }
 
     const startedAt = Date.now();
+    const contextPrepId = options?.contextPrepId ?? cockpitPrepId;
     try {
       const res = await fetch("/api/ai/chat", {
         method: "POST",
@@ -1346,7 +1414,10 @@ function ChatPanelSession({
       }
       return next;
     });
-    void send(lastUser.content);
+    // Faz 11 (teacher.v2): kayıtlı mesaj ders etiketini ("[Ders] …") zaten taşıyor; `send` yeniden eklerse soru iki
+    // etiketle gidiyordu. Etiket yalnız `send` yeniden ekleyecekse atılır.
+    const relabels = v2Main && variant === "parity" && showSubjectPicker && Boolean(subject) && !activeDocumentId.current;
+    void send(relabels ? displayUserText(lastUser.content) : lastUser.content);
   }
 
   // Sesli sohbette yeni cevap bitince sesli okunur, sonra yeniden dinlenir.
@@ -1477,6 +1548,107 @@ function ChatPanelSession({
     : useDocuments
       ? "Notunu tarıyor…"
       : "Düşünüyor…";
+
+  /*
+    Faz 11 (teacher.v2, ana sohbet): öğretmenin bağlamsal düşünme satırı (`thinkingStatus`; modelsiz, aynı girdi aynı
+    cümle). Fotoğraf çözülürken iki çözüm karşılaştırılıyorsa çözücünün kendi aşaması daha doğru söyler.
+  */
+  const lastUserMessage = [...messages].reverse().find((item) => item.role === "user");
+  const v2ThinkingText =
+    solveStage === "checking"
+      ? SOLVE_STAGE_LABEL.checking
+      : thinkingStatus({
+          hasImage: solveStage != null,
+          hasDocument: Boolean(activeDocumentId.current) || useDocuments,
+          message: lastUserMessage ? displayUserText(lastUserMessage.content) : null,
+          mode: teachStyle,
+        });
+
+  /** "📝 Bunu Yanlışlar Defterime ekle": öğretmen yanıtı ve öncesindeki soru deftere düşer; beklerken ve sonra çip kilitli. */
+  async function addToMistakes(messageId: string) {
+    const conversation = conversationId.current;
+    if (!conversation || mistakeInFlight.current.has(messageId) || mistakeStatus[messageId]) return;
+    mistakeInFlight.current.add(messageId);
+    setMistakeStatus((prev) => ({ ...prev, [messageId]: "saving" }));
+    const result = await postChatMistake({ conversationId: conversation, messageId });
+    mistakeInFlight.current.delete(messageId);
+    if (result.ok) {
+      setMistakeStatus((prev) => ({ ...prev, [messageId]: result.already ? "already" : "saved" }));
+      toast.success(result.already ? MISTAKE_ALREADY_LINE : MISTAKE_SAVED_LINE, {
+        action: { label: "Defteri aç", onClick: () => router.push(MISTAKE_NOTEBOOK_PATH) },
+      });
+      return;
+    }
+    setMistakeStatus((prev) => {
+      const next = { ...prev };
+      delete next[messageId];
+      return next;
+    });
+    toast.error(mistakeErrorLine(result.status));
+  }
+
+  /**
+   * Faz 11: öğretmen yanıtının öğretmen hâli. Çipler ve etkileşimli yoklama yalnız son yanıtta ve akış bittikten
+   * sonra; "Sıra sende" kartı Adım Adım Öğret'te. Bayrak kapalıyken undefined (bugünkü görünüm).
+   */
+  function v2ReplyFor(message: Message, index: number): TutorReplyV2 | undefined {
+    if (!v2Main) return undefined;
+    const live = index === messages.length - 1 && !loading;
+    const next = messages[index + 1];
+    const status = message.id ? (mistakeStatus[message.id] ?? null) : null;
+    return {
+      askCard: teachStyle === TEACH_MODE_TUTOR,
+      interactiveCheck: live,
+      answeredWith: next?.role === "user" ? next.content : null,
+      onCheckAnswer: (option) => void send(quickCheckAnswerPrompt(option)),
+      actions: live
+        ? replyActions({
+            content: message.content,
+            mode: teachStyle,
+            messageId: message.id,
+            conversationId: conversationId.current,
+            mistake: status,
+            quizTopic: miniQuizTopic({ conversationTitle, cockpitTopic }),
+            question: questionBefore(messages, index),
+            onMistake: () => {
+              if (message.id) void addToMistakes(message.id);
+            },
+          })
+        : null,
+      note:
+        live && (status === "saved" || status === "already") ? (
+          <p className="cx-v2-note" role="status">
+            {status === "already" ? MISTAKE_ALREADY_LINE : MISTAKE_SAVED_LINE}.{" "}
+            <Link href={MISTAKE_NOTEBOOK_PATH}>Yanlışlar Defterini aç</Link>
+          </p>
+        ) : null,
+    };
+  }
+
+  /** Karşılama kartı: fotoğraf kartı sohbetin fotoğraf seçicisini açar; öbürleri (hazırlığa bağlıysa önce o seçilir) mesaj olur. */
+  function chooseStartCard(card: TutorStartCard) {
+    if (card.kind === "photo") {
+      openComposerDialog("image_upload");
+      return;
+    }
+    if (card.prepId) selectCockpitPrep(card.prepId);
+    void send(card.prompt, false, undefined, false, card.prepId ? { contextPrepId: card.prepId } : undefined);
+  }
+
+  /** Faz 11: eklenen fotoğrafla iki seçim; düz "Gönder" bugünkü gibi çözücüye gider ve sunucu kendisi karar verir. */
+  async function sendPhotoIntent(intent: "solve" | "check") {
+    const file = pendingFile;
+    if (!file || !file.type.startsWith("image/")) return;
+    if (!composerLock.tryAcquire()) return;
+    try {
+      const text = input.trim();
+      clearPending();
+      setInput("");
+      await solvePhoto(file, text, intent);
+    } finally {
+      composerLock.release();
+    }
+  }
 
   function appendTranscript(text: string) {
     if (!text.trim()) return;
@@ -1685,7 +1857,7 @@ function ChatPanelSession({
   if (isParitySor) {
     return (
       <>
-        <div ref={viewRef} className={cn("cp-sor-view", examChrome && "cp-exam-chat")}>
+        <div ref={viewRef} className={cn("cp-sor-view", examChrome && "cp-exam-chat", v2Main && "cx-teacher-v2")}>
           {showParityThread && !examChrome ? (
             <div className="cp-thread-bar">
               <button type="button" onClick={resetParityThread}>
@@ -1803,8 +1975,9 @@ function ChatPanelSession({
                       <div className="cp-chat-solve">
                         <SolutionView
                           phase={message.solve}
-                          initialTutorStyle={tutorStyle}
+                          initialTutorStyle={v2Main ? replyStyle : tutorStyle}
                           onDiscuss={(prompt) => void send(prompt)}
+                          imageSrc={v2Main ? (message.solveImage ?? null) : undefined}
                         />
                         <MessageActions
                           content={message.content}
@@ -1821,17 +1994,20 @@ function ChatPanelSession({
                             {solvedLabel(message.solvedMs)}
                           </p>
                         ) : null}
-                        <TutorReplyView
-                          content={loading && index === messages.length - 1 ? maskStreamingMarkdown(message.content) : message.content}
-                          variant="parity"
-                          disabled={loading}
-                          onPrompt={(prompt) => void send(prompt)}
-                          hideChips={!showSuggestions}
-                          tutorStyle={replyStyle}
-                          quickActions={index === messages.length - 1}
-                          maxChips={teacherV2 ? ONE_MOVE_MAX_CHIPS : undefined}
-                          ladderChips={v2Main && (activeStyle === GUIDED_TEACH_STYLE || activeStyle === "hints_first")}
-                        />
+                        {/* Faz 11: akan yanıt yumuşak belirir (yalnız CSS); sarmalayıcı yalnız bayrak açıkken. */}
+                        <V2ReplyFrame on={v2Main} streaming={loading && index === messages.length - 1}>
+                          <TutorReplyView
+                            content={loading && index === messages.length - 1 ? maskStreamingMarkdown(message.content) : message.content}
+                            variant="parity"
+                            disabled={loading}
+                            onPrompt={(prompt) => void send(prompt)}
+                            hideChips={!showSuggestions}
+                            tutorStyle={replyStyle}
+                            quickActions={index === messages.length - 1}
+                            maxChips={teacherV2 ? ONE_MOVE_MAX_CHIPS : undefined}
+                            v2={v2ReplyFor(message, index)}
+                          />
+                        </V2ReplyFrame>
                         <MessageActions
                           content={message.content}
                           messageId={feedbackEnabled ? message.id : undefined}
@@ -1848,6 +2024,9 @@ function ChatPanelSession({
                   </>
                 ) : loading && examChrome ? (
                   <SorTypingDots label={thinkingLabel} />
+                ) : v2Main && loading && index === messages.length - 1 ? (
+                  // Faz 11: düşünme satırı yanıtın kendi balonunda; ilk parça gelince aynı balonda metne döner (ikinci balon yok).
+                  <TeacherThinking text={v2ThinkingText} />
                 ) : null;
 
                 if (examChrome) {
@@ -1893,6 +2072,10 @@ function ChatPanelSession({
                 </div>
                 );
               })}
+              {/* Faz 11 (teacher.v2): öğretmen ilk sözü söyledi, konuşma henüz boş → öğrencinin kayıtlarından başlangıç kartları. */}
+              {v2Main && !examChrome && !loading && messages.length > 0 && messages.every((item) => item.local) ? (
+                <TeacherStartCards onChoose={chooseStartCard} />
+              ) : null}
               </div>
 
               {/* Kayıtlı sohbet öğrencinin sorusuyla bitiyorsa (cevap yazılamadan bağlantı koptu ya da sayfa kapandı)
@@ -1939,15 +2122,15 @@ function ChatPanelSession({
               {!examChrome && loading &&
               (messages.length === 0 ||
                 messages[messages.length - 1]?.role === "user" ||
-                messages[messages.length - 1]?.content === "") ? (
+                (!v2Main && messages[messages.length - 1]?.content === "")) ? (
                 <div className="cp-sor-msg-assistant">
-                  <SorTypingDots label={thinkingLabel} />
+                  {v2Main ? <TeacherThinking text={v2ThinkingText} /> : <SorTypingDots label={thinkingLabel} />}
                 </div>
               ) : null}
               <div ref={messagesEndRef} className="h-px shrink-0" aria-hidden />
             </div>
           ) : null}
-          {followUser && showParityThread ? (
+          {(followUser || v2Main) && showParityThread ? (
             <>
               <p className="sr-only" aria-live="polite">
                 {doneNote}
@@ -2075,7 +2258,7 @@ function ChatPanelSession({
                 ) : null}
                 {v2Main ? (
                   <>
-                    <TeachStyleMenu value={teachStyle} onChange={persistTeachStyle} disabled={loading} />
+                    <TeachModeSwitch value={teachStyle} onChange={persistTeachMode} disabled={loading} />
                     {/* PR-2: öğretmenin okuduğu kayıtlar ("Neye baktım"); açılınca okunur. */}
                     {dossierPanel ? <TeacherDossierPanel /> : null}
                   </>
@@ -2176,6 +2359,18 @@ function ChatPanelSession({
                       </button>
                     </div>
                   )}
+                  {/* Faz 11 (teacher.v2, ürün sahibinin kararı "kendiliğinden + düğme"): "Gönder" fotoğrafı bugünkü gibi
+                      çözücüye yollar, sunucu kendisi karar verir; iki seçim isteği açıkça söyler. */}
+                  {v2Main && pendingFile?.type.startsWith("image/") ? (
+                    <div className="cx-v2-photo-intents" role="group" aria-label="Fotoğrafla ne yapalım?">
+                      <button type="button" className="cx-v2-chip" disabled={loading} onClick={() => void sendPhotoIntent("solve")}>
+                        Soruyu çöz
+                      </button>
+                      <button type="button" className="cx-v2-chip" disabled={loading} onClick={() => void sendPhotoIntent("check")}>
+                        Çözümümü kontrol et
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
               {mathOpen ? (

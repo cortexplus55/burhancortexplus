@@ -25,3 +25,25 @@ export function useSelectedCockpitPrepId(): string | null {
   const value = useContext(HomeSelectionContext);
   return value ? (value.preps[value.prepIndex]?.id ?? null) : null;
 }
+
+/** Ana ekranda seçili hazırlığın seçili konusunun adı (Faz 11: "mini test" çipinin konusu). Seçim yokken null. */
+export function useSelectedCockpitTopic(): string | null {
+  const value = useContext(HomeSelectionContext);
+  if (!value) return null;
+  return value.preps[value.prepIndex]?.topics[value.topicIndex]?.label ?? null;
+}
+
+/**
+ * Hazırlığı kimliğiyle seçer (Faz 11: karşılama kartı bir hazırlığa bağlıysa ana ekranın seçimi o hazırlığa gelir).
+ * Ana ekran dışında ya da hazırlık listede yoksa false.
+ */
+export function useSelectCockpitPrep(): (prepId: string) => boolean {
+  const value = useContext(HomeSelectionContext);
+  return (prepId: string) => {
+    if (!value) return false;
+    const index = value.preps.findIndex((prep) => prep.id === prepId);
+    if (index < 0) return false;
+    if (index !== value.prepIndex) value.selectPrep(index);
+    return true;
+  };
+}

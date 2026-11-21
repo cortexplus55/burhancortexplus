@@ -272,6 +272,8 @@ export default async function OgretmenPage({
         initialTutorStyle={style}
         followUser={uiOgretmen}
         teacherV2={teacherV2}
+        // Faz 11: "mini test" çipinin konusu; son sohbetlerin zaten okunan başlığından (yeni sorgu yok).
+        conversationTitle={teacherV2 && conversationId ? (conversations.find((item) => item.id === conversationId)?.title ?? null) : null}
       />
   );
   const body = cockpit.length ? <HomeSelectionProvider preps={cockpit}>{panel}</HomeSelectionProvider> : panel;

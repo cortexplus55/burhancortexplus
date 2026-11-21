@@ -1,0 +1,342 @@
+/*
+ * Faz 11 · öğretmen sohbeti (teacher.v2, ana sohbet, 21 Kasım 2026). Yalnız bayrak açıkken çizilen parçalar:
+ * anlatım anahtarı, düşünme satırı, akan yanıtın belirmesi, tepki çipleri, mini yoklama (canlı kara tahta), karşılama
+ * kartları, fotoğraf seçimi. Değerler tokens.css'teki --cx-*'tan; iki temada aynı kurallar (açık tema değerleri
+ * token'ların kendisinde). Bayrak kapalıyken bu sınıfların hiçbiri DOM'da yok.
+ */
+
+/* --- Anlatım anahtarı: bugünkü hap; açık temada seçili hap okunur (eski renk karışımı 3,3:1 kalıyordu) ------------- */
+:root:not(.dark) .cx-v2-mode .cp-tutor-mode-pill.is-on {
+  background: var(--cx-brand-weak);
+  color: var(--cx-text-brand);
+}
+
+/* --- Düşünme satırı: tek satır, üç nokta; hareket azaltmada durur ------------------------------------------------ */
+.cx-v2-thinking {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 24px;
+  color: var(--cx-text-secondary);
+  font: var(--cx-t-body-14);
+}
+
+.cx-v2-thinking-text {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.cx-v2-thinking-dots {
+  display: inline-flex;
+  flex: none;
+  gap: 4px;
+}
+
+.cx-v2-thinking-dots > span {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-text-brand);
+  opacity: 0.35;
+  animation: cx-v2-dot 1.2s ease-in-out infinite;
+}
+
+.cx-v2-thinking-dots > span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.cx-v2-thinking-dots > span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes cx-v2-dot {
+  0%,
+  80%,
+  100% {
+    opacity: 0.35;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+
+/* --- Akan yanıt: balon bir kez solarak gelir; yazılan son satır yumuşak belirir (yer değiştirme yok) ---------------- */
+.cx-teacher-v2 .cp-sor-msg-assistant {
+  min-width: 0;
+  overflow-wrap: break-word;
+  animation: cx-v2-appear var(--cx-dur-title) var(--cx-ease-out) both;
+}
+
+@keyframes cx-v2-appear {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.cx-v2-reply {
+  min-width: 0;
+}
+
+.cx-v2-reply.is-streaming {
+  -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 1.4em), rgb(0 0 0 / 0.45) 100%);
+  mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 1.4em), rgb(0 0 0 / 0.45) 100%);
+}
+
+/* Formül, tablo ve kod kendi kutusunda kayar; sayfa yana taşmaz. */
+.cx-teacher-v2 .cp-md-table-wrap,
+.cx-teacher-v2 .cp-md-formula,
+.cx-teacher-v2 .cp-sor-msg-assistant pre {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.cx-teacher-v2 .cp-md-formula .katex-display {
+  margin: 0;
+}
+
+/* --- Tepki çipleri: tek sıra, cam değil zayıf dolgu (ekranın marka eylemi yazma alanında) -------------------------- */
+.cx-v2-chips {
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.cp-tutor-chip.cx-v2-chip,
+.cx-v2-photo-intents .cx-v2-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  max-width: 100%;
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-bg-2);
+  color: var(--cx-text-primary);
+  font: var(--cx-t-label-13);
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color var(--cx-dur-color) ease,
+    color var(--cx-dur-color) ease;
+}
+
+.cp-tutor-chip.cx-v2-chip:hover:not(:disabled),
+.cx-v2-photo-intents .cx-v2-chip:hover:not(:disabled) {
+  background: var(--cx-bg-3);
+}
+
+.cp-tutor-chip.cx-v2-chip:focus-visible,
+.cx-v2-photo-intents .cx-v2-chip:focus-visible,
+.cx-v2-option:focus-visible,
+.cx-v2-start:focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}
+
+/* Kilitli (bekliyor ya da deftere eklendi): renk değil imleç değişir; yazı okunur kalır. */
+.cp-tutor-chip.cx-v2-chip:disabled,
+.cx-v2-photo-intents .cx-v2-chip:disabled {
+  opacity: 1;
+  cursor: default;
+  color: var(--cx-text-secondary);
+}
+
+.cx-v2-chip[aria-busy="true"] {
+  cursor: progress;
+}
+
+.cx-v2-note {
+  margin: 8px 0 0;
+  color: var(--cx-text-secondary);
+  font: var(--cx-t-body-14);
+}
+
+.cx-v2-note a {
+  color: var(--cx-text-brand);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* --- Mini yoklama (canlı kara tahta): kart, soru, şıklar (tasarım sisteminin "Şık"ı) --------------------------------- */
+.cx-v2-check {
+  margin: 12px 0 0;
+  padding: 16px;
+  border: 1px solid var(--cx-border);
+  border-radius: var(--cx-radius-m);
+  background: var(--cx-bg-0);
+}
+
+.cx-v2-check-kicker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 6px;
+  color: var(--cx-text-brand);
+  font: var(--cx-t-meta-s);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.cx-v2-check-q {
+  margin: 0 0 12px;
+  color: var(--cx-text-primary);
+  font: var(--cx-t-title-s);
+}
+
+.cx-v2-check-options {
+  display: grid;
+  gap: 10px;
+}
+
+.cx-v2-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 8px 20px 8px 8px;
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-bg-1);
+  color: var(--cx-text-secondary);
+  font: var(--cx-t-label-15);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color var(--cx-dur-color) ease,
+    color var(--cx-dur-color) ease;
+}
+
+.cx-v2-option:hover:not(:disabled),
+.cx-v2-option[data-cx-option="selected"] {
+  background: var(--cx-bg-2);
+  color: var(--cx-text-primary);
+}
+
+.cx-v2-option[data-cx-option="selected"] {
+  font-weight: 600;
+}
+
+.cx-v2-option:disabled {
+  cursor: default;
+}
+
+.cx-v2-option-letter {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-bg-2);
+  color: var(--cx-text-secondary);
+  font: var(--cx-t-meta-m);
+}
+
+.cx-v2-option-letter svg {
+  width: 18px;
+  height: 18px;
+}
+
+.cx-v2-option[data-cx-option="selected"] .cx-v2-option-letter {
+  background: var(--cx-brand-strong);
+  color: var(--cx-text-on-brand);
+}
+
+.cx-v2-option-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* --- Karşılama kartları: konuşma boşken, öğretmenin ilk sözünün altında ------------------------------------------- */
+.cx-v2-starts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  max-width: min(94%, 44rem);
+  margin: 4px 0 12px;
+}
+
+@media (min-width: 640px) {
+  .cx-v2-starts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.cx-v2-start {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  min-height: 56px;
+  padding: 12px 16px;
+  border: 0;
+  border-radius: var(--cx-radius-l);
+  background: var(--cx-bg-1);
+  color: var(--cx-text-primary);
+  font: var(--cx-t-label-15);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--cx-dur-color) ease;
+}
+
+.cx-v2-start:hover {
+  background: var(--cx-bg-2);
+}
+
+.cx-v2-start-emoji {
+  flex: none;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.cx-v2-start-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* --- Fotoğraf: "Soruyu çöz" / "Çözümümü kontrol et" ---------------------------------------------------------------- */
+.cx-v2-photo-intents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* --- Telefon: dokunma alanı 44 px --------------------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  .cp-tutor-chip.cx-v2-chip,
+  .cx-v2-photo-intents .cx-v2-chip {
+    min-height: 44px;
+  }
+
+  /* Bugünkü çip sırası telefonda yana kayıyor; üç tepki çipi saklanmasın diye alt satıra iner. */
+  .cp-tutor-chips.cx-v2-chips {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    padding-bottom: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cx-v2-thinking-dots > span {
+    animation: none;
+    opacity: 0.7;
+  }
+
+  .cx-teacher-v2 .cp-sor-msg-assistant {
+    animation: none;
+  }
+}
