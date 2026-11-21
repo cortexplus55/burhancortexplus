@@ -31,6 +31,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { FounderBadge } from "@/components/student/founder-chip";
 import { DialogLink } from "@/components/parity/dialog-link";
 import { WorkCapacityCard } from "@/components/profile/work-capacity-card";
+import { TutorMemoryCard } from "@/components/settings/tutor-memory-card";
 import "@/styles/report-card.css";
 
 export const metadata = { title: "Ayarlar" };
@@ -148,6 +149,10 @@ export default async function AyarlarPage() {
             ]}
           />
         </Group>
+
+        {/* Öğretmen v3 (teacher.v2): öğretmen notları. Sorgu bütçesine girmez; bileşen notları açılınca uçtan ister,
+            bayrak kapalıyken uç 404 döner ve bölüm hiç görünmez. */}
+        <TutorMemoryCard />
 
         <Group
           title="Plan ve kullanım"

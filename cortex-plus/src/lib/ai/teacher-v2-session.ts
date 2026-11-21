@@ -15,11 +15,17 @@ import {
   type TutorStyle,
 } from "@/lib/learning/tutor-style";
 import { asksNewExercise, followUpKind, looksLikeProblem, type TurnHistoryItem, type TurnPlan } from "@/lib/learning/tutor-turn";
+import { extractFollowUps } from "@/lib/teacher/follow-ups";
+import { moreCommandFromMessage } from "@/lib/teacher/more-commands";
 import { parseQuickCheck, QUICK_CHECK_RULE } from "@/lib/teacher/quick-check";
 import {
+  DONT_KNOW_LINE,
+  guessLine,
+  hedgedGuess,
   PRIVATE_TUTOR_PACING,
   QUICK_SUMMARY_RULE,
   QUICK_SUMMARY_TURN_LINE,
+  saysDontKnow,
   TUTOR_FIRST_PROBLEM_LINE,
   TUTOR_REVEAL_LINE,
   tutorLadderLine,
@@ -124,11 +130,23 @@ const CONFIRMATION = /^[\s*_>]*(?:doğru(?!\s+değil)|evet|tam isabet|aynen|hari
 /** Bir cevap denemesi kısadır: soruya verilen cevap tek satırlık bir sonuç, şık ya da kısa bir açıklamadır. */
 const ANSWER_MAX_WORDS = 25;
 
+/**
+ * Öğrenci öğretmenin yanıtının altındaki takip sorularından birine dokundu mu (öğretmen v3): o mesaj yeni bir sorudur,
+ * öğretmenin sorusuna cevap değildir.
+ */
+export function tappedFollowUp(userText: string, tutorText: string): boolean {
+  const key = normalizeQuestion(textOf(userText));
+  if (!key) return false;
+  return extractFollowUps(textOf(tutorText)).questions.some((question) => normalizeQuestion(question) === key);
+}
+
 /** Öğrencinin mesajı öğretmenin son sorusuna verilmiş bir cevap mı. */
 export function isAnswerTo(userText: string, tutorText: string): boolean {
   const text = textOf(userText).trim();
   if (!text || !tutorQuestions(tutorText).length) return false;
   if (followUpKind(text) || asksNewExercise(text) || asksDirectAnswer(text)) return false;
+  // Öğretmen v3: "Daha fazla" komutu ve takip sorusu dokunuşu cevap değildir.
+  if (moreCommandFromMessage(text) || tappedFollowUp(text, tutorText)) return false;
   // Şıklarıyla gelen yeni bir soru cevap değildir.
   if ((text.match(/(?:^|[\s\n])[A-E][).:]/g) ?? []).length >= 2) return false;
   return wordCount(text) <= ANSWER_MAX_WORDS;
@@ -172,6 +190,8 @@ export function readTutorSession(history: readonly TurnHistoryItem[], message: s
       const asking = history[index - 2]!;
       if (tutor.role !== "assistant" || student.role !== "user" || asking.role !== "assistant") break;
       if (CONFIRMATION.test(textOf(tutor.content))) break;
+      // "Bilmiyorum"dan sonra öğretmen konuyu açıp daha kolay bir soru sordu: yeni zincir başlar.
+      if (saysDontKnow(textOf(student.content))) break;
       if (!isAnswerTo(textOf(student.content), textOf(asking.content))) break;
       attempt += 1;
     }
@@ -314,31 +334,55 @@ export function v2AnswerFirstLine(input: {
   return answerFirstLine(message, base);
 }
 
+/**
+ * "Anladığını test et" komutu sürüyor (öğretmen v3): öğrencinin bu cevabı kaçıncı test cevabı. Cevabı değerlendir,
+ * sıradaki tek soruyu sor; birkaç sorudan sonra kısa değerlendirme.
+ */
+export function testRunLine(answered: number): string {
+  return (
+    "ANLADIĞINI TEST ET — SÜRÜYOR (kesin; cevap merdiveninden ve 'ilk cümle tam cevap' kuralından önce gelir): Öğrenci " +
+    `seni kendisini test etmen için çağırdı ve şimdi test soruna cevap verdi (bu, ${answered}. cevabı). Cevabı değerlendir: ` +
+    "doğruysa içten ve kısa onayla; yanlışsa yargılamadan doğrusunu nazikçe ayırıp 1-2 kısa cümleyle öğret. Sonra sıradaki " +
+    "TEK test sorusunu sor (aynı soruyu ya da benzerini tekrar etme; istersen mini yoklama biçimiyle) ve cevabını bekle. " +
+    "Öğrenci 4-5 soruyu cevapladıysa ya da durmak istediğini söylerse soru sorma: nerede sağlam olduğunu ve neyi tekrar " +
+    "etmesi gerektiğini 2-3 kısa cümleyle söyleyerek testi kapat."
+  );
+}
+
 /** Bayrak açıkken bu turun seans satırları; sistem isteminin sonuna (öbür tur satırlarından sonra) eklenir. */
 export function teacherV2SessionLines(input: {
   session: TutorSession;
   style: TeachStyle;
   plan: TurnPlan;
   message: string;
+  /** Öğretmen v3: "Anladığını test et" komutu sürüyorsa öğrencinin kaçıncı test cevabı; değilse null. */
+  testRun?: { answered: number } | null;
 }): string[] {
   const { session, style, plan, message } = input;
   const lines: string[] = [];
   const continuity = continuityLine(session);
   if (continuity) lines.push(continuity);
   // Faz 11 · Adım Adım Öğret: açık istekte adımı göster; denemede ipucu merdiveni; yeni problemde yalnız ilk küçük adım.
+  // Öğretmen v3: test turu, "bilmiyorum" ve emin olmayan tahmin merdivenin yerine geçer.
   if (isTutorMode(style)) {
     if (tutorRevealTurn(plan, message)) {
       lines.push(TUTOR_REVEAL_LINE);
       return lines;
     }
-    if (session.answering) lines.push(tutorLadderLine(session.attempt, session.lastQuestion));
+    if (input.testRun && session.answering) lines.push(testRunLine(input.testRun.answered));
+    else if (saysDontKnow(message) && session.lastQuestion) lines.push(DONT_KNOW_LINE);
+    else if (session.answering && hedgedGuess(message)) lines.push(guessLine(session.lastQuestion));
+    else if (session.answering) lines.push(tutorLadderLine(session.attempt, session.lastQuestion));
     else if (hasOwnSolution(message)) lines.push(tutorLadderLine(1, null));
     else if (!plan.followUp && !plan.newExercise && plan.problem) lines.push(TUTOR_FIRST_PROBLEM_LINE);
     return lines;
   }
   // Faz 11 · Hızlı Özet: soru ya da problem turunda eksiksiz çözüm kelime sınırına takılmasın.
   if (isSummaryMode(style)) {
-    if (!session.answering && (plan.problem || plan.followUp || plan.newExercise || looksLikeQuestion(message))) {
+    if (input.testRun && session.answering) lines.push(testRunLine(input.testRun.answered));
+    else if (saysDontKnow(message) && session.lastQuestion) lines.push(DONT_KNOW_LINE);
+    else if (session.answering && hedgedGuess(message)) lines.push(guessLine(session.lastQuestion));
+    else if (!session.answering && (plan.problem || plan.followUp || plan.newExercise || looksLikeQuestion(message))) {
       lines.push(QUICK_SUMMARY_TURN_LINE);
     }
     return lines;

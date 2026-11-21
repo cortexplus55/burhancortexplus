@@ -89,7 +89,8 @@ describe("sohbet ucu: bayrak arkasında, model çağrısı eklenmez", () => {
     expect(TEACHER_V2_FLAG).toBe("teacher.v2");
     expect(route).toContain("isFeatureEnabled(service, TEACHER_V2_FLAG, userId).catch(() => false)");
     expect(route).toContain("const parallelModeration = (Boolean(rest.prepId) || teacherV2) && !imageUrl;");
-    expect(route).toContain("${teacherV2 ? ONE_MOVE_MARKUP : CHAT_TEACHING_MARKUP}");
+    // Öğretmen v3: ana sohbette canlı özel ders dili (`LIVE_TUTOR_MARKUP`), hazırlık yolunda tek hamle dili aynen.
+    expect(route).toContain("${teacherV2 ? (v2Chat ? LIVE_TUTOR_MARKUP : ONE_MOVE_MARKUP) : CHAT_TEACHING_MARKUP}");
   });
 
   it("kod katmanı akışın bitişinde, kayıttan önce; yalnız teacher.v2'de ve ana sohbette", () => {
