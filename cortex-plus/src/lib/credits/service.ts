@@ -296,6 +296,11 @@ export const STALE_REFUND_ACTION_CODES: readonly ActionCode[] = [
   "STUDY_PLAN_GENERATE",
   "EXPORT_PDF",
   "AUDIO_SYNTHESIZE",
+  /**
+   * Canlı sesli öğretmenin dakikası (21 Kasım 2026): her dakika en geç bir sonraki dakikada, bitişte ya da bekçide
+   * kesinleşir. 10 dakikadan eski "bekliyor" satırı yalnız işlev çökünce kalır; öğrenci lehine iade edilir.
+   */
+  "REALTIME_VOICE_MINUTE",
 ] as const;
 
 /** Kullanıcı başına ders öncesi temizliği ucuz tut — birkaç dakikada bir. */
@@ -477,7 +482,14 @@ export type UsageCode =
   | "REINFORCE_ITEMS"
   | "REINFORCE_VERIFY"
   | "OUTCOME_LESSON"
-  | "OUTCOME_LESSON_VERIFY";
+  | "OUTCOME_LESSON_VERIFY"
+  /**
+   * Canlı sesli öğretmen (21 Kasım 2026): oturumun gerçek jeton kullanımı (ses / metin / görsel, önbellekli ayrı satır;
+   * model adı `realtimeUsageRows`). Kredi dakika başına `REALTIME_VOICE_MINUTE` ile düşer; bu satır yalnız gider.
+   */
+  | "REALTIME_VOICE"
+  /** Ücretsiz hesabın tek seferlik 1 dakikalık denemesinin kalıcı kanıtı (0 jeton, 0 $); ilk satır kazanır. */
+  | "REALTIME_VOICE_TRIAL";
 
 export async function recordUsage(
   service: SupabaseClient,

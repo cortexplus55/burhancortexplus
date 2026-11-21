@@ -72,6 +72,13 @@ export const CREDIT_PRICE_TABLE: Record<ActionCode, CreditPrice> = {
   TRUE_FALSE_GENERATE: { credits: 3, per: "doğru/yanlış" },
   /** Faz 4: "Farklı anlat" (önce sohbet mesajı fiyatı 3); adım başına önbellek, aynı anlatım yeniden ücretlenmez. */
   STEP_REEXPLAIN: { credits: 4, per: "farklı anlatım" },
+  /**
+   * Canlı sesli öğretmen (21 Kasım 2026, Burhan'ın kararı): `gpt-realtime-2.1-mini` ile karşılıklı konuşma. Her dakikanın
+   * kredisi dakika başında ayrılır; dakikanın ilk 5 saniyesi geçtiyse dakika ödenir, geçmeden biterse iade
+   * (`src/lib/tutor/realtime/billing.ts`). Göç 20261121170000_realtime_voice_minute. Ücretsiz hesapta kredi düşmez:
+   * hesap başına bir kez 1 dakikalık deneme, sonrası Plus.
+   */
+  REALTIME_VOICE_MINUTE: { credits: 40, per: "dakika" },
 };
 
 /** Faz 4: kaç metin sayfası bir kredi eder (metin PDF / DOCX / PPTX). */
