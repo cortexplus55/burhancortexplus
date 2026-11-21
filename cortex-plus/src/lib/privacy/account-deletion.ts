@@ -60,6 +60,8 @@ const USER_CONTENT_TABLES = [
   // 21 Kasım 2026 (Faz 11): öğretmen notları (oturum sonu öğrenme gözlemleri). Konuşma silinince CASCADE; silme işçisi
   // konuşmasız kalan notları da burada siler. Göç canlıda yoksa atlanır.
   "tutor_memory_notes",
+  // Faz 11: konuşmanın bağlandığı hazırlık (sohbet geçmişi gruplaması). Konuşma ya da hazırlık silinince CASCADE.
+  "tutor_conversation_preps",
 ] as const;
 
 const OPTIONAL_PURGE_TABLES = new Set([
@@ -75,6 +77,7 @@ const OPTIONAL_PURGE_TABLES = new Set([
   "exam_prep_step_reexplains",
   "exam_feedback_testimonials",
   "tutor_memory_notes",
+  "tutor_conversation_preps",
 ]);
 
 /**

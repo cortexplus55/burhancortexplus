@@ -852,6 +852,7 @@ describe("göç: öğretmen notları; defter kısıtına dokunulmaz (PGlite)", (
       GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
       CREATE TABLE public.profiles (id uuid PRIMARY KEY);
       CREATE TABLE public.conversations (id uuid PRIMARY KEY, user_id uuid REFERENCES public.profiles(id), title text);
+      CREATE TABLE public.exam_preps (id uuid PRIMARY KEY, user_id uuid REFERENCES public.profiles(id));
     `);
     await db.exec(read("supabase/migrations/20260905120000_mistake_notebook.sql"));
     await db.exec(read("supabase/migrations/20261119100100_faz2_mistake_entries_source_ref.sql"));
@@ -882,18 +883,34 @@ describe("göç: öğretmen notları; defter kısıtına dokunulmaz (PGlite)", (
     expect(rows[0]!.n).toBe(0);
   });
 
-  it("tarayıcı rolleri tabloya erişemez; satır güvenliği açık", async () => {
-    const { rows } = await db.query<{ relrowsecurity: boolean }>(
-      `SELECT relrowsecurity FROM pg_class WHERE oid = 'public.tutor_memory_notes'::regclass`,
-    );
-    expect(rows[0]!.relrowsecurity).toBe(true);
-    for (const role of ["anon", "authenticated"]) {
-      const { rows: grants } = await db.query<{ ok: boolean }>(
-        `SELECT has_table_privilege($1, 'public.tutor_memory_notes', 'SELECT') OR has_table_privilege($1, 'public.tutor_memory_notes', 'INSERT') AS ok`,
-        [role],
-      );
-      expect(grants[0]!.ok, role).toBe(false);
+  it("tarayıcı rolleri iki tabloya da erişemez; satır güvenliği açık", async () => {
+    for (const table of ["public.tutor_memory_notes", "public.tutor_conversation_preps"]) {
+      const { rows } = await db.query<{ relrowsecurity: boolean }>(`SELECT relrowsecurity FROM pg_class WHERE oid = $1::regclass`, [table]);
+      expect(rows[0]!.relrowsecurity, table).toBe(true);
+      for (const role of ["anon", "authenticated"]) {
+        const { rows: grants } = await db.query<{ ok: boolean }>(
+          `SELECT has_table_privilege($1, $2, 'SELECT') OR has_table_privilege($1, $2, 'INSERT') AS ok`,
+          [role, table],
+        );
+        expect(grants[0]!.ok, `${table} ${role}`).toBe(false);
+      }
     }
+  });
+
+  it("konuşma-hazırlık bağı: konuşma başına tek satır; hazırlık silinince bağ gider, konuşma kalır", async () => {
+    const PREP = "33333333-3333-4333-8333-333333333333";
+    const CONV2 = "44444444-4444-4444-8444-444444444444";
+    await db.query(`INSERT INTO public.exam_preps (id, user_id) VALUES ($1, $2)`, [PREP, USER]);
+    await db.query(`INSERT INTO public.conversations (id, user_id) VALUES ($1, $2)`, [CONV2, USER]);
+    await db.query(`INSERT INTO public.tutor_conversation_preps (conversation_id, user_id, prep_id) VALUES ($1, $2, $3)`, [CONV2, USER, PREP]);
+    await expect(
+      db.query(`INSERT INTO public.tutor_conversation_preps (conversation_id, user_id, prep_id) VALUES ($1, $2, $3)`, [CONV2, USER, PREP]),
+    ).rejects.toThrow();
+    await db.query(`DELETE FROM public.exam_preps WHERE id = $1`, [PREP]);
+    const links = await db.query<{ n: number }>(`SELECT count(*)::int AS n FROM public.tutor_conversation_preps`);
+    expect(links.rows[0]!.n).toBe(0);
+    const conv = await db.query<{ n: number }>(`SELECT count(*)::int AS n FROM public.conversations WHERE id = $1`, [CONV2]);
+    expect(conv.rows[0]!.n).toBe(1);
   });
 
   it("defterin kısıtları göçten sonra birebir aynı; sohbet satırı var olan kısıtla yazılır", async () => {
@@ -924,7 +941,10 @@ describe("göç: öğretmen notları; defter kısıtına dokunulmaz (PGlite)", (
     expect(sql.split("\n")[0]).toContain("YAZILDI, UYGULANMADI");
     expect(sql).toContain("values ('20261121150000', 'tutor_memory_notes') on conflict (version) do nothing;");
     expect(sql).not.toMatch(/^\s*(?:DELETE|UPDATE|TRUNCATE|DROP)\b/im);
-    expect(sql).not.toMatch(/^\s*ALTER TABLE (?!public\.tutor_memory_notes\b)/im);
+    // ALTER TABLE yalnız bu dosyada kurulan tablolarda (RLS açma); var olan hiçbir tablo değişmez.
+    const created = [...sql.matchAll(/CREATE TABLE IF NOT EXISTS (public\.\w+)/g)].map((match) => match[1]);
+    expect(created).toEqual(["public.tutor_memory_notes", "public.tutor_conversation_preps"]);
+    for (const match of sql.matchAll(/^\s*ALTER TABLE (public\.\w+)/gim)) expect(created).toContain(match[1]);
     expect(sql.replace(/^--.*$/gm, "")).not.toContain("mistake_entries");
   });
 });

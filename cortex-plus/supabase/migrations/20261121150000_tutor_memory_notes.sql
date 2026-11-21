@@ -11,7 +11,11 @@
 -- yalnız sunucu anahtarıyla, `user_id` süzgeciyle. Hesap silinince `purgeUserData` siler; kullanıcı ya da konuşma
 -- silinince CASCADE.
 --
--- Yalnız ekleme: yeni bir tablo ve dizini. Var olan hiçbir tablo, sütun, kısıt ya da satır değişmez; DROP, ALTER (var olan
+-- İkinci tablo: `tutor_conversation_preps`. Ana sohbet bir hazırlığın bağlamında yürüdüğünde (istekte `contextPrepId`,
+-- sunucu sahipliği doğrular) konuşma o hazırlığa bağlanır; "Sohbet geçmişi" konuşmaları hazırlığa göre gruplar.
+-- Konuşma başına tek satır (son bağlam geçerli). Hazırlık silinince bağ satırı gider, konuşma "Genel" grupta kalır.
+--
+-- Yalnız ekleme: iki yeni tablo ve dizinleri. Var olan hiçbir tablo, sütun, kısıt ya da satır değişmez; DROP, ALTER (var olan
 -- tabloda), DELETE, UPDATE yok. İki kez çalıştırmak zararsız (IF NOT EXISTS).
 -- "Bunu Yanlışlar Defterime ekle" bu göce bağlı DEĞİLDİR: sohbetten düşen soru defterin var olan kaynak değeriyle yazılır,
 -- öğretmen sohbetinden geldiği `source_ref` önekinden (`chat:<mesaj>`) anlaşılır (mistake-notebook.ts). Yanlış defterinin
@@ -37,3 +41,20 @@ GRANT ALL ON public.tutor_memory_notes TO service_role;
 
 COMMENT ON TABLE public.tutor_memory_notes IS
   'Faz 11: öğretmenin oturum sonu kısa öğrenme gözlemleri (en çok 3 / oturum, ≤160 karakter). Yalnız sunucu anahtarı.';
+
+CREATE TABLE IF NOT EXISTS public.tutor_conversation_preps (
+  conversation_id uuid PRIMARY KEY REFERENCES public.conversations (id) ON DELETE CASCADE,
+  user_id uuid NOT NULL REFERENCES public.profiles (id) ON DELETE CASCADE,
+  prep_id uuid NOT NULL REFERENCES public.exam_preps (id) ON DELETE CASCADE,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS tutor_conversation_preps_user_prep_idx
+  ON public.tutor_conversation_preps (user_id, prep_id);
+
+ALTER TABLE public.tutor_conversation_preps ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.tutor_conversation_preps FROM anon, authenticated;
+GRANT ALL ON public.tutor_conversation_preps TO service_role;
+
+COMMENT ON TABLE public.tutor_conversation_preps IS
+  'Faz 11: ana sohbetin bağlandığı hazırlık (sohbet geçmişini hazırlığa göre gruplamak için). Yalnız sunucu anahtarı.';
