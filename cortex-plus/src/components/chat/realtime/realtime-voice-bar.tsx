@@ -141,10 +141,10 @@ export function RealtimeVoiceBar(props: RealtimeVoiceBarProps) {
     },
   });
 
-  const startedRef = useRef(false);
+  // Kurulunca bağlanır. Geliştirme modunda React bileşeni kurup söküp yeniden kurar: söküm oturumu kapatır (kancanın
+  // temizliği), yeniden kurulum yeniden başlatır; yarıda kalan ilk başlatma kendi sırasını bilip çekilir.
   useEffect(() => {
-    if (!autoStart || startedRef.current) return;
-    startedRef.current = true;
+    if (!autoStart) return;
     void tutor.start();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoStart]);

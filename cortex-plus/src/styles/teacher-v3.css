@@ -836,6 +836,25 @@ html:has(.cx-v3-thread) body {
   height: 16px;
 }
 
+/* ---------- Canlı sesli ders: söylenenler akışta (çubuk yazma kapsülünün yerinde) ---------- */
+.cx-v3-voice-text {
+  margin: 0;
+  color: var(--cx-text-reading);
+  font-size: 1rem;
+  line-height: 1.68;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+/* Sözü sürerken soluk: yazıya dökülme bitince tam renk. */
+.cx-v3-turn[data-live="true"] .cx-v3-voice-text,
+.cx-v3-turn[data-live="true"] .cx-v3-bubble {
+  opacity: 0.72;
+  transition: opacity var(--cx-dur-color, 160ms) ease;
+}
+.cx-v3-turn--board .cx-rv-card {
+  max-width: 34rem;
+}
+
 /* ---------- Yazma kapsülü ---------- */
 .cx-v3-dock {
   flex: none;

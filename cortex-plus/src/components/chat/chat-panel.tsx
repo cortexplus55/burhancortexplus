@@ -84,6 +84,15 @@ import { TeacherV3Recap } from "@/components/chat/teacher-v3/teacher-v3-recap";
 import { TeacherV3Status } from "@/components/chat/teacher-v3/teacher-v3-thinking";
 import { TeacherV3Turn } from "@/components/chat/teacher-v3/teacher-v3-turn";
 import { TeacherV3Welcome } from "@/components/chat/teacher-v3/teacher-v3-welcome";
+import { RealtimeVoiceBar } from "@/components/chat/realtime/realtime-voice-bar";
+import { RealtimeBoardCard } from "@/components/chat/realtime/realtime-board-card";
+import {
+  appendBoardCard,
+  applyTranscriptUpdate,
+  liveEntriesToMessages,
+  type LiveEntry,
+} from "@/lib/tutor/realtime/live-entries";
+import type { RealtimeEndResult } from "@/lib/tutor/realtime/use-realtime-tutor";
 import { splitFinalQuestion } from "@/lib/learning/question-bubble";
 import { DEFAULT_TUTOR_STYLE, TEACH_MODE_TUTOR, parseTutorStyle, type TeachModeV2, type TutorStyle } from "@/lib/learning/tutor-style";
 import { quickCheckAnswerPrompt } from "@/lib/teacher/quick-check";
@@ -458,6 +467,21 @@ function ChatPanelSession({
   const speakTokenRef = useRef(0);
   /** Öğretmen v3: sohbetten çıkarken açılan ders sonu özeti ve ardından yapılacak çıkış. */
   const [recap, setRecap] = useState<{ items: string[]; kind: "back" | "new" } | null>(null);
+  /**
+   * Öğretmen v3: canlı sesli ders ("Konuş"). Açıkken yazma kapsülünün yerinde ses çubuğu durur; söylenenler ve tahta
+   * kartları akışa canlı düşer (`liveEntries`). Oturum bitince sunucu konuşmayı sohbete yazar; aynı satırlar burada da
+   * mesaja dönüşür (sayfa yenilenmez).
+   */
+  const [liveOn, setLiveOn] = useState(false);
+  const [liveEntries, setLiveEntries] = useState<LiveEntry[]>([]);
+  const liveEntriesRef = useRef<LiveEntry[]>([]);
+  const updateLiveEntries = (next: (current: LiveEntry[]) => LiveEntry[]) => {
+    setLiveEntries((current) => {
+      const value = next(current);
+      liveEntriesRef.current = value;
+      return value;
+    });
+  };
   const v3Ref = useRef<HTMLDivElement>(null);
   const historyButtonRef = useRef<HTMLButtonElement>(null);
   /** Sohbette çözülen fotoğrafların önizlemeleri (kontrol kartının küçük resmi); bileşen kapanınca bırakılır. */
@@ -1254,7 +1278,9 @@ function ChatPanelSession({
 
     const startedAt = Date.now();
     if (v3) setWaitStartedAt(startedAt);
-    const contextPrepId = options?.contextPrepId ?? cockpitPrepId;
+    // Öğretmen v3: karşılama, ana ekranda seçim yokken en son çalışılan hazırlığı anar; aynı hazırlık bağlam olarak gider
+    // (sahipliği sunucu doğrular).
+    const contextPrepId = options?.contextPrepId ?? cockpitPrepId ?? (v3 ? fallbackPrep?.id : undefined);
     try {
       const res = await fetch("/api/ai/chat", {
         method: "POST",
@@ -1697,11 +1723,42 @@ function ChatPanelSession({
     window.setTimeout(() => composerRef.current?.focus(), 0);
   }
 
+  /** Öğretmen v3: "Konuş" sesli dersi açar (yazılı yanıt sürüyorsa önce durur, sesli okuma susar). */
+  function startLiveTalk() {
+    if (loading) return;
+    stopSpeaking();
+    liveEntriesRef.current = [];
+    setLiveEntries([]);
+    setLiveOn(true);
+  }
+
+  /** Sesli ders bitti: kaydedilen konuşma sohbetin mesajlarına eklenir, yazma kapsülü geri gelir. */
+  function endLiveTalk(result: RealtimeEndResult) {
+    const saved = result.conversationId ? liveEntriesToMessages(liveEntriesRef.current) : [];
+    if (result.conversationId) conversationId.current = result.conversationId;
+    if (saved.length) {
+      setMessages((current) => [
+        ...current.filter((item) => !item.local),
+        ...saved.map((item) => ({ role: item.role, content: item.content })),
+      ]);
+    }
+    liveEntriesRef.current = [];
+    setLiveEntries([]);
+    setLiveOn(false);
+  }
+
   /** Sohbetten çıkış: öğretici yanıt varsa önce "Bugün öğrendiklerin" (madde yoksa doğrudan çıkış). */
   function leaveThread(kind: "back" | "new") {
     abortRef.current?.abort();
     stopSpeaking();
-    const replies = messages
+    // Sesli ders sürüyorsa çubuk kalkınca oturum kapanır ve sunucuda kaydedilir; söylenenler özete de girer.
+    const live: Message[] = liveEntriesToMessages(liveEntriesRef.current).map(({ role, content }) => ({ role, content }));
+    if (liveOn) {
+      liveEntriesRef.current = [];
+      setLiveEntries([]);
+      setLiveOn(false);
+    }
+    const replies = [...messages, ...live]
       .filter((item) => item.role === "assistant" && !item.local && !item.isError && item.content.trim())
       .map((item) => item.content);
     const items = replies.length ? lessonRecapItems(replies) : [];
@@ -1960,7 +2017,7 @@ function ChatPanelSession({
     (aşağıdaki dal); bayrak kapalıyken ve hazırlık sohbetinde bu dal hiç kurulmaz.
   */
   if (v3Thread) {
-    const welcomeOpen = !loading && messages.length > 0 && messages.every((item) => item.local);
+    const welcomeOpen = !loading && liveEntries.length === 0 && messages.length > 0 && messages.every((item) => item.local);
     const lastIndex = messages.length - 1;
     const pendingRow = loading && (messages.length === 0 || messages[lastIndex]?.role === "user");
     const preview =
@@ -2011,7 +2068,7 @@ function ChatPanelSession({
                 <TeacherV3Welcome
                   firstName={studentFirstName}
                   prepTitle={cockpitPrepTitle ?? fallbackPrep?.title ?? null}
-                  disabled={loading}
+                  disabled={loading || liveOn}
                   onPick={(text) => void send(text, false, undefined, false, { welcomeAnswer: true })}
                   onResume={resumeFrom}
                 />
@@ -2086,6 +2143,21 @@ function ChatPanelSession({
                   <TeacherV3Status startedAt={waitStartedAt} writing={false} />
                 </article>
               ) : null}
+              {liveEntries.map((entry) =>
+                entry.kind === "card" ? (
+                  <article key={entry.card.id} className="cx-v3-turn cx-v3-turn--teacher cx-v3-turn--board">
+                    <RealtimeBoardCard card={entry.card} />
+                  </article>
+                ) : entry.turn.role === "user" ? (
+                  <div key={entry.turn.id} className="cx-v3-turn cx-v3-turn--student" data-live={entry.turn.final ? undefined : "true"}>
+                    <p className="cx-v3-bubble">{entry.turn.text || "…"}</p>
+                  </div>
+                ) : (
+                  <article key={entry.turn.id} className="cx-v3-turn cx-v3-turn--teacher cx-v3-turn--voice" data-live={entry.turn.final ? undefined : "true"}>
+                    <p className="cx-v3-voice-text">{entry.turn.text || "…"}</p>
+                  </article>
+                ),
+              )}
               {!loading && !welcomeOpen && messages[lastIndex]?.role === "user" ? (
                 <div className="cx-v3-unanswered" role="status">
                   <span>Bu soruya cevap gelmedi.</span>
@@ -2116,7 +2188,16 @@ function ChatPanelSession({
             </button>
           ) : null}
           <div className="cx-v3-dock">
-            {liveTalkSlot ?? (
+            {liveTalkSlot ??
+              (liveOn ? (
+                <RealtimeVoiceBar
+                  conversationId={conversationId.current ?? null}
+                  prepId={cockpitPrepId ?? fallbackPrep?.id ?? null}
+                  onTranscript={(turn) => updateLiveEntries((current) => applyTranscriptUpdate(current, turn))}
+                  onBoardCard={(card) => updateLiveEntries((current) => appendBoardCard(current, card))}
+                  onEnded={endLiveTalk}
+                />
+              ) : (
               <TeacherV3Composer
                 textareaRef={composerRef}
                 value={input}
@@ -2130,13 +2211,13 @@ function ChatPanelSession({
                 onAttach={() => fileInputRef.current?.click()}
                 onCamera={() => cameraInputRef.current?.click()}
                 mic={{ listening, transcribing, onToggle: startVoiceInput }}
-                onLiveTalk={onLiveTalk}
+                onLiveTalk={onLiveTalk ?? startLiveTalk}
                 onCommand={(prompt) => void send(prompt, false, undefined, false, { welcomeAnswer: false })}
                 autoSpeak={{ on: autoSpeak, locked: audioLocked, onToggle: toggleAutoSpeak }}
                 preview={preview}
                 quota={<MessageQuota variant="inline" />}
               />
-            )}
+              ))}
           </div>
         </div>
 

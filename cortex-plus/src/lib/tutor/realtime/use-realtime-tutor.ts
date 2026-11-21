@@ -218,6 +218,8 @@ export function useRealtimeTutor(options: UseRealtimeTutorOptions): RealtimeTuto
   const connectedRef = useRef(false);
   const finishingRef = useRef(false);
   const activeRef = useRef(false);
+  /** Başlatma sırası: React geliştirme modunda bileşen kurulup söküp yeniden kurulur; eski başlatmanın bekleyen adımları yeninin yerine geçmesin. */
+  const runRef = useRef(0);
   const pendingSends = useRef<string[]>([]);
   const clockRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const tickRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -399,6 +401,9 @@ export function useRealtimeTutor(options: UseRealtimeTutorOptions): RealtimeTuto
     if (activeRef.current) return;
     const d = deps();
     activeRef.current = true;
+    const run = ++runRef.current;
+    /** Bu başlatma hâlâ geçerli mi (vazgeçilmedi ve yerine yenisi başlamadı). */
+    const alive = () => activeRef.current && runRef.current === run;
     finishingRef.current = false;
     connectedRef.current = false;
     sessionRef.current = null;
@@ -422,7 +427,7 @@ export function useRealtimeTutor(options: UseRealtimeTutorOptions): RealtimeTuto
       fail(kind, kind === "mic_denied" ? MIC_DENIED_MESSAGE : kind === "mic_missing" ? MIC_MISSING_MESSAGE : REFUSAL_MESSAGE.failed);
       return;
     }
-    if (!activeRef.current) {
+    if (!alive()) {
       mic.getTracks().forEach((track) => track.stop());
       return;
     }
@@ -490,7 +495,7 @@ export function useRealtimeTutor(options: UseRealtimeTutorOptions): RealtimeTuto
         }),
       });
       const data = (await response.json().catch(() => null)) as RealtimeCreateResponse | null;
-      if (!activeRef.current) {
+      if (!alive()) {
         // Bağlanırken vazgeçti ama sunucu oturumu açtı: hemen kapat (bağlantısız iade kuralı ilk dakikayı geri verir).
         if (data?.ok) {
           void d
@@ -512,10 +517,10 @@ export function useRealtimeTutor(options: UseRealtimeTutorOptions): RealtimeTuto
       }
       answer = data;
     } catch {
-      if (activeRef.current) fail("failed", REFUSAL_MESSAGE.failed);
+      if (alive()) fail("failed", REFUSAL_MESSAGE.failed);
       return;
     }
-    if (!activeRef.current) return;
+    if (!alive()) return;
 
     sessionRef.current = {
       id: answer.sessionId,

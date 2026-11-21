@@ -370,11 +370,16 @@ describe("yazma kapsülü", () => {
     expect(screen.queryByRole("button", { name: "Konuş" })).toBeNull();
   });
 
-  it("sesli mod verilmezse Konuş hiç çizilmez; yerinde Gönder (boşken kapalı)", () => {
+  it("sesli mod dışarıdan verilmezse Konuş sohbetin kendi sesli dersini açar: çubuk kapsülün yerine oturur", async () => {
     mockFetch();
-    renderPanel({ teacherV2: true, initialConversationId: CONV, initialMessages: THREAD });
-    expect(screen.queryByRole("button", { name: "Konuş" })).toBeNull();
-    expect((screen.getByRole("button", { name: "Gönder" }) as HTMLButtonElement).disabled).toBe(true);
+    const { container } = renderPanel({ teacherV2: true, initialConversationId: CONV, initialMessages: THREAD });
+    const action = screen.getByRole("button", { name: "Konuş" });
+    expect(action.getAttribute("data-mode")).toBe("talk");
+    await act(async () => {
+      fireEvent.click(action);
+    });
+    expect(container.querySelector("section.cx-rv")).not.toBeNull();
+    expect(screen.queryByPlaceholderText("Sor, konuş veya dosya gönder")).toBeNull();
   });
 
   it("liveTalkSlot verilince kapsülün yerine çizilir", () => {
