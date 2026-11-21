@@ -1,4 +1,5 @@
--- YAZILDI, UYGULANMADI (21 Kasım 2026). Canlıya ürün sahibi SQL ekranında uygular; aynı çalıştırmada kayıt satırı:
+-- UYGULANDI: 21 Kasım 2026, #724 birleştirilmeden ve yayından önce (Burhan'ın kararı; SQL ekranı + kayıt satırı;
+-- docs/operasyon/goc-kayitlari.md). Kayıt satırı (aynı çalıştırmada):
 --   insert into supabase_migrations.schema_migrations (version, name) values ('20261121170000', 'realtime_voice_minute')
 --     on conflict (version) do nothing;
 --

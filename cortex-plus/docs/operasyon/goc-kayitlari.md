@@ -197,6 +197,26 @@ göçe bağlı değil).
 **Geri alma:** gerekmez. Kod iki tablo olmadan da çalışır (not yazımı ve okuması atlanır, sohbet geçmişi düz listede kalır). Tabloları
 kaldırmak yalnız Burhan'ın kararıyla olur; yeni tablolardır, başka hiçbir şey onlara bağlı değil.
 
+## 20261121170000 · realtime_voice_minute (PR #724)
+
+| | |
+|---|---|
+| Onaylayan | Burhan (21 Kasım 2026, sohbette: dakika ücreti "60 kredi", göç zamanı "Yayından hemen önce") |
+| Uygulama | 21 Kasım 2026; #724'ün CI'ı (build, test, e2e, Vercel önizleme) yeşil olduktan sonra, **birleştirmeden ve üretim yayınından önce**. Supabase SQL ekranı, tek çalıştırma (`begin … commit`) + kayıt satırı |
+| Uygulayan | Claude, Burhan'ın onayıyla |
+| Değişen | Yalnız ekleme: `credit_rules` `REALTIME_VOICE_MINUTE` = 60 (açık) ve `ai_model_prices` altı satır (`gpt-realtime-2.1-mini`, `-audio`, `-image`, `-cached-text`, `-cached-audio`, `-cached-image`). Var olan hiçbir satır, kural, fiyat ya da SQL işlevi değişmedi (`ON CONFLICT DO NOTHING`) |
+
+**Uygulamadan önce kontrol (salt okuma):** kural satırı, fiyat satırları ve kayıt satırı yoktu; `credit_rules` 26 satır.
+
+**Doğrulama:** kural 60 kredi ve açık; altı fiyat satırı göçteki değerlerle; kayıt satırı 1; `credit_rules` 27 satır. Birleştirmeden sonra
+(`e05cffd2`) Vercel "success", üretim duman testi 7/7, canlı duman iş akışı başarılı, `/api/health` 200.
+
+**Neden yayından önce:** `/admin/sistem` "Kredi kuralı satırları" kontrolü koddaki her eylem kodunu kritik sayar; kod göçten önce çıksaydı
+sağlık kırmızı görünürdü. Yeni satırlar eski kodu etkilemez (eski kod bu kodu hiç okumaz).
+
+**Geri alma:** gerekmez. Satırlar yalnız canlı sesli öğretmen kullanıldığında okunur (`teacher.v2` bayrağının arkasında). Kaldırmak
+yalnız Burhan'ın kararıyla olur.
+
 ## İstatistik işlemleri (göç değil)
 
 | Zaman (UTC) | İşlem | Onay | Sonuç |
