@@ -121,6 +121,7 @@ const ABUSE_SCOPE_PREFIXES: [string, string][] = [
   ["notification", "Bildirimler"],
   // Öğretmen v3 (21 Kasım 2026): canlı sesli öğretmen ve öğretmen sohbetinin uçları (notlar, geçmiş, karşılama).
   ["tutor-realtime", "Canlı sesli öğretmen"],
+  ["tutor-tts", "Öğretmenin sesi"],
   ["teacher-", "Öğretmen sohbeti"],
 ];
 

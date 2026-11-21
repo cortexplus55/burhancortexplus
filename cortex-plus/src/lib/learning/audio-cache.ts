@@ -1,7 +1,7 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import type { createServiceClient } from "@/lib/supabase/server";
-import { audioHash, synthesizeLine } from "@/lib/ai/speech";
+import { audioHash, synthesizeLine, type SpeechStyle } from "@/lib/ai/speech";
 import { PODCAST_TTS_CONCURRENCY, mapWithConcurrency } from "@/lib/learning/podcast-formats";
 import type { SpeakerId } from "@/lib/learning/podcast-script";
 import { env } from "@/lib/env";
@@ -45,7 +45,8 @@ async function retrying<T>(fn: () => Promise<T | null>, delays: number[]): Promi
 
 type Service = ReturnType<typeof createServiceClient>;
 
-export type AudioRequest = { text: string; speaker: SpeakerId };
+/** `style`: öğretmen sohbetinin sesi ("tutor"); yoksa podcast ve sözlü sınavın sesi (önbellek anahtarı ayrı). */
+export type AudioRequest = { text: string; speaker: SpeakerId; style?: SpeechStyle };
 export type AudioTrack = { url: string; durationMs: number };
 
 /**
@@ -78,7 +79,7 @@ export async function countNewAudioChars(
 ): Promise<number> {
   if (!lines.length) return 0;
 
-  const hashes = lines.map((line) => audioHash(line.text, line.speaker));
+  const hashes = lines.map((line) => audioHash(line.text, line.speaker, line.style));
   const { data, error } = await service
     .from("lesson_audio")
     .select("hash")
@@ -128,7 +129,7 @@ export function audioIdempotencyKey(
   const digest = createHash("sha256")
     .update(userId)
     .update("|")
-    .update(lines.map((line) => audioHash(line.text, line.speaker)).join(","))
+    .update(lines.map((line) => audioHash(line.text, line.speaker, line.style)).join(","))
     .digest("hex");
   return `audio_${digest}`;
 }
@@ -181,7 +182,7 @@ async function ensureAudio(
 ): Promise<AudioTrack[] | null> {
   if (!lines.length) return null;
 
-  const hashes = lines.map((line) => audioHash(line.text, line.speaker));
+  const hashes = lines.map((line) => audioHash(line.text, line.speaker, line.style));
   const unique = [...new Set(hashes)];
 
   const { data: cachedRows, error: cacheError } = await service
@@ -227,7 +228,7 @@ async function ensureAudio(
     try {
       await mapWithConcurrency(missing, PODCAST_TTS_CONCURRENCY, async (job) => {
         // Sağlayıcı bir satırda takılırsa satır üç kez denenir (19 Ekim 2026). Yükleme de bir kez daha.
-        const result = await retrying(() => synthesizeLine(job.line.text, job.line.speaker), SYNTH_RETRY_MS);
+        const result = await retrying(() => synthesizeLine(job.line.text, job.line.speaker, job.line.style), SYNTH_RETRY_MS);
         if (!result) throw new Error("speech_failed");
         const path = `${job.hash.slice(0, 2)}/${job.hash}.mp3`;
         const upload = () =>
@@ -445,7 +446,7 @@ export type CachedOnlyAudio =
  */
 export async function cachedAudioOnly(service: Service, lines: readonly AudioRequest[]): Promise<CachedOnlyAudio> {
   if (!lines.length) return { ok: false, reason: "not_cached" };
-  const hashes = lines.map((line) => audioHash(line.text, line.speaker));
+  const hashes = lines.map((line) => audioHash(line.text, line.speaker, line.style));
   let cache: Map<string, { path: string; durationMs: number }>;
   try {
     cache = await readCachedAudio(service, hashes);

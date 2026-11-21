@@ -46,10 +46,22 @@ export const FOLLOW_UP_RULE =
   "cümlesidir, bu satır ondan sonra gelir. Ekran onu düğme olarak gösterir; metinde bu satırdan söz etme. Selamlaşmada, " +
   "güvenlik ya da yalnız duygu yanıtında, test sorusu sorduğun turda ve konu anlatmayan kısa yanıtlarda bu satırı yazma.";
 
-/** Tek hamle dilinin başlığı ve uzunluk satırı değişir; geri kalanı aynen; sonda takip soruları kuralı. */
+/**
+ * Formül yazımı (21 Kasım 2026, ürün sahibi: "çirkin düz √20 yerine üstü çizgili kök"). Ekran `$…$` içini KaTeX ile
+ * çizer; ses motoru aynı TeX'i Türkçe okur. Model yine de düz simge yazarsa ekranın ön işleyicisi çevirir
+ * (`unicode-math-to-tex.ts`).
+ */
+export const FORMULA_LATEX_RULE =
+  "- FORMÜL YAZIMI (kesin): Kök, kesir, üs, alt simge, Yunan harfi, vektör, birimli büyüklük ve kimyasal formül her zaman " +
+  "LaTeX ile ve dolar işaretleri arasında yazılır: satır içinde $\\sqrt{20}$, $\\sqrt{45} = \\sqrt{9} \\times \\sqrt{5}$, " +
+  "$\\frac{a}{b}$, $x^2$, $\\Delta P = \\rho g h$, $9{,}8\\ \\mathrm{m/s^2}$, $\\mathrm{H_2O}$, $\\mathrm{Na^+}$; tek " +
+  "başına önemli bir formül ayrı satırda $$…$$. Düz √, ², ×, ₂ simgesi yazma. Formül ==…== ya da **…** içinde " +
+  "olabilir; formülün içine başka işaret koyma.";
+
+/** Tek hamle dilinin başlığı ve uzunluk satırı değişir; geri kalanı aynen; sonda formül ve takip soruları kuralları. */
 export const LIVE_TUTOR_MARKUP =
   ONE_MOVE_MARKUP.replace(ONE_MOVE_HEAD, LIVE_TUTOR_HEAD).replace(ONE_MOVE_LENGTH_RULE, LIVE_TUTOR_LENGTH_RULE + LIVE_TUTOR_IDENTITY) +
-  `\n${FOLLOW_UP_RULE}`;
+  `\n${FORMULA_LATEX_RULE}\n${FOLLOW_UP_RULE}`;
 
 /* ---------------- Ad ve ilk temas ---------------- */
 

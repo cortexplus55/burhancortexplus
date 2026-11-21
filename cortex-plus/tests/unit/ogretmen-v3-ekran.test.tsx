@@ -20,6 +20,7 @@ import { THINKING_PHASES, THINKING_SECOND_AT_MS, thinkingPhase, thoughtLabel } f
 import { RESUME_HAP, WELCOME_HAPS, parseResume, welcomeLines } from "@/lib/teacher/welcome";
 import { RECAP_MAX_ITEMS, lessonRecapItems } from "@/lib/teacher/lesson-recap";
 import { AUTO_SPEAK_KEY } from "@/lib/teacher/auto-speak";
+import { resetTutorVoiceForTests } from "@/lib/teacher/tutor-voice";
 
 const replace = vi.fn();
 const push = vi.fn();
@@ -140,12 +141,13 @@ describe("bayrak kapalıyken bugünkü ekran", () => {
 /* ---------------------------------------------------------------------------------------------------------------- */
 
 describe("aktif sohbet: çerçevesiz tuval", () => {
-  it("üstte yalnız geri, geçmiş ve Yeni sohbet; damgalar, seçiciler ve çipler yok", async () => {
+  it("üstte yalnız geri, sesli yanıt, geçmiş ve Yeni sohbet; damgalar, seçiciler ve çipler yok", async () => {
     mockFetch();
     const { container } = renderPanel({ teacherV2: true, showSubjectPicker: true, hasDocuments: true, initialConversationId: CONV, initialMessages: THREAD, feedbackEnabled: true });
     const bar = container.querySelector(".cx-v3-bar")!;
     expect(within(bar as HTMLElement).getAllByRole("button").map((button) => button.getAttribute("aria-label") ?? button.textContent)).toEqual([
       "Geri",
+      "Yanıtları sesli oku",
       "Sohbet geçmişi",
       "Yeni sohbet",
     ]);
@@ -332,7 +334,7 @@ describe("karşılama", () => {
 /* ---------------------------------------------------------------------------------------------------------------- */
 
 describe("yazma kapsülü", () => {
-  it("⋮ Daha fazla: altı komut ve ayrı sesli okuma anahtarı; komut doğrudan gider, Esc kapatır ve odak hapa döner", async () => {
+  it("⋮ Daha fazla: yalnız altı komut (sesli okuma anahtarı üst çubukta); komut doğrudan gider, Esc kapatır ve odak hapa döner", async () => {
     const calls = mockFetch({ "/api/ai/chat": () => chatReply("Peki, ilk soru geliyor.") });
     renderPanel({ teacherV2: true, initialConversationId: CONV, initialMessages: THREAD, isPremium: true });
     const trigger = screen.getByRole("button", { name: "Daha fazla" });
@@ -340,8 +342,7 @@ describe("yazma kapsülü", () => {
     const menu = screen.getByRole("menu", { name: "Daha fazla" });
     const items = within(menu).getAllByRole("menuitem");
     expect(items.map((item) => item.textContent)).toEqual(MORE_COMMANDS.map((command) => `${command.label}▸`));
-    expect(within(menu).getByRole("menuitemcheckbox", { name: /Yanıtları sesli oku/ }).getAttribute("aria-checked")).toBe("false");
-    expect(within(menu).getByRole("separator")).toBeTruthy();
+    expect(within(menu).queryByRole("menuitemcheckbox")).toBeNull();
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.queryByRole("menu")).toBeNull();
     await waitFor(() => expect(document.activeElement).toBe(trigger));
@@ -557,7 +558,16 @@ describe("ders sonu özeti", () => {
 
 /* ---------------------------------------------------------------------------------------------------------------- */
 
-describe("yanıtları sesli oku", () => {
+describe("yanıtları sesli oku (öğretmenin doğal sesi)", () => {
+  /** jsdom ses öğesi oynatmaz: play/pause sahte. Tarayıcının robot sesi (speechSynthesis) hiç çağrılmamalı. */
+  function mockAudio() {
+    const play = vi.spyOn(window.HTMLMediaElement.prototype, "play").mockImplementation(() => Promise.resolve());
+    const pause = vi.spyOn(window.HTMLMediaElement.prototype, "pause").mockImplementation(() => undefined);
+    return { play, pause };
+  }
+  const ttsReply = () =>
+    new Response(JSON.stringify({ creditsSpent: 0, parts: [{ url: "https://ses.test/1.mp3", durationMs: 1200 }] }), { status: 200 });
+
   function mockSpeech() {
     const speak = vi.fn();
     const cancel = vi.fn();
@@ -582,14 +592,15 @@ describe("yanıtları sesli oku", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    resetTutorVoiceForTests();
   });
 
-  it("ücretsiz hesapta anahtar Plus rozetli; dokununca yükseltme penceresi açılır, tercih yazılmaz", async () => {
+  it("ücretsiz hesapta üst çubuktaki anahtar Plus işaretli; dokununca yükseltme penceresi açılır, tercih yazılmaz", async () => {
     mockFetch();
-    renderPanel({ teacherV2: true, initialConversationId: CONV, initialMessages: THREAD, isPremium: false });
-    fireEvent.click(screen.getByRole("button", { name: "Daha fazla" }));
-    const toggle = screen.getByRole("menuitemcheckbox", { name: /Yanıtları sesli oku/ });
-    expect(within(toggle).getByText("Plus")).toBeTruthy();
+    const { container } = renderPanel({ teacherV2: true, initialConversationId: CONV, initialMessages: THREAD, isPremium: false });
+    const toggle = screen.getByRole("button", { name: "Yanıtları sesli oku (Plus)" });
+    expect(container.querySelector(".cx-v3-bar")!.contains(toggle)).toBe(true);
+    expect(toggle.querySelector(".cx-v3-plus-dot")).not.toBeNull();
     await act(async () => {
       fireEvent.click(toggle);
     });
@@ -599,31 +610,63 @@ describe("yanıtları sesli oku", () => {
     expect(chatGateProps("premium_required", false).message.startsWith("Bu iş Plus'ta.")).toBe(true);
   });
 
-  it("Plus: açılınca kalıcı; yanıt bitince 🔊 yoluyla kendiliğinden okunur, yeni mesaj gönderilince durur", async () => {
-    const { speak, cancel } = mockSpeech();
-    mockFetch({ "/api/ai/chat": () => chatReply("Işık enerjisi ==kimyasal enerjiye== dönüşür.") });
+  it("Plus: üst çubukta açılınca kalıcı; yanıt bitince öğretmenin sesiyle kendiliğinden okunur, yeni mesajda susar", async () => {
+    const { speak } = mockSpeech();
+    const { play, pause } = mockAudio();
+    const calls = mockFetch({
+      "/api/ai/chat": () => chatReply("Işık enerjisi ==kimyasal enerjiye== dönüşür."),
+      "/api/tutor/tts": () => ttsReply(),
+    });
     renderPanel({ teacherV2: true, initialConversationId: CONV, initialMessages: THREAD, isPremium: true });
-    fireEvent.click(screen.getByRole("button", { name: "Daha fazla" }));
-    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /Yanıtları sesli oku/ }));
+    const toggle = screen.getByRole("button", { name: "Yanıtları sesli oku" });
+    expect(toggle.getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(toggle);
     expect(window.localStorage.getItem(AUTO_SPEAK_KEY)).toBe("1");
-    expect(screen.getByRole("menuitemcheckbox", { name: /Yanıtları sesli oku/ }).getAttribute("aria-checked")).toBe("true");
-    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.getByRole("button", { name: "Yanıtları sesli oku" }).getAttribute("aria-pressed")).toBe("true");
     // Açılmadan önceki yanıtlar okunmaz.
-    expect(speak).not.toHaveBeenCalled();
+    expect(calls.some((call) => call.url.includes("/api/tutor/tts"))).toBe(false);
     const box = screen.getByPlaceholderText("Sor, konuş veya dosya gönder");
     fireEvent.change(box, { target: { value: "Özetle" } });
     await act(async () => {
       fireEvent.keyDown(box, { key: "Enter" });
     });
-    await waitFor(() => expect(speak).toHaveBeenCalledTimes(1));
-    expect((speak.mock.calls[0]![0] as { text: string }).text).toBe("Işık enerjisi kimyasal enerjiye dönüşür.");
+    await waitFor(() => expect(calls.filter((call) => call.url.includes("/api/tutor/tts"))).toHaveLength(1));
+    expect(calls.find((call) => call.url.includes("/api/tutor/tts"))!.body?.text).toBe("Işık enerjisi kimyasal enerjiye dönüşür.");
+    await waitFor(() => expect(play).toHaveBeenCalled());
     await waitFor(() => expect(screen.getAllByRole("button", { name: "Okumayı durdur" })).toHaveLength(1));
-    cancel.mockClear();
+    // Robot ses yok.
+    expect(speak).not.toHaveBeenCalled();
+    pause.mockClear();
     fireEvent.change(screen.getByPlaceholderText("Sor, konuş veya dosya gönder"), { target: { value: "Devam" } });
     await act(async () => {
       fireEvent.keyDown(screen.getByPlaceholderText("Sor, konuş veya dosya gönder"), { key: "Enter" });
     });
-    expect(cancel).toHaveBeenCalled();
+    expect(pause).toHaveBeenCalled();
+  });
+
+  it("🔊 aynı yanıtı ikinci kez istek atmadan bellekten çalar; ücretsiz hesapta yükseltme penceresi açar", async () => {
+    mockAudio();
+    const calls = mockFetch({ "/api/tutor/tts": () => ttsReply() });
+    renderPanel({ teacherV2: true, initialConversationId: CONV, initialMessages: THREAD, isPremium: true });
+    const listen = screen.getByRole("button", { name: "Sesli dinle" });
+    await act(async () => {
+      fireEvent.click(listen);
+    });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Okumayı durdur" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Okumayı durdur" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Sesli dinle" }));
+    });
+    expect(calls.filter((call) => call.url.includes("/api/tutor/tts"))).toHaveLength(1);
+    cleanup();
+    resetTutorVoiceForTests();
+    const free = mockFetch();
+    renderPanel({ teacherV2: true, initialConversationId: CONV, initialMessages: THREAD, isPremium: false });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Sesli dinle" }));
+    });
+    expect(await screen.findByText(/Yanıtları sesli okuma Plus'ta/)).toBeTruthy();
+    expect(free.some((call) => call.url.includes("/api/tutor/tts"))).toBe(false);
   });
 
   it("varsayılan kapalı: yanıt kendiliğinden okunmaz", async () => {

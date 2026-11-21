@@ -1,9 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
-import { EllipsisVertical, Volume2 } from "lucide-react";
+import { EllipsisVertical } from "lucide-react";
 import { MORE_COMMANDS } from "@/lib/teacher/more-commands";
-import { AUTO_SPEAK_LABEL } from "@/lib/teacher/auto-speak";
 
 function menuItems(menu: HTMLElement | null): HTMLElement[] {
   return [...(menu?.querySelectorAll<HTMLElement>('[role^="menuitem"]') ?? [])];
@@ -11,18 +10,15 @@ function menuItems(menu: HTMLElement | null): HTMLElement[] {
 
 /**
  * "⋮ Daha fazla" (öğretmen v3): yazma kapsülünün sol üstündeki küçük hap. Dokununca yukarı doğru sade bir menü açılır:
- * altı özel ders komutu (dokunulan komutun metni öğrencinin mesajı olarak gider) ve altında, komutlardan ayrı, "Yanıtları
- * sesli oku" anahtarı. Esc ve dışarı dokunuş kapatır, odak hapa döner; ok tuşları, Home ve End ile gezilir.
+ * altı özel ders komutu (dokunulan komutun metni öğrencinin mesajı olarak gider). "Yanıtları sesli oku" anahtarı üst
+ * çubukta (21 Kasım 2026). Esc ve dışarı dokunuş kapatır, odak hapa döner; ok tuşları, Home ve End ile gezilir.
  */
 export function TeacherV3More({
   disabled,
   onCommand,
-  autoSpeak,
 }: {
   disabled?: boolean;
   onCommand: (prompt: string) => void;
-  /** `locked`: ücretsiz hesapta ses Plus'ta; dokununca yükseltme penceresi açılır (`onToggle`). */
-  autoSpeak: { on: boolean; locked: boolean; onToggle: (trigger: HTMLElement | null) => void };
 }) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -73,7 +69,6 @@ export function TeacherV3More({
     list[next]?.focus();
   }
 
-  const speakOn = autoSpeak.on && !autoSpeak.locked;
   return (
     <div className="cx-v3-more-wrap">
       <button
@@ -109,29 +104,6 @@ export function TeacherV3More({
               </span>
             </button>
           ))}
-          <div className="cx-v3-menu-sep" role="separator" />
-          <button
-            type="button"
-            role="menuitemcheckbox"
-            tabIndex={-1}
-            aria-checked={speakOn}
-            className="cx-v3-menu-item cx-v3-menu-toggle"
-            onClick={() => {
-              // Kilitliyken yükseltme penceresi açılır (menü kapanır); açıkken anahtar yerinde döner, menü açık kalır.
-              if (autoSpeak.locked) close(false);
-              autoSpeak.onToggle(triggerRef.current);
-            }}
-          >
-            <Volume2 className="cx-v3-menu-icon" aria-hidden />
-            <span className="cx-v3-menu-label">{AUTO_SPEAK_LABEL}</span>
-            {autoSpeak.locked ? (
-              <span className="cx-v3-plus">Plus</span>
-            ) : (
-              <span className="cx-v3-switch" data-on={speakOn || undefined} aria-hidden>
-                <span />
-              </span>
-            )}
-          </button>
         </div>
       ) : null}
     </div>

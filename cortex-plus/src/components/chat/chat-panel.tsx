@@ -72,7 +72,7 @@ import { UploadModal } from "@/components/parity/upload-modal";
 import { MathKeyboard } from "@/components/parity/math-keyboard";
 import { useStudentShellAccount } from "@/lib/student/student-shell-context";
 import { HOME_START_EVENT, TUTOR_HISTORY_EVENT, type TutorHistoryDetail } from "@/lib/ui/home-events";
-import { MessageActions, speechTextFor, type Rating } from "@/components/chat/message-actions";
+import { MessageActions, type Rating } from "@/components/chat/message-actions";
 import { TutorReplyView } from "@/components/chat/tutor-reply-view";
 import { useSelectedCockpitPrepId, useSelectedCockpitPrepTitle } from "@/components/parity/home-selection";
 import { SourceModePill } from "@/components/chat/source-mode-pill";
@@ -93,6 +93,7 @@ import {
   type LiveEntry,
 } from "@/lib/tutor/realtime/live-entries";
 import type { RealtimeEndResult } from "@/lib/tutor/realtime/use-realtime-tutor";
+import { playTutorVoice, primeTutorVoice, stopTutorVoice, type TutorVoiceProblem } from "@/lib/teacher/tutor-voice";
 import { splitFinalQuestion } from "@/lib/learning/question-bubble";
 import { DEFAULT_TUTOR_STYLE, TEACH_MODE_TUTOR, parseTutorStyle, type TeachModeV2, type TutorStyle } from "@/lib/learning/tutor-style";
 import { quickCheckAnswerPrompt } from "@/lib/teacher/quick-check";
@@ -1249,6 +1250,8 @@ function ChatPanelSession({
     if (!text.trim() || (loading && !allowWhileLoading)) return;
     // Aynı anda ikinci istek yok (öneri çipine çift tık, art arda Enter): kilit istek bitince ya da hata olunca açılır.
     if (!sendLock.tryAcquire()) return;
+    // Öğretmen v3: "Yanıtları sesli oku" açıksa ses öğesi gönderim dokunuşunda açılır (iOS kendiliğinden okumaya izin versin).
+    if (v3 && autoSpeak && !audioLocked) primeTutorVoice();
     const typed = typedRef.current;
     typedRef.current = null;
     if (imageDocumentId) activeDocumentId.current = imageDocumentId;
@@ -1638,44 +1641,67 @@ function ChatPanelSession({
   function stopSpeaking() {
     speakTokenRef.current += 1;
     stopSpeech();
+    stopTutorVoice();
     setSpeakingIndex(null);
   }
 
-  /** Yanıtı 🔊 ile aynı yoldan okur (tarayıcının Türkçe sesi). */
+  /** Ücretsiz hesapta ses Plus'ta: var olan yükseltme penceresi (beklemek çözmez, geri sayım yok). */
+  function openAudioGate() {
+    setPaywallCode("premium_required");
+    setPaywallName(AUTO_SPEAK_GATE_NAME);
+    setPaywall(true);
+  }
+
+  function voiceProblem(problem: TutorVoiceProblem) {
+    if (problem === "premium_required") openAudioGate();
+    else if (problem === "insufficient_credits")
+      toast.error("Sesli okuma için hakkın kalmadı", { description: "Kalan hakkını Kullanım limitleri sayfasında görebilirsin." });
+    else toast.error("Ses şu an gelmedi", { description: "Biraz sonra yeniden dene." });
+  }
+
+  /**
+   * Yanıtı öğretmenin doğal sesiyle okur (öğretmen v3): sunucu simgeleri Türkçe okunuşa çevirip öğretmen üslubunda
+   * seslendirir. Tarayıcının robot sesi bu yolda kullanılmaz; aynı yanıt ikinci kez bellekten çalar.
+   */
   function speakReply(index: number, content: string) {
-    const text = speechTextFor(v3PlainText(content));
+    const text = v3PlainText(content);
     stopSpeaking();
     if (!text) return;
     const token = speakTokenRef.current;
     setSpeakingIndex(index);
     const done = () => setSpeakingIndex((current) => (current === index && speakTokenRef.current === token ? null : current));
-    speakTurkish(text, {
-      cancelled: () => speakTokenRef.current !== token,
+    playTutorVoice(text, {
       onEnd: done,
-      onError: () => {
+      onProblem: (problem) => {
         done();
-        toast.error("Sesli okuma çalışmadı", { description: "Tarayıcında Türkçe ses yüklü olmayabilir." });
+        voiceProblem(problem);
       },
     });
   }
 
   function toggleSpeakReply(index: number, content: string) {
-    if (speakingIndex === index) stopSpeaking();
-    else speakReply(index, content);
+    if (speakingIndex === index) {
+      stopSpeaking();
+      return;
+    }
+    if (audioLocked) {
+      openAudioGate();
+      return;
+    }
+    primeTutorVoice();
+    speakReply(index, content);
   }
 
   function toggleAutoSpeak() {
     if (audioLocked) {
-      // Var olan yükseltme penceresi (Plus işi: beklemek çözmez, geri sayım yok).
-      setPaywallCode("premium_required");
-      setPaywallName(AUTO_SPEAK_GATE_NAME);
-      setPaywall(true);
+      openAudioGate();
       return;
     }
     setAutoSpeak((current) => {
       const next = !current;
       writeAutoSpeak(next);
-      if (!next) stopSpeaking();
+      if (next) primeTutorVoice();
+      else stopSpeaking();
       return next;
     });
   }
@@ -2061,6 +2087,7 @@ function ChatPanelSession({
             onHistory={openHistoryFromBar}
             onNewChat={() => leaveThread("new")}
             historyRef={historyButtonRef}
+            voice={{ on: autoSpeak && !audioLocked, locked: audioLocked, onToggle: toggleAutoSpeak }}
           />
           <div ref={messagesScrollRef} className="cx-v3-thread" role="log" aria-live="off" aria-label="Sohbet">
             <div className="cx-v3-col">
@@ -2213,7 +2240,6 @@ function ChatPanelSession({
                 mic={{ listening, transcribing, onToggle: startVoiceInput }}
                 onLiveTalk={onLiveTalk ?? startLiveTalk}
                 onCommand={(prompt) => void send(prompt, false, undefined, false, { welcomeAnswer: false })}
-                autoSpeak={{ on: autoSpeak, locked: audioLocked, onToggle: toggleAutoSpeak }}
                 preview={preview}
                 quota={<MessageQuota variant="inline" />}
               />

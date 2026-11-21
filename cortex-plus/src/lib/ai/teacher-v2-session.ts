@@ -213,8 +213,9 @@ export function continuityLine(session: TutorSession): string {
   const list = session.asked.map((question) => `«${clip(question, 140)}»`).join(" · ");
   return (
     `${SESSION_HEAD}Bu seansta öğrenciye şunları sordun: ${list}. Bunları ya da aynı şeyi yoklayan benzerini TEKRAR ` +
-    "SORMA; yoklaman gerekiyorsa başka bir yönden ya da başka sayılarla sor. Her turu bir öncekine bağla: öğrencinin son " +
-    "söylediğini tek cümleyle an (\"az önce … demiştin\" gibi), konuşmayı baştan başlatma."
+    "SORMA; yoklaman gerekiyorsa başka bir yönden ya da başka sayılarla sor. Her turu bir öncekine bağla (doğal biçimde) ve " +
+    "konuşmayı baştan başlatma; ama her turda aynı kalıp bağlacı ('az önce … demiştin', '… ayırmıştık') kurma, gerekiyorsa " +
+    "her seferinde farklı ve doğal bir cümle kullan."
   );
 }
 

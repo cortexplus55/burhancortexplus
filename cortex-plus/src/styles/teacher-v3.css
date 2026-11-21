@@ -1256,49 +1256,28 @@ html:has(.cx-v3-thread) body {
   flex: none;
   color: var(--cx-text-tertiary);
 }
-.cx-v3-menu-sep {
-  height: 1px;
-  margin: 6px 10px;
-  background: var(--cx-bg-3);
-}
-.cx-v3-menu-icon {
-  flex: none;
-  width: 18px;
-  height: 18px;
-  color: var(--cx-text-secondary);
-}
-.cx-v3-switch {
+/* ---------- Üst çubukta "Sesli yanıt" anahtarı ---------- */
+.cx-v3-voice-toggle {
   position: relative;
-  flex: none;
-  width: 36px;
-  height: 22px;
-  border-radius: var(--cx-radius-max);
-  background: var(--cx-bg-4);
-  transition: background-color var(--cx-dur-color) ease;
 }
-.cx-v3-switch > span {
+.cx-v3-voice-toggle[data-on] {
+  background: var(--cx-brand-weak);
+  color: var(--cx-text-brand);
+}
+.cx-v3-voice-toggle[data-on]:hover {
+  background: var(--cx-brand-weak-plus);
+  color: var(--cx-text-primary);
+}
+/* Ücretsiz hesapta ses Plus'ta: küçük altın nokta (altın yalnız Plus). */
+.cx-v3-plus-dot {
   position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 16px;
-  height: 16px;
+  top: 7px;
+  right: 7px;
+  width: 7px;
+  height: 7px;
   border-radius: var(--cx-radius-max);
-  background: var(--cx-bg-0);
-  transition: translate var(--cx-dur-scale) var(--cx-ease-out);
-}
-.cx-v3-switch[data-on] {
-  background: var(--cx-success);
-}
-.cx-v3-switch[data-on] > span {
-  translate: 14px 0;
-}
-.cx-v3-plus {
-  flex: none;
-  padding: 3px 9px;
-  border-radius: var(--cx-radius-max);
-  background: var(--cx-highlight-weak);
-  color: var(--cx-text-highlight);
-  font: 600 0.75rem / 1.2 var(--cx-font-sans);
+  background: var(--cx-highlight);
+  box-shadow: 0 0 0 2px var(--cx-bg-0);
 }
 
 /* ---------- Ders sonu özeti (alt pencere) ---------- */
@@ -1504,7 +1483,6 @@ html:has(.cx-v3-thread) body {
   }
   .cx-v3-action,
   .cx-v3-action > span,
-  .cx-v3-switch > span,
   .cx-v3-sheet,
   .cx-v3-sheet-backdrop {
     transition: none;

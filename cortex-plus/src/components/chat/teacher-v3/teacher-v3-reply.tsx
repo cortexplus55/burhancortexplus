@@ -14,6 +14,7 @@ import { parseQuickCheck, type QuickCheckOption } from "@/lib/teacher/quick-chec
 import { chosenQuickCheckLetter } from "@/lib/teacher/reply-actions";
 import { GENERAL_NOTE_TEXT, cleanV3Reply, hidePartialMarkers, v3Segments } from "@/lib/teacher/v3-reply";
 import { useFreshFade, useSmoothReveal } from "@/components/chat/teacher-v3/use-smooth-reveal";
+import { texifyUnicodeMath } from "@/lib/text/unicode-math-to-tex";
 import type { ChatAction } from "@/lib/ai/chat-material-link";
 
 /** Gövdeyi bölümleriyle çizer: genel bilgi bölümü başlık değil, tek soluk satırla başlar. */
@@ -29,7 +30,7 @@ function SegmentedBody({ body }: { body: string }) {
             </p>
           ) : null}
           <div className="cx-v3-md">
-            <Markdown content={segment.text} variant="parity" />
+            <Markdown content={texifyUnicodeMath(segment.text)} variant="parity" />
           </div>
         </div>
       ))}
@@ -134,7 +135,7 @@ export function TeacherV3Reply({
             Notlarından bir örnek
           </p>
           <div className="cx-v3-md">
-            <Markdown content={view.example} variant="parity" />
+            <Markdown content={texifyUnicodeMath(view.example)} variant="parity" />
           </div>
         </section>
       ) : null}
@@ -173,7 +174,7 @@ export function TeacherV3Reply({
             Adımları göster
           </summary>
           <div className="cx-v3-md">
-            <Markdown content={view.steps} variant="parity" />
+            <Markdown content={texifyUnicodeMath(view.steps)} variant="parity" />
           </div>
         </details>
       ) : null}

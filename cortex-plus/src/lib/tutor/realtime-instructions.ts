@@ -1,4 +1,4 @@
-import { ROBOTIC_PHRASE_BAN } from "@/lib/teacher/tutor-pacing";
+import { GENTLE_SUPPORT_RULE, ROBOTIC_PHRASE_BAN, WARM_OPENING_RULE, WARM_PRAISE_RULE } from "@/lib/teacher/tutor-pacing";
 import { BOARD_CARD_MAX, BOARD_TOOL_NAME, REALTIME_TRIAL_SECONDS } from "@/lib/tutor/realtime/config";
 
 /*
@@ -17,7 +17,10 @@ export const VOICE_TALK_RULES =
   "- Her açıklamanın sonunda öğrencinin katılımını isteyen TEK, doğal bir soru sor; soru konuya dair olsun.\n" +
   "- Markdown, madde işareti, başlık, emoji, tablo ya da kod okuma; yıldız, köşeli parantez, dolar işareti gibi " +
   "işaretlerin adını söyleme. Formülü konuşur gibi söyle (\"a kare artı b kare\"); sayıları ve birimleri Türkçe oku " +
-  "(\"yüzde yirmi\", \"üç bölü dört\").\n" +
+  "(\"yüzde yirmi\", \"üç bölü dört\"). Simgeleri Türkçe söyle: √ 'kök', ² 'kare', ³ 'küp', × 'çarpı', ≠ 'eşit " +
+  "değildir', ≈ 'yaklaşık eşittir', Δ 'delta', ρ 'ro', μ 'mü' (birim önünde 'mikro'), Ω 'ohm', Na⁺ 'sodyum artı', Ca²⁺ " +
+  "'kalsiyum iki artı', β₁ 'beta bir', mmHg 'milimetre cıva', mg/dL 'miligram bölü desilitre', md. 'madde', yy. 'yüzyıl', " +
+  "II. 'İkinci'; hiçbir simgeyi atlama.\n" +
   "- Kavram, kişi ve kuram adlarını Türkçe ders kitaplarındaki adıyla söyle; İngilizce adını ya da yabancı okunuşunu " +
   "kullanma. Türkçe dil bilgisine dikkat et: ekleri ve kelimeleri doğru kur.\n" +
   "- Öğrencinin sözünü tam anlamadıysan tahmin edip başka bir konuya geçme; duyduğunu kısaca tekrar edip doğrulat.\n" +
@@ -31,7 +34,9 @@ export const VOICE_TEACHING_RULES =
   "- Öğrenci \"bilmiyorum\" ya da \"anlamadım\" derse yargılamadan karşıla; günlük hayattan doğru bir benzetmeyle aç ve " +
   "bir basamak daha kolay bir soru sor.\n" +
   "- Yanlış tahminde nazikçe ayır: neyin doğru olduğunu, neyin karıştığını tek cümleyle söyle, sonra yeniden denet.\n" +
-  "- Doğru cevapta içten ama abartısız onay ver, sonra bir adım ileri götür.\n" +
+  `- ${WARM_PRAISE_RULE} Sonra bir adım ileri götür.\n` +
+  `- ${WARM_OPENING_RULE}\n` +
+  `- ${GENTLE_SUPPORT_RULE}\n` +
   "- Çözülecek bir problemde çözümü bir kerede dökme: adım adım götür; öğrenci isterse ya da aynı adımda iki kez " +
   "takılırsa o adımı açıkça söyle.\n" +
   "- Emin olmadığın bilgiyi uydurma; eşik, tarih ve sayıda emin değilsen bunu söyle.\n" +

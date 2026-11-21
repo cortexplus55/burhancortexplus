@@ -35,7 +35,6 @@ export function TeacherV3Composer({
   mic,
   onLiveTalk,
   onCommand,
-  autoSpeak,
   preview,
   quota,
 }: {
@@ -54,7 +53,6 @@ export function TeacherV3Composer({
   /** Canlı sesli mod. Verilmezse "Konuş" hiç çizilmez; yerinde Gönder durur. */
   onLiveTalk?: () => void;
   onCommand: (prompt: string) => void;
-  autoSpeak: { on: boolean; locked: boolean; onToggle: (trigger: HTMLElement | null) => void };
   /** Eklenen dosyanın önizlemesi (ve fotoğrafla iki seçim). */
   preview?: ReactNode;
   /** Ücretsiz hesapta "N mesaj kaldı". */
@@ -70,7 +68,7 @@ export function TeacherV3Composer({
         if (mode === "send" && hasPayload) onSubmit();
       }}
     >
-      <TeacherV3More disabled={loading} onCommand={onCommand} autoSpeak={autoSpeak} />
+      <TeacherV3More disabled={loading} onCommand={onCommand} />
       {preview}
       <textarea
         ref={textareaRef}

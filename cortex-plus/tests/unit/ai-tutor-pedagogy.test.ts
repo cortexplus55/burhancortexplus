@@ -184,7 +184,7 @@ describe("özel ders ritmi (Adım Adım Öğret) ve Hızlı Özet istemi", () =>
     expect(first).toContain("1. deneme");
     expect(first).toContain("yargılamadan");
     expect(first).toContain("SÖYLEME");
-    expect(first).toContain("abartısız");
+    expect(first).toContain("zorluğa orantılı");
     const second = teacherV2SessionLines({
       session: { asked: [], lastQuestion: "Nasıl buldun?", answering: true, attempt: 2 },
       style: TEACH_MODE_TUTOR,

@@ -126,7 +126,7 @@ for (const size of [
       await page.screenshot({ path: `test-results/ogretmen-v3-takip-${size.width}.png` });
     });
 
-    test("Daha fazla: altı komut ve sesli okuma anahtarı; ekranın içinde, Esc kapatır, komut gönderilir", { tag: ["@public"] }, async ({ page }) => {
+    test("Daha fazla: altı komut, sesli okuma anahtarı üst çubukta; ekranın içinde, Esc kapatır, komut gönderilir", { tag: ["@public"] }, async ({ page }) => {
       await stubSideRequests(page);
       const sent: string[] = [];
       await page.route("**/api/ai/chat", async (route) => {
@@ -138,7 +138,9 @@ for (const size of [
       await trigger.click();
       const menu = page.getByRole("menu", { name: "Daha fazla" });
       await expect(menu.getByRole("menuitem")).toHaveCount(6);
-      await expect(menu.getByRole("menuitemcheckbox", { name: /Yanıtları sesli oku/ })).toBeVisible();
+      await expect(menu.getByRole("menuitemcheckbox")).toHaveCount(0);
+      // "Sesli yanıt" anahtarı üst çubukta, geçmiş düğmesinin yanında.
+      await expect(page.locator(".cx-v3-bar").getByRole("button", { name: /Yanıtları sesli oku/ })).toBeVisible();
       const box = await rect(page, ".cx-v3-menu");
       expect(box.left).toBeGreaterThanOrEqual(0);
       expect(box.right).toBeLessThanOrEqual(size.width);

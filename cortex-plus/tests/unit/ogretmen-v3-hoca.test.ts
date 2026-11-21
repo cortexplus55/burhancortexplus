@@ -220,7 +220,7 @@ describe("'bilmiyorum', tahmin ve doğru cevap turları (modelsiz tanıyıcı)",
     const lines = teacherV2SessionLines({ session: session(), style: TEACH_MODE_TUTOR, plan: plan(message), message });
     expect(lines).toContain(guessLine("Varnik döngüsünün ilk evresi ne?"));
     const line = guessLine(null);
-    expect(line).toContain("içten ve abartısız");
+    expect(line).toContain("içten ve sıcak bir");
     expect(line).toContain("yanlış kısmı doğrusundan nazikçe ayır ve doğru olanı 2-3 kısa cümleyle öğret");
     expect(line).toContain("bir hesabın sonucuysa sonucu söyleme");
     // Hızlı Özet'te de aynı tur satırları.
@@ -231,8 +231,8 @@ describe("'bilmiyorum', tahmin ve doğru cevap turları (modelsiz tanıyıcı)",
   it("düz cevap denemesi: merdiven aynen, doğru cevapta içtenlikle onay", () => {
     const lines = teacherV2SessionLines({ session: session(), style: TEACH_MODE_TUTOR, plan: plan("bence 7"), message: "bence 7" });
     expect(lines).toContain(tutorLadderLine(1, "Varnik döngüsünün ilk evresi ne?"));
-    expect(tutorLadderLine(1, null)).toContain("içten ve abartısız bir onay");
-    expect(tutorLadderLine(2, null)).toContain("içtenlikle ve kısa onayla");
+    expect(tutorLadderLine(1, null)).toContain("zorluğa orantılı, içten ve çeşitli bir takdirle");
+    expect(tutorLadderLine(2, null)).toContain("içtenlikle ve sıcak bir sevinçle onayla");
   });
 
   it("'bilmiyorum' turundan sonra deneme zinciri baştan başlar", () => {
