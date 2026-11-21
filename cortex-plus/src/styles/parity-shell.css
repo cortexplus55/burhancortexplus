@@ -15622,9 +15622,10 @@ a.cp-exam-search {
   border-color: var(--c-border-strong);
 }
 
+/* 21 Kasım 2026: eski renk karışımı açık temada 3,3:1 kalıyordu; token çifti 4,5:1'in üstünde (bütün kiplerde). */
 :root:not(.dark) .cp-tutor-mode-pill.is-on {
-  background: color-mix(in srgb, var(--c-action) 14%, #ffffff);
-  color: var(--c-action);
+  background: var(--cx-brand-weak);
+  color: var(--cx-text-brand);
 }
 
 :root:not(.dark) .cp-signal-option[aria-pressed="true"] {

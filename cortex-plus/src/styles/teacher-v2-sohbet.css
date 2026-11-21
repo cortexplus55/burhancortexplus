@@ -5,11 +5,7 @@
  * token'ların kendisinde). Bayrak kapalıyken bu sınıfların hiçbiri DOM'da yok.
  */
 
-/* --- Anlatım anahtarı: bugünkü hap; açık temada seçili hap okunur (eski renk karışımı 3,3:1 kalıyordu) ------------- */
-:root:not(.dark) .cx-v2-mode .cp-tutor-mode-pill.is-on {
-  background: var(--cx-brand-weak);
-  color: var(--cx-text-brand);
-}
+/* --- Anlatım anahtarı: bugünkü hap; açık temadaki seçili hap rengi parity-shell.css'te (bütün kiplerde aynı) ------- */
 
 /* --- Düşünme satırı: tek satır, üç nokta; hareket azaltmada durur ------------------------------------------------ */
 .cx-v2-thinking {
