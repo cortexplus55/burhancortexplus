@@ -1,5 +1,5 @@
--- YAZILDI, UYGULANMADI (21 Kasım 2026, Faz 11 sunucu PR'ı). Ürün sahibi SQL ekranında uygular ve aynı oturumda kayıt
--- satırını yazar (docs/operasyon/goc-kayitlari.md):
+-- YAZILDI, UYGULANMADI (21 Kasım 2026, Faz 11). Ürün sahibinin onayıyla, kod yayınından sonra SQL ekranında uygulanır ve
+-- aynı oturumda kayıt satırı yazılır (docs/operasyon/goc-kayitlari.md):
 --   insert into supabase_migrations.schema_migrations (version, name)
 --   values ('20261121150000', 'tutor_memory_notes') on conflict (version) do nothing;
 --
@@ -11,13 +11,13 @@
 -- yalnız sunucu anahtarıyla, `user_id` süzgeciyle. Hesap silinince `purgeUserData` siler; kullanıcı ya da konuşma
 -- silinince CASCADE.
 --
--- İkinci parça: "Bunu Yanlışlar Defterime ekle" (öğretmen sohbetinden deftere) yeni bir kaynak türü yazar: `chat`. Yanlış
--- defterinin kaynak kısıtı yalnız GENİŞLER (Faz 2 göçüyle aynı yöntem: kısıt yeniden kurulur, var olan her satır yeni
--- kümede de geçerli; hiçbir satır değişmez ya da silinmez).
---
--- Yalnız ekleme: CREATE ... IF NOT EXISTS; satır silen ya da değiştiren DELETE/UPDATE yok. İki kez çalıştırmak zararsız.
+-- Yalnız ekleme: yeni bir tablo ve dizini. Var olan hiçbir tablo, sütun, kısıt ya da satır değişmez; DROP, ALTER (var olan
+-- tabloda), DELETE, UPDATE yok. İki kez çalıştırmak zararsız (IF NOT EXISTS).
+-- "Bunu Yanlışlar Defterime ekle" bu göce bağlı DEĞİLDİR: sohbetten düşen soru defterin var olan kaynak değeriyle yazılır,
+-- öğretmen sohbetinden geldiği `source_ref` önekinden (`chat:<mesaj>`) anlaşılır (mistake-notebook.ts). Yanlış defterinin
+-- kaynak kısıtına dokunulmaz.
 -- YAYIN SIRASI: kod göçsüz de çalışır ve yalnız teacher.v2 açıkken bu tabloya dokunur: tablo yoksa not yazımı ve okuması
--- sessizce atlanır; kaynak kısıtı genişlemeden "deftere ekle" 503 `not_ready` döner. Göç kod yayınından sonra uygulanır.
+-- sessizce atlanır. Göç kod yayınından sonra uygulanır.
 
 CREATE TABLE IF NOT EXISTS public.tutor_memory_notes (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -37,13 +37,3 @@ GRANT ALL ON public.tutor_memory_notes TO service_role;
 
 COMMENT ON TABLE public.tutor_memory_notes IS
   'Faz 11: öğretmenin oturum sonu kısa öğrenme gözlemleri (en çok 3 / oturum, ≤160 karakter). Yalnız sunucu anahtarı.';
-
--- Yanlış defteri: öğretmen sohbeti kaynağı (`chat`). Var olan değerler aynen kalır.
-ALTER TABLE public.mistake_entries DROP CONSTRAINT IF EXISTS mistake_entries_source;
-ALTER TABLE public.mistake_entries
-  ADD CONSTRAINT mistake_entries_source
-  CHECK (source IN ('deneme', 'quiz', 'true_false', 'lesson_check', 'podcast', 'chat')) NOT VALID;
-ALTER TABLE public.mistake_entries VALIDATE CONSTRAINT mistake_entries_source;
-
-COMMENT ON COLUMN public.mistake_entries.source_ref IS
-  'Faz 2: UUID olmayan soru kimliği (hazırlık yolu: <attemptId>:q:N, :tf:N, :pc:N, :lc:N). Faz 11: öğretmen sohbeti chat:<mesaj>. Deneme soruları source_question_id kullanır.';

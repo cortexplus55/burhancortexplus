@@ -751,14 +751,14 @@ describe("Yanlışlar Defterime ekle", () => {
     }
   });
 
-  it("deftere bugünkü satır biçimiyle yazar: kaynak chat, yol kimliği, konu başlıktan, işaretsiz açıklama", async () => {
+  it("deftere bugünkü satır biçimiyle yazar: var olan kaynak değeri, chat: kimliği, konu başlıktan, işaretsiz açıklama", async () => {
     const service = mistakeService({ conversation, message: reply });
     const result = await saveChatMistake(service as never, USER, { conversationId: CONV, messageId: MSG });
     expect(result).toEqual({ ok: true, already: false, entryId: "entry-1", topic: "topic-alpha", quizHref: "/studio/quiz?topic=topic-alpha" });
     const insert = service.calls.find((call) => call.insert)!.insert as Record<string, unknown>;
     expect(insert).toMatchObject({
       user_id: USER,
-      source: "chat",
+      source: "lesson_check",
       source_question_id: null,
       source_ref: chatMistakeRef(MSG),
       topic_label: "topic-alpha",
@@ -769,14 +769,18 @@ describe("Yanlışlar Defterime ekle", () => {
     });
   });
 
-  it("idempotent: aynı mesaj ikinci kez eklenmez; eşzamanlı ikinci dokunuş var olanı döner; göç yoksa 503", async () => {
+  it("idempotent: aynı mesaj ikinci kez eklenmez; eşzamanlı ikinci dokunuş var olanı döner; başka yazım hatası 503", async () => {
     const again = mistakeService({ conversation, message: reply, existing: [{ id: "entry-1", question_text: "q" }] });
     expect(await saveChatMistake(again as never, USER, { conversationId: CONV, messageId: MSG })).toMatchObject({ ok: true, already: true, entryId: "entry-1" });
     expect(again.calls.some((call) => call.insert)).toBe(false);
     const race = mistakeService({ conversation, message: reply, insertError: { code: "23505" } });
     expect(await saveChatMistake(race as never, USER, { conversationId: CONV, messageId: MSG })).toMatchObject({ ok: true, already: true });
-    const old = mistakeService({ conversation, message: reply, insertError: { code: "23514" } });
-    expect(await saveChatMistake(old as never, USER, { conversationId: CONV, messageId: MSG })).toEqual({ ok: false, status: 503, error: "not_ready" });
+    const broken = mistakeService({ conversation, message: reply, insertError: { code: "23514" } });
+    expect(await saveChatMistake(broken as never, USER, { conversationId: CONV, messageId: MSG })).toEqual({
+      ok: false,
+      status: 503,
+      error: "unavailable",
+    });
   });
 
   it("uç: bayrak kapalıyken 404, oturum ve hız sınırı (dakikada 10), model ve kredi yok", () => {
@@ -787,16 +791,42 @@ describe("Yanlışlar Defterime ekle", () => {
     expect(route).not.toMatch(/reserveCredits|openai|chat\.completions/);
   });
 
-  it("defter sohbet kartını kendini yoklama olarak sorar; 'Artık çözebiliyorum' doğru sayılır", async () => {
+  it("defter sohbet kartını chat: önekinden tanır, kendini yoklama olarak sorar; 'Artık çözebiliyorum' doğru sayılır", async () => {
     const row = {
-      id: "entry-1", source: "chat", topic_label: "topic-alpha", question_text: "soru-1?", options: null, correct_answer: null,
-      first_wrong_answer: null, explanation: "açıklama", wrong_count: 1, review_count: 0, correct_streak: 0, mastered_at: null,
+      id: "entry-1", source: "lesson_check", source_ref: chatMistakeRef(MSG), topic_label: "topic-alpha", question_text: "soru-1?",
+      options: null, correct_answer: null, first_wrong_answer: null, explanation: "açıklama", wrong_count: 1, review_count: 0,
+      correct_streak: 0, mastered_at: null,
     };
     const groups = await loadOpenMistakes(fakeService(() => ({ data: [row], error: null })) as never, USER);
+    expect(groups[0]!.entries[0]!.source).toBe("chat");
     expect(groups[0]!.entries[0]!.options).toEqual([...CHAT_SELF_CHECK_OPTIONS]);
     const review = fakeService((call) => (call.ops.some((op) => op.startsWith("update")) ? { data: null, error: null } : { data: row, error: null }));
     expect((await reviewMistake(review as never, USER, "entry-1", CHAT_SELF_CHECK_OPTIONS[0]))!.correct).toBe(true);
     expect((await reviewMistake(review as never, USER, "entry-1", CHAT_SELF_CHECK_OPTIONS[1]))!.correct).toBe(false);
+  });
+
+  it("öneksiz ders sorusu satırı sohbet kartı sayılmaz; source_ref sütunu yoksa okuma sütunsuz bir kez daha denenir", async () => {
+    const lessonRow = {
+      id: "entry-2", source: "lesson_check", source_ref: "a1:lc:0", topic_label: "topic-alpha", question_text: "soru-2?",
+      options: ["x", "y"], correct_answer: "x", first_wrong_answer: "y", explanation: null, wrong_count: 1, review_count: 0,
+      correct_streak: 0, mastered_at: null,
+    };
+    const plain = await loadOpenMistakes(fakeService(() => ({ data: [lessonRow], error: null })) as never, USER);
+    expect(plain[0]!.entries[0]!.source).toBe("lesson_check");
+    expect(plain[0]!.entries[0]!.options).toEqual(["x", "y"]);
+    const review = fakeService((call) => (call.ops.some((op) => op.startsWith("update")) ? { data: null, error: null } : { data: lessonRow, error: null }));
+    expect((await reviewMistake(review as never, USER, "entry-2", CHAT_SELF_CHECK_OPTIONS[0]))!.correct).toBe(false);
+
+    const { source_ref: _ref, ...oldRow } = lessonRow;
+    void _ref;
+    let reads = 0;
+    const oldSchema = fakeService(() => {
+      reads += 1;
+      return reads === 1 ? { data: null, error: { code: "42703", message: "column source_ref does not exist" } } : { data: [oldRow], error: null };
+    });
+    const groups = await loadOpenMistakes(oldSchema as never, USER);
+    expect(reads).toBe(2);
+    expect(groups[0]!.entries[0]!.questionText).toBe("soru-2?");
   });
 
   it("hesap silinince notlar da gider", () => {
@@ -804,9 +834,12 @@ describe("Yanlışlar Defterime ekle", () => {
   });
 });
 
-describe("göç: öğretmen notları ve defter kaynağı (PGlite)", () => {
+describe("göç: öğretmen notları; defter kısıtına dokunulmaz (PGlite)", () => {
   const db = new PGlite();
   const MIGRATION = "supabase/migrations/20261121150000_tutor_memory_notes.sql";
+  const CONSTRAINT_SQL = `SELECT conname, pg_get_constraintdef(oid) AS def FROM pg_constraint
+    WHERE conrelid = 'public.mistake_entries'::regclass ORDER BY conname`;
+  let constraintsBefore: unknown[] = [];
 
   beforeAll(async () => {
     await db.exec(`
@@ -828,6 +861,7 @@ describe("göç: öğretmen notları ve defter kaynağı (PGlite)", () => {
       `INSERT INTO public.mistake_entries (user_id, source, source_ref, question_text) VALUES ($1, 'quiz', 'a1:q:0', 'eski satır')`,
       [USER],
     );
+    constraintsBefore = (await db.query(CONSTRAINT_SQL)).rows;
     // İki kez: ekleyici ve tekrar çalıştırılabilir.
     await db.exec(read(MIGRATION));
     await db.exec(read(MIGRATION));
@@ -862,17 +896,22 @@ describe("göç: öğretmen notları ve defter kaynağı (PGlite)", () => {
     }
   });
 
-  it("defter kaynağı 'chat' kabul edilir; eski satır durur; bilinmeyen kaynak reddedilir", async () => {
+  it("defterin kısıtları göçten sonra birebir aynı; sohbet satırı var olan kısıtla yazılır", async () => {
+    expect((await db.query(CONSTRAINT_SQL)).rows).toEqual(constraintsBefore);
     await db.query(
-      `INSERT INTO public.mistake_entries (user_id, source, source_ref, question_text) VALUES ($1, 'chat', $2, 'soru-1?')`,
+      `INSERT INTO public.mistake_entries (user_id, source, source_ref, question_text) VALUES ($1, 'lesson_check', $2, 'soru-1?')`,
       [USER, chatMistakeRef(MSG)],
     );
     await expect(
-      db.query(`INSERT INTO public.mistake_entries (user_id, source, source_ref, question_text) VALUES ($1, 'chat', $2, 'tekrar')`, [
+      db.query(`INSERT INTO public.mistake_entries (user_id, source, source_ref, question_text) VALUES ($1, 'lesson_check', $2, 'tekrar')`, [
         USER,
         chatMistakeRef(MSG),
       ]),
     ).rejects.toThrow(); // tekil yol kimliği: aynı mesaj iki kez düşmez
+    // Kısıt genişlemedi: "chat" kaynak değeri hâlâ reddedilir (kod onu yazmaz).
+    await expect(
+      db.query(`INSERT INTO public.mistake_entries (user_id, source, source_ref, question_text) VALUES ($1, 'chat', 'chat:x', 'q')`, [USER]),
+    ).rejects.toThrow();
     await expect(
       db.query(`INSERT INTO public.mistake_entries (user_id, source, source_ref, question_text) VALUES ($1, 'bilinmeyen', 'r', 'q')`, [USER]),
     ).rejects.toThrow();
@@ -884,6 +923,8 @@ describe("göç: öğretmen notları ve defter kaynağı (PGlite)", () => {
     const sql = read(MIGRATION);
     expect(sql.split("\n")[0]).toContain("YAZILDI, UYGULANMADI");
     expect(sql).toContain("values ('20261121150000', 'tutor_memory_notes') on conflict (version) do nothing;");
-    expect(sql).not.toMatch(/^\s*(?:DELETE|UPDATE|TRUNCATE|DROP TABLE)\b/im);
+    expect(sql).not.toMatch(/^\s*(?:DELETE|UPDATE|TRUNCATE|DROP)\b/im);
+    expect(sql).not.toMatch(/^\s*ALTER TABLE (?!public\.tutor_memory_notes\b)/im);
+    expect(sql.replace(/^--.*$/gm, "")).not.toContain("mistake_entries");
   });
 });

@@ -1,16 +1,19 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { miniQuizHref } from "@/lib/teacher/reply-chips";
+import { CHAT_MISTAKE_REF_PREFIX, CHAT_MISTAKE_STORED_SOURCE } from "@/lib/learning/mistake-notebook";
 
 /*
   "📝 Bunu Yanlışlar Defterime ekle" (Faz 11, teacher.v2, 21 Kasım 2026). Öğretmenin bir yanıtı ve hemen öncesindeki
-  öğrenci sorusu defterin bugünkü satır biçimiyle yazılır (`mistake_entries`; kaynak `chat`, kimlik `source_ref` =
-  `chat:<mesaj>`). Sohbette anahtar olmadığı için `options` ve `correct_answer` boş kalır; defter onu kendini yoklama
+  öğrenci sorusu defterin bugünkü satır biçimiyle yazılır (`mistake_entries`; kimlik `source_ref` = `chat:<mesaj>`).
+  Kaynak sütununa var olan `lesson_check` değeri yazılır: defterin kaynak kısıtı değişmez, göç gerekmez; okuyan taraf
+  `chat:` önekinden satırı "öğretmen sohbeti" sayar (`isChatMistakeRef`). Sohbette anahtar olmadığı için `options` ve `correct_answer` boş kalır; defter onu kendini yoklama
   kartı olarak sorar (`CHAT_SELF_CHECK_OPTIONS`). Sahiplik sunucuda: konuşma ve mesaj öğrencinin kendisinin olmalı. Aynı
   mesaj ikinci kez eklenmez (var olan satır aynen döner; yanlış sayacı artmaz).
 */
 
-export const CHAT_MISTAKE_SOURCE = "chat";
+/** Veritabanına yazılan kaynak değeri (var olan kısıt kümesinden). Mantıksal kaynak "chat", `source_ref` önekinden. */
+export const CHAT_MISTAKE_SOURCE = CHAT_MISTAKE_STORED_SOURCE;
 const QUESTION_MAX = 1000;
 const EXPLANATION_MAX = 1200;
 const TOPIC_MAX = 80;
@@ -19,7 +22,7 @@ export type ChatMistakeResult =
   | { ok: true; already: boolean; entryId: string | null; topic: string | null; quizHref: string }
   | { ok: false; status: 404 | 422 | 503; error: string };
 
-export const chatMistakeRef = (messageId: string) => `chat:${messageId.toLowerCase()}`;
+export const chatMistakeRef = (messageId: string) => `${CHAT_MISTAKE_REF_PREFIX}${messageId.toLowerCase()}`;
 
 /** Sunucunun eklediği işaretler ([[…]]) ve kaynak listesi defter metnine girmez. */
 export function plainReply(content: string): string {
@@ -134,8 +137,6 @@ export async function saveChatMistake(
         .limit(1) as unknown as PromiseLike<Many<{ id: string }>>));
       return { ok: true, already: true, entryId: again.data?.[0]?.id ?? null, topic, quizHref: quizHref(question) };
     }
-    // Kaynak kısıtı `chat`'i henüz tanımıyor (göç uygulanmadı): kayıt açılamaz, öğrenciye "şu an olmadı" denir.
-    if (error.code === "23514") return { ok: false, status: 503, error: "not_ready" };
     console.error("teacher_mistake_write_failed", { code: error.code ?? null });
     return { ok: false, status: 503, error: "unavailable" };
   }
