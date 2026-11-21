@@ -27,6 +27,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { isFeatureEnabled } from "@/lib/admin/feature-flags";
 import { TEACHER_V2_FLAG } from "@/lib/ai/teacher-v2";
 import { ContinueLine } from "@/components/parity/continue-line";
+import { TutorHistoryPanel } from "@/components/parity/tutor-history-panel";
 import { HomeCockpit, HomeSelectionProvider, HomeToolsTray } from "@/components/parity/home-cockpit";
 import { loadHomeCockpit, type NodeRow } from "@/lib/learning/home-cockpit";
 import { uiV2 } from "@/lib/ui-v2/flags";
@@ -288,6 +289,8 @@ export default async function OgretmenPage({
       emailUnverified={!account?.isAdmin && emailUnverifiedFromMetadata(user.app_metadata)}
       recentConversations={conversations}
     >
+      {/* Faz 11 (teacher.v2): geçmiş paneli, konuşmalar hazırlığa göre. Veriyi kendisi ister (sunucu bütçesine girmez). */}
+      {teacherV2 ? <TutorHistoryPanel activeConversationId={conversationId ?? null} /> : null}
       {uiOgretmen ? (
         <div className="cx-ui-scope" data-ui="ogretmen">
           {body}

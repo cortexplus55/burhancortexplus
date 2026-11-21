@@ -96,6 +96,9 @@ const healthyRows: Rows = {
   // 19 Kasım 2026 (Faz 4): kavrama politikası sütunu ve "Farklı anlat" önbelleği.
   exam_prep_topic_mastery: {},
   exam_prep_step_reexplains: {},
+  // 21 Kasım 2026 (Faz 11): öğretmen notları ve konuşma-hazırlık bağı.
+  tutor_memory_notes: {},
+  tutor_conversation_preps: {},
 };
 
 const healthy = () => service({ rows: healthyRows });
@@ -201,8 +204,10 @@ describe("diğer göç dosyaları", () => {
     // 7 Kasım 2026: +2 satır (e-posta ağı, davet günlük tavanı).
     // 11 Kasım 2026 akşamı: +1 satır (ücretsiz hesap = tek ders, SQL'deki ders sınırı).
     // 19 Kasım 2026 (Faz 4): +1 satır (kavrama politikası ve Farklı anlat önbelleği; kritik değil).
-    expect(checks).toHaveLength(31);
+    // 21 Kasım 2026 (Faz 11): +1 satır (öğretmen notları ve sohbet geçmişi bağı; kritik değil).
+    expect(checks).toHaveLength(32);
     expect(find(checks, "Faz 4 kavrama politikası")).toMatchObject({ ok: true, critical: false });
+    expect(find(checks, "sohbet geçmişi bağı")).toMatchObject({ ok: true, critical: false });
     expect(find(checks, "tek ders (SQL sınırı)")).toMatchObject({ ok: true, critical: false });
     expect(find(checks, "Kurucu rolü")).toMatchObject({ ok: true, critical: false });
     expect(find(checks, "Kredi kuralı satırları")).toMatchObject({ ok: true, critical: true });
@@ -227,6 +232,17 @@ describe("diğer göç dosyaları", () => {
     expect(find(checks, "Kredi v3").detail).toContain("günlük kredi 0");
     expect(find(checks, "Üretim işleri")).toMatchObject({ ok: true, critical: false });
     expect(find(checks, "Üretim işleri").detail).toContain("20261026120000");
+  });
+
+  it("Faz 11 tabloları yoksa uyarı satırı kırmızı ama kritik değil; eksik tablo adıyla yazılır", async () => {
+    const rows = { ...healthyRows };
+    delete rows.tutor_conversation_preps;
+    const checks = await probeSchema(service({ rows }));
+    const row = find(checks, "sohbet geçmişi bağı");
+    expect(row).toMatchObject({ ok: false, critical: false });
+    expect(row.detail).toContain("tutor_conversation_preps");
+    expect(row.detail).not.toContain("tutor_memory_notes,");
+    expect(checks.filter((check) => check.critical).every((check) => check.ok)).toBe(true);
   });
 
   it("üretim işi tablosu yoksa kırmızı ama kritik değil", async () => {

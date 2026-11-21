@@ -1,0 +1,437 @@
+/*
+ * Sohbet geçmişi hazırlığa göre (Faz 11, teacher.v2, 21 Kasım 2026). İki yüzey:
+ *  - /sohbetler: hazırlık grupları (`.cx-hgroup`); satırlar bugünkü kartlar, ad değiştirme ve silme aynen.
+ *  - /ogretmen: geçmiş paneli (`.cx-thist`): geniş ekranda açık sohbetin solunda daraltılabilir yan panel, öbür
+ *    durumlarda "Geçmiş" düğmesi + çekmece.
+ * Değerler --cx-*; ham renk yok. Bayrak kapalıyken bu sınıfların hiçbiri sayfada yok.
+ */
+
+/* ---------- Ortak: grup başlığının parçaları ---------- */
+.cx-hgroup-chevron {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--cx-text-secondary);
+  transition: rotate var(--cx-dur-color) ease;
+}
+[aria-expanded="false"] > .cx-hgroup-chevron {
+  rotate: -90deg;
+}
+.cx-hgroup-date {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cx-space-4);
+  min-height: 24px;
+  padding: 0 var(--cx-space-10);
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-bg-2);
+  color: var(--cx-text-secondary);
+  font: var(--cx-t-label-13);
+  letter-spacing: var(--cx-ls-label);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.cx-hgroup-date svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* ---------- /sohbetler: hazırlık grupları ---------- */
+/* Gruplar arası boşluk sayfa iskeletinin aralığından (24 px); ayrıca dış boşluk yok. */
+.cx-hgroup {
+  margin: 0;
+}
+.cx-hgroup-head {
+  margin: 0 0 var(--cx-space-8);
+}
+.cx-hgroup-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--cx-space-8);
+  width: 100%;
+  min-height: var(--cx-control-m);
+  padding: 0 var(--cx-space-12);
+  border: 0;
+  border-radius: var(--cx-radius-m);
+  background: transparent;
+  color: var(--cx-text-primary);
+  font: var(--cx-t-title-s);
+  letter-spacing: var(--cx-ls-heading);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--cx-dur-color) ease;
+}
+.cx-hgroup-toggle:hover {
+  background: var(--cx-bg-1);
+}
+.cx-hgroup-toggle:focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}
+.cx-hgroup-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cx-hgroup-count {
+  flex: none;
+  margin-left: auto;
+  display: inline-grid;
+  place-items: center;
+  min-width: 28px;
+  min-height: 24px;
+  padding: 0 var(--cx-space-8);
+  border-radius: var(--cx-radius-max);
+  background: var(--cx-bg-2);
+  color: var(--cx-text-secondary);
+  font: var(--cx-t-label-13);
+  font-variant-numeric: tabular-nums;
+}
+.cx-hgroup[data-group="genel"] .cx-hgroup-toggle {
+  color: var(--cx-text-secondary);
+}
+.cx-hgroup-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.cx-hgroup-list[hidden] {
+  display: none;
+}
+
+/* ---------- /ogretmen: geçmiş paneli ---------- */
+.cp-sor-main:has(> .cx-thist) {
+  position: relative;
+}
+.cp-sor-root:has(.cx-thist) {
+  --cx-thist-w: 17rem;
+  --cx-thist-push: calc(var(--cx-thist-w) + 2 * var(--cx-space-16));
+}
+/* Kök akışta yer kaplamaz; düğme ana alanın üstüne yerleşir. */
+.cx-thist {
+  flex: none;
+  height: 0;
+}
+.cx-thist :focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}
+
+/* "Geçmiş" düğmesi: cam hap, 44 px. Varsayılan yer: ana alanın sağ üstü (sohbet açılmadan önceki ana ekran). */
+.cx-thist-toggle {
+  position: absolute;
+  z-index: 30;
+  top: var(--cx-space-8);
+  right: var(--cx-space-24);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cx-space-8);
+  min-height: var(--cx-control-m);
+  padding: 0 var(--cx-space-18);
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  font: var(--cx-t-button-s);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: scale var(--cx-dur-scale) var(--cx-ease-out);
+}
+.cx-thist-toggle svg {
+  width: 16px;
+  height: 16px;
+}
+@media (hover: hover) {
+  .cx-thist-toggle:hover {
+    scale: var(--cx-scale-hover);
+  }
+}
+/* Sohbet açıkken: "Geri" ile "Yeni sohbet" arasındaki boşlukta, aynı satırda. */
+.cp-sor-root:has(.cp-sor-messages) .cx-thist-toggle {
+  top: 2px;
+  right: auto;
+  left: 50%;
+  translate: -50% 0;
+}
+
+/* Telefonda ana ekran (sohbet açılmadan): üst satırda, sağa yaslı; altındaki içerik bir satır aşağı kayar. */
+@media (max-width: 767px) {
+  .cp-sor-root:not(:has(.cp-sor-messages)) .cx-thist {
+    display: flex;
+    justify-content: flex-end;
+    height: auto;
+    padding: var(--cx-space-8) var(--cx-space-16) 0;
+  }
+  .cp-sor-root:not(:has(.cp-sor-messages)) .cx-thist-toggle {
+    position: relative;
+    top: auto;
+    right: auto;
+  }
+}
+
+/* ---------- Yan panel (≥1200 px, sohbet açıkken) ---------- */
+.cx-thist-dock {
+  display: none;
+}
+@media (min-width: 1200px) {
+  .cp-sor-root:has(.cp-sor-messages) .cx-thist:not([data-collapsed="true"]) .cx-thist-dock {
+    /* Yazma alanının (z 40) arkasını örten geçiş bandı paneli karartmasın: panel onun üstünde, alanla çakışmaz. */
+    position: absolute;
+    z-index: 41;
+    top: var(--cx-space-8);
+    bottom: var(--cx-space-24);
+    left: var(--cx-space-16);
+    display: flex;
+    flex-direction: column;
+    width: var(--cx-thist-w);
+    padding: var(--cx-space-12);
+    border-radius: var(--cx-radius-l);
+    background: var(--cx-bg-1);
+  }
+  .cp-sor-root:has(.cp-sor-messages) .cx-thist:not([data-collapsed="true"]) .cx-thist-toggle {
+    display: none;
+  }
+  /* Sütun daralmaz: içerik ve yazma alanı panelin genişliği kadar sağa kayar (1200 px'te sütuna 896 px kalır). */
+  .cp-sor-root:has(.cp-sor-messages) > .cp-sor-main:has(> .cx-thist:not([data-collapsed="true"])) {
+    padding-left: var(--cx-thist-push);
+  }
+  .cp-sor-root:has(.cp-sor-messages):has(> .cp-sor-main > .cx-thist:not([data-collapsed="true"])) .cp-sor-composer-zone {
+    left: calc(50% + var(--cx-thist-push) / 2);
+  }
+}
+
+/* ---------- Çekmece (telefon, tablet, ana ekran) ---------- */
+.cx-thist-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 85;
+  background: var(--cx-dim);
+  transition: opacity var(--cx-dur-color) ease;
+}
+.cx-thist-backdrop[data-starting-style],
+.cx-thist-backdrop[data-ending-style] {
+  opacity: 0;
+}
+.cx-thist-drawer {
+  position: fixed;
+  z-index: 86;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  width: min(22rem, calc(100vw - 3rem));
+  padding: var(--cx-space-16) var(--cx-space-12) calc(var(--cx-space-12) + env(safe-area-inset-bottom, 0px));
+  border-radius: var(--cx-radius-l) 0 0 var(--cx-radius-l);
+  background: var(--cx-bg-1);
+  box-shadow: var(--cx-shadow-sheet);
+  color: var(--cx-text-primary);
+  outline: none;
+  transition:
+    translate var(--cx-dur-panel) var(--cx-ease-glide),
+    opacity var(--cx-dur-color) ease;
+}
+.cx-thist-drawer[data-starting-style],
+.cx-thist-drawer[data-ending-style] {
+  translate: 100% 0;
+  opacity: 0;
+}
+.cx-thist-drawer :focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}
+
+/* ---------- Panelin içi (yan panel ve çekmece aynı) ---------- */
+.cx-thist-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cx-space-8);
+  padding: 0 var(--cx-space-4) var(--cx-space-8) var(--cx-space-8);
+}
+.cx-thist-title {
+  margin: 0;
+  color: var(--cx-text-primary);
+  font: var(--cx-t-title-s);
+  letter-spacing: var(--cx-ls-heading);
+}
+.cx-thist-icon {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: var(--cx-icon-btn-l);
+  height: var(--cx-icon-btn-l);
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  background: transparent;
+  color: var(--cx-text-secondary);
+  cursor: pointer;
+  transition:
+    background-color var(--cx-dur-color) ease,
+    color var(--cx-dur-color) ease;
+}
+.cx-thist-icon:hover {
+  background: var(--cx-bg-2);
+  color: var(--cx-text-primary);
+}
+.cx-thist-icon svg {
+  width: 18px;
+  height: 18px;
+}
+.cx-thist-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: var(--cx-space-2);
+}
+.cx-thist-group + .cx-thist-group {
+  margin-top: var(--cx-space-12);
+}
+.cx-thist-group-head {
+  margin: 0;
+}
+.cx-thist-group-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--cx-space-8);
+  width: 100%;
+  min-height: var(--cx-control-s);
+  padding: 0 var(--cx-space-8);
+  border: 0;
+  border-radius: var(--cx-radius-m);
+  background: transparent;
+  color: var(--cx-text-primary);
+  font: 600 0.875rem / 1.25 var(--cx-font-sans);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--cx-dur-color) ease;
+}
+.cx-thist-group-toggle:hover {
+  background: var(--cx-bg-2);
+}
+.cx-thist-group[data-group="genel"] .cx-thist-group-toggle {
+  color: var(--cx-text-secondary);
+}
+.cx-thist-group-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cx-thist-list {
+  margin: var(--cx-space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.cx-thist-list[hidden] {
+  display: none;
+}
+.cx-thist-link {
+  display: block;
+  min-height: var(--cx-control-s);
+  padding: var(--cx-space-8) var(--cx-space-12) var(--cx-space-8) calc(var(--cx-space-8) + 24px);
+  border-radius: var(--cx-radius-m);
+  color: var(--cx-text-secondary);
+  font: var(--cx-t-body-14);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 24px;
+  transition:
+    background-color var(--cx-dur-color) ease,
+    color var(--cx-dur-color) ease;
+}
+.cx-thist-link:hover {
+  background: var(--cx-bg-2);
+  color: var(--cx-text-primary);
+}
+.cx-thist-link[aria-current="page"] {
+  background: var(--cx-bg-3);
+  color: var(--cx-text-primary);
+  font-weight: 600;
+}
+.cx-thist-note {
+  margin: 0;
+  padding: var(--cx-space-12) var(--cx-space-8);
+  color: var(--cx-text-secondary);
+  font: var(--cx-t-body-14);
+}
+.cx-thist-note p {
+  margin: 0 0 var(--cx-space-12);
+}
+.cx-thist-retry {
+  min-height: var(--cx-control-s);
+  padding: 0 var(--cx-space-18);
+  border: 0;
+  border-radius: var(--cx-radius-max);
+  font: var(--cx-t-button-s);
+  cursor: pointer;
+}
+.cx-thist-loading {
+  display: grid;
+  gap: var(--cx-space-8);
+  padding: var(--cx-space-8);
+}
+.cx-thist-skeleton {
+  display: block;
+  height: 32px;
+  border-radius: var(--cx-radius-m);
+}
+.cx-thist-foot {
+  padding-top: var(--cx-space-8);
+}
+.cx-thist-all {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cx-space-8);
+  min-height: var(--cx-control-s);
+  padding: 0 var(--cx-space-8);
+  border-radius: var(--cx-radius-max);
+  color: var(--cx-text-brand);
+  font: var(--cx-t-label-13);
+  font-weight: 600;
+  text-decoration: none;
+}
+.cx-thist-all svg {
+  width: 14px;
+  height: 14px;
+  transition: translate var(--cx-dur-scale) var(--cx-ease-out);
+}
+.cx-thist-all:hover svg {
+  translate: var(--cx-nudge) 0;
+}
+
+/* Telefonda dokunma hedefi 44 px. */
+@media (max-width: 767px) {
+  .cx-hgroup-toggle,
+  .cx-thist-group-toggle,
+  .cx-thist-link,
+  .cx-thist-all,
+  .cx-thist-retry {
+    min-height: var(--cx-tap-min);
+  }
+  .cx-thist-link {
+    line-height: 28px;
+  }
+  .cx-thist-icon {
+    width: var(--cx-tap-min);
+    height: var(--cx-tap-min);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cx-thist-drawer,
+  .cx-thist-backdrop,
+  .cx-thist-toggle,
+  .cx-hgroup-chevron,
+  .cx-thist-all svg {
+    transition: none;
+  }
+  .cx-thist-drawer[data-starting-style],
+  .cx-thist-drawer[data-ending-style] {
+    translate: none;
+  }
+}
