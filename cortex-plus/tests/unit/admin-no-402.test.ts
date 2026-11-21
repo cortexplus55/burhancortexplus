@@ -55,7 +55,9 @@ function serverProducers(): Producer[] {
             ? "photo"
             // 5 Kasım 2026: harcama sigortası (spend_cap_free) ve okunamayan fotoğraf döngüsü (free_photo_abuse_limit) de
             // yalnız ücretsiz hesabın reddidir; abone ve kurucu (önizleme kapalıyken) görmez.
-            : /free_page_limit|FREE_PAGE_LIMIT_CODE|free_prep_limit|FREE_PREP_LIMIT|free_(lesson|chat|photo|included|topic)_limit|FREE_LESSON_CODE|FREE_TOPIC_LIMIT_CODE|spend_cap_free|SPEND_CAP_CODE|free_photo_abuse_limit|PHOTO_ABUSE_CODE/.test(window)
+            // 21 Kasım 2026: canlı sesli öğretmenin tek seferlik denemesi kullanılmış (trial_used) da ücretsiz hesabın reddi;
+            // kurucu denemeye hiç düşmez (`resolveRealtimeAccess` önce "founder" döner, aşağıda).
+            : /free_page_limit|FREE_PAGE_LIMIT_CODE|free_prep_limit|FREE_PREP_LIMIT|free_(lesson|chat|photo|included|topic)_limit|FREE_LESSON_CODE|FREE_TOPIC_LIMIT_CODE|spend_cap_free|SPEND_CAP_CODE|free_photo_abuse_limit|PHOTO_ABUSE_CODE|"trial_used"/.test(window)
               ? "free"
               : "unknown";
       found.push({ file: path.relative(ROOT, file).replaceAll("\\", "/"), line: index + 1, kind });
@@ -104,6 +106,10 @@ describe("sunucudaki her 402 sınıflanmış", () => {
     }
     const exempt = readFileSync(path.join(ROOT, "src/lib/billing/free-preview.ts"), "utf8");
     expect(exempt).toMatch(/if \(!\(await isAdminUser\(service, userId\)\)\) return false;\s*return !\(await freePreview\(service, userId\)\);/);
+    // Canlı sesli öğretmen: kurucu kararı deneme okumasından önce.
+    const realtime = readFileSync(path.join(ROOT, "src/lib/tutor/realtime/access.ts"), "utf8");
+    expect(realtime.indexOf('if (exempt) return { kind: "founder" };')).toBeGreaterThan(0);
+    expect(realtime.indexOf('if (exempt) return { kind: "founder" };')).toBeLessThan(realtime.indexOf("await trialUsed(service, userId)"));
   });
 });
 

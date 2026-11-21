@@ -368,8 +368,10 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
               mapReady={mapReady}
               mapInUse={mapInUse}
               hidePlanLink
+              // Kapsam raporu (sayfa sayıları, okunamayan / kapsanmayan sayfalar) iç denetim bilgisidir: öğrenciye
+              // gösterilmez, yalnız yönetici ve kurucu görür (21 Kasım 2026, ürün sahibi).
               coverage={
-                snapshot.coverage
+                admin && snapshot.coverage
                   ? {
                       status: snapshot.coverage.status,
                       summary: snapshot.coverage.summary,

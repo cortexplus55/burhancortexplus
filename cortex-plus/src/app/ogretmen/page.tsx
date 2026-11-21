@@ -273,8 +273,10 @@ export default async function OgretmenPage({
         initialTutorStyle={style}
         followUser={uiOgretmen}
         teacherV2={teacherV2}
-        // Faz 11: "mini test" çipinin konusu; son sohbetlerin zaten okunan başlığından (yeni sorgu yok).
-        conversationTitle={teacherV2 && conversationId ? (conversations.find((item) => item.id === conversationId)?.title ?? null) : null}
+        // Öğretmen v3 karşılaması: ad ve (ana ekranda seçili hazırlık yoksa) en son çalışılan hazırlık; ikisi de bu
+        // sayfanın zaten okuduğu değerlerden (yeni sorgu yok).
+        studentFirstName={teacherV2 ? companionSignals.firstName : undefined}
+        fallbackPrep={teacherV2 && continueStep ? { id: continueStep.prepId, title: continueStep.prepTitle } : null}
       />
   );
   const body = cockpit.length ? <HomeSelectionProvider preps={cockpit}>{panel}</HomeSelectionProvider> : panel;

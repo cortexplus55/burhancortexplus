@@ -32,7 +32,7 @@ import { env, type ActionCode } from "@/lib/env";
 import { recordUsage, refundCredits, refusalCode, reserveCredits } from "@/lib/credits/service";
 import { titleConversation } from "@/lib/ai/conversation-title";
 import { searchDocumentChunks, searchDocumentChunksAcross } from "@/lib/rag/pipeline";
-import { resolveChatMaterial, type ChatMaterialLink } from "@/lib/ai/chat-material-load";
+import { loadChatMaterialIndex, resolveChatMaterial, type ChatMaterialLink } from "@/lib/ai/chat-material-load";
 import {
   actionMarker,
   buildChatActions,
@@ -41,7 +41,11 @@ import {
   readTeacherTone,
   stripModelActionMarkers,
   type ChatAction,
+  type ChatMaterialIndex,
 } from "@/lib/ai/chat-material-link";
+import { extractFollowUps, followUpMarker } from "@/lib/teacher/follow-ups";
+import { LIVE_TUTOR_MARKUP, liveTutorTurn, settleFollowUps, tutorFirstName, type TutorGaps } from "@/lib/teacher/live-tutor";
+import { activePrepFromIndex } from "@/lib/teacher/active-prep";
 import { studentCalibration, studentOptionCount } from "@/lib/learning/student-pedagogy";
 import { NO_SOURCE_CREDIT_NOTE, NO_SOURCE_MESSAGE, saidNoSource, stripNoSourceMarker } from "@/lib/ai/grounding";
 import { chatSourceBlock } from "@/lib/learning/chat-source-block";
@@ -158,6 +162,11 @@ const bodySchema = z.object({
    * (`resolveTeachModeV2`); bayrak kapalıyken bu üç değerde profilin stili geçerli.
    */
   tutorStyle: z.enum(["step_by_step", "hints_first", "direct_solve", GUIDED_STYLE, TEACH_MODE_TUTOR, TEACH_MODE_SUMMARY]).optional(),
+  /**
+   * Öğretmen v3 (21 Kasım 2026): istemci, karşılama ekranından sonra öğrencinin ilk mesajında gönderir (öğrenci nasıl
+   * öğrendiğini anlattı). Yalnız teacher.v2 açıkken ana sohbette okunur; bayrak kapalıyken yok sayılır.
+   */
+  welcomeAnswer: z.boolean().optional(),
 });
 
 export async function POST(request: Request) {
@@ -204,12 +213,17 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
           .eq("conversation_id", rest.conversationId).eq("user_id", userId).order("created_at", { ascending: false }).limit(16))
       : Promise.resolve(null),
   );
-  const profileEarly = quiet(Promise.resolve(service.from("profiles").select("tutor_style").eq("id", userId).maybeSingle()));
+  // Ad (öğretmen v3): yalnız teacher.v2 ana sohbetinde ilk temasta kullanılır; bayrak kapalıyken okunur ama isteme girmez.
+  const profileEarly = quiet(Promise.resolve(service.from("profiles").select("tutor_style, full_name").eq("id", userId).maybeSingle()));
   const instructionEarly = quiet(loadActivePrompt(service, PROMPT_KEYS.studentChat));
   // Öğrencinin kendi materyaline bağlanma (15 Kasım 2026): ana sohbette mesaj hazırlık / konu / belge adı, "N gün
   // sonraki sınav" ya da seçili hazırlıkla eşlenir. Yalnız okuma; düşerse bağlantı yok, sohbet bugünkü gibi sürer.
-  const materialEarly: Promise<ChatMaterialLink | null> = !rest.prepId && !rest.imageDocumentId
-    ? resolveChatMaterial(service, userId, message, rest.contextPrepId ?? null, { conversationId: rest.conversationId }).catch((error) => {
+  // Dizin bir kez okunur; öğretmen v3 aynı okumadan seçili (aktif) hazırlığı alır. Sorgular bugünküyle aynı.
+  const materialIndexEarly: Promise<ChatMaterialIndex> | null = !rest.prepId && !rest.imageDocumentId
+    ? quiet(loadChatMaterialIndex(service, userId))
+    : null;
+  const materialEarly: Promise<ChatMaterialLink | null> = materialIndexEarly
+    ? resolveChatMaterial(service, userId, message, rest.contextPrepId ?? null, { conversationId: rest.conversationId, index: materialIndexEarly }).catch((error) => {
         console.warn("chat_material_link_failed", { operationId, cause: String(error instanceof Error ? error.message : error).slice(0, 120) });
         return null;
       })
@@ -474,6 +488,14 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
     /** Tur bir stüdyo yönlendirmesi mi (test, kart, deneme isteği; özet değil). */
     let studioRedirect = false;
     /**
+     * Öğretmen v3 (teacher.v2 ana sohbeti): modelin yazdığı takip soruları. Denetimden ÖNCE metinden ayrılır, kayıttan
+     * önce tek normal işaret olarak sona eklenir. Bayrak kapalıyken ya da hazırlık sohbetinde hiç kullanılmaz.
+     */
+    let v2MainChat = false;
+    let welcomeTurn = false;
+    let followUps: string[] = [];
+    let followUpsAllowed = false;
+    /**
      * Arka plan örnek denetimi (15 Kasım 2026, ürün sahibi): kod kontrolünden şüphesiz geçen belge cevabının %5'i
      * yanıttan SONRA model denetiminden geçer; sonuç yalnız günlüğe (uyuşmazlık oranı), öğrenciye gösterilmez.
      */
@@ -486,6 +508,8 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
       const { data: profile } = await profileEarly;
       // Faz 13 PR-1: seans durumu yalnız ana sohbette ve yalnız bayrak açıkken. Bayrak kapalıyken bugünkü yol.
       const v2Chat = teacherV2 && !rest.prepId;
+      v2MainChat = v2Chat;
+      welcomeTurn = v2Chat && rest.welcomeAnswer === true;
       // Faz 11: bayrak açıkken iki mod (Adım Adım Öğret, Hızlı Özet); eski seçimler eşlenir. Altındaki makine `base`.
       const teach = v2Chat ? resolveTeachModeV2({ requested: rest.tutorStyle, profile: profile?.tutor_style }) : null;
       const tutorStyle = teach
@@ -594,7 +618,36 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
       // Faz 13 PR-1 (B, C, D): süreklilik, ipucu merdiveni, Rehberli ilk tur, Adım Adım kavram turu. Son söz olsun diye en
       // sonda; kriz ve yalnız duygu turunda yok (güvenlik akışı aynen).
       if (v2Session && !turn.crisis && !turn.feelingOnly) {
-        turnLines.push(...teacherV2SessionLines({ session: v2Session, style: teachStyle, plan: turn.plan, message }));
+        // Öğretmen v3: canlı özel ders hocası. Aktif hazırlık (sahipliği materyal dizininde doğrulanan seçili hazırlık),
+        // ilk temasta ad, karşılama cevabı, "Daha fazla" komutları ve sürmekte olan test. Modelsiz; ek sorgu yok.
+        const tutorContext = tutorContextEarly ? await tutorContextEarly : null;
+        const activePrep = activePrepFromIndex(
+          materialIndexEarly ? await materialIndexEarly.catch(() => null) : null,
+          rest.contextPrepId ?? null,
+        );
+        const signals = tutorContext?.signals ?? null;
+        const measured = signals ? [...signals.illusion, ...signals.weak, ...signals.developing] : [];
+        const gaps: TutorGaps | null = signals
+          ? {
+              topics: [...signals.illusion, ...signals.weak].map((state) => state.topic),
+              mistakes: signals.openMistakes.map((row) => ({ question: row.question, topic: row.topicLabel })),
+            }
+          : null;
+        const liveTurn = liveTutorTurn({
+          message,
+          history,
+          welcomeAnswer: welcomeTurn,
+          studentName: tutorFirstName((profile as { full_name?: unknown } | null)?.full_name),
+          activePrep,
+          gaps,
+          suggestTopic: activePrep ? (measured.find((state) => state.prepId === activePrep.id)?.topic ?? null) : null,
+        });
+        followUpsAllowed = !liveTurn.noFollowUps;
+        // Karşılama cevabında cevap merdiveni ve süreklilik satırı yok (öğrenci soruya cevap vermedi, kendini anlattı).
+        if (!welcomeTurn) {
+          turnLines.push(...teacherV2SessionLines({ session: v2Session, style: teachStyle, plan: turn.plan, message, testRun: liveTurn.testRun }));
+        }
+        turnLines.push(...liveTurn.lines);
       }
       const moodLine = turn.mood === "neutral" ? "" : ` ${moodPrompt(turn.mood)}`;
       // Dosya bloğu tur satırlarından önce (son söz turun kuralı); kriz ve yalnız duygu turunda yok. Faz 11: öğrenci
@@ -609,7 +662,7 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
 
       const calibrationLine = await calibrationEarly.then((block) => (block ? PARAGRAPH + block : ""));
       const requestMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-        { role: "system", content: `${SYSTEM_GUARDRAIL} ${studentInstruction} ${teacherTurn} ${(v2Session && v2StyleLine(teachStyle)) || teacherStyleLine(tutorStyle)} ${CHAT_NATURAL_VOICE}${rest.prepId && prepGrounding ? "" : `\n\n${teacherV2 ? ONE_MOVE_MARKUP : CHAT_TEACHING_MARKUP}\n\n`} ${v2Session ? v2AnswerFirstLine({ message, style: teachStyle, base: tutorStyle, session: v2Session, plan: turn.plan }) : answerFirstLine(message, tutorStyle)} ${misconceptionFirstLine(message)}${moodLine}${examContext?.block ?? ""}${attachedBrief ? `\n${SOURCE_PAGE_FORMULA_RULE}\n${attachedBrief}` : ""}${contextBlock}${tutorAddendum ? `\n\n${tutorAddendum}` : ""}${calibrationLine}${simplifyLine(message) ? `\n\n${simplifyLine(message)}` : ""}${dossierBlock ? `\n\n${dossierBlock}` : ""}${chatTurnBlock(turnLines)}` },
+        { role: "system", content: `${SYSTEM_GUARDRAIL} ${studentInstruction} ${teacherTurn} ${(v2Session && v2StyleLine(teachStyle)) || teacherStyleLine(tutorStyle)} ${CHAT_NATURAL_VOICE}${rest.prepId && prepGrounding ? "" : `\n\n${teacherV2 ? (v2Chat ? LIVE_TUTOR_MARKUP : ONE_MOVE_MARKUP) : CHAT_TEACHING_MARKUP}\n\n`} ${v2Session ? v2AnswerFirstLine({ message, style: teachStyle, base: tutorStyle, session: v2Session, plan: turn.plan }) : answerFirstLine(message, tutorStyle)} ${misconceptionFirstLine(message)}${moodLine}${examContext?.block ?? ""}${attachedBrief ? `\n${SOURCE_PAGE_FORMULA_RULE}\n${attachedBrief}` : ""}${contextBlock}${tutorAddendum ? `\n\n${tutorAddendum}` : ""}${calibrationLine}${simplifyLine(message) ? `\n\n${simplifyLine(message)}` : ""}${dossierBlock ? `\n\n${dossierBlock}` : ""}${chatTurnBlock(turnLines)}` },
         ...history,
         { role: "user", content: imageUrl ? [{ type: "text", text: message }, { type: "image_url", image_url: visionImage(imageUrl) }] : message },
       ];
@@ -868,7 +921,11 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
         tokensIn += drafted.tokensIn;
         tokensOut += drafted.tokensOut;
         await recordUsage(service, { userId, actionCode, model: generationModel, tokensIn: drafted.tokensIn, tokensOut: drafted.tokensOut, reservationId });
-        const rawDraft = drafted.text;
+        // Öğretmen v3: takip soruları işareti denetimden ÖNCE metinden ayrılır (denetçi ve kod katmanları onu görmez);
+        // soruları kayıttan önce tek işaret olarak sona geri konur. Bayrak kapalıyken taslak olduğu gibi.
+        const followSplit = v2MainChat ? extractFollowUps(drafted.text) : null;
+        if (followSplit) followUps = followSplit.questions;
+        const rawDraft = followSplit ? followSplit.body : drafted.text;
         // JSON çıktıyı öğrenci metnine çevir; doğrulayıcı serbest metin bekler.
         const structuredEarly = parseTutorStructured(rawDraft);
         const studentFacingRaw = structuredEarly
@@ -970,6 +1027,7 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
         break;
       }
       if (!accepted) {
+        followUps = [];
         // "Bu notta neler var?" denetimden geçmezse öğrenci "emin olamadım" görmesin: belgenin
         // doğrulanmış konu haritasından cevap kurulur (19 Ekim 2026; konu başlıkları belgeyle
         // temellendirilmiş veri, yeni bilgi yazılmaz).
@@ -1027,6 +1085,13 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
     // metinle değiştiği için öğrencinin gördüğü ve saklanan metin aynıdır. Günlüğe yalnız sayı yazılır.
     // Düğme işaretini yalnız sunucu basar: modelin yazdığı taklit işaretler silinir.
     content = stripModelActionMarkers(content);
+    // Öğretmen v3 (teacher.v2 ana sohbeti): sabit kalıp çip işareti yok (yerini takip soruları aldı); kalmış bir takip
+    // sorusu işareti de burada ayrılır, tek işaret en sonda yeniden yazılır.
+    if (v2MainChat) {
+      const leftover = extractFollowUps(content.replace(/\[\[chip:[^\]]*\]\]/g, ""));
+      content = leftover.body;
+      if (!followUps.length) followUps = leftover.questions;
+    }
     const mathFix = verifyAndFixTurkishMathExpressions(content);
     if (mathFix.fixes) {
       content = mathFix.text;
@@ -1053,10 +1118,23 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
           }))
           : [];
       if (markers.length) content += `\n${markers.join("\n")}`;
+    } else if (citations.length && v2MainChat) {
+      // Öğretmen v3: "Kaynaklar:" metin bloğu yok; kaynak bilgisi `[[kaynak:…]]` işaretlerinde ve kaydın atıf alanında
+      // kalır (ekran kaynak hapını çizer). Denetim bundan önce bitti; etkilenmez.
+      content += `\n${citations.map((c) => citationMarker({
+        documentName: c.documentName,
+        pageNumber: c.pageNumber,
+        slide: false,
+        href: citationHref(c),
+      })).join("\n")}`;
     } else if (citations.length) content += "\n\nKaynaklar:\n" + citations.map((c) =>
       // Numara metindeki `[n]` atfıyla aynı: öğrenci hangi atfın hangi sayfa olduğunu görür.
       `- [${c.reference}] [${c.documentName.replace(/[\\[\]()*<>]/g, "")} ${c.pageNumber ? `· s.${c.pageNumber}` : ""}](${citationHref(c)})`).join("\n");
     if (charge && chatActions.length) content += `\n\n${chatActions.map(actionMarker).join("\n")}`;
+    // Öğretmen v3: takip soruları kayıttan önce tek normal işaret olarak yanıtın EN SONUNA. Model yazmadıysa yok; kriz,
+    // yalnız duygu, karşılama ve test turunda yok. Yanıtın kendi sorusuyla aynı olan düşer.
+    const followUpTail = v2MainChat && charge && followUpsAllowed ? followUpMarker(settleFollowUps(followUps, content)) : "";
+    if (followUpTail) content += `\n\n${followUpTail}`;
     const refused = await settleModeration();
     if (refused) return refused;
     if (request.signal.aborted) throw new Error("request_cancelled");
@@ -1082,7 +1160,8 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
     // Faz 11: öğretmen notları. Yalnız bayrak açıkken ana sohbette ve var olan konuşmada; yanıttan sonra, öğrenciden
     // kredi düşmeden. Tetik (oturum bitti / her 8. öğretmen mesajı) ve tablo denetimi işlevin içinde; yeni not yazılınca
     // öğretmenin bağlamı bir sonraki turda onu görür.
-    if (teacherV2 && !rest.prepId && rest.conversationId && charge) {
+    // Öğretmen v3: karşılama cevabı turunda not yazımı aşağıda zorlanır (aynı konuşmada iki iş koşmasın).
+    if (teacherV2 && !rest.prepId && rest.conversationId && charge && !welcomeTurn) {
       const notedConversationId = rest.conversationId;
       after(() =>
         maybeWriteTutorNotes(service, { userId, conversationId: notedConversationId }).then((result) => {
@@ -1093,8 +1172,20 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
     // Yeni sohbet: kıyas ürünü gibi kısa başlık + emoji, cevap gittikten sonra.
     const savedConversationId = (saved as SavedChatResult).conversationId;
     if (!rest.conversationId && savedConversationId) {
+      // Başlık modeline takip soruları işareti gitmez (yalnız teacher.v2 ana sohbetinde bulunur).
+      const titleAnswer = v2MainChat ? extractFollowUps(content).body : content;
       after(() =>
-        titleConversation(service, { userId, conversationId: savedConversationId, message, answer: content }),
+        titleConversation(service, { userId, conversationId: savedConversationId, message, answer: titleAnswer }),
+      );
+    }
+    // Öğretmen v3: öğrenci karşılamada nasıl öğrendiğini anlattı; not yazımı 30 dk / 8 mesaj tetiğini beklemez. Yine tek
+    // küçük çağrı, yanıttan sonra, kredisiz; tablo yoksa atlanır; aynı konuşmada bir kez (işlevin içinde sınanır).
+    const welcomeConversationId = rest.conversationId ?? savedConversationId ?? null;
+    if (welcomeTurn && charge && welcomeConversationId) {
+      after(() =>
+        maybeWriteTutorNotes(service, { userId, conversationId: welcomeConversationId, force: "welcome" }).then((result) => {
+          if (result.written) forgetTutorContext(userId);
+        }),
       );
     }
     // Faz 11: sohbet geçmişi hazırlığa göre. Yalnız bayrak açıkken ana sohbette; seçili hazırlık materyal okumasında

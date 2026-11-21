@@ -10,16 +10,21 @@ export const dynamic = "force-dynamic";
  * ücretsiz ve Plus hesap; telefonda, tablette ve masaüstünde üst üste binme ölçümü için.
  * `?hak=taze|kullanildi|bitti` ücretsiz hak durumu, `?kota=90|100` Plus kotası (Faz 3B).
  * `?durum=sohbet` sohbet hâli, `?ogretmen=v2&durum=yoklama` Faz 11 mini yoklama (formül, tablo, kod), `?plan=plus|hafta|sigma|kurucu` plan (profil kimliği, 13 Kasım 2026), `?hazirlik=1` hazırlığı olan öğrenci (`=yeni`: hiç adımı bitmemiş).
+ * Öğretmen v3 (21 Kasım 2026, `?ogretmen=v2`): `&durum=karsilama` karşılama, `&durum=takip` damgalı yanıt + takip soruları,
+ * `&konus=1` "Konuş" düğmesi ve sesli mod yeri.
  */
 export default async function E2eAnaEkranPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ogretmen?: string; durum?: string; plan?: string; hazirlik?: string; konu?: string; hak?: string; kota?: string; buyume?: string }>;
+  searchParams: Promise<{ ogretmen?: string; durum?: string; plan?: string; hazirlik?: string; konu?: string; hak?: string; kota?: string; buyume?: string; konus?: string }>;
 }) {
   if (process.env.E2E_FIXTURE !== "1") notFound();
   const params = await searchParams;
   return (
     <AnaEkranFixture
+      welcome={params.durum === "karsilama"}
+      followUps={params.durum === "takip"}
+      liveTalk={params.konus === "1"}
       conversation={params.durum === "sohbet" || params.durum === "cevapsiz" || params.durum === "ogretim" || params.durum === "ozet" || params.durum === "yoklama"}
       teaching={params.durum === "ogretim"}
       teacherV2={params.ogretmen === "v2"}

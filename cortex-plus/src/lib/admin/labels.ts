@@ -157,6 +157,9 @@ export const ACTION_LABELS: Record<string, string> = {
   POOL_CARDS: "Hazır kart seti",
   POOL_QUIZ: "Hazır test",
   EXPORT_PDF: "PDF olarak dışa aktarma",
+  REALTIME_VOICE_MINUTE: "Canlı sesli öğretmen (dakika)",
+  REALTIME_VOICE: "Canlı sesli öğretmen",
+  REALTIME_VOICE_TRIAL: "Canlı sesli öğretmen denemesi",
 };
 
 /** Ödeme durumları (payments.status). */

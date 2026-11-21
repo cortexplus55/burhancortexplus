@@ -1,13 +1,16 @@
 import { expect, test, type Page } from "@playwright/test";
 
 /*
-  Faz 11 · öğretmen sohbeti arayüzü (teacher.v2, 21 Kasım 2026). Fikstür veritabanısız: `/e2e/ana-ekran?ogretmen=v2`
-  (`&durum=sohbet` soruyla biten yanıt, `&durum=yoklama` mini yoklama + formül + geniş tablo + kod + Sık hata kutusu).
-  Uçlar sahte (`page.route`): model, kredi ve canlı API yok. 360, 390 ve 1280 px'te yatay taşma 0; çip ve şık düğmeleri
-  en az 40 px (telefonda 44 px); yoklama tıklanır ve kilitlenir; karşılama kartları görünür; mod seçici iki mod.
+  Faz 11 · öğretmen sohbeti arayüzü (teacher.v2). 21 Kasım 2026'dan beri öğretmen v3 ekranında: anlatım seçici, tepki
+  çipleri ve karşılama kartları yok (v3 karşılaması `ogretmen-v3.spec.ts`'te). Burada Faz 11'in v3'te süren parçaları:
+  canlı kara tahta (mini yoklama, formül, tablo, kod), karşılamanın "kaldığımız yerden" devamı ve fotoğrafla iki seçim.
+  Fikstür veritabanısız: `/e2e/ana-ekran?ogretmen=v2` (`&durum=sohbet`, `&durum=yoklama`, `&durum=karsilama`). Uçlar sahte
+  (`page.route`): model, kredi ve canlı API yok. 360, 390 ve 1280 px'te yatay taşma 0; şık ve seçim düğmeleri en az 40 px
+  (telefonda 44 px).
 */
 
 const CONV = "0b0b0b0b-0b0b-4b0b-8b0b-0b0b0b0b0b0b";
+const RESUME_CONV = "0d0d0d0d-0d0d-4d0d-8d0d-0d0d0d0d0d0d";
 
 const pageOverflow = (page: Page) =>
   page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
@@ -16,15 +19,9 @@ async function heights(page: Page, selector: string) {
   return page.locator(selector).evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
 }
 
-const START_CARDS = {
-  empty: false,
-  cards: [
-    { id: "weak", kind: "weak", emoji: "⚠️", label: "TYT Fizik — Kuvvet ve hareket ünitesindeki açık hatalarını birlikte kapatalım", prompt: "Kuvvet ve hareket konusundaki açık hatalarımı birlikte kapatalım.", prepId: null },
-    { id: "exam", kind: "exam", emoji: "🎯", label: "Biyoloji sınavına 4 gün kaldı: hızlı tekrar turu yapalım", prompt: "Biyoloji sınavıma 4 gün kaldı. Bana hızlı bir tekrar turu yaptır.", prepId: null },
-    { id: "photo", kind: "photo", emoji: "📷", label: "Soru veya defter fotoğrafı yükle, adım adım çözelim", prompt: "Fotoğraf göndereceğim.", prepId: null },
-    { id: "analogy", kind: "analogy", emoji: "💡", label: "Bir konuyu bana sıfırdan analojiyle anlat", prompt: "Bir konuyu bana sıfırdan anlat.", prepId: null },
-  ],
-};
+async function stubSideRequests(page: Page) {
+  await page.route("**/api/teacher/conversations", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ groups: [] }) }));
+}
 
 for (const width of [360, 390, 1280] as const) {
   const minTap = width <= 640 ? 44 : 40;
@@ -32,37 +29,38 @@ for (const width of [360, 390, 1280] as const) {
   test.describe(`öğretmen Faz 11 · ${width}px`, () => {
     test.use({ viewport: { width, height: 820 } });
 
-    test("iki modlu anahtar; soru kartı ve tek sıra tepki çipleri; deftere ekle kilitlenir", { tag: ["@public"] }, async ({ page }) => {
-      const posts: unknown[] = [];
-      await page.route("**/api/teacher/mistake", async (route) => {
-        posts.push(route.request().postDataJSON());
-        await route.fulfill({ contentType: "application/json", body: JSON.stringify({ ok: true, already: false, entryId: "e1", quizHref: "/studio/quiz" }) });
+    test("öğretmen v3: anlatım seçici ve tepki çipleri yok; mesaj adım adım anlatımla gider", { tag: ["@public"] }, async ({ page }) => {
+      await stubSideRequests(page);
+      const bodies: Record<string, unknown>[] = [];
+      await page.route("**/api/ai/chat", async (route) => {
+        bodies.push(route.request().postDataJSON() as Record<string, unknown>);
+        await route.fulfill({
+          status: 200,
+          contentType: "text/plain; charset=utf-8",
+          headers: { "X-Message-Id": "0c0c0c0c-0c0c-4c0c-8c0c-0c0c0c0c0c08", "X-Conversation-Id": CONV },
+          body: "Önce sabiti karşıya geçirelim.",
+        });
       });
       await page.goto("/e2e/ana-ekran?durum=sohbet&ogretmen=v2");
-      const modes = page.getByRole("radiogroup", { name: "Anlatım modu" });
-      await expect(modes.getByRole("radio")).toHaveCount(2);
-      await expect(page.getByRole("radio", { name: "Adım Adım Öğret" })).toHaveAttribute("aria-checked", "true");
-      await expect(page.getByText("Sıra sende")).toBeVisible();
-      const chips = page.locator(".cx-v2-chips .cx-v2-chip");
-      await expect(chips).toHaveCount(3);
-      for (const height of await heights(page, ".cx-v2-chips .cx-v2-chip")) expect(height).toBeGreaterThanOrEqual(minTap);
-      await expect(page.locator('[role="group"][aria-label="Devam önerileri"]')).toHaveCount(1);
-      await expect(page.getByRole("link", { name: "🎯 Bu konudan mini test aç" })).toHaveAttribute("href", /^\/studio\/quiz\?topic=/);
+      await expect(page.locator(".cx-v3-thread")).toBeVisible({ timeout: 30_000 });
+      await expect(page.getByRole("radiogroup", { name: "Anlatım modu" })).toHaveCount(0);
+      await expect(page.locator(".cx-v2-chips")).toHaveCount(0);
+      await expect(page.getByText("Sıra sende")).toHaveCount(0);
+      await expect(page.getByRole("button", { name: /Yanlışlar Defterime ekle/ })).toHaveCount(0);
+      await expect(page.locator('[role="group"][aria-label="Devam önerileri"]')).toHaveCount(0);
 
-      const add = page.getByRole("button", { name: "📝 Bunu Yanlışlar Defterime ekle" });
-      await add.click();
-      await expect(page.getByRole("link", { name: "Yanlışlar Defterini aç" })).toHaveAttribute("href", "/yanlislarim");
-      await expect(add).toBeDisabled();
-      expect(posts).toEqual([{ conversationId: CONV, messageId: "0c0c0c0c-0c0c-4c0c-8c0c-0c0c0c0c0c02" }]);
-
-      // Hızlı Özet tek dokunuş; açıklaması satırın altında, ekran taşmaz.
-      await page.getByRole("radio", { name: "Hızlı Özet" }).click();
-      await expect(page.getByRole("radio", { name: "Hızlı Özet" })).toHaveAttribute("aria-checked", "true");
+      await page.getByPlaceholder("Sor, konuş veya dosya gönder").fill("Bir sonraki adımı göster");
+      await page.getByRole("button", { name: "Gönder" }).click();
+      await expect.poll(() => bodies.length).toBe(1);
+      expect(bodies[0]).toMatchObject({ message: "Bir sonraki adımı göster", tutorStyle: "tutor_steps" });
+      expect(bodies[0]).not.toHaveProperty("welcomeAnswer");
+      await expect(page.getByText("Önce sabiti karşıya geçirelim.")).toBeVisible();
       expect(await pageOverflow(page)).toBeLessThanOrEqual(0);
-      await page.screenshot({ path: `test-results/ogretmen-faz11-cipler-${width}.png` });
+      await page.screenshot({ path: `test-results/ogretmen-faz11-v3-sohbet-${width}.png` });
     });
 
     test("canlı kara tahta: şıklar tıklanır ve kilitlenir; formül, tablo ve kod kendi kutusunda kayar", { tag: ["@public"] }, async ({ page }) => {
+      await stubSideRequests(page);
       const sent: string[] = [];
       await page.route("**/api/ai/chat", async (route) => {
         const body = route.request().postDataJSON() as { message: string };
@@ -76,15 +74,15 @@ for (const width of [360, 390, 1280] as const) {
       });
       await page.goto("/e2e/ana-ekran?durum=yoklama&ogretmen=v2");
       const card = page.getByRole("region", { name: "Mini yoklama" });
-      await expect(card).toBeVisible();
+      await expect(card).toBeVisible({ timeout: 30_000 });
       const options = card.getByRole("button");
       await expect(options).toHaveCount(3);
       for (const height of await heights(page, ".cx-v2-option")) expect(height).toBeGreaterThanOrEqual(44);
-      await expect(page.locator(".cp-md-formula")).toBeVisible();
-      await expect(page.locator('.cp-callout[data-callout="mistake"]')).toBeVisible();
+      await expect(page.locator(".cx-v3 .cp-md-formula")).toBeVisible();
+      await expect(page.locator('.cx-v3 .cp-callout[data-callout="mistake"]')).toBeVisible();
 
       const boxes = await page.evaluate(() =>
-        [".cp-md-formula", ".cp-md-table-wrap", ".cp-sor-msg-assistant pre"].map((selector) => {
+        [".cx-v3 .cp-md-formula", ".cx-v3 .cp-md-table-wrap", ".cx-v3 pre"].map((selector) => {
           const node = document.querySelector(selector)!;
           const rect = node.getBoundingClientRect();
           return { selector, right: rect.right, left: rect.left, scrolls: node.scrollWidth > node.clientWidth, overflowX: getComputedStyle(node).overflowX };
@@ -96,7 +94,7 @@ for (const width of [360, 390, 1280] as const) {
         if (box.scrolls) expect(["auto", "scroll"], box.selector).toContain(box.overflowX);
       }
       expect(await pageOverflow(page)).toBeLessThanOrEqual(0);
-      await page.screenshot({ path: `test-results/ogretmen-faz11-yoklama-${width}.png`, fullPage: true });
+      await page.screenshot({ path: `test-results/ogretmen-faz11-yoklama-${width}.png` });
 
       await options.first().click();
       await expect.poll(() => sent).toEqual(["Cevabım: A) 10"]);
@@ -107,24 +105,45 @@ for (const width of [360, 390, 1280] as const) {
       expect(await pageOverflow(page)).toBeLessThanOrEqual(0);
     });
 
-    test("karşılama kartları öğretmenin ilk sözünün altında, ekranın içinde", { tag: ["@public"] }, async ({ page }) => {
-      let requests = 0;
+    test("karşılama: kaldığımız yerden devam satırı ve hapı; aynı konuşmada sürer", { tag: ["@public"] }, async ({ page }) => {
+      await stubSideRequests(page);
+      let cardRequests = 0;
       await page.route("**/api/teacher/start-cards", async (route) => {
-        requests += 1;
-        await route.fulfill({ contentType: "application/json", body: JSON.stringify(START_CARDS) });
+        cardRequests += 1;
+        await route.fulfill({
+          contentType: "application/json",
+          body: JSON.stringify({
+            empty: false,
+            cards: [],
+            resume: {
+              line: "Dün «Örnek konu» konusunda kalmıştık, oradan devam edelim mi?",
+              prompt: "Dün kaldığımız yerden devam edelim.",
+              conversationId: RESUME_CONV,
+            },
+          }),
+        });
       });
-      await page.route("**/api/teacher/plan", (route) => route.fulfill({ status: 404, contentType: "application/json", body: "{}" }));
-      await page.goto("/e2e/ana-ekran?ogretmen=v2");
-      // Masaüstünde üst çubukta da "Başla" var (aynı olayı açar); sınanan ana ekranın kendi düğmesi.
-      await page.locator(".cp-sor-start").click();
-      const group = page.getByRole("group", { name: "Başlangıç önerileri" });
+      const bodies: Record<string, unknown>[] = [];
+      await page.route("**/api/ai/chat", async (route) => {
+        bodies.push(route.request().postDataJSON() as Record<string, unknown>);
+        await route.fulfill({ status: 200, contentType: "text/plain; charset=utf-8", headers: { "X-Message-Id": "0c0c0c0c-0c0c-4c0c-8c0c-0c0c0c0c0c34" }, body: "Tamam, son adımdan devam ediyoruz." });
+      });
+      await page.goto("/e2e/ana-ekran?ogretmen=v2&durum=karsilama");
+      const welcome = page.getByRole("region", { name: "Karşılama" });
+      await expect(welcome.getByText(/«Örnek konu» konusunda kalmıştık/).first()).toBeVisible({ timeout: 30_000 });
+      const group = welcome.getByRole("group", { name: "Başlangıç önerileri" });
       await expect(group.getByRole("button")).toHaveCount(4);
-      for (const height of await heights(page, ".cx-v2-start")) expect(height).toBeGreaterThanOrEqual(44);
-      const right = await group.evaluate((node) => node.getBoundingClientRect().right);
-      expect(right).toBeLessThanOrEqual(width);
-      expect(requests).toBe(1);
+      await expect(group.getByRole("button").first()).toHaveText(/Kaldığımız yerden devam edelim/);
+      for (const height of await heights(page, ".cx-v3-welcome .cx-v3-hap")) expect(height).toBeGreaterThanOrEqual(minTap);
+      expect(cardRequests).toBe(1);
       expect(await pageOverflow(page)).toBeLessThanOrEqual(0);
-      await page.screenshot({ path: `test-results/ogretmen-faz11-karsilama-${width}.png` });
+      await page.screenshot({ path: `test-results/ogretmen-faz11-devam-${width}.png` });
+
+      await group.getByRole("button", { name: /Kaldığımız yerden devam edelim/ }).click();
+      await expect.poll(() => bodies.length).toBe(1);
+      expect(bodies[0]).toMatchObject({ message: "Dün kaldığımız yerden devam edelim.", conversationId: RESUME_CONV });
+      expect(bodies[0]).not.toHaveProperty("welcomeAnswer");
+      await expect(page.getByText("Tamam, son adımdan devam ediyoruz.")).toBeVisible();
     });
   });
 }
@@ -133,6 +152,9 @@ for (const width of [360, 390, 1280] as const) {
 async function readContrast(page: Page, selectors: string[]) {
   return page.evaluate((list) => {
     const parse = (value: string) => {
+      // `color-mix()` sonucu tarayıcıda `color(srgb r g b / a)` (0-1 aralığında) olarak okunur.
+      const srgb = /^color\(srgb\s+([\d.e-]+)\s+([\d.e-]+)\s+([\d.e-]+)(?:\s*\/\s*([\d.e-]+))?\)/.exec(value);
+      if (srgb) return { r: Number(srgb[1]) * 255, g: Number(srgb[2]) * 255, b: Number(srgb[3]) * 255, a: srgb[4] ? Number(srgb[4]) : 1 };
       const parts = (value.match(/[\d.]+/g) ?? []).map(Number);
       return { r: parts[0] ?? 0, g: parts[1] ?? 0, b: parts[2] ?? 0, a: parts[3] ?? 1 };
     };
@@ -172,7 +194,7 @@ async function readContrast(page: Page, selectors: string[]) {
 }
 
 for (const theme of ["dark", "light"] as const) {
-  test(`yoklama ve çipler ${theme === "dark" ? "koyu" : "açık"} temada okunur (≥ 4,5:1) · 390px`, { tag: ["@public"] }, async ({ page }) => {
+  test(`yoklama ${theme === "dark" ? "koyu" : "açık"} temada okunur (≥ 4,5:1) · 390px`, { tag: ["@public"] }, async ({ page }) => {
     await page.addInitScript((value) => {
       try {
         window.localStorage.setItem("theme", value);
@@ -180,19 +202,14 @@ for (const theme of ["dark", "light"] as const) {
         /* yok */
       }
     }, theme);
+    await stubSideRequests(page);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/e2e/ana-ekran?durum=yoklama&ogretmen=v2");
     await expect(page.locator("html")).toHaveClass(new RegExp(theme === "dark" ? "\\bdark\\b" : "\\blight\\b"));
-    await expect(page.getByRole("region", { name: "Mini yoklama" })).toBeVisible();
-    const contrast = await readContrast(page, [
-      ".cx-v2-check-kicker",
-      ".cx-v2-check-q",
-      ".cx-v2-option",
-      ".cx-v2-option-letter",
-      ".cx-v2-chips .cx-v2-chip",
-      ".cp-tutor-mode-pill.is-on",
-    ]);
-    expect(Object.keys(contrast)).toHaveLength(6);
+    await expect(page.getByRole("region", { name: "Mini yoklama" })).toBeVisible({ timeout: 30_000 });
+    const selectors = [".cx-v2-check-kicker", ".cx-v2-check-q", ".cx-v2-option", ".cx-v2-option-letter", ".cx-v3 .cp-callout-label"];
+    const contrast = await readContrast(page, selectors);
+    expect(Object.keys(contrast)).toHaveLength(selectors.length);
     for (const [selector, ratio] of Object.entries(contrast)) expect(ratio, selector).toBeGreaterThanOrEqual(4.5);
     await page.screenshot({ path: `test-results/ogretmen-faz11-tema-${theme}.png` });
   });
@@ -243,6 +260,7 @@ const CHECK_SOLUTION = {
 for (const width of [390, 1280] as const) {
   test(`fotoğraf: iki seçim; 'Çözümümü kontrol et' intent=check gönderir, kontrol kartı sohbette · ${width}px`, { tag: ["@public"] }, async ({ page }) => {
     await page.setViewportSize({ width, height: 844 });
+    await stubSideRequests(page);
     let intent: string | null = null;
     await page.route("**/api/ai/solve", async (route) => {
       const raw = route.request().postDataBuffer()?.toString("latin1") ?? "";
@@ -254,13 +272,17 @@ for (const width of [390, 1280] as const) {
       ];
       await route.fulfill({ status: 200, contentType: "application/x-ndjson", body: events.map((event) => JSON.stringify(event)).join("\n") + "\n" });
     });
-    await page.route("**/api/uploads/phone-session**", (route) => route.fulfill({ status: 503, contentType: "application/json", body: "{}" }));
     await page.goto("/e2e/ana-ekran?durum=sohbet&ogretmen=v2");
-    await page.getByRole("button", { name: "Görsel ekle" }).click();
-    await page.locator('.cp-upload-panel input[type="file"]').setInputFiles({ name: "defter.png", mimeType: "image/png", buffer: PNG });
+    await expect(page.locator(".cx-v3-thread")).toBeVisible({ timeout: 30_000 });
+    // v3 kapsülünde "+" dosya seçiciyi doğrudan açar (yükleme paneli yok). Klavyeyle basılır: geliştirme sunucusunun
+    // sol alttaki göstergesi telefonda düğmenin üstüne biniyor (üretim derlemesinde yok).
+    const chooser = page.waitForEvent("filechooser");
+    await page.getByRole("button", { name: "Dosya ekle" }).focus();
+    await page.keyboard.press("Enter");
+    await (await chooser).setFiles({ name: "defter.png", mimeType: "image/png", buffer: PNG });
     const group = page.getByRole("group", { name: "Fotoğrafla ne yapalım?" });
     await expect(group.getByRole("button")).toHaveCount(2);
-    for (const height of await heights(page, ".cx-v2-photo-intents .cx-v2-chip")) expect(height).toBeGreaterThanOrEqual(width <= 640 ? 44 : 40);
+    for (const height of await heights(page, ".cx-v3-photo-intents .cx-v3-chip")) expect(height).toBeGreaterThanOrEqual(width <= 640 ? 44 : 40);
     expect(await pageOverflow(page)).toBeLessThanOrEqual(0);
     await group.getByRole("button", { name: "Çözümümü kontrol et" }).click();
     await expect(page.locator(".cp-solver-check")).toBeVisible({ timeout: 20_000 });

@@ -24,7 +24,23 @@ const SPEAKER_STYLE: Record<SpeakerId, string> = {
   kerem: "Sakin, açıklayıcı ve arkadaşça bir ton. Doğal hızda konuş. Ses yüksekliğini sabit tut.",
 };
 
-export function voiceFor(speaker: SpeakerId): string {
+/**
+ * Seslendirme üslubu. Varsayılan (yok) podcast ve sözlü sınavın sesidir; "tutor" öğretmen sohbetinin sesidir (öğretmen
+ * v3, 21 Kasım 2026): canlı sesli öğretmenle aynı ses ("marin"), sıcak bir özel ders hocası tonu ve tıbbi, bilimsel,
+ * yabancı terimlerin doğal okunuşu. Metin buraya gelmeden akademik seslendirme motorundan geçmiştir.
+ */
+export type SpeechStyle = "tutor";
+
+const TUTOR_VOICE = "marin";
+export const TUTOR_SPEECH_STYLE =
+  "Türkçe konuşan, sıcak, sabırlı ve samimi bir özel ders öğretmenisin; öğrencine birebir anlatıyorsun. Doğal hızda, " +
+  "akıcı ve canlı konuş: takdir ve cesaretlendirme cümlelerinde sesine içten bir gülümseme kat, açıklamada sakin ve net ol, " +
+  "soruyu merak uyandıran bir tonla sor. Tıbbi, bilimsel ve yabancı kökenli terimleri (ilaç, hastalık, anatomi, hukuk ve " +
+  "mühendislik terimleri) Türkiye'deki hekimlerin ve öğretmenlerin söylediği doğal telaffuzla oku; Latince ve İngilizce " +
+  "kökenli adları harf harf heceleme. Ses yüksekliğini sabit tut.";
+
+export function voiceFor(speaker: SpeakerId, style?: SpeechStyle): string {
+  if (style === "tutor") return TUTOR_VOICE;
   return VOICE[speaker] ?? VOICE.ada;
 }
 
@@ -32,9 +48,11 @@ export function voiceFor(speaker: SpeakerId): string {
  * Önbellek anahtarı. Modeli ve sesi de içeriyor: model değişirse eski ses
  * sessizce servis edilmesin, yeniden üretilsin.
  */
-export function audioHash(text: string, speaker: SpeakerId): string {
+export function audioHash(text: string, speaker: SpeakerId, style?: SpeechStyle): string {
+  // Üslupsuz anahtar eskisiyle birebir aynı (önbellekteki podcast sesleri geçerli kalır); üslup anahtara girer.
+  const head = style ? `${env.OPENAI_TTS_MODEL}|${voiceFor(speaker, style)}|${style}` : `${env.OPENAI_TTS_MODEL}|${voiceFor(speaker)}`;
   return createHash("sha256")
-    .update(`${env.OPENAI_TTS_MODEL}|${voiceFor(speaker)}|${text.trim()}`)
+    .update(`${head}|${text.trim()}`)
     .digest("hex");
 }
 
@@ -50,6 +68,7 @@ export const TTS_LINE_TIMEOUT_MS = 30_000;
 export async function synthesizeLine(
   text: string,
   speaker: SpeakerId,
+  style?: SpeechStyle,
 ): Promise<SynthResult | null> {
   if (!env.OPENAI_API_KEY) return null;
   const clean = text.trim();
@@ -61,9 +80,9 @@ export async function synthesizeLine(
     const openai = openaiClient({ apiKey: env.OPENAI_API_KEY, timeout: TTS_LINE_TIMEOUT_MS, maxRetries: 0 });
     const response = await openai.audio.speech.create({
       model: env.OPENAI_TTS_MODEL,
-      voice: voiceFor(speaker),
+      voice: voiceFor(speaker, style),
       input,
-      instructions: SPEAKER_STYLE[speaker],
+      instructions: style === "tutor" ? TUTOR_SPEECH_STYLE : SPEAKER_STYLE[speaker],
       response_format: "mp3",
     }, { signal: AbortSignal.timeout(TTS_LINE_TIMEOUT_MS) });
 

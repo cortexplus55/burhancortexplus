@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 /**
- * Faz 11 · öğretmen sohbeti arayüzü (teacher.v2, ana sohbet, 21 Kasım 2026): iki anlatım, düşünme satırı, tek sıra tepki
- * çipleri (deftere ekle, mini test), canlı kara tahta (mini yoklama), karşılama kartları, fotoğrafla "Soruyu çöz /
- * Çözümümü kontrol et". Bayrak kapalıyken bugünkü çizim birebir. Model, kredi ve canlı API yok: istekler sahte.
- * Örnekler farklı derslerden (fizik, matematik, tarih, biyoloji).
+ * Faz 11 · öğretmen sohbeti arayüzü (teacher.v2, ana sohbet, 21 Kasım 2026). Öğretmen v3 (aynı gün, ürün sahibi) ekranı
+ * değiştirdi: anlatım seçicisi, düşünme cümlesi, tek sıra tepki çipleri ve karşılama kartları kalktı (yeni çizim
+ * `ogretmen-v3-ekran.test.tsx`'te). Burada kalanlar: bayrak kapalıyken bugünkü çizim birebir, anlatımın hep "Adım Adım
+ * Öğret" gitmesi, akışta yukarı kaydırma, canlı kara tahta (mini yoklama), fotoğrafla "Soruyu çöz / Çözümümü kontrol et",
+ * Durdur ve Kopyala, saf yardımcılar. Model, kredi ve canlı API yok: istekler sahte. Örnekler farklı derslerden.
  */
 import type { ComponentProps } from "react";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
@@ -11,13 +12,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { toast } from "sonner";
 import { ChatPanel } from "@/components/chat/chat-panel";
 import { TutorReplyView } from "@/components/chat/tutor-reply-view";
-import { HomeSelectionContext, type HomeSelection } from "@/components/parity/home-selection";
 import { dispatchComposerAttach } from "@/lib/student/composer-bridge";
 import { requestSolve } from "@/lib/solve/solve-client";
 import { parseSolution } from "@/lib/solve/question-solver";
 import { parseStudentWork, withStudentCheck } from "@/lib/solve/student-work";
-import { thinkingStatus } from "@/lib/teacher/thinking-status";
-import { QUESTION_STEP_CHIPS, EXPLANATION_CHIPS } from "@/lib/teacher/reply-chips";
 import {
   chosenQuickCheckLetter,
   miniQuizTopic,
@@ -26,7 +24,6 @@ import {
   replyActions,
 } from "@/lib/teacher/reply-actions";
 import { parseQuickCheck } from "@/lib/teacher/quick-check";
-import type { CockpitPrep } from "@/lib/learning/home-cockpit-model";
 
 const replace = vi.fn();
 const push = vi.fn();
@@ -174,68 +171,32 @@ describe("bayrak kapalıyken bugünkü çizim", () => {
 
 /* ---------------------------------------------------------------------------------------------------------------- */
 
-describe("anlatım: iki mod tek dokunuşla", () => {
-  it("varsayılan Adım Adım Öğret; istek tutor_steps gider", async () => {
+describe("anlatım: öğretmen v3'te seçici yok, hep Adım Adım Öğret", () => {
+  it("bayrak açıkken ana sohbette anlatım anahtarı çizilmez; profil direct_solve olsa da istek tutor_steps gider, profil yazılmaz", async () => {
     const calls = mockFetch({ "/api/ai/chat": () => chatReply() });
-    renderPanel({ teacherV2: true });
-    const group = screen.getByRole("radiogroup", { name: "Anlatım modu" });
-    const radios = within(group).getAllByRole("radio");
-    expect(radios.map((radio) => radio.getAttribute("aria-label"))).toEqual(["Adım Adım Öğret", "Hızlı Özet"]);
-    expect(radios[0]!.getAttribute("aria-checked")).toBe("true");
+    renderPanel({ teacherV2: true, initialTutorStyle: "direct_solve" });
+    expect(screen.queryByRole("radiogroup", { name: "Anlatım modu" })).toBeNull();
     const box = screen.getByPlaceholderText("Sor, konuş veya dosya gönder");
     fireEvent.change(box, { target: { value: "Fotosentez neden ışığa ihtiyaç duyar?" } });
     await act(async () => {
       fireEvent.keyDown(box, { key: "Enter" });
     });
-    const chat = calls.find((call) => call.url.includes("/api/ai/chat"));
-    expect(chat?.body?.tutorStyle).toBe("tutor_steps");
-  });
-
-  it("Hızlı Özet seçilince profile direct_solve yazılır, açıklama açılır, istek quick_summary gider", async () => {
-    const calls = mockFetch({ "/api/ai/chat": () => chatReply() });
-    renderPanel({ teacherV2: true });
-    fireEvent.click(screen.getByRole("radio", { name: "Hızlı Özet" }));
-    const patch = calls.find((call) => call.url.includes("/api/profile/me") && call.init?.method === "PATCH");
-    expect(patch?.body).toEqual({ tutor_style: "direct_solve" });
-    expect(screen.getByRole("status").textContent).toContain("Doğrudan, kısa ve eksiksiz");
-    const box = screen.getByPlaceholderText("Sor, konuş veya dosya gönder");
-    fireEvent.change(box, { target: { value: "Osmanlı'da ilk anayasa hangi yıl ilan edildi?" } });
-    await act(async () => {
-      fireEvent.keyDown(box, { key: "Enter" });
-    });
-    expect(calls.find((call) => call.url.includes("/api/ai/chat"))?.body?.tutorStyle).toBe("quick_summary");
-  });
-
-  it("profil direct_solve ise Hızlı Özet seçili başlar", () => {
-    mockFetch();
-    renderPanel({ teacherV2: true, initialTutorStyle: "direct_solve" });
-    expect(screen.getByRole("radio", { name: "Hızlı Özet" }).getAttribute("aria-checked")).toBe("true");
+    expect(calls.find((call) => call.url.includes("/api/ai/chat"))?.body?.tutorStyle).toBe("tutor_steps");
+    expect(calls.some((call) => call.url.includes("/api/profile/me") && call.init?.method === "PATCH")).toBe(false);
+    // Açık sohbette de seçici yok.
+    expect(screen.queryByRole("radiogroup", { name: "Anlatım modu" })).toBeNull();
   });
 
   it("hazırlık sohbetinde (prepId) bugünkü anahtar kalır", () => {
     mockFetch();
     renderPanel({ teacherV2: true, prepId: "11111111-1111-4111-8111-111111111111" });
-    expect(screen.queryByRole("radio", { name: "Adım Adım Öğret" })).toBeNull();
     expect(screen.getByRole("radio", { name: "Doğrudan Çöz" })).toBeTruthy();
   });
 });
 
 /* ---------------------------------------------------------------------------------------------------------------- */
 
-describe("düşünme satırı", () => {
-  it("ilk parça gelene kadar bağlamsal tek cümle; ikinci balon yok", async () => {
-    mockFetch({ "/api/ai/chat": () => new Promise<Response>(() => undefined) });
-    const { container } = renderPanel({ teacherV2: true, initialConversationId: CONV, initialMessages: QUESTION_THREAD });
-    const box = screen.getByPlaceholderText(/Cevabını yaz|Sor, konuş/);
-    fireEvent.change(box, { target: { value: "Ohm yasası nedir?" } });
-    await act(async () => {
-      fireEvent.keyDown(box, { key: "Enter" });
-    });
-    const expected = thinkingStatus({ hasImage: false, hasDocument: false, message: "Ohm yasası nedir?", mode: "tutor_steps" });
-    expect(screen.getByRole("status", { name: expected })).toBeTruthy();
-    expect(container.querySelectorAll(".cs-sor-typing")).toHaveLength(0);
-  });
-
+describe("akış: öğrenci yukarı kaydırınca", () => {
   it.each([
     ["teacher.v2", { teacherV2: true }],
     ["bayrak kapalı, ui.v2.ogretmen", { followUser: true }],
@@ -248,7 +209,7 @@ describe("düşünme satırı", () => {
     });
     mockFetch({ "/api/ai/chat": () => new Response(stream, { status: 200, headers: { "X-Message-Id": mid(9) } }) });
     const { container } = renderPanel({ ...mode, initialConversationId: CONV, initialMessages: QUESTION_THREAD });
-    const scroller = container.querySelector<HTMLDivElement>(".cp-sor-messages")!;
+    const scroller = container.querySelector<HTMLDivElement>(".cp-sor-messages, .cx-v3-thread")!;
     let height = 2000;
     Object.defineProperty(scroller, "scrollHeight", { configurable: true, get: () => height });
     Object.defineProperty(scroller, "clientHeight", { configurable: true, get: () => 400 });
@@ -273,114 +234,6 @@ describe("düşünme satırı", () => {
     });
     expect(scroller.scrollTop).toBe(100);
     expect(screen.getByRole("button", { name: "Yeni mesaja git" })).toBeTruthy();
-  });
-});
-
-/* ---------------------------------------------------------------------------------------------------------------- */
-
-describe("tepki çipleri: tek sıra, yalnız son yanıtta", () => {
-  it("soruyla biten son yanıtta ipucu, deftere ekle ve mini test; devam önerileri yok", async () => {
-    const calls = mockFetch({ "/api/ai/chat": () => chatReply() });
-    const { container } = renderPanel({
-      teacherV2: true,
-      initialConversationId: CONV,
-      conversationTitle: "Enerji korunumu",
-      initialMessages: [
-        { role: "user", content: "İş nedir?", id: mid(5) },
-        { role: "assistant", content: "Kuvvetin yol boyunca aktardığı enerjidir. Sence birimi nedir?", id: mid(6) },
-        ...QUESTION_THREAD,
-      ],
-    });
-    const rows = container.querySelectorAll('.cx-v2-chips[role="group"]');
-    expect(rows).toHaveLength(1);
-    const labels = [...rows[0]!.querySelectorAll(".cx-v2-chip")].map((node) => node.textContent);
-    expect(labels).toEqual(QUESTION_STEP_CHIPS.map((chip) => chip.label));
-    expect(screen.queryByRole("button", { name: /Daha basit anlat/ })).toBeNull();
-    const quiz = screen.getByRole("link", { name: "🎯 Bu konudan mini test aç" });
-    expect(quiz.getAttribute("href")).toBe(`/studio/quiz?topic=${encodeURIComponent("Enerji korunumu")}`);
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "🤔 Küçük bir ipucu ver" }));
-    });
-    expect(calls.find((call) => call.url.includes("/api/ai/chat"))?.body?.message).toBe("Küçük bir ipucu ver; cevabı söyleme.");
-  });
-
-  it("anlatımla biten yanıtta anladım/örnek/aç; Hızlı Özet'te iki çip + sunucunun önerisi tek sırada", () => {
-    mockFetch();
-    const explanation = "Hücre zarı seçici geçirgendir: bazı maddeleri geçirir, bazılarını geçirmez.\n\n[[chip:Benzer bir soru ver|Buna benzer bir soru ver, cevabı bende kalsın.]]";
-    const { container, unmount } = renderPanel({
-      teacherV2: true,
-      initialConversationId: CONV,
-      initialMessages: [{ role: "user", content: "Hücre zarı ne işe yarar?" }, { role: "assistant", content: explanation, id: mid(7) }],
-    });
-    const tutorLabels = [...container.querySelectorAll(".cx-v2-chips .cx-v2-chip")].map((node) => node.textContent);
-    expect(tutorLabels).toEqual(EXPLANATION_CHIPS.map((chip) => chip.label));
-    unmount();
-    const summary = renderPanel({
-      teacherV2: true,
-      initialTutorStyle: "direct_solve",
-      initialConversationId: CONV,
-      initialMessages: [{ role: "user", content: "Hücre zarı ne işe yarar?" }, { role: "assistant", content: explanation, id: mid(7) }],
-    });
-    const summaryLabels = [...summary.container.querySelectorAll(".cx-v2-chips .cx-v2-chip")].map((node) => node.textContent);
-    expect(summaryLabels).toEqual(["💡 Günlük hayattan örnek ver", "❓ Burayı biraz daha aç", "Benzer bir soru ver"]);
-    expect(summary.container.querySelectorAll('[role="group"][aria-label="Devam önerileri"]')).toHaveLength(1);
-  });
-
-  it("kayıtsız yanıtta (kimlik yok) deftere ekle çizilmez", () => {
-    mockFetch();
-    renderPanel({
-      teacherV2: true,
-      initialMessages: [{ role: "user", content: "x nedir?" }, { role: "assistant", content: "Bir bilinmeyen. Sence neden harfle gösterilir?" }],
-    });
-    expect(screen.queryByRole("button", { name: /Yanlışlar Defterime ekle/ })).toBeNull();
-    expect(screen.getByRole("link", { name: "🎯 Bu konudan mini test aç" }).getAttribute("href")).toBe(
-      `/studio/quiz?topic=${encodeURIComponent("x nedir?")}`,
-    );
-  });
-
-  it("deftere ekle: uç çağrılır, beklerken ve sonra kilitli; başarıda not ve bağlantı", async () => {
-    let finish!: (response: Response) => void;
-    const calls = mockFetch({
-      "/api/teacher/mistake": () => new Promise<Response>((resolve) => (finish = resolve)),
-    });
-    renderPanel({ teacherV2: true, initialConversationId: CONV, initialMessages: QUESTION_THREAD });
-    const chip = screen.getByRole("button", { name: "📝 Bunu Yanlışlar Defterime ekle" });
-    await act(async () => {
-      fireEvent.click(chip);
-      fireEvent.click(chip);
-    });
-    const posts = calls.filter((call) => call.url.includes("/api/teacher/mistake"));
-    expect(posts).toHaveLength(1);
-    expect(posts[0]!.body).toEqual({ conversationId: CONV, messageId: mid(2) });
-    expect((chip as HTMLButtonElement).disabled).toBe(true);
-    expect(chip.getAttribute("aria-busy")).toBe("true");
-    await act(async () => {
-      finish(new Response(JSON.stringify({ ok: true, already: false, entryId: "e1", quizHref: "/studio/quiz" }), { status: 200 }));
-    });
-    await waitFor(() => expect(screen.getByRole("link", { name: "Yanlışlar Defterini aç" }).getAttribute("href")).toBe("/yanlislarim"));
-    expect(screen.getByText(/Yanlışlar Defterine eklendi\./)).toBeTruthy();
-    expect((screen.getByRole("button", { name: "📝 Bunu Yanlışlar Defterime ekle" }) as HTMLButtonElement).disabled).toBe(true);
-    expect(vi.mocked(toast.success)).toHaveBeenCalledWith("Yanlışlar Defterine eklendi", expect.anything());
-  });
-
-  it("zaten defterdeyse 'Zaten defterinde'; hata olursa sade ileti ve çip yeniden açılır", async () => {
-    mockFetch({ "/api/teacher/mistake": () => new Response(JSON.stringify({ ok: true, already: true }), { status: 200 }) });
-    const first = renderPanel({ teacherV2: true, initialConversationId: CONV, initialMessages: QUESTION_THREAD });
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "📝 Bunu Yanlışlar Defterime ekle" }));
-    });
-    await waitFor(() => expect(screen.getByText(/Zaten defterinde\./)).toBeTruthy());
-    first.unmount();
-    vi.restoreAllMocks();
-    mockFetch({ "/api/teacher/mistake": () => new Response(JSON.stringify({ error: "unavailable" }), { status: 503 }) });
-    renderPanel({ teacherV2: true, initialConversationId: CONV, initialMessages: QUESTION_THREAD });
-    const chip = screen.getByRole("button", { name: "📝 Bunu Yanlışlar Defterime ekle" });
-    await act(async () => {
-      fireEvent.click(chip);
-    });
-    await waitFor(() => expect(vi.mocked(toast.error)).toHaveBeenCalledWith(mistakeErrorLine(503)));
-    expect((chip as HTMLButtonElement).disabled).toBe(false);
-    expect(screen.queryByText(/Yanlışlar Defterine eklendi/)).toBeNull();
   });
 });
 
@@ -439,80 +292,6 @@ describe("canlı kara tahta: mini yoklama", () => {
       />,
     );
     expect(screen.queryByRole("region", { name: "Mini yoklama" })).toBeNull();
-  });
-});
-
-/* ---------------------------------------------------------------------------------------------------------------- */
-
-const CARDS = [
-  { id: "weak", kind: "weak", emoji: "⚠️", label: "TYT Fizik — Kuvvet ünitesindeki açık hatalarını birlikte kapatalım", prompt: "TYT Fizik hazırlığımda Kuvvet konusundaki açık hatalarımı birlikte kapatalım.", prepId: "p2" },
-  { id: "exam", kind: "exam", emoji: "🎯", label: "Tarih sınavına 3 gün kaldı: hızlı tekrar turu yapalım", prompt: "Tarih sınavıma 3 gün kaldı. Bana hızlı bir tekrar turu yaptır.", prepId: "p1" },
-  { id: "photo", kind: "photo", emoji: "📷", label: "Soru veya defter fotoğrafı yükle, adım adım çözelim", prompt: "Fotoğraf göndereceğim.", prepId: null },
-  { id: "analogy", kind: "analogy", emoji: "💡", label: "Bir konuyu bana sıfırdan analojiyle anlat", prompt: "Bir konuyu bana sıfırdan anlat.", prepId: null },
-  { id: "fazla", kind: "analogy", emoji: "💡", label: "Beşinci kart", prompt: "x", prepId: null },
-];
-
-function selection(selectPrep = vi.fn()): HomeSelection {
-  const prep = (id: string, title: string): CockpitPrep =>
-    ({ id, title, topics: [{ id: "t", label: "Kuvvet", done: false, next: null }], currentTopic: 0 }) as unknown as CockpitPrep;
-  return { preps: [prep("p1", "Tarih"), prep("p2", "TYT Fizik")], prepIndex: 0, topicIndex: 0, selectPrep, selectTopic: vi.fn() };
-}
-
-describe("karşılama kartları", () => {
-  it("öğretmenin ilk sözünden sonra uç bir kez istenir, en çok dört kart; hazırlıklı kart seçimi o hazırlığa getirir", async () => {
-    const selectPrep = vi.fn();
-    const calls = mockFetch({
-      "/api/teacher/start-cards": () => new Response(JSON.stringify({ cards: CARDS, empty: false }), { status: 200 }),
-      "/api/ai/chat": () => chatReply("Önce nerede yanıldığını bulalım."),
-    });
-    render(
-      <HomeSelectionContext.Provider value={selection(selectPrep)}>
-        <ChatPanel
-          variant="parity"
-          composerMode="parity"
-          hasDocuments={false}
-          showSubjectPicker={false}
-          placeholder="Sor, konuş veya dosya gönder"
-          teacherV2
-          startGreeting="Merhaba! Bugün ne çalışalım?"
-        />
-      </HomeSelectionContext.Provider>,
-    );
-    expect(calls.some((call) => call.url.includes("/api/teacher/start-cards"))).toBe(false);
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Başla" }));
-    });
-    const group = await screen.findByRole("group", { name: "Başlangıç önerileri" });
-    expect(within(group).getAllByRole("button")).toHaveLength(4);
-    expect(calls.filter((call) => call.url.includes("/api/teacher/start-cards"))).toHaveLength(1);
-    await act(async () => {
-      fireEvent.click(within(group).getByRole("button", { name: /Kuvvet ünitesindeki/ }));
-    });
-    expect(selectPrep).toHaveBeenCalledWith(1);
-    const chat = calls.find((call) => call.url.includes("/api/ai/chat"));
-    expect(chat?.body?.message).toBe(CARDS[0]!.prompt);
-    expect(chat?.body?.contextPrepId).toBe("p2");
-    await waitFor(() => expect(screen.queryByRole("group", { name: "Başlangıç önerileri" })).toBeNull());
-  });
-
-  it("fotoğraf kartı sohbetin fotoğraf seçicisini açar", async () => {
-    mockFetch({ "/api/teacher/start-cards": () => new Response(JSON.stringify({ cards: CARDS.slice(2, 4) }), { status: 200 }) });
-    renderPanel({ teacherV2: true, startGreeting: "Merhaba!" });
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Başla" }));
-    });
-    fireEvent.click(await screen.findByRole("button", { name: /defter fotoğrafı yükle/ }));
-    expect(replace).toHaveBeenCalledWith(expect.stringContaining("dialog=image_upload"), { scroll: false });
-  });
-
-  it("uç 404 ya da hata verirse hiçbir şey çizilmez", async () => {
-    mockFetch({ "/api/teacher/start-cards": () => new Response(JSON.stringify({ error: "not_found" }), { status: 404 }) });
-    renderPanel({ teacherV2: true, startGreeting: "Merhaba!" });
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Başla" }));
-    });
-    await act(async () => undefined);
-    expect(screen.queryByRole("group", { name: "Başlangıç önerileri" })).toBeNull();
   });
 });
 
@@ -588,14 +367,14 @@ describe("fotoğraf: kendiliğinden + düğme", () => {
 
 /* ---------------------------------------------------------------------------------------------------------------- */
 
-describe("Durdur, Yeniden üret, Kopyala", () => {
-  it("Durdur akışı keser; Yeniden üret ders etiketini ikinci kez eklemez; Kopyala panoya yazar", async () => {
+describe("Durdur ve Kopyala (öğretmen v3)", () => {
+  it("Durdur akışı keser, Tekrar dene ders etiketini ikinci kez eklemez; Yeniden üret yok; Kopyala işaretsiz metni yazar", async () => {
     const sent: string[] = [];
     mockFetch({
       "/api/ai/chat": (init) => {
         const signal = init?.signal;
         sent.push(JSON.parse(String(init?.body)).message);
-        if (sent.length > 1) return chatReply("Kuvvet çarpı yol.");
+        if (sent.length > 1) return chatReply("Kuvvet ==çarpı yol== [1].");
         return new Promise<Response>((_resolve, reject) => {
           signal?.addEventListener("abort", () => reject(new DOMException("Durduruldu", "AbortError")));
         });
@@ -604,7 +383,7 @@ describe("Durdur, Yeniden üret, Kopyala", () => {
     const writeText = vi.fn(async () => undefined);
     Object.assign(navigator, { clipboard: { writeText } });
     renderPanel({ teacherV2: true, showSubjectPicker: true });
-    // Ders seçimi: etiket "[Fizik]" mesajın başına eklenir.
+    // Ana ekranın yazma alanında ders seçimi: etiket "[Fizik]" mesajın başına eklenir.
     fireEvent.click(screen.getByRole("button", { name: "Ders seç" }));
     fireEvent.click(await screen.findByRole("button", { name: /Fizik/ }));
     const box = screen.getByPlaceholderText("Sor, konuş veya dosya gönder");
@@ -620,15 +399,13 @@ describe("Durdur, Yeniden üret, Kopyala", () => {
       fireEvent.click(screen.getByRole("button", { name: "Tekrar dene" }));
     });
     expect(sent).toEqual(["[Fizik] İş nasıl hesaplanır?", "[Fizik] İş nasıl hesaplanır?"]);
-    await waitFor(() => expect(screen.getByText("Kuvvet çarpı yol.")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/çarpı yol/)).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Kopyala" })).toBeTruthy());
+    expect(screen.queryByRole("button", { name: "Yeniden üret" })).toBeNull();
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Yeniden üret" }));
+      fireEvent.click(screen.getByRole("button", { name: "Kopyala" }));
     });
-    expect(sent[2]).toBe("[Fizik] İş nasıl hesaplanır?");
-    await act(async () => {
-      fireEvent.click(screen.getAllByRole("button", { name: "Kopyala" }).at(-1)!);
-    });
-    expect(writeText).toHaveBeenCalled();
+    expect(writeText).toHaveBeenCalledWith("Kuvvet çarpı yol.");
   });
 
   it("bayrak kapalıyken de Yeniden üret ders etiketini ikinci kez eklemez", async () => {

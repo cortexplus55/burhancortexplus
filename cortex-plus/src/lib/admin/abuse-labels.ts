@@ -119,6 +119,10 @@ const ABUSE_SCOPE_PREFIXES: [string, string][] = [
   ["cookie-consent", "Çerez tercihi"],
   // Faz 6 (20 Kasım 2026): bildirim çanı ve bildirim tercihleri uçları.
   ["notification", "Bildirimler"],
+  // Öğretmen v3 (21 Kasım 2026): canlı sesli öğretmen ve öğretmen sohbetinin uçları (notlar, geçmiş, karşılama).
+  ["tutor-realtime", "Canlı sesli öğretmen"],
+  ["tutor-tts", "Öğretmenin sesi"],
+  ["teacher-", "Öğretmen sohbeti"],
 ];
 
 export const UNKNOWN_SCOPE_LABEL = "Diğer bir uç";

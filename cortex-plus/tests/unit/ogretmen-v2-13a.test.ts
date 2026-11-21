@@ -89,7 +89,8 @@ describe("sohbet ucu: bayrak arkasında, model çağrısı eklenmez", () => {
     expect(TEACHER_V2_FLAG).toBe("teacher.v2");
     expect(route).toContain("isFeatureEnabled(service, TEACHER_V2_FLAG, userId).catch(() => false)");
     expect(route).toContain("const parallelModeration = (Boolean(rest.prepId) || teacherV2) && !imageUrl;");
-    expect(route).toContain("${teacherV2 ? ONE_MOVE_MARKUP : CHAT_TEACHING_MARKUP}");
+    // Öğretmen v3: ana sohbette canlı özel ders dili (`LIVE_TUTOR_MARKUP`), hazırlık yolunda tek hamle dili aynen.
+    expect(route).toContain("${teacherV2 ? (v2Chat ? LIVE_TUTOR_MARKUP : ONE_MOVE_MARKUP) : CHAT_TEACHING_MARKUP}");
   });
 
   it("kod katmanı akışın bitişinde, kayıttan önce; yalnız teacher.v2'de ve ana sohbette", () => {
@@ -109,9 +110,10 @@ describe("ekran: en çok 3 çip", () => {
   it("yanıt çipleri tavanlı; yanıtın kendi çipi varken genel devam önerileri gizli", () => {
     const panel = read("src/components/chat/chat-panel.tsx");
     expect(panel).toContain("maxChips={teacherV2 ? ONE_MOVE_MAX_CHIPS : undefined}");
-    // PR-1: koşul seçili anlatıma bakar (bayrak kapalıyken ya da hazırlık sohbetinde activeStyle = tutorStyle).
+    // PR-1: koşul seçili anlatıma bakar (bayrak kapalıyken ya da hazırlık sohbetinde activeStyle = tutorStyle). Öğretmen
+    // v3 (21 Kasım 2026): bayrak açıkken ana sohbette anlatım hep Adım Adım Öğret; yanıt çerçevesiz v3 ekranında çizilir.
     expect(panel).toContain('!(teacherV2 && activeStyle !== "direct_solve")');
-    expect(panel).toContain("const activeStyle: TeachStyle = v2Main ? teachStyle : tutorStyle;");
+    expect(panel).toContain("const activeStyle: TeachStyle = v2Main ? TEACH_MODE_TUTOR : tutorStyle;");
     expect(read("src/components/chat/tutor-reply-view.tsx")).toContain("maxChips != null ? next.slice(0, maxChips) : next");
     expect(read("src/app/ogretmen/page.tsx")).toContain("teacherV2={teacherV2}");
   });

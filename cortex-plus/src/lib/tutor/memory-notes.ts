@@ -37,7 +37,8 @@ export type NoteMessage = { role: string; content: string; createdAt: string | n
 export type TutorNote = { note: string; kind: NoteKind };
 
 export type NotesTrigger = {
-  reason: "session_gap" | "every_eighth";
+  /** welcome_answer (öğretmen v3): öğrenci karşılamada nasıl öğrendiğini anlattı; tetik beklenmez, konuşmada bir kez. */
+  reason: "session_gap" | "every_eighth" | "welcome_answer";
   /** Özetlenecek mesajlar, eskiden yeniye. */
   window: NoteMessage[];
   /** Bu bölüm için not daha önce yazıldı mı sorusunun eşiği: bu andan sonra yazılmış not varsa atlanır. */
@@ -61,12 +62,18 @@ export function notesTrigger(input: {
   newestFirst: readonly NoteMessage[];
   assistantCount: number;
   now?: Date;
+  /** Öğretmen v3: karşılama cevabı turu; 30 dk / 8 mesaj tetiği beklenmez (en az bir öğrenci mesajı yeter). */
+  force?: "welcome";
 }): NotesTrigger | null {
   const chrono = input.newestFirst
     .filter((row) => row.role === "user" || row.role === "assistant")
     .map((row, index) => ({ row, index }))
     .sort((a, b) => timeOf(a.row.createdAt) - timeOf(b.row.createdAt) || roleRank(a.row) - roleRank(b.row) || b.index - a.index)
     .map((entry) => entry.row);
+  if (input.force === "welcome") {
+    if (!chrono.some((row) => row.role === "user")) return null;
+    return { reason: "welcome_answer", window: chrono.slice(-NOTE_WINDOW), anchor: null };
+  }
   if (chrono.length < NOTE_MIN_WINDOW) return null;
   const latest = chrono[chrono.length - 1]!;
   const currentAt = timeOf(latest.createdAt) || (input.now ?? new Date()).getTime();
@@ -105,7 +112,12 @@ function plainTurn(content: string): string {
     .trim();
 }
 
-export function notesUserPrompt(window: readonly NoteMessage[]): string {
+/** Karşılama cevabında öğrencinin kendi anlattığı da kanıttır (hocanın vurgusu tercih notu olarak yazılır). */
+export const WELCOME_NOTES_PREFACE =
+  "NOT: Bu bölümde öğrenci kendi öğrenme biçimini, zorlandığı yeri ya da hocasının neyi vurguladığını anlattı; " +
+  "onun bu söyledikleri de kanıttır. Hocasının vurgusunu 'preference' türüyle yaz ('hocası … vurguluyor' gibi).";
+
+export function notesUserPrompt(window: readonly NoteMessage[], options: { welcome?: boolean } = {}): string {
   const lines = window
     .map((row) => {
       const text = clip(plainTurn(row.content), 600);
@@ -113,7 +125,7 @@ export function notesUserPrompt(window: readonly NoteMessage[]): string {
       return `${row.role === "user" ? "Öğrenci" : "Öğretmen"}: ${text}`;
     })
     .filter(Boolean);
-  return `SOHBET BÖLÜMÜ:\n${lines.join("\n")}`;
+  return `${options.welcome ? `${WELCOME_NOTES_PREFACE}\n\n` : ""}SOHBET BÖLÜMÜ:\n${lines.join("\n")}`;
 }
 
 /** Türkçe küçük harf, aksansız (eşleştirme için). */
@@ -200,8 +212,11 @@ export async function generateTutorNotes(input: {
   model: string;
   window: readonly NoteMessage[];
   signal?: AbortSignal;
+  welcome?: boolean;
 }): Promise<{ notes: TutorNote[]; tokensIn: number; tokensOut: number }> {
-  const user = notesUserPrompt(input.window);
+  const user = notesUserPrompt(input.window, { welcome: input.welcome });
+  // Kanıt yalnız mesajlardan: karşılama ön notunun sözcükleri bir gözlemi "kanıtlamaz".
+  const evidence = notesUserPrompt(input.window);
   const response = await input.client.chat.completions.create(
     {
       model: input.model,
@@ -216,7 +231,7 @@ export async function generateTutorNotes(input: {
     { signal: input.signal, timeout: 20_000, maxRetries: 0 },
   );
   return {
-    notes: parseTutorNotes(response.choices[0]?.message?.content ?? "", user),
+    notes: parseTutorNotes(response.choices[0]?.message?.content ?? "", evidence),
     tokensIn: response.usage?.prompt_tokens ?? 0,
     tokensOut: response.usage?.completion_tokens ?? 0,
   };
@@ -232,7 +247,15 @@ export type NotesRunResult = { written: number; reason: string };
  */
 export async function maybeWriteTutorNotes(
   service: SupabaseClient,
-  input: { userId: string; conversationId: string; now?: Date; client?: ChatClient; model?: string },
+  input: {
+    userId: string;
+    conversationId: string;
+    now?: Date;
+    client?: ChatClient;
+    model?: string;
+    /** Öğretmen v3: karşılama cevabı turunda tetik beklenmez; aynı konuşmada bir kez. */
+    force?: "welcome";
+  },
 ): Promise<NotesRunResult> {
   try {
     const [recent, assistants] = await Promise.all([
@@ -255,10 +278,12 @@ export async function maybeWriteTutorNotes(
       newestFirst: (recent.data ?? []).map((row) => ({ role: row.role, content: row.content, createdAt: row.created_at })),
       assistantCount: Number(assistants.count ?? 0),
       now: input.now,
+      force: input.force,
     });
     if (!trigger) return { written: 0, reason: "no_trigger" };
 
     // Aynı bölüm için not zaten yazıldı mı; aynı sorgu tablonun varlığını da sınar (göç yoksa sessizce atlanır).
+    // Karşılama turunda eşik yok: bu konuşmada herhangi bir not varsa yazılmaz (bir kez).
     let existing = service.from(TUTOR_NOTES_TABLE).select("id").eq("user_id", input.userId).eq("conversation_id", input.conversationId);
     if (trigger.anchor) existing = existing.gte("created_at", trigger.anchor);
     const prior = (await (existing.limit(1) as unknown as PromiseLike<Rows<{ id: string }>>));
@@ -268,7 +293,7 @@ export async function maybeWriteTutorNotes(
     const client = input.client ?? (env.OPENAI_API_KEY ? openaiClient({ apiKey: env.OPENAI_API_KEY }) : null);
     if (!client) return { written: 0, reason: "ai_not_configured" };
     const model = input.model ?? contentModel();
-    const result = await generateTutorNotes({ client, model, window: trigger.window });
+    const result = await generateTutorNotes({ client, model, window: trigger.window, welcome: trigger.reason === "welcome_answer" });
     await recordUsage(service, {
       userId: input.userId,
       actionCode: "TUTOR_MEMORY_NOTE",
@@ -297,6 +322,58 @@ export async function maybeWriteTutorNotes(
   } catch (error) {
     console.warn("tutor_memory_notes_failed", { cause: error instanceof Error ? error.name : "unknown" });
     return { written: 0, reason: "failed" };
+  }
+}
+
+export const NOTES_LIST_LIMIT = 20;
+
+export type TutorNoteRow = { id: string; note: string; kind: NoteKind; createdAt: string | null };
+
+/**
+ * "Öğretmenin seni nasıl tanıyor" (öğretmen v3, Ayarlar): öğrencinin kendi son 20 notu, yeniden eskiye. Yalnız
+ * `user_id` süzgeciyle. Tablo yoksa boş liste; başka okuma hatasında null (uç 503 döner).
+ */
+export async function listTutorNotes(service: SupabaseClient, userId: string): Promise<TutorNoteRow[] | null> {
+  try {
+    const { data, error } = (await (service
+      .from(TUTOR_NOTES_TABLE)
+      .select("id, note, kind, created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(NOTES_LIST_LIMIT) as unknown as PromiseLike<
+      Rows<{ id: string; note: string | null; kind: string | null; created_at: string | null }>
+    >));
+    if (error) return missingRelation(error) ? [] : null;
+    return (data ?? [])
+      .map((row) => ({
+        id: String(row.id),
+        note: String(row.note ?? "").replace(/\s+/g, " ").trim().slice(0, NOTE_MAX_CHARS),
+        kind: (NOTE_KINDS as readonly string[]).includes(String(row.kind)) ? (row.kind as NoteKind) : "stuck",
+        createdAt: row.created_at ?? null,
+      }))
+      .filter((row) => row.note);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Öğrencinin notunu (`id`) ya da bütün notlarını (`all`) siler; yalnız kendi satırları (`user_id` süzgeci). Tablo yoksa
+ * 0. Başka hata null.
+ */
+export async function deleteTutorNotes(
+  service: SupabaseClient,
+  userId: string,
+  target: { id: string } | { all: true },
+): Promise<number | null> {
+  try {
+    let query = service.from(TUTOR_NOTES_TABLE).delete().eq("user_id", userId);
+    if ("id" in target) query = query.eq("id", target.id);
+    const { data, error } = (await (query.select("id") as unknown as PromiseLike<Rows<{ id: string }>>));
+    if (error) return missingRelation(error) ? 0 : null;
+    return (data ?? []).length;
+  } catch {
+    return null;
   }
 }
 

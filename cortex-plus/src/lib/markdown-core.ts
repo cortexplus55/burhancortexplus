@@ -42,17 +42,61 @@ function formatText(text: string) {
  * gövdesi escape'e girmez — aksi hâlde `\frac{a}{b}` içindeki karakterler
  * bozulurdu.
  */
+/** Metin parçasında eşlenmemiş (tek sayıda) işaret var mı: "==" ya da "**". */
+function oddCount(text: string, marker: string): boolean {
+  return text.split(marker).length % 2 === 0;
+}
+
+/**
+ * Vurgu ya da kalın içinde formül (21 Kasım 2026, öğretmen v3): `==$\sqrt{20}$==` ve `**$x^2$**`. Formül ayrı parça
+ * olduğu için işaretler iki yanda yalnız kalıyor, ekranda çıplak "==" görünüyordu. Bir önceki metin parçası eşlenmemiş
+ * bir işaretle, bir sonraki onunla kapanıyorsa formül o işaretin içine alınır.
+ */
+const WRAPPERS: [string, string, string][] = [
+  ["==", '<mark class="cp-key">', "</mark>"],
+  ["**", "<strong>", "</strong>"],
+];
+
 function renderInline(text: string, math: MathRender, breaks = false) {
-  return splitMath(text)
-    .map((segment) => {
-      if (segment.type === "math") {
-        return math(segment.value, segment.display);
-      }
-      const html = formatText(segment.value);
-      // Satır sonu dönüşümü yalnızca metne uygulanır; KaTeX çıktısına dokunmaz.
-      return breaks ? html.replace(/\n/g, "<br />") : html;
-    })
-    .join("");
+  const segments = splitMath(text);
+  const textHtml = (value: string) => {
+    const html = formatText(value);
+    // Satır sonu dönüşümü yalnızca metne uygulanır; KaTeX çıktısına dokunmaz.
+    return breaks ? html.replace(/\n/g, "<br />") : html;
+  };
+  const out: string[] = [];
+  for (let index = 0; index < segments.length; index += 1) {
+    const segment = segments[index]!;
+    if (segment.type === "math") {
+      out.push(math(segment.value, segment.display));
+      continue;
+    }
+    const mathNext = segments[index + 1];
+    const after = segments[index + 2];
+    const wrapper =
+      mathNext?.type === "math" && !mathNext.display && after?.type === "text"
+        ? WRAPPERS.find(([marker]) => oddCount(segment.value, marker) && oddCount(after.value, marker))
+        : undefined;
+    if (!wrapper || mathNext?.type !== "math" || after?.type !== "text") {
+      out.push(textHtml(segment.value));
+      continue;
+    }
+    const [marker, open, close] = wrapper;
+    const openAt = segment.value.lastIndexOf(marker);
+    const closeAt = after.value.indexOf(marker);
+    out.push(
+      textHtml(segment.value.slice(0, openAt)),
+      open,
+      textHtml(segment.value.slice(openAt + marker.length)),
+      math(mathNext.value, false),
+      textHtml(after.value.slice(0, closeAt)),
+      close,
+    );
+    // Sonraki parça, kapanış işaretinden sonrasıyla sürer.
+    segments[index + 2] = { type: "text", value: after.value.slice(closeAt + marker.length) };
+    index += 1;
+  }
+  return out.join("");
 }
 
 /**

@@ -136,8 +136,10 @@ describe("özel ders ritmi (Adım Adım Öğret) ve Hızlı Özet istemi", () =>
     const line = v2StyleLine(TEACH_MODE_TUTOR)!;
     expect(line).toContain(PRIVATE_TUTOR_PACING);
     expect(line).toContain(QUICK_CHECK_RULE);
-    expect(PRIVATE_TUTOR_PACING).toContain("en çok 2-3 kısa cümle ve tek odak");
-    expect(PRIVATE_TUTOR_PACING).toContain("TEK, sıcak bir soruyla bitir");
+    // Öğretmen v3 (21 Kasım 2026): "en çok 2-3 kısa cümle" kuralı "2-3 kısa paragraf" düzeniyle değişti.
+    expect(PRIVATE_TUTOR_PACING).toContain("2-3 kısa paragraf, her paragraf 2-3 kısa cümle");
+    expect(PRIVATE_TUTOR_PACING).toContain("tek odak");
+    expect(PRIVATE_TUTOR_PACING).toContain("TEK, doğal ve sıcak bir soruyla bitir");
     expect(PRIVATE_TUTOR_PACING).toContain("Duvar gibi uzun metin");
     expect(PRIVATE_TUTOR_PACING).toContain("tam çözümü tek seferde dökme");
     expect(PRIVATE_TUTOR_PACING).toContain("'cevabı göster', 'tamam göster', 'çözümü göster'");
@@ -182,7 +184,7 @@ describe("özel ders ritmi (Adım Adım Öğret) ve Hızlı Özet istemi", () =>
     expect(first).toContain("1. deneme");
     expect(first).toContain("yargılamadan");
     expect(first).toContain("SÖYLEME");
-    expect(first).toContain("abartısız");
+    expect(first).toContain("zorluğa orantılı");
     const second = teacherV2SessionLines({
       session: { asked: [], lastQuestion: "Nasıl buldun?", answering: true, attempt: 2 },
       style: TEACH_MODE_TUTOR,
@@ -247,7 +249,8 @@ describe("sohbet ucu: hepsi bayrak arkasında, kapalıyken istem aynı", () => {
   it("öğretmen notları yanıttan sonra, yalnız bayrak açıkken ana sohbette ve var olan konuşmada", () => {
     const at = route.indexOf("maybeWriteTutorNotes(service, { userId, conversationId: notedConversationId })");
     expect(at).toBeGreaterThan(route.indexOf('service.rpc("complete_chat_operation"'));
-    expect(route).toContain("if (teacherV2 && !rest.prepId && rest.conversationId && charge) {");
+    // Öğretmen v3: karşılama cevabı turunda not yazımı ayrı (zorlanmış) yoldan; iki iş aynı konuşmada koşmaz.
+    expect(route).toContain("if (teacherV2 && !rest.prepId && rest.conversationId && charge && !welcomeTurn) {");
     expect(route.slice(at - 200, at)).toContain("after(() =>");
   });
 });
