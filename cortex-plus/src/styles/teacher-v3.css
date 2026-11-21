@@ -1183,6 +1183,11 @@ html:has(.cx-v3-thread) body {
   position: absolute;
   inset: -6px -4px;
 }
+@media (max-width: 767px) {
+  .cx-v3-more::before {
+    inset: -8px -4px;
+  }
+}
 .cx-v3-more:hover:not(:disabled),
 .cx-v3-more[aria-expanded="true"] {
   background: var(--cx-bg-3);

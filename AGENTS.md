@@ -3002,3 +3002,38 @@ kısıtları göçten önce ve sonra karşılaştırır). Kod onsuz çalışır;
 Bekçi: `ai-tutor-pedagogy.test.ts` (bağlam, ritim istemi, çipler, defter köprüsü sahipliği, notlar, göç PGlite'ta),
 `ogretmen-faz11-arayuz.test.tsx`, `foto-el-yazisi-kontrol*.test.ts(x)`, `sohbet-gecmisi-hazirlik*.test.ts(x)`, e2e
 `ogretmen-faz11.spec.ts`, `ogretmen-v2.spec.ts`, `foto-el-yazisi-kontrol.spec.ts`, `sohbet-gecmisi.spec.ts`.
+
+## Öğretmen v3: canlı özel ders hocası (21 Kasım 2026)
+
+Ürün sahibinin istemi: "/ogretmen'i bir daha kalitesiz demeyeceğim bir canlı özel ders hocasına çevir". Hepsi **`teacher.v2`
+bayrağının arkasında**, yalnız ana sohbette (hazırlık sohbeti ve sınav kabuğu değil: `v3 = v2Main && !examChrome`).
+Bayrak kapalıyken ekran, istemler ve yanıtlar bugünkü gibi (bekçiler bayt bayt tutar). Ürün sahibinin kararları: sesli
+model `gpt-realtime-2.1-mini`, dakikası **60 kredi** (önce 40 seçildi; dört canlı oturumda dakika ortalama 0,044 $, aralık
+0,035–0,062 $ ölçülünce 60), ücretsiz hesapta **tek seferlik 1 dakikalık deneme**, ses `marin`. Faz 11'in "iki mod"
+satırı bu ekranda değişti: seçici yok, anlatım hep Adım Adım Öğret. Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| **Ekran:** açık sohbet tam ekran katman; üstte 48 px şerit (geri, geçmiş saati, "Yeni sohbet"), uygulamanın üst menüsü, alt sekme çubuğu ve şeritler gizli (`:has(.cx-v3-thread)`). Mod çubuğu, ders seçici, "CORTEX ÖĞRETMEN" imzası, "Belgeden" başlığı, `[n]` atıfları, "Kaynaklar:" bloğu ve sabit çipler yok; belge dışı bilgi tek soluk satır "Notunda geçmiyor · genel bilgi". Yanıt çerçevesiz, 16 px / 1,68; altında 👍 👎 🔊 📋 (kopyala temizlenmiş metni kopyalar). Kapsam raporu (`/dokumanlar/[id]`) yalnız yöneticiye | `components/chat/teacher-v3/*`, `teacher-v3.css`, `chat-panel.tsx` (v3 dalı), `v3-reply.ts` |
+| **Karşılama:** "Selam {Ad}!" + aktif hazırlık (ana ekran seçimi, yoksa en son çalışılan; sayfada zaten okunan değer) + sağa yaslı üç ↳ hap; hap `welcomeAnswer: true` ile gider. Kayıt varsa en üstte "↳ Kaldığımız yerden devam edelim" (`resume`, aşağıda) | `teacher-v3-welcome.tsx`, `welcome.ts` |
+| **Kapsül:** yuvarlak, yazısı sabit "Sor, konuş veya dosya gönder"; "⋮ Daha fazla" (altı komut + ayrı "Yanıtları sesli oku" anahtarı), +, 📷, 🎙️ (dikte); tek eylem düğmesi yazı boşken "Konuş", yazınca Gönder'e döner (aynı öğe). Telefonda dokunma ≥ 44 px | `teacher-v3-composer.tsx`, `teacher-v3-more.tsx` |
+| **"Daha fazla" komutları tek kaynakta:** menünün metni öğrencinin mesajı olarak gider, sunucu aynı metni `moreCommandFromMessage` ile tanıyıp o tura kuralını ekler (elle değişen metin komut sayılmaz). Eksik noktalar yalnız kayıttaki zayıf konulardan ve açık yanlışlardan; kayıt yoksa dürüst teşhis sorusu, uydurma yok | `lib/teacher/more-commands.ts`, `live-tutor.ts` |
+| **Hoca dili:** 2-3 kısa paragraf, en çok 170 kelime, tek soruyla biter; ad yalnız ilk temasta bir kez; "bilmiyorum"da yargısız benzetme ve daha kolay basamak; tahminde nazik düzeltme; robotik açılış kalıpları ("Elbette! İşte cevabınız", "Belgenize göre" …) yasak. Aktif hazırlık dışı bir soruda bir tur sonra **bir kez** hazırlığa davet (ret ise yeniden önerilmez) | `live-tutor.ts` (`LIVE_TUTOR_MARKUP`), `tutor-pacing.ts`, `active-prep.ts`, `teacher-v2-session.ts` |
+| **Takip soruları:** model yanıtın sonuna tek `[[sorular:a?\|b?\|c?]]` yazar; sunucu denetimlerden ÖNCE ayırır (denetimler işareti görmez), temizler (`settleFollowUps`: biçim, süzgeç, yanıtın kendi sorusunu tekrar eden düşer) ve kayıttan önce tek normal işaret olarak sona koyar. Ekran sağa yaslı ↳ hap (en çok 3); akarken yarım işaret görünmez. Kod soru yazmaz; model yazmadıysa hap yok. Karşılama, test ve kriz/duygu turunda yok | `lib/teacher/follow-ups.ts`, `chat/route.ts` |
+| **Düşünme ve akış:** ilk parça gelene kadar "Bilgileri birleştiriyor → Verileri analiz ediyor → Yanıtı yazıyor", sonra "💡 N sn düşündü" (gerçek süre); yeni kelimeler yumuşak açılır (hareket azaltmada yok). Markdown nesnesi metin değişmedikçe aynı kalır (eski yanıtlar her parçada yeniden çizilmez) | `thinking-phase.ts`, `smooth-reveal.ts`, `markdown.tsx` |
+| **Ders sonu özeti:** geri ya da "Yeni sohbet"te öğretici yanıt varsa "Bugün öğrendiklerin" (en çok 3 madde, modelsiz: "Akılda kalsın" maddeleri ve `==kilit==` cümleleri) + "Tekrar desteme ekle" (`/api/review/deck`); madde yoksa doğrudan çıkış; pencere çıkışı engellemez | `lesson-recap.ts`, `teacher-v3-recap.tsx` |
+| **Yanıtları sesli oku:** varsayılan kapalı, tercih **tarayıcıda** (`cp:ogretmen:sesli-oku`; profil PATCH'inde alan yok); 🔊 ile aynı yol ve bedel; yeni mesajda susar; ücretsizde Plus rozeti ve yükseltme penceresi | `auto-speak.ts` |
+| **Devam satırı** (`GET /api/teacher/start-cards` → `resume`): son 7 günün en yeni konuşma başlığı (varsayılan başlık, emoji, ders etiketi, kazanım kodu atılır), yoksa en yeni `stuck` öğretmen notu; İstanbul günüyle "Dün «Konu» konusunda kalmıştık…"; kayıt yoksa `null`, uydurma yok. Hap aynı konuşmaya bağlanır | `lib/tutor/resume-line.ts` |
+| **"Öğretmenin seni nasıl tanıyor"** (Ayarlar, "Profil ve öğrenme" altında): son 20 not, tek tek ve "Hepsini sil" (`ConfirmDialog`); `GET/DELETE /api/teacher/memory-notes` yalnız `user_id` süzgeciyle, bayrak kapalıyken 404 ve kart hiç çizilmez (Ayarlar sayfası bayrağı okumaz, sorgu bütçesi değişmez) | `memory-notes/route.ts`, `tutor-memory-card.tsx`, `memory-notes-view.ts` |
+| **Canlı sesli öğretmen ("Konuş"):** SDP sunucu üzerinden (`POST /api/tutor/realtime-session` → OpenAI `/v1/realtime/calls`, sunucu anahtarıyla); istemciye anahtar gitmez, CSP değişmedi. Kapı: Plus, Sınav Haftası, Sigma, kurucu açık; ücretsiz hesap bir kez 60 sn deneme (kanıt `ai_usage_events` `REALTIME_VOICE_TRIAL`; bağlantı kurulmazsa geri verilir), sonrası 402 `trial_used` + Plus daveti. Dakikanın kredisi dakika başında ayrılır; ilk 5 sn geçtiyse ödenir, geçmeden biterse iade; `/tick` her dakika bitmeden 5 sn önce, hak yoksa çağrı kapanır (402 `quota`); bekçi (`after`) süre uzamadıysa çağrıyı `hangup` eder; en çok 30 dk, yeni oturum eskisini kapatır | `lib/tutor/realtime/*`, `api/tutor/realtime-session/{,tick,end}` |
+| **Sohbetin içinde:** "Konuş" ses çubuğunu kapsülün yerine koyar; söylenenler ve **tahta kartları** (`tahtaya_yaz` aracı, oturumda en çok 6, formül TeX ile) akışa canlı düşer; bitince `/end` konuşmayı sohbete yazar (sahiplik denetlenir, ses saklanmaz) ve aynı satırlar ekranda mesaja döner (`liveEntriesToMessages` = sunucunun `composeSavedTurns`'ü). Geri basılınca oturum kapanır ve kaydedilir, söylenenler ders sonu özetine girer. Geliştirme modundaki çift kurulumda başlatma sırası (`runRef`) eski başlatmayı çeker | `live-entries.ts`, `realtime-voice-bar.tsx`, `use-realtime-tutor.ts` |
+| **Kokpit:** `/admin` "Canlı sesli öğretmen" kartı: Bugün / 7 / 30 gün sesli dakika, oturum, gerçek maliyet, denemeyi kullanan ve denemeden sonra Plus'a geçen öğrenci; yalnız okur, kaynak başına "okunamadı" | `voice-cockpit*.ts`, `voice-tutor-card.tsx` |
+
+**Göç `20261121170000_realtime_voice_minute.sql`** yalnız ekler (`credit_rules` `REALTIME_VOICE_MINUTE` = 60, altı
+`ai_model_prices` satırı; fiyatlar OpenAI model sayfasından). **Kod yayınından ÖNCE** uygulanır (ürün sahibinin kararı):
+`/admin/sistem` bütün eylem kodlarını kritik sayar, kod önce çıkarsa sağlık kırmızı görünür; yeni satırlar eski kodu
+etkilemez. Modelin Türkçesi sınırlı (canlı denemede bir adı yanlış duydu); talimat adları doğrulatır.
+
+Bekçi: `ogretmen-v3-ekran.test.tsx`, `ogretmen-v3-hoca.test.ts`, `ogretmen-v3-hafiza.test.tsx`, `ogretmen-v3-konus.test.ts`,
+`takip-sorulari.test.ts`, `canli-ses-ogretmen-{sunucu,parcalar,uclar,istemci}.test.ts(x)`, `canli-ses-kokpit.test.tsx`; e2e
+`ogretmen-v3.spec.ts`, `ogretmen-v3-konus.spec.ts`, `canli-ses.spec.ts`.
