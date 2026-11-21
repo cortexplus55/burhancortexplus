@@ -176,9 +176,9 @@ describe("kullanım kaydı", () => {
     expect(laterUsage(a, b)).toMatchObject({ textIn: 10, audioOut: 80 });
   });
 
-  it("fiyat satırları göçte; göç yalnız ekler ve uygulanmadı diye işaretli", () => {
+  it("fiyat satırları göçte; göç yalnız ekler ve uygulandı diye işaretli (21 Kasım 2026, yayından önce)", () => {
     const sql = read("supabase/migrations/20261121170000_realtime_voice_minute.sql");
-    expect(sql).toContain("YAZILDI, UYGULANMADI");
+    expect(sql).toContain("UYGULANDI: 21 Kasım 2026");
     expect(sql).toContain("('REALTIME_VOICE_MINUTE', 60,");
     for (const model of ["", "-audio", "-image", "-cached-text", "-cached-audio", "-cached-image"]) {
       expect(sql).toContain(`'${REALTIME_MODEL}${model}'`);
