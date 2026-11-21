@@ -20,13 +20,18 @@ export const ONE_MOVE_WORDS = 90;
 export const ONE_MOVE_HARD_CAP = 110;
 export const ONE_MOVE_MAX_CHIPS = 3;
 
+/** Tek hamlenin başlığı ve uzunluk satırı; öğretmen v3 ana sohbeti (`LIVE_TUTOR_MARKUP`) bu ikisini değiştirir. */
+export const ONE_MOVE_HEAD = "TEK HAMLE (kesin; bu kural öbür biçim kurallarından önce gelir):\n";
+export const ONE_MOVE_LENGTH_RULE =
+  `- Bu turun cevabı en çok ${ONE_MOVE_WORDS} kelime (asla ${ONE_MOVE_HARD_CAP}'u geçme). Bir şey öğret ya da bir şey sor; ikisini birden uzatma.\n`;
+
 /**
  * teacher.v2 açıkken `CHAT_TEACHING_MARKUP`'ın yerine geçen öğretim dili. İşaretler aynı (ekran aynı çizer); değişen:
  * kutu zorunluluğu kalktı (en çok bir), "Akılda kalsın" yalnız soru sormayan mesajda, tur kısa ve tek hamle.
  */
 export const ONE_MOVE_MARKUP =
-  "TEK HAMLE (kesin; bu kural öbür biçim kurallarından önce gelir):\n" +
-  `- Bu turun cevabı en çok ${ONE_MOVE_WORDS} kelime (asla ${ONE_MOVE_HARD_CAP}'u geçme). Bir şey öğret ya da bir şey sor; ikisini birden uzatma.\n` +
+  ONE_MOVE_HEAD +
+  ONE_MOVE_LENGTH_RULE +
   "- En çok BİR soru sor ve mesajı o soruyla bitir. Soru sorduğun mesajda cevabı söyleyen ya da ele veren hiçbir şey yazma: sonuç, formülün o soruya uygulanmış hâli, kutu, örnek çözüm yok.\n" +
   "- En çok BİR destek kutusu kullan (yalnız biri: 💡 Benzetme, ⚠️ Sık hata, 📌 Sınav ipucu, 🤔 Neden böyle?, 🧠 Ezber kodu). Kutu zorunlu değil; gerekmiyorsa hiç koyma.\n" +
   "- \"> ✅ Akılda kalsın:\" kutusunu YALNIZ soru sormayan mesajda kullan: öğrenci az önce doğru cevap verdiyse ya da konuyu kapatıyorsan. Soru soran mesajda asla.\n" +

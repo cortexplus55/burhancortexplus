@@ -20,19 +20,31 @@ import {
   dokunmaz. Kod cevaba cümle yazmaz; satırlar modele o turun kuralını söyler. Ders ya da konu sözcüğü yok.
 */
 
-/** Robotik açılış ve kapanış kalıpları: iki modda da yasak (ses kılavuzunun kod katmanı ayrıca siler). */
+/**
+ * Robotik açılış ve kapanış kalıpları: iki modda da yasak (ses kılavuzunun kod katmanı ayrıca siler). Öğretmen v3 (21
+ * Kasım 2026): belgeye ve "aşağıda"ya gönderme yapan kalıplar da yasak. İç işaretler ("Belgeden:" bölümü, `[n]` atıfı)
+ * kalıp değildir; belge denetimi onlarla çalışır, yazılmaya devam eder.
+ */
 export const ROBOTIC_PHRASE_BAN =
-  "Robotik kalıp yok: 'Elbette! İşte…', 'Tabii ki, işte…', 'Harika soru!', 'Aşağıdaki maddelerde özetlenmiştir', " +
-  "'Umarım yardımcı olmuştur', 'Başka sorun var mı?' gibi açılış ve kapanışlar yazma; konuya doğrudan, insan gibi gir.";
+  "Robotik kalıp yok: 'Elbette! İşte cevabınız:', 'Elbette! İşte…', 'Tabii ki, işte…', 'Harika soru!', 'Belgenize göre', " +
+  "'Notlarınıza göre', 'Aşağıda …', 'Aşağıdaki maddelerde özetlenmiştir', 'Umarım yardımcı olmuştur', 'Başka sorun var mı?' " +
+  "gibi açılış ve kapanışlar yazma; konuya doğrudan, insan gibi gir. (\"Belgeden:\" bölüm başlığı ve [1]/[2] atıfları kalıp " +
+  "değildir; kurallar istiyorsa onları yazmaya devam et.)";
 
+/**
+ * Adım Adım Öğret (öğretmen v3, 21 Kasım 2026): canlı özel ders hocası. Faz 11'deki "en çok 2-3 kısa cümle" kuralı "2-3
+ * kısa paragraf" düzeniyle değişti; tam çözümü tek seferde dökmeme ve tek soruyla bitirme kuralları aynen.
+ */
 export const PRIVATE_TUTOR_PACING =
-  "ADIM ADIM ÖĞRET MOD (kesin; özel ders ritmi): Bire bir özel ders veren sıcak bir öğretmen gibi konuş.\n" +
-  "- Her yanıt en çok 2-3 kısa cümle ve tek odak: tek fikir, tek adım. Duvar gibi uzun metin, madde yığını ve başlık yok.\n" +
-  "- Yanıtı öğrencinin katılımını isteyen TEK, sıcak bir soruyla bitir; soru konuya dair olsun, boş bir kapanış sorusu olmasın.\n" +
+  "ADIM ADIM ÖĞRET MOD (kesin; canlı özel ders ritmi): Öğrencinin bire bir çalıştığı, sabırlı ve sıcak özel ders hocası gibi konuş.\n" +
+  "- Anlatım kısa, net ve örnekli: 2-3 kısa paragraf, her paragraf 2-3 kısa cümle, paragraflar arasında boş satır; anahtar kavram **koyu**. Duvar gibi uzun metin, madde yığını ve başlık yok; tek odak, tek fikir.\n" +
+  "- Örneklerini öğrencinin çalıştığı alandan seç (aktif hazırlığı söylendiyse oradan): gerçek ve doğru durumlar, uydurma veri yok.\n" +
+  "- Her açıklamayı öğrencinin katılımını isteyen TEK, doğal ve sıcak bir soruyla bitir; soru konuya dair olsun, boş bir kapanış sorusu olmasın.\n" +
   "- Çözülecek bir soru ya da problemde tam çözümü tek seferde dökme: çözümü içinden yap ve sağla, öğrenciye yalnız sıradaki küçük adımı aç.\n" +
-  "- Doğru cevapta abartısız, kısa bir onay ver ve sıradaki adıma geç. Yanlış cevapta yargılamadan küçük bir ipucu ver; doğrusunu hemen söyleme.\n" +
+  "- Doğru cevapta içtenlikle ve abartısız onayla, sıradaki adıma geç. Yanlış cevapta yargılamadan karşıla: doğru yanını varsa an, yanlışı doğrusundan nazikçe ayır; bir hesabın sonucunu hemen söyleme, küçük bir ipucu ver.\n" +
+  "- Öğrenci 'bilmiyorum', 'hatırlamıyorum' derse asla yargılama: günlük hayattan doğru bir benzetmeyle sıcakça açıkla ve daha kolay bir basamaktan tek soruyla devam et.\n" +
   "- Öğrenci aynı adımda iki-üç kez takılırsa ya da açıkça 'cevabı göster', 'tamam göster', 'çözümü göster' derse o adımı kısa ve açık biçimde açıkla, sonra devam et.\n" +
-  "- Selamlaşmada kısa ve doğal karşılık ver. Kavram sorusunda ('nedir', 'fark ne') tanımı saklama: özünü 2-3 kısa cümleyle ver, sonra anladığını tek soruyla yokla.\n" +
+  "- Selamlaşmada kısa ve doğal karşılık ver. Kavram sorusunda ('nedir', 'fark ne') tanımı saklama: özünü ilk paragrafta ver, sonra anladığını tek soruyla yokla.\n" +
   `- ${ROBOTIC_PHRASE_BAN}`;
 
 export const QUICK_SUMMARY_RULE =
@@ -42,9 +54,9 @@ export const QUICK_SUMMARY_RULE =
   "kapanış yok. Sonda en çok bir kısa kontrol sorusu sorabilirsin; zorunlu değil. " +
   ROBOTIC_PHRASE_BAN;
 
-/** Hızlı Özet'te eksiksiz çözüm tek hamle kelime sınırını aşabilir; tur satırı bunu son söz olarak söyler. */
+/** Hızlı Özet'te eksiksiz çözüm uzunluk sınırını aşabilir; tur satırı bunu son söz olarak söyler. */
 export const QUICK_SUMMARY_TURN_LINE =
-  "HIZLI ÖZET — BU TUR (kesin; tek hamle kelime sınırından önce gelir): Eksiksiz çözüm ya da özet tek hamle kelime " +
+  "HIZLI ÖZET — BU TUR (kesin; uzunluk sınırından önce gelir): Eksiksiz çözüm ya da özet yukarıdaki uzunluk " +
   "sınırına sığmıyorsa bu turda o sınır geçmez; yine de her cümle iş görsün, uzatma ve cevabı bekletme.";
 
 export const TUTOR_FIRST_PROBLEM_LINE =
@@ -73,14 +85,15 @@ export function tutorLadderLine(attempt: number, question: string | null): strin
     : "Öğrenci kendi çözümünü ya da cevabını yazdı";
   if (attempt <= 1) {
     return (
-      `${LADDER_HEAD}${target} (1. deneme). Doğruysa: abartısız, kısa bir onay ver (tek kısa cümle), nedenini en çok bir ` +
+      `${LADDER_HEAD}${target} (1. deneme). Doğruysa: içten ve abartısız bir onay ver (tek kısa cümle, 'tam isabet' gibi ` +
+      "doğal bir sözle), nedenini en çok bir " +
       "cümleyle söyle ve sıradaki küçük adımı TEK sıcak soruyla aç; konu bittiyse \"> ✅ Akılda kalsın:\" kutusuyla kapat. " +
       "Yanlışsa: yargılamadan karşıla; doğru cevabı ya da doğru şıkkı SÖYLEME ve düzeltmeyi yapma. Olası hatayı adıyla anan " +
       "küçük bir ipucu ver ve yeniden denemesini isteyen tek soruyla bitir. Mesaj aslında bir cevap değilse bu satırı yok say."
     );
   }
   return (
-    `${LADDER_HEAD}${target} (aynı adımda ${attempt}. deneme). Doğruysa: kısa onayla, nedenini tek cümleyle söyle ve ` +
+    `${LADDER_HEAD}${target} (aynı adımda ${attempt}. deneme). Doğruysa: içtenlikle ve kısa onayla, nedenini tek cümleyle söyle ve ` +
     "sıradaki adıma geç. Yanlışsa öğrenci bu adımda takıldı: artık bekletme; hatayı adıyla tek cümleyle göster, bu adımı kısa " +
     "ve açık biçimde açıkla (gerekirse doğru sonucu söyle), sonra sıradaki küçük adımı tek soruyla aç. Suçlama yok. Mesaj " +
     "aslında bir cevap değilse bu satırı yok say."
@@ -132,6 +145,81 @@ export function wantsReveal(message: string): boolean {
   }
   const stuck = STUCK_SHOW.exec(text);
   return Boolean(stuck && !negated(stuck[2]));
+}
+
+/*
+  Öğretmen v3 (21 Kasım 2026): "bilmiyorum" ve tahmin turları. Tanıyıcılar modelsiz ve ders bağımsız; yalnız genel Türkçe
+  sohbet sözcükleri. Satırlar cevap merdiveninin yerine geçer (seans makinesi seçer).
+*/
+
+/** "Bilmiyorum" mesajında anlamı değiştirmeyen dolgu sözcükleri. */
+const DONT_KNOW_FILLER = new Set([
+  "hocam", "hoca", "ya", "yaa", "valla", "vallahi", "acikcasi", "acikcasi", "maalesef", "malesef", "hic", "tam", "olarak",
+  "pek", "su", "an", "simdi", "of", "off", "ah", "hmm", "hm", "ki", "ama", "yani", "cok", "gercekten", "hala", "ben",
+  "bunu", "onu", "bu", "o", "soruyu", "cevabi", "cevabini", "sonucu", "dogrusunu", "ne", "oldugunu", "ve", "da", "de",
+  "sorry", "uzgunum",
+]);
+
+/** Dolgudan arınmış mesajın tamamı bu ifadelerden biri olmalı. */
+const DONT_KNOW_CORE =
+  "(?:bilmiyorum|bilemiyorum|bilemedim|bilmem|ne bileyim|bileyim|hatirlamiyorum|hatirlayamiyorum|hatirlayamadim|" +
+  "unuttum|aklima gelmiyor|aklima gelmedi|fikrim yok|hicbir fikrim yok|emin degilim|bulamadim|yapamadim|cozemedim|" +
+  "cikaramadim|anlamadim|anlayamadim|i dont know|idk)";
+const DONT_KNOW_RE = new RegExp(`^${DONT_KNOW_CORE}(?: ${DONT_KNOW_CORE})?$`);
+const DONT_KNOW_MAX_WORDS = 8;
+
+/**
+ * Öğrencinin mesajı yalnız "bilmiyorum / hatırlamıyorum / aklıma gelmiyor" mu (dolgu sözcükleri dışında başka içerik
+ * yok). "Nereden başlamalıyım bilmiyorum" gibi bir istek ya da "bilmiyorum, göster" (cevap isteği) sayılmaz.
+ */
+export function saysDontKnow(message: string): boolean {
+  const raw = String(message ?? "").trim();
+  if (!raw || wantsReveal(raw)) return false;
+  const words = fold(raw)
+    .replace(/[^\p{L}\p{N}\s]+/gu, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!words.length || words.length > DONT_KNOW_MAX_WORDS) return false;
+  const core = words.filter((word) => !DONT_KNOW_FILLER.has(word)).join(" ");
+  return Boolean(core) && DONT_KNOW_RE.test(core);
+}
+
+/** Emin olmadan verilen cevabın işaretleri ("sanırım", "galiba", "herhalde", "acaba", "… olabilir mi"). */
+const HEDGE_RE =
+  /\b(?:sanirim|saniyorum|galiba|herhalde|tahminim|tahmin ediyorum|tahminen|acaba|yanilmiyorsam|emin degilim ama|gibi geliyor|sanki|olabilir mi|olmasin|mi yoksa)\b/;
+const GUESS_MAX_WORDS = 25;
+
+/** Öğrencinin cevabı emin olmadan verilmiş bir tahmin mi (kısa; "bilmiyorum" ve cevap isteği değil). */
+export function hedgedGuess(message: string): boolean {
+  const raw = String(message ?? "").trim();
+  if (!raw || saysDontKnow(raw) || wantsReveal(raw)) return false;
+  const text = fold(raw);
+  if (text.split(" ").length > GUESS_MAX_WORDS) return false;
+  return HEDGE_RE.test(text);
+}
+
+export const DONT_KNOW_LINE =
+  "BİLMİYORUM — BU TUR (kesin; 'ilk cümle tam cevap' ve cevap merdiveni kurallarından önce gelir): Öğrenci bilmediğini " +
+  "ya da hatırlamadığını söyledi. Bu tamamen normal: asla yargılama ('bunu bilmen gerekirdi', 'daha önce konuşmuştuk' " +
+  "yok) ve şablon moral cümlesi kurma. Tek sıcak cümleyle karşıla, sonra gereken fikri günlük hayattan doğru bir " +
+  "benzetmeyle 2-3 kısa cümlede açıkla (benzetme kavramın gerçek işleyişine ve sınıflandırmasına birebir uysun). Ardından " +
+  "bir önceki sorundan daha kolay, daha erişilebilir bir basamakta TEK soru sor. Bir problemin sonucunu ya da doğru " +
+  "şıkkı bu mesajda söyleme; öğrenci 'cevabı göster' derse göster.";
+
+const GUESS_HEAD = "TAHMİN — BU TUR (kesin; 'ilk cümle tam cevap' ve cevap merdiveni kurallarından önce gelir): ";
+
+/** Öğrenci emin olmadan bir tahminle cevap verdi: doğruysa içten onay, yanlışsa doğrusunu nazikçe ayırıp öğret. */
+export function guessLine(question: string | null): string {
+  const target = question
+    ? `Öğrenci senin son soruna («${clip(question, 160)}») emin olmadan bir tahminle cevap verdi.`
+    : "Öğrenci emin olmadan bir tahmin yürüttü.";
+  return (
+    `${GUESS_HEAD}${target} Tahminini ciddiye al. Doğruysa: içten ve abartısız tek kısa cümleyle onayla ('tam isabet' ` +
+    "gibi doğal bir sözle), neden doğru olduğunu bir cümleyle pekiştir ve sıradaki küçük adımı tek soruyla aç. Yanlışsa: " +
+    "yargılamadan karşıla; tahminin doğru bir yanı varsa onu tek cümleyle an, yanlış kısmı doğrusundan nazikçe ayır ve " +
+    "doğru olanı 2-3 kısa cümleyle öğret (bir hesabın sonucuysa sonucu söyleme: hatanın hangi adımda olduğunu göster ve " +
+    "yeniden denemesini iste); sonra anladığını yeni, tek bir soruyla yokla. Mesaj aslında bir cevap değilse bu satırı yok say."
+  );
 }
 
 /** Bayrak açıkken istekteki seçim → iki moddan biri ve altındaki makine (`base`). Profil yoksa varsayılan. */

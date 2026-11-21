@@ -1,0 +1,96 @@
+/*
+  Ayarlar · "Öğretmenin seni nasıl tanıyor" (öğretmen v3, 21 Kasım 2026). Ayarlar grubunun diliyle (cp-set-group,
+  cp-set-rows); renkler tokenlardan, iki temada aynı kural. Dokunma hedefi 44 px.
+*/
+
+.cp-tmem-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 56px;
+  padding: 0.55rem 0.5rem 0.55rem 0.75rem;
+}
+
+.cp-tmem-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.cp-tmem-kind {
+  font: var(--t-label-11);
+  letter-spacing: 0.01em;
+  color: var(--c-text-muted);
+}
+
+.cp-tmem-note {
+  font: var(--t-body-14);
+  color: var(--c-text);
+  overflow-wrap: anywhere;
+}
+
+.cp-tmem-delete {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 0.75rem;
+  background: transparent;
+  color: var(--c-text-muted);
+  cursor: pointer;
+}
+
+.cp-tmem-delete:hover {
+  background: var(--c-danger-soft);
+  color: var(--c-danger);
+}
+
+.cp-tmem-delete:focus-visible,
+.cp-tmem-retry:focus-visible,
+.cp-tmem-clear:focus-visible {
+  outline: 2px solid var(--c-action);
+  outline-offset: 2px;
+}
+
+.cp-tmem-delete:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.cp-tmem-state {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.cp-tmem-state strong {
+  font: var(--t-label-15);
+  color: var(--c-text);
+}
+
+.cp-tmem-state p {
+  margin: 0;
+  font: var(--t-body-14);
+  color: var(--c-text-muted);
+}
+
+.cp-tmem-clear,
+.cp-tmem-retry {
+  min-height: 44px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.cp-tmem-retry {
+  margin: 0.25rem 0 0;
+}
+
+.cp-tmem-clear:hover {
+  border-color: var(--c-danger);
+  color: var(--c-danger);
+}

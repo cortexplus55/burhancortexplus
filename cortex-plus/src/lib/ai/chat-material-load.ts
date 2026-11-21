@@ -103,9 +103,16 @@ export async function resolveChatMaterial(
   userId: string,
   message: string,
   contextPrepId: string | null,
-  options: { conversationId?: string | null } = {},
+  options: {
+    conversationId?: string | null;
+    /**
+     * Önceden başlatılmış dizin okuması (öğretmen v3, 21 Kasım 2026): sohbet ucu aynı okumayı aktif hazırlık için de
+     * kullanır; verilmezse burada okunur. Sorgular aynı.
+     */
+    index?: Promise<ChatMaterialIndex> | ChatMaterialIndex;
+  } = {},
 ): Promise<ChatMaterialLink | null> {
-  const index = await loadChatMaterialIndex(service, userId);
+  const index = options.index ? await options.index : await loadChatMaterialIndex(service, userId);
   if (!index.preps.length && !index.documents.length) return null;
   const ownedContextPrepId = contextPrepId && index.preps.some((prep) => prep.id === contextPrepId) ? contextPrepId : null;
   let match = matchChatMaterial(message, index, { contextPrepId });
