@@ -189,7 +189,10 @@ describe("sohbet uç noktası öğretmen yolunu kullanır", () => {
     expect(teacherBlock).toContain("teacherStyleLine");
     expect(teacherBlock).toContain("teacherStyleLine(tutorStyle)");
     // PR-1: "guided" (Rehberli) yalnız teacher.v2 açıkken tanınır; hazırlık sohbeti bugünkü üç stille çalışır.
-    expect(route).toContain('tutorStyle: z.enum(["step_by_step", "hints_first", "direct_solve", GUIDED_STYLE])');
+    // Faz 11: bayrak açıkken iki mod (Adım Adım Öğret, Hızlı Özet) da istekte gelebilir; yine yalnız ana sohbette.
+    expect(route).toContain(
+      'tutorStyle: z.enum(["step_by_step", "hints_first", "direct_solve", GUIDED_STYLE, TEACH_MODE_TUTOR, TEACH_MODE_SUMMARY])',
+    );
     expect(route).toContain("const v2Chat = teacherV2 && !rest.prepId;");
     expect(teacherBlock).toContain("mode: tutorMode");
     // Kaynak satırı boş kalmasın: öğretmen yolu da citations doldurur.

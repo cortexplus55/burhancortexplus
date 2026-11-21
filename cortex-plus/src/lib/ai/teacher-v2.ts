@@ -79,16 +79,21 @@ export type OneMoveResult = {
 };
 
 function stripInternalLanguage(block: string): { text: string; count: number } {
+  // Ayırıcılar (boşluk ya da satır sonu) korunur: silinen cümle kendi ardındaki ayırıcıyla gider, satırlar birleşmez
+  // (Faz 11: adımlar ve mini yoklama satırları tek satıra çökmesin). Hiçbir şey silinmezse blok aynen döner.
+  const parts = block.split(/((?<=[.!?])\s+)/u);
   let count = 0;
-  const sentences = block.split(/(?<=[.!?])\s+/u);
-  const kept = sentences.filter((sentence) => {
+  let text = "";
+  for (let index = 0; index < parts.length; index += 2) {
+    const sentence = parts[index] ?? "";
+    const separator = parts[index + 1] ?? "";
     if (INTERNAL_LANGUAGE.test(sentence)) {
       count += 1;
-      return false;
+      continue;
     }
-    return true;
-  });
-  return { text: kept.join(" "), count };
+    text += sentence + separator;
+  }
+  return { text: count ? text.trimEnd() : block, count };
 }
 
 /**

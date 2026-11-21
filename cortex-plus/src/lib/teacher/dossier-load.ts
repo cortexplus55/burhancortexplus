@@ -59,13 +59,20 @@ export async function readDossierInput(service: SupabaseClient, userId: string, 
     settle(
       service
         .from("exam_preps")
-        .select("id, title, exam_type, exam_date, created_at")
+        .select("id, title, exam_type, exam_date, created_at, target_score")
         .eq("user_id", userId)
         .neq("exam_type", "hedef")
         .or(NOT_STUDIO_EXAM_FILTER)
         .order("created_at", { ascending: false })
         .limit(PREP_LIMIT) as unknown as PromiseLike<
-        Rows<{ id: string; title: string | null; exam_type: string | null; exam_date: string | null; created_at: string | null }>
+        Rows<{
+          id: string;
+          title: string | null;
+          exam_type: string | null;
+          exam_date: string | null;
+          created_at: string | null;
+          target_score?: number | null;
+        }>
       >,
       { data: [], error: null },
       "preps",
@@ -144,6 +151,7 @@ export async function readDossierInput(service: SupabaseClient, userId: string, 
     title: String(row.title ?? row.exam_type ?? "Hazırlık"),
     examDate: row.exam_date ? String(row.exam_date).slice(0, 10) : null,
     createdAt: row.created_at ?? null,
+    targetScore: typeof row.target_score === "number" ? row.target_score : null,
     nodes: nodes
       .filter((node) => node.exam_prep_id === row.id)
       .map((node) => ({
@@ -176,6 +184,7 @@ export async function readDossierInput(service: SupabaseClient, userId: string, 
       pageCount: row.page_count,
     })),
     streak: streak > 0 ? streak : null,
+    memory,
   };
 }
 
