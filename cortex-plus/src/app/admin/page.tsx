@@ -7,12 +7,14 @@ import { FreePreviewToggle } from "@/components/admin/free-preview-toggle";
 import { FxRateForm } from "@/components/admin/fx-rate-form";
 import { GrowthFunnelCard } from "@/components/admin/growth-funnel-card";
 import { SpendCapForm } from "@/components/admin/spend-cap-form";
+import { VoiceTutorCard } from "@/components/admin/voice-tutor-card";
 import { AdminBadge, AdminCard, AdminEmpty, AdminTableFrame } from "@/components/admin/admin-ui";
 import { requireAdminPage } from "@/lib/auth/admin-guard";
 import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
 import { loadCockpit } from "@/lib/admin/cockpit";
 import { loadGrowthFunnel } from "@/lib/admin/funnel";
+import { loadVoiceCockpit } from "@/lib/admin/voice-cockpit";
 import { spendKurus, WINDOW_KEYS, WINDOW_LABEL, type WindowCounts } from "@/lib/admin/cockpit-math";
 import { formatDate, formatNumber, formatTry } from "@/lib/format";
 import { reportReasonLabel, type ReportReason } from "@/lib/learning/question-report/copy";
@@ -48,9 +50,10 @@ export default async function AdminPage() {
   const isFounder = role === "founder";
   const service = createServiceClient();
 
-  const [cockpit, funnel, pending, recentPayments, preview] = await Promise.all([
+  const [cockpit, funnel, voice, pending, recentPayments, preview] = await Promise.all([
     loadCockpit(service),
     loadGrowthFunnel(service),
+    loadVoiceCockpit(service),
     countPendingApplications(service),
     service
       .from("payments")
@@ -113,6 +116,8 @@ export default async function AdminPage() {
       </AdminCard>
 
       <GrowthFunnelCard funnel={funnel} />
+
+      <VoiceTutorCard voice={voice} />
 
       <AdminCard
         title="Birim ekonomisi (kâr / zarar)"

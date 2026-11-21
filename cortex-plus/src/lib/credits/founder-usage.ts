@@ -31,6 +31,7 @@ export const FOUNDER_ACTION_LABELS: Record<string, string> = {
   POOL_CARDS: "Hazır kartlar",
   POOL_QUIZ: "Hazır test",
   DOCUMENT_SUPPLEMENT_GENERATE: "Belgeden ünite eki",
+  REALTIME_VOICE_MINUTE: "Canlı sesli öğretmen",
 };
 
 export function founderActionLabel(code: string | null | undefined): string {
