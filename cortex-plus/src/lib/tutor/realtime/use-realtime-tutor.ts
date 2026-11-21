@@ -483,7 +483,6 @@ export function useRealtimeTutor(options: UseRealtimeTutorOptions): RealtimeTuto
       };
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      const coarse = typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches;
       const response = await d.fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -491,7 +490,6 @@ export function useRealtimeTutor(options: UseRealtimeTutorOptions): RealtimeTuto
           sdp: offer.sdp,
           conversationId: optionsRef.current.conversationId ?? null,
           prepId: optionsRef.current.prepId ?? null,
-          micProfile: coarse ? "near" : "far",
         }),
       });
       const data = (await response.json().catch(() => null)) as RealtimeCreateResponse | null;

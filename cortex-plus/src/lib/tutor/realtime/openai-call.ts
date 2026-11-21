@@ -2,7 +2,15 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { guardedFetch, isQuotaExhaustedText, openaiClient } from "@/lib/ai/openai-client";
 import { BOARD_TOOL } from "@/lib/tutor/realtime/board-cards";
-import { REALTIME_MODEL, REALTIME_TRANSCRIBE_MODEL, REALTIME_VOICE } from "@/lib/tutor/realtime/config";
+import {
+  REALTIME_MODEL,
+  REALTIME_TRANSCRIBE_LANGUAGE,
+  REALTIME_TRANSCRIBE_MODEL,
+  REALTIME_VAD_PREFIX_MS,
+  REALTIME_VAD_SILENCE_MS,
+  REALTIME_VOICE,
+} from "@/lib/tutor/realtime/config";
+import { buildTranscriptionPrompt } from "@/lib/tutor/realtime/stt-prompt";
 
 /*
   OpenAI Realtime çağrısı, SDP sunucu üzerinden ("unified interface", 21 Kasım 2026). İstemci WebRTC teklifini bize
@@ -20,10 +28,11 @@ export const REALTIME_CALLS_URL = "https://api.openai.com/v1/realtime/calls";
 export const REALTIME_MAX_OUTPUT_TOKENS = 1800;
 const CREATE_TIMEOUT_MS = 15_000;
 
-export type MicProfile = "near" | "far";
-
-/** Oturum ayarı (`session` alanı). */
-export function realtimeSessionConfig(input: { instructions: string; micProfile?: MicProfile }) {
+/**
+ * Oturum ayarı (`session` alanı). `sttTerms`: öğrencinin hazırlığının konu başlıkları; yazıya döküm ipucuna girer
+ * (evrensel sınav ve ders terimleriyle birlikte), böylece dersin kendi terimleri doğru yazılır.
+ */
+export function realtimeSessionConfig(input: { instructions: string; sttTerms?: readonly string[] }) {
   return {
     type: "realtime" as const,
     model: REALTIME_MODEL,
@@ -32,11 +41,23 @@ export function realtimeSessionConfig(input: { instructions: string; micProfile?
     max_output_tokens: REALTIME_MAX_OUTPUT_TOKENS,
     audio: {
       input: {
-        // Telefon yüze yakın tutulur (yakın alan); dizüstünün mikrofonu uzak alandır.
-        noise_reduction: { type: input.micProfile === "near" ? "near_field" : "far_field" },
-        transcription: { model: REALTIME_TRANSCRIBE_MODEL, language: "tr" },
-        // Anlamsal dönüş algılama: "ıı…" diye düşünen öğrencinin sözü kesilmez; sözünü keserse öğretmen susar.
-        turn_detection: { type: "semantic_vad", eagerness: "auto", create_response: true, interrupt_response: true },
+        // Birebir derste öğrenci cihaza yakın konuşur: yakın alan süzgeci (uzak alan süzgeci zayıf son sesleri yiyebiliyor).
+        noise_reduction: { type: "near_field" as const },
+        // Dil açıkça Türkçe; ipucu metni evrensel terimler + öğrencinin kendi konuları.
+        transcription: {
+          model: REALTIME_TRANSCRIBE_MODEL,
+          language: REALTIME_TRANSCRIBE_LANGUAGE,
+          prompt: buildTranscriptionPrompt(input.sttTerms ?? []),
+        },
+        // Söz, 700 ms sessizlikten sonra bitmiş sayılır (kelimenin son sesi kesilmesin); sözünü keserse öğretmen susar.
+        turn_detection: {
+          type: "server_vad" as const,
+          threshold: 0.5,
+          prefix_padding_ms: REALTIME_VAD_PREFIX_MS,
+          silence_duration_ms: REALTIME_VAD_SILENCE_MS,
+          create_response: true,
+          interrupt_response: true,
+        },
       },
       output: { voice: REALTIME_VOICE },
     },

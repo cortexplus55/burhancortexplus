@@ -172,6 +172,39 @@ describe("oturum açılışı", () => {
     expect(JSON.stringify(outcome.body)).not.toContain("sk-test");
   });
 
+  it("öğrencinin konuları OpenAI çağrısına gider: dil tr, terim ipucu, yakın alan, 700 ms sessizlik", async () => {
+    const h = harness({
+      loadContext: vi.fn(async (_s, _u, input) => ({
+        instructions: "talimat",
+        conversationId: input.conversationId,
+        prepId: input.prepId,
+        sttTerms: ["Trafo Bağlantı Grupları", "Asenkron Motorlar"],
+      })),
+    });
+    expect((await open(h)).status).toBe(200);
+    const sent = (h.deps.createCall as ReturnType<typeof vi.fn>).mock.calls[0]![0] as {
+      session: { audio: { input: { transcription: { model: string; language: string; prompt: string }; noise_reduction: unknown; turn_detection: Record<string, unknown> } } };
+    };
+    const { transcription, noise_reduction, turn_detection } = sent.session.audio.input;
+    expect(transcription.model).toBe("gpt-4o-transcribe");
+    expect(transcription.language).toBe("tr");
+    expect(transcription.prompt).toContain("Trafo Bağlantı Grupları");
+    expect(transcription.prompt).toContain("Asenkron Motorlar");
+    expect(transcription.prompt).toContain("KOAH");
+    expect(noise_reduction).toEqual({ type: "near_field" });
+    expect(turn_detection).toMatchObject({ type: "server_vad", silence_duration_ms: 700, prefix_padding_ms: 350 });
+  });
+
+  it("bağlam terim döndürmezse (eski sürüm, okuma düştü) çağrı yine açılır; ipucu evrensel terimlerle kalır", async () => {
+    const h = harness();
+    expect((await open(h)).status).toBe(200);
+    const sent = (h.deps.createCall as ReturnType<typeof vi.fn>).mock.calls[0]![0] as {
+      session: { audio: { input: { transcription: { prompt: string } } } };
+    };
+    expect(sent.session.audio.input.transcription.prompt).toContain("TBMM");
+    expect(sent.session.audio.input.transcription.prompt).not.toContain("Öğrencinin çalıştığı konular");
+  });
+
   it("ücretsiz ilk sefer: deneme sahiplenilir, kredi ayrılmaz", async () => {
     const h = harness({ access: vi.fn(async () => ({ kind: "trial" as const })) });
     const outcome = await open(h);
