@@ -236,6 +236,7 @@ export default async function AdminKullaniciPage({ params }: { params: Promise<{
       </AdminCard>
 
       <AdminCard
+        id="paket"
         title="Paket ve abonelik"
         desc="Plus, Sınav Haftası ya da Sigma'yı gün sayısıyla tanımla, süren dönemi uzat ya da iptal et. Ücret alınmaz; her işlem kayda geçer."
       >
