@@ -548,3 +548,75 @@
   font-size: 0.92em;
   color: var(--adm-muted);
 }
+
+/* ---------- Kurucu Kokpiti (Faz 13, 26 Kasım 2026) ---------- */
+
+.adm-kokpit-band {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  padding: 1rem 1.25rem;
+  border-radius: 1rem;
+  border: 1px solid var(--adm-line);
+  background: var(--adm-panel);
+  min-width: 0;
+}
+.adm-kokpit-band[data-status="ok"] { border-color: rgba(74, 222, 128, 0.35); background: var(--adm-ok-soft); }
+.adm-kokpit-band[data-status="degraded"] { border-color: rgba(251, 191, 36, 0.4); background: var(--adm-warn-soft); }
+.adm-kokpit-band[data-status="down"] { border-color: rgba(248, 113, 113, 0.5); background: var(--adm-bad-soft); }
+.adm-kokpit-band-title { margin: 0; font-size: 1.125rem; font-weight: 700; letter-spacing: -0.01em; }
+.adm-kokpit-band[data-status="ok"] .adm-kokpit-band-title { color: var(--adm-ok); }
+.adm-kokpit-band[data-status="degraded"] .adm-kokpit-band-title { color: var(--adm-warn); }
+.adm-kokpit-band[data-status="down"] .adm-kokpit-band-title { color: var(--adm-bad); }
+.adm-kokpit-band-meta { margin: 0.2rem 0 0; font-size: 0.8125rem; color: var(--adm-muted); overflow-wrap: anywhere; }
+
+.adm-stat[data-level="warning"] .adm-stat-value { color: var(--adm-warn); }
+.adm-stat[data-level="critical"] .adm-stat-value { color: var(--adm-bad); }
+.adm-kokpit-negative { color: var(--adm-bad); }
+
+.adm-kokpit-services {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+}
+.adm-kokpit-service {
+  display: grid;
+  gap: 0.35rem;
+  align-content: start;
+  padding: 0.9rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--adm-line);
+  background: var(--adm-panel-2);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.adm-kokpit-service[data-level="warning"] { border-color: rgba(251, 191, 36, 0.4); }
+.adm-kokpit-service[data-level="critical"] { border-color: rgba(248, 113, 113, 0.5); }
+.adm-kokpit-service-summary { margin: 0; font-size: 0.875rem; }
+
+.adm-kokpit-tax { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; }
+.adm-kokpit-tax-item {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0.75rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--adm-line-soft);
+  border-radius: 0.75rem;
+}
+.adm-kokpit-tax-item p { margin: 0; overflow-wrap: anywhere; }
+.adm-kokpit-tax-item p + p { margin-top: 0.2rem; }
+.adm-kokpit-tax-day { font-size: 0.9375rem; font-weight: 700; color: var(--adm-gold); }
+.adm-kokpit-tax-estimate { font-size: 0.8125rem; }
+@media (max-width: 40rem) {
+  .adm-kokpit-tax-item { grid-template-columns: minmax(0, 1fr) auto; }
+  .adm-kokpit-tax-day { grid-column: 1 / -1; }
+}
+
+.adm-kokpit-csv { min-height: 44px; }
+.adm-kokpit-foot { margin: 0; font-size: 0.8125rem; color: var(--adm-muted); }

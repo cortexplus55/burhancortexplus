@@ -3064,3 +3064,23 @@ Yeniden açmayın:
 
 Bekçi: `native.test.ts`, `native-acilis-akisi.test.tsx`, `push-bildirim.test.ts` (göçü PGlite'ta), e2e `mobil-uygulama.spec.ts`;
 CI `.github/workflows/mobile-build.yml` (Android .apk/.aab, iOS simülatör).
+
+## Kurucu Kokpiti (26 Kasım 2026, Faz 13) — sağlık, OpenAI bütçesi, kasa/vergi, vergi takvimi
+
+`/admin/kokpit`, yalnız kurucu (PIN kapısıyla). Ürün sahibinin kararları: şirket türü varsayılanı **Şahıs**; sağlık
+kontrolü **Vercel'de 15 dakikada bir** (Pro plan); dolar kuru **tek kaynak**. Göç `20261126150000_founder_cockpit.sql`
+yalnız ekler; kod onsuz çalışır (ayarlar varsayılanla, ekranda "tablolar henüz yok" notu). Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| Sayfa açılışı dış servis yoklamaz: sağlık kartları son kayıttan (`founder_health_snapshots`), bugünkü OpenAI harcaması ve ayın finansı veritabanından canlı. "Şimdi kontrol et" yoklamayı elle çalıştırır (dakikada 4) | `src/app/admin/kokpit/page.tsx`, `health-run.ts` |
+| Yedi servis: veritabanı (800 ms yavaş, 2000 ms ve hata kritik → "Sistem çalışmıyor"), OpenAI bütçesi (%80 uyarı, %100 kritik; kota bitti ve anahtar reddi kritik), koruma modu, e-posta (Resend; 24 saatte 3+ ya da %20 başarısız uyarı), ödeme (24 saatte 3+ başarısız ve 0 başarılı uyarı), hız sınırı (Upstash), hata takibi (Sentry; bağlı değilse "bilinmiyor", genel durumu bozmaz; 25+ açık hata kritik). Yoklamalar ücretsiz: OpenAI'ye yalnız model listesi | `health.ts`, `probes.ts` |
+| **Koruma modu** (varsayılan kapalı): kurucu açtıysa ve günlük bütçe aşıldıysa o Türkiye günü canlı sesli öğretmen oturumu ve video üretimi 503 `ai_budget_protection` döner; ders, test, sohbet etkilenmez; gece yarısı kendiliğinden kalkar, "Korumayı kaldır" hemen kaldırır. Ayar okunamazsa koruma yok. Ücretsiz hesapların 25 $ tavanı (`spend-breaker.ts`) bundan ayrı | `breaker.ts`, `realtime-session/route.ts`, `exam-prep/video/route.ts` |
+| **Finans** (kuruş, saf): fiyatlar KDV dahil; PayTR komisyonu brüt × oran (KDV hariç), komisyon KDV'si indirilir; yurt dışı faturanın KDV'si 2 No.lu KDV olarak ödenir ve 1 No.lu KDV'de indirilir (TL girilmediyse dolar × kur); 1 No.lu KDV eksiye düşmez, fark devreder; tahmini vergi o ayın kârı üzerinden (Limited kurumlar oranı, şahıs gelir oranı, genç girişimci istisnasında 0, zararda 0). Vergi kasası = KDV 1 + KDV 2 + tahmini vergi; harcanabilir net = net tahsilat − komisyon (KDV dahil) − yurt dışı − vergi kasası | `finance.ts`, `finance-load.ts` |
+| **Vergi takvimi**: izleyen ayın 20'si faturaları topla (iç hatırlatma, kaymaz), 25'i 2 No.lu KDV, 26'sı Muhtasar ve Damga, 28'i 1 No.lu KDV; geçici vergi 17 Şubat (önceki yılın 4. dönemi, 7566 sayılı Kanun) / Mayıs / Ağustos / Kasım. Hafta sonu ve tam gün resmî tatil ilk iş gününe kaydırır (VUK 18), arife kaydırmaz; mali tatil uzatması uygulanmaz | `tax-calendar.ts` (tatiller `tr-calendar.ts`) |
+| **Alarmlar** alarm adresine Resend'den: sağlık alarmı aynı anahtar için en çok saatte bir, bütçe alarmı gün ve eşik (%80/%100) başına bir kez, vergi hatırlatması son gün ve eşik (5 gün / 1 gün) başına bir kez, deneme her zaman. Kilit `founder_alert_logs`; tablo yoksa yalnız deneme gider. Gönderilemeyen alarm kilit tutmaz. Düzelen kartın açık alarmı "Çözüldü" | `alerts.ts`, `alert-dispatch.ts`, `alert-email.ts` |
+| **Zamanlayıcı**: tek yeni cron `/api/cron/founder-health-check` (`*/15`); vergi hatırlatması ayrı cron değil, günlük turun (`subscription-renewal`) sonunda. İki uç da `Authorization: Bearer $CRON_SECRET` ister (yoksa 401); dış izleme servisi aynı uçları çağırabilir, kilit tekrarı önler. Cron listesi bekçilerde adıyla sabit (3) | `vercel.json`, bekçi `uat-gate-guards.test.ts` |
+| **Mali müşavir paketi** (CSV): UTF-8 BOM, noktalı virgül, ondalık virgül, CRLF; özet + satışlar (tarih, sipariş no, paket, tutar; kişisel veri yok) + yurt dışı faturalar; "=", "+", "@", "-" ile başlayan metin tek tırnakla. Dolar kuru kokpit ayarında; Ana Kokpit ve Birim Ekonomisi de oradan okur (yoksa eski bayrak, yoksa 36) | `export-csv.ts`, `cockpit-math.ts` `effectiveUsdTry` |
+
+Bekçi: `tax-calendar.test.ts`, `finance.test.ts`, `alerts.test.ts`, `kurucu-kokpiti-faz13.test.ts` (göçü PGlite'ta, yetki,
+cron), `yonetim-turkce.test.ts`.

@@ -200,8 +200,13 @@ describe("günlük özet: bekçi", () => {
   it("günlük cron'un sonunda çağrılır; üçüncü cron açılmaz", () => {
     const cron = read("src/app/api/cron/subscription-renewal/route.ts");
     expect(cron).toContain("sendDailyDigest(service, { now })");
-    const vercel = JSON.parse(read("vercel.json")) as { crons: unknown[] };
-    expect(vercel.crons).toHaveLength(2);
+    // Faz 13 (26 Kasım 2026): ürün sahibinin kararıyla tek yeni cron kurucu sağlık kontrolü; özet yine günlük turda.
+    const vercel = JSON.parse(read("vercel.json")) as { crons: { path: string }[] };
+    expect(vercel.crons.map((entry) => entry.path).sort()).toEqual([
+      "/api/cron/founder-health-check",
+      "/api/cron/lifecycle-notifications",
+      "/api/cron/subscription-renewal",
+    ]);
   });
 
   it("ders hataları sayfası sebep adlarını aynı kaynaktan okur", () => {

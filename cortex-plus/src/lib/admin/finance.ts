@@ -2,6 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { readAiSpend, type AiSpend } from "@/lib/admin/ops-gauges";
 import { cockpitWindows, effectiveUsdTry, FX_FLAG, WINDOW_KEYS, type UsdTry, type WindowKey, type Windows } from "@/lib/admin/cockpit-math";
+import { loadUsdTryRate } from "@/lib/founder-cockpit/settings";
 import {
   collectionByWindow,
   modelSpendRows,
@@ -103,7 +104,8 @@ export async function loadFinanceReport(service: SupabaseClient, now: Date = new
   });
 
   const collection = collectionByWindow(paymentRows, refundRows, windows);
-  const usdTry = effectiveUsdTry(fx?.metadata);
+  // Kur tek kaynak: Kurucu Kokpiti ayarı (26 Kasım 2026); yoksa eski bayrak.
+  const usdTry = effectiveUsdTry(fx?.metadata, await loadUsdTryRate(service));
   const spend: Record<WindowKey, AiSpend | null> = { today: spendToday, week: spendWeek, month: spendMonth };
   const pnl = Object.fromEntries(
     WINDOW_KEYS.map((key) => [key, profitLoss({ netKurus: collection.netKurus[key], spendUsd: spend[key]?.usd ?? null, usdTry: usdTry.rate })]),

@@ -136,8 +136,13 @@ describe("tahliye ve yeniden indeksleme", () => {
     expect(cron).toContain("cleanupExpiredUploads(service)");
     const page = read("src/app/deneme-sinavlari/[prepId]/page.tsx");
     expect(page).toContain("after(() => reindexEvictedForPrep(service, prepId, embedTexts)");
-    // Üçüncü cron yok (Hobby: en çok 2).
-    const vercel = JSON.parse(read("vercel.json")) as { crons?: unknown[] };
-    expect((vercel.crons ?? []).length).toBeLessThanOrEqual(2);
+    // Tahliye ayrı cron değil, günlük turda. Faz 13 (26 Kasım 2026, Pro plan): ürün sahibinin kararıyla tek yeni cron
+    // kurucu sağlık kontrolü.
+    const vercel = JSON.parse(read("vercel.json")) as { crons?: { path: string }[] };
+    expect((vercel.crons ?? []).map((entry) => entry.path).sort()).toEqual([
+      "/api/cron/founder-health-check",
+      "/api/cron/lifecycle-notifications",
+      "/api/cron/subscription-renewal",
+    ]);
   });
 });
