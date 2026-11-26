@@ -270,9 +270,9 @@ describe("gider kaydı ve göç", () => {
     expect(REALTIME_PRICES_PER_1K["gpt-4o-transcribe"]).toEqual({ input: 0.033333, output: 0 });
   });
 
-  it("fiyat göçü yalnız ekler ve uygulanmadı diye işaretli (Burhan'ın onayını bekler)", () => {
+  it("fiyat göçü yalnız ekler ve uygulandı diye işaretli (21 Kasım 2026, Burhan'ın onayıyla)", () => {
     const sql = readFileSync("supabase/migrations/20261121230000_gpt4o_transcribe_price.sql", "utf8");
-    expect(sql).toMatch(/YAZILDI, UYGULANMADI/);
+    expect(sql).toMatch(/UYGULANDI: 21 Kasım 2026/);
     const code = sql.replace(/^--.*$/gm, "");
     expect(code).toMatch(/INSERT INTO public\.ai_model_prices/);
     expect(code).toMatch(/'gpt-4o-transcribe', 0\.033333, 0\.000000/);

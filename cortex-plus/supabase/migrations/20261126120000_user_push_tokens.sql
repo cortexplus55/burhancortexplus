@@ -1,5 +1,5 @@
--- YAZILDI, UYGULANMADI (26 Kasım 2026): ürün sahibinin onayıyla SQL ekranında uygulanır.
--- Kayıt satırı (SQL ekranında aynı oturumda):
+-- UYGULANDI: 26 Kasım 2026, #728 yayınından sonra, Burhan'ın onayıyla (Supabase SQL ekranı + kayıt satırı;
+-- docs/operasyon/goc-kayitlari.md). Kayıt satırı:
 --   insert into supabase_migrations.schema_migrations (version, name)
 --   values ('20261126120000', 'user_push_tokens') on conflict (version) do nothing;
 --
