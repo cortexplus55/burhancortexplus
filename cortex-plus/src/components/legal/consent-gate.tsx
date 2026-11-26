@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Dialog } from "@base-ui/react/dialog";
+import { NativePushTokenField } from "@/components/native/native-push-token-field";
 import { ReadGate, type ReadGateChange } from "@/components/legal/read-gate";
 import {
   AgeDeclarationField,
@@ -245,6 +246,7 @@ export function ConsentGateDialog({ state, onDone }: { state: GateState; onDone:
               </button>
             </div>
             <form action="/api/auth/signout" method="post" className="flex justify-center">
+              <NativePushTokenField />
               <button type="submit" className="cp-consent-gate-signout">
                 Şimdi değil, çıkış yap
               </button>

@@ -1,0 +1,94 @@
+name: Mobil derleme
+
+# Cortex Plus mobil uygulaması (Capacitor, 26 Kasım 2026). Uygulama canlı siteyi açtığı için web derlemesi gerekmez:
+# her koşu yerel projeleri yapılandırmayla eşitler (`cap sync`) ve iki platformu derler.
+# - Android: hata ayıklama .apk ve imzasız yayın .aab (imzalama mağaza anahtarıyla, hesap açılınca).
+# - iOS: simülatör için imzasız derleme (Xcode projesinin ve eklentilerin derlendiğinin kanıtı).
+
+on:
+  pull_request:
+    paths:
+      - "cortex-plus/android/**"
+      - "cortex-plus/ios/**"
+      - "cortex-plus/mobile/**"
+      - "cortex-plus/capacitor.config.ts"
+      - "cortex-plus/package.json"
+      - "cortex-plus/package-lock.json"
+      - ".github/workflows/mobile-build.yml"
+  push:
+    branches: [main]
+    paths:
+      - "cortex-plus/android/**"
+      - "cortex-plus/ios/**"
+      - "cortex-plus/mobile/**"
+      - "cortex-plus/capacitor.config.ts"
+      - "cortex-plus/package.json"
+      - "cortex-plus/package-lock.json"
+      - ".github/workflows/mobile-build.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: mobile-build-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: cortex-plus
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: cortex-plus/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+      - run: npm ci
+      - name: Yerel projeyi eşitle
+        run: npx cap sync android
+      - name: Derle (.apk ve .aab)
+        working-directory: cortex-plus/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug bundleRelease --no-daemon --stacktrace
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cortex-plus-android
+          path: |
+            cortex-plus/android/app/build/outputs/apk/debug/*.apk
+            cortex-plus/android/app/build/outputs/bundle/release/*.aab
+          if-no-files-found: error
+          retention-days: 14
+
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: cortex-plus/package-lock.json
+      - run: npm ci
+      - name: Yerel projeyi eşitle
+        run: npx cap sync ios
+      - name: Simülatör için derle (imzasız)
+        run: |
+          xcodebuild \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination "generic/platform=iOS Simulator" \
+            -derivedDataPath ios/build \
+            CODE_SIGNING_ALLOWED=NO \
+            build

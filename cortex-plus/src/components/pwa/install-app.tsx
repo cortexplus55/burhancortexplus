@@ -26,7 +26,8 @@ export function InstallApp() {
   const { prompt, installed: installedNow } = useInstallPrompt();
   const [accepted, setAccepted] = useState(false);
   const [declined, setDeclined] = useState(false);
-  const installed = standalone || installedNow || accepted;
+  // Mobil uygulamanın içinde (26 Kasım 2026) kurulum gerekmez.
+  const installed = standalone || installedNow || accepted || platform === "app";
 
   async function install() {
     // Olay tek kullanımlık: depo pencereyi açmadan önce siler, aynı olayla ikinci kez pencere açılmaz.

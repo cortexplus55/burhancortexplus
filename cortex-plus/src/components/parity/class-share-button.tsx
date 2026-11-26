@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { ExternalAnchor } from "@/components/ui/external-anchor";
 import { CLASS_SHARE_LABEL, CLASS_SHARE_NOTE, CLASS_SHARE_REWARD_NOTE } from "@/lib/learning/class-share";
 import { PREP_SHARE_NOTE } from "@/lib/learning/prep-share";
+import { isNativeApp, nativeShare } from "@/lib/platform/native";
 import "@/styles/confirm-dialog.css";
 import "@/styles/class-share.css";
 
@@ -51,6 +52,13 @@ export function ClassShareButton({ prepId }: { prepId: string }) {
 
   async function copy() {
     if (!link) return;
+    // Mobil uygulamada (26 Kasım 2026) telefonun paylaşım ekranı: kopyalama, WhatsApp ve öbür uygulamalar tek yerde.
+    if (isNativeApp()) {
+      const outcome = await nativeShare({ title: CLASS_SHARE_LABEL, url: link.url });
+      if (outcome === "copied") toast.success("Bağlantı kopyalandı.");
+      else if (outcome === "unavailable") toast.error(`Paylaşılamadı. Bağlantı: ${link.url}`);
+      return;
+    }
     try {
       await navigator.clipboard.writeText(link.url);
       toast.success("Bağlantı kopyalandı.");
@@ -99,7 +107,7 @@ export function ClassShareButton({ prepId }: { prepId: string }) {
                   </ExternalAnchor>
                   <button type="button" className="cx-confirm-btn" onClick={() => void copy()}>
                     <Copy aria-hidden />
-                    Bağlantıyı kopyala
+                    {isNativeApp() ? "Paylaş" : "Bağlantıyı kopyala"}
                   </button>
                 </div>
               </>

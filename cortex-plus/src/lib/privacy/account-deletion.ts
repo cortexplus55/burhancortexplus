@@ -62,6 +62,8 @@ const USER_CONTENT_TABLES = [
   "tutor_memory_notes",
   // Faz 11: konuşmanın bağlandığı hazırlık (sohbet geçmişi gruplaması). Konuşma ya da hazırlık silinince CASCADE.
   "tutor_conversation_preps",
+  // 26 Kasım 2026 (mobil uygulama): anlık bildirim cihaz anahtarları. Göç canlıda yoksa atlanır.
+  "user_push_tokens",
 ] as const;
 
 const OPTIONAL_PURGE_TABLES = new Set([
@@ -78,6 +80,7 @@ const OPTIONAL_PURGE_TABLES = new Set([
   "exam_feedback_testimonials",
   "tutor_memory_notes",
   "tutor_conversation_preps",
+  "user_push_tokens",
 ]);
 
 /**

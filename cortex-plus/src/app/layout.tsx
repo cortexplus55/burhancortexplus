@@ -10,6 +10,8 @@ import "@/styles/mobile-tap-targets.css";
 import { Providers } from "@/components/providers";
 import { InAppBrowserBanner } from "@/components/layout/in-app-browser-banner";
 import { SkipLink } from "@/components/layout/skip-link";
+import { NativeBootstrap } from "@/components/native/native-bootstrap";
+import { NATIVE_BOOT_SCRIPT } from "@/lib/platform/native-ua";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from "@/lib/seo/page-metadata";
 import { logSchemaGaps } from "@/lib/admin/schema-probe";
 
@@ -117,11 +119,19 @@ export default function RootLayout({
       <body
         className={`${figtree.variable} ${geistSans.variable} ${geistMono.variable} ${jetbrainsMono.variable} min-h-screen antialiased bg-background text-foreground`}
       >
+        {/*
+          Mobil uygulama (26 Kasım 2026): React ve köprü yüklenmeden çalışan tek satır. Uygulamadaysa <html>e "cx-native"
+          sınıfını yazar ve iOS'ta alt güvenli alan için görünüm alanına viewport-fit=cover ekler; tarayıcıda hiçbir şey
+          yapmaz (native-ua.ts).
+        */}
+        <script dangerouslySetInnerHTML={{ __html: NATIVE_BOOT_SCRIPT }} />
         {/* Sayfanın ilk odaklanabilir öğesi: klavyeyle üst çubuğu ve menüyü atlayıp ana içeriğe geç (20 Kasım 2026). */}
         <SkipLink />
         <Providers>
           {/* Instagram / Facebook / TikTok / WhatsApp tarayıcısında "tarayıcıda aç" şeridi (31 Ekim 2026). */}
           <InAppBrowserBanner />
+          {/* Mobil uygulamanın açılışı, geri tuşu, bildirim dinleyicileri ve "Bağlantı koptu" çubuğu; web'de boş. */}
+          <NativeBootstrap />
           {children}
         </Providers>
       </body>

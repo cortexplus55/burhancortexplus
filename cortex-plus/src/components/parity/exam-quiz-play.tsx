@@ -8,6 +8,7 @@ import { RichBody } from "@/components/parity/lesson-rich-text";
 import { CoachLine, StreakBadge } from "@/components/learning/coach-chrome";
 import type { Mood } from "@/lib/learning/session-signals";
 import { VOIDED_FIXED_LINE, VOIDED_LINE } from "@/lib/learning/question-report/copy";
+import { triggerHaptic } from "@/lib/platform/native";
 import "@/styles/question-report.css";
 
 export function ExamQuizPlay({
@@ -131,6 +132,8 @@ export function ExamQuizPlay({
     if (!examMode && (hasCorrect || serverCheck) && !revealed) {
       setRevealed(true);
       onReveal?.();
+      // Mobil uygulamada dokunsal geri bildirim (26 Kasım 2026): doğruda kısa onay, yanlışta uyarı; web'de hiçbir şey.
+      if (hasCorrect) void triggerHaptic(isCorrect ? "success" : "warning");
       return;
     }
     if (finishing) setActing(true);

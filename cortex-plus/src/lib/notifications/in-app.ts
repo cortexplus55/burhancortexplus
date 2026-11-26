@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { missingRelation } from "@/lib/learning/missing-column";
 import { loadNotificationPreferences } from "@/lib/notifications/preferences";
+import { pushConfigured, sendPushToUsers } from "@/lib/notifications/push";
 
 /**
  * Uygulama içi bildirimler (Faz 6, 20 Kasım 2026): `in_app_notifications`. Çan (🔔) ve /bildirimler buradan okur.
@@ -80,7 +81,9 @@ export async function notifyInApp(service: SupabaseClient, input: NotifyInput): 
       const preferences = await loadNotificationPreferences(service, input.userId);
       if (!preferences.inAppNotifications) return "muted";
     }
-    return (await insertRows(service, [rowOf(input)])) > 0 ? "created" : "duplicate";
+    const { written, inserted } = await insertRows(service, [rowOf(input)]);
+    if (written > 0) await pushInserted(service, inserted);
+    return written > 0 ? "created" : "duplicate";
   } catch (error) {
     console.error("in_app_notification_failed", { kind: input.kind, error: String(error) });
     return "failed";
@@ -94,9 +97,13 @@ export async function notifyInAppMany(service: SupabaseClient, inputs: readonly 
   if (!inputs.length) return 0;
   try {
     let written = 0;
+    const inserted: InsertedRow[] = [];
     for (let from = 0; from < inputs.length; from += 500) {
-      written += await insertRows(service, inputs.slice(from, from + 500).map(rowOf));
+      const chunk = await insertRows(service, inputs.slice(from, from + 500).map(rowOf));
+      written += chunk.written;
+      inserted.push(...chunk.inserted);
     }
+    await pushInserted(service, inserted);
     return written;
   } catch (error) {
     console.error("in_app_notification_failed", { kind: inputs[0]?.kind, count: inputs.length, error: String(error) });
@@ -104,34 +111,72 @@ export async function notifyInAppMany(service: SupabaseClient, inputs: readonly 
   }
 }
 
-async function insertRows(service: SupabaseClient, rows: ReturnType<typeof rowOf>[]): Promise<number> {
+type InsertedRow = ReturnType<typeof rowOf>;
+
+/**
+ * Mobil uygulamaya anlık bildirim (26 Kasım 2026): yalnız bu çağrıda YENİ yazılan satırlar telefona gider (tekilleştirme
+ * anahtarı çakışan, yani daha önce yazılmış bildirim ikinci kez gitmez). Hesap bildirimleri sessiz saatten ve tercih
+ * kapısından muaf; öbürlerine `push.ts` sessiz saati ve öğrencinin tercihini uygular. Kimlik bilgileri tanımlı değilse
+ * hiçbir şey yapmaz. Hiçbir zaman atmaz.
+ */
+async function pushInserted(service: SupabaseClient, rows: readonly InsertedRow[]): Promise<void> {
+  if (!rows.length) return;
+  const configured = pushConfigured();
+  if (!configured.ios && !configured.android) return;
+  try {
+    await sendPushToUsers(
+      service,
+      rows.map((row) => ({
+        userId: row.user_id,
+        message: {
+          title: row.title,
+          body: row.body,
+          actionUrl: row.action_url,
+          essential: ESSENTIAL_KINDS.has(row.kind),
+        },
+      })),
+    );
+  } catch (error) {
+    console.error("in_app_push_failed", { count: rows.length, error: String(error) });
+  }
+}
+
+async function insertRows(
+  service: SupabaseClient,
+  rows: InsertedRow[],
+): Promise<{ written: number; inserted: InsertedRow[] }> {
   const keyed = rows.filter((row) => row.dedupe_key);
   const plain = rows.filter((row) => !row.dedupe_key);
   let written = 0;
+  const inserted: InsertedRow[] = [];
   if (plain.length) {
     const { error } = await service.from("in_app_notifications").insert(plain);
     if (error) {
       if (!missingRelation(error)) throw new Error(error.message);
-      return insertLegacy(service, rows);
+      return { written: await insertLegacy(service, rows), inserted: rows };
     }
     written += plain.length;
+    inserted.push(...plain);
   }
   if (keyed.length) {
     const { data, error } = await service
       .from("in_app_notifications")
       .upsert(keyed, { onConflict: "user_id,dedupe_key", ignoreDuplicates: true })
-      .select("id");
+      .select("id, user_id, dedupe_key");
     if (error) {
       if (!missingRelation(error)) throw new Error(error.message);
-      return written + (await insertLegacy(service, keyed));
+      return { written: written + (await insertLegacy(service, keyed)), inserted: [...inserted, ...keyed] };
     }
-    written += (data ?? []).length;
+    const returned = (data ?? []) as { user_id?: string; dedupe_key?: string | null }[];
+    written += returned.length;
+    const fresh = new Set(returned.map((item) => `${item.user_id ?? ""}|${item.dedupe_key ?? ""}`));
+    inserted.push(...keyed.filter((row) => fresh.has(`${row.user_id}|${row.dedupe_key ?? ""}`)));
   }
-  return written;
+  return { written, inserted };
 }
 
 /** Göç öncesi: eski tablo (başlık ve gövde; tür ve bağlantı yok). Tekilleştirme anahtarı orada tutulamaz. */
-async function insertLegacy(service: SupabaseClient, rows: ReturnType<typeof rowOf>[]): Promise<number> {
+async function insertLegacy(service: SupabaseClient, rows: InsertedRow[]): Promise<number> {
   const { error } = await service
     .from("notifications")
     .insert(rows.map((row) => ({ user_id: row.user_id, title: row.title, body: row.body })));

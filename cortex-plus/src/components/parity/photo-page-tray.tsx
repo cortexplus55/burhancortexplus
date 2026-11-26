@@ -10,11 +10,21 @@ import {
   trayUploadLabel,
 } from "@/lib/upload/photo-tray";
 import type { PhotoTray } from "@/lib/upload/use-photo-tray";
+import { toast } from "sonner";
+import { isNativeApp } from "@/lib/platform/native";
+import {
+  CAMERA_PERMISSION_MESSAGE,
+  CAMERA_UNAVAILABLE_MESSAGE,
+  takeNativePhoto,
+} from "@/lib/platform/native-camera";
 import "@/styles/photo-page-tray.css";
 
 /**
  * Kamera girişi (20 Kasım 2026): arka kamerayı açar, her çekim tepsiye bir sayfa ekler. Gizli; düğmeler `ref` ile
  * tıklatır. Aynı anda tek fotoğraf (kamerada çoklu seçim tarayıcıya göre seçiciyi açabiliyor).
+ *
+ * Mobil uygulamada (26 Kasım 2026) tıklama telefonun kendi kamera ekranını açar (`takeNativePhoto`): dosya seçici
+ * hiç açılmaz, çekilen fotoğraf aynı `onFiles` yolundan tepsiye girer. Web'de davranış değişmez.
  */
 export const CameraCaptureInput = forwardRef<HTMLInputElement, { onFiles: (files: File[]) => void }>(
   function CameraCaptureInput({ onFiles }, ref) {
@@ -26,6 +36,16 @@ export const CameraCaptureInput = forwardRef<HTMLInputElement, { onFiles: (files
         capture="environment"
         className="hidden"
         data-camera-input
+        onClick={(event) => {
+          if (!isNativeApp()) return;
+          event.preventDefault();
+          void takeNativePhoto().then((result) => {
+            if ("file" in result) onFiles([result.file]);
+            else if ("error" in result) {
+              toast.error(result.error === "permission" ? CAMERA_PERMISSION_MESSAGE : CAMERA_UNAVAILABLE_MESSAGE);
+            }
+          });
+        }}
         onChange={(event) => {
           const files = event.target.files ? [...event.target.files] : [];
           event.target.value = "";
