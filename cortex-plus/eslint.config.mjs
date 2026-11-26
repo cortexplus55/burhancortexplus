@@ -10,6 +10,8 @@ const compat = new FlatCompat({
 });
 
 const eslintConfig = [
+  // Mobil uygulamanın yerel projeleri (Capacitor): derleme çıktıları ve kopyalanan web dosyaları denetlenmez.
+  { ignores: ["android/**", "ios/**", "mobile/**"] },
   ...compat.extends("next/core-web-vitals", "next/typescript"),
 ];
 

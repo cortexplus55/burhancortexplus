@@ -27,6 +27,7 @@ import { formatDate } from "@/lib/format";
 import { ACCOUNT_REFRESH_EVENT } from "@/lib/credits/spendable";
 import { FreePreviewToggle } from "@/components/admin/free-preview-toggle";
 import { EmailVerifyBanner } from "@/components/auth/email-verify-banner";
+import { NativeOnboardingGate } from "@/components/native/native-onboarding";
 import { InstallPromptCapture } from "@/components/pwa/install-prompt-capture";
 import { profilePlanView } from "@/lib/billing/tier-presentation";
 import { ExamChatMenu } from "@/components/parity/exam-chat-menu";
@@ -318,6 +319,8 @@ export function ParitySorShell({
       ) : null}
       {/* Tek şerit, her öğrenci kabuğunda (Paket J takip #3): oturum ekranları dahil; kurucuda hiç. */}
       {account?.isAdmin ? null : <EmailVerifyBanner initialUnverified={emailUnverified} />}
+      {/* Mobil uygulamanın ilk açılışı (26 Kasım 2026): yalnız uygulamada, cihaz başına bir kez; ders ve test ekranında açılmaz. */}
+      <NativeOnboardingGate suppressed={chrome === "session"} />
       {/* Telefona kurulum olayı (20 Kasım 2026, Faz 8): sayfa geçişlerinde de saklanır; "Ana Ekrana Ekle" kartı okur. */}
       <InstallPromptCapture />
       {showTopBar ? (

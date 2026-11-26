@@ -1,0 +1,326 @@
+/*
+  Mobil uygulamaya özel görünüm (26 Kasım 2026, Aşama 1). Bütün kurallar ya yalnız uygulamada çizilen bileşenlere
+  (açılış akışı, bağlantı çubuğu) ya da `html.cx-native` altına yazılır: web sitesi değişmez. Renk ve ölçü token'lardan.
+*/
+
+/* Uygulamada sayfa esneyip arkadaki zemini göstermesin; seçilebilir metin dışında uzun basış menüsü açılmasın. */
+html.cx-native,
+html.cx-native body {
+  overscroll-behavior-y: none;
+}
+html.cx-native :is(button, a, [role="button"]) {
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ── Bağlantı koptu çubuğu ─────────────────────────────────────────────────────────────── */
+.cx-offline-bar {
+  position: fixed;
+  z-index: 120;
+  top: calc(env(safe-area-inset-top, 0px) + var(--cx-space-8, 8px));
+  left: var(--cx-space-16, 16px);
+  right: var(--cx-space-16, 16px);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 6px 6px 6px 16px;
+  border-radius: var(--cx-radius-max, 6000px);
+  background: var(--cx-danger-weak, #3a1518);
+  color: var(--cx-text-primary, #fff);
+  box-shadow: var(--cx-shadow-popover, 0 8px 32px rgba(0, 0, 0, 0.32));
+  font-size: 14px;
+  font-weight: 600;
+  animation: cx-offline-in 0.22s var(--cx-ease-out, ease-out);
+}
+.cx-offline-icon {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  color: var(--cx-danger, #f87171);
+}
+.cx-offline-text {
+  flex: 1;
+  min-width: 0;
+}
+.cx-offline-retry {
+  flex: none;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--cx-radius-max, 6000px);
+  background: var(--cx-text-primary, #fff);
+  color: var(--cx-text-inverted, #090a0f);
+  font: inherit;
+  font-size: 13px;
+}
+.cx-offline-retry:disabled {
+  opacity: 0.6;
+}
+.cx-offline-retry:focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}
+@keyframes cx-offline-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+/* ── İlk açılış akışı ──────────────────────────────────────────────────────────────────── */
+.cx-nob {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+  display: flex;
+  justify-content: center;
+  overflow-y: auto;
+  background: var(--cx-bg-0);
+  color: var(--cx-text-primary);
+}
+.cx-nob-sheet {
+  width: 100%;
+  max-width: 560px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: calc(env(safe-area-inset-top, 0px) + 24px) 20px calc(env(safe-area-inset-bottom, 0px) + 24px);
+}
+.cx-nob-progress {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.cx-nob-progress span {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--cx-bg-2);
+  transition: background 0.22s ease;
+}
+.cx-nob-progress span.is-done {
+  background: var(--cx-gradient-signature, var(--cx-brand));
+}
+.cx-nob-step {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  animation: cx-nob-in 0.24s var(--cx-ease-settle, ease-out);
+}
+@keyframes cx-nob-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+.cx-nob-eyebrow {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--cx-text-secondary);
+}
+.cx-nob-title {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1.1;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+  outline: none;
+}
+/* Adım değişince başlık okunsun diye odaklanır (ekran okuyucu); görünür çerçeve gerekmez. */
+.cx-nob .cx-nob-title:focus,
+.cx-nob .cx-nob-title:focus-visible {
+  outline: none;
+}
+.cx-nob-lead {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--cx-text-secondary);
+}
+.cx-nob-hero-icon {
+  width: 40px;
+  height: 40px;
+  color: var(--cx-text-brand, var(--cx-brand));
+}
+.cx-nob-groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.cx-nob-card,
+.cx-nob-option {
+  min-width: 0;
+  border: 0;
+  border-radius: var(--cx-radius-l, 24px);
+  background: var(--cx-bg-1);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  box-shadow: inset 0 0 0 1.5px transparent;
+  transition:
+    background 0.16s ease,
+    box-shadow 0.16s ease;
+}
+.cx-nob-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 96px;
+  padding: 18px 16px;
+}
+.cx-nob-card.is-selected,
+.cx-nob-option.is-selected {
+  background: var(--cx-brand-weak, var(--cx-bg-2));
+  box-shadow: inset 0 0 0 1.5px var(--cx-brand);
+}
+.cx-nob-card-title {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.cx-nob-card-hint {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--cx-text-secondary);
+}
+.cx-nob-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.cx-nob-chip {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--cx-radius-max, 6000px);
+  background: var(--cx-bg-2);
+  color: var(--cx-text-secondary);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+}
+.cx-nob-chip.is-selected {
+  background: var(--cx-brand-strong);
+  color: var(--cx-text-on-brand, #fff);
+}
+.cx-nob-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cx-nob-option {
+  display: flex;
+  flex-direction: column;
+}
+.cx-nob-option-main {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 84px;
+  padding: 16px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+button.cx-nob-option.cx-nob-option-main {
+  background: var(--cx-bg-1);
+}
+button.cx-nob-option.cx-nob-option-main.is-selected {
+  background: var(--cx-brand-weak, var(--cx-bg-2));
+}
+.cx-nob-option-icon {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  color: var(--cx-text-brand, var(--cx-brand));
+}
+.cx-nob-option-text {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+.cx-nob-option-check {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  color: var(--cx-success);
+}
+.cx-nob-option-extra {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  min-height: 44px;
+  margin: 0 0 12px 58px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--cx-radius-max, 6000px);
+  background: var(--cx-bg-2);
+  color: var(--cx-text-secondary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+}
+.cx-nob-list {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--cx-text-reading, var(--cx-text-primary));
+}
+.cx-nob-error {
+  margin: 0;
+  font-size: 14px;
+  color: var(--cx-danger);
+}
+.cx-nob-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+.cx-nob-primary,
+.cx-nob-secondary {
+  min-height: 52px;
+  padding: 0 24px;
+  border: 0;
+  border-radius: var(--cx-radius-max, 6000px);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+}
+.cx-nob-primary {
+  background: var(--cx-gradient-brand, var(--cx-brand-strong));
+  color: var(--cx-text-on-brand, #fff);
+}
+.cx-nob-primary:disabled {
+  background: var(--cx-bg-2);
+  color: var(--cx-text-disabled);
+}
+.cx-nob-secondary {
+  background: transparent;
+  color: var(--cx-text-secondary);
+}
+.cx-nob :is(button):focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cx-offline-bar,
+  .cx-nob-step {
+    animation: none;
+  }
+}

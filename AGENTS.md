@@ -3043,3 +3043,24 @@ Bekçi: `ogretmen-v3-ekran.test.tsx`, `ogretmen-v3-hoca.test.ts`, `ogretmen-v3-h
 `academic-to-turkish-speech.test.ts`, `ogretmen-sesi-tts.test.ts`, `unicode-math-katex.test.ts`,
 `takip-sorulari.test.ts`, `canli-ses-ogretmen-{sunucu,parcalar,uclar,istemci}.test.ts(x)`, `canli-ses-kokpit.test.tsx`; e2e
 `ogretmen-v3.spec.ts`, `ogretmen-v3-konus.spec.ts`, `canli-ses.spec.ts`.
+
+## Mobil uygulama, Aşama 1 (26 Kasım 2026) — Capacitor kabuğu, açılış akışı, bildirim
+
+Ürün sahibinin kararları: mağazada **otomatik yenilenen** abonelik (hukuki metinler Aşama 2'de yeni sürüm; web'de
+PayTR "otomatik yenilenmez" kalır), alt çubuk **bugünkü beşli**, mağaza hesapları birlikte açılacak, iş **iki aşamada**
+(önce ödemeye dokunmayan kısım). Plan, hesap listesi ve Aşama 2: `cortex-plus/docs/delivery/MOBIL-UYGULAMA.md`.
+Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| Uygulama canlı siteyi açar (`server.url`), yalnız kendi alan adımız içeride; `appId` `app.cortexplus.mobile`, zemin #05070E. Tarayıcı kimliğine `CortexPlusApp/1 (ios|android)` eklenir: sunucu ve sayfa uygulamada olduğunu buradan da bilir | `cortex-plus/capacitor.config.ts`, `src/lib/platform/native-ua.ts` |
+| Uygulamaya özel her davranış `isNativeApp()` arkasında; eklentiler yalnız uygulamada `import()` ile yüklenir; web'de davranış değişmez (bekçi `native.test.ts`, e2e `mobil-uygulama.spec.ts` web hâlini de sınar) | `src/lib/platform/native.ts` |
+| İlk betik `<html>`e `cx-native` yazar; iOS'ta `viewport-fit=cover` (durum çubuğu web görünümünün üstüne binmez, alt güvenli alan `env()` ile). Android'de web görünümü sistem çubuklarının arasında (`SystemBars.insetsHandling: "native"`) | `src/app/layout.tsx`, `capacitor.config.ts` |
+| İlk açılış akışı yalnız uygulamada, cihaz başına bir kez, ders/test ekranında açılmaz. Seviye seçimi kayıttaki `GRADE_OPTIONS` / `GOAL_OPTIONS` değerlerine yazılır (yeni alan yok). Çekilen sayfalar sunucuya gitmeden misafir dosya köprüsüyle (`guest-handoff.ts`) kurulumun materyal adımına taşınır | `native-onboarding.tsx`, `native-onboarding.ts`, `/api/app/onboarding` |
+| Anlık bildirim: yalnız **yeni yazılan** uygulama içi bildirim telefona gider; gece 22:00–08:00 hatırlatma yok (hesap bildirimleri muaf); "Uygulama içi bildirimler" kapalıysa gitmez. iOS doğrudan APNs (ES256), Android FCM v1. Kimlik bilgisi yoksa veritabanına hiç sorulmaz. Geçersiz anahtar silinir; çıkış formu bu cihazın anahtarını siler | `src/lib/notifications/push*.ts`, `in-app.ts`, `/api/push/token`, `/api/auth/signout` |
+| Uygulamada Google girişi yok (Google web görünümünü reddediyor): e-posta + şifre, Google'la açılmış hesap "Şifremi unuttum" ile şifre belirler. "Tarayıcıda aç" şeridi ve kurulum kartı uygulamada çıkmaz | `in-app-browser.ts`, `install-platform.ts` (`"app"`) |
+| Göç `20261126120000_user_push_tokens.sql` **yazıldı, uygulanmadı** (yalnız ekler; kod onsuz çalışır; kod yayınından sonra, onayla) | — |
+| Yerelde Android: proje yolu ASCII dışı ("Masaüstü") olduğu için `subst` ile geçici sürücü harfinden derlenir; projeye `overridePathCheck` yazılmaz | `MOBIL-UYGULAMA.md` |
+
+Bekçi: `native.test.ts`, `native-acilis-akisi.test.tsx`, `push-bildirim.test.ts` (göçü PGlite'ta), e2e `mobil-uygulama.spec.ts`;
+CI `.github/workflows/mobile-build.yml` (Android .apk/.aab, iOS simülatör).

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ic_launcher_background">#05070E</color>
+    <!-- Uygulamanın açılış ve pencere zemini (capacitor.config.ts BACKGROUND ile aynı). -->
+    <color name="cx_background">#05070E</color>
+</resources>

@@ -1,14 +1,17 @@
 import { googleBlockedWebViewApp } from "@/lib/auth/in-app-browser";
+import { isNativeUserAgent } from "@/lib/platform/native-ua";
 
 /**
  * Telefona kurulum yolu (28 Ekim 2026). Android/Chrome tek dokunuşla kurar (`beforeinstallprompt`);
  * iOS'ta tarayıcı bu olayı hiç göndermez, kurulum Safari'nin Paylaş menüsünden yapılır. Instagram,
- * Facebook, TikTok tarayıcısı kurulum yapamaz: önce sayfa gerçek tarayıcıda açılmalı.
+ * Facebook, TikTok tarayıcısı kurulum yapamaz: önce sayfa gerçek tarayıcıda açılmalı. Cortex Plus mobil uygulamasının
+ * içinde ("app", 26 Kasım 2026) kurulum gerekmez: kart çıkmaz, sayfa "kurulu" der.
  */
-export type InstallPlatform = "ios" | "ios-other" | "android" | "desktop" | "webview";
+export type InstallPlatform = "ios" | "ios-other" | "android" | "desktop" | "webview" | "app";
 
 export function installPlatform(userAgent: string | null | undefined): InstallPlatform {
   const ua = userAgent ?? "";
+  if (isNativeUserAgent(ua)) return "app";
   if (googleBlockedWebViewApp(ua)) return "webview";
   const ios = /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && /Mobile\//i.test(ua));
   if (ios) return /CriOS|FxiOS|EdgiOS|OPiOS/i.test(ua) ? "ios-other" : "ios";
@@ -19,6 +22,8 @@ export function installPlatform(userAgent: string | null | undefined): InstallPl
 /** Platforma göre elle kurulum adımları (tek dokunuşlu kurulum yoksa gösterilir). */
 export function installSteps(platform: InstallPlatform, webviewApp?: string | null): string[] {
   switch (platform) {
+    case "app":
+      return [];
     case "webview":
       return [
         `${webviewApp ?? "Bu uygulama"}nın tarayıcısı kurulum yapamıyor: sağ üstteki menüden "Tarayıcıda aç"a dokun.`,

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { NativePushTokenField } from "@/components/native/native-push-token-field";
 import { usePathname } from "next/navigation";
 import { forwardRef, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import {
@@ -252,6 +253,7 @@ export function ProfileCard({
       </nav>
 
       <form action="/api/auth/signout" method="post" className="cx-pp-signout">
+        <NativePushTokenField />
         <button type="submit" className="cx-pp-row">
           <LogOut className="cx-pp-row-icon" aria-hidden />
           Çıkış yap

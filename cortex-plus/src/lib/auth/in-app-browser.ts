@@ -1,4 +1,12 @@
 import { useSyncExternalStore } from "react";
+import { isNativeUserAgent } from "@/lib/platform/native-ua";
+
+/**
+ * Cortex Plus mobil uygulaması (26 Kasım 2026): kendi web görünümünde Google girişi de reddedilir (Android web görünümü
+ * "; wv" taşır). Uygulamada Google düğmesi yerine e-posta ve şifreyle giriş önerilir; hesabını Google ile açan öğrenci
+ * önce "Şifremi unuttum" ile bir şifre belirler. "Tarayıcıda aç" şeridi uygulamada gösterilmez.
+ */
+export const NATIVE_APP_LABEL = "Cortex Plus uygulaması";
 
 /**
  * Google, uygulamaların kendi tarayıcısında (WebView) oturum açmayı reddeder ("403
@@ -15,6 +23,7 @@ const WEBVIEW_APPS: [RegExp, string][] = [
 
 export function googleBlockedWebViewApp(userAgent: string | null | undefined): string | null {
   if (!userAgent) return null;
+  if (isNativeUserAgent(userAgent)) return NATIVE_APP_LABEL;
   for (const [pattern, app] of WEBVIEW_APPS) if (pattern.test(userAgent)) return app;
   return null;
 }
@@ -29,6 +38,7 @@ export function googleBlockedWebViewApp(userAgent: string | null | undefined): s
 const IN_APP_ONLY: [RegExp, string][] = [[/\bWhatsApp\b/i, "WhatsApp"]];
 
 export function inAppBrowserApp(userAgent: string | null | undefined): string | null {
+  if (isNativeUserAgent(userAgent)) return null;
   const blocked = googleBlockedWebViewApp(userAgent);
   if (blocked || !userAgent) return blocked;
   for (const [pattern, app] of IN_APP_ONLY) if (pattern.test(userAgent)) return app;
