@@ -217,6 +217,35 @@ sağlık kırmızı görünürdü. Yeni satırlar eski kodu etkilemez (eski kod 
 **Geri alma:** gerekmez. Satırlar yalnız canlı sesli öğretmen kullanıldığında okunur (`teacher.v2` bayrağının arkasında). Kaldırmak
 yalnız Burhan'ın kararıyla olur.
 
+## 20261121230000 · gpt4o_transcribe_price (PR #726)
+
+| | |
+|---|---|
+| Onaylayan | Burhan (21 Kasım 2026, sohbette: "20261121230000_gpt4o_transcribe_price.sql göçünü uygulayıp kayıt satırını yazabilirsin, onaylıyorum") |
+| Uygulama | 21 Kasım 2026, #726 birleştikten sonra; Supabase SQL ekranı, göç + kayıt satırı tek çalıştırmada |
+| Uygulayan | Claude, Burhan'ın onayıyla |
+| Değişen | Yalnız ekleme: `ai_model_prices` `gpt-4o-transcribe` (girdi 0,033333 / çıktı 0, 1.000 ses jetonu başına). Var olan satır değişmedi (`ON CONFLICT DO NOTHING`) |
+
+**Doğrulama:** fiyat satırı göçteki değerle; kayıt satırı 1. (Bu kayıt 26 Kasım 2026'da eklendi; göç dosyasının başlığı da o gün
+"UYGULANDI" oldu.)
+
+## 20261126120000 · user_push_tokens (PR #728)
+
+| | |
+|---|---|
+| Onaylayan | Burhan (26 Kasım 2026, sohbette: "Veritabanı değişikliğini onaylıyorum, uygulayabilirsin.") |
+| Uygulama | 26 Kasım 2026, #728 birleşip üretim yayını ve canlı duman testi yeşil olduktan sonra. Supabase SQL ekranı, göç + kayıt satırı tek çalıştırmada |
+| Uygulayan | Claude, Burhan'ın onayıyla |
+| Değişen | Yalnız ekleme: yeni tablo `user_push_tokens` (mobil uygulamanın anlık bildirim cihaz anahtarları) ve dizini; satır güvenliği açık, politika yok, `anon` ve `authenticated` için `REVOKE ALL`, `service_role` için `GRANT ALL`. Var olan hiçbir tablo, sütun, kısıt ya da satır değişmedi |
+
+**Uygulamadan önce kontrol (salt okuma):** `to_regclass('public.user_push_tokens')` boş, kayıt satırı 0.
+
+**Doğrulama:** tablo var; satır güvenliği açık; `anon` okuyamıyor, `authenticated` yazamıyor, `service_role` yazabiliyor; kayıt satırı
+`user_push_tokens`; tablo boş (0 satır).
+
+**Geri alma:** gerekmez. Kod tablo yokken de çalışıyordu (anahtar "kaydedilmedi" döner, gönderim atlanır). Tabloyu kaldırmak yalnız
+Burhan'ın kararıyla olur.
+
 ## İstatistik işlemleri (göç değil)
 
 | Zaman (UTC) | İşlem | Onay | Sonuç |

@@ -1,4 +1,5 @@
--- YAZILDI, UYGULANMADI (21 Kasım 2026). Göçler yalnız Burhan'ın onayıyla, SQL ekranında uygulanır; aynı çalıştırmada:
+-- UYGULANDI: 21 Kasım 2026, #726 birleştikten sonra, Burhan'ın onayıyla (Supabase SQL ekranı + kayıt satırı;
+-- docs/operasyon/goc-kayitlari.md). Kayıt satırı:
 --   insert into supabase_migrations.schema_migrations (version, name) values ('20261121230000', 'gpt4o_transcribe_price')
 --     on conflict (version) do nothing;
 --

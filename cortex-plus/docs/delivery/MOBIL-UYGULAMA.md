@@ -34,11 +34,11 @@ bildirim, titreşim, paylaşım, ağ durumu ve durum çubuğu telefonun yetenekl
 sürücü harfiyle: `subst Q: "C:\Users\burha\OneDrive\Masaüstü\Cortex-Plus-Dev"`, sonra `Q:\cortex-plus\android` içinde
 `npx cap sync android` ve `.\gradlew.bat assembleDebug`. Projeye `overridePathCheck` yazılmadı.
 
-## Göç (onay bekliyor)
+## Göç (canlıda)
 
-`supabase/migrations/20261126120000_user_push_tokens.sql`: yalnız ekler (bir tablo, bir dizin). Kod onsuz çalışır:
-anahtar "kaydedilmedi" döner, gönderim sessizce atlanır. Kod yayınından **sonra**, ürün sahibinin onayıyla SQL
-ekranında; kayıt satırı dosyanın başında.
+`supabase/migrations/20261126120000_user_push_tokens.sql`: yalnız ekler (bir tablo, bir dizin). 26 Kasım 2026'da #728
+yayınından sonra ürün sahibinin onayıyla uygulandı (`docs/operasyon/goc-kayitlari.md`). Telefona bildirim gitmesi için
+yalnız APNs ve FCM kimlik bilgileri kaldı (aşağıdaki hesaplar).
 
 ## Mağaza ve bildirim hesapları (ürün sahibiyle birlikte)
 
