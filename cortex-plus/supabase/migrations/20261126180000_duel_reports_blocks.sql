@@ -1,3 +1,8 @@
+-- UYGULANDI (26 Kasım 2026, ~15:05 UTC): Burhan'ın onayıyla SQL ekranında, kayıt satırıyla birlikte, #732 birleşmeden
+-- önce (`docs/operasyon/goc-kayitlari.md`). Kayıt satırı (SQL ekranında aynı çalıştırmada):
+--   insert into supabase_migrations.schema_migrations (version, name)
+--   values ('20261126180000', 'duel_reports_blocks') on conflict (version) do nothing;
+--
 -- Düelloda bildir ve engelle (26 Kasım 2026, mobil 1. adım; App Store 1.2 ve Google Play kullanıcı içeriği politikası).
 --
 -- Düelloda başka oyunculara görünen tek kullanıcı içeriği oyuncunun adı. Uygunsuz adı süzgeç tutar

@@ -265,6 +265,24 @@ kur 51, şirket türü şahıs, günlük bütçe 50 $, koruma modu kapalı; kay�
 **Geri alma:** gerekmez. Kod tablolar yokken de çalışıyordu (ayarlar varsayılanla okunur, ekran "tablolar henüz yok" der). Tabloları
 kaldırmak yalnız Burhan'ın kararıyla olur.
 
+## 20261126180000 · duel_reports_blocks (PR #732)
+
+| | |
+|---|---|
+| Onaylayan | Burhan (26 Kasım 2026, sohbette: "20261126180000_duel_reports_blocks.sql veritabanı göçünü onaylıyorum, uygulayabilirsin.") |
+| Uygulama | 26 Kasım 2026 ~15:05 UTC, #732 birleşmeden önce (kod göçsüz de çalışıyordu). Supabase SQL ekranı, göç + kayıt satırı tek çalıştırmada |
+| Uygulayan | Claude, Burhan'ın onayıyla |
+| Değişen | Yalnız ekleme: iki yeni tablo (`duel_reports`, `duel_blocks`) ve dizinleri; satır güvenliği açık, politika yok, `anon` ve `authenticated` için `REVOKE ALL`, `service_role` için `GRANT ALL`. Var olan hiçbir tablo, sütun, kısıt ya da satır değişmedi |
+
+**Uygulamadan önce kontrol (salt okuma):** iki tablo yoktu; `prep_duels` ve `prep_duel_runs` vardı; kayıt satırı 0.
+
+**Doğrulama:** iki tablo var; satır güvenliği açık; `anon` ve `authenticated` okuyamıyor ve yazamıyor, `service_role` yazabiliyor;
+`duel_reports` 5 dizin ve 5 kontrol kısıtı, `duel_blocks` 4 dizin ve 3 kontrol kısıtı (hedef kişi ya da tur, kendini engelleme yok);
+kayıt satırı `duel_reports_blocks`.
+
+**Geri alma:** gerekmez. Kod tablolar yokken de çalışıyordu (bildir/engelle "şu an alınamıyor", sıralama yalnız ad süzgeciyle).
+Tabloları kaldırmak yalnız Burhan'ın kararıyla olur.
+
 ## İstatistik işlemleri (göç değil)
 
 | Zaman (UTC) | İşlem | Onay | Sonuç |

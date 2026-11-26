@@ -76,7 +76,7 @@ kabukta biten mağaza işleri:
 | Zorunlu güncelleme | `/api/app/version`, `NativeUpdateGate`; kural `app-version.ts` | `src/components/native/native-update-gate.tsx` |
 | Uygulama kilidi | Ayarlar → Giriş ve güvenlik (`AppLockSetting`); kilit katmanı `NativeLockGate`, içerik ilk betikte gizlenir (`cx-locked`) | `src/lib/platform/native-lock.ts` |
 | Mağaza değerlendirmesi | Puanlı etkinlik %80+ → şartlar tutarsa mağaza penceresi | `src/lib/platform/native-review.ts`, `use-node-lifecycle.ts` |
-| Düelloda bildir ve engelle | Ad süzgeci, sıralama süzgeci, `/api/duels/[code]/report|block`, `/api/student/duel-blocks`, `/admin/duello-bildirimleri` | göç `20261126180000_duel_reports_blocks.sql` (**onay bekliyor**) |
+| Düelloda bildir ve engelle | Ad süzgeci, sıralama süzgeci, `/api/duels/[code]/report|block`, `/api/student/duel-blocks`, `/admin/duello-bildirimleri` | göç `20261126180000_duel_reports_blocks.sql` (canlıda, 26 Kasım 2026) |
 
 Yerelde Android hata ayıklama ve yayın derlemesi geçti; iOS derlemesi CI'da (macOS). Gerçek cihazda denenecekler
 (hesaplar açılınca): Face ID / parmak izi, kilit ekranı denetimleri, mağaza değerlendirme penceresi (Play yalnız
