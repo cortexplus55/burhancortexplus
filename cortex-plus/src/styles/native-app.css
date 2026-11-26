@@ -341,3 +341,239 @@ button.cx-nob-option.cx-nob-option-main.is-selected {
     animation: none;
   }
 }
+
+/* ── Uygulama kilidi (26 Kasım 2026, mobil 1. adım) ────────────────────────────────────────
+   Kilitliyken sayfanın içeriği görünmez; ilk betik sınıfı içerik çizilmeden yazar (`NATIVE_BOOT_SCRIPT`). Yalnız
+   kilit katmanı görünür. Kural yalnız uygulamada (`cx-native`) çalışır. */
+html.cx-native.cx-locked body > *:not(.cx-lock-layer) {
+  visibility: hidden !important;
+}
+.cx-lock-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: grid;
+  place-items: center;
+  padding: calc(env(safe-area-inset-top, 0px) + 24px) 24px calc(env(safe-area-inset-bottom, 0px) + 24px);
+  background: var(--cx-bg-0, #090a0f);
+  color: var(--cx-text-primary, #fff);
+  visibility: visible;
+}
+.cx-lock-card {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  width: min(100%, 360px);
+  text-align: center;
+}
+.cx-lock-icon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--cx-radius-max, 6000px);
+  background: var(--cx-bg-2, #172033);
+  color: var(--cx-text-brand, #a5b4fc);
+}
+.cx-lock-card h2 {
+  margin: 0;
+  font: var(--cx-t-title-l, 600 20px/1.25 var(--cx-font-sans, system-ui));
+  letter-spacing: -0.02em;
+}
+.cx-lock-card p {
+  margin: 0;
+  color: var(--cx-text-secondary, #94a3b8);
+  font-size: 15px;
+  line-height: 1.45;
+}
+.cx-lock-action,
+.cx-update-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 52px;
+  padding: 0 24px;
+  border: 0;
+  border-radius: var(--cx-radius-max, 6000px);
+  background: var(--cx-gradient-brand, #4f46e5);
+  color: var(--cx-text-on-brand, #fff);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.cx-lock-action:disabled {
+  opacity: 0.6;
+}
+.cx-lock-signout {
+  margin: 0;
+}
+.cx-lock-signout button {
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--cx-radius-max, 6000px);
+  background: var(--cx-bg-2, #172033);
+  color: var(--cx-text-secondary, #94a3b8);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+}
+:is(.cx-lock-action, .cx-lock-signout button, .cx-update-action, .cx-update-banner button, .cx-update-banner a):focus-visible {
+  outline: 1px solid var(--cx-focus, #22d3ee);
+  outline-offset: 3px;
+}
+
+/* ── Güncelleme (26 Kasım 2026, mobil 1. adım) ─────────────────────────────────────────── */
+.cx-update-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 2147482000;
+  display: grid;
+  place-items: center;
+  padding: calc(env(safe-area-inset-top, 0px) + 24px) 24px calc(env(safe-area-inset-bottom, 0px) + 24px);
+  background: var(--cx-bg-0, #090a0f);
+  color: var(--cx-text-primary, #fff);
+}
+.cx-update-card {
+  display: grid;
+  gap: 14px;
+  width: min(100%, 380px);
+  padding: 28px 24px;
+  border-radius: var(--cx-radius-xl, 32px);
+  background: var(--cx-bg-1, #0f172a);
+  text-align: center;
+}
+.cx-update-card h2 {
+  margin: 0;
+  font: var(--cx-t-heading-s, 600 28px/1.02 var(--cx-font-sans, system-ui));
+  letter-spacing: -0.02em;
+}
+.cx-update-card p {
+  margin: 0;
+  color: var(--cx-text-secondary, #94a3b8);
+  font-size: 15px;
+  line-height: 1.45;
+}
+.cx-update-banner {
+  position: fixed;
+  z-index: 119;
+  top: calc(env(safe-area-inset-top, 0px) + 8px);
+  left: 16px;
+  right: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: 52px;
+  padding: 6px 6px 6px 16px;
+  border-radius: var(--cx-radius-l, 24px);
+  background: var(--cx-bg-2, #172033);
+  color: var(--cx-text-primary, #fff);
+  box-shadow: var(--cx-shadow-popover, 0 8px 32px rgba(0, 0, 0, 0.32));
+  font-size: 14px;
+  font-weight: 600;
+}
+.cx-update-banner > span {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+.cx-update-banner-action,
+.cx-update-banner-later {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--cx-radius-max, 6000px);
+  font: inherit;
+  font-size: 13px;
+  text-decoration: none;
+}
+.cx-update-banner-action {
+  background: var(--cx-text-primary, #fff);
+  color: var(--cx-text-inverted, #090a0f);
+}
+.cx-update-banner-later {
+  background: transparent;
+  color: var(--cx-text-secondary, #94a3b8);
+}
+
+/* ── Ayarlar: uygulama kilidi anahtarı ─────────────────────────────────────────────────── */
+.cx-app-lock {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+.cx-app-lock-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 60px;
+  padding: 12px 16px;
+  border-radius: var(--cx-radius-l, 24px);
+  background: var(--cx-bg-2, #172033);
+}
+.cx-app-lock-text {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+}
+.cx-app-lock-text strong {
+  font-size: 15px;
+  font-weight: 600;
+}
+.cx-app-lock-text span,
+.cx-app-lock-note {
+  margin: 0;
+  color: var(--cx-text-secondary, #94a3b8);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.cx-app-lock-switch {
+  position: relative;
+  flex: none;
+  width: 52px;
+  height: 32px;
+  border: 0;
+  border-radius: var(--cx-radius-max, 6000px);
+  background: var(--cx-bg-4, #334155);
+  transition: background 0.16s ease;
+}
+.cx-app-lock-switch::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+}
+.cx-app-lock-switch > span {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--cx-text-on-brand, #fff);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: transform 0.16s ease;
+}
+.cx-app-lock-switch[aria-checked="true"] {
+  background: var(--cx-brand-strong, #4f46e5);
+}
+.cx-app-lock-switch[aria-checked="true"] > span {
+  transform: translateX(20px);
+}
+.cx-app-lock-switch:disabled {
+  opacity: 0.6;
+}
+.cx-app-lock-switch:focus-visible {
+  outline: 1px solid var(--cx-focus, #22d3ee);
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cx-app-lock-switch,
+  .cx-app-lock-switch > span {
+    transition: none;
+  }
+}

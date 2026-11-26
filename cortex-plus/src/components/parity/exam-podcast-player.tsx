@@ -22,6 +22,7 @@ import { validatePodcastAudio } from "@/lib/learning/podcast-audio-contract";
 import { useStudentShellAccount } from "@/lib/student/student-shell-context";
 import { mapWithConcurrency, type PodcastLength } from "@/lib/learning/podcast-formats";
 import { visibleSpeakers } from "@/lib/learning/podcast-speakers";
+import { useNativeMediaControls } from "@/lib/platform/native-media";
 
 type AudioLine = {
   chapterIndex: number;
@@ -678,6 +679,34 @@ export function ExamPodcastPlayer({
       bind("seekforward", null);
     };
   }, [status, title]);
+
+  // Mobil uygulama (26 Kasım 2026): Android'de kilit ekranı ve bildirim alanındaki denetimler; iOS'ta arka plan sesi.
+  useNativeMediaControls(
+    {
+      active: status === "ready" && Boolean(audio),
+      title,
+      album: "Podcast",
+      playing,
+      positionMs,
+      durationMs: totalMs,
+      rate: speed,
+      canPrevious: false,
+      canNext: false,
+    },
+    {
+      play: () => {
+        if (!playingRef.current) controlsRef.current.toggle();
+      },
+      pause: () => {
+        if (playingRef.current) controlsRef.current.toggle();
+      },
+      seekbackward: () => controlsRef.current.seekTo(positionRef.current - SKIP_MS),
+      seekforward: () => controlsRef.current.seekTo(positionRef.current + SKIP_MS),
+      seekto: (ms) => {
+        if (typeof ms === "number") controlsRef.current.seekTo(ms);
+      },
+    },
+  );
 
   async function downloadEpisode() {
     const transcriptText = normalized

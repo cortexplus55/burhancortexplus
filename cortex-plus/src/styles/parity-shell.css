@@ -16668,3 +16668,62 @@ a.cp-exam-search {
     transition: color 160ms ease;
   }
 }
+
+/* Ayarlar: düelloda engellenen oyuncular (26 Kasım 2026, mobil 1. adım). */
+.cp-set-duel-blocks {
+  display: grid;
+  gap: 0.6rem;
+}
+.cp-set-duel-blocks-toggle {
+  justify-self: start;
+  min-height: 40px;
+  padding: 0 0.95rem;
+  border-radius: 999px;
+  border: 1px solid var(--c-border-strong);
+  color: var(--c-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.cp-set-duel-blocks-body p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--c-text-muted);
+}
+.cp-set-duel-blocks-body ul {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cp-set-duel-blocks-body li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 48px;
+}
+.cp-set-duel-blocks-body li > span {
+  display: grid;
+  min-width: 0;
+}
+.cp-set-duel-blocks-body li strong {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+.cp-set-duel-blocks-body li > span > span {
+  font-size: 0.8125rem;
+  color: var(--c-text-muted);
+}
+.cp-set-inline-link {
+  min-height: 40px;
+  padding: 0 0.6rem;
+  border: 0;
+  background: transparent;
+  color: var(--c-action);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.cp-set-inline-link:disabled {
+  opacity: 0.6;
+}

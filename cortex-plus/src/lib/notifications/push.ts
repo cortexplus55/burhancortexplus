@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { missingRelation } from "@/lib/learning/missing-column";
 import { loadNotificationPreferences } from "@/lib/notifications/preferences";
 import { isQuietHour } from "@/lib/notifications/schedule";
+import { LOCAL_REMINDER_WINDOW_DAYS } from "@/lib/notifications/local-reminders";
 import { apnsConfig, sendApns, type DeliveryResult, type PushPayload } from "@/lib/notifications/push-apns";
 import { fcmConfig, sendFcm } from "@/lib/notifications/push-fcm";
 
@@ -18,6 +19,8 @@ import { fcmConfig, sendFcm } from "@/lib/notifications/push-fcm";
  * - Cihaz anahtarları `user_push_tokens`'ta (yalnız sunucu anahtarıyla). Tablo henüz yoksa sessizce atlanır.
  * - Kimlik bilgileri yoksa (APNs, FCM) o platforma gönderilmez; ikisi de yoksa veritabanına hiç sorulmaz.
  * - Hiçbir zaman atmaz; geçersizleşen cihaz anahtarı silinir.
+ * - Çalışma hatırlatması (26 Kasım 2026): son LOCAL_REMINDER_WINDOW_DAYS günde uygulamayı açmış cihaz hatırlatmayı
+ *   telefonda kendisi kurar (`local-reminders.ts`); aynı akşam iki bildirim gelmesin diye o cihaza gönderilmez.
  */
 
 export type PushMessage = {
@@ -27,6 +30,8 @@ export type PushMessage = {
   actionUrl?: string | null;
   /** Hesapla ilgili (ödeme, iade, plan, hesap, ödül): sessiz saat ve tercih kapısından muaf. */
   essential?: boolean;
+  /** Uygulama içi bildirimin türü; çalışma hatırlatması yerel hatırlatmayla çakışmasın diye. */
+  kind?: string;
 };
 
 export type PushSkipReason = "not_configured" | "quiet_hours" | "muted" | "no_devices" | "no_table" | "error";
@@ -61,7 +66,17 @@ export function pushPayload(message: PushMessage): PushPayload {
   };
 }
 
-type TokenRow = { token: string; platform: string };
+type TokenRow = { token: string; platform: string; updated_at?: string | null };
+
+/** Çalışma hatırlatmasında yakın zamanda açılmış cihazlar atlanır: o günleri yerel hatırlatma karşılar. */
+export function pushTargetRows(rows: readonly TokenRow[], kind: string | undefined, now: Date): TokenRow[] {
+  if (kind !== "study_reminder") return [...rows];
+  const cutoff = now.getTime() - LOCAL_REMINDER_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+  return rows.filter((row) => {
+    const seen = row.updated_at ? Date.parse(row.updated_at) : Number.NaN;
+    return !(Number.isFinite(seen) && seen >= cutoff);
+  });
+}
 
 /** Tek öğrenciye bildirim. */
 export async function sendPushToUser(
@@ -80,9 +95,9 @@ export async function sendPushToUser(
       const preferences = await loadNotificationPreferences(service, userId);
       if (!preferences.inAppNotifications) return empty("muted");
     }
-    const { data, error } = await service.from("user_push_tokens").select("token, platform").eq("user_id", userId).limit(20);
+    const { data, error } = await service.from("user_push_tokens").select("token, platform, updated_at").eq("user_id", userId).limit(20);
     if (error) return empty(missingRelation(error) ? "no_table" : "error");
-    const rows = (data ?? []) as TokenRow[];
+    const rows = pushTargetRows((data ?? []) as TokenRow[], message.kind, now);
     const ios = rows.filter((row) => row.platform === "ios").map((row) => row.token);
     const android = rows.filter((row) => row.platform === "android").map((row) => row.token);
     if (!ios.length && !android.length) return empty("no_devices");

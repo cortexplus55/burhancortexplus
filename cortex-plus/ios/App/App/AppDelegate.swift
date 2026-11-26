@@ -1,3 +1,4 @@
+import AVFoundation
 import UIKit
 import Capacitor
 
@@ -7,7 +8,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // Sınav Radyosu ve podcast: ses oturumu "çalma" kipinde, böylece ekran kilitlenince ya da uygulamadan çıkınca
+        // ses sürer (Info.plist'te UIBackgroundModes → audio). Oturum burada etkinleştirilmez: başka bir uygulamanın sesi
+        // ancak öğrenci bizde bir sesi başlatınca durur. Canlı sesli öğretmen mikrofonu açınca kipi web görünümü değiştirir.
+        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio, options: [])
         return true
     }
 

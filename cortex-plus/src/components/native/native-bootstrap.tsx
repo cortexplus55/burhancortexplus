@@ -5,7 +5,11 @@ import { useRouter } from "next/navigation";
 import { isNativeApp, useNetworkStatus } from "@/lib/platform/native";
 import { appUrlPath } from "@/lib/platform/native-links";
 import { initNativePush } from "@/lib/platform/native-push";
+import { initLocalReminderTaps, REMINDERS_CHANGED_EVENT, syncLocalReminders } from "@/lib/platform/native-reminders";
+import { markReviewInstall } from "@/lib/platform/native-review";
 import { OfflineBar } from "@/components/native/offline-bar";
+import { NativeLockGate } from "@/components/native/native-lock-gate";
+import { NativeUpdateGate } from "@/components/native/native-update-gate";
 import "@/styles/native-app.css";
 
 /**
@@ -17,6 +21,9 @@ import "@/styles/native-app.css";
  * - Uygulamayı açan bağlantı (bildirim, evrensel bağlantı) kendi alan adımızsa o sayfa açılır.
  * - Anlık bildirim dinleyicileri; izin daha önce verilmişse cihaz kaydı yenilenir.
  * - Bağlantı kopunca üstte "Bağlantı koptu — tekrar dene" çubuğu.
+ * - Mobil 1. adım (26 Kasım 2026): yerel çalışma hatırlatması açılışta ve öne gelişte yeniden kurulur, hatırlatmaya
+ *   dokununca yolu açılır; uygulama kilidi (`NativeLockGate`), zorunlu güncelleme (`NativeUpdateGate`), mağaza
+ *   değerlendirmesi için ilk açılış zamanı.
  */
 export function NativeBootstrap() {
   const router = useRouter();
@@ -50,16 +57,28 @@ export function NativeBootstrap() {
           const path = appUrlPath(url);
           if (path) navigate(path);
         });
-        if (active) cleanups.push(() => void back.remove(), () => void open.remove());
+        const resume = await App.addListener("appStateChange", ({ isActive }) => {
+          if (isActive) void syncLocalReminders();
+        });
+        if (active) cleanups.push(() => void back.remove(), () => void open.remove(), () => void resume.remove());
         else {
           void back.remove();
           void open.remove();
+          void resume.remove();
         }
       } catch {
         /* uygulama eklentisi yoksa varsayılan davranış */
       }
       await initNativePush(navigate);
+      await initLocalReminderTaps(navigate);
+      await syncLocalReminders(true);
+      await markReviewInstall();
     })();
+
+    // Bildirim tercihi ya da çalışma saati değişince hatırlatmalar hemen yeniden kurulur.
+    const onRemindersChanged = () => void syncLocalReminders(true);
+    window.addEventListener(REMINDERS_CHANGED_EVENT, onRemindersChanged);
+    cleanups.push(() => window.removeEventListener(REMINDERS_CHANGED_EVENT, onRemindersChanged));
 
     return () => {
       active = false;
@@ -67,7 +86,13 @@ export function NativeBootstrap() {
     };
   }, [router]);
 
-  return <NativeOfflineLayer />;
+  return (
+    <>
+      <NativeOfflineLayer />
+      <NativeUpdateGate />
+      <NativeLockGate />
+    </>
+  );
 }
 
 function NativeOfflineLayer() {

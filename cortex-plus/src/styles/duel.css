@@ -626,3 +626,117 @@
 :root:not(.dark) .cp-duel-review li.is-wrong {
   color: #b91c1c;
 }
+
+/* ── Sıralamada bildir / engelle (26 Kasım 2026, mobil 1. adım; App Store 1.2) ─────────── */
+.cp-duel-board li.has-actions {
+  grid-template-columns: 1.6rem 1fr auto auto auto;
+}
+.cp-duel-player-actions {
+  position: relative;
+  display: contents;
+}
+.cp-duel-player-more {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  margin: -0.4rem -0.4rem -0.4rem 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--c-muted, #9aa3b8);
+}
+.cp-duel-player-more:hover,
+.cp-duel-player-more[aria-expanded="true"] {
+  background: rgba(255, 255, 255, 0.08);
+  color: inherit;
+}
+.cp-duel-player-more:focus-visible,
+.cp-duel-player-menu button:focus-visible,
+.cp-duel-report-reason input:focus-visible {
+  outline: 2px solid var(--cx-focus, #22d3ee);
+  outline-offset: 2px;
+}
+.cp-duel-player-menu {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: flex-end;
+}
+.cp-duel-player-menu button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 40px;
+  padding: 0 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.cp-duel-report {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 0.3rem;
+  padding: 0.8rem;
+  border-radius: 0.8rem;
+  background: rgba(255, 255, 255, 0.04);
+}
+.cp-duel-report fieldset {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.cp-duel-report-title {
+  margin: 0;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+.cp-duel-report-reason {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 40px;
+  font-size: 0.875rem;
+}
+.cp-duel-report-reason input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--cx-brand-strong, #4f46e5);
+}
+.cp-duel-report textarea {
+  width: 100%;
+  min-height: 3.5rem;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.7rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.875rem;
+  resize: vertical;
+}
+.cp-duel-report-hint {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--c-muted, #9aa3b8);
+}
+.cp-duel-report-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+:root:not(.dark) :is(.cp-duel-player-menu button, .cp-duel-report textarea) {
+  border-color: rgba(0, 0, 0, 0.14);
+}
+:root:not(.dark) :is(.cp-duel-player-menu button, .cp-duel-report, .cp-duel-player-more:hover, .cp-duel-player-more[aria-expanded="true"]) {
+  background: rgba(0, 0, 0, 0.04);
+}

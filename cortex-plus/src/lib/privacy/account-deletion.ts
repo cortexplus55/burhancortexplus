@@ -153,6 +153,21 @@ export async function purgeUserData(service: SupabaseClient, userId: string): Pr
       if (error && OPTIONAL_PURGE_TABLES.has(table) && missingRelation(error)) continue;
       if (error) return { ok: false, error: step };
     }
+    // 26 Kasım 2026 (mobil 1. adım): düello engelleri ve bildirimleri. Öğrencinin kendi engelleri ve bildirimleri
+    // silinir; başkasının onu engellediği satır da gider, ona yapılan bildirimde kimliği boşalır (yönetici kararı ve
+    // ad kalır). Göç canlıda yoksa atlanır.
+    for (const [table, column, action] of [
+      ["duel_blocks", "blocker_id", "delete"],
+      ["duel_blocks", "blocked_user_id", "delete"],
+      ["duel_reports", "reporter_id", "delete"],
+      ["duel_reports", "reported_user_id", "clear"],
+    ] as const) {
+      step = `purge_${table}_${column}`;
+      const query = action === "delete" ? service.from(table).delete() : service.from(table).update({ [column]: null });
+      const { error } = await query.eq(column, userId);
+      if (error && missingRelation(error)) continue;
+      if (error) return { ok: false, error: step };
+    }
     for (const table of ["classroom_members", "assignment_submissions"]) {
       step = `purge_${table}`;
       const { error } = await service.from(table).delete().eq("student_id", userId);

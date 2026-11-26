@@ -34,6 +34,8 @@ import { FounderBadge } from "@/components/student/founder-chip";
 import { DialogLink } from "@/components/parity/dialog-link";
 import { WorkCapacityCard } from "@/components/profile/work-capacity-card";
 import { TutorMemoryCard } from "@/components/settings/tutor-memory-card";
+import { AppLockSetting } from "@/components/native/app-lock-setting";
+import { DuelBlocksCard } from "@/components/settings/duel-blocks-card";
 import "@/styles/report-card.css";
 
 export const metadata = { title: "Ayarlar" };
@@ -210,6 +212,8 @@ export default async function AyarlarPage() {
               user.app_metadata?.provider === "email"
             }
           />
+          {/* Mobil uygulamada yüz tanıma / parmak izi kilidi (26 Kasım 2026); web'de ve eski sürümde çizilmez. */}
+          <AppLockSetting />
         </Group>
 
         <Group title="Gizlilik ve yasal" description="Verilerinin nasıl işlendiğini ilgili metinlerden inceleyebilirsin.">
@@ -224,6 +228,8 @@ export default async function AyarlarPage() {
             ]}
           />
           <CookiePreferencesButton className="cp-set-inline-btn" />
+          {/* Düelloda engellenen oyuncular (26 Kasım 2026, App Store 1.2): liste açılınca okunur. */}
+          <DuelBlocksCard />
         </Group>
 
         {/*
