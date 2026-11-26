@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import { isPaytrConfigured } from "@/lib/payments/paytr";
 import { FREE_FIRST_LESSON_SENTENCE, PLUS_ONLY_SENTENCE } from "@/lib/billing/free-tier-copy";
 import { pageMetadata } from "@/lib/seo/page-metadata";
+import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seo/structured-data";
+import { JsonLd } from "@/components/seo/json-ld";
 
 /** 11 Kasım 2026: ücretsizde ilk dersin döngüsü açık, Plus'a özel olanlar adıyla (tek kaynak `free-tier-copy.ts`). */
 const PRICING_DESCRIPTION = `${FREE_FIRST_LESSON_SENTENCE} ${PLUS_ONLY_SENTENCE} Plus ayrıca bütün konuları ve geniş aylık hakkı açar; Sigma en yüksek hakkı verir.`;
@@ -67,6 +69,16 @@ export default async function FiyatlandirmaPage() {
       title="Fiyatlandırma"
       description={PRICING_DESCRIPTION}
     >
+      {/* Sayfa ve gezinme yolu (26 Kasım 2026). Fiyat yapılandırılmış veriye yazılmaz: veritabanından değişir. */}
+      <JsonLd
+        data={[
+          webPageJsonLd({ name: "Fiyatlandırma", description: PRICING_DESCRIPTION, path: "/fiyatlandirma" }),
+          breadcrumbJsonLd([
+            { name: "Cortex Plus", path: "/" },
+            { name: "Fiyatlandırma", path: "/fiyatlandirma" },
+          ]),
+        ]}
+      />
       <div data-cinematic-reveal className="space-y-4">
         {!checkoutEnabled ? (
           <p className="mx-auto max-w-lg rounded-2xl border border-[var(--mk-border)] bg-[var(--mk-surface)] px-4 py-3 text-center text-sm text-[var(--mk-muted)]">

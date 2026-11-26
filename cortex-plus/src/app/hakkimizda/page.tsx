@@ -1,10 +1,13 @@
 import { Compass, Receipt, ShieldCheck } from "lucide-react";
 import { MarketingPage, MarketingCta } from "@/components/layout/marketing-page";
+import { pageMetadata } from "@/lib/seo/page-metadata";
 
-export const metadata = {
+export const metadata = pageMetadata({
   title: "Hakkımızda",
-  description: "Cortex Plus'ın amacı ve çalışma ilkeleri.",
-};
+  description:
+    "Cortex Plus'ın üç çalışma ilkesi: cevabı değil yolu vermek, ne harcadığını önceden göstermek ve sohbetini yalnız senin hesabında tutmak.",
+  path: "/hakkimizda",
+});
 
 /**
  * Sayfa üç ilke etrafında kuruldu. Önceden aynı içerik üç düz paragraftı;

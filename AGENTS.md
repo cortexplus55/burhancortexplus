@@ -3130,3 +3130,18 @@ siteyi açar) kalır. 4.2 riski yerel yeteneklerle azaltılır. Yeniden açmayı
 | Göç `20261126180000_duel_reports_blocks.sql` **canlıda** (26 Kasım 2026, Burhan'ın onayıyla, #732 birleşmeden önce; yalnız ekler: iki tablo, tarayıcıya izin yok). Kod tablolar yokken de çalışır: bildir/engelle 503 "şu an alınamıyor", sıralama yalnız ad süzgeciyle | `docs/operasyon/goc-kayitlari.md` |
 
 Bekçi: `mobil-adim-1.test.ts` (yerel dosyalar, kurallar, uçlar, göç PGlite'ta), `mobil-adim-1-ekran.test.tsx`, `magaza-uyumluluk.test.ts` (izin listesi).
+
+## Arama motoru ve Search Console (26 Kasım 2026)
+
+Search Console mülkü **alan adı mülkü** (`cortexplus.app`, http/https ve bütün alt alan adları) ve **yalnız `cortexplus@cortexplus.app` hesabında**; kişisel hesaptaki eski mülklerle bağı yok (ürün sahibinin kararı). Doğrulama DNS TXT kaydıyla (alan adı Squarespace Domains'te, Cloudflare değil). Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| Her kamu sayfası başlığını, açıklamasını, kanonik adresini ve paylaşım bilgisini (og ve Twitter kartı, görsel dahil) `pageMetadata` ile yazar. Düz `export const metadata = { title, description }` yazılmaz: kanonik yok kalır ve paylaşım adresi kök düzenden gelip **ana sayfayı** gösterir (canlıda 9 sayfa böyleydi: gizlilik, kvkk, kullanım koşulları, iletişim, hakkımızda, çerez, mobil uygulama, giriş, kayıt). İstemci sayfasında (`/giris`) metadata düzen dosyasında | `page-metadata.ts`, `giris/layout.tsx` |
+| robots: `Allow: /`; `/admin`, `/api/`, `/auth/`, `/pay`, `/ayarlar` kapalı. Kapatılan hiçbir yol site haritasında olmaz | `lib/seo/crawl-rules.ts` (`ROBOTS_DISALLOW`), `app/robots.ts` |
+| Site haritası: 17 tanıtım/hukuk sayfası + müfredatın 158 programı, bütün ünite ve kazanım sayfaları (26 Kasım 2026: toplam 5.234 adres, hepsi 200, hiçbiri `noindex` değil; canlıda tek tek ölçüldü, kanonik adresi olmayan 9 sayfa bu turda düzeldi). Yönlenen (`/kullanim-sartlari`) ve oturum isteyen adres yok. Son değişiklik: sürümlü hukuki metinler kendi sürüm gününü (`KVKK_TEXT_DATE`, `LEGAL_VERSIONS`, `COOKIE_POLICY_VERSION`), müfredat sayfaları kayıt defterinin `version`ını, öbürleri yayın anını verir. Yeni bir kazanım sayfası `noindex` olursa haritadan da çıkmalı | `app/sitemap.ts` |
+| Yapılandırılmış veri: ana sayfada `Organization` (ad, adres, logo, destek e-postası) + `WebSite` + `FAQPage`; fiyat sayfasında `WebPage` + `BreadcrumbList`; müfredat dizininde `CollectionPage` (programlar `ItemList`) + `BreadcrumbList`; program, ünite ve kazanım sayfalarında gezinme yolu. **Fiyat, puan, yorum yazılmaz** (fiyat veritabanından değişir). `SoftwareApplication` bilerek yok: Google onu ancak puan ya da yorumla geçerli sayar, yoksa Search Console "geçersiz öğe" yazar; uydurma puan yazılmaz | `lib/seo/structured-data.ts` |
+| Google HTML doğrulama etiketi `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` ya da `GOOGLE_SITE_VERIFICATION` verilirse yazılır; asıl doğrulama DNS TXT | `app/layout.tsx` |
+| Canlıda denetim betiği: Next.js dinamik sayfada metadatayı gövdeye akıtır (Googlebot için de); kanonik ararken yalnız `<head>`e bakan betik yanlış "yok" der, sayfanın tamamını okuyun | — |
+
+Bekçi: `seo-search-console.test.tsx`, `faz3-seo.test.tsx`, e2e `faz3-seo.spec.ts`.
