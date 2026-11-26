@@ -10,7 +10,13 @@ export const metadata = {
  * Sayfa üç ilke etrafında kuruldu. Önceden aynı içerik üç düz paragraftı;
  * okuyan kişi hangi cümlenin bir söz, hangisinin açıklama olduğunu ayıramıyordu.
  */
-const principles = [
+const principles: {
+  icon: typeof Compass;
+  title: string;
+  body: string;
+  webOnly?: string;
+  appOnly?: string;
+}[] = [
   {
     icon: Compass,
     title: "Cevabı değil yolu veriyoruz",
@@ -19,7 +25,10 @@ const principles = [
   {
     icon: Receipt,
     title: "Ne harcadığın önceden belli",
-    body: "Ne kadar kullandığın Profil → Kullanım'da yüzde olarak görünür. Bir içerik hiç hazırlanamazsa hakkın iade edilir. Abonelik kendiliğinden yenilenmez; sürpriz çekim ya da görünmeyen kesinti yok.",
+    body: "Ne kadar kullandığın Profil → Kullanım'da yüzde olarak görünür. Bir içerik hiç hazırlanamazsa hakkın iade edilir.",
+    // 26 Kasım 2026 (mağaza uyumluluğu): yenileme cümlesi satın alınan yere göre (web'de PayTR, uygulamada mağaza).
+    webOnly: "Abonelik kendiliğinden yenilenmez; sürpriz çekim ya da görünmeyen kesinti yok.",
+    appOnly: "Uygulamada alınan abonelik mağazanın ayarlarından istediğin an iptal edilir; görünmeyen kesinti yok.",
   },
   {
     icon: ShieldCheck,
@@ -37,7 +46,7 @@ export default function HakkimizdaPage() {
       <p className="mk-eyebrow">Çalışma ilkelerimiz</p>
 
       <div className="mt-5 grid gap-4 md:grid-cols-3">
-        {principles.map(({ icon: Icon, title, body }) => (
+        {principles.map(({ icon: Icon, title, body, webOnly, appOnly }) => (
           <article key={title} className="mk-feature">
             <span className="mk-icon" aria-hidden>
               <Icon className="h-5 w-5" />
@@ -47,6 +56,8 @@ export default function HakkimizdaPage() {
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-[var(--mk-muted)]">
               {body}
+              {webOnly ? <span data-web-only> {webOnly}</span> : null}
+              {appOnly ? <span data-app-only> {appOnly}</span> : null}
             </p>
           </article>
         ))}

@@ -52,6 +52,8 @@ const EXEMPT_PREFIXES = [
   "/eposta",
   // Faz 6 (20 Kasım 2026): e-postadaki tercih bağlantısı oturumsuz çalışır; çıkış hakkı onay kapısının arkasında kalmaz.
   "/bildirim-tercihleri",
+  // 26 Kasım 2026 (mağaza uyumluluğu): yeni metni onaylamak istemeyen kişi de hesabını silebilmeli.
+  "/hesap-silme",
   "/onboarding",
   // Faz 2: Google ile ilk girişin onay ekranı kapının kendisini sayfa olarak gösterir.
   "/onay",

@@ -65,13 +65,13 @@
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Ders notunun ya da çözdüğün sorunun fotoğrafını çekip çalışma yoluna eklemek için kamerayı kullanırız.</string>
+	<string>Defter sayfanın, ders notunun ya da çözdüğün sorunun fotoğrafını çekip taramak ve çalışma yoluna eklemek için kamerayı kullanırız.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Galerindeki defter ve not fotoğraflarını seçip çalışma yoluna eklemek için kullanırız.</string>
+	<string>Galerindeki defter ve ders notu fotoğraflarını seçip çalışma yoluna eklemek için kullanırız; yalnız senin seçtiğin fotoğraflar yüklenir.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Sınav sabahı kâğıdı gibi kaydetmek istediğin görselleri galerine eklemek için kullanırız.</string>
+	<string>Cortex Plus galerine kendiliğinden fotoğraf eklemez; bu izin yalnız sen bir görseli galerine kaydetmek istediğinde sorulur.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Öğretmeninle sesli konuşabilmen ve sorunu sesle yazdırabilmen için mikrofonu kullanırız.</string>
+	<string>Canlı sesli öğretmenle konuşabilmen ve sorunu sesle yazdırabilmen için mikrofonu kullanırız; mikrofon yalnız «Konuş»a ya da mikrofon düğmesine dokunduğunda açılır, ses kaydı saklanmaz.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 </dict>

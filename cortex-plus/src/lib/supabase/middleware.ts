@@ -3,6 +3,11 @@ import { NextResponse, type NextRequest } from "next/server";
 import { homePathForRole } from "@/lib/parity/signup";
 import { onboardingPathForRole } from "@/lib/auth/onboarding-path";
 import { accountActiveOrUnknown } from "@/lib/auth/active-account";
+import {
+  NATIVE_STORE_ONLY_MESSAGE,
+  nativeGuestHomeRedirect,
+  nativePaymentDecision,
+} from "@/lib/platform/native-payment-policy";
 import { sharedCacheGet, sharedCacheSet } from "@/lib/cache/shared-ttl-cache";
 import { gateFromProfile, SESSION_CONTEXT_TTL_SECONDS, sessionGateKey, type SessionGate } from "@/lib/auth/session-keys";
 import {
@@ -142,6 +147,22 @@ export async function updateSession(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
 
+  // Mobil uygulamada web ödemesi yok (26 Kasım 2026, App Store 3.1.1 / Google Play): web'e özgü ödeme sayfası
+  // uygulamanın mağaza abonelik ekranına yönlenir, ödeme başlatan uç reddeder. Tarayıcıda karar her zaman null.
+  const nativePayment = nativePaymentDecision(path, request.headers.get("user-agent"));
+  if (nativePayment?.kind === "block") {
+    return NextResponse.json(
+      { error: nativePayment.error, message: NATIVE_STORE_ONLY_MESSAGE },
+      { status: nativePayment.status, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+  if (nativePayment?.kind === "redirect") {
+    const url = request.nextUrl.clone();
+    url.pathname = nativePayment.to;
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
+
   if (matches(path, RETIRED_PREFIXES)) {
     const url = request.nextUrl.clone();
     url.pathname = "/ogretmen";
@@ -185,6 +206,15 @@ export async function updateSession(request: NextRequest) {
     const gate = await checkSignedOutDevice(request);
     if (gate.revoked) return otherDeviceRedirect(request, supabaseResponse, isProtected);
     device = gate.cookie;
+  }
+
+  // Uygulamada oturumsuz ziyaretçi tanıtım sayfası (web fiyatı, PayTR) yerine kayda gider.
+  const nativeGuestHome = nativeGuestHomeRedirect(path, request.headers.get("user-agent"), Boolean(user));
+  if (nativeGuestHome) {
+    const url = request.nextUrl.clone();
+    url.pathname = nativeGuestHome;
+    url.search = "";
+    return withDevice(redirectCarryingCookies(url, supabaseResponse));
   }
 
   if (isProtected && !user && !matches(path, GUEST_NOT_FOUND_PREFIXES)) {

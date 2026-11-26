@@ -53,8 +53,9 @@ export const KVKK_SECTIONS: LegalSection[] = [
       "Öğrenim bilgileri: sınıfın, hedef sınavın, yazarsan okulun, anlatım tercihin, çalışma tercihlerin ve sınav tarihin.",
       "Yüklediğin içerik: ders notların, belgelerin ve fotoğrafların ile bunlardan çıkarılan metin.",
       "Öğrenme kayıtları: sohbet mesajların, test ve deneme cevapların, puanların, ilerlemen, yanlışların, yıldızların ve bunlardan otomatik çıkarılan kısa öğrenme özeti.",
-      "Sesli kullanım: sesli derste ve sözlü pratikte söylediklerin yazıya çevrilir; ses kaydı saklanmaz.",
-      "Ödeme ve abonelik: satın aldığın plan, tutar, ödeme durumu ve tarihleri. Kart bilgilerin bize gelmez; ödeme kuruluşu işler.",
+      "Sesli kullanım: canlı sesli öğretmende, sesli derste ve sözlü pratikte konuşman gerçek zamanlı olarak yazıya çevrilir ve cevaplanır; ses kaydı saklanmaz, konuşmanın yazılı dökümü sohbetinde kalır.",
+      "Mobil uygulama: bildirim almayı kabul edersen telefonunun bildirim cihaz anahtarı ve telefonun türü (iOS ya da Android). Kamera, galeri ve mikrofon yalnız sen kullandığında açılır; uygulama kendiliğinden fotoğraf ya da ses kaydetmez.",
+      "Ödeme ve abonelik: satın aldığın plan, tutar, ödeme durumu ve tarihleri; mobil uygulamada mağazadan satın alırsan mağazanın satın alma kaydı (ürün, dönem ve yenileme durumu). Kart bilgilerin bize gelmez; ödeme kuruluşu ya da mağaza işler.",
       "Destek ve geri bildirim: destek taleplerin, anket cevapların ve sana gönderdiğimiz bildirimler.",
       "İşlem güvenliği: oturum ve cihaz kayıtları, giriş zamanları ve hata kayıtları.",
       "IP adresin üç biçimde tutulur: kötüye kullanım, metin onayı ve çerez tercihi kayıtlarında tek yönlü özet olarak (geri çevrilemez); hız sınırı için kısa süreli kayıtlarda olduğu gibi (dakikalar ya da günler içinde silinir); ödeme yaparsan ödeme kuruluşuna ve ödeme onayının kanıt kaydına olduğu gibi.",
@@ -88,7 +89,7 @@ export const KVKK_SECTIONS: LegalSection[] = [
   {
     heading: "Verileri nasıl topluyoruz",
     body: [
-      "Kayıt formundan, uygulamadaki ekranlardan, yüklediğin dosyalardan, Google ile girmeyi seçersen Google'dan, ödeme yaptığında ödeme kuruluşunun bildirimlerinden ve çerezlerden; elektronik ortamda, otomatik ve kısmen otomatik yollarla.",
+      "Kayıt formundan, web sitesindeki ve mobil uygulamadaki ekranlardan, yüklediğin dosyalardan, Google ile girmeyi seçersen Google'dan, ödeme yaptığında ödeme kuruluşunun ya da uygulama mağazasının bildirimlerinden ve çerezlerden; elektronik ortamda, otomatik ve kısmen otomatik yollarla.",
     ],
   },
   {
@@ -102,7 +103,9 @@ export const KVKK_SECTIONS: LegalSection[] = [
       "Upstash — hız sınırı ve kısa süreli kilit kayıtları (kullanıcı kimliği ya da IP adresi; dakikalar ya da günler içinde silinir).",
       "Sentry — hata kayıtları; kişisel veriler ayıklanarak gönderilir.",
       "PostHog — yalnız analitik çerezlere izin verirsen, sayfa ve özellik kullanım sayıları (Avrupa Birliği sunucuları).",
-      "PayTR Ödeme ve Elektronik Para Kuruluşu A.Ş. — ödemenin alınması ve iadesi (Türkiye).",
+      "PayTR Ödeme ve Elektronik Para Kuruluşu A.Ş. — web sitesinde ödemenin alınması ve iadesi (Türkiye).",
+      "Apple ve Google — mobil uygulamada bildirimlerin telefonuna iletilmesi (Apple Push Notification service, Firebase Cloud Messaging) ve uygulama mağazasından satın alırsan ödemenin alınması ve aboneliğin yönetimi (App Store, Google Play; ABD).",
+      "RevenueCat — mobil uygulamada mağazadan satın alırsan aboneliğinin hesabına tanımlanması (mağazanın satın alma kaydı ve hesap kimliği; ABD).",
       "Yetkili kamu kurum ve kuruluşları — yalnız kanunen zorunlu olduğunda.",
       transferBasis,
       "Sıralamada (yıldızlar) diğer öğrenciler adını, soyadının baş harfini ve okulunu görebilir; istersen yıldızlar penceresinden gizlersin. 18 yaşından küçük kullanıcılarda bu görünürlük kapalı başlar.",
@@ -119,7 +122,8 @@ export const KVKK_SECTIONS: LegalSection[] = [
   {
     heading: "Ne kadar saklıyoruz",
     body: [
-      "Hesabın açık kaldıkça. Hesabını Ayarlar'dan silersen belgelerin, sohbetlerin, cevapların ve ilerlemen hemen silinmeye başlar; yarım kalan adımlar her gün otomatik olarak yeniden denenir.",
+      "Hesabın açık kaldıkça. Hesabını Ayarlar'dan ya da giriş yapmadan Hesap silme sayfasından (cortexplus.app/hesap-silme, e-postana gelen onay bağlantısıyla) silersen belgelerin, sohbetlerin, cevapların ve ilerlemen hemen silinmeye başlar; yarım kalan adımlar her gün otomatik olarak yeniden denenir.",
+      "Mobil uygulamada mağazadan aldığın abonelik hesabını silince kendiliğinden iptal olmaz; aboneliği App Store ya da Google Play'in abonelik ayarlarından iptal edersin.",
       "Ödeme yapılmış hesaplarda ödeme kayıtları vergi ve ticaret mevzuatının öngördüğü süre (10 yıla kadar) saklanır; bu yüzden giriş kapatılır, e-posta adresi anonimleştirilir, ödeme kaydı kalır. Ödeme onayının kanıt kaydı (zaman ve IP adresi) da ödeme kaydıyla birlikte kalır.",
       "Hangi metni ne zaman onayladığının kaydı, olası bir uyuşmazlıkta kanıt olarak hesabınla (ödeme kaydı varsa onunla) birlikte saklanır.",
       "Hız sınırı ve kilit kayıtları dakikalar ya da günler içinde kendiliğinden silinir; hata kayıtları hata izleme hizmetinde en çok 90 gün tutulur. Çerezlerin süreleri Çerez Politikası'nda yazar.",
@@ -128,7 +132,7 @@ export const KVKK_SECTIONS: LegalSection[] = [
   {
     heading: "18 yaşından küçük kullanıcılar",
     body: [
-      "Cortex Plus'ı ortaokul ve lise öğrencileri de kullanır. 18 yaşından küçüksen hesabını velinin (anne, baba ya da yasal temsilcinin) bilgisi ve izniyle açmalısın; kayıtta bunu beyan edersin.",
+      "Cortex Plus'ı ortaokul ve lise öğrencileri de kullanır. 18 yaşından küçüksen hesabını velinin (anne, baba ya da vasi gibi yasal temsilcinin) bilgisi ve izniyle açmalısın; kayıtta bunu beyan edersin.",
       "Çocuklardan yalnız hizmet için gereken verileri isteriz; okul adı gibi alanlar zorunlu değildir. Adın sıralamada kapalı başlar ve analitik çerezler izin verilmeden çalışmaz.",
       "Velin, senin adına haklarını kullanmak ya da hesabının kapatılmasını istemek için bize yazabilir; velilik ilişkisini doğrulamak için bilgi isteyebiliriz.",
     ],
@@ -153,7 +157,7 @@ export const KVKK_SECTIONS: LegalSection[] = [
       `Hesabındayken Destek sayfasında "Kişisel veri başvurusu" konusunu seçerek, kayıtlı e-posta adresinden ${sellerField("email")} adresine yazarak ya da yukarıdaki adrese yazılı olarak başvurabilirsin. Başvuruda adını soyadını ve talebini açıkça yaz.`,
       "Başvurunu en geç 30 gün içinde ve kural olarak ücretsiz sonuçlandırırız; işlem ayrıca bir maliyet gerektirirse Kurul'un belirlediği tarife uygulanabilir.",
       "Başvurun reddedilirse, cevabı yetersiz bulursan ya da süresinde cevap alamazsan Kişisel Verileri Koruma Kurulu'na şikâyette bulunabilirsin.",
-      "Hesabını ve verilerini Ayarlar'dan kendin de silebilirsin; analitik çerez iznini sayfanın altındaki \"Çerez tercihleri\"nden geri alabilirsin.",
+      "Hesabını ve verilerini Ayarlar'dan kendin de silebilirsin; giriş yapamıyorsan cortexplus.app/hesap-silme sayfasından e-postanla silme talebi oluşturursun. Analitik çerez iznini sayfanın altındaki \"Çerez tercihleri\"nden geri alabilirsin.",
     ],
   },
   {

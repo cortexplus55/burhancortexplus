@@ -141,8 +141,9 @@ for (const size of [
         expect(hap.left).toBeGreaterThan(column.left + 20);
         expect(hap.height).toBeGreaterThanOrEqual(44);
       }
+      // Beğen, beğenme, sesli dinle, kopyala ve 26 Kasım 2026'dan beri Bildir (mağaza uyumluluğu).
       const acts = page.locator(".cx-v3-acts").getByRole("button");
-      await expect(acts).toHaveCount(4);
+      await expect(acts).toHaveCount(5);
       expect(await smallestTarget(page, ".cx-v3-acts")).toBeGreaterThanOrEqual(minTap);
       expect(await smallestTarget(page, ".cx-v3-bar")).toBeGreaterThanOrEqual(minTap);
       expect(await smallestTarget(page, ".cx-v3-row")).toBeGreaterThanOrEqual(minTap);

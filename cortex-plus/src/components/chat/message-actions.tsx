@@ -1,10 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Copy, RefreshCw, Square, ThumbsDown, ThumbsUp, Volume2 } from "lucide-react";
+import { Check, Copy, Flag, RefreshCw, Square, ThumbsDown, ThumbsUp, Volume2 } from "lucide-react";
 import { toast } from "sonner";
 import { speakTurkish, stopSpeech } from "@/lib/learning/studio-speech";
 import { plainTutorText } from "@/lib/learning/tutor-reply";
+import {
+  REPLY_REPORT_EXCERPT_MAX,
+  REPLY_REPORT_REASONS,
+  REPLY_REPORT_THANKS,
+  type ReplyReportReason,
+} from "@/lib/learning/reply-report";
 
 export type Rating = 1 | -1 | null;
 export type RatingReason = "yanlis" | "anlasilmadi" | "eksik";
@@ -69,6 +75,9 @@ export function MessageActions({
   const [rating, setRating] = useState<Rating>(initialRating);
   const [askReason, setAskReason] = useState(false);
   const [sending, setSending] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reported, setReported] = useState(false);
+  const [reporting, setReporting] = useState(false);
   const speaking = speech ? speech.speaking : ownSpeaking;
 
   useEffect(() => () => {
@@ -146,6 +155,76 @@ export function MessageActions({
     }
   }
 
+  /**
+   * "Bildir" (26 Kasım 2026, Google Play yapay zekâ içerik politikası): hatalı ya da uygunsuz yanıt uygulamadan
+   * çıkmadan bildirilir. Kaydedilmemiş yanıtta da çalışır (ekrandaki metin gider); kayıtlıysa metin sunucudan okunur.
+   */
+  async function report(reason: ReplyReportReason) {
+    if (reporting || reported) return;
+    setReporting(true);
+    try {
+      const res = await fetch("/api/ai/chat/report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messageId: messageId ?? null,
+          reason,
+          // Metin her zaman gider: kayıtlı yanıtta sunucu kendi kaydını okur, geçici kimlikli yanıtta bu metni kullanır.
+          excerpt: plainTutorText(content).slice(0, REPLY_REPORT_EXCERPT_MAX),
+        }),
+      });
+      if (!res.ok) throw new Error("bildirilemedi");
+      setReported(true);
+      setReportOpen(false);
+      if (messageId) {
+        setRating(-1);
+        onRated?.(-1);
+      }
+      toast.success(REPLY_REPORT_THANKS);
+    } catch {
+      toast.error("Bildirim gönderilemedi", { description: "Bağlantını kontrol edip tekrar dene." });
+    } finally {
+      setReporting(false);
+    }
+  }
+
+  const reportButton = (className: string, iconClass?: string) => (
+    <button
+      type="button"
+      className={className}
+      data-on={reported || undefined}
+      onClick={() => {
+        if (reported) return;
+        setAskReason(false);
+        setReportOpen((open) => !open);
+      }}
+      aria-expanded={reportOpen}
+      aria-label={reported ? "Bildirildi" : "Bildir"}
+      title={reported ? "Bildirildi" : "Yanlış ya da uygunsuz yanıtı bildir"}
+      disabled={reporting}
+    >
+      <Flag className={iconClass} aria-hidden />
+    </button>
+  );
+
+  const reportReasons = (groupClass: string, hintClass: string, buttonClass: string) =>
+    reportOpen && !reported ? (
+      <div className={groupClass} role="group" aria-label="Yanıtı neden bildiriyorsun?">
+        <span className={hintClass}>Neden bildiriyorsun?</span>
+        {REPLY_REPORT_REASONS.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            className={buttonClass}
+            disabled={reporting}
+            onClick={() => void report(item.id)}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+    ) : null;
+
   function onThumbUp() {
     setAskReason(false);
     void rate(rating === 1 ? null : 1);
@@ -205,6 +284,8 @@ export function MessageActions({
         <button type="button" className="cx-v3-act" onClick={copy} aria-label="Kopyala" title="Kopyala">
           {copied ? <Check aria-hidden /> : <Copy aria-hidden />}
         </button>
+        {reportButton("cx-v3-act")}
+        {reportReasons("cx-v3-reasons", "cx-v3-reasons-hint", "cx-v3-reason")}
         {askReason && rating === -1 ? (
           <div className="cx-v3-reasons" role="group" aria-label="Sorun neydi?">
             <span className="cx-v3-reasons-hint">Sorun neydi?</span>
@@ -295,7 +376,11 @@ export function MessageActions({
         </>
       ) : null}
 
+      {reportButton("cp-msg-action", "h-3.5 w-3.5")}
+
       {copied ? <span className="cp-msg-action-hint">Kopyalandı</span> : null}
+
+      {reportReasons("cp-msg-reasons", "cp-msg-action-hint", "cp-msg-reason")}
 
       {askReason && rating === -1 ? (
         <div className="cp-msg-reasons" role="group" aria-label="Sorun neydi?">

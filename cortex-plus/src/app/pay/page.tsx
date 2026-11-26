@@ -13,12 +13,39 @@ import { loadPlusPrices } from "@/lib/billing/plan-prices";
 import Link from "next/link";
 import { getStudentAccountContext } from "@/lib/student/account-context";
 import { FounderBadge } from "@/components/student/founder-chip";
+import { headers } from "next/headers";
+import { nativePlatformFromUserAgent } from "@/lib/platform/native-ua";
+import { NativeSubscriptionScreen } from "@/components/billing/native-subscription-screen";
+import { STORE_PRODUCTS, storeOffersFromPlans } from "@/lib/billing/store-products";
 
 export const metadata = { title: "Abonelik" };
 
 /** Referans ürün `/pay` — uygulama içi Plus satın alma (checkout altyapısı /paketler ile aynı). */
 export default async function PayPage({ searchParams }: { searchParams: Promise<{ kod?: string | string[] }> }) {
   const { supabase, user } = await requireUser();
+  // Mobil uygulamada (26 Kasım 2026, App Store 3.1.1 / Google Play): yalnız mağaza aboneliği. PayTR, veli ödeme
+  // bağlantısı, kampanya kodu ve "Plus'ın bir ayı" satışı uygulamada çizilmez.
+  const nativePlatform = nativePlatformFromUserAgent((await headers()).get("user-agent"));
+  if (nativePlatform) {
+    const [planRows, entitlements, account] = await Promise.all([
+      supabase.from("plans").select("slug, price_try, description, active").in(
+        "slug",
+        STORE_PRODUCTS.map((product) => product.slug),
+      ),
+      getUserEntitlements(supabase, user.id),
+      getStudentAccountContext(supabase, user.id).catch(() => null),
+    ]);
+    return (
+      <AppShell focus>
+        <NativeSubscriptionScreen
+          platform={nativePlatform}
+          offers={storeOffersFromPlans(planRows.data)}
+          currentPlan={entitlements.isPremium ? (entitlements.badge ?? entitlements.planName ?? "Plus") : null}
+          founder={account?.isAdmin === true}
+        />
+      </AppShell>
+    );
+  }
   // Beta kodu bağlantısı (/pay?kod=BETA-…): kutu dolu açılır, öğrenci "Kodu kullan"a basar.
   const kodParam = (await searchParams).kod;
   const initialCode = (Array.isArray(kodParam) ? kodParam[0] : kodParam)?.slice(0, 40) ?? "";

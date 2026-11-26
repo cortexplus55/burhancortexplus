@@ -49,6 +49,8 @@ export function ParitySiteFooter() {
           <Link href="/kvkk">KVKK</Link>
           <Link href="/kullanim-kosullari">Kullanım koşulları</Link>
           <Link href="/cerez-politikasi">Çerez politikası</Link>
+          {/* Google Play hesap silme politikası (26 Kasım 2026): giriş yapmadan silme yolu her sayfadan bulunur. */}
+          <Link href="/hesap-silme">Hesap silme</Link>
           {/* Kurul'un çerez rehberi: rıza her sayfadan kolayca geri alınabilmeli (7 Kasım 2026). */}
           <CookiePreferencesButton className="mk-footer-pref" />
           {/* Mesafeli satışta bu dördü sitede erişilebilir olmak zorunda. */}

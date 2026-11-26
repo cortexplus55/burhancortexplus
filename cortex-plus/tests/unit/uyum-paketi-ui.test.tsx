@@ -93,7 +93,7 @@ describe("okumadan işaretlenemeyen kutu", async () => {
     await waitFor(() => expect(box.getAttribute("aria-checked")).toBe("true"));
     const change = onChange.mock.calls.at(-1)?.[0] as { checked: boolean; evidence: { version: string; scrolledToEnd: boolean } };
     expect(change.checked).toBe(true);
-    expect(change.evidence.version).toBe("2026-11-08");
+    expect(change.evidence.version).toBe("2026-11-26");
     expect(change.evidence.scrolledToEnd).toBe(true);
 
     // Okuduktan sonra kaldırıp yeniden işaretlemek metni bir daha açtırmaz.

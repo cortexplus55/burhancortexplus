@@ -10,12 +10,14 @@ import {
   Receipt,
   Scale,
   ShieldCheck,
+  Trash2,
   UserRound,
 } from "lucide-react";
 import { PLAN_WORK_BY_ID, workCount } from "@/lib/billing/plan-value";
 import { PLAN_ALLOWANCES } from "@/lib/credits/price-table";
 import { AppShell } from "@/components/layout/app-shell";
-import { DataDeletionButton } from "@/components/profile/data-deletion-button";
+import { AccountDeletionPanel } from "@/components/profile/account-deletion-panel";
+import { ACCOUNT_DELETION_COPY } from "@/lib/privacy/account-deletion-copy";
 import { CookiePreferencesButton } from "@/components/legal/cookie-banner";
 import { EmailChangeCard } from "@/components/profile/email-change-card";
 import { EmailPreferencesCard } from "@/components/profile/email-preferences-card";
@@ -218,6 +220,7 @@ export default async function AyarlarPage() {
               { href: "/kullanim-kosullari", icon: Scale, title: "Kullanım koşulları", hint: "Hizmetin kuralları" },
               { href: "/cerez-politikasi", icon: FileText, title: "Çerez politikası", hint: "Hangi çerezleri kullanıyoruz" },
               { href: "/destek?konu=kvkk", icon: ShieldCheck, title: "Kişisel veri başvurusu", hint: "Verilerin hakkında talep gönder" },
+              { href: "#hesabi-sil", icon: Trash2, title: "Hesabımı kalıcı olarak sil", hint: "Hesabını ve verilerini sil" },
             ]}
           />
           <CookiePreferencesButton className="cp-set-inline-btn" />
@@ -225,20 +228,17 @@ export default async function AyarlarPage() {
 
         {/*
           Silme bir ekip işi değil: talep anında işleniyor, yarım kalırsa günlük cron yeniden deniyor
-          (processPendingDeletionRequests).
+          (processPendingDeletionRequests). 26 Kasım 2026 (App Store 5.1.1(v), Google Play): kalıcı silme, silinen ve
+          kalan veriler, mağaza aboneliği uyarısı; `#hesabi-sil` ile doğrudan açılır.
         */}
-        <Group title="Hesap verisi" description="Silme talebi hemen işlenir; tamamlandığında hesabın kapanır." tone="danger">
-          {deletionRequest ? (
-            <p className="text-sm">
-              {deletionRequest.status === "completed"
-                ? "Silme talebin tamamlandı"
-                : "Silme talebin işleniyor; yarım kalan adımlar her gün otomatik olarak yeniden deneniyor"}{" "}
-              · {formatDate(deletionRequest.requested_at)}
-            </p>
-          ) : (
-            <DataDeletionButton />
-          )}
-        </Group>
+        <div id="hesabi-sil">
+          <Group title={ACCOUNT_DELETION_COPY.groupTitle} description={ACCOUNT_DELETION_COPY.groupDescription} tone="danger">
+            <AccountDeletionPanel
+              request={deletionRequest ? { status: deletionRequest.status ?? null } : null}
+              requestedAtLabel={deletionRequest ? formatDate(deletionRequest.requested_at) : null}
+            />
+          </Group>
+        </div>
       </div>
     </AppShell>
   );

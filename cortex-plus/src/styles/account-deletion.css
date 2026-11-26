@@ -1,0 +1,151 @@
+/*
+  Hesap silme (26 Kasım 2026, mağaza uyumluluğu): Ayarlar'daki "Hesabı sil" bölümü ve herkese açık `/hesap-silme`
+  sayfası. Renk ve ölçü tasarım sistemi token'larından; iki temada da çalışır.
+*/
+.cx-del {
+  display: grid;
+  gap: var(--cx-space-16, 16px);
+  min-width: 0;
+}
+
+.cx-del-cols {
+  display: grid;
+  gap: var(--cx-space-16, 16px);
+}
+
+@media (min-width: 720px) {
+  .cx-del-cols {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.cx-del-h {
+  margin: 0 0 var(--cx-space-8, 8px);
+  font: var(--cx-t-label-15);
+  font-weight: 600;
+  color: var(--cx-text-primary);
+}
+
+.cx-del-list {
+  display: grid;
+  gap: var(--cx-space-6, 6px);
+  margin: 0;
+  padding-left: 1.1em;
+  color: var(--cx-text-secondary);
+  font: var(--cx-t-body-14);
+  line-height: 1.45;
+}
+
+.cx-del-warn {
+  margin: 0;
+  padding: var(--cx-space-12, 12px) var(--cx-space-16, 16px);
+  border-radius: var(--cx-radius-m, 16px);
+  background: var(--cx-warning-weak);
+  color: var(--cx-text-primary);
+  font: var(--cx-t-body-14);
+  line-height: 1.45;
+}
+
+.cp-set-danger-btn,
+.cx-del-submit {
+  justify-self: start;
+  min-height: 44px;
+  padding-inline: var(--cx-space-18, 18px);
+  border: 1px solid var(--cx-danger);
+  border-radius: var(--cx-radius-max, 6000px);
+  background: var(--cx-danger-weak);
+  color: var(--cx-text-primary);
+  font: var(--cx-t-button-s);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.16s ease;
+}
+
+.cp-set-danger-btn:focus-visible,
+.cx-del-submit:focus-visible,
+.cx-del-link:focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}
+
+.cx-del-submit:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+.cx-del-foot,
+.cx-del-status {
+  margin: 0;
+  color: var(--cx-text-secondary);
+  font: var(--cx-t-body-14);
+  line-height: 1.45;
+}
+
+.cx-del-form {
+  display: grid;
+  gap: var(--cx-space-8, 8px);
+  max-width: 28rem;
+}
+
+.cx-del-label {
+  font: var(--cx-t-label-15);
+  font-weight: 600;
+  color: var(--cx-text-primary);
+}
+
+.cx-del-input {
+  min-height: 48px;
+  padding-inline: var(--cx-space-16, 16px);
+  border: 1px solid var(--cx-border-2);
+  border-radius: var(--cx-radius-m, 16px);
+  background: var(--cx-bg-1);
+  color: var(--cx-text-primary);
+  font-size: 16px;
+}
+
+.cx-del-input:focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 2px;
+}
+
+.cx-del-error {
+  margin: 0;
+  color: var(--cx-danger);
+  font: var(--cx-t-body-14);
+}
+
+.cx-del-section {
+  display: grid;
+  gap: var(--cx-space-12, 12px);
+  margin-top: var(--cx-space-32, 32px);
+}
+
+.cx-del-section h2 {
+  margin: 0;
+  font: var(--cx-t-title-m);
+  font-weight: 600;
+  color: var(--cx-text-primary);
+}
+
+.cx-del-section p {
+  margin: 0;
+  color: var(--cx-text-secondary);
+  font: var(--cx-t-body-14);
+  line-height: 1.5;
+}
+
+.cx-del-steps {
+  display: grid;
+  gap: var(--cx-space-8, 8px);
+  margin: 0;
+  padding-left: 1.3em;
+  color: var(--cx-text-secondary);
+  font: var(--cx-t-body-14);
+  line-height: 1.5;
+}
+
+.cx-del-link {
+  color: var(--cx-text-brand);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

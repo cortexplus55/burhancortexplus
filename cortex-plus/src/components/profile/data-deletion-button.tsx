@@ -1,102 +1,57 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { requestDataDeletion } from "@/app/actions";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { ACCOUNT_DELETION_COPY } from "@/lib/privacy/account-deletion-copy";
 
-export function DataDeletionButton({
-  tone = "default",
-}: {
-  tone?: "default" | "parity";
-}) {
-  const [confirming, setConfirming] = useState(false);
+/**
+ * "Hesabımı kalıcı olarak sil" (26 Kasım 2026, App Store 5.1.1(v) ve Google Play hesap silme politikası). Devre dışı
+ * bırakma değil: onaylanınca `requestDataDeletion` hesabı ve kişisel verileri hemen siler (`purgeUserData`), yarım
+ * kalırsa günlük iş yeniden dener. Ödeme ve fatura kayıtları mevzuat gereği saklanır. Onay penceresi geri alınamaz
+ * olduğunu ve mağaza aboneliğinin kendiliğinden iptal olmadığını söyler.
+ */
+export function DataDeletionButton() {
+  const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
-  const parity = tone === "parity";
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
 
-  if (!confirming) {
-    if (parity) {
-      return (
-        <button
-          type="button"
-          className="rounded-full border border-[var(--cs-border)] px-4 py-2 text-sm"
-          onClick={() => setConfirming(true)}
-        >
-          Veri silme talebi oluştur
-        </button>
-      );
-    }
-    return (
-      <Button type="button" variant="outline" onClick={() => setConfirming(true)}>
-        Veri silme talebi oluştur
-      </Button>
-    );
+  function confirm() {
+    startTransition(async () => {
+      const result = await requestDataDeletion();
+      if (result.ok) {
+        toast.success(result.status === "completed" ? ACCOUNT_DELETION_COPY.done : ACCOUNT_DELETION_COPY.queued);
+        window.location.href = "/";
+        return;
+      }
+      toast.error(ACCOUNT_DELETION_COPY.failed);
+      setOpen(false);
+    });
   }
 
   return (
-    <div className="space-y-3">
-      <p
-        className={
-          parity ? "text-sm text-[var(--cs-muted)]" : "text-sm text-muted-foreground"
-        }
+    <>
+      <button
+        ref={buttonRef}
+        type="button"
+        className="cp-set-danger-btn"
+        data-testid="account-delete-open"
+        onClick={() => setOpen(true)}
       >
-        Talebi onaylarsan profilin, belgelerin, sohbetlerin, sınav ve quiz
-        kayıtların silinir; oturumun kapanır. Ödeme ve fatura kayıtları yasal
-        zorunluluk nedeniyle saklanır. Bu işlem geri alınamaz.
-      </p>
-      <div className="flex gap-2">
-        {parity ? (
-          <>
-            <button
-              type="button"
-              disabled={pending}
-              className="rounded-full bg-red-500/20 px-4 py-2 text-sm text-red-200 disabled:opacity-60"
-              onClick={() =>
-                startTransition(async () => {
-                  const result = await requestDataDeletion();
-                  if (result.ok) {
-                    toast.success(result.status === "completed" ? "Hesabın silindi." : "Silme talebin alındı. Temizlik arka planda devam edecek.");
-                    window.location.href = "/";
-                  } else toast.error("Silme tamamlanamadı.");
-                  setConfirming(false);
-                })
-              }
-            >
-              Onaylıyorum
-            </button>
-            <button
-              type="button"
-              className="rounded-full px-4 py-2 text-sm text-[var(--cs-muted)]"
-              onClick={() => setConfirming(false)}
-            >
-              Vazgeç
-            </button>
-          </>
-        ) : (
-          <>
-            <Button
-              type="button"
-              variant="destructive"
-              disabled={pending}
-              onClick={() =>
-                startTransition(async () => {
-                  const result = await requestDataDeletion();
-                  if (result.ok) {
-                    toast.success(result.status === "completed" ? "Hesabın silindi." : "Silme talebin alındı. Temizlik arka planda devam edecek.");
-                    window.location.href = "/";
-                  } else toast.error("Silme tamamlanamadı.");
-                  setConfirming(false);
-                })
-              }
-            >
-              Onaylıyorum
-            </Button>
-            <Button type="button" variant="ghost" onClick={() => setConfirming(false)}>
-              Vazgeç
-            </Button>
-          </>
-        )}
-      </div>
-    </div>
+        {ACCOUNT_DELETION_COPY.button}
+      </button>
+      <ConfirmDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={ACCOUNT_DELETION_COPY.dialogTitle}
+        description={ACCOUNT_DELETION_COPY.dialogText}
+        confirmLabel={ACCOUNT_DELETION_COPY.confirm}
+        pendingLabel="Siliniyor…"
+        pending={pending}
+        onConfirm={confirm}
+        returnFocusRef={buttonRef}
+      />
+    </>
   );
 }

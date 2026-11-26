@@ -1,0 +1,183 @@
+/*
+  Mobil uygulamanın abonelik ekranı (26 Kasım 2026, mağaza uyumluluğu). Yalnız uygulamada `/pay` çizer
+  (`native-subscription-screen.tsx`). Renk ve ölçü tasarım sistemi token'larından; iki temada da çalışır.
+*/
+.cx-store {
+  display: grid;
+  gap: var(--cx-space-24, 24px);
+  width: 100%;
+  max-width: 768px;
+  margin-inline: auto;
+  padding-block: var(--cx-space-24, 24px) var(--cx-space-48, 48px);
+  padding-inline: var(--cx-space-16, 16px);
+  color: var(--cx-text-primary);
+}
+
+.cx-store-head {
+  display: grid;
+  gap: var(--cx-space-8, 8px);
+}
+
+.cx-store-head h1 {
+  margin: 0;
+  font: var(--cx-t-heading-s);
+  font-weight: 600;
+  letter-spacing: var(--cx-ls-heading, -0.02em);
+  line-height: 1.1;
+}
+
+.cx-store-current {
+  margin: 0;
+  color: var(--cx-text-secondary);
+  font: var(--cx-t-body-14);
+}
+
+.cx-store-plans {
+  display: grid;
+  gap: var(--cx-space-8, 8px);
+}
+
+.cx-store-plan {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cx-space-16, 16px);
+  min-height: 72px;
+  padding: var(--cx-space-14, 14px) var(--cx-space-16, 16px);
+  border: 1px solid var(--cx-border);
+  border-radius: var(--cx-radius-m, 16px);
+  background: var(--cx-bg-1);
+  color: var(--cx-text-primary);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.16s ease, background-color 0.16s ease;
+}
+
+.cx-store-plan[data-active] {
+  border-color: var(--cx-brand);
+  background: var(--cx-brand-weak);
+}
+
+.cx-store-plan:focus-visible,
+.cx-store-buy:focus-visible,
+.cx-store-restore:focus-visible,
+.cx-store-manage:focus-visible,
+.cx-store-legal a:focus-visible {
+  outline: 1px solid var(--cx-focus);
+  outline-offset: 3px;
+}
+
+.cx-store-plan-main {
+  display: grid;
+  gap: var(--cx-space-4, 4px);
+  min-width: 0;
+}
+
+.cx-store-plan-name {
+  font: var(--cx-t-title-s);
+  font-weight: 600;
+}
+
+.cx-store-plan-period {
+  color: var(--cx-text-secondary);
+  font: var(--cx-t-body-14);
+}
+
+.cx-store-plan-price {
+  flex: none;
+  font: var(--cx-t-title-s);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.cx-store-plan-unit {
+  color: var(--cx-text-secondary);
+  font-weight: 400;
+  font: var(--cx-t-body-14);
+}
+
+.cx-store-actions {
+  display: grid;
+  gap: var(--cx-space-12, 12px);
+}
+
+.cx-store-buy,
+.cx-store-restore {
+  min-height: 52px;
+  padding-inline: var(--cx-space-24, 24px);
+  border: 0;
+  border-radius: var(--cx-radius-max, 6000px);
+  font: var(--cx-t-button-l);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cx-store-buy {
+  background: var(--cx-gradient-brand);
+  color: var(--cx-text-on-brand);
+}
+
+.cx-store-buy:disabled {
+  background: var(--cx-bg-2);
+  color: var(--cx-text-disabled, var(--cx-text-tertiary));
+  cursor: not-allowed;
+}
+
+.cx-store-restore {
+  background: var(--cx-bg-2);
+  color: var(--cx-text-primary);
+}
+
+.cx-store-restore:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+.cx-store-note {
+  margin: 0;
+  color: var(--cx-text-secondary);
+  font: var(--cx-t-body-14);
+  line-height: 1.45;
+}
+
+.cx-store-terms {
+  display: grid;
+  gap: var(--cx-space-12, 12px);
+  padding: var(--cx-space-18, 18px) var(--cx-space-20, 20px);
+  border-radius: var(--cx-radius-l, 24px);
+  background: var(--cx-bg-1);
+}
+
+.cx-store-terms h2 {
+  margin: 0;
+  font: var(--cx-t-title-s);
+  font-weight: 600;
+}
+
+.cx-store-terms ul {
+  display: grid;
+  gap: var(--cx-space-8, 8px);
+  margin: 0;
+  padding-left: 1.1em;
+  color: var(--cx-text-secondary);
+  font: var(--cx-t-body-14);
+  line-height: 1.45;
+}
+
+.cx-store-manage,
+.cx-store-legal a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--cx-text-brand);
+  font: var(--cx-t-label-15);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.cx-store-legal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cx-space-4, 4px) var(--cx-space-24, 24px);
+}

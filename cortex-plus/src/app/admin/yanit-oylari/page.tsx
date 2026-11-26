@@ -18,6 +18,9 @@ const REASON_LABEL: Record<string, string> = {
   yanlis: "Yanlış",
   anlasilmadi: "Anlamadım",
   eksik: "Eksik kaldı",
+  // 26 Kasım 2026: yanıtın altındaki "Bildir" (`/api/ai/chat/report`) de olumsuz oy yazar.
+  uygunsuz: "Uygunsuz ya da zararlı (bildirildi)",
+  diger: "Başka bir sorun (bildirildi)",
 };
 
 export default async function AdminYanitOylariPage() {
