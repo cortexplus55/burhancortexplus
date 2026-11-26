@@ -61,6 +61,7 @@ import {
 } from "@/lib/learning/lesson-v3";
 import { noteRepeatsText, stripInlineSourceLine } from "@/lib/learning/lesson-source";
 import type { z } from "zod";
+import { AiNotice } from "@/components/legal/ai-notice";
 import "@/styles/exam-lesson-steps.css";
 
 /**
@@ -704,6 +705,8 @@ function LessonPlan({ lesson, upcoming = [], building = false }: { lesson: PlayL
           <mark className="als-exam">Turuncu</mark>: konunun kilit bilgisi.
         </p>
       ) : null}
+      {/* Yapay zekâ şeffaflık notu (26 Kasım 2026, mağaza uyumluluğu). */}
+      <AiNotice kind="lesson" className="als-ai-notice" />
     </section>
   );
 }

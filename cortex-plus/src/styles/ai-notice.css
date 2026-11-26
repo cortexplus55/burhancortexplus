@@ -1,0 +1,30 @@
+/* Yapay zekâ şeffaflık notu (26 Kasım 2026): sade, ikincil renk, tek satır ya da iki satır. Token'lardan. */
+.cx-ai-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cx-space-8, 8px);
+  margin: 0;
+  color: var(--cx-text-tertiary);
+  font: var(--cx-t-label-13);
+  line-height: 1.45;
+}
+
+/* Sohbetin başında: ilk balonun üstünde küçük boşlukla. */
+.cx-ai-notice.cx-v3-ai-notice,
+.cx-ai-notice.cp-sor-ai-notice {
+  justify-content: center;
+  margin-block: var(--cx-space-8, 8px) var(--cx-space-16, 16px);
+  text-align: center;
+}
+
+/* Dersin giriş ekranında, plan listesinin altında. */
+.cx-ai-notice.als-ai-notice {
+  margin-top: var(--cx-space-12, 12px);
+}
+
+.cx-ai-notice-icon {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-top: 2px;
+}

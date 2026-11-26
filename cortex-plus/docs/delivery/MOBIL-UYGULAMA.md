@@ -50,7 +50,22 @@ yalnız APNs ve FCM kimlik bilgileri kaldı (aşağıdaki hesaplar).
    `FCM_CLIENT_EMAIL`, `FCM_PRIVATE_KEY`.
 4. **RevenueCat** (Aşama 2): App Store ve Google Play bağlantısı, webhook sırrı → `REVENUECAT_WEBHOOK_SECRET`.
 
+## Mağaza uyumluluğu — yapıldı (26 Kasım 2026)
+
+Ayrıntı ve mağaza beyan tabloları: `docs/delivery/MAGAZA-UYUMLULUK-KONTROL.md`.
+
+- Uygulamada web ödemesi yok: `src/lib/platform/native-payment-policy.ts` (middleware) ödeme sayfalarını `/pay`'e,
+  tanıtım sayfalarını ana sayfaya, oturumsuz ana sayfayı kayda yönlendirir; PayTR, veli bağlantısı ve kod uçları 403.
+- `/pay` uygulamada mağaza abonelik ekranıdır (`native-subscription-screen.tsx`): plan, dönem, fiyat, otomatik yenileme,
+  24 saat kuralı, mağazadan iptal, "Satın Alımları Geri Yükle", Gizlilik ve Kullanım Şartları. Ürün kimlikleri
+  `src/lib/billing/store-products.ts`. Satın alma düğmesi `STORE_BILLING_LIVE = false` ile kapalı (`store-billing.ts`).
+- Kalıcı hesap silme Ayarlar'da; giriş yapmadan silme `/hesap-silme` (e-postayla imzalı onay bağlantısı).
+- Öğretmen yanıtında "Bildir", ders ve öğretmen ekranında yapay zekâ notu; Kullanım Koşulları ve KVKK metni yeni sürüm.
+
 ## Aşama 2 — uygulama içi satın alma (hesaplar açılınca)
+
+Ekran ve ürün kimlikleri hazır (yukarıda). Kalan: RevenueCat eklentisi ve kimlik eşlemesi, satın alma çağrısı,
+`POST /api/webhooks/revenuecat`, ardından `STORE_BILLING_LIVE = true`.
 
 - `@revenuecat/purchases-capacitor`, `src/lib/billing/mobile-iap.ts`: tekliflerin adları `sinav_haftasi`,
   `plus_monthly`, `sigma_monthly` ve ek kredi paketleri; "Satın Alımları Geri Yükle".
@@ -69,5 +84,5 @@ yalnız APNs ve FCM kimlik bilgileri kaldı (aşağıdaki hesaplar).
 |---|---|
 | App Store 4.2 (yalnız web sitesini saran uygulama) | Uygulama canlı siteyi açıyor. Kamera, bildirim, titreşim, paylaşım menüsü, çevrimdışı ekran ve mağaza satın alması (Aşama 2) yerel değer katıyor; inceleme notunda bunlar anlatılmalı. Ret gelirse ilk adım: daha fazla yerel ekran |
 | Sign in with Apple (4.8) | Uygulamada Google girişi gösterilmiyor; yalnız e-posta ve şifre olduğu sürece zorunlu değil. Uygulamaya Google girişi eklenirse Apple ile giriş de gerekir (karar ürün sahibinde) |
-| Hesap silme (5.1.1) | Ayarlar'daki hesap silme isteği uygulamada da açık |
+| Hesap silme (5.1.1) | Ayarlar → Hesabı sil → "Hesabımı kalıcı olarak sil" (onay penceresi, mağaza aboneliği uyarısı); giriş yapmadan `/hesap-silme` |
 | Evrensel bağlantılar | `apple-app-site-association` ve `assetlinks.json` Apple ekip kimliği ve imza anahtarı gelince eklenir; o zamana kadar bağlantılar telefonun tarayıcısında açılır |

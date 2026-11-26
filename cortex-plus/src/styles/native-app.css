@@ -13,6 +13,23 @@ html.cx-native :is(button, a, [role="button"]) {
   -webkit-tap-highlight-color: transparent;
 }
 
+/*
+  Mağaza uyumluluğu (26 Kasım 2026, App Store 3.1.1 / Google Play): uygulamada web'e özgü ödeme sözü ve bağlantısı
+  görünmez. Asıl kapı sunucuda (`native-payment-policy.ts`: sayfa yönlendirmesi, uç reddi, `/pay`'in mağaza ekranı);
+  bu kurallar kalan cümleler için güvenlik ağı. `data-web-only` yalnız tarayıcıda, `data-app-only` yalnız uygulamada
+  görünür. İlk betik `cx-native`'i gövdeden önce yazdığı için ekranda bir an bile görünmez.
+*/
+html.cx-native [data-web-only],
+html.cx-native a[href*="/veli-odeme"],
+html.cx-native a[href*="/odeme/veli"],
+html.cx-native a[href*="paytr.com"],
+html.cx-native a[href^="/fiyatlandirma"] {
+  display: none !important;
+}
+html:not(.cx-native) [data-app-only] {
+  display: none !important;
+}
+
 /* ── Bağlantı koptu çubuğu ─────────────────────────────────────────────────────────────── */
 .cx-offline-bar {
   position: fixed;

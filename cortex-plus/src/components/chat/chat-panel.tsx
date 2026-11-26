@@ -73,6 +73,7 @@ import { MathKeyboard } from "@/components/parity/math-keyboard";
 import { useStudentShellAccount } from "@/lib/student/student-shell-context";
 import { HOME_START_EVENT, TUTOR_HISTORY_EVENT, type TutorHistoryDetail } from "@/lib/ui/home-events";
 import { MessageActions, type Rating } from "@/components/chat/message-actions";
+import { AiNotice } from "@/components/legal/ai-notice";
 import { TutorReplyView } from "@/components/chat/tutor-reply-view";
 import { useSelectedCockpitPrepId, useSelectedCockpitPrepTitle } from "@/components/parity/home-selection";
 import { SourceModePill } from "@/components/chat/source-mode-pill";
@@ -2091,6 +2092,8 @@ function ChatPanelSession({
           />
           <div ref={messagesScrollRef} className="cx-v3-thread" role="log" aria-live="off" aria-label="Sohbet">
             <div className="cx-v3-col">
+              {/* Yapay zekâ şeffaflık notu (26 Kasım 2026, mağaza uyumluluğu): konuşmanın başında, sade tek satır. */}
+              <AiNotice kind="teacher" className="cx-v3-ai-notice" />
               {welcomeOpen ? (
                 <TeacherV3Welcome
                   firstName={studentFirstName}
@@ -2384,6 +2387,8 @@ function ChatPanelSession({
               aria-live={followUser ? "off" : "polite"}
             >
               <div className={examChrome ? "cp-exam-column" : undefined}>
+              {/* Yapay zekâ şeffaflık notu (26 Kasım 2026, mağaza uyumluluğu). */}
+              <AiNotice kind="teacher" className="cp-sor-ai-notice" />
               {messages.map((message, index) => {
                 const assistantBody = message.content ? (
                   <>

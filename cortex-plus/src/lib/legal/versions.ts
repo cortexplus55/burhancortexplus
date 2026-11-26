@@ -10,14 +10,19 @@
  * Sürüm değişince öğrenci bir sonraki girişinde yeni metni görür ve yeniden onaylar (onay kapısı,
  * `consent-gate.tsx`); aynı sürümü onaylamış öğrenciye bir daha sorulmaz.
  *
- * kvkk_aydinlatma    src/lib/legal/kvkk-text.ts   — 8 Kasım 2026 (IP'nin hangi kayıtta nasıl tutulduğu düzeltildi; 7 Kasım: çocuk özeti, tedarikçiler, saklama, başvuru)
- *                    15 Kasım 2026 metin açıklaması, onay sürümü aynı: `KVKK_TEXT_DATE` ve `KVKK_NON_MATERIAL_REVISIONS`
- * kullanim_kosullari src/lib/legal/terms-text.ts  — 7 Kasım 2026 (yaş ve veli izni, yüklenen içerik, sıralama)
+ * kvkk_aydinlatma    src/lib/legal/kvkk-text.ts   — 26 Kasım 2026 (mobil uygulama: bildirim anahtarı, Apple/Google, RevenueCat,
+ *                    giriş yapmadan silme); 8 Kasım (IP); 7 Kasım (çocuk özeti, tedarikçiler, saklama, başvuru);
+ *                    15 Kasım 2026 metin açıklamasıydı, onay sürümü değişmemişti (`KVKK_NON_MATERIAL_REVISIONS`)
+ * kullanim_kosullari src/lib/legal/terms-text.ts  — 26 Kasım 2026 (mağaza aboneliği, Bildir, silme yolu); 21 Kasım (ücretsiz
+ *                    hesabın kapsamı); 7 Kasım (yaş ve veli izni, yüklenen içerik, sıralama)
  */
 export const LEGAL_VERSIONS = {
-  kvkk_aydinlatma: "2026-11-08",
-  // 21 Kasım 2026: ücretsiz hesabın kapsamı bugünkü kurala göre (haftalık ders sınırı 11 Kasım'da kalkmıştı).
-  kullanim_kosullari: "2026-11-21",
+  // 26 Kasım 2026 (mağaza uyumluluğu): yeni alıcılar (Apple, Google bildirim ve mağaza, RevenueCat) ve yeni veri
+  // (bildirim cihaz anahtarı): KVKK'ya göre esaslı değişiklik, yeniden onay istenir.
+  kvkk_aydinlatma: "2026-11-26",
+  // 26 Kasım 2026: web satışı ile mobil uygulamadaki mağaza aboneliği ayrı yazıldı (otomatik yenileme, 24 saat, iptal,
+  // iade), "Bildir" ve yapay zekâ içeriğinin tavsiye yerine geçmediği, giriş yapmadan silme yolu eklendi.
+  kullanim_kosullari: "2026-11-26",
 } as const;
 
 export type ConsentType = keyof typeof LEGAL_VERSIONS;
@@ -29,12 +34,11 @@ export type ConsentType = keyof typeof LEGAL_VERSIONS;
  * gerekçesiyle durur; bekçi (`uyum-paketi.test.ts`) metnin özetini bu tarihle tutar, gerekçesiz değişiklikte düşer.
  * Onay kaydı öğrencinin onay zamanını da taşır: "o gün ne yazıyordu" sorusu tarihle git geçmişinden cevaplanır.
  */
-export const KVKK_TEXT_DATE: string = "2026-11-15";
+export const KVKK_TEXT_DATE: string = "2026-11-26";
 
-export const KVKK_NON_MATERIAL_REVISIONS: Record<string, string> = {
-  "2026-11-15":
-    "Çalışma, soru çözümü ve hata kayıtlarının kişiye özel anlatım ve eksik analizi için işlendiği (m.5/2-c) açıkça yazıldı. Bu kayıtlar ve amaç zaten metindeydi (öğrenme kayıtları, cevapları değerlendirmek, içerik üretimi); yeni veri, amaç, alıcı ya da hukuki sebep yok. Burhan, 15 Kasım 2026: onay sürümü değişmesin, yeniden onay istenmesin.",
-};
+// 26 Kasım 2026: onay sürümü 2026-11-26'ya yükseldi; 15 Kasım'ın gerekçeli açıklaması (kişiye özel anlatım ve eksik
+// analizi, m.5/2-c) artık onaylanan metnin parçası, liste boşaldı (git geçmişinde duruyor).
+export const KVKK_NON_MATERIAL_REVISIONS: Record<string, string> = {};
 
 /** Kayıtta istenen yaş beyanı (18 altı / üstü) ve 18 altındaysa velinin izin beyanı. */
 export const AGE_DECLARATION = { type: "yas_beyani", version: "2026-11-07" } as const;
@@ -54,9 +58,9 @@ export const COOKIE_POLICY_VERSION = "2026-11-07";
 /** Onay kapısında gösterilen "ne değişti" notu. Sürüm değişince bu cümle de değişir. */
 export const LEGAL_CHANGE_NOTES: Record<ConsentType, string> = {
   kvkk_aydinlatma:
-    "Çocuklar için kısa bir özet, hizmet aldığımız şirketlerin listesi, saklama süreleri ve başvuru yolları eklendi; IP adresinin hangi kayıtta nasıl tutulduğu netleştirildi.",
+    "Mobil uygulama için bildirim cihaz anahtarı, canlı sesli öğretmen, Apple ve Google'ın bildirim ve mağaza hizmetleri ile mağaza aboneliğini hesabına tanımlayan RevenueCat eklendi; hesabını giriş yapmadan silme yolu yazıldı.",
   kullanim_kosullari:
-    "Ücretsiz hesabın kapsamı güncellendi: haftalık ders sınırı yerine ilk hazırlığının ilk ders döngüsü süre sınırı olmadan açık; planların kullanım hakları tek yerden yazıldı.",
+    "Web sitesindeki satış ile mobil uygulamadaki mağaza aboneliği ayrı yazıldı (mağaza aboneliği iptal edilmezse yenilenir, iptal ve iade mağazadan); öğretmen yanıtını bildirme yolu ve giriş yapmadan hesap silme eklendi.",
 };
 
 export function consentKey(type: string, version: string): string {

@@ -255,6 +255,27 @@ export async function sendVerifyEmail({ to, name, url }: { to: string; name: str
  * Şifre sıfırlama (8 Kasım 2026): Supabase'in kendi e-postası (saatte 30, Gmail SMTP) gelmiyordu; bağlantı sunucuda
  * üretilir (`auth.admin.generateLink`), bizim hattımızdan gider. Google ile açılmış hesaba da şifre eklemeyi sağlar.
  */
+/**
+ * Giriş yapmadan hesap silme (26 Kasım 2026, Google Play): `/hesap-silme` formu hesabın adresine imzalı onay bağlantısı
+ * gönderir. Bağlantı yalnız onay sayfasını açar; silme orada "Kalıcı olarak sil"e basınca olur (e-posta istemcilerinin
+ * bağlantıyı önceden açması bir şey silmez).
+ */
+export async function sendAccountDeletionEmail({ to, url, ttlHours }: { to: string; url: string; ttlHours: number }) {
+  return sendEmail({
+    to,
+    subject: "Cortex Plus · Hesap silme onayı",
+    html: layout(
+      "Hesabını silmek istiyor musun?",
+      `<p style="margin:0;">Bu adresle açılmış Cortex Plus hesabı için silme isteği aldık.</p>
+       <p style="margin:12px 0 0;">Aşağıdaki düğme onay sayfasını açar; hesabın ancak orada «Kalıcı olarak sil»e bastığında silinir. Bağlantı ${ttlHours} saat geçerli.</p>
+       <p style="margin:12px 0 0;">App Store ya da Google Play üzerinden aldığın bir abonelik varsa hesabını silmek onu iptal etmez; mağazanın abonelik ayarlarından ayrıca iptal et.</p>
+       <p style="margin:12px 0 0;">Bu isteği sen yapmadıysan bu e-postayı yok say; hesabına dokunulmaz.</p>`,
+      { href: url, label: "Silme onay sayfasını aç" },
+    ),
+    text: `Cortex Plus hesap silme onayı: ${url} (${ttlHours} saat geçerli). Hesabın onay sayfasında «Kalıcı olarak sil»e basınca silinir. Bu isteği sen yapmadıysan yok say.`,
+  });
+}
+
 export async function sendPasswordResetEmail({ to, url }: { to: string; url: string }) {
   return sendEmail({
     to,

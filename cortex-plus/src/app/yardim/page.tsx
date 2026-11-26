@@ -20,8 +20,18 @@ export const metadata = pageMetadata({
   path: "/yardim",
 });
 
+type Faq = {
+  question: string;
+  answer: string;
+  /** Yalnız tarayıcıda görünen ek cümle (web satışına özgü). */
+  webOnly?: string;
+  /** Yalnız mobil uygulamada görünen ek cümle (mağaza aboneliğine özgü). */
+  appOnly?: string;
+  link?: { label: string; href: string };
+};
+
 // 19 Ekim 2026: "çalışma planı", "gelişmiş model" ve "öncelikli destek" yoktu; cevaplar bugünkü ürüne göre.
-const faqs = [
+const faqs: Faq[] = [
   {
     question: "Kullanım hakkı nasıl çalışıyor?",
     answer:
@@ -41,7 +51,18 @@ const faqs = [
   {
     question: "Plus ile ücretsiz arasındaki fark nedir?",
     answer:
-      `Plus hacim ve hız satar: ${PLAN_MARKETING_COPY.plus.periodLine.replace(/^A/, "a")}, belgenin tamamı ve bütün konular, birden çok hazırlık, podcast, video ders, sözlü ve yazılı deneme, sınav sabahı kâğıdı ve hazır içerik yokken daha hızlı yazım. Abonelik kendiliğinden yenilenmez.`,
+      `Plus hacim ve hız satar: ${PLAN_MARKETING_COPY.plus.periodLine.replace(/^A/, "a")}, belgenin tamamı ve bütün konular, birden çok hazırlık, podcast, video ders, sözlü ve yazılı deneme, sınav sabahı kâğıdı ve hazır içerik yokken daha hızlı yazım.`,
+    // 26 Kasım 2026 (mağaza uyumluluğu): yenileme cümlesi satın alınan yere göre. Web'de PayTR satışı yenilenmez;
+    // uygulamada mağaza aboneliği otomatik yenilenir (`AUTO_RENEW_SUPPORTED` yalnız web içindir).
+    webOnly: "Abonelik kendiliğinden yenilenmez.",
+    appOnly:
+      "Uygulamada alınan abonelik, mağazanın abonelik ayarlarından dönem bitiminden en az 24 saat önce iptal edilmezse otomatik yenilenir.",
+  },
+  {
+    question: "Hesabımı ve verilerimi nasıl silerim?",
+    answer:
+      "Ayarlar → Hesabı sil bölümünden «Hesabımı kalıcı olarak sil»e dokun; silme hemen başlar. Uygulamaya giremiyorsan Hesap silme sayfasındaki formdan e-postanla talep oluştur. Ödeme ve fatura kayıtları yalnız mevzuatın öngördüğü süre saklanır.",
+    link: { label: "Hesap silme sayfası", href: "/hesap-silme" },
   },
   {
     // Faz 5 §4 (19 Kasım 2026): üç planın karşılığı tek merkezden; Sigma da burada.
@@ -88,6 +109,7 @@ function YardimContent() {
   return (
     <>
       {/* Sık sorulanların yapılandırılmış verisi: soru ve cevap aşağıdaki metnin aynısı (20 Kasım 2026, Faz 3). */}
+      {/* Yapılandırılmış veri her iki hâlde de doğru olan ortak cevabı taşır (web/uygulama ek cümlesi hariç). */}
       <JsonLd data={faqPageJsonLd(faqs)} />
       <p className="mk-eyebrow">Sık sorulanlar</p>
 
@@ -99,7 +121,16 @@ function YardimContent() {
         {faqs.map((faq) => (
           <details key={faq.question} className="mk-faq__item">
             <summary className="mk-faq__q">{faq.question}</summary>
-            <p className="mk-faq__a">{faq.answer}</p>
+            <p className="mk-faq__a">
+              {faq.answer}
+              {faq.webOnly ? <span data-web-only> {faq.webOnly}</span> : null}
+              {faq.appOnly ? <span data-app-only> {faq.appOnly}</span> : null}
+            </p>
+            {faq.link ? (
+              <Link href={faq.link.href} className="text-[var(--mk-primary)] underline underline-offset-4">
+                {faq.link.label}
+              </Link>
+            ) : null}
           </details>
         ))}
       </div>

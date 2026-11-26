@@ -166,7 +166,8 @@ describe("aktif sohbet: çerçevesiz tuval", () => {
     expect(container.querySelector("mark.cp-key")?.textContent).toBe("kimyasal enerjiye dönüştürülür");
   });
 
-  it("yanıtın altında yalnız dört simge: beğen, beğenme, sesli dinle, kopyala (yeniden üret yok)", () => {
+  // 26 Kasım 2026 (mağaza uyumluluğu, Google Play yapay zekâ içerik politikası): dört simgenin yanına "Bildir".
+  it("yanıtın altında beş simge: beğen, beğenme, sesli dinle, kopyala, bildir (yeniden üret yok)", () => {
     mockFetch();
     const { container } = renderPanel({ teacherV2: true, initialConversationId: CONV, initialMessages: THREAD, feedbackEnabled: true });
     const acts = container.querySelector(".cx-v3-acts")!;
@@ -175,6 +176,7 @@ describe("aktif sohbet: çerçevesiz tuval", () => {
       "Faydalı değil",
       "Sesli dinle",
       "Kopyala",
+      "Bildir",
     ]);
     expect(screen.queryByRole("button", { name: "Yeniden üret" })).toBeNull();
   });
