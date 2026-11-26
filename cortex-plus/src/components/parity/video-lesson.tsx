@@ -96,6 +96,13 @@ export function VideoLessonSetup({
           clientRequestId: crypto.randomUUID(),
         }),
       );
+      // Koruma modu (Faz 13): günlük yapay zekâ bütçesi aşıldı; yeni video şimdilik üretilmiyor, hak düşmedi.
+      if (res.status === 503 && body.code === "ai_budget_protection") {
+        if (sketch) window.sessionStorage.removeItem(`cp-sketch:${prepId}:${topicId}`);
+        toast.error("Video üretimi şu an geçici olarak kapalı. Ders, test ve sohbet çalışıyor; biraz sonra yeniden dene. Hakkından düşülmedi.");
+        setStep("topic");
+        return;
+      }
       if (res.status === 402) {
         if (sketch) window.sessionStorage.removeItem(`cp-sketch:${prepId}:${topicId}`);
         toast.error(body.error === "insufficient_credits" ? "Bu ayki hakkın video için yetmiyor." : "Video ders Plus'ta.");

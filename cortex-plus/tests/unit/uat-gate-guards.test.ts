@@ -108,22 +108,34 @@ describe("entitlement sorgusu dönem bitişini SQL'de filtreler", () => {
 describe("vercel.json cron kotası (Pro, Kasım 2026)", () => {
   const cfg = JSON.parse(read("vercel.json")) as { crons?: { path: string; schedule: string }[] };
   const crons = cfg.crons ?? [];
-  it("en fazla iki cron", () => {
-    expect(crons.length).toBeLessThanOrEqual(2);
+  // Pro planda proje başına 100 cron, en sık dakikada bir (Vercel belgesi, 20 Kasım 2026). Sayı yine bilinçli tutulur:
+  // her yeni cron ürün sahibinin kararıyla ve bu listeye adıyla eklenir.
+  it("en fazla üç cron (Faz 13, 26 Kasım 2026: ürün sahibinin kararıyla kurucu sağlık kontrolü eklendi)", () => {
+    expect(crons.length).toBeLessThanOrEqual(3);
   });
-  it("günlük iş günde bir kez; yaşam döngüsü bildirimleri 30 dakikada bir (Faz 6, 20 Kasım 2026)", () => {
-    // Ürün sahibinin kararı: saatli gönderim (18:30, 19:00, öğrencinin saati) için tek 30 dakikalık cron, eski günlük
-    // hatırlatma zamanlamasının yerine; cron sayısı 2 kalır. Başka sık cron eklenmez.
+  it("günlük işler günde bir kez; yaşam döngüsü 30, kurucu sağlık kontrolü 15 dakikada bir", () => {
+    // Ürün sahibinin kararları: saatli gönderim için tek 30 dakikalık cron (Faz 6, 20 Kasım 2026); kurucu sağlık
+    // kontrolü Pro planda 15 dakikada bir (Faz 13, 26 Kasım 2026). Başka sık cron eklenmez.
     for (const c of crons) {
       if (c.path === "/api/cron/lifecycle-notifications") {
         expect(c.schedule).toBe("*/30 * * * *");
+        continue;
+      }
+      if (c.path === "/api/cron/founder-health-check") {
+        expect(c.schedule).toBe("*/15 * * * *");
         continue;
       }
       const [minute, hour] = c.schedule.trim().split(/\s+/);
       expect(minute).toMatch(/^\d+$/);
       expect(hour).toMatch(/^\d+$/);
     }
-    expect(crons.map((c) => c.path).sort()).toEqual(["/api/cron/lifecycle-notifications", "/api/cron/subscription-renewal"]);
+    // Vergi hatırlatması ayrı cron değil: günlük turun (`subscription-renewal`) içinde.
+    expect(crons.map((c) => c.path).sort()).toEqual([
+      "/api/cron/founder-health-check",
+      "/api/cron/lifecycle-notifications",
+      "/api/cron/subscription-renewal",
+    ]);
+    expect(read("src/app/api/cron/subscription-renewal/route.ts")).toContain("runFounderTaxReminders(service, now)");
   });
   it("veri silme kuyruğu günlük abonelik işine bağlı", () => {
     const src = read("src/app/api/cron/subscription-renewal/route.ts");

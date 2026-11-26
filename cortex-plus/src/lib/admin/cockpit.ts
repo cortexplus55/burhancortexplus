@@ -1,4 +1,5 @@
 import "server-only";
+import { loadUsdTryRate } from "@/lib/founder-cockpit/settings";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { readAiSpend, type AiSpend } from "@/lib/admin/ops-gauges";
 import { spendBreakerState, type BreakerState } from "@/lib/billing/spend-breaker";
@@ -214,7 +215,8 @@ export async function loadCockpit(service: SupabaseClient, now: Date = new Date(
   const parentOids = parentAudits ? new Set(parentAudits.map((row) => String(row.entity_id ?? "")).filter(Boolean)) : null;
   const conversions = conversionStats(paymentRows, planRows, earlierPayers, windows, parentOids);
 
-  const usdTry = effectiveUsdTry(fx?.metadata);
+  // Kur tek kaynak: Kurucu Kokpiti ayarı (26 Kasım 2026); yoksa eski bayrak.
+  const usdTry = effectiveUsdTry(fx?.metadata, await loadUsdTryRate(service));
   const economics: CockpitEconomics = {
     spendToday,
     spendMonth,

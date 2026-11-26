@@ -377,6 +377,9 @@ export function errorResponse(
     free_included_limit:
       "Bugün çok sayıda çalışma adımı açtın; ücretsiz hesapta günlük sınır doldu. Gece yarısı yenilenir.",
     // Lansman zırhı (5 Kasım 2026): küresel günlük harcama sigortası ve okunamayan fotoğraf döngüsü; yalnız ücretsiz hesap.
+    // Kurucu Kokpiti koruma modu (Faz 13): günlük OpenAI bütçesi aşıldı; ağır işler (video, canlı ses) geçici kapalı.
+    ai_budget_protection:
+      "Bu özellik şu an geçici olarak kapalı. Ders, test ve sohbet çalışıyor; biraz sonra yeniden dene. Hakkından düşülmedi.",
     spend_cap_free:
       "⚡ Yoğun sınav trafiği nedeniyle şu an yalnız Hazır Müfredat Havuzu ve Plus üyelerimiz için anlık AI üretimi aktiftir. Hazır müfredattan çalışmaya devam edebilir ya da Plus'a geçebilirsin.",
     free_photo_abuse_limit:

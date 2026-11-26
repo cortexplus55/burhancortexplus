@@ -17,6 +17,7 @@ import { runVideoLesson } from "@/lib/learning/video-run";
 import { findStoredSketchVideo } from "@/lib/learning/video-reuse";
 import { loadPrepDocumentIds, loadTopicTeaching } from "@/lib/documents/teacher-analysis-run";
 import { resolvePrepTopicRow } from "@/lib/learning/prep-topic-lookup";
+import { HEAVY_AI_BLOCK_CODE, HEAVY_AI_BLOCK_MESSAGE, heavyAiProtectionActive } from "@/lib/founder-cockpit/breaker";
 
 export const maxDuration = 300;
 
@@ -95,6 +96,11 @@ export async function POST(request: Request) {
     } else if (!(await sharedBudgetAllows(service, "video"))) {
       return errorResponse(503, "shared_budget", { message: SHARED_BUDGET_MESSAGE });
     }
+  }
+  // Koruma modu (Faz 13, Kurucu Kokpiti): günlük OpenAI bütçesi aşıldıysa yeni video üretilmez. Kayıtlı ve havuzdaki
+  // videolar yukarıda zaten açıldı (model çağrısı yok).
+  if (await heavyAiProtectionActive(service)) {
+    return errorResponse(503, HEAVY_AI_BLOCK_CODE, { message: HEAVY_AI_BLOCK_MESSAGE });
   }
   const source = await prepTopicSource(service, {
     userId,

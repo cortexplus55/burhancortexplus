@@ -523,8 +523,13 @@ describe("bekçi: kaynak", () => {
     expect(facts).toContain('service.rpc("reminder_due_reviews"');
     expect(facts).toContain('.from("exam_prep_review_items")');
     expect(cron).toContain("dueReviewsByPrep(service, prepIds, istanbulDay(now))");
-    const vercel = JSON.parse(read("vercel.json")) as { crons: unknown[] };
-    expect(vercel.crons).toHaveLength(2);
+    // Faz 13 (26 Kasım 2026): ürün sahibinin kararıyla tek yeni cron kurucu sağlık kontrolü; hatırlatma yine günlük turda.
+    const vercel = JSON.parse(read("vercel.json")) as { crons: { path: string }[] };
+    expect(vercel.crons.map((entry) => entry.path).sort()).toEqual([
+      "/api/cron/founder-health-check",
+      "/api/cron/lifecycle-notifications",
+      "/api/cron/subscription-renewal",
+    ]);
   });
 });
 

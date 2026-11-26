@@ -484,13 +484,13 @@ describe("menü", () => {
       "/admin/kotuye-kullanim", "/admin/odemeler", "/admin/paketler", "/admin/kredi-kurallari", "/admin/promosyonlar",
       "/admin#karantina", "/admin/ders-hatalari", "/admin/yanit-oylari", "/admin/promptlar", "/admin/anket", "/admin/beta",
       "/admin/sistem", "/admin/feature-flags", "/admin/audit-log", "/admin/adaptive", "/admin/ogretmen-basvurulari",
-      "/admin/eposta",
+      "/admin/eposta", "/admin/kokpit",
     ]) {
       expect(hrefs).toContain(href);
     }
     const founderOnly = ADMIN_NAV.flatMap((group) => group.items.filter((item) => item.founderOnly).map((item) => item.href));
     expect(founderOnly.sort()).toEqual([
-      "/admin/eposta", "/admin/feature-flags", "/admin/kredi-kurallari", "/admin/paketler", "/admin/yoneticiler",
+      "/admin/eposta", "/admin/feature-flags", "/admin/kokpit", "/admin/kredi-kurallari", "/admin/paketler", "/admin/yoneticiler",
     ]);
     for (const group of ADMIN_NAV) {
       for (const item of group.items) {
