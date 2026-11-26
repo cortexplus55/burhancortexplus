@@ -12,7 +12,28 @@ import { expect, test, type Page } from "@playwright/test";
 const pageOverflow = (page: Page) =>
   page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 
+/**
+ * Sayfadaki sonlu animasyonların bitmesini bekler (sonsuz olanlar, ör. yükleniyor dalgası, beklenmez). Giriş animasyonu
+ * (`translate`) sürerken ölçülen kutu ondalık hata taşıyor: 44 px'lik düğme 43,99997 px okunup testi kararsız
+ * düşürüyordu (26 Kasım 2026, CI). Ölçüm her zaman animasyon bittikten sonra; 44 px kuralı aynen.
+ */
+async function settle(page: Page) {
+  await page.evaluate(() =>
+    Promise.race([
+      Promise.all(
+        document
+          .getAnimations()
+          .filter((animation) => animation.effect?.getTiming().iterations !== Infinity)
+          .map((animation) => animation.finished.catch(() => undefined)),
+      ),
+      // Duraklatılmış bir animasyon beklemeyi kilitlemesin.
+      new Promise((resolve) => setTimeout(resolve, 3000)),
+    ]),
+  );
+}
+
 async function rect(page: Page, selector: string) {
+  await settle(page);
   return page.locator(selector).first().evaluate((node) => {
     const box = node.getBoundingClientRect();
     return { left: box.left, right: box.right, top: box.top, bottom: box.bottom, width: box.width, height: box.height };
@@ -21,6 +42,7 @@ async function rect(page: Page, selector: string) {
 
 /** Görünen etkileşimli öğelerin en küçük kenarı (görünmez dokunma alanı sayılmaz). */
 async function smallestTarget(page: Page, scope: string) {
+  await settle(page);
   return page.locator(scope).first().evaluate((root) => {
     const items = [...root.querySelectorAll("a, button")].filter((node) => (node as HTMLElement).offsetParent !== null);
     return Math.min(...items.map((node) => Math.min(node.getBoundingClientRect().width, node.getBoundingClientRect().height)));
@@ -111,6 +133,7 @@ for (const size of [
       const group = page.getByRole("group", { name: "Takip soruları" });
       await expect(group.getByRole("button")).toHaveCount(3);
       const column = await rect(page, ".cx-v3-col");
+      await settle(page);
       const haps = await group.getByRole("button").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect()));
       for (const hap of haps) {
         // Sağa yaslı: sağ kenar sütunun iç kenarında, sol kenar sütunun solundan içeride.
