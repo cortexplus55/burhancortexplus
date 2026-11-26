@@ -1,5 +1,5 @@
--- YAZILDI, UYGULANMADI (26 Kasım 2026): ürün sahibinin onayıyla SQL ekranında uygulanır.
--- Kayıt satırı (SQL ekranında aynı oturumda):
+-- UYGULANDI (26 Kasım 2026, ~10:40 UTC): Burhan'ın onayıyla SQL ekranında, kayıt satırıyla birlikte
+-- (`docs/operasyon/goc-kayitlari.md`). Kayıt satırı (SQL ekranında aynı oturumda):
 --   insert into supabase_migrations.schema_migrations (version, name)
 --   values ('20261126150000', 'founder_cockpit') on conflict (version) do nothing;
 --
@@ -36,7 +36,25 @@ CREATE TABLE IF NOT EXISTS public.founder_cockpit_settings (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
-INSERT INTO public.founder_cockpit_settings (id) VALUES ('default') ON CONFLICT (id) DO NOTHING;
+-- Tek ayar satırı. Kur tek kaynak: kurucunun eski kokpitte kaydettiği kur (feature_flags.admin_usd_try → metadata.rate;
+-- canlıda 23 Kasım 2026'da 51 kaydedilmişti) varsa yeni satır onunla başlar, yoksa sütun varsayılanıyla. Yalnız satır ilk
+-- kez yazılırken okunur (ON CONFLICT DO NOTHING): sonradan kokpitten değiştirilen kur ikinci çalıştırmada ezilmez.
+-- feature_flags tablosu olmayan veritabanında (test) okuma atlanır.
+DO $$
+DECLARE
+  saved_rate numeric := NULL;
+BEGIN
+  IF to_regclass('public.feature_flags') IS NOT NULL THEN
+    EXECUTE $read$
+      SELECT CASE WHEN (metadata->>'rate') ~ '^[0-9]+([.][0-9]+)?$' THEN (metadata->>'rate')::numeric END
+      FROM public.feature_flags
+      WHERE key = 'admin_usd_try'
+    $read$ INTO saved_rate;
+  END IF;
+  INSERT INTO public.founder_cockpit_settings (id, usd_try_rate)
+  VALUES ('default', CASE WHEN saved_rate BETWEEN 1 AND 1000 THEN saved_rate ELSE 50.42 END)
+  ON CONFLICT (id) DO NOTHING;
+END $$;
 
 CREATE TABLE IF NOT EXISTS public.founder_cloud_expenses (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

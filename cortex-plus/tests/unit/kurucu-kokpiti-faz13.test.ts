@@ -94,6 +94,13 @@ describe("göç (PGlite)", () => {
     ).rejects.toThrow();
   });
 
+  it("eski kur ayarı yoksa kur sütun varsayılanıyla başlar", async () => {
+    const { rows } = await db.query<{ usd_try_rate: string }>(
+      `SELECT usd_try_rate FROM public.founder_cockpit_settings`,
+    );
+    expect(Number(rows[0]!.usd_try_rate)).toBe(50.42);
+  });
+
   it("fatura kısıtları: ay biçimi, sağlayıcı listesi, eksi tutar yok", async () => {
     await db.query(
       `INSERT INTO public.founder_cloud_expenses (period_month, vendor, amount_usd) VALUES ('2026-11', 'OpenAI', 40)`,
@@ -157,6 +164,42 @@ describe("göç (PGlite)", () => {
     expect(read(MIGRATION)).toMatch(
       /values \('20261126150000', 'founder_cockpit'\) on conflict \(version\) do nothing/,
     );
+  });
+});
+
+describe("göç: kurucunun eski kur ayarı yeni satıra taşınır (PGlite)", () => {
+  const db = new PGlite();
+
+  beforeAll(async () => {
+    await db.exec(`
+      DO $$ BEGIN CREATE ROLE anon; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+      DO $$ BEGIN CREATE ROLE authenticated; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+      DO $$ BEGIN CREATE ROLE service_role; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+      CREATE TABLE public.feature_flags (key text PRIMARY KEY, enabled boolean NOT NULL DEFAULT false, metadata jsonb);
+      INSERT INTO public.feature_flags (key, enabled, metadata)
+        VALUES ('admin_usd_try', true, '{"rate": 51, "updated_at": "2026-11-23T21:35:24Z"}');
+    `);
+    await db.exec(read(MIGRATION));
+  });
+
+  afterAll(async () => {
+    await db.close();
+  });
+
+  it("kayıtlı kur (51) yeni satırın kuru olur; kokpitten değişen kur ikinci çalıştırmada ezilmez", async () => {
+    const rate = async () =>
+      Number(
+        (await db.query<{ usd_try_rate: string }>(`SELECT usd_try_rate FROM public.founder_cockpit_settings`)).rows[0]!
+          .usd_try_rate,
+      );
+    expect(await rate()).toBe(51);
+    await db.query(`UPDATE public.founder_cockpit_settings SET usd_try_rate = 52.5`);
+    await db.exec(read(MIGRATION));
+    expect(await rate()).toBe(52.5);
+    const flag = await db.query<{ metadata: { rate: number } }>(
+      `SELECT metadata FROM public.feature_flags WHERE key = 'admin_usd_try'`,
+    );
+    expect(flag.rows[0]!.metadata.rate).toBe(51);
   });
 });
 
