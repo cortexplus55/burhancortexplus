@@ -234,9 +234,14 @@ export default async function AdminKullanicilarPage({
                     </div>
                   </td>
                   <td data-label="Paket">
-                    <AdminBadge tone={row.pack === "Sigma" ? "gold" : row.pack === "Plus" ? "ok" : "mute"}>
-                      {row.pack}
-                    </AdminBadge>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <AdminBadge tone={row.pack === "Sigma" ? "gold" : row.pack === "Plus" ? "ok" : "mute"}>
+                        {row.pack}
+                      </AdminBadge>
+                      <Link href={`/admin/kullanicilar/${row.id}#paket`} className="adm-btn">
+                        {row.pack === "Ücretsiz" ? "Paket tanımla" : "Paketi yönet"}
+                      </Link>
+                    </div>
                   </td>
                   <td data-label="Kredi" className="adm-num">{formatNumber(row.balance)}</td>
                   <td data-label="Yetki">
