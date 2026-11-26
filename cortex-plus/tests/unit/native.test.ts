@@ -135,6 +135,22 @@ describe("ilk betik", () => {
     expect(document.documentElement.getAttribute("data-native-platform")).toBe("ios");
   });
 
+  it("iOS: iki etiketin ikisi de ve sonradan eklenen etiket de düzeltilir (üretim derlemesi)", async () => {
+    setUserAgent(APP_IOS);
+    document.head.innerHTML =
+      '<meta name="viewport" content="width=device-width, initial-scale=1"><meta name="viewport" content="width=device-width">';
+    new Function(NATIVE_BOOT_SCRIPT)();
+    const late = document.createElement("meta");
+    late.setAttribute("name", "viewport");
+    late.setAttribute("content", "width=device-width, initial-scale=1");
+    document.body.appendChild(late);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const contents = [...document.querySelectorAll('meta[name="viewport"]')].map((meta) => meta.getAttribute("content"));
+    expect(contents).toHaveLength(3);
+    for (const content of contents) expect(content).toContain("viewport-fit=cover");
+    late.remove();
+  });
+
   it("Android uygulamasında sınıf var, görünüm alanı aynen (web görünümü sistem çubuklarının arasında)", () => {
     expect(runBoot(APP_ANDROID)).toBe("width=device-width, initial-scale=1");
     expect(document.documentElement.getAttribute("data-native-platform")).toBe("android");

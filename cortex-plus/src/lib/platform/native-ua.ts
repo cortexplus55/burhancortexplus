@@ -31,5 +31,9 @@ export function isNativeUserAgent(userAgent: string | null | undefined): boolean
  * sınıfı ve `data-native-platform` yazar; iOS'ta alt güvenli alan (ana ekran çizgisi) için görünüm alanına
  * `viewport-fit=cover` ekler. Android'de web görünümü sistem çubuklarının arasına yerleşir, ek gerekmez.
  * Tarayıcıda hiçbir şey yapmaz.
+ *
+ * Üretim derlemesinde sayfada iki görünüm alanı etiketi olabiliyor (biri akışla sonradan gelir; 26 Kasım 2026 CI'da
+ * görüldü): hepsi düzeltilir, sayfa yüklenene kadar sonradan eklenen etiket de izlenir (yüklemeden 3 sn sonra
+ * izleme biter).
  */
-export const NATIVE_BOOT_SCRIPT = `(function(){try{var ua=navigator.userAgent||"";var m=/CortexPlusApp\\/\\d+(?:\\s*\\((ios|android)\\))?/i.exec(ua);if(!m)return;var p=(m[1]||(/Android/i.test(ua)?"android":"ios")).toLowerCase();var d=document.documentElement;d.classList.add("cx-native");d.setAttribute("data-native-platform",p);if(p==="ios"){var v=document.querySelector('meta[name="viewport"]');if(v&&v.content.indexOf("viewport-fit")<0)v.setAttribute("content",v.content+", viewport-fit=cover");}}catch(e){}})();`;
+export const NATIVE_BOOT_SCRIPT = `(function(){try{var ua=navigator.userAgent||"";var m=/CortexPlusApp\\/\\d+(?:\\s*\\((ios|android)\\))?/i.exec(ua);if(!m)return;var p=(m[1]||(/Android/i.test(ua)?"android":"ios")).toLowerCase();var d=document.documentElement;d.classList.add("cx-native");d.setAttribute("data-native-platform",p);if(p!=="ios")return;var fix=function(){var list=document.querySelectorAll('meta[name="viewport"]');for(var i=0;i<list.length;i++){var c=list[i].getAttribute("content")||"";if(c.indexOf("viewport-fit")<0)list[i].setAttribute("content",c+", viewport-fit=cover");}};fix();if(typeof MutationObserver!=="function")return;var o=new MutationObserver(fix);o.observe(d,{childList:true,subtree:true});var stop=function(){fix();setTimeout(function(){o.disconnect();},3000);};if(document.readyState==="complete")stop();else window.addEventListener("load",stop);}catch(e){}})();`;

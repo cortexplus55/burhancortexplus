@@ -111,8 +111,13 @@ test.describe("uygulama içinde (iOS)", () => {
     await page.addInitScript((key) => window.localStorage.setItem(key, "1"), ONBOARDING_STORAGE);
     await page.goto("/e2e/ana-ekran");
     await expect(page.locator("html")).toHaveAttribute("data-native-platform", "ios");
-    const viewport = await page.locator('meta[name="viewport"]').getAttribute("content");
-    expect(viewport).toContain("viewport-fit=cover");
+    // Üretim derlemesinde iki görünüm alanı etiketi olabiliyor: hepsi düzeltilmiş olmalı.
+    await page.waitForLoadState("load");
+    const contents = await page
+      .locator('meta[name="viewport"]')
+      .evaluateAll((metas) => metas.map((meta) => meta.getAttribute("content") ?? ""));
+    expect(contents.length).toBeGreaterThan(0);
+    for (const content of contents) expect(content).toContain("viewport-fit=cover");
   });
 });
 
@@ -125,7 +130,9 @@ test.describe("tarayıcıda (web)", () => {
     await page.waitForTimeout(1200);
     await expect(page.locator("[data-native-onboarding]")).toHaveCount(0);
     await expect(page.locator("html")).not.toHaveClass(/cx-native/);
-    const viewport = await page.locator('meta[name="viewport"]').getAttribute("content");
-    expect(viewport).not.toContain("viewport-fit");
+    const contents = await page
+      .locator('meta[name="viewport"]')
+      .evaluateAll((metas) => metas.map((meta) => meta.getAttribute("content") ?? ""));
+    for (const content of contents) expect(content).not.toContain("viewport-fit");
   });
 });
