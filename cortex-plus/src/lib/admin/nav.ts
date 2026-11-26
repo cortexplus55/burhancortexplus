@@ -63,6 +63,13 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         blurb: "Bütün iş tek ekranda: kayıt ve aktif öğrenci, ücretsizden ücretliye dönüşüm, OpenAI gideri ile gelir ve kâr marjı, karantinadaki sorular ve hata bildirimleri.",
       },
       {
+        href: "/admin/kokpit",
+        label: "Kurucu Kokpiti",
+        icon: Gauge,
+        blurb: "Sistem sağlığı, günlük OpenAI bütçesi ve koruma modu, ayın kasa ve vergi dökümü, vergi takvimi, yurt dışı faturalar ve mali müşavir paketi.",
+        founderOnly: true,
+      },
+      {
         href: "/admin/maliyetler",
         label: "Birim Ekonomisi & Maliyetler",
         icon: TrendingUp,

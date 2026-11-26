@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { auditLog } from "@/lib/audit";
+import { saveCockpitSettings } from "@/lib/founder-cockpit/settings";
 import { checkFounderActor, requireAdminActor } from "@/lib/auth/admin-actor";
 import { createServiceClient } from "@/lib/supabase/server";
 import { poolUnit } from "@/lib/content-pool/keys";
@@ -30,20 +31,32 @@ export async function saveUsdTryRate(rate: number): Promise<CockpitActionResult>
   const parsed = rateSchema.safeParse(rate);
   if (!parsed.success) return { ok: false, error: `Kur ${FX_MIN}–${FX_MAX} arasında bir sayı olmalı.` };
   const service = createServiceClient();
-  const { error } = await service.from("feature_flags").upsert(
-    {
-      key: FX_FLAG,
-      enabled: true,
-      description: "Kokpit: 1 USD kaç TL (kâr marjı için; kurucu elle girer).",
-      metadata: { rate: parsed.data, updated_at: new Date().toISOString(), updated_by: actorId },
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "key" },
-  );
-  if (error) return { ok: false, error: "Kur kaydedilemedi." };
-  await auditLog(service, { actorId, action: "cockpit.fx_rate.saved", entityType: "feature_flag", entityId: FX_FLAG, metadata: { rate: parsed.data } });
+  // Kur tek kaynak (26 Kasım 2026): Kurucu Kokpiti ayarı. Ayar tablosu yoksa (göç öncesi) eski bayrağa yazılır.
+  const settingsSaved = await saveCockpitSettings(service, { usd_try_rate: parsed.data });
+  if (!settingsSaved.ok && settingsSaved.reason !== "missing_table") return { ok: false, error: "Kur kaydedilemedi." };
+  if (!settingsSaved.ok) {
+    const { error } = await service.from("feature_flags").upsert(
+      {
+        key: FX_FLAG,
+        enabled: true,
+        description: "Kokpit: 1 USD kaç TL (kâr marjı için; kurucu elle girer).",
+        metadata: { rate: parsed.data, updated_at: new Date().toISOString(), updated_by: actorId },
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "key" },
+    );
+    if (error) return { ok: false, error: "Kur kaydedilemedi." };
+  }
+  await auditLog(service, {
+    actorId,
+    action: "cockpit.fx_rate.saved",
+    entityType: settingsSaved.ok ? "founder_cockpit_settings" : "feature_flag",
+    entityId: settingsSaved.ok ? "default" : FX_FLAG,
+    metadata: { rate: parsed.data },
+  });
   revalidatePath("/admin");
   revalidatePath("/admin/maliyetler");
+  revalidatePath("/admin/kokpit");
   return { ok: true, message: `Kur kaydedildi: 1 USD = ${parsed.data} TL.` };
 }
 

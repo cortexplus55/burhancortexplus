@@ -179,10 +179,16 @@ export function readUsdTry(metadata: unknown): number | null {
  */
 export const DEFAULT_USD_TRY = 36;
 
-export type UsdTry = { rate: number; source: "flag" | "default" };
+export type UsdTry = { rate: number; source: "settings" | "flag" | "default" };
 
-/** Kokpitin kullandığı kur: bayrak varsa o, yoksa varsayılan. */
-export function effectiveUsdTry(metadata: unknown): UsdTry {
+/**
+ * Kokpitin kullandığı kur. Tek kaynak (ürün sahibinin kararı, 26 Kasım 2026): Kurucu Kokpiti ayarı
+ * (`founder_cockpit_settings.usd_try_rate`); o yoksa (göç öncesi) eski bayrak, o da yoksa varsayılan.
+ */
+export function effectiveUsdTry(metadata: unknown, settingsRate: number | null = null): UsdTry {
+  if (settingsRate != null && Number.isFinite(settingsRate) && settingsRate >= FX_MIN && settingsRate <= FX_MAX) {
+    return { rate: settingsRate, source: "settings" };
+  }
   const flagged = readUsdTry(metadata);
   return flagged == null ? { rate: DEFAULT_USD_TRY, source: "default" } : { rate: flagged, source: "flag" };
 }

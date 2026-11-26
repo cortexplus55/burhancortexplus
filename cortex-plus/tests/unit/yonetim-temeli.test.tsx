@@ -91,7 +91,7 @@ describe("yönetim menüsü", () => {
     const admin = render(<AdminNavLinks role="admin" />);
     const lockedAdmin = [...admin.container.querySelectorAll(".adm-nav-link--locked")].map((node) => node.textContent);
     expect(lockedAdmin).toEqual([
-      "Yöneticiler ve Yetkiler", "E-posta ve Davet", "Paket Fiyatları", "Kredi Kuralları", "Özellik Anahtarları",
+      "Kurucu Kokpiti", "Yöneticiler ve Yetkiler", "E-posta ve Davet", "Paket Fiyatları", "Kredi Kuralları", "Özellik Anahtarları",
     ]);
     expect(admin.container.querySelector('a[href="/admin/yoneticiler"]')).toBeNull();
     expect(admin.container.querySelector('a[href="/admin/destek"]')).not.toBeNull();

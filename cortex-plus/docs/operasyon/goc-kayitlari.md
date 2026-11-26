@@ -246,6 +246,25 @@ yalnız Burhan'ın kararıyla olur.
 **Geri alma:** gerekmez. Kod tablo yokken de çalışıyordu (anahtar "kaydedilmedi" döner, gönderim atlanır). Tabloyu kaldırmak yalnız
 Burhan'ın kararıyla olur.
 
+## 20261126150000 · founder_cockpit (PR #730)
+
+| | |
+|---|---|
+| Onaylayan | Burhan (26 Kasım 2026, sohbette: "Kurucu Kokpiti veritabanı göçünü (20261126150000_founder_cockpit.sql) onaylıyorum, uygulayabilirsin.") |
+| Uygulama | 26 Kasım 2026 ~10:40 UTC, #730 birleşmeden önce (kod göçsüz de çalışıyordu). Supabase SQL ekranı, göç + kayıt satırı tek çalıştırmada |
+| Uygulayan | Claude, Burhan'ın onayıyla |
+| Değişen | Yalnız ekleme: dört yeni tablo (`founder_cockpit_settings`, `founder_cloud_expenses`, `founder_health_snapshots`, `founder_alert_logs`), dizinleri ve tek ayar satırı; satır güvenliği açık, politika yok, `anon` ve `authenticated` için `REVOKE ALL`, `service_role` için `GRANT ALL`. Var olan hiçbir tablo, sütun, kısıt ya da satır değişmedi |
+
+**Uygulamadan önce kontrol (salt okuma):** dört tablo yoktu, kayıt satırı 0. Eski kokpitin kur ayarı
+(`feature_flags.admin_usd_try`) 23 Kasım 2026'da kurucunun kaydettiği **51** idi. Göç bu yüzden uygulamadan önce düzeltildi: ayar satırı
+ilk kez yazılırken bu kuru okur (yoksa 50,42); önceki hâli kuru sessizce 50,42'ye çevirirdi (yeni satır eski bayraktan önce okunuyor).
+
+**Doğrulama:** dört tablo var; satır güvenliği açık; `anon` ve `authenticated` okuyamıyor, `service_role` yazabiliyor; ayar satırı
+kur 51, şirket türü şahıs, günlük bütçe 50 $, koruma modu kapalı; kayıt satırı `founder_cockpit`.
+
+**Geri alma:** gerekmez. Kod tablolar yokken de çalışıyordu (ayarlar varsayılanla okunur, ekran "tablolar henüz yok" der). Tabloları
+kaldırmak yalnız Burhan'ın kararıyla olur.
+
 ## İstatistik işlemleri (göç değil)
 
 | Zaman (UTC) | İşlem | Onay | Sonuç |

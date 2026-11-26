@@ -22,6 +22,7 @@ import { pumpDueGenerationJobs } from "@/lib/learning/mock-exam-durable";
 import { sweepAbandonedMockBuilds } from "@/lib/learning/mock-exam/fallback-exam";
 import { sendPlanNoticeMails, type PlanNoticeMail } from "@/lib/email/plan-notice-mails";
 import { notifyInAppMany } from "@/lib/notifications/in-app";
+import { runFounderTaxReminders, type TaxRunSummary } from "@/lib/founder-cockpit/tax-run";
 
 export const dynamic = "force-dynamic";
 // Günlük kalite örneği (üç model çağrısı) özetten sonra çalışır; tur 300 sn'ye sığar.
@@ -282,6 +283,18 @@ export async function GET(request: Request) {
     logOpsEvent("subscription_sync_failed", { stage: "vector_eviction" });
   }
 
+  /*
+    Kurucu vergi hatırlatması (Faz 13, 26 Kasım 2026): son güne 5 gün ve 1 gün kala alarm adresine e-posta (her son gün ve
+    eşik bir kez) ve 30 günden eski sağlık kayıtlarının temizliği. Ayrı cron açılmaz; günlük turun sonunda. Aynı iş elle
+    ya da dış izlemeden `/api/cron/founder-tax-reminders` (CRON_SECRET) ile de çalışır; kilit tekrarı önler.
+  */
+  let founderTax: TaxRunSummary | null = null;
+  try {
+    founderTax = await runFounderTaxReminders(service, now);
+  } catch {
+    logOpsEvent("subscription_sync_failed", { stage: "founder_tax_reminders" });
+  }
+
   return NextResponse.json({
     scanned: rows.length,
     reminded: reminded.length,
@@ -296,5 +309,6 @@ export async function GET(request: Request) {
     generationJobs,
     abandonedBuilds,
     vectorLifecycle,
+    founderTax,
   });
 }

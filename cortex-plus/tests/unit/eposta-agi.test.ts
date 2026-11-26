@@ -345,10 +345,21 @@ describe("bağlantılar (kaynak denetimi)", () => {
   it("davet ve hediye e-postaları aynı günlük turun içinde (üçüncü cron yok)", () => {
     expect(cron).toContain("sendReferralGiftMails(");
     expect(cron).toContain("sendReferralInviteMails(");
+    // Faz 13 (26 Kasım 2026): ürün sahibinin kararıyla tek yeni cron kurucu sağlık kontrolü (15 dakikada bir).
     const vercel = JSON.parse(read("vercel.json")) as { crons: { path: string; schedule: string }[] };
-    expect(vercel.crons).toHaveLength(2);
+    expect(vercel.crons.map((entry) => entry.path).sort()).toEqual([
+      "/api/cron/founder-health-check",
+      "/api/cron/lifecycle-notifications",
+      "/api/cron/subscription-renewal",
+    ]);
     for (const entry of vercel.crons) {
-      expect(entry.schedule).toMatch(entry.path === "/api/cron/lifecycle-notifications" ? /^\*\/30 \* \* \* \*$/ : /^\d+ \d+ \* \* \*$/);
+      const expected =
+        entry.path === "/api/cron/lifecycle-notifications"
+          ? /^\*\/30 \* \* \* \*$/
+          : entry.path === "/api/cron/founder-health-check"
+            ? /^\*\/15 \* \* \* \*$/
+            : /^\d+ \d+ \* \* \*$/;
+      expect(entry.schedule).toMatch(expected);
     }
   });
 
