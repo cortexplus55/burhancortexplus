@@ -5,6 +5,7 @@ import {
   Coins,
   Crown,
   FileText,
+  Flag,
   Gauge,
   GraduationCap,
   History,
@@ -117,6 +118,12 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         label: "Destek Talepleri",
         icon: LifeBuoy,
         blurb: "Öğrencilerin /destek formundan yazdıkları. Cevap e-postayla gider; burada \"Cevaplandı\" ile süre yazılır.",
+      },
+      {
+        href: "/admin/duello-bildirimleri",
+        label: "Düello Bildirimleri",
+        icon: Flag,
+        blurb: "Oyuncuların düello sıralamasında bildirdiği adlar ve davranışlar. Adı gizle ya da bildirimi kapat; her karar kayda geçer.",
       },
       {
         href: "/admin/kotuye-kullanim",

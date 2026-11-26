@@ -13,4 +13,7 @@ ext {
     androidxJunitVersion = '1.3.0'
     androidxEspressoCoreVersion = '3.7.0'
     cordovaAndroidVersion = '14.0.1'
+    androidxBiometricVersion = '1.1.0'
+    androidxMediaVersion = '1.7.1'
+    playReviewVersion = '2.0.2'
 }

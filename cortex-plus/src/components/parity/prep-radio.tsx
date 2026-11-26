@@ -23,6 +23,7 @@ import {
   type RadioTrack,
 } from "@/lib/learning/prep-radio";
 import { bindRadioMediaSession, setRadioPlaybackState } from "@/lib/learning/radio-media-session";
+import { useNativeMediaControls } from "@/lib/platform/native-media";
 import "@/styles/prep-radio.css";
 
 export const PREP_RADIO_URL = "/api/learning/exam-prep/radio";
@@ -376,6 +377,34 @@ export function PrepRadioBar({
   useEffect(() => {
     if (typeof navigator !== "undefined") setRadioPlaybackState(navigator, playing);
   }, [playing]);
+
+  // Mobil uygulama (26 Kasım 2026): Android'de kilit ekranı ve bildirim alanındaki denetimler; iOS'ta arka plan sesi.
+  useNativeMediaControls(
+    {
+      active: status !== "empty",
+      title: mediaTitle,
+      album: `${PREP_RADIO_NAME} · ${prepTitle}`,
+      playing,
+      positionMs,
+      durationMs: episode?.timeline.totalMs ?? 0,
+      rate: speed,
+      canPrevious: true,
+      canNext: index + 1 < queue.length,
+    },
+    {
+      play: () => {
+        if (!playingRef.current) controlsRef.current.toggle();
+      },
+      pause: () => controlsRef.current.pause(),
+      previoustrack: () => controlsRef.current.previous(),
+      nexttrack: () => controlsRef.current.next(),
+      seekbackward: () => controlsRef.current.seekBy(-RADIO_SKIP_MS),
+      seekforward: () => controlsRef.current.seekBy(RADIO_SKIP_MS),
+      seekto: (ms) => {
+        if (typeof ms === "number") controlsRef.current.seekBy(ms - positionRef.current);
+      },
+    },
+  );
 
   // Çubuk açıkken sayfa altındaki sabit kart ve sayfanın sonu çubuğun üstünde kalır (`prep-radio.css`).
   useEffect(() => {

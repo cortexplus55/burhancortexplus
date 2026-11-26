@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { duelLimit, errorResponse } from "@/lib/api/guards";
@@ -9,6 +10,8 @@ import {
   type DuelQuestion,
 } from "@/lib/learning/duel";
 import { awardStars } from "@/lib/stars/award";
+import { loadDuelBoard } from "@/lib/learning/duel-board";
+import { GUEST_FALLBACK_NAME, isOffensiveName } from "@/lib/moderation/display-name-filter";
 import { duelStars } from "@/lib/stars/rules";
 
 const bodySchema = z.object({
@@ -52,7 +55,7 @@ export async function POST(
   const service = createServiceClient();
   const { data: duel } = await service
     .from("prep_duels")
-    .select("id, questions")
+    .select("id, questions, creator_id")
     .eq("share_code", code)
     .maybeSingle();
   if (!duel) return errorResponse(404, "not_found");
@@ -71,9 +74,14 @@ export async function POST(
     displayName = cleanDisplayName(first) ?? displayName ?? "Öğrenci";
   }
   if (!displayName) return errorResponse(400, "invalid_input");
+  // Başkalarına görünen ad süzgeçten geçer (26 Kasım 2026, App Store 1.2): misafirin uygunsuz adı kayda hiç girmez.
+  if (isOffensiveName(displayName)) displayName = playerId ? "Öğrenci" : GUEST_FALLBACK_NAME;
 
   const result = scoreDuel(questions, parsed.data.answers);
+  // Turun kimliği burada üretilir: misafirin kendi satırı sıralamada "kendi" sayılsın (kendini bildiremesin).
+  const ownRunId = randomUUID();
   const { error } = await service.from("prep_duel_runs").insert({
+    id: ownRunId,
     duel_id: duel.id,
     player_id: playerId,
     display_name: displayName,
@@ -89,14 +97,8 @@ export async function POST(
     ? await awardStars(service, { userId: playerId, source: "duel", ref: `duel:${duel.id}`, amount: duelStars(result.correct) })
     : 0;
 
-  const [{ data: board }, { count: better }] = await Promise.all([
-    service
-      .from("prep_duel_runs")
-      .select("display_name, score, correct, created_at")
-      .eq("duel_id", duel.id)
-      .order("score", { ascending: false })
-      .order("created_at", { ascending: true })
-      .limit(10),
+  const [board, { count: better }] = await Promise.all([
+    loadDuelBoard(service, { id: duel.id as string, creator_id: duel.creator_id as string }, playerId),
     service
       .from("prep_duel_runs")
       .select("id", { count: "exact", head: true })
@@ -117,10 +119,7 @@ export async function POST(
     ...perQuestion,
     rank: (better ?? 0) + 1,
     stars,
-    leaderboard: (board ?? []).map((row) => ({
-      name: row.display_name as string,
-      score: row.score as number,
-      correct: row.correct as number,
-    })),
+    // Misafirin kendi turu da "kendi" sayılır (kendini bildiremesin).
+    leaderboard: board.map((row) => (row.runId === ownRunId ? { ...row, own: true } : row)),
   });
 }

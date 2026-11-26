@@ -8,6 +8,7 @@ import { DUEL_NOTE_SHARE_WARNING, duelSignupHref } from "@/lib/learning/duel-sha
 import { isFeatureEnabled } from "@/lib/admin/feature-flags";
 import { DUEL_V2_FLAG } from "@/lib/entitlements/config";
 import { appOrigin } from "@/lib/app-url";
+import { loadDuelBoard } from "@/lib/learning/duel-board";
 import "@/styles/duel.css";
 import "@/styles/ui-v2-duello.css";
 import { uiV2 } from "@/lib/ui-v2/flags";
@@ -47,17 +48,6 @@ export default async function DuelPage({
     .maybeSingle();
   if (!duel) notFound();
 
-  const [{ data: creator }, { data: board }] = await Promise.all([
-    service.from("profiles").select("full_name, referral_code").eq("id", duel.creator_id).maybeSingle(),
-    service
-      .from("prep_duel_runs")
-      .select("display_name, score, correct, created_at")
-      .eq("duel_id", duel.id)
-      .order("score", { ascending: false })
-      .order("created_at", { ascending: true })
-      .limit(10),
-  ]);
-
   let signedIn = false;
   let userId: string | null = null;
   try {
@@ -68,6 +58,12 @@ export default async function DuelPage({
   } catch {
     signedIn = false;
   }
+
+  // Sıralama görüntüleyene göre süzülür: gizlenen ve süzgece takılan adlar "Oyuncu", engellenenler yok (26 Kasım 2026).
+  const [{ data: creator }, board] = await Promise.all([
+    service.from("profiles").select("full_name, referral_code").eq("id", duel.creator_id).maybeSingle(),
+    loadDuelBoard(service, { id: duel.id as string, creator_id: duel.creator_id as string }, userId),
+  ]);
   const duelloV2 = await uiV2("duello", userId);
   // Paylaşım uyarısı (15 Kasım 2026, düello 9B, `duel.v2` arkasında): yalnız kurucuya ve düello kendi notundan yazıldıysa.
   let shareWarning: string | null = null;
@@ -97,11 +93,7 @@ export default async function DuelPage({
         topic={(duel.topic_label as string | null) ?? null}
         creatorName={creatorName}
         questions={publicQuestions(questions)}
-        initialBoard={(board ?? []).map((row) => ({
-          name: row.display_name as string,
-          score: row.score as number,
-          correct: row.correct as number,
-        }))}
+        initialBoard={board}
         signedIn={signedIn}
         initialBot={initialBot}
         shareUrl={`${appOrigin()}/duello/${code}`}

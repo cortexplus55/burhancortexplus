@@ -49,7 +49,7 @@
 	<string>Main</string>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
-		<string>armv7</string>
+		<string>arm64</string>
 	</array>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
@@ -72,6 +72,12 @@
 	<string>Cortex Plus galerine kendiliğinden fotoğraf eklemez; bu izin yalnız sen bir görseli galerine kaydetmek istediğinde sorulur.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Canlı sesli öğretmenle konuşabilmen ve sorunu sesle yazdırabilmen için mikrofonu kullanırız; mikrofon yalnız «Konuş»a ya da mikrofon düğmesine dokunduğunda açılır, ses kaydı saklanmaz.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Uygulama kilidini açtığında Cortex Plus Face ID ile seni doğrular; yüz verin cihazından çıkmaz, bize gelmez.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 </dict>

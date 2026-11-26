@@ -133,6 +133,7 @@ async function pushInserted(service: SupabaseClient, rows: readonly InsertedRow[
           body: row.body,
           actionUrl: row.action_url,
           essential: ESSENTIAL_KINDS.has(row.kind),
+          kind: row.kind,
         },
       })),
     );

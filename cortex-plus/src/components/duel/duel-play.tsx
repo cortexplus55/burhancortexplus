@@ -22,11 +22,14 @@ import {
 } from "@/lib/learning/duel-bot";
 import { duelChallengeText, duelInviteText, whatsappShareHref } from "@/lib/learning/duel-share";
 import { ExternalAnchor } from "@/components/ui/external-anchor";
+import { DuelPlayerActions } from "@/components/duel/duel-player-actions";
+import { NAME_NOT_ALLOWED_MESSAGE, isOffensiveName } from "@/lib/moderation/display-name-filter";
 
 /** Oyundan önceki geri sayım (sn). */
 export const DUEL_COUNTDOWN_SECONDS = 3;
 
-type BoardRow = { name: string; score: number; correct: number };
+/** Sıralama satırı: `runId` bildir/engelle için, `own` görüntüleyenin kendi turu (26 Kasım 2026). */
+type BoardRow = { runId?: string; name: string; score: number; correct: number; own?: boolean };
 
 type RunResult = {
   correct: number;
@@ -213,6 +216,11 @@ export function DuelPlay({
   function nameMissing(): boolean {
     if (!signedIn && name.trim().length < 2) {
       toast.error("Sıralamada görünecek adını yaz.");
+      return true;
+    }
+    // Başkalarına görünen ad süzgeçten geçer (26 Kasım 2026, App Store 1.2); sunucu da aynı süzgeçle kaydeder.
+    if (!signedIn && isOffensiveName(name)) {
+      toast.error(NAME_NOT_ALLOWED_MESSAGE);
       return true;
     }
     return false;
@@ -418,7 +426,7 @@ export function DuelPlay({
             );
           })}
         </ol>
-        <Leaderboard rows={result.leaderboard} />
+        <Leaderboard rows={result.leaderboard} code={code} signedIn={signedIn} />
         <div className="cp-duel-actions">
           <ExternalAnchor
             className="cp-duel-secondary"
@@ -506,7 +514,7 @@ export function DuelPlay({
           <Bot className="h-4 w-4" aria-hidden /> {botLoading ? "Bot hazırlanıyor…" : `${BOT_LEVELS[level].name} ile başla`}
         </button>
       </div>
-      {initialBoard.length ? <Leaderboard rows={initialBoard} /> : null}
+      {initialBoard.length ? <Leaderboard rows={initialBoard} code={code} signedIn={signedIn} /> : null}
       <div className="cp-duel-actions">
         <ExternalAnchor
           className="cp-duel-secondary"
@@ -523,18 +531,30 @@ export function DuelPlay({
   );
 }
 
-function Leaderboard({ rows }: { rows: BoardRow[] }) {
-  if (!rows.length) return null;
+function Leaderboard({ rows, code, signedIn }: { rows: BoardRow[]; code: string; signedIn: boolean }) {
+  // Engellenen oyuncu sayfa yenilenmeden de listeden çıkar (sunucu bir sonraki okumada zaten süzer).
+  const [blocked, setBlocked] = useState<ReadonlySet<string>>(() => new Set());
+  const visible = rows.filter((row) => !row.runId || !blocked.has(row.runId));
+  if (!visible.length) return null;
   return (
     <div className="cp-duel-board">
       <p className="cp-duel-kicker">Sıralama</p>
       <ol>
-        {rows.map((row, i) => (
-          <li key={`${row.name}-${i}`}>
+        {visible.map((row, i) => (
+          <li key={row.runId ?? `${row.name}-${i}`} className={row.runId && !row.own ? "has-actions" : undefined}>
             <b>{i + 1}</b>
             <span>{row.name}</span>
             <em>{row.correct} doğru</em>
             <strong>{row.score}</strong>
+            {row.runId && !row.own ? (
+              <DuelPlayerActions
+                code={code}
+                runId={row.runId}
+                name={row.name}
+                signedIn={signedIn}
+                onBlocked={(runId) => setBlocked((current) => new Set([...current, runId]))}
+              />
+            ) : null}
           </li>
         ))}
       </ol>

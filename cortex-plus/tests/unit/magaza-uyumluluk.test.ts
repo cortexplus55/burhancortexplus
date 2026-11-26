@@ -303,9 +303,23 @@ describe("yapay zekâ notu ve hukuki metinler", async () => {
     expect(plist).toMatch(/<key>NSPhotoLibraryAddUsageDescription<\/key>\s*<string>[^<]*kendiliğinden fotoğraf eklemez/);
     expect(plist).not.toContain("Sınav sabahı kâğıdı gibi");
     const manifest = read("android/app/src/main/AndroidManifest.xml");
-    const permissions = [...manifest.matchAll(/uses-permission android:name="([^"]+)"/g)].map((match) => match[1]);
+    const permissions = [...manifest.matchAll(/<uses-permission android:name="([^"]+)" \/>/g)].map((match) => match[1]);
+    // Eklentilerin eklediği tam zamanlı alarm izni birleşik bildirimden çıkarılır (Google Play kısıtlı izin).
+    expect(manifest).toContain('<uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" tools:node="remove" />');
+    // Mobil 1. adım (26 Kasım 2026): ders sesi için ön plan medya servisi ve uygulama kilidi. Konum, kişiler, depolama,
+    // tam zamanlı alarm (SCHEDULE_EXACT_ALARM) yok; yerel hatırlatma tam olmayan zamanlamayla kurulur.
     expect(permissions.sort()).toEqual(
-      ["android.permission.INTERNET", "android.permission.MODIFY_AUDIO_SETTINGS", "android.permission.POST_NOTIFICATIONS", "android.permission.RECORD_AUDIO"].sort(),
+      [
+        "android.permission.INTERNET",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.USE_BIOMETRIC",
+      ].sort(),
     );
+    expect(plist).toMatch(/<key>NSFaceIDUsageDescription<\/key>\s*<string>[^<]*cihazından çıkmaz/);
+    expect(plist).toMatch(/<key>UIBackgroundModes<\/key>\s*<array>\s*<string>audio<\/string>\s*<\/array>/);
   });
 });

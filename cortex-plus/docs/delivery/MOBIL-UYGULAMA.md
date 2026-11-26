@@ -62,6 +62,26 @@ Ayrıntı ve mağaza beyan tabloları: `docs/delivery/MAGAZA-UYUMLULUK-KONTROL.m
 - Kalıcı hesap silme Ayarlar'da; giriş yapmadan silme `/hesap-silme` (e-postayla imzalı onay bağlantısı).
 - Öğretmen yanıtında "Bildir", ders ve öğretmen ekranında yapay zekâ notu; Kullanım Koşulları ve KVKK metni yeni sürüm.
 
+## Mobil 1. adım — yapıldı (26 Kasım 2026)
+
+Ürün sahibinin kararı (aynı gün): ayrı yerel arayüz ve çevrimdışı mod **yapılmayacak**, tek kod tabanı kalır. Bugünkü
+kabukta biten mağaza işleri:
+
+| Parça | Ne | Nerede |
+|---|---|---|
+| Gizlilik bildirimi | `PrivacyInfo.xcprivacy` (takip yok, UserDefaults CA92.1, App Privacy tablosuyla aynı veri türleri), Xcode projesinde kaynak | `ios/App/App/PrivacyInfo.xcprivacy` |
+| Uygulamanın kendi eklentisi | `CortexDevice`: kilit (LocalAuthentication / BiometricPrompt), mağaza değerlendirmesi (SKStoreReviewController / Play In-App Review), ders sesi denetimleri. iOS'ta `CortexBridgeViewController` kaydeder, Android'de `MainActivity` | `ios/App/App/CortexDevicePlugin.swift`, `android/.../CortexDevicePlugin.java`, `src/lib/platform/native-device.ts` |
+| Arka plan sesi | iOS `UIBackgroundModes` audio + çalma kipi; Android `CortexMediaService` (ön plan, mediaPlayback) kilit ekranı ve bildirim alanı denetimleri; radyo ve podcast `useNativeMediaControls` | `AppDelegate.swift`, `CortexMediaService.java`, `src/lib/platform/native-media.ts` |
+| Yerel çalışma hatırlatması | `@capacitor/local-notifications`; plan sunucuda (`/api/app/reminders`, `local-reminders.ts`), telefonda kurulur (`native-reminders.ts`); tam zamanlı alarm yok | `native-bootstrap.tsx` |
+| Zorunlu güncelleme | `/api/app/version`, `NativeUpdateGate`; kural `app-version.ts` | `src/components/native/native-update-gate.tsx` |
+| Uygulama kilidi | Ayarlar → Giriş ve güvenlik (`AppLockSetting`); kilit katmanı `NativeLockGate`, içerik ilk betikte gizlenir (`cx-locked`) | `src/lib/platform/native-lock.ts` |
+| Mağaza değerlendirmesi | Puanlı etkinlik %80+ → şartlar tutarsa mağaza penceresi | `src/lib/platform/native-review.ts`, `use-node-lifecycle.ts` |
+| Düelloda bildir ve engelle | Ad süzgeci, sıralama süzgeci, `/api/duels/[code]/report|block`, `/api/student/duel-blocks`, `/admin/duello-bildirimleri` | göç `20261126180000_duel_reports_blocks.sql` (canlıda, 26 Kasım 2026) |
+
+Yerelde Android hata ayıklama ve yayın derlemesi geçti; iOS derlemesi CI'da (macOS). Gerçek cihazda denenecekler
+(hesaplar açılınca): Face ID / parmak izi, kilit ekranı denetimleri, mağaza değerlendirme penceresi (Play yalnız
+mağazadan kurulmuş uygulamada gösterir; Apple geliştirme derlemesinde her seferinde gösterir).
+
 ## Aşama 2 — uygulama içi satın alma (hesaplar açılınca)
 
 Ekran ve ürün kimlikleri hazır (yukarıda). Kalan: RevenueCat eklentisi ve kimlik eşlemesi, satın alma çağrısı,
@@ -82,7 +102,7 @@ Ekran ve ürün kimlikleri hazır (yukarıda). Kalan: RevenueCat eklentisi ve ki
 
 | Konu | Durum |
 |---|---|
-| App Store 4.2 (yalnız web sitesini saran uygulama) | Uygulama canlı siteyi açıyor. Kamera, bildirim, titreşim, paylaşım menüsü, çevrimdışı ekran ve mağaza satın alması (Aşama 2) yerel değer katıyor; inceleme notunda bunlar anlatılmalı. Ret gelirse ilk adım: daha fazla yerel ekran |
+| App Store 4.2 (yalnız web sitesini saran uygulama) | Uygulama canlı siteyi açıyor (ürün sahibinin kararı, 26 Kasım 2026: ayrı yerel arayüz yok). Kamera, anlık ve yerel bildirim, arka planda ders sesi ve kilit ekranı denetimleri, yüz/parmak izi kilidi, mağaza değerlendirmesi, titreşim, paylaşım menüsü, çevrimdışı ekran ve mağaza satın alması (Aşama 2) yerel değer katıyor; inceleme notunda anlatıldı. Ret gelirse karar ürün sahibinde |
 | Sign in with Apple (4.8) | Uygulamada Google girişi gösterilmiyor; yalnız e-posta ve şifre olduğu sürece zorunlu değil. Uygulamaya Google girişi eklenirse Apple ile giriş de gerekir (karar ürün sahibinde) |
 | Hesap silme (5.1.1) | Ayarlar → Hesabı sil → "Hesabımı kalıcı olarak sil" (onay penceresi, mağaza aboneliği uyarısı); giriş yapmadan `/hesap-silme` |
 | Evrensel bağlantılar | `apple-app-site-association` ve `assetlinks.json` Apple ekip kimliği ve imza anahtarı gelince eklenir; o zamana kadar bağlantılar telefonun tarayıcısında açılır |

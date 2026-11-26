@@ -48,6 +48,7 @@ import { elapsedMinutes } from "@/lib/learning/activity-duration";
 import type { NodeSource } from "@/components/parity/node-sources";
 import { DEFAULT_PODCAST_LENGTH, type PodcastLength } from "@/lib/learning/podcast-formats";
 import { LESSON_PODCAST_GATE, nodeGateForCode, type NodeGate } from "./gates";
+import { isReviewWin, noteLearningWin } from "@/lib/platform/native-review";
 
 /** Öbür sekmenin üretimini bekleme: 3 sn'de bir, en çok ~3 dk (ders yazımı tavanı). */
 const SHARED_WAIT_MS = 3_000;
@@ -1938,6 +1939,17 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
   const unscored = unscoredResult(kind, score.total);
   const heroScore = payload.type === "cards" && cardSummary ? cardSummary.known : score.score;
   const heroTotal = payload.type === "cards" && cardSummary ? cardSummary.total : score.total;
+
+  // Mobil uygulama (26 Kasım 2026): puanlı etkinlik %80 ve üstüyle bitince mağaza değerlendirmesinin şartı sayılır
+  // (`native-review.ts`; pencereyi mağaza açar, web'de hiçbir şey yapmaz). Deneme başına bir kez.
+  const reviewNotedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (stage !== "result" || unscored || isTimedExam) return;
+    const key = attemptId ?? "node";
+    if (reviewNotedRef.current === key || !isReviewWin(heroScore, heroTotal)) return;
+    reviewNotedRef.current = key;
+    void noteLearningWin();
+  }, [stage, unscored, isTimedExam, attemptId, heroScore, heroTotal]);
   const showCoach =
     stage === "play" &&
     Boolean(coachItem) &&

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <application
         android:allowBackup="true"
@@ -24,6 +25,12 @@
 
         </activity>
 
+        <!-- Sınav Radyosu ve podcast: kilit ekranı ve bildirim alanındaki oynatma denetimleri (ses web görünümünde çalar). -->
+        <service
+            android:name=".CortexMediaService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -43,4 +50,12 @@
     <!-- Canlı sesli öğretmen ve sesle yazdırma: mikrofon yalnız öğrenci "Konuş"a dokununca açılır. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <!-- Ders sesi arka planda sürerken denetimleri gösteren ön plan servisi (yalnız öğrenci sesi başlatınca açılır). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!-- Uygulama kilidi: parmak izi, yüz tanıma ya da cihaz kilidi; biyometrik veri cihazdan çıkmaz. -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <!-- Yerel bildirim eklentisinin eklediği tam zamanlı alarm izni çıkarılır: Google Play bu izni yalnız alarm ve takvim
+         uygulamalarına verir; çalışma hatırlatması tam olmayan zamanlamayla kurulur (native-reminders.ts). -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" tools:node="remove" />
 </manifest>

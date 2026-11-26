@@ -5,6 +5,7 @@ import { BellOff } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { PREFERENCE_LABELS, type PreferenceKey } from "@/lib/notifications/preferences";
 import { STUDY_SLOTS, type StudyHour } from "@/lib/notifications/schedule";
+import { REMINDERS_CHANGED_EVENT } from "@/lib/platform/native-reminders";
 import {
   ALL_OFF_DONE,
   ALL_OFF_LABEL,
@@ -75,6 +76,8 @@ export function NotificationPreferencesPanel({
       });
       if (!response.ok) throw new Error(`save_${response.status}`);
       setStatus({ tone: "ok", text: doneText });
+      // Mobil uygulamada telefondaki yerel çalışma hatırlatmaları yeni saat ve tercihle yeniden kurulur (web'de dinleyen yok).
+      if (typeof window !== "undefined") window.dispatchEvent(new Event(REMINDERS_CHANGED_EVENT));
     } catch {
       // Yalnız bu kaydın alanları geri döner (arada başka bir alan değiştiyse o kalır).
       setPrefs((value) => {
