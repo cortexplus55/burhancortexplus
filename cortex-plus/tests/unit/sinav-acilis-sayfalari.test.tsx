@@ -234,11 +234,16 @@ describe("yapılandırılmış veri: tek @graph", () => {
       expect(page.url).toBe(url);
       expect(page.breadcrumb).toEqual({ "@id": `${url}#yol` });
 
-      const faq = root["@graph"][4] as { "@id": string; mainEntity: Array<{ name: string; acceptedAnswer: { text: string } }> };
+      const faq = root["@graph"][4] as unknown as {
+        "@id": string;
+        mainEntity: Array<{ name: string; acceptedAnswer: { text: string } }>;
+      };
       expect(faq["@id"]).toBe(`${url}#sss`);
       expect(faq.mainEntity.map((q) => [q.name, q.acceptedAnswer.text])).toEqual(landing.faq.map((item) => [item.q, item.a]));
 
-      const crumbs = root["@graph"][3] as { itemListElement: Array<{ position: number; name: string; item: string }> };
+      const crumbs = root["@graph"][3] as unknown as {
+        itemListElement: Array<{ position: number; name: string; item: string }>;
+      };
       expect(crumbs.itemListElement).toEqual(
         examLandingCrumbs(landing).map((crumb, index) => ({
           "@type": "ListItem",
