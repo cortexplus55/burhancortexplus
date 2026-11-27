@@ -3131,6 +3131,18 @@ siteyi açar) kalır. 4.2 riski yerel yeteneklerle azaltılır. Yeniden açmayı
 
 Bekçi: `mobil-adim-1.test.ts` (yerel dosyalar, kurallar, uçlar, göç PGlite'ta), `mobil-adim-1-ekran.test.tsx`, `magaza-uyumluluk.test.ts` (izin listesi).
 
+## Canlı cila (26 Kasım 2026) — misafir sayfalarında dört küçük düzeltme
+
+| Kural | Nerede |
+|---|---|
+| Fiyat kartları koyu temada pazarlama sayfasının sıcak yüzeyinde (`--cx-bg-1`) ve ince sıcak kenarlıkta (`--cx-border`); uygulamanın nötr siyahı (#141414) sıcak zeminden kopuk duruyordu. Kartın içindeki `--cs-border` da aynı. Yalnız `.cinematic-marketing` altında; `/pay` değişmedi | `parity-marketing.css` |
+| `/ozellikler` ve `/sinav-hazirligi`'nin dönüşümlü bölümü (`lp-section--alt`) soğuk nötr #0e0e10 değil, `--lp-surface` + `--lp-border` | `landing.css` |
+| Sayfa geçiş çizgisi misafir sayfalarında (`.cinematic-marketing`, ana sayfa `.lp`) **tıklama anında** başlar (önceden yüklenmiş bağlantıda geçiş 40 ms sürüyor, 120 ms eşiği hiç dolmuyordu), rengi logonun şeridi, 3 px. Uygulamanın içinde 8 Kasım'ın 120 ms gecikmesi aynen | `navigation-progress.tsx` (`progressShowDelay`), `parity-marketing.css` |
+| `/kullanim-sartlari` ayrı sayfa değil, `next.config.ts`'te kalıcı yönlendirme (308) → `/kullanim-kosullari`; site haritasında yok | `next.config.ts` |
+| `sitemap.xml` ve `robots.txt` girişsiz 200; harita `/`, `/fiyatlandirma`, `/ozellikler`, `/mufredat`, `/ornek`, `/gizlilik`, `/kullanim-kosullari`, `/kvkk`, `/hesap-silme`'yi kapsar (canlıda doğrulandı); robots kuralları aşağıdaki "Arama motoru" bölümünde | `src/app/sitemap.ts`, `robots.ts` |
+
+Bekçi: `canli-cila-26-kasim.test.tsx`, e2e `magaza-uyumluluk.spec.ts` (yönlendirme).
+
 ## Arama motoru ve Search Console (26 Kasım 2026)
 
 Search Console mülkü **alan adı mülkü** (`cortexplus.app`, http/https ve bütün alt alan adları) ve **yalnız `cortexplus@cortexplus.app` hesabında**; kişisel hesaptaki eski mülklerle bağı yok (ürün sahibinin kararı). Doğrulama DNS TXT kaydıyla (alan adı Squarespace Domains'te, Cloudflare değil). Yeniden açmayın:

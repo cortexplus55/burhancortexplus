@@ -8,9 +8,20 @@ import { usePathname } from "next/navigation";
  * konmuyor (AGENTS.md), bu yüzden bir bağlantıya basınca sunucu sayfayı hazırlayana kadar ekranda hiçbir şey olmuyordu.
  * Çizgi sayfanın içeriğine dokunmaz: yalnız üstte ince bir şerit. Uygulama içi bağlantıya basınca 120 ms sonra belirir
  * (anında açılan sayfada yanıp sönmesin), yeni adres yerleşince tamamlanıp kaybolur; 15 sn'de kendiliğinden kapanır.
+ *
+ * Misafir sayfaları (26 Kasım 2026, canlı denetim): ana sayfa ve `/mufredat` bağlantıları önceden yükleniyor, geçiş
+ * 40 ms'de bitiyor ve çizgi 120 ms eşiğine hiç ulaşmıyordu; ziyaretçi tıklamanın alındığını göremiyordu. Pazarlama
+ * kabuğunda (`.cinematic-marketing`, ana sayfa `.lp`) çizgi tıklama anında başlar ve hızlı geçişte de bir an dolup
+ * kaybolur. Uygulamanın içinde 120 ms aynen kalır. Renk pazarlamada logonun şeridi (`parity-marketing.css`).
  */
 
 const SHOW_DELAY_MS = 120;
+const MARKETING_SHELL_SELECTOR = ".cinematic-marketing, .lp";
+
+/** Çizgi tıklamadan kaç ms sonra görünsün: misafir (pazarlama) sayfalarında hemen, uygulamada 120 ms. */
+export function progressShowDelay(doc: Pick<Document, "querySelector">): number {
+  return doc.querySelector(MARKETING_SHELL_SELECTOR) ? 0 : SHOW_DELAY_MS;
+}
 const GIVE_UP_MS = 15_000;
 
 /** Tıklanan bağlantı bu sekmede, başka bir uygulama içi sayfaya mı gidiyor? */
@@ -64,10 +75,13 @@ export function NavigationProgress() {
     const start = () => {
       clear();
       startHref.current = window.location.href;
-      bar.dataset.state = "idle";
-      timers.current.show = window.setTimeout(() => {
-        bar.dataset.state = "loading";
-      }, SHOW_DELAY_MS);
+      const delay = progressShowDelay(document);
+      bar.dataset.state = delay === 0 ? "loading" : "idle";
+      if (delay > 0) {
+        timers.current.show = window.setTimeout(() => {
+          bar.dataset.state = "loading";
+        }, delay);
+      }
       timers.current.giveUp = window.setTimeout(finish, GIVE_UP_MS);
       // Yalnız sorgusu değişen geçişte yol aynı kalır: adresin kendisi izlenir.
       timers.current.watch = window.setInterval(() => {

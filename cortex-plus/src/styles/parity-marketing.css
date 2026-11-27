@@ -768,3 +768,22 @@
 :is(.cinematic-home, .cinematic-marketing) section[id] {
   scroll-margin-top: 5.5rem;
 }
+
+/* Sayfa geçiş çizgisi misafir sayfalarında (26 Kasım 2026, canlı denetim): uygulamanın mavi çizgisi yerine logonun
+   şeridi (kehribar → gül → mor → camgöbeği), tıklama anında başlar (`navigation-progress.tsx`). */
+:root:has(:is(.cinematic-marketing, .lp)) .cp-nav-progress {
+  height: 3px;
+  background: linear-gradient(90deg, #ffb224 0%, #ff4d8d 36%, #8b5cf6 68%, #22d3ee 100%);
+  box-shadow: 0 0 12px rgba(255, 77, 141, 0.45);
+}
+
+/* Fiyat kartları pazarlama zemininde (26 Kasım 2026, canlı denetim): koyu temada kartlar uygulamanın nötr siyahını
+   (#141414) ve nötr kenarlığını kullanıyordu; sayfanın sıcak siyahından kopuk, "tam siyah" bir blok gibi duruyordu.
+   Kart artık sayfanın kendi yüzey basamağında, ince sıcak kenarlıkla; içindeki ikincil düğmenin kenarlığı da aynı.
+   Açık temada kartlar zaten açık yüzeyde. */
+:root.dark .cinematic-marketing .cs-pay-card {
+  --cs-surface: var(--cx-bg-1);
+  --cs-border: var(--cx-border);
+  background: var(--cs-surface);
+  border-color: var(--cs-border);
+}

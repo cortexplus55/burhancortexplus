@@ -50,6 +50,9 @@ const nextConfig: NextConfig = {
       { source: "/dashboard", destination: "/ogretmen", permanent: true },
       { source: "/sinav-hazirligi/app", destination: "/deneme-sinavlari", permanent: true },
       { source: "/limitler", destination: "/krediler", permanent: true },
+      // 26 Kasım 2026 (canlı denetim): eski adres ayrı bir sayfa olarak aynı metni 200 ile veriyordu (kanonik etiketli).
+      // Artık kalıcı yönlendirme (308): mağaza listeleri ve paylaşılan bağlantılar tek adrese düşer.
+      { source: "/kullanim-sartlari", destination: "/kullanim-kosullari", permanent: true },
     ];
   },
   /*
