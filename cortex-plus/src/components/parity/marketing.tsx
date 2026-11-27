@@ -6,6 +6,7 @@ import "@/styles/cinematic-home.css";
 import { ParitySiteHeader } from "@/components/marketing/parity-site-header";
 import { MARKETING_NAV } from "@/lib/parity/marketing-nav";
 import { EXAM_LANDING_LINKS } from "@/lib/marketing/exam-landing-links";
+import { GUIDE_INDEX_PATH, SUBJECT_INDEX_PATH } from "@/lib/marketing/content-hub-links";
 import { CinematicPageHero } from "@/components/marketing/cinematic-page-hero";
 import { CinematicScrollReveal } from "@/components/marketing/cinematic-scroll-reveal";
 import { CookiePreferencesButton } from "@/components/legal/cookie-banner";
@@ -39,6 +40,9 @@ export function ParitySiteFooter() {
         </div>
         <div className="mk-footer-links flex flex-col gap-2">
           <Link href="/ornek">Nasıl çalışır</Link>
+          {/* Ders ve rehber dizinleri (27 Kasım 2026, SEO): ana sayfadan iki tıkta her ders ve rehber. */}
+          <Link href={SUBJECT_INDEX_PATH}>Dersler</Link>
+          <Link href={GUIDE_INDEX_PATH}>Rehber</Link>
           {MARKETING_NAV.map((item) => (
             <Link key={item.href} href={item.href}>
               {item.label}

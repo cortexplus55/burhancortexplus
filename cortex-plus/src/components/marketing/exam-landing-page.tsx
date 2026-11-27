@@ -12,6 +12,7 @@ import { getProgram } from "@/lib/curriculum/registry";
 import { treeLabelFor } from "@/lib/curriculum/seo";
 import { formatTryWhole } from "@/lib/format";
 import { EXAM_LANDING_LINKS } from "@/lib/marketing/exam-landing-links";
+import { GUIDE_LINKS, guidePath, SUBJECT_HUB_LINKS } from "@/lib/marketing/content-hub-links";
 import { EXAM_LANDINGS, examLandingSummary, type ExamLanding, type ExamLandingId } from "@/lib/marketing/exam-landings";
 import {
   breadcrumbJsonLd,
@@ -108,6 +109,8 @@ export async function ExamLandingPage({ id }: { id: ExamLandingId }) {
   const programs = landingPrograms(landing);
   const crumbs = examLandingCrumbs(landing);
   const others = EXAM_LANDING_LINKS.filter((link) => link.id !== id);
+  const subjects = SUBJECT_HUB_LINKS.filter((link) => landing.subjects.includes(link.id));
+  const guides = GUIDE_LINKS.filter((link) => landing.guides.includes(link.slug));
   const titleId = `${id}-title`;
 
   return (
@@ -222,6 +225,33 @@ export async function ExamLandingPage({ id }: { id: ExamLandingId }) {
 
         {/* "Cevap önce" sık sorulanlar; aynı metin FAQPage yapılandırılmış verisine gider. */}
         <AnswerFaqSection id={`${id}-faq`} title="Sık sorulanlar" items={landing.faq} />
+
+        {/* Ders ve rehber sayfaları (27 Kasım 2026, iç bağlantı ağı). */}
+        <section className="lp-section xl-section" aria-labelledby={`${id}-related`} data-testid="exam-landing-related">
+          <div className="lp-wrap">
+            <h2 id={`${id}-related`} className="lp-h2">
+              Dersler ve rehberler
+            </h2>
+            <ul className="xl-exams">
+              {subjects.map((link) => (
+                <li key={link.id}>
+                  <Link href={link.path} className="xl-exam">
+                    {link.name}
+                    <span className="xl-exam-note">Ders</span>
+                  </Link>
+                </li>
+              ))}
+              {guides.map((link) => (
+                <li key={link.slug}>
+                  <Link href={guidePath(link.slug)} className="xl-exam">
+                    {link.name}
+                    <span className="xl-exam-note">Rehber</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
 
         <section className="lp-section lp-section--alt xl-section" aria-labelledby={`${id}-others`}>
           <div className="lp-wrap">

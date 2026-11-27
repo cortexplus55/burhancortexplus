@@ -54,6 +54,9 @@ export function buildLlmsTxt(offers: readonly PublicPlanOffer[]): string {
     "",
     `> ${PRODUCT_DEFINITION} ${PRODUCT_AUDIENCE}`,
     "",
+    // Tam sürüm (27 Kasım 2026): bütün sınavlar, dersler, rehberler, özellikler ve paketler tek dosyada.
+    `Bütün sınavlar, dersler, rehberler ve paketler tek dosyada: [llms-full.txt](${absoluteUrl("/llms-full.txt")})`,
+    "",
     "## Kimler için",
     "",
     "- Ortaokul ve LGS (sorular 4 şıklı)",

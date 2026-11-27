@@ -9,6 +9,9 @@
  * kazanım) kayıt defterinden gelir (`curriculumSitemapPaths`); buradaki `/mufredat` yalnız `/llms.txt` içindir.
  */
 import { EXAM_LANDING_LIST } from "@/lib/marketing/exam-landings";
+import { GUIDE_INDEX_PATH, SUBJECT_INDEX_PATH } from "@/lib/marketing/content-hub-links";
+import { GUIDE_LIST } from "@/lib/marketing/guides";
+import { SUBJECT_HUB_LIST } from "@/lib/marketing/subject-hubs";
 
 export type PublicPage = {
   /** Kök için boş dize (site haritası `https://cortexplus.app` yazar, sondaki eğik çizgi olmadan). */
@@ -33,6 +36,11 @@ export const PUBLIC_PAGES: readonly PublicPage[] = [
     note: landing.llmsNote,
     inMarketingSitemap: true,
   })),
+  // Ders ve rehber sayfaları (27 Kasım 2026): başlık sayfanın kendi `pageMetadata` başlığı.
+  { path: SUBJECT_INDEX_PATH, title: "Dersler", note: "Sekiz dersin sınavlara göre kapsamı ve ders sayfaları.", inMarketingSitemap: true },
+  ...SUBJECT_HUB_LIST.map((hub) => ({ path: hub.path, title: hub.metaTitle, note: hub.llmsNote, inMarketingSitemap: true })),
+  { path: GUIDE_INDEX_PATH, title: "Rehber", note: "Öğrencilerin en sık sorduğu sorulara kısa, adım adım rehberler.", inMarketingSitemap: true },
+  ...GUIDE_LIST.map((guide) => ({ path: guide.path, title: guide.metaTitle, note: guide.llmsNote, inMarketingSitemap: true })),
   { path: "/resmi", title: "Resmî Takvim ve Sınav Yapıları", note: "Resmî sınav takvimi ve sınav yapıları.", inMarketingSitemap: true },
   { path: "/yardim", title: "Yardım", note: "Sık sorulan sorular ve destek.", inMarketingSitemap: true },
   { path: "/mobil-uygulama", title: "Telefondan Cortex", note: "Telefonda ana ekrana ekleme.", inMarketingSitemap: true },

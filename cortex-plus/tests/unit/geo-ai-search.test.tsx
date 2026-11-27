@@ -330,11 +330,11 @@ describe("/llms.txt", () => {
   it("bağlantıların hepsi dolu, tam ve kapalı olmayan adres; boş satır başı yok", () => {
     const text = buildLlmsTxt(storeOffersFromPlans(LIVE_ROWS));
     const links = [...text.matchAll(/\[([^\]]*)\]\(([^)]*)\)/g)];
-    // Sayfalar listesi + sınavlara göre hazırlık bölümü (27 Kasım 2026, sınav açılış sayfaları).
-    expect(links.length).toBe(PUBLIC_PAGES.length + EXAM_LANDING_LIST.length);
+    // Sayfalar listesi + sınavlara göre hazırlık bölümü (27 Kasım 2026, sınav açılış sayfaları) + tam sürüm bağlantısı.
+    expect(links.length).toBe(PUBLIC_PAGES.length + EXAM_LANDING_LIST.length + 1);
     for (const [, label, url] of links) {
       expect(label!.trim(), url).not.toBe("");
-      expect(url).toMatch(/^https:\/\/cortexplus\.app(\/[a-z0-9-]+)*$/);
+      expect(url).toMatch(/^https:\/\/cortexplus\.app(\/[a-z0-9-]+)*(\/llms-full\.txt)?$/);
       expect(isCrawlBlocked(new URL(url!).pathname), url).toBe(false);
     }
     expect(text).not.toMatch(/\]\(\s*\)|undefined|null|NaN|\[doldurulacak\]/);
@@ -355,6 +355,8 @@ describe("/llms.txt", () => {
       if (page.path === "") continue;
       const file = `src/app${page.path}/page.tsx`;
       // Sınav açılış sayfası başlığını kendi verisinden okur (`EXAM_LANDINGS.<id>.metaTitle`).
+      // Ders ve rehber sayfaları dinamik rotada; başlıklarını `ders-rehber-sayfalari.test.tsx` kendi verisiyle karşılaştırır.
+      if (/^\/(ders|rehber)\/./.test(page.path)) continue;
       const landing = EXAM_LANDING_LIST.find((item) => item.path === page.path);
       if (landing) {
         expect(read(file), file).toContain(`EXAM_LANDINGS.${landing.id}`);

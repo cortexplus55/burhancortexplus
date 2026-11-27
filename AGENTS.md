@@ -3206,3 +3206,23 @@ dokunulmadı; veritabanı değişikliği yok. Yeniden açmayın:
 Bekçi: `sinav-acilis-sayfalari.test.tsx`, `geo-ai-search.test.tsx`; e2e `sinav-acilis-sayfalari.spec.ts` (tarayıcı açmadan ilk
 sunucu HTML'i: 200, `JSON.parse`, kanonik, paylaşım görseli 200, tanım ilk 100 kelimede, SSS; site haritası, `/llms.txt`,
 ana sayfa altbilgisi; 375 ve 1280 px'te taşma yok, dokunma ≥ 44 px).
+
+## Ders ve rehber sayfaları, /llms-full.txt (27 Kasım 2026)
+
+Ürün sahibinin istemi: yapay zekâ aramalarında alıntılanmak ve yüksek niyetli aramalarda öne çıkmak için sekiz ders
+sayfası, altı rehber, tam sürüm `/llms-full.txt` ve `/mufredat` ince içerik denetimi. Sınav açılış sayfalarının standardı
+(sunucuda tanım, tek `@graph`, kanonik, canlı veri) aynen korunur. Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| **Ders sayfaları** `/ders/<ders>` (matematik, kimya, fizik, biyoloji, turkce, tarih, cografya, ingilizce) ve `/ders` dizini: iki cümlelik tanım (ders notundan kişisel program, adım adım çözüm, yazılı ve canlı sesli öğretmen) üst menü dahil ilk 100 kelimede; sınavlara göre kapsam; beş "cevap önce" soru; tek `@graph` (Organization, WebSite, WebPage, **LearningResource**, BreadcrumbList, FAQPage). Course değil: Google'ın kurs zengin sonucu teklif ve kurs örneği ister, eksik Course uyarı üretir | `lib/marketing/subject-hubs.ts`, `components/marketing/subject-hub-page.tsx`, `app/ders/[ders]/page.tsx` (`dynamicParams = false`) |
+| **Sayılar kayıt defterinden:** soru sayıları `examStructures` (MEB ve ÖSYM 2026), sınıf kapsamı `examGradeScopes`, ünite adları ve sırası programlardan. KPSS'nin ders ders dağılımı ÖSYM tarafından yayımlanmaz, sayı yazılmaz (`KPSS-TAHMINI` satırları kullanılmaz). YDT ürünümüzde yok; yalnız "sunmaz" diye anılır | `structureCount`, `programUnitsForGrades` |
+| **Rehberler** `/rehber/<konu>` (6) ve `/rehber` dizini: doğrudan cevap ilk 100 kelimede, numaralı adımlar, veri bloğu (TYT matematik 9-10, AYT kimya 11-12 üniteleri kayıt defterinden) ya da tarafsız ölçüt tablosu (telefonda etiketli kart), üç SSS; tek `@graph` (… **Article** + BreadcrumbList + FAQPage; yayın tarihi `GUIDE_PUBLISHED`). Seçim rehberinde rakip adı yok; "Cortex Plus'ta" sütunu bugün çalışan iş | `lib/marketing/guides.ts`, `components/marketing/guide-page.tsx`, `app/rehber/[konu]/page.tsx` |
+| **Ürün sözleri koddan:** canlı ses erişimi (`REFUSAL_MESSAGE.plus_required`, `LIVE_VOICE_PLANS` bekçide eşit), ücretsiz hak, fotoğraf ve mesaj sayıları, tekrar günleri, sayfa aralığı eşiği, günlük süre varsayılanı, veli bağlantısı süresi, sessiz saat. Sabit fiyat yok (bekçi `₺` ve fiyat rakamlarını tarar) | aynı |
+| **İç bağlantı:** sınav sayfalarında "Dersler ve rehberler" bölümü (`ExamLanding.subjects`, `guides`), ders sayfalarında kapsam satırları `/mufredat` programlarına ve sınav sayfalarına, altbilgide "Dersler" ve "Rehber". Bağlantı listesi bağımlılıksız tek dosyada | `lib/marketing/content-hub-links.ts` |
+| **`/llms-full.txt`:** sınavlar, dersler, rehberler, özellikler, canlı fiyatlar, sık sorulanlar ve 158 müfredat programı tek düz metinde (sayfadaki metnin aynısı); `/llms.txt` başta ona bağlanır. Site haritası ve `/llms.txt` yeni 16 sayfayı `PUBLIC_PAGES`'ten alır | `lib/seo/llms-full.ts`, `app/llms-full.txt/route.ts` |
+| Mobil uygulamada `/ders` ve `/rehber` ana sayfaya yönlenir | `NATIVE_MARKETING_PAGES` |
+| **`/mufredat` denetimi (yalnız rapor, noindex basılmadı):** 5.236 adresin 5.217'si müfredat; kazanım sayfaları sağlıklı (ortanca 736 kelime), 864 ünite sayfası ince (ortanca 53 kelime), 38 eski `*-tree-*` programı 632 adres ve derin karşılıklarıyla %55–72 örtüşüyor. Öneriler ürün sahibinin kararında | `docs/seo/mufredat-ince-icerik-denetimi.md` |
+
+Bekçi: `ders-rehber-sayfalari.test.tsx`, `geo-ai-search.test.tsx`, `sinav-acilis-sayfalari.test.tsx`; e2e `ders-rehber-sayfalari.spec.ts`
+(ilk sunucu HTML'i, 404, `/llms-full.txt`, site haritası; 375 ve 1280 px'te 16 sayfa taşma ve 44 px).

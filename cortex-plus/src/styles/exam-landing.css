@@ -293,3 +293,237 @@
     width: 100%;
   }
 }
+
+/* ---------- Ders açılış sayfaları (27 Kasım 2026): sınavlara göre kapsam ---------- */
+.xl-scope {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+  gap: 1rem;
+  margin: 1.75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.xl-scope-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 1.25rem;
+  border: 1px solid var(--lp-border);
+  border-radius: 1.25rem;
+  background: var(--lp-surface);
+}
+
+.xl-scope-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+}
+
+.xl-scope-head .lp-h3 {
+  margin: 0;
+}
+
+.xl-scope-count {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--lp-accent-text);
+}
+
+.xl-scope-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.xl-scope-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0.35rem 0.85rem;
+  border: 1px solid var(--lp-border-strong);
+  border-radius: 999px;
+  color: var(--lp-text);
+  font-size: 0.875rem;
+  text-decoration: none;
+}
+
+.xl-scope-links a:hover {
+  border-color: #5a4a3d;
+  background: var(--lp-surface-2);
+}
+
+.xl-scope-links a:focus-visible {
+  outline: 2px solid var(--lp-accent-text);
+  outline-offset: 2px;
+}
+
+.xl-scope-units {
+  color: var(--lp-muted);
+}
+
+.xl-programs--wide {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+}
+
+/* ---------- Rehber sayfaları (27 Kasım 2026) ---------- */
+.xl .xl-guide-title {
+  max-width: 24ch;
+}
+
+.xl-guide-meta {
+  margin: 1rem 0 0;
+  font-size: 0.875rem;
+  color: var(--lp-subtle);
+}
+
+/* Adımlar gerçekten sıralı: numaralı liste, numara CSS sayacıyla. */
+.xl-guide-steps {
+  display: grid;
+  gap: 1rem;
+  max-width: 48rem;
+  margin: 1.75rem 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: xl-step;
+}
+
+.xl-guide-step {
+  position: relative;
+  min-width: 0;
+  padding: 1.1rem 1.25rem 1.1rem 3.5rem;
+  border: 1px solid var(--lp-border);
+  border-radius: 1.25rem;
+  background: var(--lp-surface);
+  counter-increment: xl-step;
+}
+
+.xl-guide-step::before {
+  content: counter(xl-step);
+  position: absolute;
+  top: 1.05rem;
+  left: 1.1rem;
+  display: grid;
+  place-items: center;
+  width: 1.65rem;
+  height: 1.65rem;
+  border-radius: 999px;
+  background: var(--lp-surface-2);
+  color: var(--lp-accent-text);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.xl-guide-list {
+  display: grid;
+  gap: 0.5rem;
+  max-width: 42rem;
+  margin: 1.5rem 0 0;
+  padding-left: 1.5rem;
+  color: var(--lp-text);
+  line-height: 1.5;
+}
+
+.xl-guide-list li::marker {
+  color: var(--lp-accent-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Ölçüt tablosu: dar ekranda kendi kutusunda yana kayar, sayfa kaymaz. */
+.xl-table-wrap {
+  max-width: 100%;
+  margin-top: 1.5rem;
+  overflow-x: auto;
+  border: 1px solid var(--lp-border-strong);
+  border-radius: 1rem;
+}
+
+.xl-table {
+  width: 100%;
+  min-width: 40rem;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.xl-table th,
+.xl-table td {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--lp-border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.xl-table thead th {
+  background: var(--lp-surface-2);
+  font-weight: 600;
+}
+
+.xl-table tbody th {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.xl-table td {
+  color: var(--lp-muted);
+}
+
+.xl-table tr:last-child > * {
+  border-bottom: 0;
+}
+
+/* Telefonda tablo satırı etiketli bir kart olur: üç sütun yana kaydırmadan okunur. */
+@media (max-width: 640px) {
+  .xl-table-wrap {
+    overflow: visible;
+    border: 0;
+  }
+
+  .xl-table,
+  .xl-table tbody,
+  .xl-table tr,
+  .xl-table th,
+  .xl-table td {
+    display: block;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .xl-table thead {
+    display: none;
+  }
+
+  .xl-table tr {
+    margin-bottom: 0.85rem;
+    border: 1px solid var(--lp-border-strong);
+    border-radius: 1rem;
+    background: var(--lp-bg);
+  }
+
+  .xl-table tbody th {
+    padding-bottom: 0.25rem;
+    border-bottom: 0;
+    white-space: normal;
+  }
+
+  .xl-table td {
+    padding-top: 0.35rem;
+    border-bottom: 0;
+  }
+
+  .xl-table td::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 0.15rem;
+    color: var(--lp-text);
+    font-size: 0.8125rem;
+    font-weight: 600;
+  }
+}
