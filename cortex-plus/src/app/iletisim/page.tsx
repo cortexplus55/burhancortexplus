@@ -3,6 +3,7 @@ import { LifeBuoy, ListChecks, Mail, ShieldCheck } from "lucide-react";
 import { MarketingPage } from "@/components/layout/marketing-page";
 import { SellerWarning } from "@/components/layout/seller-warning";
 import { SELLER, sellerField } from "@/lib/legal/seller";
+import { pageMetadata } from "@/lib/seo/page-metadata";
 
 const SELLER_ROWS = [
   { label: "Ad soyad / Ünvan", value: sellerField("legalName") },
@@ -20,10 +21,12 @@ const SELLER_ROWS = [
   { label: "İnternet sitesi", value: SELLER.website },
 ];
 
-export const metadata = {
+export const metadata = pageMetadata({
   title: "İletişim",
-  description: "Cortex Plus destek ve iletişim bilgileri.",
-};
+  description:
+    "Cortex Plus'a e-postayla ulaş: destek, ödeme ve kişisel veri başvuruları ile satıcı bilgileri.",
+  path: "/iletisim",
+});
 
 export default function IletisimPage() {
   return (

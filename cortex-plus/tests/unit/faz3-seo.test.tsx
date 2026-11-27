@@ -113,7 +113,7 @@ describe("JSON-LD", () => {
       />,
     );
     const [parsed] = parseScripts(html) as [Array<Record<string, unknown>>];
-    expect(parsed.map((item) => item["@type"])).toEqual(["EducationalOrganization", "WebSite", "FAQPage"]);
+    expect(parsed.map((item) => item["@type"])).toEqual(["Organization", "WebSite", "FAQPage"]);
     for (const item of parsed) expect(item["@context"]).toBe("https://schema.org");
     const [org, site, faq] = parsed as [Record<string, unknown>, Record<string, unknown>, { mainEntity: Array<Record<string, unknown>> }];
     expect(org.url).toBe(SITE_URL);

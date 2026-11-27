@@ -2,11 +2,14 @@ import Link from "next/link";
 import { LegalDocument } from "@/components/layout/legal-document";
 import { DELETED_DATA, PUBLIC_DELETION_PATH, RETAINED_DATA } from "@/lib/privacy/account-deletion-copy";
 import { sellerField } from "@/lib/legal/seller";
+import { pageMetadata } from "@/lib/seo/page-metadata";
 
-export const metadata = {
+export const metadata = pageMetadata({
   title: "Gizlilik politikası",
-  description: "Cortex Plus'ın web sitesi ve mobil uygulamasında kişisel verileri işleme ve saklama ilkeleri.",
-};
+  description:
+    "Cortex Plus'ın web sitesi ve mobil uygulamasında kişisel verileri işleme ve saklama ilkeleri.",
+  path: "/gizlilik",
+});
 
 /*
   Gizlilik politikası: web sitesi ve mobil uygulama (App Store / Google Play) için ortak, sade bir liste. Asıl ve

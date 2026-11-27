@@ -2,12 +2,15 @@ import { LegalDocument } from "@/components/layout/legal-document";
 import { CookiePreferencesButton } from "@/components/legal/cookie-banner";
 import { COOKIE_CATEGORY_LABELS, COOKIE_ROWS, COOKIE_SECTIONS } from "@/lib/legal/cookie-text";
 import { COOKIE_POLICY_VERSION } from "@/lib/legal/versions";
+import { pageMetadata } from "@/lib/seo/page-metadata";
 import "@/styles/legal-consent.css";
 
-export const metadata = {
+export const metadata = pageMetadata({
   title: "Çerez politikası",
-  description: "Cortex Plus'ın kullandığı çerezler, amaçları ve süreleri; tercihini nasıl değiştirirsin.",
-};
+  description:
+    "Cortex Plus'ın kullandığı çerezler, amaçları ve süreleri; tercihini nasıl değiştirirsin.",
+  path: "/cerez-politikasi",
+});
 
 /**
  * Çerez Politikası (7 Kasım 2026, uyum paketi). Tablo `cookie-text.ts`'ten: kodun gerçekte yazdığı çerezler.

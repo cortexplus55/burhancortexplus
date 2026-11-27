@@ -1,24 +1,79 @@
+import { sellerField } from "@/lib/legal/seller";
 import { absoluteUrl, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo/page-metadata";
 
 /*
   Yapılandırılmış veri (schema.org JSON-LD; 20 Kasım 2026, Faz 3). Yalnız sitede görünen, doğru bilgi: ad, adres,
-  açıklama, logo, sayfadaki sık sorulanlar ve sayfanın gezinme yolu. Fiyat, puan, yorum ya da öğrenci sayısı yazılmaz.
+  açıklama, logo, sayfadaki sık sorulanlar ve sayfanın gezinme yolu. Fiyat, puan, yorum ya da öğrenci sayısı yazılmaz:
+  fiyat veritabanından değişir (yapılandırılmış veride eski fiyat kalırdı), puan ve yorum elimizde yok.
+
+  26 Kasım 2026 (Search Console): `SoftwareApplication` bilerek yok. Google bu türü ancak puan (`aggregateRating`) ya da
+  yorum (`review`) ile geçerli sayar; ikisi de olmadan Search Console "geçersiz öğe" yazar ve uydurma puan yazılmaz.
+  Ürünü ana sayfadaki `Organization` + `WebSite` anlatır.
 */
 
 type JsonLdObject = { "@context": "https://schema.org"; "@type": string; [key: string]: unknown };
 
 const CONTEXT = "https://schema.org" as const;
+const ORGANIZATION_ID = `${SITE_URL}/#kurum`;
+const WEBSITE_ID = `${SITE_URL}/#site`;
 
-/** Ana sayfa: kurum. Logo üst çubuktaki dosyanın kendisi. */
+/** Ana sayfa: kurum (marka). Logo üst çubuktaki dosyanın kendisi; iletişim adresi hukuki sayfalardakiyle aynı. */
 export function organizationJsonLd(): JsonLdObject {
   return {
     "@context": CONTEXT,
-    "@type": "EducationalOrganization",
-    "@id": `${SITE_URL}/#kurum`,
+    "@type": "Organization",
+    "@id": ORGANIZATION_ID,
     name: SITE_NAME,
     url: SITE_URL,
     description: SITE_DESCRIPTION,
     logo: absoluteUrl("/logo-mark-trim.png"),
+    contactPoint: [
+      {
+        "@type": "ContactPoint",
+        contactType: "customer support",
+        email: sellerField("email"),
+        availableLanguage: ["tr"],
+      },
+    ],
+  };
+}
+
+/**
+ * Tek sayfa: sayfanın kendisi (ad, açıklama, adres) ve siteye bağı. Liste sayfası `CollectionPage`, içindeki
+ * bağlantılar `mainEntity` olarak (`itemListJsonLd`).
+ */
+export function webPageJsonLd(input: {
+  type?: "WebPage" | "CollectionPage";
+  name: string;
+  description: string;
+  path: string;
+  mainEntity?: object;
+}): JsonLdObject {
+  return {
+    "@context": CONTEXT,
+    "@type": input.type ?? "WebPage",
+    "@id": `${absoluteUrl(input.path)}#sayfa`,
+    url: absoluteUrl(input.path),
+    name: input.name,
+    description: input.description,
+    inLanguage: "tr-TR",
+    isPartOf: { "@id": WEBSITE_ID },
+    publisher: { "@id": ORGANIZATION_ID },
+    ...(input.mainEntity ? { mainEntity: input.mainEntity } : {}),
+  };
+}
+
+/** Sayfadaki bağlantı listesi (ad ve tam adres, sayfadaki sırayla). */
+export function itemListJsonLd(items: ReadonlyArray<{ name: string; path: string }>): Record<string, unknown> {
+  return {
+    "@type": "ItemList",
+    numberOfItems: items.length,
+    itemListElement: items.map((item, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: item.name,
+      url: absoluteUrl(item.path),
+    })),
   };
 }
 
@@ -27,11 +82,11 @@ export function websiteJsonLd(): JsonLdObject {
   return {
     "@context": CONTEXT,
     "@type": "WebSite",
-    "@id": `${SITE_URL}/#site`,
+    "@id": WEBSITE_ID,
     name: SITE_NAME,
     url: SITE_URL,
     inLanguage: "tr-TR",
-    publisher: { "@id": `${SITE_URL}/#kurum` },
+    publisher: { "@id": ORGANIZATION_ID },
   };
 }
 

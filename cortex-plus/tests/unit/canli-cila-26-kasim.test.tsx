@@ -36,7 +36,8 @@ describe("site haritası ve robots", async () => {
     const rule = Array.isArray(rules.rules) ? rules.rules[0]! : rules.rules;
     expect(rule.allow).toBe("/");
     const disallow = ([] as string[]).concat(rule.disallow ?? []);
-    expect(disallow).toEqual(["/admin", "/api/", "/auth/"]);
+    // Search Console turunda (26 Kasım 2026) ödeme ve ayarlar da kapandı; liste tek kaynakta (`crawl-rules.ts`).
+    expect(disallow).toEqual(["/admin", "/api/", "/auth/", "/pay", "/ayarlar"]);
     expect(rules.sitemap).toBe("https://cortexplus.app/sitemap.xml");
   });
 });

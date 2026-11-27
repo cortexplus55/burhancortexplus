@@ -3,12 +3,17 @@ import { MarketingPage } from "@/components/layout/marketing-page";
 import { CURRICULUM, listProgramSummaries } from "@/lib/curriculum/registry";
 import { programGroupLabel } from "@/lib/curriculum/program-group";
 import { pageMetadata } from "@/lib/seo/page-metadata";
+import { breadcrumbJsonLd, itemListJsonLd, webPageJsonLd } from "@/lib/seo/structured-data";
+import { CURRICULUM_INDEX_TITLE } from "@/lib/seo/curriculum-breadcrumb";
+import { JsonLd } from "@/components/seo/json-ld";
 
 // Kanonik adres ve sayfaya özel paylaşım bilgisi (20 Kasım 2026, Faz 3).
+const MUFREDAT_DESCRIPTION =
+  "MEB öğretim programları ve ortak yazılı senaryolarından çıkarılan kazanım listesi, kaynaklarıyla.";
+
 export const metadata = pageMetadata({
   title: "Resmî Müfredat",
-  description:
-    "MEB öğretim programları ve ortak yazılı senaryolarından çıkarılan kazanım listesi, kaynaklarıyla.",
+  description: MUFREDAT_DESCRIPTION,
   path: "/mufredat",
 });
 
@@ -40,6 +45,24 @@ export default function MufredatPage() {
       description={`${programs.length} program, ${outcomeTotal} kazanım. Veri sürümü ${CURRICULUM.version}; kaynaklar MEB, ÖDSGM ve ÖSYM belgeleri.`}
       contentClassName="pb-24"
     >
+      {/* Liste sayfası: programlar sayfadaki sırayla, gezinme yolu (26 Kasım 2026). */}
+      <JsonLd
+        data={[
+          webPageJsonLd({
+            type: "CollectionPage",
+            name: CURRICULUM_INDEX_TITLE,
+            description: MUFREDAT_DESCRIPTION,
+            path: "/mufredat",
+            mainEntity: itemListJsonLd(
+              [...groups.values()].flat().map((p) => ({ name: p.label, path: `/mufredat/${p.id}` })),
+            ),
+          }),
+          breadcrumbJsonLd([
+            { name: "Cortex Plus", path: "/" },
+            { name: CURRICULUM_INDEX_TITLE, path: "/mufredat" },
+          ]),
+        ]}
+      />
       <p className="mk-eyebrow">
         <Link href="/resmi">Resmî takvim, sınav yapıları ve eksik veri →</Link>
       </p>

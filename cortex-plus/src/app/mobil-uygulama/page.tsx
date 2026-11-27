@@ -4,12 +4,14 @@ import { InstallApp } from "@/components/pwa/install-app";
 import { PageShell } from "@/components/parity/page-shell";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { loadOptionalStudentShell } from "@/lib/student/optional-shell";
+import { pageMetadata } from "@/lib/seo/page-metadata";
 
-export const metadata = {
+export const metadata = pageMetadata({
   title: "Telefondan Cortex",
   description:
     "Cortex Plus'ı tek dokunuşla telefonuna uygulama olarak kur (iOS ve Android) — mağaza uygulaması yok, web tam çalışır.",
-};
+  path: "/mobil-uygulama",
+});
 
 const perks = [
   {

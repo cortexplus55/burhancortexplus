@@ -15,7 +15,26 @@ async function jsonLdTypes(page: Page): Promise<string[]> {
 }
 
 test.describe("Faz 3 SEO", { tag: ["@public"] }, () => {
-  for (const path of ["/ozellikler", "/fiyatlandirma", "/sinav-hazirligi", "/yardim", "/ornek", "/mufredat"]) {
+  // 26 Kasım 2026 (Search Console): hukuki, iletişim, giriş ve kayıt sayfaları da kendi kanonik adresini yazar
+  // (önceden kanonik yoktu, paylaşım adresi ana sayfayı gösteriyordu).
+  for (const path of [
+    "/ozellikler",
+    "/fiyatlandirma",
+    "/sinav-hazirligi",
+    "/yardim",
+    "/ornek",
+    "/mufredat",
+    "/gizlilik",
+    "/kvkk",
+    "/kullanim-kosullari",
+    "/hesap-silme",
+    "/iletisim",
+    "/hakkimizda",
+    "/cerez-politikasi",
+    "/mobil-uygulama",
+    "/giris",
+    "/kayit",
+  ]) {
     test(`${path}: kanonik, paylaşım adresi ve görseli sayfanın kendisi`, async ({ page }) => {
       await page.goto(path);
       const url = `https://cortexplus.app${path}`;
@@ -29,7 +48,16 @@ test.describe("Faz 3 SEO", { tag: ["@public"] }, () => {
   test("ana sayfa: kanonik kök adres; kurum, site ve SSS yapılandırılmış verisi", async ({ page }) => {
     await page.goto("/");
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://cortexplus.app");
-    expect(await jsonLdTypes(page)).toEqual(expect.arrayContaining(["EducationalOrganization", "WebSite", "FAQPage"]));
+    expect(await jsonLdTypes(page)).toEqual(expect.arrayContaining(["Organization", "WebSite", "FAQPage"]));
+  });
+
+  test("fiyat ve müfredat dizini: sayfa ve gezinme yolu yapılandırılmış verisi, fiyatsız", async ({ page }) => {
+    await page.goto("/fiyatlandirma");
+    expect(await jsonLdTypes(page)).toEqual(expect.arrayContaining(["WebPage", "BreadcrumbList"]));
+    const pricingLd = (await page.locator('script[type="application/ld+json"]').allTextContents()).join("\n");
+    expect(pricingLd).not.toMatch(/"price"|"offers"|aggregateRating/);
+    await page.goto("/mufredat");
+    expect(await jsonLdTypes(page)).toEqual(expect.arrayContaining(["CollectionPage", "BreadcrumbList"]));
   });
 
   test("yardım SSS'si ve müfredat program sayfasının gezinme yolu", async ({ page }) => {

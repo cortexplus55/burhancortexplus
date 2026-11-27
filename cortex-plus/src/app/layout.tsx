@@ -56,6 +56,16 @@ const geistMono = Geist_Mono({
 const siteTitle = SITE_TITLE;
 const siteDescription = SITE_DESCRIPTION;
 
+/**
+ * Google Search Console HTML etiketiyle doğrulama (26 Kasım 2026). İki ad da okunur; değer yoksa etiket yazılmaz.
+ * Alan adı mülkü DNS TXT kaydıyla doğrulanır (Squarespace Domains); etiket yalnız ek yol.
+ */
+const googleSiteVerification = (
+  process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION?.trim() ||
+  process.env.GOOGLE_SITE_VERIFICATION?.trim() ||
+  ""
+);
+
 export const metadata: Metadata = {
   title: {
     default: siteTitle,
@@ -88,13 +98,7 @@ export const metadata: Metadata = {
     title: siteTitle,
     description: siteDescription,
   },
-  ...(process.env.GOOGLE_SITE_VERIFICATION
-    ? {
-        verification: {
-          google: process.env.GOOGLE_SITE_VERIFICATION,
-        },
-      }
-    : {}),
+  ...(googleSiteVerification ? { verification: { google: googleSiteVerification } } : {}),
 };
 
 export const viewport: Viewport = {
