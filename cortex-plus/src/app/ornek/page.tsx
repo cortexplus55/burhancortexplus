@@ -6,12 +6,17 @@ import { ParityMarketingPage } from "@/components/parity/marketing";
 import { loadDemoLesson } from "@/lib/demo/lesson";
 import "@/styles/demo.css";
 import { pageMetadata } from "@/lib/seo/page-metadata";
+import { JsonLd } from "@/components/seo/json-ld";
+import { breadcrumbJsonLd, organizationJsonLd, webPageJsonLd, websiteJsonLd } from "@/lib/seo/structured-data";
+
+const ORNEK_TITLE = "Nasıl çalışır — örnek çalışma";
+const ORNEK_DESCRIPTION =
+  "Hazır bir ders notuyla Cortex Plus akışını baştan sona gezin: konu çıkarımı, podcast, quiz ve sözlü.";
 
 // Kanonik adres ve sayfaya özel paylaşım bilgisi (20 Kasım 2026, Faz 3).
 export const metadata = pageMetadata({
-  title: "Nasıl çalışır — örnek çalışma",
-  description:
-    "Hazır bir ders notuyla Cortex Plus akışını baştan sona gezin: konu çıkarımı, podcast, quiz ve sözlü.",
+  title: ORNEK_TITLE,
+  description: ORNEK_DESCRIPTION,
   path: "/ornek",
 });
 
@@ -47,6 +52,18 @@ export default async function OrnekPage() {
     // Site başlığı, logo ve alt bilgi öbür pazarlama sayfalarıyla aynı kabuktan (6 Kasım 2026): bu sayfa
     // ana sayfadaki ikinci düğmenin hedefi ve kendi tırnaklı yazılı logosuyla ayrı bir marka gibi duruyordu.
     <ParityMarketingPage>
+    {/* Kurum, site, sayfa ve gezinme yolu tek @graph içinde (27 Kasım 2026, GEO). */}
+    <JsonLd
+      data={[
+        organizationJsonLd(),
+        websiteJsonLd(),
+        webPageJsonLd({ name: ORNEK_TITLE, description: ORNEK_DESCRIPTION, path: "/ornek", breadcrumb: true, about: "software" }),
+        breadcrumbJsonLd([
+          { name: "Cortex Plus", path: "/" },
+          { name: ORNEK_TITLE, path: "/ornek" },
+        ]),
+      ]}
+    />
     <div className="dm-shell">
 
       <DemoWalkthrough

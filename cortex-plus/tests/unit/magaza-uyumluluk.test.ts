@@ -158,11 +158,14 @@ describe("hesap silme", async () => {
     expect(page).toContain("AccountDeletionPanel");
   });
 
-  it("herkese açık sayfa: oturumsuz açılır, onay kapısından muaf, alt bilgide ve site haritasında", () => {
+  it("herkese açık sayfa: oturumsuz açılır, onay kapısından muaf, alt bilgide ve site haritasında", async () => {
     expect(read("src/lib/supabase/middleware.ts")).not.toMatch(/"\/hesap-silme"/);
     expect(read("src/components/legal/consent-gate.tsx")).toContain('"/hesap-silme"');
     expect(read("src/components/parity/marketing.tsx")).toContain('href="/hesap-silme"');
-    expect(read("src/app/sitemap.ts")).toContain('"/hesap-silme"');
+    // 27 Kasım 2026 (GEO): site haritasının sayfa listesi `public-pages.ts`'te; haritanın kendi çıktısı okunur.
+    const { default: sitemap } = await import("@/app/sitemap");
+    const paths = sitemap().map((entry) => new URL(entry.url).pathname);
+    expect(paths).toContain("/hesap-silme");
   });
 });
 

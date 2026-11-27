@@ -1,26 +1,55 @@
+import { FREE_TIER_SENTENCE } from "@/lib/billing/free-meters";
+import type { PublicPlanOffer } from "@/lib/billing/public-plan-offers";
 import { sellerField } from "@/lib/legal/seller";
+import { PRODUCT_SUMMARY } from "@/lib/marketing/product-definition";
 import { absoluteUrl, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo/page-metadata";
 
 /*
   Yapılandırılmış veri (schema.org JSON-LD; 20 Kasım 2026, Faz 3). Yalnız sitede görünen, doğru bilgi: ad, adres,
-  açıklama, logo, sayfadaki sık sorulanlar ve sayfanın gezinme yolu. Fiyat, puan, yorum ya da öğrenci sayısı yazılmaz:
-  fiyat veritabanından değişir (yapılandırılmış veride eski fiyat kalırdı), puan ve yorum elimizde yok.
+  açıklama, logo, sayfadaki sık sorulanlar ve sayfanın gezinme yolu. Puan, yorum ya da öğrenci sayısı yazılmaz: elimizde
+  yok, uydurulmaz.
 
-  26 Kasım 2026 (Search Console): `SoftwareApplication` bilerek yok. Google bu türü ancak puan (`aggregateRating`) ya da
-  yorum (`review`) ile geçerli sayar; ikisi de olmadan Search Console "geçersiz öğe" yazar ve uydurma puan yazılmaz.
-  Ürünü ana sayfadaki `Organization` + `WebSite` anlatır.
+  27 Kasım 2026 (GEO, ürün sahibinin isteği): her sayfanın verisi tek bir `@graph` içinde (`JsonLd` sarar), düğümler
+  birbirine `@id` ile bağlı: kurum (`#kurum`), site (`#site`), uygulama (`#uygulama`), sayfa (`<adres>#sayfa`), sık
+  sorulanlar (`<adres>#sss`), gezinme yolu (`<adres>#yol`).
+
+  `SoftwareApplication` (aynı gün, ürün sahibinin isteği; 26 Kasım'daki "bilerek yok" kararı değişti): fiyatlar her
+  istekte veritabanından (`loadPublicPlanOffers`), sabit fiyat yazılmaz. Puan ve yorum olmadığı için Google bu öğeyi
+  "Yazılım uygulamaları" zengin sonucu için geçersiz sayabilir (Search Console o raporda "aggregateRating ya da review
+  eksik" yazar); dizine eklemeyi etkilemez. Uydurma puan yazılmaz.
 */
 
-type JsonLdObject = { "@context": "https://schema.org"; "@type": string; [key: string]: unknown };
+export type JsonLdNode = { "@type": string; [key: string]: unknown };
 
 const CONTEXT = "https://schema.org" as const;
-const ORGANIZATION_ID = `${SITE_URL}/#kurum`;
-const WEBSITE_ID = `${SITE_URL}/#site`;
+export const ORGANIZATION_ID = `${SITE_URL}/#kurum`;
+export const WEBSITE_ID = `${SITE_URL}/#site`;
+export const SOFTWARE_ID = `${SITE_URL}/#uygulama`;
+const PRICING_URL = absoluteUrl("/fiyatlandirma");
 
-/** Ana sayfa: kurum (marka). Logo üst çubuktaki dosyanın kendisi; iletişim adresi hukuki sayfalardakiyle aynı. */
-export function organizationJsonLd(): JsonLdObject {
+/**
+ * Kurumun sosyal profilleri (isteğe bağlı): `SOCIAL_PROFILE_URLS` ortam değişkeni, virgül ya da boşlukla ayrılmış https
+ * adresleri. Boşsa `sameAs` yazılmaz; uydurma profil yok.
+ */
+export function socialProfileUrls(raw = process.env.SOCIAL_PROFILE_URLS): string[] {
+  const urls = (raw ?? "")
+    .split(/[\s,]+/)
+    .map((value) => value.trim())
+    .filter((value) => {
+      try {
+        const url = new URL(value);
+        return url.protocol === "https:" && Boolean(url.hostname);
+      } catch {
+        return false;
+      }
+    });
+  return [...new Set(urls)];
+}
+
+/** Kurum (marka). Logo üst çubuktaki dosyanın kendisi; iletişim adresi hukuki sayfalardakiyle aynı. */
+export function organizationJsonLd(): JsonLdNode {
+  const sameAs = socialProfileUrls();
   return {
-    "@context": CONTEXT,
     "@type": "Organization",
     "@id": ORGANIZATION_ID,
     name: SITE_NAME,
@@ -35,12 +64,73 @@ export function organizationJsonLd(): JsonLdObject {
         availableLanguage: ["tr"],
       },
     ],
+    ...(sameAs.length ? { sameAs } : {}),
+  };
+}
+
+/** Site. Sitede arama kutusu olmadığı için `SearchAction` yok. */
+export function websiteJsonLd(): JsonLdNode {
+  return {
+    "@type": "WebSite",
+    "@id": WEBSITE_ID,
+    name: SITE_NAME,
+    url: SITE_URL,
+    inLanguage: "tr-TR",
+    publisher: { "@id": ORGANIZATION_ID },
+  };
+}
+
+/** Kuruşu schema.org fiyatına çevirir (kuruş 12345 → "123.45"). */
+function offerPrice(kurus: number): string {
+  return (Math.round(kurus) / 100).toFixed(2);
+}
+
+/**
+ * Uygulama: ücretsiz hesap ve canlı fiyatlı abonelik planları. Fiyat okunamayan plan listeye girmez
+ * (`storeOffersFromPlans`); o durumda yalnız ücretsiz hesap kalır.
+ */
+export function softwareApplicationJsonLd(plans: readonly PublicPlanOffer[]): JsonLdNode {
+  const free = {
+    "@type": "Offer",
+    name: "Ücretsiz",
+    price: "0",
+    priceCurrency: "TRY",
+    url: PRICING_URL,
+    description: `${FREE_TIER_SENTENCE}.`,
+  };
+  const paid = plans.map((plan) => {
+    const price = offerPrice(plan.priceKurus);
+    return {
+      "@type": "Offer",
+      name: plan.label,
+      price,
+      priceCurrency: "TRY",
+      url: PRICING_URL,
+      priceSpecification: {
+        "@type": "UnitPriceSpecification",
+        price,
+        priceCurrency: "TRY",
+        referenceQuantity: { "@type": "QuantitativeValue", value: plan.periodDays, unitCode: "DAY" },
+      },
+    };
+  });
+  return {
+    "@type": "SoftwareApplication",
+    "@id": SOFTWARE_ID,
+    name: SITE_NAME,
+    url: SITE_URL,
+    description: PRODUCT_SUMMARY,
+    applicationCategory: "EducationalApplication",
+    operatingSystem: "Web, iOS, Android",
+    inLanguage: "tr-TR",
+    publisher: { "@id": ORGANIZATION_ID },
+    offers: [free, ...paid],
   };
 }
 
 /**
  * Tek sayfa: sayfanın kendisi (ad, açıklama, adres) ve siteye bağı. Liste sayfası `CollectionPage`, içindeki
- * bağlantılar `mainEntity` olarak (`itemListJsonLd`).
+ * bağlantılar `mainEntity` olarak (`itemListJsonLd`). Sayfanın gezinme yolu varsa `breadcrumb` ile bağlanır.
  */
 export function webPageJsonLd(input: {
   type?: "WebPage" | "CollectionPage";
@@ -48,17 +138,21 @@ export function webPageJsonLd(input: {
   description: string;
   path: string;
   mainEntity?: object;
-}): JsonLdObject {
+  breadcrumb?: boolean;
+  about?: "software";
+}): JsonLdNode {
+  const url = absoluteUrl(input.path);
   return {
-    "@context": CONTEXT,
     "@type": input.type ?? "WebPage",
-    "@id": `${absoluteUrl(input.path)}#sayfa`,
-    url: absoluteUrl(input.path),
+    "@id": `${url}#sayfa`,
+    url,
     name: input.name,
     description: input.description,
     inLanguage: "tr-TR",
     isPartOf: { "@id": WEBSITE_ID },
     publisher: { "@id": ORGANIZATION_ID },
+    ...(input.about === "software" ? { about: { "@id": SOFTWARE_ID } } : {}),
+    ...(input.breadcrumb ? { breadcrumb: { "@id": `${url}#yol` } } : {}),
     ...(input.mainEntity ? { mainEntity: input.mainEntity } : {}),
   };
 }
@@ -77,24 +171,14 @@ export function itemListJsonLd(items: ReadonlyArray<{ name: string; path: string
   };
 }
 
-/** Ana sayfa: site. Sitede arama kutusu olmadığı için `SearchAction` yok. */
-export function websiteJsonLd(): JsonLdObject {
+/** Sayfada açılıp kapanan sık sorulanlar; soru ve cevap sayfadaki metnin aynısı. `path` verilirse düğüm adreslenir. */
+export function faqPageJsonLd(
+  items: ReadonlyArray<{ question: string; answer: string }>,
+  path?: string,
+): JsonLdNode {
   return {
-    "@context": CONTEXT,
-    "@type": "WebSite",
-    "@id": WEBSITE_ID,
-    name: SITE_NAME,
-    url: SITE_URL,
-    inLanguage: "tr-TR",
-    publisher: { "@id": ORGANIZATION_ID },
-  };
-}
-
-/** Sayfada açılıp kapanan sık sorulanlar; soru ve cevap sayfadaki metnin aynısı. */
-export function faqPageJsonLd(items: ReadonlyArray<{ question: string; answer: string }>): JsonLdObject {
-  return {
-    "@context": CONTEXT,
     "@type": "FAQPage",
+    ...(path !== undefined ? { "@id": `${absoluteUrl(path)}#sss`, url: absoluteUrl(path), inLanguage: "tr-TR" } : {}),
     mainEntity: items.map((item) => ({
       "@type": "Question",
       name: item.question,
@@ -103,17 +187,32 @@ export function faqPageJsonLd(items: ReadonlyArray<{ question: string; answer: s
   };
 }
 
-/** Gezinme yolu: her adım sayfada bağlantısı olan bir sayfa (ad, sayfanın kendi başlığı). */
-export function breadcrumbJsonLd(items: ReadonlyArray<{ name: string; path: string }>): JsonLdObject {
+/** Gezinme yolu: her adım sayfada bağlantısı olan bir sayfa (ad, sayfanın kendi başlığı). Düğüm son adımın adresinde. */
+export function breadcrumbJsonLd(items: ReadonlyArray<{ name: string; path: string }>): JsonLdNode {
+  const last = items[items.length - 1];
   return {
-    "@context": CONTEXT,
     "@type": "BreadcrumbList",
+    ...(last ? { "@id": `${absoluteUrl(last.path)}#yol` } : {}),
     itemListElement: items.map((item, index) => ({
       "@type": "ListItem",
       position: index + 1,
       name: item.name,
       item: absoluteUrl(item.path),
     })),
+  };
+}
+
+/**
+ * Bir sayfanın bütün düğümleri tek `@graph` içinde (`@context` bir kez, kökte). Düğümde kalmış `@context` atılır.
+ */
+export function jsonLdGraph(nodes: ReadonlyArray<object>): { "@context": typeof CONTEXT; "@graph": object[] } {
+  return {
+    "@context": CONTEXT,
+    "@graph": nodes.map((node) => {
+      const copy = { ...(node as Record<string, unknown>) };
+      delete copy["@context"];
+      return copy;
+    }),
   };
 }
 

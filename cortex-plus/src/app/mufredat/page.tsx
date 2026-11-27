@@ -3,7 +3,14 @@ import { MarketingPage } from "@/components/layout/marketing-page";
 import { CURRICULUM, listProgramSummaries } from "@/lib/curriculum/registry";
 import { programGroupLabel } from "@/lib/curriculum/program-group";
 import { pageMetadata } from "@/lib/seo/page-metadata";
-import { breadcrumbJsonLd, itemListJsonLd, webPageJsonLd } from "@/lib/seo/structured-data";
+import {
+  breadcrumbJsonLd,
+  itemListJsonLd,
+  organizationJsonLd,
+  webPageJsonLd,
+  websiteJsonLd,
+} from "@/lib/seo/structured-data";
+import { PRODUCT_SUMMARY } from "@/lib/marketing/product-definition";
 import { CURRICULUM_INDEX_TITLE } from "@/lib/seo/curriculum-breadcrumb";
 import { JsonLd } from "@/components/seo/json-ld";
 
@@ -45,14 +52,17 @@ export default function MufredatPage() {
       description={`${programs.length} program, ${outcomeTotal} kazanım. Veri sürümü ${CURRICULUM.version}; kaynaklar MEB, ÖDSGM ve ÖSYM belgeleri.`}
       contentClassName="pb-24"
     >
-      {/* Liste sayfası: programlar sayfadaki sırayla, gezinme yolu (26 Kasım 2026). */}
+      {/* Liste sayfası: kurum, site, programlar sayfadaki sırayla ve gezinme yolu tek @graph içinde (26–27 Kasım 2026). */}
       <JsonLd
         data={[
+          organizationJsonLd(),
+          websiteJsonLd(),
           webPageJsonLd({
             type: "CollectionPage",
             name: CURRICULUM_INDEX_TITLE,
             description: MUFREDAT_DESCRIPTION,
             path: "/mufredat",
+            breadcrumb: true,
             mainEntity: itemListJsonLd(
               [...groups.values()].flat().map((p) => ({ name: p.label, path: `/mufredat/${p.id}` })),
             ),
@@ -63,6 +73,10 @@ export default function MufredatPage() {
           ]),
         ]}
       />
+      {/* Ürünün tanımı (27 Kasım 2026, GEO): sayfanın ilk kelimeleri arasında; notu olmayan öğrenci buradan başlar. */}
+      <p className="max-w-3xl text-sm leading-relaxed text-[var(--mk-muted)]" data-product-definition>
+        {PRODUCT_SUMMARY}
+      </p>
       <p className="mk-eyebrow">
         <Link href="/resmi">Resmî takvim, sınav yapıları ve eksik veri →</Link>
       </p>

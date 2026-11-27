@@ -160,9 +160,25 @@
     "copy"
     "pick"
     "cockpit"
+    "define"
     "foot";
   gap: clamp(0.8rem, 1.6vw, 1.1rem);
   align-items: start;
+}
+
+/*
+  Ürünün tanımı (27 Kasım 2026, GEO): HTML sırasında başlığın hemen ardında, ekranda turun altında. Sakin, tek paragraf;
+  turun ve kayıt düğmesinin önüne geçmez.
+*/
+.hm-define {
+  grid-area: define;
+  max-width: 46rem;
+  margin: 0 auto;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--hm-muted);
+  text-align: center;
+  text-wrap: pretty;
 }
 
 .hm-hero-copy {

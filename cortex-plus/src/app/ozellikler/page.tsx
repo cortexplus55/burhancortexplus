@@ -9,12 +9,25 @@ import { PLAN_MARKETING_COPY } from "@/lib/marketing/plan-copy";
 import { FREE_RESTUDY_BAND } from "@/lib/credits/price-table";
 import "@/styles/landing.css";
 import { pageMetadata } from "@/lib/seo/page-metadata";
+import { AnswerFaqSection } from "@/components/marketing/answer-faq-section";
+import { JsonLd } from "@/components/seo/json-ld";
+import { ANSWER_FAQ } from "@/lib/marketing/answer-faq";
+import { PRODUCT_SUMMARY } from "@/lib/marketing/product-definition";
+import {
+  breadcrumbJsonLd,
+  faqPageJsonLd,
+  organizationJsonLd,
+  webPageJsonLd,
+  websiteJsonLd,
+} from "@/lib/seo/structured-data";
+
+const OZELLIKLER_DESCRIPTION =
+  "Ders, podcast, video, kartlar, konu testi, yazılı ve sözlü deneme, yanlışlar defteri ve AI öğretmen — hepsi kendi notundan.";
 
 // Kanonik adres ve sayfaya özel paylaşım bilgisi (20 Kasım 2026, Faz 3).
 export const metadata = pageMetadata({
   title: "Özellikler",
-  description:
-    "Ders, podcast, video, kartlar, konu testi, yazılı ve sözlü deneme, yanlışlar defteri ve AI öğretmen — hepsi kendi notundan.",
+  description: OZELLIKLER_DESCRIPTION,
   path: "/ozellikler",
 });
 
@@ -82,6 +95,28 @@ const GROUPS: { title: string; lead: string; items: Feature[] }[] = [
 export default function OzelliklerPage() {
   return (
     <ParityMarketingPage variant="marketing">
+      {/* Kurum, site, sayfa, gezinme yolu ve sık sorulanlar tek @graph içinde (27 Kasım 2026, GEO). */}
+      <JsonLd
+        data={[
+          organizationJsonLd(),
+          websiteJsonLd(),
+          webPageJsonLd({
+            name: "Özellikler",
+            description: OZELLIKLER_DESCRIPTION,
+            path: "/ozellikler",
+            breadcrumb: true,
+            about: "software",
+          }),
+          breadcrumbJsonLd([
+            { name: "Cortex Plus", path: "/" },
+            { name: "Özellikler", path: "/ozellikler" },
+          ]),
+          faqPageJsonLd(
+            ANSWER_FAQ.map((item) => ({ question: item.q, answer: item.a })),
+            "/ozellikler",
+          ),
+        ]}
+      />
       <div className="lp">
         <section className="lp-hero" aria-labelledby="oz-title">
           <div className="lp-wrap">
@@ -89,6 +124,10 @@ export default function OzelliklerPage() {
             <h1 id="oz-title" className="lp-hero-title">
               Her konu için birçok yol, hepsi kendi notundan
             </h1>
+            {/* Ürünün tanımı (27 Kasım 2026, GEO): sayfanın ilk kelimeleri arasında, tek başına alıntılanabilir. */}
+            <p className="lp-hero-lead" data-product-definition>
+              {PRODUCT_SUMMARY}
+            </p>
             <p className="lp-hero-lead">
               Aşağıdaki her şey bugün çalışıyor. Ücretsiz hesapta {FREE_TIER_LOWER} var; etiketsizleri ilk
               dersinde denersin. Dersin devamı ve &quot;Plus&quot; etiketliler Plus&apos;ta açık.
@@ -161,6 +200,9 @@ export default function OzelliklerPage() {
             </p>
           </div>
         </section>
+
+        {/* "Cevap önce" sık sorulanlar (27 Kasım 2026, GEO); aynı metin FAQPage yapılandırılmış verisine gider. */}
+        <AnswerFaqSection id="oz-faq" title="Sık sorulanlar" items={ANSWER_FAQ} />
 
         <section className="lp-final" aria-labelledby="oz-final">
           <div className="lp-wrap lp-final-inner">

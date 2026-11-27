@@ -112,9 +112,12 @@ describe("JSON-LD", () => {
         ]}
       />,
     );
-    const [parsed] = parseScripts(html) as [Array<Record<string, unknown>>];
+    // 27 Kasım 2026 (GEO): düğümler tek `@graph` içinde, `@context` bir kez kökte.
+    const [root] = parseScripts(html) as [{ "@context": string; "@graph": Array<Record<string, unknown>> }];
+    expect(root["@context"]).toBe("https://schema.org");
+    const parsed = root["@graph"];
     expect(parsed.map((item) => item["@type"])).toEqual(["Organization", "WebSite", "FAQPage"]);
-    for (const item of parsed) expect(item["@context"]).toBe("https://schema.org");
+    for (const item of parsed) expect(item).not.toHaveProperty("@context");
     const [org, site, faq] = parsed as [Record<string, unknown>, Record<string, unknown>, { mainEntity: Array<Record<string, unknown>> }];
     expect(org.url).toBe(SITE_URL);
     expect(org.name).toBe("Cortex Plus");
@@ -138,7 +141,8 @@ describe("JSON-LD", () => {
     const html = renderToStaticMarkup(<JsonLd data={data} />);
     expect(html.match(/<\/script>/g)).toHaveLength(1);
     expect(jsonLdString(data)).not.toMatch(/[<>&]/);
-    const [parsed] = parseScripts(html) as [{ mainEntity: Array<{ name: string; acceptedAnswer: { text: string } }> }];
+    const [root] = parseScripts(html) as [{ "@graph": Array<{ mainEntity: Array<{ name: string; acceptedAnswer: { text: string } }> }> }];
+    const parsed = root["@graph"][0]!;
     expect(parsed.mainEntity[0]!.name).toBe("Soru </script><script>alert(1)</script>");
     expect(parsed.mainEntity[0]!.acceptedAnswer.text).toBe("A & B > C");
   });
@@ -149,7 +153,7 @@ describe("JSON-LD", () => {
     // Görünen metin ve yapılandırılmış veri aynı diziden.
     expect(page).toContain("{faqs.map((faq) => (");
     const home = read("src/app/page.tsx");
-    expect(home).toContain("faqPageJsonLd(FAQ.map((item) => ({ question: item.q, answer: item.a })))");
+    expect(home.replace(/\s+/g, " ")).toContain('faqPageJsonLd( FAQ.map((item) => ({ question: item.q, answer: item.a })), "/", )');
     expect(read("src/components/landing/landing-page.tsx")).toContain("{FAQ.map((item) => (");
   });
 
