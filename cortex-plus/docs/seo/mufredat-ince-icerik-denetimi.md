@@ -76,7 +76,8 @@ Site haritasında **5.236** adres var; **5.217'si (%99,6) `/mufredat` altında**
   `noindex, follow`, kanonik adresi kendisi ve "güncel hâli" bağlantısı derin programa; site haritasında ve `/llms-full.txt`'de
   yok (616 adres). `kpss-2026-tree-guncel` değişmedi. Kural tek yerde: `supersededBy` (`src/lib/curriculum/seo.ts`); yeni
   kurulum ekranı aynı kuralla eski ağacı zaten göstermiyordu (`official-curriculum-panel.tsx`).
-- `/mufredat` dizini eski ağaç kartlarını hâlâ listeliyor (aynı adla iki kart); kaldırmak ayrı karar.
+- `/mufredat` dizini de bu 37 eski ağacı artık listelemiyor (aynı gün, ayrı PR): 121 kart, aynı adla çift kart yok. Kurulumun
+  okuduğu program listesi (`/api/curriculum`) ve doğrudan adresler değişmedi.
 
 ## Ham veri
 

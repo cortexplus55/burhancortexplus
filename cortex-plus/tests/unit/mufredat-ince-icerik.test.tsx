@@ -51,6 +51,8 @@ const { loadUnitPreview, UNIT_PREVIEW_TIMEOUT_MS, unitPreviewWordCount } = await
 const unitRoute = await import("@/app/mufredat/[programId]/[unitId]/page");
 const programRoute = await import("@/app/mufredat/[programId]/page");
 const outcomeRoute = await import("@/app/mufredat/[programId]/[unitId]/[outcomeId]/page");
+const indexRoute = await import("@/app/mufredat/page");
+const { listProgramSummaries } = await import("@/lib/curriculum/registry");
 
 // En az üç kazanımlı bir MEB ünitesi (örnek sabit kelime taşımaz; kayıt defterinden seçilir).
 const program = CURRICULUM.programs.find((p) => p.kind === "okul" && p.units.some((u) => u.outcomes.length >= 3))!;
@@ -260,5 +262,37 @@ describe("derin eşi olan eski konu ağaçları", () => {
     const seo = read("src/lib/curriculum/seo.ts");
     expect(seo).toContain('program.id.replace("-2026-tree-", "-2026-deep-")');
     expect(read("src/lib/seo/llms-full.ts")).toContain("if (supersededBy(program)) continue;");
+  });
+});
+
+describe("/mufredat liste sayfası (27 Kasım 2026)", () => {
+  it("derin sürümü olan 37 eski ağaç kartlarda yok; 121 kart, aynı adla iki kart yok; güncel bilgiler ağacı listede", () => {
+    const html = renderToStaticMarkup(indexRoute.default());
+    const cards = [...html.matchAll(/<li class="mk-card p-4"><a [^>]*href="\/mufredat\/([a-z0-9-]+)"[^>]*>([^<]+)<\/a>/g)];
+    expect(cards).toHaveLength(121);
+    const ids = cards.map((m) => m[1]!);
+    for (const p of CURRICULUM.programs.filter((x) => supersededBy(x))) {
+      expect(ids, p.id).not.toContain(p.id);
+      expect(html, p.id).not.toContain(`/mufredat/${p.id}"`);
+      expect(ids).toContain(supersededBy(p)!.id);
+    }
+    expect(ids).toContain("kpss-2026-tree-guncel");
+    const labels = cards.map((m) => m[2]!);
+    expect(new Set(labels).size).toBe(labels.length);
+    // Başlıktaki sayı ve yapılandırılmış verideki liste gösterilen kartlarla aynı.
+    expect(html).toContain("121 program,");
+    expect(html).toContain('"numberOfItems":121');
+  });
+
+  it("yalnız liste süzülür: kurulum ve API'nin okuduğu program listesi, doğrudan adresler değişmez", async () => {
+    expect(listProgramSummaries()).toHaveLength(158);
+    expect(read("src/app/api/curriculum/route.ts")).toContain("programs: listProgramSummaries(),");
+    const tree = getProgram("dus-2026-tree-endodonti")!;
+    expect(supersededBy(tree)).not.toBeNull();
+    const meta = await programRoute.generateMetadata({ params: Promise.resolve({ programId: tree.id }) });
+    expect(meta.robots).toEqual(NOINDEX_FOLLOW);
+    expect(renderToStaticMarkup(await programRoute.default({ params: Promise.resolve({ programId: tree.id }) }))).toContain(
+      'data-testid="superseded-notice"',
+    );
   });
 });
