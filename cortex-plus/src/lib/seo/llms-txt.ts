@@ -4,6 +4,7 @@ import type { PublicPlanOffer } from "@/lib/billing/public-plan-offers";
 import { storePeriodUnit } from "@/lib/billing/store-products";
 import { formatTryWhole } from "@/lib/format";
 import { sellerField } from "@/lib/legal/seller";
+import { EXAM_LANDING_LIST } from "@/lib/marketing/exam-landings";
 import { PRODUCT_AUDIENCE, PRODUCT_DEFINITION } from "@/lib/marketing/product-definition";
 import { absoluteUrl, SITE_NAME } from "@/lib/seo/page-metadata";
 import { PUBLIC_PAGES } from "@/lib/seo/public-pages";
@@ -60,6 +61,10 @@ export function buildLlmsTxt(offers: readonly PublicPlanOffer[]): string {
     "- Üniversite vize ve finalleri",
     "- KPSS, ALES, DGS, YDS, TUS ve DUS",
     "- Notu olmayan öğrenci MEB ve ÖSYM belgelerinden çıkarılan resmî müfredattan başlar.",
+    "",
+    "## Sınavlara göre hazırlık",
+    "",
+    ...EXAM_LANDING_LIST.map((landing) => `- [${landing.navLabel}](${absoluteUrl(landing.path)}): ${landing.definition[0]}`),
     "",
     "## Temel özellikler",
     "",

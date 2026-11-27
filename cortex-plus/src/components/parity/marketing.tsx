@@ -5,6 +5,7 @@ import "@/styles/parity-marketing.css";
 import "@/styles/cinematic-home.css";
 import { ParitySiteHeader } from "@/components/marketing/parity-site-header";
 import { MARKETING_NAV } from "@/lib/parity/marketing-nav";
+import { EXAM_LANDING_LINKS } from "@/lib/marketing/exam-landing-links";
 import { CinematicPageHero } from "@/components/marketing/cinematic-page-hero";
 import { CinematicScrollReveal } from "@/components/marketing/cinematic-scroll-reveal";
 import { CookiePreferencesButton } from "@/components/legal/cookie-banner";
@@ -17,7 +18,7 @@ export { ParitySiteHeader } from "@/components/marketing/parity-site-header";
 export function ParitySiteFooter() {
   return (
     <footer className="cs-marketing border-t border-[var(--mk-border)] py-12 text-sm text-[var(--mk-muted)]">
-      <div className="mx-auto grid max-w-6xl gap-8 px-4 md:grid-cols-4">
+      <div className="mx-auto grid max-w-6xl gap-8 px-4 md:grid-cols-3 lg:grid-cols-5">
         <div>
           {/* Yeni 3B logo (9 Kasım 2026): pazarlama kabuğu temadan bağımsız hep koyu, açık yazılı sürüm. */}
           <Link
@@ -44,6 +45,14 @@ export function ParitySiteFooter() {
             </Link>
           ))}
         </div>
+        {/* Sınav açılış sayfaları (27 Kasım 2026, SEO): her pazarlama sayfasından, ana sayfa dahil, tek tıkta. */}
+        <nav className="mk-footer-links flex flex-col gap-2" aria-label="Sınava göre hazırlık">
+          {EXAM_LANDING_LINKS.map((link) => (
+            <Link key={link.path} href={link.path}>
+              {link.navLabel}
+            </Link>
+          ))}
+        </nav>
         <div className="mk-footer-links flex flex-col gap-2">
           <Link href="/gizlilik">Gizlilik</Link>
           <Link href="/kvkk">KVKK</Link>

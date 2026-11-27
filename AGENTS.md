@@ -3186,3 +3186,23 @@ taransın, doğru sınıflandırılsın ve kaynak gösterilsin; sahte istatistik
 Bekçi: `geo-ai-search.test.tsx`, `seo-search-console.test.tsx`, `faz3-seo.test.tsx`, `sinematik-ana-sayfa.test.tsx` (kahraman
 düzeni), e2e `geo-ai-search.spec.ts` (tarayıcı açmadan ilk sunucu HTML'i: `JSON.parse`, kanonik, ilk 100 kelimede tanım,
 SSS cevapları, `/robots.txt`, `/llms.txt`).
+
+## Sınav açılış sayfaları (27 Kasım 2026) — `/yks-hazirlik`, `/lgs-hazirlik`, `/kpss-hazirlik`, `/tus-hazirlik`
+
+Ürün sahibinin istemi: yüksek niyetli sınav aramalarında (Google ve yapay zekâ aramaları) dört herkese açık, tamamı
+sunucuda çizilen açılış sayfası ve iç bağlantı ağı. Ana sayfa, PayTR, logo, `parity-site-header.tsx` ve `/admin`'e
+dokunulmadı; veritabanı değişikliği yok. Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| **Metinler tek dosyada**, sayfa bileşeni ortak: iki cümlelik tanım (ilk 100 görünür kelimede biter, üst menü dahil), sınava özel dört "cevap önce" SSS (≤3 cümle, `<details>` içinde ilk HTML'de), özellik kartları, müfredat programları, `/ornek` ve kayıt bağlantısı (`/kayit?hedef=` ön seçimi), öbür sınavlar. İstemci kodu ve Suspense yok; fiyatlar `plans` tablosundan (`revalidate = 300`), okunamazsa fiyat yazılmaz | `lib/marketing/exam-landings.ts`, `components/marketing/exam-landing-page.tsx`, `styles/exam-landing.css` (`.xl-*`) |
+| **Misafire söz yalnız koddan:** canlı ses erişimi `REFUSAL_MESSAGE.plus_required` (`resolveRealtimeAccess` ile aynı), ücretsiz hak `FREE_TIER_SENTENCE`, Plus'a özeller `PLUS_ONLY_SENTENCE`, veli bağlantısı süresi `PARENT_LINK_TTL_HOURS`, sessiz saat `QUIET_START_HOUR`–`QUIET_END_HOUR`, hatırlatma saatleri `STUDY_SLOTS`, tekrar günleri `REVIEW_LADDER_DAYS`, sayfa aralığı eşiği `DEFAULT_RANGE_SPAN`. İstemdeki kelimelerden bilerek sapılanlar: "şifresiz veli linki" → "hesap açmadan ve şifre oluşturmadan"; "otobüste 0 kredi radyo" → radyo yalnız sesi hazır podcast'leri çalar, yeni ses üretmez (podcast Plus'ta); "vaka kartları" → vaka soruları orta/ileri zorlukta konu testinde, kartlar kavram; "MEB'e uyumlu" → "MEB kazanımlarına dayalı" (%100 yazılmaz); KPSS/TUS/DUS/ALES listeleri "resmî ÖSYM listesi değildir" | aynı |
+| **Tek `@graph`**: Organization, WebSite, WebPage (`about` → `#uygulama`, `breadcrumb` → `#yol`), BreadcrumbList (Cortex Plus → Sınav hazırlığı → sınav; sayfada görünen gezinme yoluyla aynı), FAQPage (sayfadaki SSS'nin aynısı). Puan ve yorum yok | `examLandingJsonLd`, `examLandingCrumbs` |
+| Başlık, açıklama, kanonik ve paylaşım bilgisi `pageMetadata` ile; paylaşım görseli kökteki `opengraph-image.png` (200). Sınava özel görsel yok | `app/*-hazirlik/page.tsx` |
+| **İç bağlantılar:** altbilgide "Sınava göre hazırlık" sütunu (her pazarlama sayfasından, ana sayfa dahil, tek tıkta), `/sinav-hazirligi`'de "Hangi sınava hazırlanıyorsun?" bölümü; adresler ve adlar tek küçük listeden. Site haritası ve `/llms.txt` sayfaları `PUBLIC_PAGES`'ten alır; `/llms.txt`'de ayrıca "Sınavlara göre hazırlık" bölümü | `lib/marketing/exam-landing-links.ts`, `components/parity/marketing.tsx`, `lib/seo/public-pages.ts`, `lib/seo/llms-txt.ts` |
+| **Mobil uygulamada** (web fiyatı ve veli ödeme bağlantısı anlatılır) dört sayfa ana sayfaya yönlenir, öbür tanıtım sayfaları gibi | `NATIVE_MARKETING_PAGES` |
+| `SOCIAL_PROFILE_URLS` (virgülle ayrılmış https adresleri) verilirse `Organization.sameAs`'a yazılır; 27 Kasım 2026'da canlıda tanımlı değildi (ana sayfada `sameAs` yok) | `structured-data.ts` `socialProfileUrls` |
+
+Bekçi: `sinav-acilis-sayfalari.test.tsx`, `geo-ai-search.test.tsx`; e2e `sinav-acilis-sayfalari.spec.ts` (tarayıcı açmadan ilk
+sunucu HTML'i: 200, `JSON.parse`, kanonik, paylaşım görseli 200, tanım ilk 100 kelimede, SSS; site haritası, `/llms.txt`,
+ana sayfa altbilgisi; 375 ve 1280 px'te taşma yok, dokunma ≥ 44 px).

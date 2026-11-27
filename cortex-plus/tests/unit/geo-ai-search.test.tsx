@@ -40,6 +40,7 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { storeOffersFromPlans } from "@/lib/billing/store-products";
 import { CURRICULUM_LEVELS } from "@/lib/learning/exam-catalog";
 import { ANSWER_FAQ, PRICING_FAQ } from "@/lib/marketing/answer-faq";
+import { EXAM_LANDING_LIST } from "@/lib/marketing/exam-landings";
 import { RENEWAL_FAQ } from "@/lib/marketing/landing-content";
 import { PRODUCT_AUDIENCE, PRODUCT_DEFINITION, PRODUCT_SUMMARY } from "@/lib/marketing/product-definition";
 import { AI_SEARCH_CRAWLERS, isCrawlBlocked, ROBOTS_DISALLOW } from "@/lib/seo/crawl-rules";
@@ -329,7 +330,8 @@ describe("/llms.txt", () => {
   it("bağlantıların hepsi dolu, tam ve kapalı olmayan adres; boş satır başı yok", () => {
     const text = buildLlmsTxt(storeOffersFromPlans(LIVE_ROWS));
     const links = [...text.matchAll(/\[([^\]]*)\]\(([^)]*)\)/g)];
-    expect(links.length).toBe(PUBLIC_PAGES.length);
+    // Sayfalar listesi + sınavlara göre hazırlık bölümü (27 Kasım 2026, sınav açılış sayfaları).
+    expect(links.length).toBe(PUBLIC_PAGES.length + EXAM_LANDING_LIST.length);
     for (const [, label, url] of links) {
       expect(label!.trim(), url).not.toBe("");
       expect(url).toMatch(/^https:\/\/cortexplus\.app(\/[a-z0-9-]+)*$/);
@@ -352,6 +354,13 @@ describe("/llms.txt", () => {
     for (const page of PUBLIC_PAGES) {
       if (page.path === "") continue;
       const file = `src/app${page.path}/page.tsx`;
+      // Sınav açılış sayfası başlığını kendi verisinden okur (`EXAM_LANDINGS.<id>.metaTitle`).
+      const landing = EXAM_LANDING_LIST.find((item) => item.path === page.path);
+      if (landing) {
+        expect(read(file), file).toContain(`EXAM_LANDINGS.${landing.id}`);
+        expect(landing.metaTitle).toBe(page.title);
+        continue;
+      }
       expect(read(file), file).toContain(page.title);
     }
   });
