@@ -81,6 +81,11 @@
   line-height: 1.6;
 }
 
+/* Ürünün tanımı (27 Kasım 2026, GEO): iki cümle, okuma genişliğinde. */
+.dm-lead--define {
+  max-width: 64ch;
+}
+
 /* --- adım rayı --- */
 .dm-rail {
   display: flex;

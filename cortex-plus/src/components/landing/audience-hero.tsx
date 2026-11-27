@@ -7,6 +7,7 @@ import { AudiencePicker } from "@/components/landing/audience-picker";
 import { FuturisticGuidedJourney } from "@/components/landing/futuristic-guided-journey";
 import { segmentForTrack, trackForSegment, type GuestTrackId } from "@/lib/marketing/guest-demo-tracks";
 import { HERO, HERO_FOOT } from "@/lib/marketing/landing-content";
+import { PRODUCT_SUMMARY } from "@/lib/marketing/product-definition";
 import {
   audienceSegment,
   DEFAULT_SEGMENT,
@@ -83,6 +84,15 @@ export function AudienceHero() {
             {segment.lead}
           </p>
         </div>
+
+        {/*
+          Ürünün tanımı (27 Kasım 2026, GEO): HTML'de başlığın hemen ardında, sayfanın ilk kelimeleri arasında (yapay zekâ
+          aramaları ve ekran okuyucu önce bunu okur); ekranda turun altında durur (`grid-area: define`), ilk ekrandaki
+          ölçüler değişmez. Gizli değil, herkes görür.
+        */}
+        <p className="hm-define" data-product-definition>
+          {PRODUCT_SUMMARY}
+        </p>
 
         <div className="hm-hero-pick">
           <AudiencePicker value={trackId} onChange={pickTrack} controls="nasil" />

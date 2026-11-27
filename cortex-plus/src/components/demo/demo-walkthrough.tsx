@@ -35,6 +35,7 @@ import { TwinQuestionCard } from "@/components/learning/twin-question-card";
 import { TwoOptionHint } from "@/components/learning/two-option-hint";
 import { eliminateDistractor } from "@/lib/learning/two-option-eliminate";
 import { chemSubscripts } from "@/lib/text/chem-subscripts";
+import { PRODUCT_SUMMARY } from "@/lib/marketing/product-definition";
 
 /**
  * Örnek akış.
@@ -219,6 +220,10 @@ export function DemoWalkthrough({
           {greeting ? <p className="dm-greeting pm-enter">{greeting} 👋</p> : null}
         </div>
         <h1 className="pm-display">Cortex Plus nasıl çalışır?</h1>
+        {/* Ürünün tanımı (27 Kasım 2026, GEO): başlığın hemen altında, tek başına alıntılanabilir. */}
+        <p className="dm-lead dm-lead--define" data-product-definition>
+          {PRODUCT_SUMMARY}
+        </p>
         <p className="dm-lead">
           Hazır bir ders notuyla baştan sona gezelim. Aşağıdaki her şey gerçek
           ürün ekranları — sadece içeriği önceden hazırladık.

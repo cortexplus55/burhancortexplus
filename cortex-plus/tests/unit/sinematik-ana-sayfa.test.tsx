@@ -141,7 +141,13 @@ describe("kahraman: söz kısa, kokpit ilk ekranda", () => {
     expect([...at].sort((a, b) => a - b)).toEqual(at);
     const css = read("src/styles/home-cinema.css");
     expect(css).not.toMatch(/\.hs-|\.hm-proof|\.hm-reel|\.hm-film|\.hm-frame/);
-    expect(css).toMatch(/\.hm-hero-grid \{[^}]*grid-template-areas:\s*"copy"\s*"pick"\s*"cockpit"\s*"foot";/);
+    // 27 Kasım 2026 (GEO): ürünün tanımı HTML'de başlıktan hemen sonra, ekranda turun altında (`define` alanı); ilk ekranın
+    // sırası (başlık, seçici, kokpit) değişmez.
+    expect(css).toMatch(/\.hm-hero-grid \{[^}]*grid-template-areas:\s*"copy"\s*"pick"\s*"cockpit"\s*"define"\s*"foot";/);
+    expect(css).toMatch(/\.hm-define \{[^}]*grid-area: define;/);
+    const define = hero.indexOf('className="hm-define"');
+    expect(define).toBeGreaterThan(hero.indexOf('className="hm-lead"'));
+    expect(define).toBeLessThan(hero.indexOf("<AudiencePicker"));
     // Tur kahramanın içinde: kendi zemini ve dış boşluğu yok.
     expect(css).toMatch(/\.hm-hero \.lj \{\s*padding: 0;\s*background: none;/);
     // Geniş ekranda seçici ve kayıt düğmesi tek satırda, ortada: ilk ekranda kokpite yer kalır.

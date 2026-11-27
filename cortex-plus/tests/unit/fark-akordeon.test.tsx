@@ -563,8 +563,10 @@ describe("CSS: yerleşim, palet, taban", () => {
     expect(css).toMatch(/\.fk-chip,\s*\.fk-twin-again \{[^}]*min-height: 2\.75rem;/);
     expect(css).toMatch(/\.fk-two-letter \{[^}]*width: 2\.75rem;[^}]*height: 2\.75rem;/);
     expect(css).toMatch(/\.fk-more a,\s*\.lp-faq-more a \{[^}]*min-height: 2\.75rem;/);
-    expect(css).toMatch(/\.hm \.lp-faq-item summary \{[^}]*min-height: 3rem;/);
-    expect(css).toMatch(/\.lp-faq-link \{[^}]*min-height: 2\.75rem;/);
+    // SSS satırı ve bağlantısı 27 Kasım 2026'dan beri `landing.css`'te (aynı görünüm `/ozellikler` ve `/fiyatlandirma`'da da).
+    const landing = withoutComments(read("src/styles/landing.css"));
+    expect(landing).toMatch(/:is\(\.hm, \.lp-faq--answer\) \.lp-faq-item summary \{[^}]*min-height: 3rem;/);
+    expect(landing).toMatch(/\.lp-faq-link \{[^}]*min-height: 2\.75rem;/);
     const sizes = [...css.matchAll(/font-size: ([0-9.]+)rem;/g)].map((match) => Number(match[1]));
     expect(sizes.length).toBeGreaterThan(20);
     for (const size of sizes) expect(size).toBeGreaterThanOrEqual(0.75);

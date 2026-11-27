@@ -29,8 +29,9 @@ const paths = entries.map((entry) => new URL(entry.url).pathname);
 describe("robots.txt", () => {
   it("her şeyi açar; yönetim, uçlar, giriş dönüşü, ödeme ve ayarları kapatır; haritayı gösterir", () => {
     const result = robots();
-    const rule = Array.isArray(result.rules) ? result.rules[0]! : result.rules;
-    expect(rule.userAgent).toBe("*");
+    // 27 Kasım 2026 (GEO): yapay zekâ tarayıcılarının kendi grubu da var; `*` grubu aynı kuralları taşır.
+    const all = Array.isArray(result.rules) ? result.rules : [result.rules];
+    const rule = all.find((item) => item.userAgent === "*")!;
     expect(rule.allow).toBe("/");
     const disallow = ([] as string[]).concat(rule.disallow ?? []);
     for (const path of ["/admin", "/api/", "/pay", "/ayarlar"]) expect(disallow).toContain(path);
@@ -124,13 +125,19 @@ describe("sayfa başına başlık, kanonik adres ve paylaşım bilgisi", () => {
 });
 
 describe("yapılandırılmış veri", () => {
+  /** Çizilen betiğin `@graph` dizisi (27 Kasım 2026'dan beri her sayfa tek grafik). */
   const parse = (data: object | object[]) => {
     const html = renderToStaticMarkup(<JsonLd data={data} />);
-    return JSON.parse(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/.exec(html)![1]!) as unknown;
+    const root = JSON.parse(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/.exec(html)![1]!) as {
+      "@context": string;
+      "@graph": unknown[];
+    };
+    expect(root["@context"]).toBe("https://schema.org");
+    return root["@graph"];
   };
 
   it("ana sayfa kurumu: Organization, marka adı, logo ve adres; puan, yorum, fiyat yok", () => {
-    const org = parse(organizationJsonLd()) as Record<string, unknown>;
+    const [org] = parse(organizationJsonLd()) as [Record<string, unknown>];
     expect(org["@type"]).toBe("Organization");
     expect(org.name).toBe("Cortex Plus");
     expect(org.url).toBe("https://cortexplus.app");
@@ -141,15 +148,19 @@ describe("yapılandırılmış veri", () => {
     for (const key of ["aggregateRating", "review", "offers", "priceRange"]) expect(org).not.toHaveProperty(key);
   });
 
-  it("SoftwareApplication yazılmaz (puansız hâli Search Console'da geçersiz öğe olur)", () => {
-    expect(read("src/app/page.tsx")).not.toContain("SoftwareApplication");
-    expect(read("src/lib/seo/structured-data.ts")).not.toMatch(/"@type": "SoftwareApplication"/);
+  it("SoftwareApplication (27 Kasım 2026, ürün sahibinin isteği): canlı fiyatlı teklifler; puan ve yorum uydurulmaz", () => {
+    // 26 Kasım'daki "bilerek yok" kararı değişti; ana sayfa ve fiyat sayfası uygulamayı veritabanındaki fiyatlarla yazar.
+    expect(read("src/app/page.tsx")).toContain("softwareApplicationJsonLd(offers)");
+    expect(read("src/app/fiyatlandirma/page.tsx")).toContain("softwareApplicationJsonLd(offers)");
+    const source = read("src/lib/seo/structured-data.ts");
+    expect(source).not.toMatch(/aggregateRating:|ratingValue|reviewCount|"Review"/);
   });
 
-  it("fiyat sayfası: WebPage + gezinme yolu; fiyat yazılmaz", () => {
-    const source = read("src/app/fiyatlandirma/page.tsx");
-    expect(source).toContain('webPageJsonLd({ name: "Fiyatlandırma", description: PRICING_DESCRIPTION, path: "/fiyatlandirma" })');
+  it("fiyat sayfası: WebPage + gezinme yolu; teklifler kartlarla aynı satırlardan", () => {
+    const source = read("src/app/fiyatlandirma/page.tsx").replace(/\s+/g, " ");
+    expect(source).toContain('webPageJsonLd({ name: "Fiyatlandırma", description: PRICING_DESCRIPTION, path: "/fiyatlandirma", breadcrumb: true, about: "software", })');
     expect(source).toContain('{ name: "Fiyatlandırma", path: "/fiyatlandirma" }');
+    expect(source).toContain("const offers = storeOffersFromPlans(plans);");
     const ld = parse([
       webPageJsonLd({ name: "Fiyatlandırma", description: "Açıklama", path: "/fiyatlandirma" }),
       breadcrumbJsonLd([

@@ -89,6 +89,12 @@ export const TRUST_LINE = ["Notuna sadık", "Otomatik yenileme yok", "PayTR ile 
 
 export type FaqItem = { q: string; a: string; link?: { label: string; href: string } };
 
+/** Yenileme sorusu: ana sayfanın ve fiyat sayfasının sık sorulanlarında aynı metin (27 Kasım 2026, GEO). */
+export const RENEWAL_FAQ: FaqItem = {
+  q: "Abonelik kendiliğinden yenilenir mi?",
+  a: "Hayır, otomatik yenileme yok. Dönemin bitmesine 3 gün kala hatırlatırız; yenilemezsen hesabın ücretsize döner, çalışmaların yerinde kalır.",
+};
+
 /** "podcast, video, sözlü, yazılı deneme ve sınav sabahı kâğıdı": Plus'a özel işler, tek kaynaktan, küçük harfle. */
 const PLUS_ONLY_LIST = (() => {
   const names = PLUS_ONLY_FEATURES.map((name) => name.toLocaleLowerCase("tr"));
@@ -122,10 +128,7 @@ export const FAQ: FaqItem[] = [
     q: "Kartım yok, velim nasıl ödeyebilir?",
     a: `Paket kartındaki “${PARENT_WHATSAPP_BUTTON.replace(/^\S+\s/, "")}” düğmesiyle planını veline gönder. Velin hesap açmadan ve şifre girmeden linki açıp PayTR ile öder; link ${PARENT_LINK_TTL_HOURS} saat geçerli ve paket senin hesabına tanımlanır.`,
   },
-  {
-    q: "Abonelik kendiliğinden yenilenir mi?",
-    a: "Hayır, otomatik yenileme yok. Dönemin bitmesine 3 gün kala hatırlatırız; yenilemezsen hesabın ücretsize döner, çalışmaların yerinde kalır.",
-  },
+  RENEWAL_FAQ,
 ];
 
 /** Sık sorulanların altındaki tek bağlantı: bütün sorular Yardım sayfasında. */

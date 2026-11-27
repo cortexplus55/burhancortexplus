@@ -33,11 +33,13 @@ describe("site haritası ve robots", async () => {
 
   it("robots herkese açık sayfaları kapatmaz ve haritayı gösterir", () => {
     const rules = robots();
-    const rule = Array.isArray(rules.rules) ? rules.rules[0]! : rules.rules;
+    const all = Array.isArray(rules.rules) ? rules.rules : [rules.rules];
+    const rule = all.find((item) => item.userAgent === "*")!;
     expect(rule.allow).toBe("/");
     const disallow = ([] as string[]).concat(rule.disallow ?? []);
-    // Search Console turunda (26 Kasım 2026) ödeme ve ayarlar da kapandı; liste tek kaynakta (`crawl-rules.ts`).
-    expect(disallow).toEqual(["/admin", "/api/", "/auth/", "/pay", "/ayarlar"]);
+    // Search Console turunda (26 Kasım 2026) ödeme ve ayarlar, GEO turunda (27 Kasım 2026) öğretmen sohbeti, giriş ve
+    // kayıt da kapandı; liste tek kaynakta (`crawl-rules.ts`).
+    expect(disallow).toEqual(["/admin", "/api/", "/auth/", "/pay", "/ayarlar", "/ogretmen", "/giris", "/kayit"]);
     expect(rules.sitemap).toBe("https://cortexplus.app/sitemap.xml");
   });
 });

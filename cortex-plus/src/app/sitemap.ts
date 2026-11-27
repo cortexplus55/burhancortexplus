@@ -2,34 +2,18 @@ import type { MetadataRoute } from "next";
 import { CURRICULUM } from "@/lib/curriculum/registry";
 import { curriculumSitemapPaths } from "@/lib/curriculum/seo";
 import { COOKIE_POLICY_VERSION, KVKK_TEXT_DATE, LEGAL_VERSIONS } from "@/lib/legal/versions";
+import { PUBLIC_PAGES } from "@/lib/seo/public-pages";
 import { SITE_URL } from "@/lib/seo/page-metadata";
 
 const base = SITE_URL;
 
-const marketingPaths = [
-  "",
-  "/sinav-hazirligi",
-  "/ozellikler",
-  "/fiyatlandirma",
-  "/yardim",
-  // 20 Kasım 2026 (Faz 3): giriş istemeyen örnek çalışma ve resmî takvim / sınav yapıları sayfası.
-  "/ornek",
-  "/resmi",
-  "/mobil-uygulama",
-  // "/ogretmenler-ve-profesorler-icin" bilerek yok: o sayfa 29 Ağustos'ta
-  // emekli edildi ve artık /kayit'e yönlendiriyor. Yönlendirmeye düşen bir
-  // adresi site haritasına koymak, Google'a boş yere gezdirilecek bir adres
-  // bildirmek demek. Aynı sebeple "/kullanim-sartlari" (308 → /kullanim-kosullari) da yok.
-  "/hakkimizda",
-  "/iletisim",
-  "/giris",
-  "/kayit",
-  "/gizlilik",
-  "/kvkk",
-  "/kullanim-kosullari",
-  "/cerez-politikasi",
-  "/hesap-silme",
-];
+/**
+ * Tanıtım ve hukuk sayfaları tek listeden (`public-pages.ts`, `/llms.txt` de onu okur). Yönlenen adresler
+ * ("/ogretmenler-ve-profesorler-icin" 29 Ağustos'ta emekli edildi ve /kayit'e yönleniyor; "/kullanim-sartlari" 308 →
+ * /kullanim-kosullari) ve robots'un kapattığı giriş / kayıt sayfaları (27 Kasım 2026) haritada yok: Google'a boş yere
+ * gezdirilecek ya da "robots.txt tarafından engellendi" diye işaretlenecek bir adres bildirmek demek.
+ */
+const marketingPaths = PUBLIC_PAGES.filter((page) => page.inMarketingSitemap).map((page) => page.path);
 
 /**
  * Son değişiklik tarihi (26 Kasım 2026, Search Console). Metni sürümlü sayfalar kendi sürüm tarihini, müfredat

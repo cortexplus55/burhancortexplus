@@ -281,6 +281,11 @@
   color: var(--lp-muted);
 }
 
+/* İkinci giriş paragrafı (27 Kasım 2026, GEO: önce ürünün tanımı, sonra sayfanın kendi girişi) daha yakın durur. */
+.lp-hero-lead + .lp-hero-lead {
+  margin-top: 0.75rem;
+}
+
 .lp-cta-row {
   display: flex;
   flex-wrap: wrap;
@@ -1602,6 +1607,63 @@
 
 .lp-faq-item p {
   margin-top: 0.6rem;
+}
+
+/*
+  Satır görünümü: ana sayfanın SSS'si (`.hm`) ve "cevap önce" SSS (`.lp-faq--answer`, 27 Kasım 2026, GEO: `/ozellikler`,
+  `/fiyatlandirma`). Soru satırı en az 48 px, cevap ilk sunucu HTML'inde (`<details>`).
+*/
+:is(.hm, .lp-faq--answer) .lp-faq-item {
+  padding: 0.3rem 1.1rem;
+}
+
+:is(.hm, .lp-faq--answer) .lp-faq-item summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 3rem;
+  padding-block: 0.35rem;
+  line-height: 1.35;
+}
+
+:is(.hm, .lp-faq--answer) .lp-faq-item summary::after {
+  flex: none;
+  float: none;
+}
+
+:is(.hm, .lp-faq--answer) .lp-faq-item summary:focus-visible {
+  outline: 2px solid #ffdcae;
+  outline-offset: 2px;
+  border-radius: 0.6rem;
+}
+
+:is(.hm, .lp-faq--answer) .lp-faq-item p {
+  margin: 0.15rem 0 0.85rem;
+}
+
+.lp-faq-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2.75rem;
+  margin-bottom: 0.4rem;
+  color: #ffc7a8;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.lp-faq-link:focus-visible {
+  outline: 2px solid #ffdcae;
+  outline-offset: 2px;
+  border-radius: 0.4rem;
+}
+
+/* Fiyat sayfasında: pazarlama kabuğunun zemini görünsün (`.lp` kendi zeminini çizmesin). */
+.lp.lp--embed {
+  background: transparent;
 }
 
 /* ---------- Son çağrı: ufuk ---------- */

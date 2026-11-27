@@ -1,13 +1,25 @@
 import Link from "next/link";
 import { ParityMarketingPage } from "@/components/parity/marketing";
 import { PricingAdvantageStrip } from "@/components/marketing/advantage-sections";
+import { AnswerFaqSection } from "@/components/marketing/answer-faq-section";
 import { SubscriptionCards } from "@/components/parity/subscription-cards";
 import { createClient } from "@/lib/supabase/server";
 import { isPaytrConfigured } from "@/lib/payments/paytr";
 import { FREE_FIRST_LESSON_SENTENCE, PLUS_ONLY_SENTENCE } from "@/lib/billing/free-tier-copy";
+import { storeOffersFromPlans } from "@/lib/billing/store-products";
+import { PRICING_FAQ } from "@/lib/marketing/answer-faq";
+import { PRODUCT_SUMMARY } from "@/lib/marketing/product-definition";
 import { pageMetadata } from "@/lib/seo/page-metadata";
-import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seo/structured-data";
+import {
+  breadcrumbJsonLd,
+  faqPageJsonLd,
+  organizationJsonLd,
+  softwareApplicationJsonLd,
+  webPageJsonLd,
+  websiteJsonLd,
+} from "@/lib/seo/structured-data";
 import { JsonLd } from "@/components/seo/json-ld";
+import "@/styles/landing.css";
 
 /** 11 Kasım 2026: ücretsizde ilk dersin döngüsü açık, Plus'a özel olanlar adıyla (tek kaynak `free-tier-copy.ts`). */
 const PRICING_DESCRIPTION = `${FREE_FIRST_LESSON_SENTENCE} ${PLUS_ONLY_SENTENCE} Plus ayrıca bütün konuları ve geniş aylık hakkı açar; Sigma en yüksek hakkı verir.`;
@@ -24,6 +36,7 @@ export const dynamic = "force-dynamic";
 export default async function FiyatlandirmaPage() {
   let plans: {
     id: string;
+    slug?: string | null;
     name: string;
     description: string | null;
     price_try: number;
@@ -39,7 +52,7 @@ export default async function FiyatlandirmaPage() {
     const { data, error } = await supabase
       .from("plans")
       .select(
-        "id, name, description, price_try, credit_amount, is_premium, billing_period, tier, period_days",
+        "id, slug, name, description, price_try, credit_amount, is_premium, billing_period, tier, period_days",
       )
       .eq("active", true)
       .order("sort_order");
@@ -63,20 +76,38 @@ export default async function FiyatlandirmaPage() {
   }
 
   const checkoutEnabled = isPaytrConfigured();
+  // Yapılandırılmış verideki teklifler kartlarla aynı satırlardan (27 Kasım 2026, GEO): fiyat sabit yazılmaz.
+  const offers = storeOffersFromPlans(plans);
 
   return (
     <ParityMarketingPage
       title="Fiyatlandırma"
-      description={PRICING_DESCRIPTION}
+      description={PRODUCT_SUMMARY}
     >
-      {/* Sayfa ve gezinme yolu (26 Kasım 2026). Fiyat yapılandırılmış veriye yazılmaz: veritabanından değişir. */}
+      {/*
+        Kurum, site, uygulama (kartlardaki fiyatlarla), sayfa, gezinme yolu ve sayfadaki sık sorulanlar tek @graph içinde
+        (27 Kasım 2026, GEO). Fiyat her istekte veritabanından; okunamayan plan teklif listesine girmez.
+      */}
       <JsonLd
         data={[
-          webPageJsonLd({ name: "Fiyatlandırma", description: PRICING_DESCRIPTION, path: "/fiyatlandirma" }),
+          organizationJsonLd(),
+          websiteJsonLd(),
+          softwareApplicationJsonLd(offers),
+          webPageJsonLd({
+            name: "Fiyatlandırma",
+            description: PRICING_DESCRIPTION,
+            path: "/fiyatlandirma",
+            breadcrumb: true,
+            about: "software",
+          }),
           breadcrumbJsonLd([
             { name: "Cortex Plus", path: "/" },
             { name: "Fiyatlandırma", path: "/fiyatlandirma" },
           ]),
+          faqPageJsonLd(
+            PRICING_FAQ.map((item) => ({ question: item.q, answer: item.a })),
+            "/fiyatlandirma",
+          ),
         ]}
       />
       <div data-cinematic-reveal className="space-y-4">
@@ -110,6 +141,10 @@ export default async function FiyatlandirmaPage() {
         )}
       </div>
       <PricingAdvantageStrip />
+      {/* "Cevap önce" sık sorulanlar (27 Kasım 2026, GEO): ana sayfanın SSS görünümü, kabuğun zemininde. */}
+      <div className="lp lp--embed">
+        <AnswerFaqSection id="fiyat-faq" title="Sık sorulanlar" items={PRICING_FAQ} />
+      </div>
       <p className="pb-8 text-center text-sm text-[var(--mk-muted)]">
         Zaten hesabın var mı?{" "}
         <Link href="/giris" className="text-[var(--mk-primary)] underline">
