@@ -51,6 +51,14 @@ test.describe("Müfredat SEO", { tag: ["@public"] }, () => {
     const guncel = await (await request.get("/mufredat/kpss-2026-tree-guncel")).text();
     expect(guncel).not.toMatch(/<meta name="robots" content="noindex/);
   });
+
+  test("liste sayfası eski ağacı göstermez; derin sürümü ve güncel bilgiler ağacı listede", async ({ request }) => {
+    const html = await (await request.get("/mufredat")).text();
+    expect(html).not.toContain('href="/mufredat/tus-2026-tree-anatomi"');
+    expect(html).not.toContain('href="/mufredat/kpss-2026-tree-turkce"');
+    expect(html).toContain('href="/mufredat/tus-2026-deep-anatomi"');
+    expect(html).toContain('href="/mufredat/kpss-2026-tree-guncel"');
+  });
 });
 
 test("kazanım sayfasında konu ağacı etiketi bir kez görünür", { tag: ["@public"] }, async ({ page }) => {

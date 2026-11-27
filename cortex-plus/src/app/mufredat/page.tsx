@@ -2,6 +2,7 @@ import Link from "next/link";
 import { MarketingPage } from "@/components/layout/marketing-page";
 import { CURRICULUM, listProgramSummaries } from "@/lib/curriculum/registry";
 import { programGroupLabel } from "@/lib/curriculum/program-group";
+import { supersededBy } from "@/lib/curriculum/seo";
 import { pageMetadata } from "@/lib/seo/page-metadata";
 import {
   breadcrumbJsonLd,
@@ -38,7 +39,9 @@ function topicLine(counts: Record<string, number>): string {
  * program sayfasında. Eksik kalan veri dürüstçe listelenir.
  */
 export default function MufredatPage() {
-  const programs = listProgramSummaries();
+  // Derin sürümü olan eski konu ağaçları listede gösterilmez (27 Kasım 2026; aynı adla ikinci kart çıkıyordu). Sayfaları
+  // doğrudan adresle açık kalır, onlara bağlı eski hazırlıklar çalışır; arama motoruna da önerilmezler.
+  const programs = listProgramSummaries().filter((program) => !supersededBy(program));
   const groups = new Map<string, typeof programs>();
   for (const p of programs) {
     const key = programGroupLabel(p);
