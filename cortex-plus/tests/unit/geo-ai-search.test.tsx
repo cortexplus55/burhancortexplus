@@ -44,6 +44,7 @@ import { RENEWAL_FAQ } from "@/lib/marketing/landing-content";
 import { PRODUCT_AUDIENCE, PRODUCT_DEFINITION, PRODUCT_SUMMARY } from "@/lib/marketing/product-definition";
 import { AI_SEARCH_CRAWLERS, isCrawlBlocked, ROBOTS_DISALLOW } from "@/lib/seo/crawl-rules";
 import { buildLlmsTxt } from "@/lib/seo/llms-txt";
+import { REALTIME_FREE_TRIAL_ENABLED, REFUSAL_MESSAGE } from "@/lib/tutor/realtime/config";
 import { PUBLIC_PAGES } from "@/lib/seo/public-pages";
 import {
   faqPageJsonLd,
@@ -164,7 +165,7 @@ describe("cevap önce SSS", () => {
     expect(ANSWER_FAQ.map((item) => item.q)).toEqual([
       "Cortex Plus nedir ve kendi ders notlarımdan nasıl çalışma yolu çıkarır?",
       "Hangi sınavlar ve seviyeler için uygundur?",
-      "Sesli öğretmen ve çift kontrollü soru üretimi nasıl çalışır?",
+      "Canlı sesli öğretmen ve çift kontrollü soru üretimi nasıl çalışır?",
       "Kredi kartı olmadan nasıl denenir ve veli ödeme linki nasıl kullanılır?",
     ]);
     for (const item of ANSWER_FAQ) {
@@ -185,10 +186,15 @@ describe("cevap önce SSS", () => {
     expect(answer).toContain("5 şıklı");
   });
 
-  it("sesli öğretmen cevabı pilottaki gerçek zamanlı sesi vaat etmez (bugün açık olan: Plus'ta sesli sözlü)", () => {
+  it("canlı sesli öğretmen: SSS ve /llms.txt kodun erişim kuralıyla aynı (Sınav Haftası, Plus, Sigma; ücretsizde yok)", () => {
+    // 27 Kasım 2026 (Burhan): yeni öğretmen ekranı herkese açıldı, canlı ses ücretli planlarda; ücretsiz deneme kapalı.
+    expect(REALTIME_FREE_TRIAL_ENABLED).toBe(false);
     const item = ANSWER_FAQ[2]!;
-    expect(`${item.q} ${item.a}`).not.toMatch(/[Cc]anlı/);
-    expect(item.a).toContain("Plus'ta sözlü sınavı sesli");
+    expect(item.a.startsWith("Canlı sesli öğretmen Sınav Haftası, Plus ve Sigma'da açık")).toBe(true);
+    expect(item.a).not.toMatch(/ücretsiz/i);
+    expect(REFUSAL_MESSAGE.plus_required).toContain("Sınav Haftası, Plus ve Sigma");
+    const llms = buildLlmsTxt([]);
+    expect(llms).toContain("Sınav Haftası, Plus ve Sigma'da öğretmenle canlı sesli ders yaparsın");
   });
 
   it("fiyat sayfası: dört soru ve ana sayfanın yenileme sorusu (aynı metin)", () => {

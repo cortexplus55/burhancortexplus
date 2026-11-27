@@ -2,14 +2,17 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getUserEntitlements } from "@/lib/billing/entitlements";
 import { billingExempt } from "@/lib/billing/free-preview";
-import { REALTIME_MODEL, type RealtimeAccess } from "@/lib/tutor/realtime/config";
+import { REALTIME_FREE_TRIAL_ENABLED, REALTIME_MODEL, type RealtimeAccess } from "@/lib/tutor/realtime/config";
 
 /*
-  Kim konuşabilir (21 Kasım 2026, Burhan'ın kararları):
+  Kim konuşabilir (21 Kasım 2026, Burhan'ın kararları; 27 Kasım 2026'da ücretsiz deneme kapandı):
   - Plus (aylık / yıllık, kodla açılan Plus denemesi dahil), Sınav Haftası (`plus-haftalik`, kademesi Plus) ve Sigma:
     açık, dakika başına kredi.
   - Kurucu (önizlemesi kapalıyken): açık; ayırma SQL'de yönetici geçişiyle (delta 0) kayda girer.
-  - Ücretsiz hesap (önizlemedeki kurucu dahil): hesap başına BİR KEZ 1 dakikalık deneme, kredi düşmez; sonrası Plus.
+  - Ücretsiz hesap (önizlemedeki kurucu dahil): 27 Kasım 2026'dan beri kapalı ("plus_required", 402). Burhan'ın kararı:
+    "Konuş" ücretsiz hesapta doğrudan Plus yükseltme ekranını açar; ücretsiz trafikle ses gideri büyümesin. Eski hesap
+    başına bir kez 1 dakikalık deneme `REALTIME_FREE_TRIAL_ENABLED` anahtarının arkasında duruyor (false); açmak ürün
+    sahibinin kararı ve aşağıdaki deneme kaydı o zaman geçerli olur.
 
   Denemenin kullanıldığı göçsüz ve kalıcı bir kayıttan anlaşılır: `ai_usage_events`'e `REALTIME_VOICE_TRIAL` koduyla
   yazılan sıfır jetonlu satır (ilk ders döngüsünün kanıtı gibi kredi ayırma kaydına benzer; Redis tek başına yetmez).
@@ -20,7 +23,11 @@ import { REALTIME_MODEL, type RealtimeAccess } from "@/lib/tutor/realtime/config
 
 export const TRIAL_USAGE_CODE = "REALTIME_VOICE_TRIAL";
 
-export type AccessDecision = { kind: RealtimeAccess } | { kind: "trial_used" } | { kind: "unavailable" };
+export type AccessDecision =
+  | { kind: RealtimeAccess }
+  | { kind: "plus_required" }
+  | { kind: "trial_used" }
+  | { kind: "unavailable" };
 
 type Row = { id?: unknown };
 
@@ -105,16 +112,21 @@ export async function releaseTrial(service: SupabaseClient, userId: string, mark
 }
 
 /**
- * Hesabın erişimi. Plan okuması düşerse ücretsiz sayılır (`getUserEntitlements` satırsız = ücretsiz); deneme okuması
- * düşerse kapı açılmaz ("unavailable": öğrenci "şu an kullanılamıyor" görür, Plus satışı değil).
+ * Hesabın erişimi. Plan okuması düşerse ücretsiz sayılır (`getUserEntitlements` satırsız = ücretsiz): kapı açılmaz.
+ * Ücretsiz hesap "plus_required" alır; deneme anahtarı açıksa (bugün kapalı) deneme okuması düşünce "unavailable".
  */
-export async function resolveRealtimeAccess(service: SupabaseClient, userId: string): Promise<AccessDecision> {
+export async function resolveRealtimeAccess(
+  service: SupabaseClient,
+  userId: string,
+  options: { freeTrial?: boolean } = {},
+): Promise<AccessDecision> {
   const [entitlements, exempt] = await Promise.all([
     getUserEntitlements(service, userId).catch(() => null),
     billingExempt(service, userId).catch(() => false),
   ]);
   if (exempt) return { kind: "founder" };
   if (entitlements?.isPaid && (entitlements.plan === "plus" || entitlements.plan === "sigma")) return { kind: "paid" };
+  if (!(options.freeTrial ?? REALTIME_FREE_TRIAL_ENABLED)) return { kind: "plus_required" };
   const used = await trialUsed(service, userId);
   if (used === null) return { kind: "unavailable" };
   return used ? { kind: "trial_used" } : { kind: "trial" };

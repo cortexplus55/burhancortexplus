@@ -57,7 +57,8 @@ function serverProducers(): Producer[] {
             // yalnız ücretsiz hesabın reddidir; abone ve kurucu (önizleme kapalıyken) görmez.
             // 21 Kasım 2026: canlı sesli öğretmenin tek seferlik denemesi kullanılmış (trial_used) da ücretsiz hesabın reddi;
             // kurucu denemeye hiç düşmez (`resolveRealtimeAccess` önce "founder" döner, aşağıda).
-            : /free_page_limit|FREE_PAGE_LIMIT_CODE|free_prep_limit|FREE_PREP_LIMIT|free_(lesson|chat|photo|included|topic)_limit|FREE_LESSON_CODE|FREE_TOPIC_LIMIT_CODE|spend_cap_free|SPEND_CAP_CODE|free_photo_abuse_limit|PHOTO_ABUSE_CODE|"trial_used"/.test(window)
+            // 27 Kasım 2026: deneme kapandı; ücretsiz hesabın canlı ses reddi `plus_required` (kurucu yine önce "founder").
+            : /free_page_limit|FREE_PAGE_LIMIT_CODE|free_prep_limit|FREE_PREP_LIMIT|free_(lesson|chat|photo|included|topic)_limit|FREE_LESSON_CODE|FREE_TOPIC_LIMIT_CODE|spend_cap_free|SPEND_CAP_CODE|free_photo_abuse_limit|PHOTO_ABUSE_CODE|"trial_used"|"plus_required"/.test(window)
               ? "free"
               : "unknown";
       found.push({ file: path.relative(ROOT, file).replaceAll("\\", "/"), line: index + 1, kind });
@@ -110,6 +111,8 @@ describe("sunucudaki her 402 sınıflanmış", () => {
     const realtime = readFileSync(path.join(ROOT, "src/lib/tutor/realtime/access.ts"), "utf8");
     expect(realtime.indexOf('if (exempt) return { kind: "founder" };')).toBeGreaterThan(0);
     expect(realtime.indexOf('if (exempt) return { kind: "founder" };')).toBeLessThan(realtime.indexOf("await trialUsed(service, userId)"));
+    // 27 Kasım 2026: ücretsiz hesabın reddi (`plus_required`) de kurucu kararından sonra.
+    expect(realtime.indexOf('if (exempt) return { kind: "founder" };')).toBeLessThan(realtime.indexOf('return { kind: "plus_required" };'));
   });
 });
 

@@ -87,7 +87,17 @@ for (const width of [390, 1280]) {
   test(`sohbetin içinde sesli ders ${width} px: söz ve kart akışa düşer, bitince mesaj olur`, async ({ page }) => {
     await page.setViewportSize({ width, height: width < 768 ? 844 : 800 });
     const ended = await setup(page);
-    await page.goto("/e2e/ana-ekran?ogretmen=v2&durum=karsilama");
+    // 27 Kasım 2026: canlı ses yalnız ücretli planlarda (Sınav Haftası, Plus, Sigma); fikstürde Plus hesabı. Plus
+    // kabuğunda tek seferlik "Seri" karşılaması (`GamificationGate`) ekranı kaplayıp "Konuş"a tıklamayı kesiyordu (CI):
+    // karşılaması görülmüş tarayıcıyla başlanır (`donusum.spec.ts` ile aynı yol).
+    await page.addInitScript(() => {
+      try {
+        window.localStorage.setItem("cortex-gamification-v1", "1");
+      } catch {
+        /* depolama kapalıysa pencere zaten test edilen şey değil */
+      }
+    });
+    await page.goto("/e2e/ana-ekran?ogretmen=v2&durum=karsilama&plan=plus");
     await page.getByRole("button", { name: "Konuş" }).click();
 
     const bar = page.locator("section.cx-rv");
@@ -134,5 +144,47 @@ for (const width of [390, 1280]) {
       ],
       cards: [{ kind: "concept", title: "Seçici geçirgenlik" }],
     });
+  });
+}
+
+/*
+  27 Kasım 2026 (Burhan): ücretsiz hesapta "Konuş" görünür ama canlı ses açılmaz; dokununca mikrofon istenmeden ve sesli
+  ders ucuna gidilmeden Plus yükseltme penceresi açılır.
+*/
+for (const width of [390, 1280]) {
+  test(`ücretsiz hesap ${width} px: Konuş Plus penceresini açar, mikrofon ve uç isteği yok`, async ({ page }) => {
+    await page.setViewportSize({ width, height: width < 768 ? 844 : 800 });
+    let sessionRequests = 0;
+    await page.addInitScript(() => {
+      try {
+        window.localStorage.setItem("cortex-gamification-v1", "1");
+      } catch {
+        /* depolama kapalıysa pencere zaten test edilen şey değil */
+      }
+      (window as unknown as { __mic: number }).__mic = 0;
+      Object.defineProperty(navigator, "mediaDevices", {
+        configurable: true,
+        value: {
+          getUserMedia: async () => {
+            (window as unknown as { __mic: number }).__mic += 1;
+            return new AudioContext().createMediaStreamDestination().stream;
+          },
+        },
+      });
+    });
+    await page.route("**/api/tutor/realtime-session**", (route) => {
+      sessionRequests += 1;
+      return route.fulfill({ status: 402, json: { ok: false, code: "plus_required", message: "" } });
+    });
+    await page.goto("/e2e/ana-ekran?ogretmen=v2&durum=karsilama");
+    const talk = page.getByRole("button", { name: "Konuş" });
+    await expect(talk).toBeVisible();
+    await talk.click();
+    await expect(page.getByText(/Canlı sesli öğretmen Plus'ta\./)).toBeVisible();
+    await expect(page.locator("section.cx-rv")).toHaveCount(0);
+    expect(sessionRequests).toBe(0);
+    expect(await page.evaluate(() => (window as unknown as { __mic: number }).__mic)).toBe(0);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(0);
   });
 }

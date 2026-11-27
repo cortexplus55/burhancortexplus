@@ -214,6 +214,17 @@ describe("oturum açılışı", () => {
     expect(h.deps.loadContext).toHaveBeenCalledWith(service, USER, expect.objectContaining({ trial: true }));
   });
 
+  it("ücretsiz hesap (27 Kasım 2026'dan beri deneme yok): Plus daveti (402), kredi ayrılmaz, çağrı açılmaz", async () => {
+    const h = harness({ access: vi.fn(async () => ({ kind: "plus_required" as const })) });
+    const outcome = await open(h);
+    expect(outcome.status).toBe(402);
+    expect(outcome.body).toEqual({ ok: false, code: "plus_required", message: REFUSAL_MESSAGE.plus_required });
+    expect(REFUSAL_MESSAGE.plus_required).toBe("Canlı sesli öğretmen Sınav Haftası, Plus ve Sigma'da açık.");
+    expect(h.deps.reserve).not.toHaveBeenCalled();
+    expect(h.deps.claimTrial).not.toHaveBeenCalled();
+    expect(h.deps.createCall).not.toHaveBeenCalled();
+  });
+
   it("ücretsiz ikinci sefer: Plus daveti (402), çağrı açılmaz", async () => {
     const h = harness({ access: vi.fn(async () => ({ kind: "trial_used" as const })) });
     const outcome = await open(h);

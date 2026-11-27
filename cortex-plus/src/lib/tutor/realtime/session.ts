@@ -306,6 +306,8 @@ export async function createRealtimeSession(
   if (!/^v=0/.test(body.sdp.trim())) return refusal(400, "failed");
 
   const decision = await deps.access(service, userId);
+  // 27 Kasım 2026 (Burhan): ücretsiz hesapta canlı ses yok; istemci "Konuş"ta Plus penceresini açar, uç da 402 verir.
+  if (decision.kind === "plus_required") return refusal(402, "plus_required");
   if (decision.kind === "trial_used") return refusal(402, "trial_used");
   if (decision.kind === "unavailable") return refusal(503, "unavailable");
   const access: RealtimeAccess = decision.kind;

@@ -46,8 +46,15 @@ export const REALTIME_MINUTE_GRACE_SECONDS = 5;
 export const REALTIME_TICK_LEAD_SECONDS = 5;
 /** Ödenen sürenin bitiminden bu kadar sonra /tick gelmediyse sunucu çağrıyı kapatır. */
 export const REALTIME_WATCHDOG_GRACE_SECONDS = 15;
-/** Ücretsiz hesabın tek seferlik denemesi. */
+/**
+ * Ücretsiz hesabın tek seferlik 1 dakikalık denemesi (21 Kasım 2026). 27 Kasım 2026'da kapandı (Burhan): ücretsiz
+ * hesapta "Konuş" doğrudan Plus yükseltme ekranını açar, uç `plus_required` (402) verir. Açmak ürün sahibinin kararı.
+ */
+export const REALTIME_FREE_TRIAL_ENABLED = false;
+/** Ücretsiz hesabın tek seferlik denemesi (anahtar açıkken). */
 export const REALTIME_TRIAL_SECONDS = 60;
+/** Yükseltme penceresinde Plus'a özel işin adı (ücretsiz hesapta "Konuş"). */
+export const LIVE_VOICE_GATE_NAME = "Canlı sesli öğretmen";
 /** Oturum başına sert tavan. */
 export const REALTIME_MAX_SESSION_SECONDS = 30 * 60;
 export const REALTIME_MAX_MINUTES = Math.ceil(REALTIME_MAX_SESSION_SECONDS / REALTIME_MINUTE_SECONDS);
@@ -194,7 +201,7 @@ export type RealtimeEndResponse =
 
 /** Ret kodunun öğrenciye görünen metni (kredi sayısı yok; "Plus'ta" dili). */
 export const REFUSAL_MESSAGE: Record<RealtimeFailureCode, string> = {
-  plus_required: "Ücretsiz denemeni kullandın.",
+  plus_required: "Canlı sesli öğretmen Sınav Haftası, Plus ve Sigma'da açık.",
   trial_used: "Ücretsiz denemeni kullandın.",
   quota: "Bu dönemin çalışma hakkı doldu. Ders burada kalıyor; konuşma sohbete kaydedildi.",
   busy: "Şu an bağlantı kurulamadı. Birkaç saniye sonra yeniden dene.",

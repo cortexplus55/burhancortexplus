@@ -313,19 +313,31 @@ describe("deneme kanıtı (göçsüz, kalıcı: ai_usage_events)", () => {
     expect(lostOps.some((entry) => entry.op === "delete" && entry.filters.some(([c, v]) => c === "action_code" && v === TRIAL_USAGE_CODE))).toBe(true);
   });
 
-  it("erişim: Plus / Sınav Haftası / Sigma açık, kurucu açık, ücretsizde deneme", async () => {
+  it("erişim: Plus / Sınav Haftası / Sigma açık, kurucu açık, ücretsizde Plus (27 Kasım 2026'dan beri deneme yok)", async () => {
     vi.resetModules();
     const entitlements = { isPaid: true, plan: "plus" };
+    const exempt = { value: false };
     vi.doMock("@/lib/billing/entitlements", () => ({ getUserEntitlements: vi.fn(async () => entitlements) }));
-    vi.doMock("@/lib/billing/free-preview", () => ({ billingExempt: vi.fn(async () => false) }));
+    vi.doMock("@/lib/billing/free-preview", () => ({ billingExempt: vi.fn(async () => exempt.value) }));
     const fresh = await import("@/lib/tutor/realtime/access");
+    const { REALTIME_FREE_TRIAL_ENABLED } = await import("@/lib/tutor/realtime/config");
     const service = fakeService(() => null);
+    // Plus ve Sınav Haftası (`plus-haftalik`, kademesi Plus) aynı plan kademesinden.
     expect(await fresh.resolveRealtimeAccess(service, "u")).toEqual({ kind: "paid" });
     entitlements.plan = "sigma";
     expect(await fresh.resolveRealtimeAccess(service, "u")).toEqual({ kind: "paid" });
+    // Ücretsiz hesap: deneme anahtarı kapalı, kayda bakılmadan Plus (402 `plus_required`).
+    expect(REALTIME_FREE_TRIAL_ENABLED).toBe(false);
     Object.assign(entitlements, { isPaid: false, plan: "free" });
-    expect(await fresh.resolveRealtimeAccess(service, "u")).toEqual({ kind: "trial" });
-    expect(await fresh.resolveRealtimeAccess(fakeService(() => "old"), "u")).toEqual({ kind: "trial_used" });
+    expect(await fresh.resolveRealtimeAccess(service, "u")).toEqual({ kind: "plus_required" });
+    expect(await fresh.resolveRealtimeAccess(fakeService(() => "old"), "u")).toEqual({ kind: "plus_required" });
+    // Kurucu (önizleme kapalıyken) açık.
+    exempt.value = true;
+    expect(await fresh.resolveRealtimeAccess(service, "u")).toEqual({ kind: "founder" });
+    exempt.value = false;
+    // Deneme anahtarı açılırsa eski kural (hesap başına bir kez) aynen çalışır.
+    expect(await fresh.resolveRealtimeAccess(service, "u", { freeTrial: true })).toEqual({ kind: "trial" });
+    expect(await fresh.resolveRealtimeAccess(fakeService(() => "old"), "u", { freeTrial: true })).toEqual({ kind: "trial_used" });
     vi.doUnmock("@/lib/billing/entitlements");
     vi.doUnmock("@/lib/billing/free-preview");
     vi.resetModules();

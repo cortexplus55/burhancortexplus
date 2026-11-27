@@ -10,9 +10,9 @@ import { PARENT_WHATSAPP_BUTTON } from "@/lib/payments/parent-whatsapp-copy";
   aynı metin FAQPage yapılandırılmış verisine gider. Her cevap ilk cümlede doğrudan cevaplar, en çok üç cümledir ve tek
   başına alıntılandığında anlamlıdır (bekçi `geo-ai-search.test.ts`).
 
-  Üçüncü soru bilerek "Sesli öğretmen" der, "canlı" değil: gerçek zamanlı sesli öğretmen 27 Kasım 2026'da `teacher.v2`
-  pilotunda (herkese kapalı). Bugün herkese açık olan Plus'taki sesli sözlü sınavdır; misafire gösterilen her söz bugün
-  çalışır. Pilot herkese açılınca soru ve cevap güncellenir.
+  Üçüncü soru canlı sesli öğretmeni anlatır (27 Kasım 2026, Burhan: yeni öğretmen ekranı herkese açıldı; canlı ses
+  Sınav Haftası, Plus ve Sigma'da, ücretsiz hesapta "Konuş" Plus penceresini açar). Misafire gösterilen her söz bugün
+  çalışır: kural değişirse (`resolveRealtimeAccess`, `REALTIME_FREE_TRIAL_ENABLED`) cevap da değişir.
 
   Sayılar sabitlerden: ücretsiz hak (`FREE_TIER_SENTENCE`), veli linkinin süresi (`PARENT_LINK_TTL_HOURS`), düğmenin adı
   (`PARENT_WHATSAPP_BUTTON`). Şık sayısı `resolveOptionCount` ile aynı (ortaokul ve LGS 4, lise ve sonrası 5).
@@ -34,8 +34,8 @@ export const ANSWER_FAQ: readonly FaqItem[] = [
     link: { label: "Resmî müfredata göz at", href: "/mufredat" },
   },
   {
-    q: "Sesli öğretmen ve çift kontrollü soru üretimi nasıl çalışır?",
-    a: "Plus'ta sözlü sınavı sesli yaparsın: öğretmen soruyu sesli sorar, sen konuşarak cevaplarsın ve cevabın notundaki bilgilere göre puanlanır. Konu testinin soruları yazıldıktan hemen sonra ikinci bir yapay zekâ kontrolü soruları kendisi çözer, uydurma şıkkı ve yanlış cevap anahtarını düzeltir. Ardından kod, iki doğru cevabı olan ya da hesapla çelişen soruyu öğrenciye göstermeden eler.",
+    q: "Canlı sesli öğretmen ve çift kontrollü soru üretimi nasıl çalışır?",
+    a: "Canlı sesli öğretmen Sınav Haftası, Plus ve Sigma'da açık: “Konuş”a basınca öğretmen seni dinler, sesli cevap verir, gerektiğinde formülü tahtaya yazar ve konuşma sohbetine kaydedilir. Konu testinin soruları yazıldıktan hemen sonra ikinci bir yapay zekâ kontrolü soruları kendisi çözer, uydurma şıkkı ve yanlış cevap anahtarını düzeltir. Ardından kod, iki doğru cevabı olan ya da hesapla çelişen soruyu öğrenciye göstermeden eler.",
   },
   {
     q: "Kredi kartı olmadan nasıl denenir ve veli ödeme linki nasıl kullanılır?",
