@@ -87,7 +87,16 @@ for (const width of [390, 1280]) {
   test(`sohbetin içinde sesli ders ${width} px: söz ve kart akışa düşer, bitince mesaj olur`, async ({ page }) => {
     await page.setViewportSize({ width, height: width < 768 ? 844 : 800 });
     const ended = await setup(page);
-    // 27 Kasım 2026: canlı ses yalnız ücretli planlarda (Sınav Haftası, Plus, Sigma); fikstürde Plus hesabı.
+    // 27 Kasım 2026: canlı ses yalnız ücretli planlarda (Sınav Haftası, Plus, Sigma); fikstürde Plus hesabı. Plus
+    // kabuğunda tek seferlik "Seri" karşılaması (`GamificationGate`) ekranı kaplayıp "Konuş"a tıklamayı kesiyordu (CI):
+    // karşılaması görülmüş tarayıcıyla başlanır (`donusum.spec.ts` ile aynı yol).
+    await page.addInitScript(() => {
+      try {
+        window.localStorage.setItem("cortex-gamification-v1", "1");
+      } catch {
+        /* depolama kapalıysa pencere zaten test edilen şey değil */
+      }
+    });
     await page.goto("/e2e/ana-ekran?ogretmen=v2&durum=karsilama&plan=plus");
     await page.getByRole("button", { name: "Konuş" }).click();
 
@@ -147,6 +156,11 @@ for (const width of [390, 1280]) {
     await page.setViewportSize({ width, height: width < 768 ? 844 : 800 });
     let sessionRequests = 0;
     await page.addInitScript(() => {
+      try {
+        window.localStorage.setItem("cortex-gamification-v1", "1");
+      } catch {
+        /* depolama kapalıysa pencere zaten test edilen şey değil */
+      }
       (window as unknown as { __mic: number }).__mic = 0;
       Object.defineProperty(navigator, "mediaDevices", {
         configurable: true,
