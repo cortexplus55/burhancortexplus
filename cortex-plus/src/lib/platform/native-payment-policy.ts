@@ -31,6 +31,9 @@ export const NATIVE_MARKETING_PAGES = [
   "/lgs-hazirlik",
   "/kpss-hazirlik",
   "/tus-hazirlik",
+  // Ders ve rehber sayfaları (27 Kasım 2026): web'e yönlenen fiyat ve veli ödeme bağlantıları anlatılır.
+  "/ders",
+  "/rehber",
 ] as const;
 
 /** Uygulamada oturumsuz ziyaretçinin ana sayfası: tanıtım sayfası yerine kayıt. */

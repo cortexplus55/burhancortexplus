@@ -9,6 +9,7 @@ import { PARENT_LINK_TTL_HOURS } from "@/lib/payments/parent-link-ttl";
 import { PARENT_WHATSAPP_BUTTON } from "@/lib/payments/parent-whatsapp-copy";
 import { REFUSAL_MESSAGE } from "@/lib/tutor/realtime/config";
 import { EXAM_LANDING_LINKS, type ExamLandingId } from "@/lib/marketing/exam-landing-links";
+import type { GuideSlug, SubjectHubId } from "@/lib/marketing/content-hub-links";
 
 /*
   Sınav açılış sayfaları (27 Kasım 2026, SEO ve GEO; ürün sahibinin isteği): `/yks-hazirlik`, `/lgs-hazirlik`,
@@ -61,6 +62,9 @@ export type ExamLanding = {
   programsLead: string;
   programIds: readonly string[];
   faq: readonly FaqItem[];
+  /** İlgili ders ve rehber sayfaları (27 Kasım 2026, iç bağlantı). */
+  subjects: readonly SubjectHubId[];
+  guides: readonly GuideSlug[];
   /** `/llms.txt` sayfa notu. */
   llmsNote: string;
 };
@@ -165,6 +169,8 @@ const YKS: ExamLanding = {
     },
     { q: "YKS hazırlığında neler ücretsiz, neler Plus'ta?", a: FREE_AND_PLUS_ANSWER },
   ],
+  subjects: ["matematik", "fizik", "kimya", "biyoloji", "turkce", "tarih", "cografya"],
+  guides: ["tyt-matematik-netleri-nasil-artar", "ayt-kimya-calisma-sirasi-ve-konulari", "ders-notundan-calisma-programi-nasil-yapilir"],
   llmsNote: "TYT ve AYT notundan çalışma yolu, 5 şıklı konu testi, yanlışın ikizi, canlı sesli öğretmen, çizimli özet.",
 };
 
@@ -238,6 +244,8 @@ const LGS: ExamLanding = {
       a: `Hayır; hatırlatma e-postası ve telefon bildirimi Türkiye saatiyle ${QUIET_RANGE} arasında gönderilmez. Öğrenci hatırlatma saatini ${STUDY_TIMES} olarak seçer ve istediğinde kapatır. Ödeme ve hesap bildirimleri bu kurala tabi değildir.`,
     },
   ],
+  subjects: ["matematik", "turkce", "tarih", "ingilizce", "fizik", "kimya", "biyoloji"],
+  guides: ["ders-notundan-calisma-programi-nasil-yapilir", "gece-ders-calisirken-takilan-soru-cozumu"],
   llmsNote: "MEB kazanımlarına dayalı hazır müfredat, 4 şıklı konu testi, günü gelen tekrar, veliye hesapsız ödeme bağlantısı, gece sessiz saat.",
 };
 
@@ -310,6 +318,8 @@ const KPSS: ExamLanding = {
     },
     { q: "KPSS hazırlığında neler ücretsiz, neler Plus'ta?", a: FREE_AND_PLUS_ANSWER },
   ],
+  subjects: ["turkce", "matematik", "tarih", "cografya"],
+  guides: ["ders-notundan-calisma-programi-nasil-yapilir", "sinav-hazirlik-uygulamasi-nasil-secilir"],
   llmsNote: "Uzun PDF ve kanun, tarih, coğrafya notundan konu testi ve doğru/yanlış; podcast'leri kredi harcamadan çalan Sınav Radyosu.",
 };
 
@@ -387,6 +397,8 @@ const TUS: ExamLanding = {
       a: `Evet; DUS ve ALES için konu ağacından ya da kendi notundan, vize ve final için kendi ders notundan ya da dersin adını yazarak çalışma yolu kurulur. Bu sınavlarda sorular 5 şıklıdır. ${LIVE_VOICE_ACCESS}`,
     },
   ],
+  subjects: [],
+  guides: ["vize-haftasi-slayt-ozetleme-taktikleri", "gece-ders-calisirken-takilan-soru-cozumu", "sinav-hazirlik-uygulamasi-nasil-secilir"],
   llmsNote: "TUS, DUS, ALES ve vize-final için uzun slayt ve PDF'te sayfa aralığı seçimi, vaka sorulu konu testi, kavram kartları, çift kontrollü soru üretimi.",
 };
 

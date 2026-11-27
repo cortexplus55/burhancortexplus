@@ -105,6 +105,7 @@ test.describe("GEO: ilk sunucu HTML'i", { tag: ["@public"] }, () => {
     expect(text).toContain(PRODUCT_DEFINITION);
     const links = [...text.matchAll(/\]\(([^)]*)\)/g)].map((m) => m[1]!);
     expect(links.length).toBeGreaterThanOrEqual(9);
-    for (const url of links) expect(url).toMatch(/^https:\/\/cortexplus\.app(\/[a-z0-9-]+)*$/);
+    // Sayfa adresleri ve tam sürüm metin dosyası (/llms-full.txt, 27 Kasım 2026).
+    for (const url of links) expect(url).toMatch(/^https:\/\/cortexplus\.app((\/[a-z0-9-]+)*|\/llms-full\.txt)$/);
   });
 });
