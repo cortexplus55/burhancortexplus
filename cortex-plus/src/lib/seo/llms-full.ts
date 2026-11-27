@@ -4,7 +4,7 @@ import { PLUS_ONLY_SENTENCE } from "@/lib/billing/free-tier-copy";
 import type { PublicPlanOffer } from "@/lib/billing/public-plan-offers";
 import { storePeriodUnit } from "@/lib/billing/store-products";
 import { CURRICULUM } from "@/lib/curriculum/registry";
-import { treeLabelFor } from "@/lib/curriculum/seo";
+import { supersededBy, treeLabelFor } from "@/lib/curriculum/seo";
 import { formatTryWhole } from "@/lib/format";
 import { sellerField } from "@/lib/legal/seller";
 import { ANSWER_FAQ } from "@/lib/marketing/answer-faq";
@@ -56,6 +56,8 @@ const KIND_TITLE: Record<string, string> = {
 function curriculumLines(): string[] {
   const groups = new Map<string, string[]>();
   for (const program of CURRICULUM.programs) {
+    // Derin eşi olan eski konu ağacı listelenmez: arama motoruna da önerilmiyor (27 Kasım 2026).
+    if (supersededBy(program)) continue;
     const outcomes = program.units.reduce((sum, unit) => sum + unit.outcomes.length, 0);
     const label = treeLabelFor(program) ?? program.badge;
     const line = `- [${program.label}](${absoluteUrl(`/mufredat/${program.id}`)}): ${program.units.length} ünite, ${outcomes} kazanım. ${label}.`;

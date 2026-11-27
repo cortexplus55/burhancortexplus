@@ -121,7 +121,9 @@ test.describe("Ders ve rehber sayfaları: ilk sunucu HTML'i", { tag: ["@public"]
     expect(text.startsWith("# Cortex Plus — tam bilgi")).toBe(true);
     for (const id of SUBJECTS) expect(text).toContain(`Adres: https://cortexplus.app/ders/${id}`);
     for (const slug of GUIDES) expect(text).toContain(`Adres: https://cortexplus.app/rehber/${slug}`);
-    expect((text.match(/\(https:\/\/cortexplus\.app\/mufredat\/[a-z0-9-]+\)/g) ?? []).length).toBeGreaterThanOrEqual(150);
+    // 158 programdan derin eşi olan 37 eski konu ağacı listelenmez (27 Kasım 2026).
+    expect((text.match(/\(https:\/\/cortexplus\.app\/mufredat\/[a-z0-9-]+\)/g) ?? []).length).toBeGreaterThanOrEqual(120);
+    expect(text).not.toContain("(https://cortexplus.app/mufredat/tus-2026-tree-anatomi)");
     expect(await (await request.get("/llms.txt")).text()).toContain("(https://cortexplus.app/llms-full.txt)");
     const sitemap = await (await request.get("/sitemap.xml")).text();
     for (const path of ["/ders", ...SUBJECTS.map((id) => `/ders/${id}`), "/rehber", ...GUIDES.map((slug) => `/rehber/${slug}`)]) {

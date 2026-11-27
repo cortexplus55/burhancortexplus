@@ -40,10 +40,25 @@ export function shortText(text: string, max = 150): string {
   return cutAtWord(text, max) || text.slice(0, max);
 }
 
-/** Site haritası: program, ünite ve kazanım sayfaları (kayıt defterinden; veritabanı yok). */
+/**
+ * Eski konu ağacının derin karşılığı (27 Kasım 2026, /mufredat ince içerik temizliği). `*-2026-tree-*` programının
+ * `*-2026-deep-*` eşi kayıt defterinde varsa eski ağaç aynı dersi ikinci kez, daha sığ kapsar: sayfaları açık kalır
+ * (onlara bağlı eski hazırlıklar çalışır), ama arama motoruna `noindex, follow` gider ve site haritasına girmez.
+ * Derin eşi olmayan ağaç (KPSS güncel bilgiler) değişmez.
+ */
+export function supersededBy(program: Pick<CurriculumProgram, "id">): CurriculumProgram | null {
+  if (!program.id.includes("-2026-tree-")) return null;
+  return getProgram(program.id.replace("-2026-tree-", "-2026-deep-")) ?? null;
+}
+
+/** Arama motoruna önerilmeyen sayfanın robots değeri (bağlantılar taranmaya devam eder). */
+export const NOINDEX_FOLLOW = { index: false, follow: true } as const;
+
+/** Site haritası: program, ünite ve kazanım sayfaları (kayıt defterinden; veritabanı yok). Derin eşi olan eski ağaçlar yok. */
 export function curriculumSitemapPaths(): string[] {
   const out = ["/mufredat"];
   for (const p of CURRICULUM.programs) {
+    if (supersededBy(p)) continue;
     out.push(`/mufredat/${p.id}`);
     p.units.forEach((u, i) => {
       out.push(unitPath(p.id, i));
