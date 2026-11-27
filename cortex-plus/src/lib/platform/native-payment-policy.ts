@@ -22,7 +22,16 @@ export const NATIVE_WEB_ONLY_PAGES = ["/fiyatlandirma", "/odeme", "/veli-odeme"]
  * Web'in tanıtım sayfaları: web fiyatı, PayTR ve veli ödeme bağlantısı anlatılır. Uygulamada açılmaz, ana sayfaya
  * yönlenir (misafir orada kayda, öğrenci kendi ana ekranına gider).
  */
-export const NATIVE_MARKETING_PAGES = ["/ozellikler", "/ornek", "/sinav-hazirligi"] as const;
+export const NATIVE_MARKETING_PAGES = [
+  "/ozellikler",
+  "/ornek",
+  "/sinav-hazirligi",
+  // Sınav açılış sayfaları (27 Kasım 2026): fiyat ve veli ödeme bağlantısı anlatılır (`exam-landing-links.ts`).
+  "/yks-hazirlik",
+  "/lgs-hazirlik",
+  "/kpss-hazirlik",
+  "/tus-hazirlik",
+] as const;
 
 /** Uygulamada oturumsuz ziyaretçinin ana sayfası: tanıtım sayfası yerine kayıt. */
 export const NATIVE_GUEST_HOME = "/kayit";

@@ -1273,6 +1273,85 @@
   flex: none;
 }
 
+/*
+  Özellik kartları ve sıralı adımlar (`/ozellikler`, `/sinav-hazirligi`). 19 Ekim 2026'daki ana sayfa yenilemesinde
+  (adc855df) ana sayfa bu sınıfları bırakınca kuralları da silinmiş, iki sayfa o günden beri düz liste gibi çiziliyordu
+  (27 Kasım 2026'da canlıda ölçüldü: `display: block`, zemin ve dolgu yok). Kartlar sayfanın sıcak yüzeyinde; dönüşümlü
+  bölümün zemini zaten yüzey rengi olduğu için orada kart sayfa zemininde durur.
+*/
+.lp-features {
+  display: grid;
+  gap: 1rem;
+  margin: 2rem 0 0;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+}
+
+.lp-feature {
+  display: flex;
+  gap: 1rem;
+  min-width: 0;
+  padding: 1.25rem;
+  border: 1px solid var(--lp-border);
+  border-radius: 1.25rem;
+  background: var(--lp-surface);
+}
+
+.lp-feature .cp-icon3d {
+  flex: none;
+}
+
+.lp-feature .lp-h3 {
+  flex-wrap: wrap;
+}
+
+.lp-steps {
+  display: grid;
+  gap: 1rem;
+  margin: 2rem 0 0;
+  padding: 0;
+  list-style: none;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+}
+
+.lp-step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+  padding: 1.25rem;
+  border: 1px solid var(--lp-border);
+  border-radius: 1.25rem;
+  background: var(--lp-surface);
+}
+
+.lp-step .cp-icon3d {
+  margin-bottom: 0.35rem;
+}
+
+/* Sıra numarası: adımların gerçekten bir sırası var (yol). */
+.lp-step-no {
+  position: absolute;
+  top: 1rem;
+  right: 1.1rem;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--lp-subtle);
+}
+
+.lp .lp-section--alt :is(.lp-feature, .lp-step) {
+  border-color: var(--lp-border-strong);
+  background: var(--lp-bg);
+}
+
+@media (max-width: 640px) {
+  .lp-feature {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+}
+
 .lp-plus-chip {
   padding: 0.1rem 0.45rem;
   border-radius: 999px;

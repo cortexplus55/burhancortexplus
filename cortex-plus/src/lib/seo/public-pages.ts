@@ -8,6 +8,8 @@
  * `geo-ai-search.test.ts` ve `seo-search-console.test.tsx` bunu tutar. Resmî müfredat sayfaları (program, ünite,
  * kazanım) kayıt defterinden gelir (`curriculumSitemapPaths`); buradaki `/mufredat` yalnız `/llms.txt` içindir.
  */
+import { EXAM_LANDING_LIST } from "@/lib/marketing/exam-landings";
+
 export type PublicPage = {
   /** Kök için boş dize (site haritası `https://cortexplus.app` yazar, sondaki eğik çizgi olmadan). */
   path: string;
@@ -24,6 +26,13 @@ export const PUBLIC_PAGES: readonly PublicPage[] = [
   { path: "/mufredat", title: "Resmî Müfredat", note: "MEB ve ÖSYM belgelerinden çıkarılan program, ünite ve kazanım listesi.", inMarketingSitemap: false },
   { path: "/ornek", title: "Nasıl çalışır — örnek çalışma", note: "Hazır bir ders notuyla girişsiz örnek ders, podcast, test ve sözlü.", inMarketingSitemap: true },
   { path: "/sinav-hazirligi", title: "Sınav hazırlığı", note: "Notundan sınav gününe kadar çalışma yolunun nasıl kurulduğu.", inMarketingSitemap: true },
+  // Sınav açılış sayfaları (27 Kasım 2026): başlık ve not sayfanın kendi metninden (`exam-landings.ts`).
+  ...EXAM_LANDING_LIST.map((landing) => ({
+    path: landing.path,
+    title: landing.metaTitle,
+    note: landing.llmsNote,
+    inMarketingSitemap: true,
+  })),
   { path: "/resmi", title: "Resmî Takvim ve Sınav Yapıları", note: "Resmî sınav takvimi ve sınav yapıları.", inMarketingSitemap: true },
   { path: "/yardim", title: "Yardım", note: "Sık sorulan sorular ve destek.", inMarketingSitemap: true },
   { path: "/mobil-uygulama", title: "Telefondan Cortex", note: "Telefonda ana ekrana ekleme.", inMarketingSitemap: true },

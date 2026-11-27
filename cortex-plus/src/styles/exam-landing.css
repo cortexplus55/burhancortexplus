@@ -1,0 +1,295 @@
+/*
+  Sınav açılış sayfaları (27 Kasım 2026): `/yks-hazirlik`, `/lgs-hazirlik`, `/kpss-hazirlik`, `/tus-hazirlik`.
+  Tanıtım sayfalarının sıcak paleti (`landing.css` `.lp` değişkenleri): sıcak siyah zemin, kâğıt beyazı eylem, şeftali
+  vurgu; mavi yok. Tek imza öğesi tanım paragrafının solundaki logo şeridi (kehribar → gül → mor → camgöbeği). Bütün
+  kurallar `.xl` altında: başka sayfaya taşmaz. Hareket yok.
+*/
+
+.xl {
+  --xl-ribbon: linear-gradient(180deg, #ffb224 0%, #ff4d8d 38%, #8b5cf6 70%, #22d3ee 100%);
+}
+
+.xl .xl-hero {
+  padding-block: 3rem 3.5rem;
+}
+
+/* Gezinme yolu (yapılandırılmış verideki BreadcrumbList ile aynı adımlar). */
+.xl-crumbs ol {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  margin: 0 0 1.25rem;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+  color: var(--lp-subtle);
+}
+
+.xl-crumbs li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.xl-crumbs li + li::before {
+  content: "/";
+  color: var(--lp-border-strong);
+}
+
+.xl-crumbs a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  color: var(--lp-muted);
+  text-decoration: none;
+}
+
+.xl-crumbs a:hover {
+  color: var(--lp-text);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.xl-crumbs a:focus-visible {
+  outline: 2px solid var(--lp-accent-text);
+  outline-offset: 2px;
+  border-radius: 0.3rem;
+}
+
+.xl-crumbs [aria-current="page"] {
+  color: var(--lp-text);
+}
+
+.xl .xl-title {
+  max-width: 20ch;
+  font-size: clamp(2.1rem, 5.4vw, 3.9rem);
+}
+
+/* Tanım: alıntılanabilir iki cümle; solunda logo şeridi. */
+.xl .xl-define {
+  position: relative;
+  max-width: 44rem;
+  margin-top: 1.5rem;
+  padding-left: 1.1rem;
+  color: var(--lp-text);
+  font-size: 1.125rem;
+  line-height: 1.6;
+}
+
+.xl .xl-define::before {
+  content: "";
+  position: absolute;
+  inset-block: 0.3rem;
+  left: 0;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--xl-ribbon);
+}
+
+.xl .xl-cta-row {
+  justify-content: flex-start;
+}
+
+.xl .xl-section {
+  padding-block: 4.5rem;
+}
+
+.xl-lead {
+  max-width: 42rem;
+  margin-top: 0.75rem;
+}
+
+/* Özellikler: kart ızgarası. */
+.xl-features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: 1rem;
+  margin: 2rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.xl-feature {
+  display: flex;
+  gap: 1rem;
+  min-width: 0;
+  padding: 1.25rem;
+  border: 1px solid var(--lp-border);
+  border-radius: 1.25rem;
+  background: var(--lp-surface);
+}
+
+.xl-feature .cp-icon3d {
+  flex: none;
+}
+
+.xl-feature-copy {
+  min-width: 0;
+}
+
+.xl-feature .lp-h3 {
+  flex-wrap: wrap;
+}
+
+/* Müfredat programları: bağlantı kartları. */
+.xl-programs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+  gap: 0.75rem;
+  margin: 1.75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.xl-program {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-height: 3rem;
+  height: 100%;
+  padding: 1rem 2.75rem 1rem 1rem;
+  border: 1px solid var(--lp-border-strong);
+  border-radius: 1rem;
+  background: var(--lp-bg);
+  color: var(--lp-text);
+  text-decoration: none;
+  transition:
+    border-color 0.16s ease,
+    background 0.16s ease;
+}
+
+.xl-program:hover {
+  border-color: #5a4a3d;
+  background: var(--lp-surface-2);
+}
+
+.xl-program:focus-visible {
+  outline: 2px solid var(--lp-accent-text);
+  outline-offset: 2px;
+}
+
+.xl-program-name {
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.xl-program-note {
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--lp-muted);
+}
+
+.xl-program-arrow {
+  position: absolute;
+  top: 1.05rem;
+  right: 1rem;
+  color: var(--lp-accent-text);
+}
+
+.xl-more {
+  margin: 1.25rem 0 0;
+}
+
+/* Paketler: canlı fiyatlar, sütun hizalı. */
+.xl-plans {
+  display: grid;
+  gap: 0;
+  max-width: 42rem;
+  margin: 1.75rem 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--lp-border);
+}
+
+.xl-plan {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+  padding-block: 0.95rem;
+  border-bottom: 1px solid var(--lp-border);
+}
+
+.xl-plan-name {
+  font-weight: 600;
+}
+
+.xl-plan-note {
+  flex: 1 1 18rem;
+  min-width: 0;
+  color: var(--lp-muted);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.xl-plan-price {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.xl-plan-period {
+  font-weight: 400;
+  color: var(--lp-muted);
+}
+
+/* Öbür sınavlar. */
+.xl-exams {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 1.75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.xl-exam {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 3rem;
+  padding: 0.65rem 1.1rem;
+  border: 1px solid var(--lp-border-strong);
+  border-radius: 1rem;
+  color: var(--lp-text);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.xl-exam:hover {
+  border-color: #5a4a3d;
+  background: var(--lp-surface-2);
+}
+
+.xl-exam:focus-visible {
+  outline: 2px solid var(--lp-accent-text);
+  outline-offset: 2px;
+}
+
+.xl-exam-note {
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: var(--lp-muted);
+}
+
+@media (max-width: 640px) {
+  .xl .xl-hero {
+    padding-block: 2rem 2.5rem;
+  }
+
+  .xl .xl-section {
+    padding-block: 3.25rem;
+  }
+
+  .xl-feature {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .xl-exams li,
+  .xl-exam {
+    width: 100%;
+  }
+}

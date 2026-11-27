@@ -4,6 +4,8 @@ import { ParityMarketingPage } from "@/components/parity/marketing";
 import { Icon3D, type Icon3DName } from "@/components/ui/icon-3d";
 import { PLAN_MARKETING_COPY, WRITTEN_EXAM_AVAILABILITY } from "@/lib/marketing/plan-copy";
 import "@/styles/landing.css";
+import "@/styles/exam-landing.css";
+import { EXAM_LANDING_LINKS } from "@/lib/marketing/exam-landing-links";
 import { pageMetadata } from "@/lib/seo/page-metadata";
 
 // Kanonik adres ve sayfaya özel paylaşım bilgisi (20 Kasım 2026, Faz 3).
@@ -83,6 +85,26 @@ export default function SinavHazirligiPage() {
               </Link>
             </div>
             <p className="lp-fineprint">Ücretsiz planda bir hazırlık · kart istemiyoruz</p>
+          </div>
+        </section>
+
+        {/* Sınav açılış sayfaları (27 Kasım 2026, SEO): ana sayfadan altbilgiyle, buradan iki tıkta. */}
+        <section className="lp-section" aria-labelledby="sh-exams" data-testid="sh-exam-links">
+          <div className="lp-wrap">
+            <p className="lp-kicker">Sınavına göre</p>
+            <h2 id="sh-exams" className="lp-h2">
+              Hangi sınava hazırlanıyorsun?
+            </h2>
+            <ul className="xl-exams">
+              {EXAM_LANDING_LINKS.map((link) => (
+                <li key={link.path}>
+                  <Link href={link.path} className="xl-exam">
+                    {link.navLabel}
+                    <span className="xl-exam-note">{link.examLabel}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </div>
         </section>
 
