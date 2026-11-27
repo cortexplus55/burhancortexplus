@@ -93,6 +93,7 @@ import {
   liveEntriesToMessages,
   type LiveEntry,
 } from "@/lib/tutor/realtime/live-entries";
+import { LIVE_VOICE_GATE_NAME } from "@/lib/tutor/realtime/config";
 import type { RealtimeEndResult } from "@/lib/tutor/realtime/use-realtime-tutor";
 import { playTutorVoice, primeTutorVoice, stopTutorVoice, type TutorVoiceProblem } from "@/lib/teacher/tutor-voice";
 import { splitFinalQuestion } from "@/lib/learning/question-bubble";
@@ -1636,7 +1637,10 @@ function ChatPanelSession({
 
   /* ---------------------------------------------- Öğretmen v3 ---------------------------------------------- */
 
-  /** Ücretsiz hesapta ses Plus'ta (`PLUS_ONLY_ACTIONS`): "Yanıtları sesli oku" kilitli. Kurucu ve abone açık. */
+  /**
+   * Ücretsiz hesapta ses Plus'ta (`PLUS_ONLY_ACTIONS`): "Yanıtları sesli oku" ve canlı sesli öğretmen ("Konuş", 27 Kasım
+   * 2026) kilitli. Kurucu ve abone (Sınav Haftası, Plus, Sigma) açık.
+   */
   const audioLocked = !founder && !gatePremium && (shellAccount ? shellAccount.showsUpgradeChrome !== false : isPremium === false);
 
   function stopSpeaking() {
@@ -1750,9 +1754,19 @@ function ChatPanelSession({
     window.setTimeout(() => composerRef.current?.focus(), 0);
   }
 
-  /** Öğretmen v3: "Konuş" sesli dersi açar (yazılı yanıt sürüyorsa önce durur, sesli okuma susar). */
+  /**
+   * Öğretmen v3: "Konuş" sesli dersi açar (yazılı yanıt sürüyorsa önce durur, sesli okuma susar). 27 Kasım 2026 (Burhan):
+   * ücretsiz hesapta canlı ses yok; düğme görünür, dokununca mikrofon istenmeden ve uca gidilmeden Plus penceresi açılır
+   * (sunucu da 402 `plus_required` verir). Sınav Haftası, Plus, Sigma ve kurucuda ders açılır.
+   */
   function startLiveTalk() {
     if (loading) return;
+    if (audioLocked) {
+      setPaywallCode("premium_required");
+      setPaywallName(LIVE_VOICE_GATE_NAME);
+      setPaywall(true);
+      return;
+    }
     stopSpeaking();
     liveEntriesRef.current = [];
     setLiveEntries([]);

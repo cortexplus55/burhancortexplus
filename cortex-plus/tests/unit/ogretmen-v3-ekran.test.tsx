@@ -385,6 +385,31 @@ describe("yazma kapsülü", () => {
     expect(screen.queryByPlaceholderText("Sor, konuş veya dosya gönder")).toBeNull();
   });
 
+  it("ücretsiz hesapta Konuş görünür ama sesli ders açılmaz: Plus penceresi, mikrofon ve uç isteği yok (27 Kasım 2026)", async () => {
+    const calls = mockFetch();
+    const getUserMedia = vi.fn();
+    Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: { getUserMedia } });
+    const { container } = renderPanel({ teacherV2: true, initialConversationId: CONV, initialMessages: THREAD, isPremium: false });
+    const action = screen.getByRole("button", { name: "Konuş" });
+    await act(async () => {
+      fireEvent.click(action);
+    });
+    expect(container.querySelector("section.cx-rv")).toBeNull();
+    expect(screen.getByText(/Canlı sesli öğretmen Plus'ta\./)).toBeTruthy();
+    expect(getUserMedia).not.toHaveBeenCalled();
+    expect(calls.some((call) => call.url.includes("realtime-session"))).toBe(false);
+  });
+
+  it("ücretli hesapta (Sınav Haftası, Plus, Sigma) Konuş sesli dersi açar", async () => {
+    mockFetch();
+    const { container } = renderPanel({ teacherV2: true, initialConversationId: CONV, initialMessages: THREAD, isPremium: true });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Konuş" }));
+    });
+    expect(container.querySelector("section.cx-rv")).not.toBeNull();
+    expect(screen.queryByText(/Canlı sesli öğretmen Plus'ta\./)).toBeNull();
+  });
+
   it("liveTalkSlot verilince kapsülün yerine çizilir", () => {
     mockFetch();
     const { container } = renderPanel({ teacherV2: true, initialConversationId: CONV, initialMessages: THREAD, liveTalkSlot: <div data-testid="sesli">Sesli ders</div> });

@@ -30,7 +30,7 @@ export const CORE_FEATURES: readonly string[] = [
   "Sınav tarihine göre çalışma yolu: konular sırayla ders, konu testi ve kartlarla ilerler; testte zorlandığın konuya odaklı pratik eklenir.",
   "Konu testi ve doğru/yanlış: her şıkkın neden doğru ya da yanlış olduğu açıklanır; sorular yazıldıktan sonra ikinci bir yapay zekâ kontrolünden ve kod denetiminden geçer.",
   "Kartlar, aralıklı tekrar ve yanlışlar defteri: yanlış yaptığın sorular 1, 3, 7 ve 14 gün sonra yeniden sorulur.",
-  "AI öğretmen ve fotoğraftan soru çözümü: takıldığın yeri sorarsın, cevap notuna dayanır; sorunun fotoğrafından adım adım çözüm gelir.",
+  "AI öğretmen, canlı sesli öğretmen ve fotoğraftan soru çözümü: takıldığın yeri yazarak sorarsın, cevap notuna dayanır; Sınav Haftası, Plus ve Sigma'da öğretmenle canlı sesli ders yaparsın (öğretmen sesli cevap verir, formülü tahtaya yazar); sorunun fotoğrafından adım adım çözüm gelir.",
   `Plus'ta ${listWithAnd(PLUS_ONLY_FEATURES.map((name) => name.toLocaleLowerCase("tr")))}: konuyu dinleyerek, izleyerek ve sınav provasıyla çalışırsın.`,
 ];
 
