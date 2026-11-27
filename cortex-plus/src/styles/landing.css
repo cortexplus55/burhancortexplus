@@ -929,9 +929,12 @@
   border-top: 0;
 }
 
+/* Dönüşümlü bölüm (26 Kasım 2026, canlı denetim): zemin soğuk bir nötr siyahtı (#0e0e10) ve sayfanın sıcak siyahıyla
+   (#0b0907) ton farkı yapıyordu (`/ozellikler`: Öğren → Pratik yap). Artık kartlarla aynı sıcak yüzey basamağı ve ince
+   sıcak kenarlık. */
 .lp .lp-section--alt {
   border-block: 1px solid var(--lp-border);
-  background: #0e0e10;
+  background: var(--lp-surface);
 }
 
 .lp-section--glow::before {

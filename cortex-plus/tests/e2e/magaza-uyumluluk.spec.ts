@@ -16,7 +16,6 @@ const APP_IOS =
 
 const LEGAL_PAGES = [
   { path: "/gizlilik", heading: "Gizlilik politikası" },
-  { path: "/kullanim-sartlari", heading: "Kullanım koşulları" },
   { path: "/kullanim-kosullari", heading: "Kullanım koşulları" },
   { path: "/kvkk", heading: "KVKK aydınlatma metni" },
   { path: "/hesap-silme", heading: "Hesap ve veri silme" },
@@ -36,8 +35,8 @@ async function visibleText(page: Page) {
 test.describe("Mağaza uyumluluğu", { tag: ["@public"] }, () => {
   test.describe("hukuki sayfalar giriş yapmadan açılır", () => {
     for (const width of [375, 360]) {
-      test(`${width}px: beş sayfa 200 OK, başlık görünür, yana taşma yok`, async ({ page }) => {
-        // Beş sayfa tek testte: süre sayfa sayısına göre (geliştirme sunucusunda her sayfa ilk açılışta derlenir).
+      test(`${width}px: dört sayfa 200 OK, başlık görünür, yana taşma yok`, async ({ page }) => {
+        // Dört sayfa tek testte: süre sayfa sayısına göre (geliştirme sunucusunda her sayfa ilk açılışta derlenir).
         test.setTimeout(30_000 + LEGAL_PAGES.length * 20_000);
         await page.setViewportSize({ width, height: 800 });
         for (const item of LEGAL_PAGES) {
@@ -48,6 +47,16 @@ test.describe("Mağaza uyumluluğu", { tag: ["@public"] }, () => {
         }
       });
     }
+
+    test("eski adres /kullanim-sartlari kalıcı yönlendirmeyle /kullanim-kosullari", async ({ page, request }) => {
+      const direct = await request.get("/kullanim-sartlari", { maxRedirects: 0 });
+      expect([301, 308]).toContain(direct.status());
+      expect(direct.headers()["location"]).toMatch(/\/kullanim-kosullari$/);
+      const response = await page.goto("/kullanim-sartlari");
+      expect(response?.status()).toBe(200);
+      expect(new URL(page.url()).pathname).toBe("/kullanim-kosullari");
+      await expect(page.getByRole("heading", { level: 1, name: "Kullanım koşulları" })).toBeVisible();
+    });
 
     test("Gizlilik Politikası istenen verileri ve sağlayıcıları sayar; silme sayfasına bağlanır", async ({ page }) => {
       await page.goto("/gizlilik");
