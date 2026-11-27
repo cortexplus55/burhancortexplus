@@ -4,7 +4,8 @@ import { MarketingPage } from "@/components/layout/marketing-page";
 import { CURRICULUM, getProgram, programSources } from "@/lib/curriculum/registry";
 import { displayUnitTitles } from "@/lib/curriculum/unit-title";
 import { OfficialLinks } from "@/components/curriculum/official-links";
-import { shortText, treeLabelFor, unitPath } from "@/lib/curriculum/seo";
+import { NOINDEX_FOLLOW, shortText, supersededBy, treeLabelFor, unitPath } from "@/lib/curriculum/seo";
+import { SupersededNotice } from "@/components/curriculum/superseded-notice";
 import { pageMetadata } from "@/lib/seo/page-metadata";
 import { breadcrumbJsonLd } from "@/lib/seo/structured-data";
 import { curriculumBreadcrumb } from "@/lib/seo/curriculum-breadcrumb";
@@ -30,6 +31,8 @@ export async function generateMetadata({ params }: { params: Promise<{ programId
     title: `${program.label} — Resmî Müfredat`,
     description: shortText(`${program.label}: ${program.badge} · ${program.scope}`, 155),
     path: `/mufredat/${program.id}`,
+    // Derin eşi olan eski konu ağacı arama motoruna önerilmez; sayfa açık kalır (27 Kasım 2026).
+    robots: supersededBy(program) ? NOINDEX_FOLLOW : undefined,
   });
 }
 
@@ -40,6 +43,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ progra
   const sources = programSources(program);
   const shownUnitTitles = displayUnitTitles(program.units.map((u) => u.title));
   const exams = Object.entries(program.exams);
+  const current = supersededBy(program);
   return (
     <MarketingPage title={program.label} description={`${program.badge} · ${program.scope}`}>
       <JsonLd data={breadcrumbJsonLd(curriculumBreadcrumb({ program }))} />
@@ -51,6 +55,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ progra
           {treeLabelFor(program)}
         </p>
       ) : null}
+      {current ? <SupersededNotice current={current} /> : null}
       {exams.length ? (
         <section className="mk-card mt-6 p-4 text-sm text-[var(--mk-muted)]">
           {exams.map(([key, info]) => (

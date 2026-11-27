@@ -105,7 +105,9 @@ describe("kazanım sayfası havuz ön izlemesi", async () => {
     const page = read("src/app/mufredat/[programId]/[unitId]/[outcomeId]/page.tsx");
     // 20 Kasım 2026 (Faz 3): metadata ortak `pageMetadata`'dan (noindex `robots` seçeneğiyle gider) ve betik ortak
     // `JsonLd` bileşeninden; "<" kaçışı artık o yardımcıda (`jsonLdString`), sayfada tekrar yazılmıyor.
-    expect(page).toMatch(/robots: preview \? undefined : \{ index: false, follow: true \}/);
+    // 27 Kasım 2026: derin eşi olan eski konu ağacının kazanımı da noindex (sabit `NOINDEX_FOLLOW` = index false, follow true).
+    expect(page).toMatch(/robots: preview && !supersededBy\(hit\.program\) \? undefined : NOINDEX_FOLLOW/);
+    expect(read("src/lib/curriculum/seo.ts")).toContain("export const NOINDEX_FOLLOW = { index: false, follow: true } as const;");
     expect(page).toContain('"@type": "LearningResource"');
     expect(page).toContain("<JsonLd");
     expect(read("src/lib/seo/structured-data.ts")).toContain('.replace(/</g, "\\\\u003c")');

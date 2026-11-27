@@ -4,7 +4,17 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import { MarketingPage } from "@/components/layout/marketing-page";
 import { programSources } from "@/lib/curriculum/registry";
-import { outcomeBySlug, outcomePath, shortText, SITE_BASE, treeLabelFor, unitPath } from "@/lib/curriculum/seo";
+import {
+  NOINDEX_FOLLOW,
+  outcomeBySlug,
+  outcomePath,
+  shortText,
+  SITE_BASE,
+  supersededBy,
+  treeLabelFor,
+  unitPath,
+} from "@/lib/curriculum/seo";
+import { SupersededNotice } from "@/components/curriculum/superseded-notice";
 import { cleanMathGlyphs } from "@/lib/curriculum/math-glyphs";
 import { loadOutcomePreview, type OutcomePreview } from "@/lib/curriculum/outcome-preview";
 import { renderMarkdownToHtml } from "@/lib/markdown";
@@ -45,8 +55,9 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     title: `${hit.outcome.code} ${shortText(hit.outcome.text, 60)} — ${hit.program.label}`,
     description: shortText(`${hit.title}: ${hit.outcome.text}. ${lead}`, 155),
     path: outcomePath(programId, hit.index, hit.oIndex),
-    // Havuz bölümü olmayan kazanım sayfası ince kalır; arama motoruna önerilmez (6 Kasım 2026).
-    robots: preview ? undefined : { index: false, follow: true },
+    // Havuz bölümü olmayan kazanım sayfası ince kalır; arama motoruna önerilmez (6 Kasım 2026). Derin eşi olan eski
+    // konu ağacının kazanımı da önerilmez (27 Kasım 2026); sayfa açık kalır.
+    robots: preview && !supersededBy(hit.program) ? undefined : NOINDEX_FOLLOW,
   });
 }
 
@@ -93,6 +104,7 @@ export default async function OutcomePage({ params }: Params) {
   if (!hit) notFound();
   const { program, unit, index, title, outcome, oIndex } = hit;
   const label = treeLabelFor(program);
+  const current = supersededBy(program);
   const prev = oIndex > 0 ? outcomePath(program.id, index, oIndex - 1) : null;
   // Etiket sayfanın üstünde zaten gösteriliyor; aynı metin sınırlamalarda tekrar basılmaz.
   const limitations = outcome.limitations.map(cleanMathGlyphs).filter((l) => l.trim() !== label);
@@ -123,6 +135,7 @@ export default async function OutcomePage({ params }: Params) {
           {label}
         </p>
       ) : null}
+      {current ? <SupersededNotice current={current} /> : null}
       <section className="mk-card mt-6 p-4 text-sm" data-testid="outcome-text">
         <h2 className="text-base font-semibold text-[var(--mk-text)]">Kazanım</h2>
         <p className="mt-2 text-[var(--mk-text)]">{outcome.text}</p>

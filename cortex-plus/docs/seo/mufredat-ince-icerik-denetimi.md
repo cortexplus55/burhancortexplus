@@ -61,6 +61,23 @@ Site haritasında **5.236** adres var; **5.217'si (%99,6) `/mufredat` altında**
 
 Öneri 3 tek başına site haritasını 5.236'dan **4.620** adrese indirir (2A ile aynı kalır); 2B ve 3 birlikte **3.931** adrese.
 
+## Uygulanan (27 Kasım 2026, ürün sahibinin kararı)
+
+Öneri 2 (zenginleştirme) ve öneri 3 uygulandı; öneri 4 (bölümlü site haritası) yapılmadı.
+
+- **Ünite sayfaları** havuzdaki doğrulanmış ünite dersinden okur (model çağrısı yok): genel bakış, her kazanımın bölüm
+  başlığı + anlatımın ilk cümlesi + ilk iki kilit noktası (ünitede 1-2 kazanım varsa dört), en çok 8 kavram ve ünite özeti
+  (`src/lib/curriculum/unit-preview.ts`). Havuzda bu ünitenin güncel dersi **gerçekten yoksa** (satır yok, kazanımlar
+  değişmiş, genel bakış boş) sayfa `noindex, follow`; okuma düşerse ya da 3,5 sn'yi aşarsa sayfa eski hâliyle açılır ve
+  dizinde kalır (geçici hata bir gün önbellekte kalacak bir noindex'e dönmesin). Yerel ölçüm (canlı havuz, yalnız okuma,
+  rastgele 40 ünite): ortanca 483 kelime (önce 53), %10'luk dilim 274, en kısası 146 (tek kazanımlı ünite); 40'ının 40'ında
+  havuz özeti var, hiçbiri noindex olmadı.
+- **Eski konu ağaçları:** derin eşi olan 37 `*-2026-tree-*` programının program, ünite ve kazanım sayfaları açık (200),
+  `noindex, follow`, kanonik adresi kendisi ve "güncel hâli" bağlantısı derin programa; site haritasında ve `/llms-full.txt`'de
+  yok (616 adres). `kpss-2026-tree-guncel` değişmedi. Kural tek yerde: `supersededBy` (`src/lib/curriculum/seo.ts`); yeni
+  kurulum ekranı aynı kuralla eski ağacı zaten göstermiyordu (`official-curriculum-panel.tsx`).
+- `/mufredat` dizini eski ağaç kartlarını hâlâ listeliyor (aynı adla iki kart); kaldırmak ayrı karar.
+
 ## Ham veri
 
 Tarama ve ölçüm betikleri oturumun geçici klasöründe kaldı (depoya alınmadı); yeniden ölçmek için aynı yöntem: site haritası

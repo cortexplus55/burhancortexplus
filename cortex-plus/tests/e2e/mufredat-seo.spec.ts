@@ -24,12 +24,32 @@ test.describe("Müfredat SEO", { tag: ["@public"] }, () => {
     }
   });
 
-  test("bilinmeyen ünite 404; site haritası kazanımları içerir", async ({ page, request }) => {
+  test("bilinmeyen ünite 404; site haritası kazanımları içerir, derin eşi olan eski ağacı içermez", async ({ page, request }) => {
     const res = await page.goto("/mufredat/meb-5-dkab/999");
     expect(res?.status()).toBe(404);
     const xml = await (await request.get("/sitemap.xml")).text();
     expect(xml).toContain("/mufredat/meb-5-dkab/1/1</loc>");
-    expect(xml).toContain("/mufredat/tus-2026-tree-anatomi</loc>");
+    expect(xml).toContain("/mufredat/tus-2026-deep-anatomi</loc>");
+    expect(xml).toContain("/mufredat/kpss-2026-tree-guncel</loc>");
+    expect(xml).not.toContain("/mufredat/tus-2026-tree-anatomi");
+  });
+
+  // 27 Kasım 2026: derin eşi olan eski konu ağacı açık kalır ama arama motoruna önerilmez ve güncel hâline bağlanır.
+  test("eski TUS ağacı: 200, noindex follow, güncel hâline bağlantı; derin eşi dizinde", async ({ request }) => {
+    for (const path of ["/mufredat/tus-2026-tree-anatomi", "/mufredat/tus-2026-tree-anatomi/1", "/mufredat/tus-2026-tree-anatomi/1/1"]) {
+      const response = await request.get(path);
+      expect(response.status(), path).toBe(200);
+      const html = await response.text();
+      expect(html, path).toMatch(/<meta name="robots" content="noindex, follow"/);
+      expect(html, path).toContain('data-testid="superseded-notice"');
+      expect(html, path).toContain('href="/mufredat/tus-2026-deep-anatomi"');
+      expect(html, path).toContain(`<link rel="canonical" href="https://cortexplus.app${path}"/>`);
+    }
+    const deep = await (await request.get("/mufredat/tus-2026-deep-anatomi")).text();
+    expect(deep).not.toMatch(/<meta name="robots" content="noindex/);
+    expect(deep).not.toContain('data-testid="superseded-notice"');
+    const guncel = await (await request.get("/mufredat/kpss-2026-tree-guncel")).text();
+    expect(guncel).not.toMatch(/<meta name="robots" content="noindex/);
   });
 });
 

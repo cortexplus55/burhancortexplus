@@ -387,7 +387,12 @@ describe("site haritası, /llms.txt, /llms-full.txt ve iç bağlantılar", () =>
     for (const landing of EXAM_LANDING_LIST) expect(text).toContain(`Adres: https://cortexplus.app${landing.path}`);
     for (const hub of SUBJECT_HUB_LIST) expect(text).toContain(subjectHubSummary(hub));
     for (const guide of GUIDE_LIST) expect(text).toContain(guide.answer);
-    for (const program of CURRICULUM.programs) expect(text).toContain(`(https://cortexplus.app/mufredat/${program.id})`);
+    // Derin eşi olan eski konu ağacı listelenmez (27 Kasım 2026); öbür bütün programlar listede.
+    for (const program of CURRICULUM.programs) {
+      const link = `(https://cortexplus.app/mufredat/${program.id})`;
+      if (program.id.includes("-2026-tree-") && getProgram(program.id.replace("-2026-tree-", "-2026-deep-"))) expect(text).not.toContain(link);
+      else expect(text).toContain(link);
+    }
     expect(text).toContain("₺349");
     expect(text).toContain("₺1.999");
     expect(text).not.toMatch(/undefined|NaN|\[object/);

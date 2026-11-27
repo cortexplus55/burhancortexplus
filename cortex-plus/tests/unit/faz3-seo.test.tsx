@@ -87,7 +87,8 @@ describe("sayfa başına metadata", () => {
     expect(unit).toContain("breadcrumbJsonLd(curriculumBreadcrumb({ program, unit: { index, title } }))");
     const outcome = read("src/app/mufredat/[programId]/[unitId]/[outcomeId]/page.tsx");
     expect(outcome).toContain("path: outcomePath(programId, hit.index, hit.oIndex)");
-    expect(outcome).toContain("robots: preview ? undefined : { index: false, follow: true }");
+    // 27 Kasım 2026: derin eşi olan eski konu ağacının kazanımı da noindex (`mufredat-ince-icerik.test.tsx`).
+    expect(outcome).toContain("robots: preview && !supersededBy(hit.program) ? undefined : NOINDEX_FOLLOW");
     expect(outcome).toContain("<JsonLd");
     expect(outcome).not.toContain('type="application/ld+json"');
   });

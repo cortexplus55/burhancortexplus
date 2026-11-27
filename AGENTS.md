@@ -3226,3 +3226,17 @@ sayfası, altı rehber, tam sürüm `/llms-full.txt` ve `/mufredat` ince içerik
 
 Bekçi: `ders-rehber-sayfalari.test.tsx`, `geo-ai-search.test.tsx`, `sinav-acilis-sayfalari.test.tsx`; e2e `ders-rehber-sayfalari.spec.ts`
 (ilk sunucu HTML'i, 404, `/llms-full.txt`, site haritası; 375 ve 1280 px'te 16 sayfa taşma ve 44 px).
+
+## /mufredat ince içerik temizliği (27 Kasım 2026)
+
+Ürün sahibinin kararı, denetim raporundan (`cortex-plus/docs/seo/mufredat-ince-icerik-denetimi.md`) sonra: ünite sayfaları
+havuzla zenginleşir, derin eşi olan eski konu ağaçları dizinden çıkar. Veritabanına yazılmaz, model çağrısı yok. Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| **Ünite sayfası havuzdan:** doğrulanmış, güncel ünite dersinin genel bakışı, her kazanımın bölüm başlığı + anlatımın ilk cümlesi + ilk iki kilit noktası (1-2 kazanımlı ünitede dört), en çok 8 kavram, ünite özeti; `LearningResource` verisi. Üç durum ayrı: `ok` (zengin, dizinde), `missing` (bu ünitenin güncel dersi gerçekten yok → `noindex, follow`), `error` (okuma düştü ya da 3,5 sn aşıldı → eski liste, **dizinde kalır**; geçici hata bir gün önbellekte kalacak noindex'e dönmez). Yerel ölçüm (canlı havuz, 40 rastgele ünite): ortanca 483 kelime (önce 53), hiçbiri noindex | `src/lib/curriculum/unit-preview.ts`, `mufredat/[programId]/[unitId]/page.tsx` |
+| **Eski konu ağacı:** `*-2026-tree-*` programının `*-2026-deep-*` eşi kayıt defterinde varsa (37 program, 616 adres) program, ünite ve kazanım sayfaları açık (200; eski hazırlıklar çalışır), `noindex, follow`, kanonik kendisi, "güncel hâli" bağlantısı derin programa; site haritasında ve `/llms-full.txt`'de yok. Derin eşi olmayan `kpss-2026-tree-guncel` değişmez. Kural tek: `supersededBy`; robots değeri tek: `NOINDEX_FOLLOW`. Yeni kurulum ekranı aynı kuralla eski ağacı zaten göstermiyordu | `src/lib/curriculum/seo.ts`, `superseded-notice.tsx`, `official-curriculum-panel.tsx` |
+| `/mufredat` dizini eski ağaç kartlarını hâlâ listeler (aynı adla iki kart); kaldırmak ayrı karar | `src/app/mufredat/page.tsx` |
+
+Bekçi: `mufredat-ince-icerik.test.tsx`, `seo-search-console.test.tsx` (harita 121 program), `paket3-mufredat.test.ts`, `faz3-seo.test.tsx`;
+e2e `mufredat-seo.spec.ts` (eski ağaç 200 + noindex + bağlantı, derin eşi dizinde).

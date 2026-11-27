@@ -7,7 +7,7 @@ vi.mock("server-only", () => ({}));
 import sitemap from "@/app/sitemap";
 import robots from "@/app/robots";
 import { ROBOTS_DISALLOW } from "@/lib/seo/crawl-rules";
-import { curriculumSitemapPaths } from "@/lib/curriculum/seo";
+import { curriculumSitemapPaths, supersededBy } from "@/lib/curriculum/seo";
 import { CURRICULUM } from "@/lib/curriculum/registry";
 import { COOKIE_POLICY_VERSION, KVKK_TEXT_DATE, LEGAL_VERSIONS } from "@/lib/legal/versions";
 import { SITE_URL } from "@/lib/seo/page-metadata";
@@ -49,14 +49,23 @@ describe("sitemap.xml", () => {
     expect(new Set(entries.map((entry) => entry.url)).size).toBe(entries.length);
   });
 
-  it("müfredatın bütün program, ünite ve kazanım sayfaları haritada (158 program)", () => {
+  it("müfredatın program, ünite ve kazanım sayfaları haritada; derin eşi olan 37 eski ağaç yok (27 Kasım 2026)", () => {
     expect(CURRICULUM.programs).toHaveLength(158);
+    const listed = CURRICULUM.programs.filter((p) => !supersededBy(p));
+    const superseded = CURRICULUM.programs.filter((p) => supersededBy(p));
+    expect(superseded).toHaveLength(37);
+    expect(listed).toHaveLength(121);
     const curriculum = curriculumSitemapPaths();
     for (const path of curriculum) expect(paths).toContain(path);
-    for (const program of CURRICULUM.programs) expect(paths).toContain(`/mufredat/${program.id}`);
-    const units = CURRICULUM.programs.reduce((n, p) => n + p.units.length, 0);
-    const outcomes = CURRICULUM.programs.reduce((n, p) => n + p.units.reduce((m, u) => m + u.outcomes.length, 0), 0);
-    expect(curriculum).toHaveLength(1 + CURRICULUM.programs.length + units + outcomes);
+    for (const program of listed) expect(paths).toContain(`/mufredat/${program.id}`);
+    // Eski ağacın programı, ünitesi ve kazanımı haritada yok; derin eşi olmayan güncel bilgiler ağacı kalır.
+    for (const program of superseded) {
+      expect(paths.filter((path) => path === `/mufredat/${program.id}` || path.startsWith(`/mufredat/${program.id}/`))).toEqual([]);
+    }
+    expect(paths).toContain("/mufredat/kpss-2026-tree-guncel");
+    const units = listed.reduce((n, p) => n + p.units.length, 0);
+    const outcomes = listed.reduce((n, p) => n + p.units.reduce((m, u) => m + u.outcomes.length, 0), 0);
+    expect(curriculum).toHaveLength(1 + listed.length + units + outcomes);
   });
 
   it("yönlenen, oturum isteyen ve robots'un kapattığı adres yok", () => {
