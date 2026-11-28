@@ -54,7 +54,10 @@ for (const viewport of VIEWPORTS) {
     test("ilk giriş: kelime kelime yazılır, kalem görünür, formül tek parça; Gece ekran görüntüsü @public", async ({ page }) => {
       const requests: string[] = [];
       page.on("request", (request) => {
-        if (/\/api\//.test(request.url())) requests.push(request.url());
+        // Canlı Defter modelsiz: ders, öğretmen ya da model ucuna istek yok. (Üretim derlemesinde sayfa açılışında
+        // gelen `/api/csp-report` bu özellikten değil: doğrulama kütüphanesinin `Function("")` yoklaması, önsöz
+        // sayfasında da aynı rapor var; CSP rapor kipinde, hiçbir şeyi engellemiyor.)
+        if (/\/api\/(learning|ai|tutor)\//.test(request.url())) requests.push(request.url());
       });
       await start(page);
       const scope = page.locator(SCOPE);
