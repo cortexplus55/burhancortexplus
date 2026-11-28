@@ -3285,8 +3285,10 @@ başına ve sonuna akılda kalacak iki blok ekle." İkinci bir ekran açılmadı
 | Kapanış: başlık **"Bu Konudan Aklında Kalsın"**, zümrüt onaylı maddeler, altta ikincil bağlantı "Bütün hazırlığı tek sayfada tekrar etmek için: Sınav Sabahı Kağıdı" — **yeni sekmede** (ders bitmeden çıkılmasın), ücretsiz hesapta "Plus" rozeti (kapı kâğıdın kendi sayfasında). Ders yazılırken kart yalnız özet gelince | `LessonClosing` |
 | Renkler `--cx-*` belirteçlerinden (iki tema); kenarlıksız katmanlar, ikonlar SVG (lucide), emoji yok. Telefonda dokunma ≥ 44 px, taşma yok | `exam-lesson-steps.css` "Konu başı ve sonu" |
 
-Bulunan ayrı hata (işaretlendi, bu işte düzeltilmedi): `hasFalseArithmetic` "√(9 + 16) = 5" satırını yanlış işlem sayıyor
-(kökü görmüyor); kâğıt ve önsöz doğru satırı düşürüyor.
+Bu iş sırasında bulunan ayrı hata ayrı PR'da düzeltildi ([#744](https://github.com/cortexplus55/burhancortexplus/pull/744)):
+`hasFalseArithmetic` kök işaretini görmüyor, "√(9 + 16) = 5" satırını yanlış işlem sayıp kâğıttan ve önsözden
+düşürüyordu. Artık √ ∛ ∜ hesaplanıyor; katsayılı kök ("2√3") yarım okunmuyor (bekçi `faz1a-anahtar-tutarliligi.test.ts`
+"kök işareti").
 
 Bekçi: `ders-onsoz-kapanis.test.tsx` (havuz ve not dersi, sınırlar, önsöz/pencere/kapanış, eski kullanım değişmez),
 e2e `ders-onsoz.spec.ts` (390×844 ve 1280 px: taşma yok, dokunma, ilk açılış, başlanmış ders, kapanış, hazır müfredat;
