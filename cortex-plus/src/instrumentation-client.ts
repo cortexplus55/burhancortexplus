@@ -6,6 +6,10 @@ import {
   scrubBreadcrumb,
   scrubEvent,
 } from "@/lib/observability/sentry-shared";
+import { applyZodBrowserConfig } from "@/lib/zod-browser";
+
+// Uygulama kodundan önce: zod şemaları kurulurken `Function("")` yoklaması yapılmasın (CSP raporu üretmesin).
+applyZodBrowserConfig();
 
 /**
  * Tarayıcı tarafı hata takibi.
