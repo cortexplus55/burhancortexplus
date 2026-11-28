@@ -30,7 +30,7 @@ function json(data: unknown, status = 200) {
  * Sahte ağ: `answer-check` gerçek eylemin kurallarıyla (kök denetimi, şıkta olmayan cevabı reddetme, kilide şıkkın kendi
  * metni) tablodan cevaplar. Öbür eylemler (kayıt, bitirme) başarı döner.
  */
-function installFetch(table: CheckTable) {
+function installFetch(table: CheckTable, revealDelayMs = 0) {
   if (typeof window === "undefined") return;
   const real = window.fetch.bind(window);
   window.__answerChecks = [];
@@ -39,7 +39,9 @@ function installFetch(table: CheckTable) {
     if (!url.includes("/api/learning/exam-prep/node")) return real(input, init);
     const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
     if (body.action === "answer-check" && Array.isArray(body.revealIndexes)) {
-      // Yenilenen/kaldığı yerden açılan sayfa: yalnız kilitli soruların anahtarı.
+      // Yenilenen/kaldığı yerden açılan sayfa: yalnız kilitli soruların anahtarı. `gec=1`: canlıdaki gibi açılışın
+      // etkilerinden sonra gelir (28 Kasım 2026, kök neden bu sırada görünüyordu).
+      if (revealDelayMs) await new Promise((resolve) => setTimeout(resolve, revealDelayMs));
       const revealed = Object.fromEntries((body.revealIndexes as number[]).map((at) => [String(at), table[at]?.feedback]));
       return json({ ok: true, revealed });
     }
@@ -65,15 +67,19 @@ export function SikSecimiFixture({
   table,
   keys,
   answers,
+  cursorIndex = 0,
+  revealDelayMs = 0,
 }: {
   payload: Record<string, unknown>;
   table: CheckTable;
   keys: string[];
   answers?: Record<string, unknown>;
+  cursorIndex?: number;
+  revealDelayMs?: number;
 }) {
   // Ağ, oturum ekranı ilk kez çizilmeden kurulur.
   useState(() => {
-    installFetch(table);
+    installFetch(table, revealDelayMs);
     if (typeof window !== "undefined") window.__fixtureKey = keys;
     return true;
   });
@@ -88,7 +94,7 @@ export function SikSecimiFixture({
         todayMood={null}
         initialFamiliarity="basics"
         resumeEnabled
-        initialResume={{ ok: true, resumed: true, attemptId: "fixture-attempt", generationId: "fixture-gen", contentVersion: 1, payload, ...(answers ? { answers, cursorIndex: 0 } : {}) }}
+        initialResume={{ ok: true, resumed: true, attemptId: "fixture-attempt", generationId: "fixture-gen", contentVersion: 1, payload, ...(answers ? { answers, cursorIndex } : {}) }}
       />
     </ParitySorShell>
   );

@@ -62,6 +62,72 @@ describe("aritmetik", () => {
   });
 });
 
+/*
+  Kök işareti (28 Kasım 2026): işaret okunmuyor, zincir kökün içinden başlıyordu. "√(9 + 16) = 5" satırı
+  "(9 + 16) = 5" diye okunup 25 ≠ 5 sayılıyor; doğru satır sınav sabahı kâğıdından düşüyor, kayıtlı soru
+  puanlanmıyordu. Şimdi kök hesaplanır; katsayıyla çarpılan kök ("2√3") okunmaz, yanlış alarm da vermez.
+*/
+describe("kök işareti", () => {
+  it("kök hesaplanır: √ ∛ ∜, parantez, üs ve eksi işaret", () => {
+    expect(evaluateExpression("√(9 + 16)")).toBe(5);
+    expect(evaluateExpression("√(6² + 8²)")).toBe(10);
+    expect(evaluateExpression("∛(20 + 7)")).toBeCloseTo(3);
+    expect(evaluateExpression("∛(-8) + 5")).toBeCloseTo(3);
+    expect(evaluateExpression("∜(10 + 6) × 3")).toBeCloseTo(6);
+    expect(evaluateExpression("-√4 + 6")).toBe(4);
+    expect(evaluateExpression("√(-4)")).toBeNull();
+  });
+
+  it("doğru kök satırları yanlış işlem sayılmaz", () => {
+    for (const line of [
+      "√(9 + 16) = 5",
+      "√(9 + 16) = √25 = 5",
+      "√16 + 9 = 13",
+      "2 × √9 = 6",
+      "√256 = 4 × 4",
+      "c = √(6² + 8²) = √100 = 10 cm",
+      "√2 × 3 = 4,24",
+      "∛(-8) + 5 = 3",
+      "∜(10 + 6) × 3 = 6",
+    ]) {
+      expect(hasFalseArithmetic(line), line).toBe(false);
+    }
+    expect(computations("c = √(6² + 8²) = √100 = 10 cm")[0]).toMatchObject({ ok: true, result: 10, unit: "cm" });
+  });
+
+  it("katsayıyla çarpılan kök okunmaz: yarım okuma yanlış alarm vermez", () => {
+    expect(computations("2√3 × 2 = 4√3")).toEqual([]);
+    expect(computations("2 √ (9 + 16) = 10")).toEqual([]);
+    expect(computations("4 × 2 = 8√2")).toEqual([]);
+  });
+
+  it("gerçekten yanlış kök işlemi yine yakalanır", () => {
+    expect(hasFalseArithmetic("√(9 + 16) = 6")).toBe(true);
+    expect(hasFalseArithmetic("√(9 + 16) = 5,4")).toBe(true);
+    expect(hasFalseArithmetic("√16 + 9 = 25")).toBe(true);
+    expect(computations("√16 + 9 = 25")[0]?.sides).toEqual([13, 25]);
+  });
+
+  it("kök satırlı soru, önerme ve kâğıt satırı artık düşmez", () => {
+    const question = { options: ["5 birim", "25 birim", "4 birim", "6 birim"], answerIndex: 0, explanation: "Sonuç √(9 + 16) = 5 birimdir." };
+    expect(keyConsistency(question).ok).toBe(true);
+    // Anahtar yanlışsa soru puanlanmamak yerine hesabın gösterdiği şıkla düzeltilir.
+    expect(keyConsistency({ ...question, answerIndex: 1 })).toMatchObject({ ok: false, reason: "computed", supported: 0 });
+    expect(storedTrueFalseKey({ text: "√(9 + 16) = 5 olur.", correct: true })).toBe(true);
+    expect(fitCramText("Kök toplama dağılmaz: √(9 + 16) = 5 olur.")).toBe("Kök toplama dağılmaz: √(9 + 16) = 5 olur.");
+  });
+
+  it("'2√3' şıkkı 2 diye okunmaz", () => {
+    const options = ["2√3", "2", "3", "4"];
+    // Önceden "2√3" de 2 sayılıyor, hesap iki şıkka varıyor ve anahtar denetlenemiyordu.
+    expect(keyConsistency({ options, answerIndex: 0, explanation: "Sonuç 1 × 2 = 2’dir." })).toMatchObject({
+      ok: false,
+      reason: "computed",
+      supported: 1,
+    });
+  });
+});
+
 describe("tek doğrulu anahtar ↔ açıklama ve gerekçe", () => {
   it("ara sonuç yanlış anahtarla örtüşse bile birimiyle yazılmış hesap sonucu desteklenen şıkkı gösterir", () => {
     const verdict = keyConsistency(INTERMEDIATE);
