@@ -32,19 +32,33 @@ function plainMath(text: string): string {
 
 /** Sayı: binlik noktalı (1.000), virgüllü ondalık (2,5) ya da noktalı ondalık (2.5). */
 const NUMBER = String.raw`\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:[.,]\d+)?`;
-const TERM = String.raw`(?:\(\s*)*-?\s*(?:${NUMBER})(?:\s*\^\s*-?\d+)?(?:\s*\))*`;
+/**
+ * Kök işaretleri (√ ∛ ∜) hesaplanır: "√(9 + 16) = 5", "c = √(6² + 8²) = 10". Önceden işaret okunmuyor, zincir
+ * kökün içinden başlıyordu ("(9 + 16) = 5" → 25 ≠ 5) ve doğru satırlar yanlış işlem sayılıyordu.
+ */
+const RADICAL = "√∛∜";
+const TERM = String.raw`(?:\(\s*)*-?\s*(?:[${RADICAL}]\s*(?:\(\s*)*-?\s*)*(?:${NUMBER})(?:\s*\^\s*-?\d+)?(?:\s*\))*`;
 const EXPR = String.raw`${TERM}(?:\s*[-+*/]\s*${TERM})*`;
-const CHAIN = new RegExp(String.raw`(?<![\p{L}\d.,^%])(${EXPR})((?:\s*=\s*${EXPR})+)`, "gu");
+const CHAIN = new RegExp(String.raw`(?<![\p{L}\d.,^%${RADICAL}])(${EXPR})((?:\s*=\s*${EXPR})+)`, "gu");
+/** İki sayı arasında işlem: yalnız böyle bir yanı olan eşitlik hesap zinciri sayılır ("√25 = 5" tek başına değil). */
+const OPERATION = new RegExp(String.raw`\d\s*\)?\s*[-+*/^]\s*(?:[(${RADICAL}]\s*)*-?\s*(?:[(${RADICAL}]\s*)*\d`, "u");
 
 function parseNumber(token: string): number {
   if (/^\d{1,3}(?:\.\d{3})+(?:,\d+)?$/.test(token)) return Number(token.replace(/\./g, "").replace(",", "."));
   return Number(token.replace(",", "."));
 }
 
-/** Küçük ifade değerlendirici: + - * / ^ ve parantez (× ve · çarpma). Hatalıysa null. */
+/** Kök: √ ve ∜ eksi sayıda tanımsız (null), ∛ eksi sayıyı da alır. */
+function radical(sign: string, value: number): number | null {
+  if (sign === "∛") return Math.cbrt(value);
+  if (value < 0) return null;
+  return sign === "∜" ? value ** 0.25 : Math.sqrt(value);
+}
+
+/** Küçük ifade değerlendirici: + - * / ^, kök (√ ∛ ∜) ve parantez (× ve · çarpma). Hatalıysa null. */
 export function evaluateExpression(source: string): number | null {
   const text = plainMath(source);
-  const tokens = text.match(new RegExp(String.raw`${NUMBER}|[-+*/^()]`, "gu"));
+  const tokens = text.match(new RegExp(String.raw`${NUMBER}|[-+*/^()${RADICAL}]`, "gu"));
   if (!tokens || tokens.join("") !== text.replace(/\s+/g, "")) return null;
   let index = 0;
   const peek = () => tokens[index];
@@ -59,6 +73,11 @@ export function evaluateExpression(source: string): number | null {
     if (token === "-") {
       const value = power();
       return value === null ? null : -value;
+    }
+    if (RADICAL.includes(token)) {
+      // "√9²" kökün içini üsle birlikte alır; eksi olmayan sayıda (√9)² ile aynı değer.
+      const inner = power();
+      return inner === null ? null : radical(token, inner);
     }
     const value = parseNumber(token);
     return Number.isFinite(value) ? value : null;
@@ -124,16 +143,21 @@ export function computations(text: string): Computation[] {
     const before = raw.trimEnd();
     // "v = 2 + 2 = 4" gibi kısa bir adın ataması okunur; "… × 2 = …" gibi bir işlemin devamı okunmaz.
     const assigned = /(?:^|[\s(,;:])\p{L}[\p{L}\d_]{0,3}\s*=$/u.test(before);
-    if (/[\p{L}\d]$/u.test(raw) || (/[-+*/^=(]$/u.test(before) && !assigned)) continue;
+    // Kökün içinden başlayan parça ("2√ (…)") da bir işlemin devamıdır.
+    if (/[\p{L}\d]$/u.test(raw) || (/[-+*/^=(√∛∜]$/u.test(before) && !assigned)) continue;
     if (whole.trimStart().startsWith("-") && /[\p{L}\d)]$/u.test(before)) continue;
+    // "2 √(9 + 16)": kök bir katsayıyla çarpılıyor (örtük çarpım); katsayısız okunursa doğru satır yanlış görünür.
+    if (/^[(\s]*[√∛∜]/u.test(whole) && /[\d)]$/u.test(before)) continue;
     const tail = source.slice(at + whole.length);
-    if (/^\p{L}/u.test(tail) || /^\s*[-+*/^(]\s*[\p{L}\d(]/u.test(tail)) continue;
+    // "… = 8√2": son yan kökle çarpılıyor (örtük çarpım); hesaplanmaz, okunmaz.
+    if (/^\p{L}/u.test(tail) || /^\s*[-+*/^(√∛∜]\s*[\p{L}\d(√∛∜]/u.test(tail)) continue;
     const parts = whole.split("=").map((part) => part.trim());
-    if (!parts.some((part) => /\d\s*\)?\s*[-+*/^]\s*\(?\s*-?\d/u.test(part))) continue;
+    if (!parts.some((part) => OPERATION.test(part))) continue;
     const sides = parts.map(evaluateExpression);
     if (sides.some((side) => side === null)) continue;
     const values = sides as number[];
-    const decimals = Math.min(...parts.map((part) => (/[-+*/^]/.test(part.replace(/^-/, "")) ? 6 : decimalsOf(part))));
+    // Kök ya da işlem taşıyan yan hesaplanmış değerdir; yuvarlama payını yalnız yazılı sayı belirler.
+    const decimals = Math.min(...parts.map((part) => (/[-+*/^√∛∜]/.test(part.replace(/^-/, "")) ? 6 : decimalsOf(part))));
     const ok = values.every((value) => close(value, values[values.length - 1]!, decimals));
     const after = tail.match(/^\s*([\p{L}%°]+)/u)?.[1] ?? "";
     out.push({ text: whole, sides: values, ok, result: values[values.length - 1]!, unit: fold(after), index: at });
@@ -184,6 +208,8 @@ function optionValue(option: string): OptionValue {
   const source = plainMath(option.trim());
   const match = source.match(new RegExp(String.raw`^\s*(${EXPR})\s*([\p{L}%°/]*)`, "u"));
   if (!match) return null;
+  // "2√3" örtük çarpımdır: şık 2 diye okunmaz.
+  if (/^[√∛∜]/u.test(source.slice(match[0].length))) return null;
   const value = evaluateExpression(match[1]!);
   if (value === null) return null;
   const rest = source.slice(match[0].length).trim();
