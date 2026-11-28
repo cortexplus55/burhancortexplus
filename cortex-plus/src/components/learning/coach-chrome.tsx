@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { coachReaction, SPARK_MS, streakBadge, type CoachInput } from "@/lib/learning/coach-reactions";
+import { coachReaction, streakBadge, type CoachInput } from "@/lib/learning/coach-reactions";
 import "@/styles/coach.css";
 
 /** Canlı seri rozeti: 2'den başlar; hareket azaltmada sadece görünür, parlamaz. */
@@ -26,16 +25,13 @@ export function CoachLine({ input, className }: { input: CoachInput; className?:
   );
 }
 
-/** Derste adım kıvılcımı: kısa süre görünür, sonra kendiliğinden kalkar. */
+/**
+ * Derste adım kıvılcımı: girilen adımın başında, düğme satırıyla başlığın arasında kendi yerinde durur ve o adım
+ * boyunca kalır (28 Kasım 2026). Önce üst çubuğun altında 2,6 sn süzülüyor, "Ders özeti" düğmesinin ya da adım
+ * başlığının üstüne biniyordu; kendiliğinden kalksaydı da içerik yukarı kayardı.
+ */
 export function LessonSpark({ text, token }: { text: string | null; token: number }) {
-  const [visible, setVisible] = useState(false);
-  useEffect(() => {
-    if (!text) return;
-    setVisible(true);
-    const timer = window.setTimeout(() => setVisible(false), SPARK_MS);
-    return () => window.clearTimeout(timer);
-  }, [text, token]);
-  if (!text || !visible) return null;
+  if (!text) return null;
   return (
     <p key={token} className="cp-spark" role="status">
       {text}

@@ -91,6 +91,3 @@ export function lessonSpark(input: { hadTrap?: boolean; hadFormula?: boolean; en
   if (input.hadFormula) return "📐 Formül cebinde; sırada uygulaması.";
   return null;
 }
-
-/** Kıvılcımın ekranda kalma süresi (ms); hareket azaltmada aynı süre, yalnız animasyon yok. */
-export const SPARK_MS = 2600;

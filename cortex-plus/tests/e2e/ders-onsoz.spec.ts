@@ -88,7 +88,30 @@ for (const viewport of VIEWPORTS) {
       await expect(dialog.getByRole("button", { name: "Derse dön" })).toBeInViewport();
       const box = await dialog.boundingBox();
       expect(box && box.x >= 0 && box.x + box.width <= viewport.width + 1).toBe(true);
+      // "Derse dön" kayan alanın dışında: en alta kaydırınca yapay zekâ notu düğme şeridinin üstünde biter.
+      await dialog.locator(".als-dialog-body").evaluate((node) => node.scrollTo({ top: node.scrollHeight }));
+      const layout = await dialog.evaluate((node) => {
+        const rect = (selector: string) => node.querySelector(selector)!.getBoundingClientRect();
+        return {
+          bodyBottom: rect(".als-dialog-body").bottom,
+          footTop: rect(".als-dialog-foot").top,
+          noticeBottom: rect(".cx-ai-notice").bottom,
+          ctaTop: rect(".als-dialog-foot .als-cta").top,
+          dialogTop: node.getBoundingClientRect().top,
+          dialogBottom: node.getBoundingClientRect().bottom,
+        };
+      });
+      expect(layout.bodyBottom).toBeLessThanOrEqual(layout.footTop + 1);
+      expect(layout.noticeBottom).toBeLessThanOrEqual(layout.ctaTop);
+      if (viewport.mobile) {
+        // Telefonda pencere tam ekran: arkadaki ders hiçbir kenardan görünmez.
+        expect(layout.dialogTop).toBeLessThanOrEqual(1);
+        expect(layout.dialogBottom).toBeGreaterThanOrEqual(viewport.height - 1);
+      }
+      await dialog.locator(".als-dialog-body").evaluate((node) => node.scrollTo({ top: 0 }));
       await page.screenshot({ path: `test-results/ders-onsoz-pencere-${viewport.name}.png` });
+      await dialog.locator(".als-dialog-body").evaluate((node) => node.scrollTo({ top: node.scrollHeight }));
+      await page.screenshot({ path: `test-results/ders-onsoz-pencere-alt-${viewport.name}.png` });
       await page.keyboard.press("Escape");
       await expect(dialog).toHaveCount(0);
       await expect(page.getByRole("heading", { level: 1, name: "Kök dışına çıkarma" })).toBeVisible();
@@ -102,6 +125,23 @@ for (const viewport of VIEWPORTS) {
         await next.click();
       }
       await expect(page.getByRole("heading", { level: 1, name: "Bu Konudan Aklında Kalsın" })).toBeVisible();
+      // "Son adım!" kıvılcımı akışın içinde: "Ders özeti" düğmesinin altında, adım başlığının üstünde; ikisine de binmez.
+      const spark = page.locator(".cp-spark");
+      await expect(spark).toBeVisible();
+      const heading = page.getByRole("heading", { level: 1, name: "Bu Konudan Aklında Kalsın" });
+      const [sparkBox, reopenBox, headingBox] = await Promise.all([
+        spark.boundingBox(),
+        page.locator(".als-brief-reopen").boundingBox(),
+        heading.boundingBox(),
+      ]);
+      expect(sparkBox && reopenBox && headingBox).toBeTruthy();
+      expect(sparkBox!.y).toBeGreaterThanOrEqual(reopenBox!.y + reopenBox!.height);
+      expect(sparkBox!.y + sparkBox!.height).toBeLessThanOrEqual(headingBox!.y);
+      await page.screenshot({ path: `test-results/ders-kapanis-kivilcim-${viewport.name}.png` });
+      // Kendiliğinden kalkıp içeriği kaydırmaz: üç saniye sonra da yerinde, başlık aynı yerde.
+      await page.waitForTimeout(3000);
+      await expect(spark).toBeVisible();
+      expect((await heading.boundingBox())!.y).toBeCloseTo(headingBox!.y, 0);
       await expect(page.locator(".als-closing li")).toHaveCount(3);
       await expect(page.locator(".als-closing-icon")).toHaveCount(3);
       const link = page.getByRole("link", { name: /Sınav Sabahı Kağıdı/ });

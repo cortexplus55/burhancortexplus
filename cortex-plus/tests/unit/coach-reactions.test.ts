@@ -90,7 +90,10 @@ describe("bağlantılar (kaynak denetimi)", () => {
     expect(tf).toContain("streakBefore={streakBefore}");
     const lesson = read("src/components/parity/exam-lesson-steps.tsx");
     expect(lesson).toContain("sparkFor(step, index + 1)");
-    expect(lesson).toContain("<LessonSpark text={spark.text} token={spark.token} />");
+    // Kıvılcım girilen adıma bağlı ve akışın içinde (28 Kasım 2026): düğmenin ya da başlığın üstüne binmez.
+    expect(lesson).toContain("const stepSpark = spark.forIndex === index ? spark.text : null;");
+    expect(lesson).toContain("<LessonSpark text={stepSpark} token={spark.token} />");
+    expect(read("src/styles/coach.css")).not.toMatch(/\.cp-spark \{[^}]*position: absolute/);
   });
 
   it("hareket azaltmada animasyon yok; seri sarı (marka rengi), koç cümlesi yanlışta kırmızı değil", () => {

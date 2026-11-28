@@ -1119,7 +1119,8 @@ export function ExamLessonSteps({
   const [recallDraft, setRecallDraft] = useState("");
   const [grading, setGrading] = useState(false);
   const [advancing, setAdvancing] = useState(false);
-  const [spark, setSpark] = useState<{ text: string | null; token: number }>({ text: null, token: 0 });
+  // Kıvılcım girilen adıma bağlı: o adımın başında durur, geri dönülünce görünmez.
+  const [spark, setSpark] = useState<{ text: string | null; token: number; forIndex: number }>({ text: null, token: 0, forIndex: -1 });
   const [gradeResult, setGradeResult] = useState<GradeCheckResult | null>(null);
   /** Yanlış cevaplanan bölümlerin sırası — tekrar kuyruğunu bunlar doğurur. */
   const [missed, setMissed] = useState<number[]>([]);
@@ -1285,7 +1286,7 @@ export function ExamLessonSteps({
       hadFormula: blocks.some((block) => block.type === "formula"),
       enteringLast: nextIndex === steps.length - 1 && steps.length > 1,
     });
-    if (text) setSpark((previous) => ({ text, token: previous.token + 1 }));
+    if (text) setSpark((previous) => ({ text, token: previous.token + 1, forIndex: nextIndex }));
   }
 
   async function next() {
@@ -1493,6 +1494,9 @@ export function ExamLessonSteps({
     Math.max(0, steps.length - base.length - 1),
   );
 
+  const stepSpark = spark.forIndex === index ? spark.text : null;
+  const toolbarShown = Boolean(toolbar || (sourcePreview && !figureSource) || (prefaceOn && step.kind !== "overview"));
+
   return (
     <article className="als" ref={rootRef}>
       <header className="als-top" ref={topRef}>
@@ -1542,9 +1546,8 @@ export function ExamLessonSteps({
           </p>
         </div>
         {closeControl ?? <span className="als-icon als-icon--ghost" aria-hidden />}
-        <LessonSpark text={spark.text} token={spark.token} />
       </header>
-      {toolbar || (sourcePreview && !figureSource) || (prefaceOn && step.kind !== "overview") ? (
+      {toolbarShown ? (
         <div className="als-toolbar">
           {prefaceOn && step.kind !== "overview" ? (
             <button type="button" className="als-brief-reopen" onClick={() => setBriefOpen(true)} aria-haspopup="dialog">
@@ -1563,6 +1566,8 @@ export function ExamLessonSteps({
           ) : null}
         </div>
       ) : null}
+      {/* Adım kıvılcımı düğme satırıyla başlığın arasında kendi yerinde: hiçbir düğmenin ya da başlığın üstüne binmez. */}
+      <LessonSpark text={stepSpark} token={spark.token} />
       {figureSource ? (
         <SourceFigureCard
           documentId={figureSource.documentId}
@@ -1573,7 +1578,7 @@ export function ExamLessonSteps({
       ) : null}
 
       {briefOpen && briefData ? (
-        <div className="als-dialog-backdrop" role="presentation" onClick={() => setBriefOpen(false)}>
+        <div className="als-dialog-backdrop als-dialog-backdrop--brief" role="presentation" onClick={() => setBriefOpen(false)}>
           <div
             ref={briefDialogRef}
             className="als-dialog als-dialog--brief"
@@ -1582,18 +1587,23 @@ export function ExamLessonSteps({
             aria-labelledby={briefDialogHeadingId}
             onClick={(event) => event.stopPropagation()}
           >
-            <LessonPreface
-              title={play.title}
-              brief={briefData}
-              minutes={readingMinutes}
-              levelLabel={brief?.levelLabel}
-              examMarks={lessonHasExamMarks(play)}
-              headingId={briefDialogHeadingId}
-              headingLevel={2}
-            />
-            <button type="button" className="als-cta" onClick={() => setBriefOpen(false)}>
-              {BRIEF_COPY.backToLesson}
-            </button>
+            {/* Kayan alan ile düğme şeridi ayrı: metin "Derse dön"ün altından ya da arkasından görünmez. */}
+            <div className="als-dialog-body">
+              <LessonPreface
+                title={play.title}
+                brief={briefData}
+                minutes={readingMinutes}
+                levelLabel={brief?.levelLabel}
+                examMarks={lessonHasExamMarks(play)}
+                headingId={briefDialogHeadingId}
+                headingLevel={2}
+              />
+            </div>
+            <div className="als-dialog-foot">
+              <button type="button" className="als-cta" onClick={() => setBriefOpen(false)}>
+                {BRIEF_COPY.backToLesson}
+              </button>
+            </div>
           </div>
         </div>
       ) : null}

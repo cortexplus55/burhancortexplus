@@ -41,15 +41,13 @@
   color: var(--c-text);
 }
 
+/* Adım kıvılcımı akışın içinde: adımın başında kendi yeri var, hiçbir şeyin üstüne binmez (28 Kasım 2026). */
 .cp-spark {
-  position: absolute;
-  left: 50%;
-  top: 100%;
-  z-index: 3;
-  margin: 0.35rem 0 0;
+  align-self: center;
+  width: fit-content;
+  margin: 0 auto var(--sp-4, 1rem);
   padding: 0.4rem 0.8rem;
-  max-width: calc(100% - 1.5rem);
-  transform: translateX(-50%);
+  max-width: 100%;
   border-radius: 999px;
   border: 1px solid var(--c-border-strong);
   background: var(--c-surface-1);
@@ -57,9 +55,7 @@
   font: var(--t-label-13);
   font-weight: 600;
   text-align: center;
-  box-shadow: 0 10px 30px -14px rgba(0, 0, 0, 0.6);
   animation: cp-spark-in 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  pointer-events: none;
 }
 
 @keyframes cp-streak-pop {
@@ -75,11 +71,11 @@
 
 @keyframes cp-spark-in {
   from {
-    transform: translate(-50%, -6px);
+    transform: translateY(-6px);
     opacity: 0;
   }
   to {
-    transform: translate(-50%, 0);
+    transform: translateY(0);
     opacity: 1;
   }
 }

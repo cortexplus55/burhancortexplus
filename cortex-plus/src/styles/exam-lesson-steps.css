@@ -2163,29 +2163,74 @@
   gap: 0.5rem;
 }
 
+/*
+  "Ders özeti" penceresi (28 Kasım 2026 düzeltmesi): kayan alan ile "Derse dön" şeridi ayrı kutular. Önce düğme kayan
+  alanın içinde yapışkandı; yapay zekâ notu düğmenin altından ve arkasından görünüyordu. Arka plan koyu ve bulanık:
+  arkadaki ders sorusu pencerenin kenarından okunmaz.
+*/
+.als-dialog-backdrop--brief {
+  background: var(--cx-dim, rgba(0, 0, 0, 0.8));
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
 .als-dialog.als-dialog--brief {
   width: min(100%, 36rem);
   max-height: calc(100dvh - 2rem);
-  overflow-y: auto;
-  display: grid;
-  gap: 1.25rem;
-  padding: 1.35rem 1.25rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
   border: 0;
   border-radius: 1.5rem;
   background: var(--cx-bg-1);
+}
+
+.als-dialog--brief .als-dialog-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
   overscroll-behavior: contain;
+  padding: 1.35rem 1.25rem 1.25rem;
+}
+
+.als-dialog--brief .als-dialog-foot {
+  flex: none;
+  padding: 0.75rem 1.25rem calc(1rem + env(safe-area-inset-bottom, 0px));
+  background: var(--cx-bg-1);
+  box-shadow: 0 -1px 0 var(--cx-border);
 }
 
 .als-dialog--brief .als-preface-title {
   font-size: 1.375rem;
 }
 
-/* "Derse dön" uzun pencerede de görünür kalır. */
-.als-dialog--brief .als-cta {
-  position: sticky;
-  bottom: 0;
+.als-dialog--brief .als-dialog-foot .als-cta {
+  width: 100%;
   margin-top: 0;
-  box-shadow: 0 -12px 20px var(--cx-bg-1);
+}
+
+/* Telefonda pencere tam ekran: arkadaki ders hiçbir kenardan görünmez. */
+@media (max-width: 640px) {
+  .als-dialog-backdrop--brief {
+    padding: 0;
+    align-items: stretch;
+  }
+
+  .als-dialog.als-dialog--brief {
+    width: 100%;
+    height: 100dvh;
+    max-height: none;
+    border-radius: 0;
+  }
+
+  .als-dialog--brief .als-dialog-body {
+    padding: calc(1.25rem + env(safe-area-inset-top, 0px)) 1rem 1.25rem;
+  }
+
+  .als-dialog--brief .als-dialog-foot {
+    padding-inline: 1rem;
+  }
 }
 
 /* Önsöz kartı ile "Derse başla" arasında nefes. */
