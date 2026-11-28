@@ -6,6 +6,8 @@ import "katex/dist/katex.min.css";
 import { hasMath, plainMath, splitMath } from "@/lib/learning/math-split";
 import { useMathRenderer } from "@/components/learning/use-math-renderer";
 import { normalizeMathIdentifiers, isProgrammingContext } from "@/lib/learning/math-identifiers";
+import { splitLiveWords } from "@/lib/learning/live-writing";
+import { useLiveWords } from "@/components/parity/live-notebook/live-words";
 import "@/styles/exam-lesson-steps.css";
 
 /**
@@ -13,6 +15,9 @@ import "@/styles/exam-lesson-steps.css";
  * kalın. Ders adımları bunu kullanıyordu; quiz ve flashcard aynı metni düz
  * yazı olarak basıyordu — derste dizilmiş görünen bir formül testte ham
  * `$\frac{a}{b}$` olarak kalırdı. Artık üçü de buradan geçiyor.
+ *
+ * Canlı Defter Modu (28 Kasım 2026): `LiveWords` bağlamı açıksa düz metin kelime kelime (`.lw`), formül ve vurgu
+ * tek parça (`.lw-atom`, `.lw-hl`) çizilir. Bölme yukarıdaki ayrıştırmadan SONRA yapılır; formül hiç bölünmez.
  */
 export function RichBody({ text, topicHint = "" }: { text: string; topicHint?: string }) {
   const safe = studentSafeText(text);
@@ -23,6 +28,7 @@ export function RichBody({ text, topicHint = "" }: { text: string; topicHint?: s
   // KaTeX yalnız formül varsa yüklenir (6 Kasım 2026); o ana kadar formül düz metindir.
   const renderer = useMathRenderer(hasMath(normalized));
   const renderMath = renderer?.renderMath ?? ((tex: string) => plainMath(tex));
+  const live = useLiveWords();
   return (
     <>
       {splitMath(normalized).flatMap((segment, segIndex) => {
@@ -31,7 +37,15 @@ export function RichBody({ text, topicHint = "" }: { text: string; topicHint?: s
           return (
             <Tag
               key={`m-${segIndex}`}
-              className={segment.display ? "als-formula cp-lesson-math" : undefined}
+              className={
+                live
+                  ? segment.display
+                    ? "als-formula cp-lesson-math lw lw-atom"
+                    : "lw lw-atom"
+                  : segment.display
+                    ? "als-formula cp-lesson-math"
+                    : undefined
+              }
               dangerouslySetInnerHTML={{
                 __html: renderMath(segment.value, segment.display),
               }}
@@ -41,13 +55,23 @@ export function RichBody({ text, topicHint = "" }: { text: string; topicHint?: s
         return studentTextParts(segment.value).map((part, index) =>
           part.exam ? (
             // Sınav vurgusu (18 Ekim 2026): sınavda soru olacak kesin bilgi, turuncu işaret.
-            <mark key={`${segIndex}-${index}`} className="als-exam" title="Sınavda çıkar">
+            <mark
+              key={`${segIndex}-${index}`}
+              className={live ? "als-exam lw lw-hl lw-hl--key" : "als-exam"}
+              title="Sınavda çıkar"
+            >
               {part.text}
             </mark>
           ) : part.bold ? (
-            <strong key={`${segIndex}-${index}`} className="als-term">
+            <strong key={`${segIndex}-${index}`} className={live ? "als-term lw lw-hl lw-hl--term" : "als-term"}>
               {part.text}
             </strong>
+          ) : live ? (
+            splitLiveWords(part.text).map((word, wordIndex) => (
+              <span key={`${segIndex}-${index}-${wordIndex}`} className="lw">
+                {word}
+              </span>
+            ))
           ) : (
             <span key={`${segIndex}-${index}`}>{part.text}</span>
           ),
