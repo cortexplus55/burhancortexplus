@@ -92,7 +92,7 @@ describe("lessonBrief: dersin kendi verisinden, modelsiz", () => {
     expect(brief.goals.map((goal) => goal.title)).toEqual(["Kaldıraçlar", "Makaralar", "Eğik Düzlem"]);
     expect(brief.goals[0]!.detail).toMatch(/^Kaldıraçta yük ile kuvvetin/);
     expect(brief.concepts).toEqual(["Kuvvet kazancı", "Destek noktası", "Palanga"]);
-    expect(brief.caution?.text).toBe("Kuvvet kazancının işten de kazanç sağladığını sanmak");
+    expect(brief.caution).toEqual({ title: "Sık yapılan hata", text: "Kuvvet kazancının işten de kazanç sağladığını sanmak" });
     expect(brief.remember).toEqual([
       "Basit makineler kuvvetten kazanç sağlar.",
       "Hiçbir basit makine işten kazanç sağlamaz.",

@@ -179,17 +179,18 @@ function cautionOf(lesson: BriefLesson): LessonBrief["caution"] {
     if (text) return { title: fit(trap.trap.title, 90), text };
   }
   const exam = blocks.find((block) => block.type === "note" && block.note?.tone === "exam" && key(String(block.note?.title ?? "")) !== "çözümlü örnek");
+  // Kutunun kendi başlığı ("Sınav ipucu", "Sık yapılan hata") üst satırda kalır: yanılgı cümlesi çerçevesiz okunmasın.
   if (exam?.note) {
     const text = fit(firstLine(exam.note.body), CAUTION_MAX);
-    if (text) return { title: null, text };
+    if (text) return { title: fit(exam.note.title, 90), text };
   }
   const warn = blocks.find((block) => block.type === "note" && block.note?.tone === "warn");
   if (warn?.note) {
     const text = fit(firstLine(warn.note.body), CAUTION_MAX);
-    if (text) return { title: null, text };
+    if (text) return { title: fit(warn.note.title, 90) ?? "Sık yapılan hata", text };
   }
   const correction = fit(lesson.commonMistake?.correction, CAUTION_MAX);
-  return correction ? { title: null, text: correction } : null;
+  return correction ? { title: "Doğrusu", text: correction } : null;
 }
 
 function rememberOf(lesson: BriefLesson): string[] {
