@@ -450,3 +450,47 @@ describe("canlı kayıt (28 Kasım 2026): önceki çalışmada kilitlenmiş soru
     expect(screen.queryByTestId("answered-before")).toBeNull();
   });
 });
+
+describe("sunucu bu sekmenin bilmediği önceki bir kilidi döndürürse", () => {
+  it("seçim kilitli şıkka geçer ve ekran bunun önceki bir cevap olduğunu söyler", async () => {
+    const A = "Kut anlayışının ortadan kalkmasıyla";
+    const stored = {
+      type: "quiz",
+      questions: [{ text: "Başka sekmede kilitlenmiş soru?", options: [A, RIGHT, "C metni", "D metni", "E metni"], correct: [RIGHT], multi: false }],
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+        if (body.action === "answer-check") {
+          const feedback = answerFeedback(stored, 0);
+          // Kayıtta zaten A kilitli (başka sekme): sunucu kayıttaki cevabı döner.
+          return new Response(JSON.stringify({ ok: true, index: 0, answer: A, question: feedback?.kind === "quiz" ? feedback.question : {} }));
+        }
+        return new Response(JSON.stringify({ ok: true, contentVersion: 2, generationId: "g1" }));
+      }),
+    );
+    const sealed = studentSafePayload(stripAnswerKeyForActiveExam(publicNodePayload(stored, [], "quiz")));
+    render(
+      <ExamNodeSession
+        prepId="p"
+        nodeId="n"
+        kind="quiz"
+        prepTitle="T"
+        topicLabel="T"
+        todayMood={null}
+        initialFamiliarity="basics"
+        resumeEnabled
+        initialResume={{ ok: true, resumed: true, attemptId: "a1", generationId: "g1", contentVersion: 1, payload: sealed }}
+      />,
+    );
+    await screen.findByText("Başka sekmede kilitlenmiş soru?");
+    fireEvent.click(optionButtons()[1]!);
+    fireEvent.click(screen.getByRole("button", { name: "Kontrol et" }));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 30));
+    });
+    expect(statesOf()).toEqual(["wrong", "right", "idle", "idle", "idle"]);
+    expect(screen.getByTestId("answered-before").textContent).toContain("A şıkkı");
+  });
+});

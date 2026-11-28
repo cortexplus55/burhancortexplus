@@ -1654,7 +1654,11 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
         if (data.answer !== undefined && !sameChoice(data.answer, current)) {
           const options = shown?.options ?? [];
           const mapped = mapToOptions(options, data.answer);
-          if (mapped.length) updateAnswer(String(index), shown?.multi ? mapped : mapped[0]!);
+          if (mapped.length) {
+            // Soru bu sekmenin bilmediği önceki bir çalışmada kilitlenmiş: ekran bunu söyler (`answeredBefore`).
+            restoredLocksRef.current.add(String(index));
+            updateAnswer(String(index), shown?.multi ? mapped : mapped[0]!);
+          }
         }
       } else if (data.answer !== undefined && data.answer !== current) {
         // D/Y: kilitli cevap (doğru/yanlış) kayıttakiyle aynı olsun.
