@@ -1,0 +1,99 @@
+# Gece veritabanı yedeği (Supabase ücretsiz planda otomatik yedek yok).
+#
+# Her gece 03:00 (İstanbul) canlı veritabanının pg_dump'ını alır, AES-256 ile
+# şifreler ve 14 gün saklanan bir Actions dosyası (artifact) olarak bırakır.
+# Şifresiz döküm hiçbir yere yüklenmez; bağlantı adresi günlüğe yazılmaz.
+#
+# Gereken depo sırları (Settings → Secrets and variables → Actions):
+#   SUPABASE_DB_URL     Supabase → Connect → Session pooler bağlantı adresi (şifreli)
+#   BACKUP_PASSPHRASE   Yedeği açacak uzun parola (yalnız ürün sahibinde)
+# Sırlar yoksa iş hata vermeden atlanır.
+#
+# Geri yükleme ve prova: docs/ops/veritabani-yedek.md
+
+name: Veritabanı yedeği
+
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: veritabani-yedek
+  cancel-in-progress: false
+
+jobs:
+  yedek:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Sır var mı
+        id: creds
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          if [ -n "$DB_URL" ] && [ -n "$PASSPHRASE" ]; then
+            echo "ok=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "SUPABASE_DB_URL ya da BACKUP_PASSPHRASE sırrı yok; yedek atlandı."
+          fi
+
+      - name: Sunucu sürümü
+        id: ver
+        if: steps.creds.outputs.ok == '1'
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          major="$(docker run --rm -e DB_URL postgres:17 \
+            sh -c 'psql "$DB_URL" -tAc "show server_version_num"' | tr -d '[:space:]')"
+          major="${major:0:2}"
+          case "$major" in
+            1[5-9]) ;;
+            *) echo "Sunucu sürümü okunamadı."; exit 1 ;;
+          esac
+          echo "Postgres ana sürümü: $major"
+          echo "major=$major" >> "$GITHUB_OUTPUT"
+
+      - name: Döküm ve şifreleme
+        if: steps.creds.outputs.ok == '1'
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+          PG_MAJOR: ${{ steps.ver.outputs.major }}
+        run: |
+          set -euo pipefail
+          umask 077
+          stamp="$(TZ=Europe/Istanbul date +%Y%m%d-%H%M)"
+          mkdir -p yedek
+          # public (uygulama tabloları) + auth (hesaplar). Depo (Storage) dosyaları dökümde yok.
+          docker run --rm -e DB_URL -v "$PWD/yedek:/out" "postgres:${PG_MAJOR}" \
+            pg_dump "$DB_URL" --format=custom --no-owner --no-privileges \
+              --schema=public --schema=auth --file=/out/cortex.dump
+          size="$(stat -c %s yedek/cortex.dump)"
+          if [ "$size" -lt 100000 ]; then
+            echo "Döküm beklenenden küçük ($size bayt); yedek düştü sayıldı."
+            exit 1
+          fi
+          printf '%s' "$PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback \
+            --passphrase-fd 0 --symmetric --cipher-algo AES256 \
+            --output "yedek/cortex-${stamp}.dump.gpg" yedek/cortex.dump
+          shred -u yedek/cortex.dump
+          sha256sum "yedek/cortex-${stamp}.dump.gpg" | sed 's#yedek/##' > "yedek/cortex-${stamp}.sha256"
+          echo "STAMP=${stamp}" >> "$GITHUB_ENV"
+          echo "Şifreli yedek hazır: $(du -h yedek/cortex-${stamp}.dump.gpg | cut -f1)"
+
+      - name: Yedeği sakla
+        if: steps.creds.outputs.ok == '1'
+        uses: actions/upload-artifact@v4
+        with:
+          name: veritabani-yedek-${{ env.STAMP }}
+          path: |
+            yedek/*.dump.gpg
+            yedek/*.sha256
+          retention-days: 14
+          if-no-files-found: error
+          compression-level: 0
