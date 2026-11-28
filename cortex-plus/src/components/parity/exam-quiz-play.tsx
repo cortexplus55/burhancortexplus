@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { multiPartialPercent, sameOptionSet, selectedOptions, type PublicQuizQuestion } from "@/lib/learning/exam-quiz";
+import { mapToOptions, matchOption } from "@/lib/learning/option-match";
 import { RichBody } from "@/components/parity/lesson-rich-text";
 import { CoachLine, StreakBadge } from "@/components/learning/coach-chrome";
 import type { Mood } from "@/lib/learning/session-signals";
@@ -98,29 +99,43 @@ export function ExamQuizPlay({
     if (seen.index !== index || seen.key === selectedKey || !selectedKey || revealed) return;
     revealInView(twoSlotRef.current ?? optionsRef.current);
   }, [index, selectedKey, revealed]);
-  const wasRevealed = useRef(revealed);
+  const feedbackRef = useRef<HTMLDivElement | null>(null);
+  const feedbackOpen = !examMode && revealed && Array.isArray(question?.correct) && question.correct.length > 0;
+  /*
+    Açıklama kartı (28 Kasım 2026, telefon): "Kontrol et"ten sonra kaydırma şıklara yapılıyordu; anahtar sunucudan
+    gelince açılan "Açıklama" kartı yapışkan "Devam et" çubuğunun altında kalıyordu. Kart açılınca kendisi görünür
+    alana gelir: sığıyorsa altı çubuğun en az 28 px üstünde, sığmıyorsa başı ekranın üstünde (CSS `scroll-margin`).
+    Kayıttan kilitli açılan soruda (yenileme) kaydırılmaz.
+  */
+  const wasOpen = useRef({ index, open: feedbackOpen && locked });
   useEffect(() => {
-    const before = wasRevealed.current;
-    wasRevealed.current = revealed;
-    if (revealed && !before) revealInView(optionsRef.current);
-  }, [revealed]);
+    const before = wasOpen.current;
+    wasOpen.current = { index, open: feedbackOpen };
+    // Başka soruya geçişte (kilitli soruya geri dönüş dahil) kaydırma yok; yalnız bu soruda kart yeni açıldıysa.
+    if (feedbackOpen && !before.open && before.index === index) revealInView(feedbackRef.current);
+  }, [feedbackOpen, index]);
 
   if (!question) return null;
 
-  const isOn = (option: string) => selected.includes(option);
-  const hasCorrect = Array.isArray(question.correct) && question.correct.length > 0;
-  const isCorrect = hasCorrect ? sameOptionSet(selected, question.correct!) : false;
+  /*
+    Şık kimliği (28 Kasım 2026, P0 "B'yi işaretledim, A kırmızı oldu"): seçim ve doğru şık ekranda birebir metinle
+    (`includes`) karşılaştırılıyordu; süzgeçten geçmiş ve ham metin, boşluk ya da Unicode farkı renkleri kaydırıyordu.
+    Artık ikisi de ekrandaki şık metnine çevrilir (`mapToOptions`); renk, sonuç ve notlama aynı şıkka bakar.
+  */
+  const shownSelected = mapToOptions(question.options, selected);
+  const shownCorrect = Array.isArray(question.correct) ? mapToOptions(question.options, question.correct) : [];
+  const isOn = (option: string) => shownSelected.includes(option);
+  const hasCorrect = shownCorrect.length > 0;
+  const isCorrect = hasCorrect ? sameOptionSet(shownSelected, shownCorrect) : false;
   // Çok cevaplıda kısmi puan, kıyas ürünündeki gibi: (doğru seçilen − yanlış seçilen) / doğru sayısı.
-  const partial = hasCorrect && question.multi ? multiPartialPercent(selected, question.correct!) : 0;
+  const partial = hasCorrect && question.multi ? multiPartialPercent(shownSelected, shownCorrect) : 0;
   // Seri: bu cevap dahil art arda doğru (yanlışta sıfırlanır; rozet kırılınca sessizce kaybolur, azar yok).
   const streakNow = isCorrect ? streakBefore + 1 : 0;
 
   function pick(option: string) {
     if (!examMode && revealed) return;
     if (question.multi) {
-      onChange(
-        isOn(option) ? selected.filter((item) => item !== option) : [...selected, option],
-      );
+      onChange(isOn(option) ? shownSelected.filter((item) => item !== option) : [...shownSelected, option]);
       return;
     }
     onChange(option);
@@ -183,7 +198,7 @@ export function ExamQuizPlay({
       <div ref={optionsRef} className="space-y-3" role={question.multi ? "group" : "radiogroup"}>
         {question.options.map((option, optionIndex) => {
           const selectedThis = isOn(option);
-          const isThisCorrect = hasCorrect && question.correct!.includes(option);
+          const isThisCorrect = hasCorrect && shownCorrect.includes(option);
           // Çok cevaplıda kaçırılan doğru amber; tek seçimlide yanlış cevapta doğru şık yeşil
           // görünür (kıyas ürünündeki gibi, 19 Ekim 2026 — öğrenci doğruyu açıklamadan aramasın).
           const missedCorrect = showFeedback && isThisCorrect && !selectedThis && question.multi;
@@ -191,7 +206,7 @@ export function ExamQuizPlay({
           const showRed = showFeedback && selectedThis && !isThisCorrect;
           const letter = String.fromCharCode(65 + optionIndex);
           // Faz 5 §3.1: ipucuyla elenen çeldirici cevap açılana kadar seçilemez (açılınca normal görünür).
-          const struck = !revealed && !selectedThis && Boolean(eliminated?.includes(option));
+          const struck = !revealed && !selectedThis && Boolean(eliminated?.some((item) => matchOption([option], item)));
 
           return (
             <button
@@ -268,7 +283,9 @@ export function ExamQuizPlay({
       ) : null}
       {showFeedback ? (
         <div
-          className="p-5 rounded-2xl border border-[var(--cp-border)] bg-[var(--cp-surface)] space-y-3"
+          ref={feedbackRef}
+          data-testid="quiz-feedback"
+          className="cp-quiz-feedback p-5 rounded-2xl border border-[var(--cp-border)] bg-[var(--cp-surface)] space-y-3"
           aria-live="polite"
         >
           <p className="text-xs font-semibold tracking-wide text-[var(--cp-muted)]">Açıklama</p>
@@ -317,7 +334,7 @@ export function ExamQuizPlay({
           {question.optionWhy?.length ? (
             <ul className="space-y-1.5 text-sm text-[var(--cp-muted)]">
               {question.options.map((option, optionIndex) => {
-                if (question.correct?.includes(option)) return null;
+                if (shownCorrect.includes(option)) return null;
                 const why = question.optionWhy?.[optionIndex];
                 if (!why) return null;
                 const letter = String.fromCharCode(65 + optionIndex);
@@ -341,7 +358,7 @@ export function ExamQuizPlay({
       <div className="cp-quiz-action-bar">
       <button
         type="button"
-        disabled={disabled || acting || selected.length === 0}
+        disabled={disabled || acting || shownSelected.length === 0}
         aria-busy={disabled || acting || undefined}
         onClick={handleAction}
         className="cp-exam-continue cp-exam-continue--primary w-full inline-flex items-center justify-center gap-2 min-h-11"
@@ -349,7 +366,9 @@ export function ExamQuizPlay({
         <span>
           {disabled || acting
             ? "Kaydediliyor…"
-            : !examMode && hasCorrect && !revealed
+            : // Anahtarı sunucuda tutulan testte de düğme "Kontrol et" der (28 Kasım 2026): önce "Sonraki soru" /
+              // "Testi bitir" yazıyor, basınca yalnız cevabı kontrol ediyordu.
+              !examMode && (hasCorrect || serverCheck) && !revealed
               ? "Kontrol et"
               : revealed && index + 1 >= questions.length
                 ? "Testi bitir"

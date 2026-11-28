@@ -10,8 +10,14 @@ import "server-only";
 import { NextResponse } from "next/server";
 import { errorResponse } from "@/lib/api/guards";
 import { ANSWER_LOCK_KEY, applyAnswerLocks, lockedKeys } from "@/lib/learning/answer-lock";
-import { normalizeQuizQuestion, publicQuizQuestion, type QuizQuestion } from "@/lib/learning/exam-quiz";
 import type { NodeContext } from "@/lib/learning/node/context";
+import {
+  canonicalQuizAnswer,
+  quizCheckFeedback,
+  resolveQuizIndex,
+  storedQuizQuestion,
+  type QuizCheckQuestion,
+} from "@/lib/learning/answer-check-core";
 import { storedTrueFalseKey } from "@/lib/learning/answer-key-consistency";
 
 type StoredTrueFalse = { text?: unknown; correct?: unknown; explanation?: unknown; correctedStatement?: unknown };
@@ -22,12 +28,11 @@ export const ANSWER_CHECK_REVEAL_MAX = 60;
 export function answerFeedback(
   payload: Record<string, unknown>,
   index: number,
-): { kind: "quiz"; question: ReturnType<typeof publicQuizQuestion> } | { kind: "true_false"; item: Record<string, unknown> } | null {
-  if (payload.type === "quiz" && Array.isArray(payload.questions)) {
-    const raw = payload.questions[index] as QuizQuestion | undefined;
-    if (!raw) return null;
-    const question = normalizeQuizQuestion(raw as Parameters<typeof normalizeQuizQuestion>[0]) ?? raw;
-    return { kind: "quiz", question: publicQuizQuestion(question) };
+): { kind: "quiz"; question: QuizCheckQuestion } | { kind: "true_false"; item: Record<string, unknown> } | null {
+  if (payload.type === "quiz") {
+    const question = storedQuizQuestion(payload, index);
+    // Oturum paketiyle aynı süzgeç (28 Kasım 2026, P0): ekran ham metinle süzülmüş metni karşılaştırmasın.
+    return question ? { kind: "quiz", question: quizCheckFeedback(question) } : null;
   }
   if (payload.type === "true_false" && Array.isArray(payload.items)) {
     const raw = payload.items[index] as StoredTrueFalse | undefined;
@@ -86,8 +91,14 @@ export async function answerCheckAction(context: NodeContext): Promise<NextRespo
     return NextResponse.json({ ok: true, revealed: out });
   }
 
-  const index = parsed.data.questionIndex;
-  if (index == null) return errorResponse(400, "invalid_input");
+  const asked = parsed.data.questionIndex;
+  if (asked == null) return errorResponse(400, "invalid_input");
+  // Ekranın gördüğü kök (28 Kasım 2026, P0): o sıradaki soru o kök değilse sunucu başka soruyu notlamaz.
+  const index = payload.type === "quiz" ? resolveQuizIndex(payload, asked, parsed.data.questionText) : asked;
+  if (index == null) {
+    console.warn("answer_check_question_mismatch", { attemptId: attempt.id, asked });
+    return errorResponse(409, "question_mismatch");
+  }
   const key = String(index);
   const feedback = answerFeedback(payload, index);
   if (!feedback) return errorResponse(400, "invalid_input");
@@ -96,14 +107,21 @@ export async function answerCheckAction(context: NodeContext): Promise<NextRespo
   let answer: unknown = saved[key];
   if (!completed && !answerLocked(payload.type, saved, key)) {
     const submitted = parsed.data.answer;
-    const valid =
-      payload.type === "true_false"
-        ? typeof submitted === "boolean"
-        : typeof submitted === "string" || (Array.isArray(submitted) && submitted.every((item) => typeof item === "string"));
-    if (!valid) return errorResponse(400, "invalid_input");
+    let locked: unknown = submitted;
+    if (payload.type === "true_false") {
+      if (typeof submitted !== "boolean") return errorResponse(400, "invalid_input");
+    } else {
+      // Kilide yalnız sorunun kendi şıkkı yazılır (şıktaki metniyle); şıklarda karşılığı olmayan cevap reddedilir.
+      const question = storedQuizQuestion(payload, index);
+      locked = question ? canonicalQuizAnswer(question, submitted) : null;
+      if (locked == null) {
+        console.warn("answer_check_invalid_answer", { attemptId: attempt.id, index });
+        return errorResponse(400, "invalid_answer");
+      }
+    }
     const next = applyAnswerLocks(saved, {
       ...saved,
-      [key]: submitted,
+      [key]: locked,
       ...(payload.type === "quiz" ? { [ANSWER_LOCK_KEY]: [...new Set([...lockedKeys(saved), key])] } : {}),
     });
     // Cevap ve kilit kayda yazılır (sürüm denetimli ara kayıt kilidi korur: `save` sunucudaki kilitleri uygular).

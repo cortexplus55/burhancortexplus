@@ -14283,6 +14283,53 @@ a.cp-exam-search {
 :root:has(.cp-quiz-action-bar) {
   scroll-padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
 }
+/*
+  Açıklama kartı (28 Kasım 2026, telefon): "Devam et" çubuğu "Açıklama" metninin üstünü kapatıyordu. Kart açılınca
+  kendisi kaydırılır (`revealInView`): altı çubuğun en az 28 px üstünde kalır (çubuk 64 px + çentik + 28 px), başı
+  sabit üst kenarın altında. Sayfa sonunda kart ile düğme arası 34 px (24 px aralık + çubuğun 10 px iç boşluğu).
+*/
+.cp-quiz-feedback {
+  scroll-margin-top: 16px;
+  scroll-margin-bottom: 28px;
+}
+/*
+  İşlem Tahtası (28 Kasım 2026, telefon): ana düğme biçimiyle "Soru 1 / 10" sayacına yapışık ve yarı örtük
+  görünüyordu. İkincil düğme: zayıf dolgu, ince çerçeve, gölge yok; sayaçtan 12 px ayrık, dokunma alanı 44 px.
+*/
+.cp-scratch {
+  margin-bottom: 12px;
+}
+.cp-scratch-toggle,
+.cp-scratch-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid var(--cp-border);
+  background: var(--c-surface-2);
+  color: var(--c-text);
+  font: var(--t-body-14);
+  font-weight: 600;
+  box-shadow: none;
+  cursor: pointer;
+  transition: background-color 0.16s ease, border-color 0.16s ease;
+}
+.cp-scratch-toggle:hover,
+.cp-scratch-tool:hover {
+  border-color: var(--cp-border-strong, var(--cp-border));
+}
+.cp-scratch-toggle[aria-expanded="true"],
+.cp-scratch-tool[aria-pressed="true"] {
+  border-color: var(--cp-action);
+  background: color-mix(in srgb, var(--c-action) 14%, var(--c-surface-2));
+}
+.cp-scratch-toggle:focus-visible,
+.cp-scratch-tool:focus-visible {
+  outline: 2px solid var(--cp-action);
+  outline-offset: 2px;
+}
 .cp-quiz-why { list-style: none; }
 .cp-quiz-why-option { display: block; }
 .cp-quiz-why-text { margin-top: 2px; }

@@ -9,7 +9,8 @@ import { NodeSources } from "@/components/parity/node-sources";
 import { QuestionReportButton } from "@/components/learning/question-report-button";
 import { TwinQuestionCard } from "@/components/learning/twin-question-card";
 import { TwoOptionHint } from "@/components/learning/two-option-hint";
-import { sameOptionSet, selectedOptions } from "@/lib/learning/exam-quiz";
+import { selectedOptions } from "@/lib/learning/exam-quiz";
+import { mapToOptions, placeKeyOnShown, sameChoice } from "@/lib/learning/option-match";
 import type { NodeLifecycle } from "./use-node-lifecycle";
 
 export function QuizPlay({ life }: { life: NodeLifecycle }) {
@@ -23,7 +24,8 @@ export function QuizPlay({ life }: { life: NodeLifecycle }) {
     const question = questions[at];
     const key = String(at);
     if (!question?.correct?.length || !revealedRef.current.has(key)) break;
-    if (!sameOptionSet(selectedOptions(answers[key]), question.correct)) break;
+    // Seri de ekrandaki şık kimliğiyle sayılır (ham/süzülmüş metin farkı doğruyu yanlış saymasın).
+    if (!sameChoice(mapToOptions(question.options ?? [], selectedOptions(answers[key])), mapToOptions(question.options ?? [], question.correct))) break;
     streakBefore += 1;
   }
   return (
@@ -120,9 +122,15 @@ export function QuizPlay({ life }: { life: NodeLifecycle }) {
                       onResolved={(result) => {
                         if (!result.question) return;
                         const fixed = result.question;
+                        // Düzeltilen anahtar ekrandaki soruya yerleşir; şık sırası ve metni değişmez (28 Kasım 2026, P0).
                         setPayload((current) =>
                           current.type === "quiz" && current.questions
-                            ? { ...current, questions: current.questions.map((row, i) => (i === at ? { ...row, ...fixed } : row)) }
+                            ? {
+                                ...current,
+                                questions: current.questions.map((row, i) =>
+                                  i === at ? ((placeKeyOnShown(row, fixed as Parameters<typeof placeKeyOnShown>[1]) ?? row) as typeof row) : row,
+                                ),
+                              }
                             : current,
                         );
                       }}

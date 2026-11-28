@@ -3240,3 +3240,25 @@ havuzla zenginleşir, derin eşi olan eski konu ağaçları dizinden çıkar. Ve
 
 Bekçi: `mufredat-ince-icerik.test.tsx`, `seo-search-console.test.tsx` (harita 121 program), `paket3-mufredat.test.ts`, `faz3-seo.test.tsx`;
 e2e `mufredat-seo.spec.ts` (eski ağaç 200 + noindex + bağlantı, derin eşi dizinde).
+
+## Testte şık seçimi (28 Kasım 2026, P0) — dokunulan şık, kilitlenen ve renklenen şıktır
+
+Canlıda telefondan: "B'yi işaretledim; A kırmızı, B yeşil, açıklama 'Yanlış'". Canlı kaydı okumaya izin çıkmadı; eski
+kodda bu tabloyu üreten yollar gerçek bileşenlerle yeniden üretildi ve kapandı. Yeniden açmayın:
+
+| Kusur | Kural | Nerede |
+|---|---|---|
+| Kayıtta "çok cevaplı" işaretli ama **tek anahtarlı** soru (kurtarma yolu "Çok cevaplı soruda 1 doğru var" sorununu geri koyabiliyor, "Yolu yeniden çalış" soru sırasını karıştırıyor) ekranda onay kutusu gibi davranıyordu: A'ya dokunup B'ye geçen öğrencinin seçimi A+B, sonuç tam olarak "A kırmızı, B yeşil, Yanlış" | Kayıt okunurken (`normalizeQuizQuestion`) soru ancak **birden çok doğrusu** varsa çok cevaplıdır; yeni üretimde (`normalizeGeneratedQuizQuestion`) modelin beyanı korunur, yapı denetimi yakalar | `exam-quiz.ts` (`stored`) |
+| "Kontrol et" cevabı sorunun kökünü, şıklarını ve **sırasını** ekrandakinin üstüne yazıyor, sunucunun kilitli cevabını seçimin yerine koyuyordu; sunucu hangi sorunun notlandığını ve cevabın o sorunun şıkkı olup olmadığını denetlemiyordu | Ekran gördüğü kökü gönderir (`questionText`); sunucu kök o sıradaki soru değilse kayıtta arar, yoksa 409 `question_mismatch`; cevap şıklardan birine denk gelmezse 400 `invalid_answer` ve kilide **şıkkın kendi metni** yazılır; dönen soru oturum paketiyle aynı süzgeçten geçer. İstemci anahtarı ekrandaki soruya yerleştirir (`placeKeyOnShown`: kök, metin, sıra değişmez; gerekçeler ekran sırasına dizilir); seçim yalnız sunucunun kilidi gerçekten **başka bir şıksa** değişir | `answer-check-core.ts`, `node/actions/answer-check.ts`, `use-node-lifecycle.ts` |
+| Ekran seçimi ve doğru şıkkı birebir metinle (`includes`) karşılaştırıyordu; süzülmüş/ham metin, boşluk ya da Unicode farkı rengi kaydırıyordu | Tek şık kimliği `optionMatchKey` (öğrenci süzgeci + `answerKey`); renk, sonuç, seri, eleme ve "Hata bildir" düzeltmesi buna bakar | `option-match.ts`, `exam-quiz-play.tsx`, `exam-node/quiz.tsx` |
+| Harfle yazılmış eski anahtarda ASCII dışı harfler silinip tek harf kalınca şık harfi sayılıyordu ("Eş" → E, "Aşı" → A) | Yalnız gerçekten harf olan değer: "B", "c)", "(D)", "Cevap: E", "A şıkkı" (`CHOICE_LETTER`) | `exam-quiz.ts` |
+| Anahtarı sunucuda tutulan testte cevaptan önce düğme "Sonraki soru / Testi bitir" yazıyor, basınca yalnız kontrol ediyordu | Düğme "Kontrol et" | `exam-quiz-play.tsx` |
+
+Aynı ekranda telefon (390×844): açıklama kartı açılınca kendisi görünür alana gelir (`scroll-margin`; sığıyorsa altı
+"Devam et"in en az 28 px üstünde, sığmıyorsa başı ekranda); yanlış / kısmen doğru koç cümlesi tek satır
+(`COACH_WRONG_MAX` 40 karakter); "İşlem Tahtası" ikincil düğme (zayıf dolgu, 44 px, sayaçtan 12 px ayrık, parlama yok —
+ekrandaki tek ana vurgu "Kontrol et").
+
+Bekçi: `sik-secimi-p0.test.tsx` (doğru şık A–E, düz ve karışık sıra; eski kodda 7 test düşer), e2e `sik-secimi.spec.ts`
+(gerçek oturum ekranı, gerçek sunucu işlevleriyle kurulan paket, 390×844 dokunmatik; fikstür `/e2e/sik-secimi`
+`?sira=duz|karisik`, `?ters=1`, `?uzun=1`, `?coklu=1`).

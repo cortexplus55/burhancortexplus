@@ -21,6 +21,8 @@ export const bodySchema = z.object({
   /** Faz 2 (madde 7.3) `answer-check`: kontrol edilen sorunun sırası ve cevabı (test: şık metni/listesi; D/Y: boolean). */
   questionIndex: z.number().int().min(0).max(199).optional(),
   answer: z.union([z.string().max(2000), z.array(z.string().max(2000)).max(10), z.boolean()]).optional(),
+  /** `answer-check` (28 Kasım 2026, P0): ekranın gördüğü soru kökü; sunucu başka soruyu notlamasın. */
+  questionText: z.string().max(4000).optional(),
   /** `answer-check`: yenilenen sayfada kilitli soruların anahtarını geri al. */
   revealIndexes: z.array(z.number().int().min(0).max(199)).max(60).optional(),
   /** Tek kontrol notlandırma: bölüm indeksi + yanıt. */

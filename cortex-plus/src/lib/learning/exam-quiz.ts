@@ -80,6 +80,10 @@ function stripChoicePrefix(text: string) {
   return text.replace(/^[A-Ea-e][).:\-]\s*/, "").trim();
 }
 
+/** Yalnız harften oluşan anahtar: "B", "b)", "(C)", "D.", "Cevap: E", "doğru şık A", "B şıkkı". */
+const CHOICE_LETTER =
+  /^(?:(?:doğru\s+)?(?:cevap|yanıt|şık|seçenek)\s*[:=\-]?\s*)?\(?([A-Fa-f])\)?\s*[).:\-]?\s*(?:şıkkı|şık|seçeneği|seçenek)?\s*\.?$/iu;
+
 function resolveCorrects(options: string[], raw: unknown): string[] {
   const values = Array.isArray(raw) ? raw : [raw];
   const resolved: string[] = [];
@@ -103,8 +107,13 @@ function resolveCorrects(options: string[], raw: unknown): string[] {
       resolved.push(byText);
       continue;
     }
-    const letter = text.replace(/[^A-Za-z]/g, "").toUpperCase();
-    if (letter.length === 1) {
+    /*
+      Harfle yazılmış anahtar ("B", "b)", "(C)", "Cevap: D", "E şıkkı"). 28 Kasım 2026 (P0): eskiden metindeki ASCII
+      dışı harfler silinip tek harf kalırsa şık harfi sayılıyordu; şıklarda birebir bulunamayan "Eş", "Aşı" gibi Türkçe
+      cevaplar E / A şıkkına bağlanıyordu (anahtar başka şıkka kayıyordu). Artık yalnız gerçekten harf olan değer.
+    */
+    const letter = CHOICE_LETTER.exec(text)?.[1]?.toUpperCase();
+    if (letter) {
       const option = options[letter.charCodeAt(0) - 65];
       if (option) resolved.push(option);
       continue;
@@ -138,7 +147,7 @@ type RawQuizQuestion = {
 
 /** Kayıtlı ya da gelen soruyu okur: birden çok doğru işaretliyse soru çok cevaplı sayılır (eski kayıtlar böyle). */
 export function normalizeQuizQuestion(raw: RawQuizQuestion): QuizQuestion | null {
-  const question = normalizeQuizRow(raw, true);
+  const question = normalizeQuizRow(raw, true, true);
   return question ? auditStoredQuizKey(question) : null;
 }
 
@@ -175,7 +184,7 @@ export function normalizeGeneratedQuizQuestion(raw: RawQuizQuestion, declaredMul
   return normalizeQuizRow({ ...raw, multi: declaredMulti === true }, declaredMulti !== false);
 }
 
-function normalizeQuizRow(raw: RawQuizQuestion, multiFromKey: boolean): QuizQuestion | null {
+function normalizeQuizRow(raw: RawQuizQuestion, multiFromKey: boolean, stored = false): QuizQuestion | null {
   const options = [...new Set(raw.options.map((item) => item.trim()).filter(Boolean))];
   const corrects = resolveCorrects(options, raw.correct);
   if (!raw.text.trim() || options.length < 2 || !corrects.length) return null;
@@ -190,7 +199,13 @@ function normalizeQuizRow(raw: RawQuizQuestion, multiFromKey: boolean): QuizQues
     text: raw.text.trim(),
     options,
     correct: corrects,
-    multi: raw.multi === true || (multiFromKey && corrects.length > 1),
+    /*
+      Kayıtlı soru okunurken (`stored`) tek doğrulu soru çok cevaplı sayılmaz (28 Kasım 2026, P0): "çok cevaplı"
+      işaretli ama tek anahtarlı soru (kurtarma yolundan geri konmuş) ekranda onay kutusu gibi davranıyordu; öğrenci
+      A'ya dokunup fikrini değiştirip B'ye dokununca ikisi de seçili kalıyor, sonuçta A kırmızı, B yeşil, "Yanlış"
+      çıkıyordu. Yeni üretimde (`normalizeGeneratedQuizQuestion`) modelin beyanı korunur, yapı denetimi onu yakalar.
+    */
+    multi: stored ? corrects.length > 1 : raw.multi === true || (multiFromKey && corrects.length > 1),
     explanation: raw.explanation?.trim() || undefined,
     learningObjective: raw.learningObjective?.trim() || undefined,
     misconceptionTag: raw.misconceptionTag?.trim() || undefined,

@@ -187,12 +187,13 @@ export function moodAcknowledgement(mood: Mood | null | undefined, minutes: numb
 /** Yanlış cevaptan sonra koç cümlesinin ruh haline göre hâli; varsayılan için null (eski cümle kalır). */
 export function wrongAnswerLine(mood: Mood | null | undefined): string | null {
   switch (mood) {
+    // Tek kısa satır (28 Kasım 2026): telefonda açıklamayı aşağı itmesin (`COACH_WRONG_MAX`).
     case "stressed":
-      return "😮‍💨 Nefes al; bu yanlış burada çıktı, sınavda değil. On saniyede mantığını kilitleyelim 👇";
+      return "😮‍💨 Nefes al, burada çıktı iyi oldu 👇";
     case "low_energy":
-      return "🙂 Yanlış oldu, olsun. Tek cümlelik açıklamaya bak, sonra devam.";
+      return "🙂 Yanlış oldu, olsun. Açıklamaya bak.";
     case "ready":
-      return "💪 Bu tuzağı yedik ama iyi ki burada. Mantığı kilitle, bir dahakine düşmezsin 👇";
+      return "💪 İyi ki burada çıktı, mantığa bak 👇";
     default:
       return null;
   }
