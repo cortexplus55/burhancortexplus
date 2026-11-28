@@ -5,6 +5,7 @@
  */
 import { peekInstantLesson, type LessonPreview } from "@/lib/learning/instant-lesson";
 import { ANSWER_LOCK_KEY, lockedKeys } from "@/lib/learning/answer-lock";
+import { mapToOptions, placeKeyOnShown, sameChoice } from "@/lib/learning/option-match";
 import { useRouter } from "next/navigation";
 import { LESSON_PROGRESS_POLL_MS, LESSON_PROGRESS_FAST_POLL_MS, LESSON_PROGRESS_FAST_POLLS, lessonProgressDelay } from "@/components/parity/lesson-wait";
 import { takeNodeClick } from "@/lib/learning/node-open-click";
@@ -476,6 +477,8 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
   const hintsUsedRef = useRef<Record<string, boolean>>({});
   /** Testte "Kontrol et" ile kilitlenen sorular: sonrasındaki eğitmen açıklaması ipucu değil. */
   const revealedRef = useRef<Set<string>>(new Set());
+  /** Açılışta (kayıttan) zaten kilitli gelen sorular: bu oturumda değil, daha önce cevaplanmış. */
+  const restoredLocksRef = useRef<Set<string>>(new Set());
   const startInFlight = useRef(false);
   const completeInFlight = useRef(false);
   const completeRequestIdRef = useRef<string | null>(null);
@@ -937,6 +940,10 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     }
     refreshUnsaved(nextAnswers);
     revealedRef.current = new Set(lockedKeys(nextAnswers));
+    // Önceki bir oturumda kilitlenmiş sorular (28 Kasım 2026, P0): kaldığı yerden açılan testte bu soru eski sonucuyla
+    // gelir; ekran bunun önceden verilmiş bir cevap olduğunu söyler (canlıda 11 gün önceki kilit "az önce B'yi seçtim,
+    // A kırmızı oldu" diye okundu).
+    restoredLocksRef.current = new Set(lockedKeys(nextAnswers));
     // Faz 2 (madde 7.3): paket anahtarsız gelir; yenilenen sayfada kilitli (D/Y'de cevaplanmış) soruların anahtarı
     // sunucudan geri alınır.
     if (data.attemptId && data.payload?.answerCheck === "server") {
@@ -1594,13 +1601,28 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     return data;
   }
 
-  /** Sunucunun döndürdüğü anahtarı pakette o soruya ekler (ekran geri bildirimi bununla açılır). */
+  /**
+   * Sunucunun döndürdüğü anahtarı pakette o soruya ekler (ekran geri bildirimi bununla açılır).
+   *
+   * 28 Kasım 2026 (P0, "B'yi işaretledim, A kırmızı oldu"): eskiden sunucunun sorusu ekrandakinin ÜSTÜNE yazılıyordu:
+   * kök, şık metinleri ve şık SIRASI değişebiliyordu. Artık ekrandaki soru olduğu gibi kalır; yalnız doğru şık(lar)
+   * ekrandaki metinlere çevrilerek ve gerekçeler ekrandaki sıraya dizilerek eklenir. Kök tutmuyorsa birleştirilmez.
+   */
   function mergeAnswerKeys(byIndex: Record<string, Record<string, unknown>>) {
     setPayload((current) => {
       if (current.type === "quiz" && current.questions) {
         return {
           ...current,
-          questions: current.questions.map((row, i) => (byIndex[String(i)] ? { ...row, ...byIndex[String(i)] } : row)),
+          questions: current.questions.map((row, i) => {
+            const server = byIndex[String(i)];
+            if (!server) return row;
+            const placed = placeKeyOnShown(row as { text?: string; options?: string[] }, server as Parameters<typeof placeKeyOnShown>[1]);
+            if (!placed) {
+              console.warn("answer_check_merge_skipped", { index: i });
+              return row;
+            }
+            return placed as typeof row;
+          }),
         };
       }
       if (current.type === "true_false" && current.items) {
@@ -1615,12 +1637,33 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
 
   async function checkAnswerOnServer(index: number, answer: unknown): Promise<boolean> {
     setAnswerCheckError(null);
+    const shown = payload.type === "quiz" ? payload.questions?.[index] : undefined;
     try {
-      const data = await postAnswerCheck({ questionIndex: index, answer });
+      const data = await postAnswerCheck({
+        questionIndex: index,
+        answer,
+        // Ekranın gördüğü kök: sunucu bu sıradaki soru o kök değilse başka soruyu notlamaz (28 Kasım 2026, P0).
+        ...(shown?.text ? { questionText: shown.text } : {}),
+      });
       const key = data.question ?? data.item;
       if (key) mergeAnswerKeys({ [String(index)]: key });
-      // Sunucu kilitli cevabı döner: ekrandaki cevap kayıttakiyle aynı olsun.
-      if (data.answer !== undefined && data.answer !== answersRef.current[String(index)]) updateAnswer(String(index), data.answer);
+      const current = answersRef.current[String(index)];
+      if (payload.type === "quiz") {
+        // Sunucu kilitli cevabı şıkkın kendi metniyle döner. Ekrandaki seçim yalnız gerçekten BAŞKA bir şıksa değişir
+        // (önceden başka sekmede kilitlenmiş soru); görünüm farkı seçimi silmez ve öğrencinin dokunduğu şık kaymaz.
+        if (data.answer !== undefined && !sameChoice(data.answer, current)) {
+          const options = shown?.options ?? [];
+          const mapped = mapToOptions(options, data.answer);
+          if (mapped.length) {
+            // Soru bu sekmenin bilmediği önceki bir çalışmada kilitlenmiş: ekran bunu söyler (`answeredBefore`).
+            restoredLocksRef.current.add(String(index));
+            updateAnswer(String(index), shown?.multi ? mapped : mapped[0]!);
+          }
+        }
+      } else if (data.answer !== undefined && data.answer !== current) {
+        // D/Y: kilitli cevap (doğru/yanlış) kayıttakiyle aynı olsun.
+        updateAnswer(String(index), data.answer);
+      }
       return true;
     } catch {
       setAnswerCheckError("Cevabın kontrol edilemedi. Bağlantını kontrol edip tekrar dene.");
@@ -2216,6 +2259,7 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     lessonPodcastAudioReady,
     setLessonPodcastAudioReady,
     revealedRef,
+    restoredLocksRef,
     lockAnswer,
     saveCursorRef,
     pendingSaves,

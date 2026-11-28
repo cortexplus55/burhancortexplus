@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { PencilLine } from "lucide-react";
 
 type Pen = "white" | "blue" | "red" | "erase";
 
@@ -87,8 +88,11 @@ export function ScratchPad() {
   }
 
   return (
+    // İkincil düğme (28 Kasım 2026, telefon): ana düğme biçimindeki parlayan "İşlem Tahtası" sayaca yapışık duruyor ve
+    // ekranda "Kontrol et"le yarışıyordu. Zayıf dolgu, 44 px dokunma alanı, sayaçtan 12 px ayrık (`.cp-scratch`).
     <div className="cp-scratch">
-      <button type="button" className="cp-exam-continue" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
+      <button type="button" className="cp-scratch-toggle" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
+        <PencilLine aria-hidden className="h-4 w-4" />
         İşlem Tahtası
       </button>
       {open ? (
@@ -106,13 +110,13 @@ export function ScratchPad() {
                 key={id}
                 type="button"
                 aria-pressed={pen === id}
-                className="cp-exam-continue"
+                className="cp-scratch-tool"
                 onClick={() => setPen(id)}
               >
                 {label}
               </button>
             ))}
-            <button type="button" className="cp-exam-continue" onClick={clear}>
+            <button type="button" className="cp-scratch-tool" onClick={clear}>
               Temizle
             </button>
           </div>

@@ -71,16 +71,18 @@ export function coachReaction(input: CoachInput): CoachReaction {
     }
     return { text: "✨ Nokta atışı! Çeldirici şıklara hiç takılmadan doğru cevabı buldun.", tone: "right" };
   }
+  // Yanlış ve kısmen doğruda tek kısa satır (28 Kasım 2026): telefonda üç satırlık cümle açıklamayı aşağı itiyordu.
+  // Sınır `COACH_WRONG_MAX` (390 px'te tek satır); açıklama hemen altında.
   if (typeof input.partial === "number" && input.partial > 0) {
-    return { text: "🧩 Kısmen doğru: bir şık eksik ya da fazla. Açıklamada hangisi olduğunu gör, tam puan bir sonraki.", tone: "partial" };
+    return { text: "🧩 Kısmen doğru, eksiğe bakalım 👇", tone: "partial" };
   }
   const byMood = wrongAnswerLine(input.mood);
   if (byMood) return { text: byMood, tone: "off" };
-  return {
-    text: "💪 Moral bozmak yok! Bu şık, sınavlarda en çok düşülen tuzaklardan. Gel, 10 saniyede mantığını kilitleyelim 👇",
-    tone: "off",
-  };
+  return { text: "💪 Moral bozmak yok, mantığa bakalım 👇", tone: "off" };
 }
+
+/** Yanlış / kısmen doğru koç cümlesinin en çok uzunluğu (karakter): 390 px'lik telefonda tek satır. */
+export const COACH_WRONG_MAX = 40;
 
 /** Derste adım tamamlanınca üstte kısa kıvılcım; gösterilecek bir şey yoksa `null`. */
 export function lessonSpark(input: { hadTrap?: boolean; hadFormula?: boolean; enteringLast?: boolean }): string | null {
