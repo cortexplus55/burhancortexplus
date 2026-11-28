@@ -3251,8 +3251,19 @@ kullanılmış); **27 Kasım'da** test kaldığı yerden, 1. sorudan açılmış
 için A'nın hangi gün seçildiği veriden kesin okunamıyor; kayıttaki iz bu senaryoya uyuyor. Aynı tabloyu üretebilen öbür
 yollar da gerçek bileşenlerle yeniden üretildi ve kapandı. Yeniden açmayın:
 
+**Kesin kök neden (aynı gün, #741 yayındayken canlıda bulundu):** kilitli cevaplı bir testi yenileyince kayıtta
+kilitli 2. soru AÇIK ve eski şık seçili açıldı. Açılış (`applyStartPayload`) kilitli soruları yazıp deneme kimliğini
+null'dan kimliğe çeviriyordu; "yeni deneme" etkisi (`[attemptId]`) hemen ardından kilit listesini boşaltıyordu. İlk
+çizim kilitli görünüyor, kilitli soruların anahtarı ağdan gelince ekran yeniden çiziliyor ve soru açılıyordu. Öğrenci
+B'ye dokunup "Kontrol et" deyince sunucu kayıttaki kilidi (A) döndürüyor, eski ekran seçimi A'ya çevirip "A kırmızı,
+B yeşil, Yanlış" gösteriyordu. Şimdi kilit listesi ait olduğu denemeyi bilir (`locksForRef`); yalnız gerçekten başka
+bir denemeye geçilince boşalır. Birim testleri anahtarlar hemen geldiği için bunu görmüyordu: bekçi test anahtarı
+geciktirir (birimde 15 ms, e2e'de `?gec=1` 600 ms). **Ders: açılışta yazılan bir ref'i silen etki, açılışın kendi
+değiştirdiği bir duruma bağlıysa açılışın yazdığını siler.**
+
 | Kusur | Kural | Nerede |
 |---|---|---|
+| Kaldığı yerden açılışta kilitler siliniyordu (yukarıdaki kök neden) | Kilit listeleri (`revealedRef`, `restoredLocksRef`) yalnız başka bir denemeye geçilince boşalır | `use-node-lifecycle.ts` (`locksForRef`) |
 | **Kaldığı yerden açılan testte önceki çalışmada kilitlenmiş soru** eski sonucuyla, "az önce cevapladın" gibi geliyordu | Şıkların üstünde not: "Bu soruyu daha önceki bir çalışmanda cevapladın; kilitli cevabın A şıkkı. Kilitli cevap değiştirilemez." Açılışta kayıttan kilitli gelen soruda ve "Kontrol et"te sunucu bu sekmenin bilmediği önceki bir kilidi döndürünce (`restoredLocksRef`); bu oturumda kilitlenen soruda not yok | `use-node-lifecycle.ts`, `exam-quiz-play.tsx` (`answeredBefore`) |
 | Kayıtta "çok cevaplı" işaretli ama **tek anahtarlı** soru (kurtarma yolu "Çok cevaplı soruda 1 doğru var" sorununu geri koyabiliyor, "Yolu yeniden çalış" soru sırasını karıştırıyor) ekranda onay kutusu gibi davranıyordu: A'ya dokunup B'ye geçen öğrencinin seçimi A+B, sonuç tam olarak "A kırmızı, B yeşil, Yanlış" | Kayıt okunurken (`normalizeQuizQuestion`) soru ancak **birden çok doğrusu** varsa çok cevaplıdır; yeni üretimde (`normalizeGeneratedQuizQuestion`) modelin beyanı korunur, yapı denetimi yakalar | `exam-quiz.ts` (`stored`) |
 | "Kontrol et" cevabı sorunun kökünü, şıklarını ve **sırasını** ekrandakinin üstüne yazıyor, sunucunun kilitli cevabını seçimin yerine koyuyordu; sunucu hangi sorunun notlandığını ve cevabın o sorunun şıkkı olup olmadığını denetlemiyordu | Ekran gördüğü kökü gönderir (`questionText`); sunucu kök o sıradaki soru değilse kayıtta arar, yoksa 409 `question_mismatch`; cevap şıklardan birine denk gelmezse 400 `invalid_answer` ve kilide **şıkkın kendi metni** yazılır; dönen soru oturum paketiyle aynı süzgeçten geçer. İstemci anahtarı ekrandaki soruya yerleştirir (`placeKeyOnShown`: kök, metin, sıra değişmez; gerekçeler ekran sırasına dizilir); seçim yalnız sunucunun kilidi gerçekten **başka bir şıksa** değişir | `answer-check-core.ts`, `node/actions/answer-check.ts`, `use-node-lifecycle.ts` |
@@ -3267,4 +3278,4 @@ ekrandaki tek ana vurgu "Kontrol et").
 
 Bekçi: `sik-secimi-p0.test.tsx` (doğru şık A–E, düz ve karışık sıra; eski kodda 7 test düşer), e2e `sik-secimi.spec.ts`
 (gerçek oturum ekranı, gerçek sunucu işlevleriyle kurulan paket, 390×844 dokunmatik; fikstür `/e2e/sik-secimi`
-`?sira=duz|karisik`, `?ters=1`, `?uzun=1`, `?coklu=1`, `?onceki=1`).
+`?sira=duz|karisik`, `?ters=1`, `?uzun=1`, `?coklu=1`, `?onceki=1|2`, `?gec=1`).

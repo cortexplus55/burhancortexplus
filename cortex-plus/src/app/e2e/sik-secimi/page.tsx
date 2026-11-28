@@ -19,6 +19,8 @@ export const dynamic = "force-dynamic";
  * `?uzun=1`: uzun açıklama (kart ekrana sığmaz, alt çubuk içeriğin üstüne yapışır).
  * `?coklu=1`: ilk soru kayıtta çok cevaplı işaretli ama tek anahtarlı: ekranda tek seçimli kalmalı.
  * `?onceki=1`: deneme kaldığı yerden açılır; 1. soru önceki bir çalışmada yanlış şıkla (B) kilitlenmiş (canlıdaki olay).
+ * `?onceki=2`: canlıdaki yenileme: 1. soru doğru (A), 2. soru yanlış şıkla (A) kilitli, kaldığı yer 2. soru.
+ * `?gec=1`: kilitli soruların anahtarı açılıştan 600 ms sonra gelir (canlıdaki ağ sırası; kök neden bu sırada görünür).
  */
 const STEMS = [
   "Tarım topluluklarında mülkiyet anlayışı hangi gelişmeyle güçlenmiştir?",
@@ -88,6 +90,20 @@ export default async function SikSecimiPage({ searchParams }: { searchParams: Pr
   });
   // Test sorunun doğrusunu ekrandaki metniyle bilir (yalnız fikstür; üründe anahtar istemciye gitmez).
   const keys = table.map((row) => String((row.feedback.correct as string[] | undefined)?.[0] ?? ""));
-  const answers = params.onceki === "1" ? { "0": stored.questions[0]!.options[1]!, __locked: ["0"] } : undefined;
-  return <SikSecimiFixture payload={sealed} table={table} keys={keys} answers={answers} />;
+  const answers =
+    params.onceki === "1"
+      ? { "0": stored.questions[0]!.options[1]!, __locked: ["0"] }
+      : params.onceki === "2"
+        ? { "0": CORRECT[0]!, "1": stored.questions[1]!.options[0]!, __locked: ["0", "1"] }
+        : undefined;
+  return (
+    <SikSecimiFixture
+      payload={sealed}
+      table={table}
+      keys={keys}
+      answers={answers}
+      cursorIndex={params.onceki === "2" ? 1 : 0}
+      revealDelayMs={params.gec === "1" ? 600 : 0}
+    />
+  );
 }

@@ -190,3 +190,22 @@ test("canlı olay: önceki çalışmada kilitlenmiş soru kaldığı yerden aç�
   expect(await states(page)).toEqual(before);
   await page.screenshot({ path: "test-results/sik-secimi-onceki-390.png" });
 });
+
+test("canlı kök neden: yenilenen sayfada anahtarlar geç gelse de kilitli soru kilitli kalır", { tag: ["@public"] }, async ({ page }) => {
+  /*
+    Canlıda (28 Kasım 2026) yenilenen testte 2. soru kayıtta kilitliyken açık ve eski şık seçili göründü: açılışın
+    yazdığı kilitleri "yeni deneme" etkisi siliyordu, anahtarlar ağdan gelince ekran yeniden çizilip soruyu açıyordu.
+  */
+  await page.goto("/e2e/sik-secimi?sira=duz&onceki=2&gec=1");
+  await expect(page.getByText(/Soru 2 \/ 5/)).toBeVisible({ timeout: 30_000 });
+  // Anahtarlar geldi (doğru şık işaretlendi) ve ekran yeniden çizildi.
+  await expect(page.locator('[data-cx-option="right"]')).toHaveCount(1, { timeout: 10_000 });
+  await page.waitForTimeout(300);
+  await expect(page.getByTestId("answered-before")).toContainText("A şıkkı");
+  expect(await states(page)).toEqual(["wrong", "right", "idle", "idle", "idle"]);
+  await expect(page.getByRole("button", { name: "Kontrol et" })).toHaveCount(0);
+  for (const disabled of await options(page).evaluateAll((nodes) => nodes.map((node) => (node as HTMLButtonElement).disabled))) {
+    expect(disabled).toBe(true);
+  }
+  await page.screenshot({ path: "test-results/sik-secimi-yenileme-390.png" });
+});

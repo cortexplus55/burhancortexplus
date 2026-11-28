@@ -479,6 +479,8 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
   const revealedRef = useRef<Set<string>>(new Set());
   /** Açılışta (kayıttan) zaten kilitli gelen sorular: bu oturumda değil, daha önce cevaplanmış. */
   const restoredLocksRef = useRef<Set<string>>(new Set());
+  /** Kilit listelerinin ait olduğu deneme: deneme değişti etkisi aynı denemenin kayıttan gelen kilitlerini silmesin. */
+  const locksForRef = useRef<string | null>(null);
   const startInFlight = useRef(false);
   const completeInFlight = useRef(false);
   const completeRequestIdRef = useRef<string | null>(null);
@@ -548,7 +550,16 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
   // Yeni deneme, yeni ipucu kaydı.
   useEffect(() => {
     hintsUsedRef.current = {};
+    /*
+      Kayıttan gelen kilitler bu denemenindir (28 Kasım 2026, P0'ın canlıda bulunan kök nedeni): kaldığı yerden açılışta
+      `applyStartPayload` kilitli soruları yazıp deneme kimliğini (null → kimlik) değiştiriyordu; bu etki hemen ardından
+      listeyi boşaltıyordu. İstemci kilitleri unutuyor, kilitli soru eski şıkkı seçili ama AÇIK görünüyordu; öğrenci B'ye
+      dokunup "Kontrol et" deyince sunucu kayıttaki kilidi (A) döndürüyor, ekran "A kırmızı, B yeşil, Yanlış" gösteriyordu.
+      Liste yalnız gerçekten başka bir denemeye geçilince boşalır.
+    */
+    if (attemptId && locksForRef.current === attemptId) return;
     revealedRef.current = new Set();
+    restoredLocksRef.current = new Set();
   }, [attemptId]);
 
   // Açılış düğüm başına BİR KEZ (30 Ekim 2026, canlı tur): ders bitince ya da kredi düşünce `router.refresh()` sunucu
@@ -944,6 +955,7 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     // gelir; ekran bunun önceden verilmiş bir cevap olduğunu söyler (canlıda 11 gün önceki kilit "az önce B'yi seçtim,
     // A kırmızı oldu" diye okundu).
     restoredLocksRef.current = new Set(lockedKeys(nextAnswers));
+    locksForRef.current = data.attemptId ?? null;
     // Faz 2 (madde 7.3): paket anahtarsız gelir; yenilenen sayfada kilitli (D/Y'de cevaplanmış) soruların anahtarı
     // sunucudan geri alınır.
     if (data.attemptId && data.payload?.answerCheck === "server") {

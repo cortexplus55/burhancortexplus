@@ -393,12 +393,14 @@ describe("canlı kayıt (28 Kasım 2026): önceki çalışmada kilitlenmiş soru
     ],
   };
 
-  function open(answers: Record<string, unknown>) {
+  function open(answers: Record<string, unknown>, cursorIndex = 0, revealDelayMs = 0) {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
         const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
         if (body.action === "answer-check" && Array.isArray(body.revealIndexes)) {
+          // Canlıda anahtarlar ağdan, açılışın etkilerinden SONRA gelir (yeniden çizim o an olur).
+          if (revealDelayMs) await new Promise((resolve) => setTimeout(resolve, revealDelayMs));
           const revealed = Object.fromEntries(
             (body.revealIndexes as number[]).map((at) => {
               const feedback = answerFeedback(stored, at);
@@ -421,7 +423,7 @@ describe("canlı kayıt (28 Kasım 2026): önceki çalışmada kilitlenmiş soru
         todayMood={null}
         initialFamiliarity="basics"
         resumeEnabled
-        initialResume={{ ok: true, resumed: true, attemptId: "a1", generationId: "g1", contentVersion: 1, payload: sealed, answers, cursorIndex: 0 }}
+        initialResume={{ ok: true, resumed: true, attemptId: "a1", generationId: "g1", contentVersion: 1, payload: sealed, answers, cursorIndex }}
       />,
     );
   }
@@ -440,6 +442,27 @@ describe("canlı kayıt (28 Kasım 2026): önceki çalışmada kilitlenmiş soru
     // B'ye dokunmak kilitli cevabı değiştirmez.
     fireEvent.click(optionButtons()[1]!);
     expect(statesOf()).toEqual(["wrong", "right", "idle", "idle", "idle"]);
+  });
+
+  it("canlı kök neden: kaldığı yerden açılışta deneme kimliği gelince kilitler silinmez (yeniden çizimden sonra da kilitli)", async () => {
+    /*
+      Canlıda (28 Kasım 2026) sayfa yenilenince 2. soru kayıtta A ile kilitliyken AÇIK ve A seçili göründü, not yoktu.
+      Kök neden: açılış kilitleri yazıyor, deneme kimliği null → "a1" olunca "yeni deneme" etkisi listeyi siliyordu.
+      İlk çizim kilitli görünüyordu; anahtar geri gelince (yeniden çizim) soru açılıyordu. Öğrenci B'ye dokunup
+      "Kontrol et" deyince sunucu kayıttaki A'yı döndürüyor, eski ekran "A kırmızı, B yeşil, Yanlış" gösteriyordu.
+    */
+    open({ "0": RIGHT, "1": "x2", __locked: ["0", "1"] }, 1, 15);
+    await screen.findByText("İkinci soru?");
+    // Anahtarların geri gelmesi (yeniden çizim) ve etkilerin oturması.
+    for (let round = 0; round < 3; round += 1) {
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      });
+    }
+    expect(screen.getByTestId("answered-before").textContent).toContain("B şıkkı");
+    expect(optionButtons().every((button) => button.disabled)).toBe(true);
+    expect(statesOf()).toEqual(["right", "wrong", "idle", "idle", "idle"]);
+    expect(screen.queryByRole("button", { name: "Kontrol et" })).toBeNull();
   });
 
   it("bu oturumda kilitlenen soruda not yok", async () => {
