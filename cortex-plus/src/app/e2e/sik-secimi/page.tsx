@@ -18,6 +18,7 @@ export const dynamic = "force-dynamic";
  * `?ters=1`: sunucu cevabındaki şık sırası ters (eski sunucu ya da başka sıra): ekran kendi sırasını korumalı.
  * `?uzun=1`: uzun açıklama (kart ekrana sığmaz, alt çubuk içeriğin üstüne yapışır).
  * `?coklu=1`: ilk soru kayıtta çok cevaplı işaretli ama tek anahtarlı: ekranda tek seçimli kalmalı.
+ * `?onceki=1`: deneme kaldığı yerden açılır; 1. soru önceki bir çalışmada yanlış şıkla (B) kilitlenmiş (canlıdaki olay).
  */
 const STEMS = [
   "Tarım topluluklarında mülkiyet anlayışı hangi gelişmeyle güçlenmiştir?",
@@ -87,5 +88,6 @@ export default async function SikSecimiPage({ searchParams }: { searchParams: Pr
   });
   // Test sorunun doğrusunu ekrandaki metniyle bilir (yalnız fikstür; üründe anahtar istemciye gitmez).
   const keys = table.map((row) => String((row.feedback.correct as string[] | undefined)?.[0] ?? ""));
-  return <SikSecimiFixture payload={sealed} table={table} keys={keys} />;
+  const answers = params.onceki === "1" ? { "0": stored.questions[0]!.options[1]!, __locked: ["0"] } : undefined;
+  return <SikSecimiFixture payload={sealed} table={table} keys={keys} answers={answers} />;
 }

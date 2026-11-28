@@ -177,3 +177,16 @@ test("kayıtta çok cevaplı işaretli tek anahtarlı soru tek seçimlidir: A'da
   expect(after.filter((state) => state === "wrong")).toHaveLength(0);
   expect(await lastSent(page)).toBe(texts[right]!.replace(/^[A-E]\s*\n/, "").trim());
 });
+
+test("canlı olay: önceki çalışmada kilitlenmiş soru kaldığı yerden açılınca not çıkar, dokunuş kilidi değiştirmez", { tag: ["@public"] }, async ({ page }) => {
+  await open(page, "sira=duz&onceki=1");
+  const note = page.getByTestId("answered-before");
+  await expect(note).toBeVisible();
+  await expect(note).toContainText("B şıkkı");
+  const before = await states(page);
+  expect(before[1]).toBe("wrong");
+  expect(before[0]).toBe("right");
+  await options(page).nth(2).tap({ force: true });
+  expect(await states(page)).toEqual(before);
+  await page.screenshot({ path: "test-results/sik-secimi-onceki-390.png" });
+});

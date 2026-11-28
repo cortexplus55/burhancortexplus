@@ -14,7 +14,7 @@ import { mapToOptions, placeKeyOnShown, sameChoice } from "@/lib/learning/option
 import type { NodeLifecycle } from "./use-node-lifecycle";
 
 export function QuizPlay({ life }: { life: NodeLifecycle }) {
-  const { sources, stage, loading, payload, setPayload, attemptId, markHint, index, setIndex, answers, revealedRef, lockAnswer, isTimedExam, finish, updateAnswer, questions, quizBuilding, mood, answerCheckError } = life;
+  const { sources, stage, loading, payload, setPayload, attemptId, markHint, index, setIndex, answers, revealedRef, restoredLocksRef, lockAnswer, isTimedExam, finish, updateAnswer, questions, quizBuilding, mood, answerCheckError } = life;
   // Koç katmanı (7 Kasım 2026): bu sorudan önceki art arda doğrular (yalnız kilitlenmiş cevaplar) ve bu soruda ipucu.
   const [hintAt, setHintAt] = useState<Record<string, boolean>>({});
   // Faz 5 §3.1: "İki Şık Arasında Kaldım" ile elenen çeldirici (soru sırasına göre).
@@ -62,6 +62,7 @@ export function QuizPlay({ life }: { life: NodeLifecycle }) {
             onChange={(value) => updateAnswer(String(index), value)}
             onReveal={() => lockAnswer(String(index))}
             locked={revealedRef.current.has(String(index))}
+            answeredBefore={restoredLocksRef.current.has(String(index))}
             streakBefore={isTimedExam ? 0 : streakBefore}
             mood={isTimedExam ? null : mood}
             usedHint={Boolean(hintAt[String(index)])}

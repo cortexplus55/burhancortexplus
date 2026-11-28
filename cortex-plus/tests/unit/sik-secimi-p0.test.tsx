@@ -377,3 +377,76 @@ describe("yanlış cevaptaki koç cümlesi tek kısa satır", () => {
     for (const line of lines) expect([...line].length, line).toBeLessThanOrEqual(COACH_WRONG_MAX);
   });
 });
+
+describe("canlı kayıt (28 Kasım 2026): önceki çalışmada kilitlenmiş soru kaldığı yerden açılınca", () => {
+  /*
+    Canlıdaki deneme 16 Kasım'da açılmış, 1. soru A ile kilitlenmiş ve "Devam et"e basılmadan çıkılmış; 27 Kasım'da
+    test kaldığı yerden (1. sorudan) açıldı. Soru eski sonucuyla (A kırmızı, B yeşil, "Yanlış") kilitli geldi, ekran
+    bunun önceki bir cevap olduğunu söylemedi; B'ye dokunmak bir şey yapmadı.
+  */
+  const A = "Kut anlayışının ortadan kalkmasıyla";
+  const stored = {
+    type: "quiz",
+    questions: [
+      { text: "Bir Türk topluluğunun tarıma geçmesi hangisiyle ilişkilidir?", options: [A, RIGHT, "C şıkkı metni", "D şıkkı metni", "E şıkkı metni"], correct: [RIGHT], multi: false },
+      { text: "İkinci soru?", options: ["x1", "x2", "x3", "x4", "x5"], correct: ["x1"], multi: false },
+    ],
+  };
+
+  function open(answers: Record<string, unknown>) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+        if (body.action === "answer-check" && Array.isArray(body.revealIndexes)) {
+          const revealed = Object.fromEntries(
+            (body.revealIndexes as number[]).map((at) => {
+              const feedback = answerFeedback(stored, at);
+              return [String(at), feedback?.kind === "quiz" ? feedback.question : {}];
+            }),
+          );
+          return new Response(JSON.stringify({ ok: true, revealed }));
+        }
+        return new Response(JSON.stringify({ ok: true, contentVersion: 2, generationId: "g1" }));
+      }),
+    );
+    const sealed = studentSafePayload(stripAnswerKeyForActiveExam(publicNodePayload(stored, [], "quiz")));
+    render(
+      <ExamNodeSession
+        prepId="p"
+        nodeId="n"
+        kind="quiz"
+        prepTitle="KPSS Tarih"
+        topicLabel="Türk tarihi"
+        todayMood={null}
+        initialFamiliarity="basics"
+        resumeEnabled
+        initialResume={{ ok: true, resumed: true, attemptId: "a1", generationId: "g1", contentVersion: 1, payload: sealed, answers, cursorIndex: 0 }}
+      />,
+    );
+  }
+
+  it("soru kilitli ve eski sonucuyla gelir; ekran bunun önceki bir cevap olduğunu ve hangi şıkkın kilitli olduğunu söyler", async () => {
+    open({ "0": A, __locked: ["0"] });
+    await screen.findByText(/tarıma geçmesi/);
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 30));
+    });
+    const note = screen.getByTestId("answered-before");
+    expect(note.textContent).toContain("daha önceki bir çalışmanda cevapladın");
+    expect(note.textContent).toContain("A şıkkı");
+    expect(statesOf()).toEqual(["wrong", "right", "idle", "idle", "idle"]);
+    expect(optionButtons().every((button) => button.disabled)).toBe(true);
+    // B'ye dokunmak kilitli cevabı değiştirmez.
+    fireEvent.click(optionButtons()[1]!);
+    expect(statesOf()).toEqual(["wrong", "right", "idle", "idle", "idle"]);
+  });
+
+  it("bu oturumda kilitlenen soruda not yok", async () => {
+    open({});
+    await screen.findByText(/tarıma geçmesi/);
+    fireEvent.click(optionButtons()[1]!);
+    fireEvent.click(screen.getByRole("button", { name: "Kontrol et" }));
+    expect(screen.queryByTestId("answered-before")).toBeNull();
+  });
+});

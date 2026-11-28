@@ -14292,6 +14292,17 @@ a.cp-exam-search {
   scroll-margin-top: 16px;
   scroll-margin-bottom: 28px;
 }
+/* Önceki çalışmada kilitlenmiş soru (28 Kasım 2026, P0): eski sonuç "az önce seçtim" diye okunmasın. */
+.cp-quiz-answered-before {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--cp-border);
+  background: var(--c-surface-2);
+  color: var(--c-text);
+  font: var(--t-body-14);
+  line-height: 1.45;
+}
 /*
   İşlem Tahtası (28 Kasım 2026, telefon): ana düğme biçimiyle "Soru 1 / 10" sayacına yapışık ve yarı örtük
   görünüyordu. İkincil düğme: zayıf dolgu, ince çerçeve, gölge yok; sayaçtan 12 px ayrık, dokunma alanı 44 px.

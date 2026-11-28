@@ -38,6 +38,11 @@ function installFetch(table: CheckTable) {
     const url = String(input instanceof Request ? input.url : input);
     if (!url.includes("/api/learning/exam-prep/node")) return real(input, init);
     const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+    if (body.action === "answer-check" && Array.isArray(body.revealIndexes)) {
+      // Yenilenen/kaldığı yerden açılan sayfa: yalnız kilitli soruların anahtarı.
+      const revealed = Object.fromEntries((body.revealIndexes as number[]).map((at) => [String(at), table[at]?.feedback]));
+      return json({ ok: true, revealed });
+    }
     if (body.action === "answer-check") {
       window.__answerChecks!.push(body);
       const asked = Number(body.questionIndex);
@@ -55,7 +60,17 @@ function installFetch(table: CheckTable) {
   };
 }
 
-export function SikSecimiFixture({ payload, table, keys }: { payload: Record<string, unknown>; table: CheckTable; keys: string[] }) {
+export function SikSecimiFixture({
+  payload,
+  table,
+  keys,
+  answers,
+}: {
+  payload: Record<string, unknown>;
+  table: CheckTable;
+  keys: string[];
+  answers?: Record<string, unknown>;
+}) {
   // Ağ, oturum ekranı ilk kez çizilmeden kurulur.
   useState(() => {
     installFetch(table);
@@ -73,7 +88,7 @@ export function SikSecimiFixture({ payload, table, keys }: { payload: Record<str
         todayMood={null}
         initialFamiliarity="basics"
         resumeEnabled
-        initialResume={{ ok: true, resumed: true, attemptId: "fixture-attempt", generationId: "fixture-gen", contentVersion: 1, payload }}
+        initialResume={{ ok: true, resumed: true, attemptId: "fixture-attempt", generationId: "fixture-gen", contentVersion: 1, payload, ...(answers ? { answers, cursorIndex: 0 } : {}) }}
       />
     </ParitySorShell>
   );

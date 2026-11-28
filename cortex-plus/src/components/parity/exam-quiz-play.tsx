@@ -26,6 +26,7 @@ export function ExamQuizPlay({
   twin,
   twoOption,
   locked = false,
+  answeredBefore = false,
   plannedTotal,
   streakBefore = 0,
   usedHint = false,
@@ -56,6 +57,12 @@ export function ExamQuizPlay({
   twoOption?: (index: number) => ReactNode;
   /** Soru daha önce "Kontrol et" ile kilitlendi (sayfa yenilense de): açıklama açık, şık değişmez. */
   locked?: boolean;
+  /**
+   * Kilit bu oturumdan değil, daha önceki bir çalışmadan (kaldığı yerden açılan test). 28 Kasım 2026 (P0): canlıda
+   * 11 gün önce kilitlenmiş cevap, açılışta sonucuyla geldi; ekran bunu söylemediği için "B'yi seçtim, A kırmızı oldu"
+   * diye okundu. Şıkların üstünde not çıkar.
+   */
+  answeredBefore?: boolean;
   /** Akışla gelen testte sözü verilen soru sayısı: sayaç "1 / 4" ile başlayıp "2 / 5" olmasın. */
   plannedTotal?: number;
   /** Bu sorudan önce art arda doğru sayısı (7 Kasım 2026, koç katmanı): rozet ve koç cümlesi buna bakar. */
@@ -194,6 +201,11 @@ export function ExamQuizPlay({
       </h2>
       {/* kıyas ürünündeki gibi kökün hemen altında (17 Ekim 2026). */}
       {question.multi ? <p className="cp-quiz-multi-hint">Birden fazla yanıt seçebilirsin</p> : null}
+      {answeredBefore && revealed && !examMode && shownSelected.length ? (
+        <p className="cp-quiz-answered-before" role="note" data-testid="answered-before">
+          {answeredBeforeLine(shownSelected.map((option) => String.fromCharCode(65 + question.options.indexOf(option))))}
+        </p>
+      ) : null}
 
       <div ref={optionsRef} className="space-y-3" role={question.multi ? "group" : "radiogroup"}>
         {question.options.map((option, optionIndex) => {
@@ -380,6 +392,12 @@ export function ExamQuizPlay({
       </div>
     </div>
   );
+}
+
+/** Önceki çalışmada kilitlenmiş sorunun notu: cevabın hangi şık olduğu ve değiştirilemediği. */
+export function answeredBeforeLine(letters: string[]): string {
+  const choice = letters.length > 1 ? `${letters.join(", ")} şıkları` : `${letters[0]} şıkkı`;
+  return `Bu soruyu daha önceki bir çalışmanda cevapladın; kilitli cevabın ${choice}. Kilitli cevap değiştirilemez.`;
 }
 
 /** Öğeyi yalnız gerekirse görünür alana kaydırır; hareket azaltma açıksa sıçrayarak. */

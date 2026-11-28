@@ -477,6 +477,8 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
   const hintsUsedRef = useRef<Record<string, boolean>>({});
   /** Testte "Kontrol et" ile kilitlenen sorular: sonrasındaki eğitmen açıklaması ipucu değil. */
   const revealedRef = useRef<Set<string>>(new Set());
+  /** Açılışta (kayıttan) zaten kilitli gelen sorular: bu oturumda değil, daha önce cevaplanmış. */
+  const restoredLocksRef = useRef<Set<string>>(new Set());
   const startInFlight = useRef(false);
   const completeInFlight = useRef(false);
   const completeRequestIdRef = useRef<string | null>(null);
@@ -938,6 +940,10 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     }
     refreshUnsaved(nextAnswers);
     revealedRef.current = new Set(lockedKeys(nextAnswers));
+    // Önceki bir oturumda kilitlenmiş sorular (28 Kasım 2026, P0): kaldığı yerden açılan testte bu soru eski sonucuyla
+    // gelir; ekran bunun önceden verilmiş bir cevap olduğunu söyler (canlıda 11 gün önceki kilit "az önce B'yi seçtim,
+    // A kırmızı oldu" diye okundu).
+    restoredLocksRef.current = new Set(lockedKeys(nextAnswers));
     // Faz 2 (madde 7.3): paket anahtarsız gelir; yenilenen sayfada kilitli (D/Y'de cevaplanmış) soruların anahtarı
     // sunucudan geri alınır.
     if (data.attemptId && data.payload?.answerCheck === "server") {
@@ -2249,6 +2255,7 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     lessonPodcastAudioReady,
     setLessonPodcastAudioReady,
     revealedRef,
+    restoredLocksRef,
     lockAnswer,
     saveCursorRef,
     pendingSaves,
