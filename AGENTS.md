@@ -3268,3 +3268,26 @@ ekrandaki tek ana vurgu "Kontrol et").
 Bekçi: `sik-secimi-p0.test.tsx` (doğru şık A–E, düz ve karışık sıra; eski kodda 7 test düşer), e2e `sik-secimi.spec.ts`
 (gerçek oturum ekranı, gerçek sunucu işlevleriyle kurulan paket, 390×844 dokunmatik; fikstür `/e2e/sik-secimi`
 `?sira=duz|karisik`, `?ters=1`, `?uzun=1`, `?coklu=1`, `?onceki=1`).
+
+## Konu başı ve konu sonu (28 Kasım 2026) — dersin önsözü ve "Aklında Kalsın" kartı
+
+Ürün sahibi: "Sınav Sabahı Kağıdı genel tekrarın işini görüyor; ona rakip ikinci bir özet sayfası açma. Konu adımının
+başına ve sonuna akılda kalacak iki blok ekle." İkinci bir ekran açılmadı: yol dersinin mevcut **giriş kartı** önsöze,
+**özet adımı** kapanış kartına dönüştü. Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| Veri dersin kendisinden, **modelsiz** (`lessonBrief`): hedefler = dersin kavramları (ekran kavramı/başlığı, en çok 4, fazlası "ve N bölüm daha"), altında kavramın `lead` satırı; kilit kavramlar = havuz dersinin "Temel kavramlar" kutusu, yoksa anlatımda koyu yazılan terimler (tek, küçük harfli, çekimli sözcük ancak başka kavram yoksa); sınavda dikkat = ilk sınav tuzağının doğrusu, yoksa "Sınav ipucu", yoksa "Sık yapılan hata"; aklında kalsın = dersin özeti, eksikse "Akılda tut" kutuları ve kavramların ilk satırları (3-5). Satırlar sınav sabahı kâğıdıyla aynı kuralla tam biter (`fitCramText`) | `src/lib/learning/lesson-brief.ts` |
+| Hazır müfredat dersi de aynı işlevden geçer (`poolLessonV3`'ün biçimi: ekran = kazanım bölümü, "Temel kavramlar", özet); sunucuya ek alan ya da model çağrısı yok | — |
+| **Yalnız yol dersinde açık** (`brief` seçeneği, `exam-node/lesson.tsx`); tur, ders sayfası ve fikstürler eski giriş kartı ve özetle kalır | `exam-lesson-steps.tsx` |
+| Önsöz: üst şerit (konu adı, süre, "Anlatım: Başlangıç / Temel / İleri" — aşinalık kuşağından), "Bu derste ne öğreneceksin?" amber numaralı hedefler (01, 02…), "Kilit kavramlar" indigo kutucuklar, en çok bir "Sınavda dikkat" kutusu (kırmızı sol şerit), yapay zekâ notu; tek ana düğme **"Derse başla"**. Veri yetmezse (2'den az hedef ve 2'den az kavram) önsöz yok, ders doğrudan başlar | `LessonPreface` |
+| Önsöz **yalnız ilk açılışta** kendiliğinden; kaldığı yerden açılış, "Tekrar incele" ve "Dersi tekrarla" başlanmış sayılır (`startedBefore`), ders ilk bölümle başlar. Önsöz her an üst satırdaki ikincil **"Ders özeti"** düğmesiyle pencerede açılır (Esc ve "Derse dön" kapatır, odak düğmeye döner, pencere başından açılır, "Derse dön" yapışkan). "Farklı anlat" yeni derstir | `use-node-lifecycle.ts`, `exam-lesson-steps.tsx` |
+| Kapanış: başlık **"Bu Konudan Aklında Kalsın"**, zümrüt onaylı maddeler, altta ikincil bağlantı "Bütün hazırlığı tek sayfada tekrar etmek için: Sınav Sabahı Kağıdı" — **yeni sekmede** (ders bitmeden çıkılmasın), ücretsiz hesapta "Plus" rozeti (kapı kâğıdın kendi sayfasında). Ders yazılırken kart yalnız özet gelince | `LessonClosing` |
+| Renkler `--cx-*` belirteçlerinden (iki tema); kenarlıksız katmanlar, ikonlar SVG (lucide), emoji yok. Telefonda dokunma ≥ 44 px, taşma yok | `exam-lesson-steps.css` "Konu başı ve sonu" |
+
+Bulunan ayrı hata (işaretlendi, bu işte düzeltilmedi): `hasFalseArithmetic` "√(9 + 16) = 5" satırını yanlış işlem sayıyor
+(kökü görmüyor); kâğıt ve önsöz doğru satırı düşürüyor.
+
+Bekçi: `ders-onsoz-kapanis.test.tsx` (havuz ve not dersi, sınırlar, önsöz/pencere/kapanış, eski kullanım değişmez),
+e2e `ders-onsoz.spec.ts` (390×844 ve 1280 px: taşma yok, dokunma, ilk açılış, başlanmış ders, kapanış, hazır müfredat;
+ders/model ucuna istek yok; fikstür `/e2e/ders-onsoz` `?kaynak=havuz`, `?durum=baslanmis`, `?plan=ucretsiz`).

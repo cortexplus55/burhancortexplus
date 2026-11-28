@@ -1935,3 +1935,363 @@
   flex: none;
   white-space: nowrap;
 }
+
+/* ===== Konu başı ve sonu (28 Kasım 2026) =====
+   "Bu Derste Ne Öğreneceğiz?" önsözü ve "Bu Konudan Aklında Kalsın" kartı. Kart kartın içinde: kutular slaytın bir üst
+   basamağı (--cx-bg-2), kenarlık yok. Renk yalnız işarette: hedef numarası amber, kilit kavram indigo, sınavda dikkat
+   kırmızı şerit, kapanış onayı zümrüt. Tek ana eylem altta ("Derse başla"). */
+.als-preface {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.als-preface-strip {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.als .als-preface-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  font: var(--cx-t-meta-s, 500 0.75rem / 1.25 var(--font-mono));
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cx-text-tertiary);
+}
+
+.als-preface-kicker svg {
+  color: var(--cx-text-brand);
+}
+
+.als .als-preface-title {
+  margin: 0;
+  font-size: 1.625rem;
+  text-wrap: balance;
+}
+
+.als-preface-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.15rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.als-preface-badges li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2rem;
+  padding: 0 0.8rem;
+  border-radius: 9999px;
+  background: var(--cx-bg-2);
+  color: var(--cx-text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.als .als-preface-sub {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--cx-text-primary);
+}
+
+.als-preface-goals .als-preface-sub svg {
+  color: var(--cx-text-highlight);
+}
+
+.als-preface-concepts .als-preface-sub svg {
+  color: var(--cx-text-brand);
+}
+
+.als-preface-goals ol {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Çift sayıda hedef geniş ekranda iki sütun (tek kalan kutu satırda yalnız durmasın). */
+@media (min-width: 720px) {
+  .als-preface-goals ol:has(> li:nth-child(2):last-child),
+  .als-preface-goals ol:has(> li:nth-child(4):last-child) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.als-preface-goals li {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr);
+  align-items: start;
+  gap: 0.85rem;
+  padding: 0.85rem 1rem;
+  border-radius: 1rem;
+  background: var(--cx-bg-2);
+}
+
+.als-goal-num {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.75rem;
+  background: var(--cx-highlight-weak);
+  color: var(--cx-text-highlight);
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.als-preface-goals li > div {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+  padding-top: 0.1rem;
+}
+
+.als-preface-goals strong {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--cx-text-primary);
+  overflow-wrap: anywhere;
+}
+
+.als-preface-goals small {
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--cx-text-secondary);
+}
+
+.als .als-preface-more {
+  margin: 0.6rem 0 0;
+  font-size: 0.875rem;
+  color: var(--cx-text-tertiary);
+}
+
+.als-preface-concepts ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.als-preface-concepts li {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.5rem;
+  max-width: 100%;
+  padding: 0.4rem 0.95rem;
+  border-radius: 0.75rem;
+  background: var(--cx-brand-weak);
+  color: var(--cx-text-brand);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.als-preface-caution {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.9rem 1rem 0.9rem 1.1rem;
+  border-radius: 1rem;
+  border-left: 3px solid var(--cx-danger);
+  background: color-mix(in srgb, var(--cx-danger) 9%, var(--cx-bg-2));
+  color: var(--cx-text-reading);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.als .als-preface-caution-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--cx-danger);
+}
+
+.als-preface-caution strong {
+  font-weight: 600;
+  color: var(--cx-text-primary);
+}
+
+.als-preface .als-intro-legend,
+.als-preface .als-ai-notice {
+  margin: 0;
+}
+
+/* "Ders özeti": başlanmış derste önsözü yeniden açar; ikincil, zayıf dolgu. */
+.als-brief-reopen {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.5rem;
+  padding: 0 0.95rem;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--cx-bg-2);
+  color: var(--cx-text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.16s ease, background-color 0.16s ease;
+}
+
+.als-brief-reopen:hover,
+.als-brief-reopen:focus-visible {
+  color: var(--cx-text-primary);
+  background: var(--cx-bg-3);
+}
+
+.als-toolbar:has(.als-brief-reopen) {
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.als-dialog.als-dialog--brief {
+  width: min(100%, 36rem);
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  display: grid;
+  gap: 1.25rem;
+  padding: 1.35rem 1.25rem 1.1rem;
+  border: 0;
+  border-radius: 1.5rem;
+  background: var(--cx-bg-1);
+  overscroll-behavior: contain;
+}
+
+.als-dialog--brief .als-preface-title {
+  font-size: 1.375rem;
+}
+
+/* "Derse dön" uzun pencerede de görünür kalır. */
+.als-dialog--brief .als-cta {
+  position: sticky;
+  bottom: 0;
+  margin-top: 0;
+  box-shadow: 0 -12px 20px var(--cx-bg-1);
+}
+
+/* Önsöz kartı ile "Derse başla" arasında nefes. */
+.als-slide:has(.als-preface) {
+  margin-bottom: 1rem;
+}
+
+/* "Bu Konudan Aklında Kalsın": zümrüt onaylı maddeler. */
+.als-closing {
+  display: grid;
+  gap: 0.6rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.als-closing li {
+  display: grid;
+  grid-template-columns: 1.5rem minmax(0, 1fr);
+  align-items: start;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--cx-success) 8%, var(--cx-bg-2));
+  color: var(--cx-text-reading);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.als-closing-icon {
+  width: 1.375rem;
+  height: 1.375rem;
+  margin-top: 0.05rem;
+  color: var(--cx-success);
+}
+
+.als-closing li > :not(svg) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.als-closing-cram {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 2.75rem;
+  margin-top: 1rem;
+  padding: 0.6rem 1rem;
+  border-radius: 1rem;
+  background: var(--cx-bg-2);
+  color: var(--cx-text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.4;
+  text-decoration: none;
+  transition: color 0.16s ease, background-color 0.16s ease;
+}
+
+.als-closing-cram svg {
+  flex: none;
+  color: var(--cx-text-brand);
+}
+
+.als-closing-cram > span:first-of-type {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.als-closing-cram strong {
+  font-weight: 600;
+  color: var(--cx-text-primary);
+}
+
+.als-closing-cram:hover,
+.als-closing-cram:focus-visible {
+  color: var(--cx-text-primary);
+  background: var(--cx-bg-3);
+}
+
+.als-closing-plus {
+  flex: none;
+  padding: 0.15rem 0.55rem;
+  border-radius: 9999px;
+  background: var(--cx-highlight-weak);
+  color: var(--cx-text-highlight);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+@media (max-width: 640px) {
+  .als .als-preface-title {
+    font-size: 1.375rem;
+  }
+
+  .als-brief-reopen {
+    min-height: 2.75rem;
+  }
+
+  .als-preface-goals li,
+  .als-closing li {
+    padding: 0.8rem 0.85rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .als-brief-reopen,
+  .als-closing-cram {
+    transition: none;
+  }
+}

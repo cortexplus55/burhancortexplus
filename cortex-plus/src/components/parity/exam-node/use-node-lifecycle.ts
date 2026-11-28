@@ -330,6 +330,11 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
   >(resumeEnabled && openAttempt ? "restoring" : reviewSaved || opensReadiness || autoOpenLesson ? "setup" : isOral ? "oral-topics" : signalStage);
   // Doğrudan açılış sürerken kurulum kartı çizilmez (önizleme/ilerleme görünür); başlatma düşerse kart geri gelir.
   const [autoOpening, setAutoOpening] = useState(Boolean(autoOpenLesson && !(resumeEnabled && openAttempt)));
+  /**
+   * Bu etkinlik daha önce başlanmış mı (28 Kasım 2026, dersin önsözü): kaldığı yerden açılış, "Tekrar incele" ve
+   * "Dersi tekrarla". Önsöz ("Bu Derste Ne Öğreneceğiz?") yalnız ilk açılışta kendiliğinden gelir.
+   */
+  const [startedBefore, setStartedBefore] = useState(Boolean(reviewSaved || (kind === "lesson" && replayLesson)));
   // Doğrudan açılışın ilk ekranı: sunucunun önizlemesi, yoksa yol sayfasının belleğe yazdığı ilk ekran.
   const [instantLesson, setInstantLesson] = useState<LessonPreview | null>(initialLessonPreview);
   useEffect(() => {
@@ -589,6 +594,7 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
         if (cancelled) return;
         if (res.ok && data.resumed && data.attemptId && data.payload) {
           applyStartPayload(data);
+          setStartedBefore(true);
           setPlayStartedAt(Date.now());
           setStage("play");
           reportNodeOpen(kind, serverRenderMs, Boolean(initialResume));
@@ -1211,6 +1217,9 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
   }) {
     if (startInFlight.current || loading) return;
     startInFlight.current = true;
+    // Kayıtlı içeriğin yeniden açılışı daha önce başlanmış sayılır (önsöz kendiliğinden gelmez); "Farklı anlat" yeni derstir.
+    if (overrides?.review || overrides?.replay) setStartedBefore(true);
+    else if (overrides?.rewrite) setStartedBefore(false);
     const clickedAt = overrides?.busyTries || overrides?.autoRetried || overrides?.sharedTries ? null : performance.now();
     setGenerationFailure(null);
     setLoading(true);
@@ -2152,6 +2161,7 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     topicId,
     todayMood,
     reviewSaved,
+    startedBefore,
     rewriteHref,
     rewriteLesson: rewriteMode,
     beginRewrite,
