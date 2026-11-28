@@ -6,7 +6,9 @@ import { LESSON_WAIT_LIMIT_MS, showsWaitStep } from "./lesson-wait";
 import { Fragment, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { nearDuplicateSentence, sentenceCoveredBy } from "@/lib/text/turkish";
-import { Check, ChevronLeft, CornerDownLeft, Info, Star, X } from "lucide-react";
+import { Check, ChevronLeft, CircleCheck, Clock, CornerDownLeft, FileText, Gauge, Info, KeyRound, ListChecks, Star, Target, TriangleAlert, X } from "lucide-react";
+import { BRIEF_COPY, briefHasClosing, briefHasPreface, lessonBrief, type LessonBrief } from "@/lib/learning/lesson-brief";
+import { ExternalAnchor } from "@/components/ui/external-anchor";
 import { honestReadingMinutes } from "@/lib/learning/lesson-coherence";
 import { activityDurationMinutes, lessonStepCounter, type LessonStepCounter } from "@/lib/learning/activity-duration";
 import { LessonSpark } from "@/components/learning/coach-chrome";
@@ -471,7 +473,7 @@ type Step =
     }
   | { kind: "recall"; heading: string; prompt: string; solution: string }
   | { kind: "mistake"; heading: string; claim: string; correction: string }
-  | { kind: "summary"; heading: string; points: string[]; next: string[] }
+  | { kind: "summary"; heading: string; points: string[]; next: string[]; /** "Bu Konudan Aklında Kalsın" kartı. */ closing?: boolean }
   | { kind: "review-gate"; count: number; distinct: boolean }
   /** Parça parça açılan derste sıradaki kavram henüz denetimden çıkmadı. */
   | { kind: "building"; heading: string }
@@ -499,7 +501,15 @@ function bodyHasRemovalNote(text: string): boolean {
   return /Doğrulanamayan cümleler çıkarıldı/i.test(text);
 }
 
-function buildSteps(lesson: PlayLessonV3, view: LessonV2, building = false): Step[] {
+/** Konu başı ve sonu (28 Kasım 2026): yalnız yol dersinde açık; öbür kullanımlar eski giriş kartı ve özetle kalır. */
+type BriefStepOptions = {
+  /** Önsöz var. `auto`: ilk adım; değilse ders doğrudan başlar, önsöz "Ders özeti" ile açılır. */
+  preface?: { auto: boolean } | null;
+  /** "Bu Konudan Aklında Kalsın" maddeleri (yoksa eski özet). */
+  closing?: string[] | null;
+};
+
+function buildSteps(lesson: PlayLessonV3, view: LessonV2, building = false, brief: BriefStepOptions = {}): Step[] {
   const steps: Step[] = [];
   const overview = (lesson.overview ?? "").trim();
   const firstBody = lesson.screens[0] ? screenText(lesson.screens[0]) : "";
@@ -509,7 +519,10 @@ function buildSteps(lesson: PlayLessonV3, view: LessonV2, building = false): Ste
   // kanca cümlesi boş kalır, kart yine gösterilir.
   const hook = overview && !overviewDuplicatesSection(overview, firstBody) ? overview : "";
   // Ders yazılırken giriş kartı hep var: sonradan eklenip adımları kaydırmasın.
-  if (hook || groups.length >= 2 || building) {
+  if (brief.preface) {
+    // Önsöz kendi verisiyle çizilir; başlanmış derste adım listesinde yer almaz ("Ders özeti" penceresi).
+    if (brief.preface.auto) steps.push({ kind: "overview", heading: lesson.title, body: hook });
+  } else if (hook || groups.length >= 2 || building) {
     steps.push({ kind: "overview", heading: lesson.title, body: hook });
   }
   steps.push(
@@ -642,7 +655,9 @@ function buildSteps(lesson: PlayLessonV3, view: LessonV2, building = false): Ste
       }
     }
   }
-  if ((lesson.summary?.length ?? 0) > 0 || (lesson.nextFocus?.length ?? 0) > 0) {
+  if (brief.closing?.length) {
+    steps.push({ kind: "summary", heading: BRIEF_COPY.closingTitle, points: brief.closing, next: lesson.nextFocus ?? [], closing: true });
+  } else if ((lesson.summary?.length ?? 0) > 0 || (lesson.nextFocus?.length ?? 0) > 0) {
     steps.push({
       kind: "summary",
       heading: lesson.summary?.length ? "Özet" : "Sırada ne var",
@@ -774,6 +789,160 @@ function progressLabel(
   return counter.label;
 }
 
+/** Yol dersinin önsöz ve kapanış ayarı (`lesson.tsx` verir). */
+export type LessonBriefOptions = {
+  /** true: önsöz ilk ekran. false: ders daha önce başlanmış; önsöz yalnız "Ders özeti" ile açılır. */
+  autoOpen: boolean;
+  /** Etkin anlatım düzeyi ("Temel"); yoksa rozet çizilmez. */
+  levelLabel?: string | null;
+  /** Sınav Sabahı Kağıdı adresi (bütün hazırlığın tekrarı); yoksa kapanışta bağlantı yok. */
+  cramHref?: string | null;
+  /** Kâğıt bu hesapta Plus'ta (bağlantıda rozet; kapı kâğıdın sayfasında). */
+  cramLocked?: boolean;
+};
+
+/**
+ * "Bu Derste Ne Öğreneceğiz?" (28 Kasım 2026): üst şerit (konu, süre, anlatım düzeyi), numaralı hedefler, kilit
+ * kavramlar, varsa tek "Sınavda dikkat" kutusu. Veri dersin kendisinden (`lessonBrief`), model çağrısı yok.
+ */
+function LessonPreface({
+  title,
+  brief,
+  minutes,
+  levelLabel,
+  examMarks,
+  headingId,
+  headingLevel = 1,
+}: {
+  title: string;
+  brief: LessonBrief;
+  minutes: number | null;
+  levelLabel?: string | null;
+  examMarks: boolean;
+  headingId: string;
+  headingLevel?: 1 | 2;
+}) {
+  const Heading = headingLevel === 1 ? "h1" : "h2";
+  return (
+    <section className="als-preface" aria-labelledby={headingId}>
+      <header className="als-preface-strip">
+        <p className="als-preface-kicker">
+          <ListChecks className="h-4 w-4" aria-hidden />
+          {BRIEF_COPY.prefaceTitle}
+        </p>
+        <Heading id={headingId} className="als-heading als-preface-title">
+          {title}
+        </Heading>
+        <ul className="als-preface-badges" aria-label="Ders bilgisi">
+          <li>
+            <Clock className="h-3.5 w-3.5" aria-hidden />
+            {minutes == null ? "Hazırlanıyor" : `~${minutes} dk`}
+          </li>
+          {levelLabel ? (
+            <li>
+              <Gauge className="h-3.5 w-3.5" aria-hidden />
+              Anlatım: {levelLabel}
+            </li>
+          ) : null}
+        </ul>
+      </header>
+      {brief.goals.length >= 2 ? (
+        <section className="als-preface-goals" aria-label={BRIEF_COPY.goalsTitle}>
+          <h2 className="als-preface-sub">
+            <Target className="h-4 w-4" aria-hidden />
+            {BRIEF_COPY.goalsTitle}
+          </h2>
+          <ol>
+            {brief.goals.map((goal, index) => (
+              <li key={goal.title}>
+                <span className="als-goal-num" aria-hidden>
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <div>
+                  <strong>{goal.title}</strong>
+                  {goal.detail ? (
+                    <small>
+                      <RichBody text={goal.detail} />
+                    </small>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ol>
+          {brief.moreGoals ? <p className="als-preface-more">ve {brief.moreGoals} bölüm daha</p> : null}
+        </section>
+      ) : null}
+      {brief.concepts.length >= 2 ? (
+        <section className="als-preface-concepts" aria-label={BRIEF_COPY.conceptsTitle}>
+          <h2 className="als-preface-sub">
+            <KeyRound className="h-4 w-4" aria-hidden />
+            {BRIEF_COPY.conceptsTitle}
+          </h2>
+          <ul>
+            {brief.concepts.map((term) => (
+              <li key={term}>{term}</li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+      {brief.caution ? (
+        <aside className="als-preface-caution" aria-label={BRIEF_COPY.cautionTitle}>
+          <p className="als-preface-caution-label">
+            <TriangleAlert className="h-4 w-4" aria-hidden />
+            {BRIEF_COPY.cautionTitle}
+          </p>
+          {brief.caution.title ? <strong>{brief.caution.title}</strong> : null}
+          <RichBody text={brief.caution.text} />
+        </aside>
+      ) : null}
+      {examMarks ? (
+        <p className="als-intro-legend">
+          <mark className="als-exam">Turuncu</mark>: konunun kilit bilgisi.
+        </p>
+      ) : null}
+      <AiNotice kind="lesson" className="als-ai-notice" />
+    </section>
+  );
+}
+
+/** "Bu Konudan Aklında Kalsın": 3-5 madde, zümrüt onaylı; bütün hazırlığın tekrarı için Sınav Sabahı Kağıdı bağlantısı. */
+function LessonClosing({
+  points,
+  cramHref,
+  cramLocked,
+  topicHint,
+}: {
+  points: string[];
+  cramHref?: string | null;
+  cramLocked?: boolean;
+  topicHint: string;
+}) {
+  return (
+    <>
+      <ul className="als-closing" aria-label={BRIEF_COPY.closingTitle}>
+        {points.map((point) => (
+          <li key={point}>
+            <CircleCheck className="als-closing-icon" aria-hidden />
+            <RichBody text={point} topicHint={topicHint} />
+          </li>
+        ))}
+      </ul>
+      {cramHref ? (
+        <ExternalAnchor href={cramHref} className="als-closing-cram">
+          <FileText className="h-4 w-4" aria-hidden />
+          <span>
+            {BRIEF_COPY.cramLead}: <strong>{CRAM_SHEET_NAME_TITLE}</strong>
+          </span>
+          {cramLocked ? <span className="als-closing-plus">Plus</span> : null}
+        </ExternalAnchor>
+      ) : null}
+    </>
+  );
+}
+
+/** Bağlantıdaki ad: kâğıdın kendi adı (sayfa başlığıyla aynı aile; "Sınav Sabahı Kağıdı"). */
+const CRAM_SHEET_NAME_TITLE = "Sınav Sabahı Kağıdı";
+
 export function ExamLessonSteps({
   lesson,
   building = false,
@@ -791,8 +960,14 @@ export function ExamLessonSteps({
   sourceDocs = [],
   noteWarnings = [],
   sourceCorrection = null,
+  brief = null,
 }: {
   lesson: PlayLesson;
+  /**
+   * Konu başı "Bu Derste Ne Öğreneceğiz?" ve konu sonu "Bu Konudan Aklında Kalsın" (28 Kasım 2026). Verilmezse
+   * eski giriş kartı ve özet çizilir (tur, ders sayfası, fikstürler).
+   */
+  brief?: LessonBriefOptions | null;
   /** Kaynak düzeltme uyarısı (Faz 1-A §2.1): ilk adımda kart. Yoksa çizilmez. */
   sourceCorrection?: SourceCorrectionWarning | null;
   /**
@@ -849,7 +1024,31 @@ export function ExamLessonSteps({
   const play = useMemo(() => toPlayV3(lesson), [lesson]);
   /** V2 görünümü: tekrar soruları, okuma süresi ve eski yardımcılar bunu okur (ekran i = bölüm i). */
   const view = useMemo(() => v3ToV2(play as LessonV3), [play]);
-  const base = useMemo(() => buildSteps(play, view, building), [play, view, building]);
+  // Konu başı ve sonu (28 Kasım 2026): dersin kendi verisinden; yazım sürerken gelecek kavramların adı hedef olur.
+  const briefOn = Boolean(brief);
+  const briefAuto = brief?.autoOpen ?? false;
+  const briefData = useMemo((): LessonBrief | null => {
+    if (!briefOn) return null;
+    const data = lessonBrief(play as Parameters<typeof lessonBrief>[0]);
+    if (!building || data.goals.length >= 4) return data;
+    const known = new Set(data.goals.map((goal) => goal.title.toLocaleLowerCase("tr")));
+    const extra = upcoming
+      .filter((name) => name.trim() && !known.has(name.trim().toLocaleLowerCase("tr")))
+      .map((name) => ({ title: name.trim(), detail: null }));
+    return { ...data, goals: [...data.goals, ...extra].slice(0, 4) };
+  }, [briefOn, play, building, upcoming]);
+  const prefaceOn = Boolean(briefData && briefHasPreface(briefData));
+  // Kapanış kartı yalnız ders yazılınca (özet sonda gelir): yazım sürerken kart bekleme kartının önüne düşmesin.
+  const closingPoints =
+    briefData && briefHasClosing(briefData) && (!building || (play.summary?.length ?? 0) > 0) ? briefData.remember : null;
+  const base = useMemo(
+    () =>
+      buildSteps(play, view, building, {
+        preface: prefaceOn ? { auto: briefAuto } : null,
+        closing: closingPoints,
+      }),
+    [play, view, building, prefaceOn, briefAuto, closingPoints],
+  );
   // Şekil kartının yeri (29 Ekim 2026, Paket H): adımın sayfası değil konunun şekil sayfaları.
   // Kart, şekil ekindeki değeri ya da etiketi anan ekranda ve ders başına sayfa başına bir kez.
   const figurePlan = useMemo(
@@ -920,7 +1119,8 @@ export function ExamLessonSteps({
   const [recallDraft, setRecallDraft] = useState("");
   const [grading, setGrading] = useState(false);
   const [advancing, setAdvancing] = useState(false);
-  const [spark, setSpark] = useState<{ text: string | null; token: number }>({ text: null, token: 0 });
+  // Kıvılcım girilen adıma bağlı: o adımın başında durur, geri dönülünce görünmez.
+  const [spark, setSpark] = useState<{ text: string | null; token: number; forIndex: number }>({ text: null, token: 0, forIndex: -1 });
   const [gradeResult, setGradeResult] = useState<GradeCheckResult | null>(null);
   /** Yanlış cevaplanan bölümlerin sırası — tekrar kuyruğunu bunlar doğurur. */
   const [missed, setMissed] = useState<number[]>([]);
@@ -930,6 +1130,11 @@ export function ExamLessonSteps({
   const [serverRetries, setServerRetries] = useState<Record<string, PublicSectionCheck>>({});
   const [ungradable, setUngradable] = useState(false);
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
+  // "Ders özeti" penceresi: önsöz derste her an yeniden açılır (28 Kasım 2026).
+  const [briefOpen, setBriefOpen] = useState(false);
+  const briefDialogRef = useRef<HTMLDivElement | null>(null);
+  const briefHeadingId = useId();
+  const briefDialogHeadingId = useId();
   const closeDialogRef = useRef<HTMLDivElement | null>(null);
   const mathTopicHint = play.title ?? "";
   const reduceMotion = useReducedMotion();
@@ -1081,7 +1286,7 @@ export function ExamLessonSteps({
       hadFormula: blocks.some((block) => block.type === "formula"),
       enteringLast: nextIndex === steps.length - 1 && steps.length > 1,
     });
-    if (text) setSpark((previous) => ({ text, token: previous.token + 1 }));
+    if (text) setSpark((previous) => ({ text, token: previous.token + 1, forIndex: nextIndex }));
   }
 
   async function next() {
@@ -1146,6 +1351,25 @@ export function ExamLessonSteps({
       previous?.focus?.();
     };
   }, [closeConfirmOpen]);
+
+  // "Ders özeti" penceresi: Esc kapatır, açılınca "Derse dön"e odaklanır, kapanınca odak düğmeye döner.
+  useEffect(() => {
+    if (!briefOpen) return;
+    const previous = document.activeElement as HTMLElement | null;
+    // Kaydırmadan odaklan: telefonda pencere en alta kayıp başlığı gizlemesin.
+    briefDialogRef.current?.querySelector<HTMLElement>("button.als-cta")?.focus({ preventScroll: true });
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setBriefOpen(false);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      previous?.focus?.();
+    };
+  }, [briefOpen]);
 
   function markMissed(sectionIndex: number) {
     if (sectionIndex < 0 || missed.includes(sectionIndex)) return;
@@ -1270,6 +1494,9 @@ export function ExamLessonSteps({
     Math.max(0, steps.length - base.length - 1),
   );
 
+  const stepSpark = spark.forIndex === index ? spark.text : null;
+  const toolbarShown = Boolean(toolbar || (sourcePreview && !figureSource) || (prefaceOn && step.kind !== "overview"));
+
   return (
     <article className="als" ref={rootRef}>
       <header className="als-top" ref={topRef}>
@@ -1319,10 +1546,15 @@ export function ExamLessonSteps({
           </p>
         </div>
         {closeControl ?? <span className="als-icon als-icon--ghost" aria-hidden />}
-        <LessonSpark text={spark.text} token={spark.token} />
       </header>
-      {toolbar || (sourcePreview && !figureSource) ? (
+      {toolbarShown ? (
         <div className="als-toolbar">
+          {prefaceOn && step.kind !== "overview" ? (
+            <button type="button" className="als-brief-reopen" onClick={() => setBriefOpen(true)} aria-haspopup="dialog">
+              <ListChecks className="h-4 w-4" aria-hidden />
+              {BRIEF_COPY.reopen}
+            </button>
+          ) : null}
           {toolbar}
           {sourcePreview && !figureSource ? (
             <SourcePageButton
@@ -1334,6 +1566,8 @@ export function ExamLessonSteps({
           ) : null}
         </div>
       ) : null}
+      {/* Adım kıvılcımı düğme satırıyla başlığın arasında kendi yerinde: hiçbir düğmenin ya da başlığın üstüne binmez. */}
+      <LessonSpark text={stepSpark} token={spark.token} />
       {figureSource ? (
         <SourceFigureCard
           documentId={figureSource.documentId}
@@ -1341,6 +1575,37 @@ export function ExamLessonSteps({
           fileName={figureSource.fileName}
           hints={figureHintsFor(figureSource, sourceDocs)}
         />
+      ) : null}
+
+      {briefOpen && briefData ? (
+        <div className="als-dialog-backdrop als-dialog-backdrop--brief" role="presentation" onClick={() => setBriefOpen(false)}>
+          <div
+            ref={briefDialogRef}
+            className="als-dialog als-dialog--brief"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={briefDialogHeadingId}
+            onClick={(event) => event.stopPropagation()}
+          >
+            {/* Kayan alan ile düğme şeridi ayrı: metin "Derse dön"ün altından ya da arkasından görünmez. */}
+            <div className="als-dialog-body">
+              <LessonPreface
+                title={play.title}
+                brief={briefData}
+                minutes={readingMinutes}
+                levelLabel={brief?.levelLabel}
+                examMarks={lessonHasExamMarks(play)}
+                headingId={briefDialogHeadingId}
+                headingLevel={2}
+              />
+            </div>
+            <div className="als-dialog-foot">
+              <button type="button" className="als-cta" onClick={() => setBriefOpen(false)}>
+                {BRIEF_COPY.backToLesson}
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
 
       {closeConfirmOpen ? (
@@ -1419,7 +1684,7 @@ export function ExamLessonSteps({
 
       {step.kind !== "review-gate" && step.kind !== "building" ? (
         <div className={step.kind === "overview" || step.kind === "section" ? "als-slide" : undefined}>
-          {step.kind === "overview" ? (
+          {step.kind === "overview" && !prefaceOn ? (
             <p className="als-intro-meta">
               <span className="als-intro-tag">Ders</span>
               {/* Süre ana yazım bitince, adım sayısı yalnız mühürlü derste (ekler ekran ekleyebilir). */}
@@ -1435,12 +1700,25 @@ export function ExamLessonSteps({
               {step.part.concept} · {step.part.index}/{step.part.total}
             </p>
           ) : null}
-          <h1 className="als-heading">{step.heading}</h1>
+          {step.kind === "overview" && prefaceOn && briefData ? (
+            <LessonPreface
+              title={step.heading}
+              brief={briefData}
+              minutes={readingMinutes}
+              levelLabel={brief?.levelLabel}
+              examMarks={lessonHasExamMarks(play)}
+              headingId={briefHeadingId}
+            />
+          ) : (
+            <h1 className="als-heading">{step.heading}</h1>
+          )}
+          {/* Başlanmış derste önsöz adım değil: yapay zekâ notu ilk adımda kalır (mağaza uyumluluğu). */}
+          {index === 0 && prefaceOn && !briefAuto ? <AiNotice kind="lesson" className="als-ai-notice" /> : null}
 
           {index === 0 && sourceCorrection ? <SourceCorrectionCard warning={sourceCorrection} /> : null}
           {index === 0 && shownNoteWarnings.length ? <NoteWarnings warnings={shownNoteWarnings} /> : null}
 
-          {step.kind === "overview" ? (
+          {step.kind === "overview" && !prefaceOn ? (
             <>
               {step.body ? <BoardBody text={step.body} topicHint={mathTopicHint} /> : null}
               <LessonPlan lesson={play} upcoming={upcoming} building={building} />
@@ -1580,7 +1858,9 @@ export function ExamLessonSteps({
 
           {step.kind === "summary" ? (
             <>
-              {step.points.length ? (
+              {step.closing ? (
+                <LessonClosing points={step.points} cramHref={brief?.cramHref} cramLocked={brief?.cramLocked} topicHint={mathTopicHint} />
+              ) : step.points.length ? (
                 <ul className="als-list">
                   {step.points.map((point) => (
                     <li key={point}>
@@ -1862,7 +2142,15 @@ export function ExamLessonSteps({
         </div>
       ) : mustAnswer || step.kind === "building" ? null : (
         <button type="button" className="als-cta" onClick={next} disabled={advancing} aria-busy={advancing}>
-          {advancing ? "Kaydediliyor…" : step.kind === "review-gate" ? "Başla" : last ? "Dersi bitir" : "Devam et"}
+          {advancing
+            ? "Kaydediliyor…"
+            : step.kind === "review-gate"
+              ? "Başla"
+              : step.kind === "overview" && prefaceOn
+                ? BRIEF_COPY.start
+                : last
+                  ? "Dersi bitir"
+                  : "Devam et"}
           {!advancing ? <CornerDownLeft className="h-4 w-4" aria-hidden /> : null}
         </button>
       )}

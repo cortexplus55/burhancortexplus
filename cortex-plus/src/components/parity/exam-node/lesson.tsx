@@ -7,10 +7,15 @@ import type { LessonCheckAnswer } from "@/lib/learning/lesson-play";
 import { NodeSources } from "@/components/parity/node-sources";
 import { readNoteWarnings } from "@/lib/learning/formula-typos";
 import { readSourceCorrectionWarning } from "@/lib/learning/source-correction";
+import { examPrepCramSheetHref } from "@/lib/learning/cram-sheet";
+import { lessonLevelLabel } from "@/lib/learning/lesson-brief";
+import { useStudentShellAccount } from "@/lib/student/student-shell-context";
 import type { NodeLifecycle } from "./use-node-lifecycle";
 
 export function LessonPlay({ life }: { life: NodeLifecycle }) {
-  const { prepId, language, sources, activityMinutes, router, stage, loading, payload, attemptId, finish, structuredLesson, lessonBuilding, gradeLessonCheck, reexplainStep, reexplainBadge } = life;
+  const { prepId, language, sources, activityMinutes, router, stage, loading, payload, attemptId, finish, structuredLesson, lessonBuilding, gradeLessonCheck, reexplainStep, reexplainBadge, familiarity, startedBefore } = life;
+  // Sınav Sabahı Kağıdı ücretsiz hesapta Plus'ta (kapı kâğıdın sayfasında); bağlantı yalnız rozet taşır.
+  const cramLocked = useStudentShellAccount()?.showsUpgradeChrome === true;
   return (
     <>
       {stage === "play" && payload.type === "lesson" ? (
@@ -53,6 +58,13 @@ export function LessonPlay({ life }: { life: NodeLifecycle }) {
             onClose={() => router.push(`/deneme-sinavlari/${prepId}`)}
             toolbar={sources.length ? <NodeSources sources={sources} /> : null}
             sourceDocs={sources}
+            // Konu başı ve sonu (28 Kasım 2026): önsöz yalnız ilk açılışta kendiliğinden; başlanmış derste "Ders özeti".
+            brief={{
+              autoOpen: !startedBefore,
+              levelLabel: lessonLevelLabel(familiarity),
+              cramHref: examPrepCramSheetHref(prepId),
+              cramLocked,
+            }}
           />
           </>
         ) : (
