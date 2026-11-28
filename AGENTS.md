@@ -3306,3 +3306,32 @@ düşürüyordu. Artık √ ∛ ∜ hesaplanıyor; katsayılı kök ("2√3") ya
 Bekçi: `ders-onsoz-kapanis.test.tsx` (havuz ve not dersi, sınırlar, önsöz/pencere/kapanış, eski kullanım değişmez),
 e2e `ders-onsoz.spec.ts` (390×844 ve 1280 px: taşma yok, dokunma, ilk açılış, başlanmış ders, kapanış, hazır müfredat;
 "Ders özeti" penceresinde not düğmenin üstünde biter, telefonda pencere tam ekran; kıvılcım düğmeyle başlığın arasında ve 3 sn sonra da yerinde; ders/model ucuna istek yok; fikstür `/e2e/ders-onsoz` `?kaynak=havuz`, `?durum=baslanmis`, `?plan=ucretsiz`).
+
+## Canlı Defter Modu (28 Kasım 2026) — anlatım ve kapanış kelime kelime, fosforlu kalem, Gece / Defter
+
+Ürün sahibinin istemi: ders ve özet ekranı öğrencinin aklında kalacak kadar şık, ekran kaydında ilk bakışta pürüzsüz olsun;
+sıfır model/API çağrısı, veritabanı değişikliği yok, rastgele görsel/SVG çizimi yok. Yalnız yol dersinde (`live` seçeneği,
+`exam-node/lesson.tsx`); tur, ders sayfası ve fikstürler bugünkü gibi. Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| **Ham metin kelimeye bölünmez.** `RichBody` önce kendi ayrıştırıcısıyla (`splitMath` → formül, `studentTextParts` → kalın ve "==kilit==") parçalar; `LiveWords` bağlamı açıksa yalnız düz metin parçası kelimelere ayrılır (`.lw`, boşluk kelimenin sonunda). Formül (`.lw-atom`), kalın terim ve kilit bilgi (`.lw-hl`) tek parça; ham "$" hiçbir an görünmez. Bağlam kapalıyken çıktı bugünkü DOM'un aynısı | `lesson-rich-text.tsx`, `live-words.tsx`, `live-writing.ts` (`splitLiveWords`) |
+| Kelime bağlamı yalnız anlatım metninde (`BoardBody` metin blokları) ve kapanış/özet maddelerinde. Kutular (formül kartı, not, tuzak, çivi, tablo, soru) tek parça açılır | `LessonBlocks live`, `LessonClosing live` |
+| **Motor React'e dokunmaz:** adımın kapsamını (`.als-step-content`) DOM sırasıyla tarar (`collectLiveUnits`), kelimesi olmayan kutuyu `lw lw-block` yapar, açılan parçaya `is-in` ekler. Başlık ve etiketler (`.als-heading`, `.als-kicker`, `.als-part`) birim değil, hep görünür; `display: contents` sarmalayıcının (kart satırı) içine girilir. Açılmamış parça `visibility: hidden` ama yerini kaplar: sayfa yazım boyunca kaymaz | `live-engine.ts` |
+| Bedel: kelime 1, formül/vurgu 2, kutu 4. Hız saniyede en az 14 birim; uzun adım en çok 10 sn (`liveRate`), 2× iki katı (yazım sürerken de geçer) | `live-writing.ts` |
+| **Kendiliğinden yazım yalnız ilk girişte:** yazılabilir adım (anlatım ya da kapanış), dersin ilk açılışı (`autoplay: !startedBefore`; kaldığı yer, Tekrar incele, Dersi tekrarla tam açık), adıma bu oturumda ilk giriş, hareket azaltma kapalı (`liveAutoplay`). Geri dönülen adım tam açık + "Tekrar oynat" | `use-live-writing.ts` |
+| Kapsama yeni içerik gelirse (önce dene sorusu cevaplanınca açılan anlatım) yazım kaldığı yerden sürer (MutationObserver); "Hepsini göster" sonrası her şey tam açık kalır | `live-engine.ts` |
+| **Akıllı kaydırma:** kalem görünür alanın %78'inin altına inince sayfa yumuşakça aşağı kayar (yukarı hiç); tekerlek, parmak ya da kaydırma tuşu gelirse izleme o an durur, kaydırma kilitlenmez | `followPen` |
+| Kalem ucu: kapsamın SON çocuğu (adımın ilk-çocuk kuralları bozulmasın), `data-lw-skip`, ekran okuyucuya kapalı; gecede elektrik mavisi + amber uç ve ışıltı, defterde lacivert + amber mürekkep | `LivePen`, `live-notebook.css` |
+| **Fosforlu kalem:** kilit bilgi tam satır (gece yarı saydam amber, defter pastel sarı), terim satırın alt yarısında ince şerit (gece elektrik mavisi, defter açık mavi; 18 Ekim'in "terim renksiz" kuralı yol dersinde bilerek değişti, paragraf alacalı olmasın diye şerit ince), kapanışta zümrüt / nane yeşili. Açılırken soldan sağa geçiş (`background-size`) | `live-notebook.css` |
+| **Kontrol şeridi** akışın içinde: "Ders özeti" satırının altında, "Son adım!" kıvılcımının üstünde; hız (1×/2×), "Hepsini göster" → yazım bitince "Tekrar oynat" simgesi, Gece / Defter (`aria-pressed`). Bütün düğmeler 44 px; telefonda Gece/Defter yalnız simge (ad ekran okuyucuda) ve şerit tek satır. Hareket azaltmada yalnız Gece / Defter | `live-controls.tsx` |
+| **Kareli Defter:** `.als[data-gorunum="defter"]` kâğıt (#FAF6EE), 24 px kareli ızgara (yalnız CSS), koyu mürekkep (#1B2238); ders alanının renk belirteçleri (`--cx-*`, `--c-*`, `--cp-*`, `--als-*`) kâğıt tonlarına çevrilir, açık temanın ders kuralları kâğıda uyarlanır; anlatım kartı kalkar (metin doğrudan kâğıda). Telefonda kâğıt sayfa boşluğuna taşar (metin daralmaz), ≥768 px solda kenar çizgisi. Varsayılan Gece | `live-notebook.css` |
+| Tercihler (`cp:ders:gorunum`, `cp:ders:hiz`) bu tarayıcıda; depolama kapalıysa bellekte. `useSyncExternalStore`: sunucu varsayılanı çizer, istemci kayıtlıyı okur (hidrasyon uyuşmazlığı yok) | `live-prefs.ts` |
+| Kapanış maddesinin metni tek hücrede (`.als-closing-text`): satır iki sütunlu ızgara; kelime ya da kalın parçalar ayrı hücrelere dağılıyordu | `LessonClosing` |
+
+Bekçi: `canli-defter.test.tsx` (kelime bölme, formül tek parça ve canlı/canlı olmayan aynı metin, 1×→2× ilerleme, "Hepsini göster",
+"Tekrar oynat", yazım sonu, geri dönülen adım, başlanmış ders, Gece/Defter kalıcı, `live` yokken bugünkü DOM; kareler elle
+ilerletilir), `canli-defter-hareket.test.tsx` (hareket azaltma; hareket azaltma kapalıyken test düşer), e2e `canli-defter.spec.ts`
+(390×844 ve 1280 px: yazım sürerken Gece ve Defter ekran görüntüleri, kalem, ham "$" yok, taşma ve üst üste binme yok, şerit
+düğmeleri 44 px ve telefonda tek satır, kapanış, Defter kâğıt rengi ve mürekkep karşıtlığı, pencere, geri dönülen adım, başlanmış
+ders, hareket azaltma; `/api/` isteği yok; fikstür `/e2e/canli-defter`, `?durum=baslanmis`).

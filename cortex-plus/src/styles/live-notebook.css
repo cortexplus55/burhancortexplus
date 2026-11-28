@@ -1,0 +1,477 @@
+/*
+  Canlı Defter Modu (28 Kasım 2026). Yalnız yol dersinde (`.als-live`). Görsel zenginlik tipografiden, kareli defter
+  dokusundan, fosforlu kalem vurgusundan, kalem ucundan ve dersin kendi kutularından gelir; görsel ya da şekil eklenmez.
+
+  - Yazım sürerken (`.lw-playing`) açılmamış parça görünmez ama yerini kaplar: sayfa kaymaz, kalem nereye
+    gideceğini bilir. Açılan kelime mürekkep gibi oturur; formül, vurgu ve kutu tek parça açılır.
+  - Hareket azaltmada yazım hiç başlamaz (motor), bu dosyadaki hareketler de kapanır.
+*/
+
+.als-live {
+  --lw-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Gece: yarı saydam amber (kilit bilgi), elektrik mavisi (terim), zümrüt (aklında kalsın). */
+  --lw-hl-key: rgba(251, 191, 36, 0.3);
+  --lw-hl-key-ink: #ffefc4;
+  --lw-hl-term: rgba(99, 102, 241, 0.5);
+  --lw-hl-ok: rgba(52, 211, 153, 0.36);
+  --lw-pen-body: #c7d2fe;
+  --lw-pen-band: #6366f1;
+  --lw-pen-tip: #fbbf24;
+  --lw-pen-glow: rgba(99, 102, 241, 0.75);
+}
+
+/* Açık uygulama temasında da vurgular kâğıt tonlarında (koyu tema renkleri açık zeminde soluk kalır). */
+:root:not(.dark) .als-live {
+  --lw-hl-key: #ffec8a;
+  --lw-hl-key-ink: #1b2238;
+  --lw-hl-term: #c9e0ff;
+  --lw-hl-ok: #bdeed2;
+  --lw-pen-body: #1e2a5a;
+  --lw-pen-band: #f59e0b;
+  --lw-pen-tip: #b45309;
+  --lw-pen-glow: rgba(30, 42, 90, 0.22);
+}
+
+.als-live .als-step-content {
+  position: relative;
+}
+
+/* ── Yazım ─────────────────────────────────────────────────────────────────────────────────────────────── */
+
+.lw-playing .lw:not(.is-in) {
+  visibility: hidden;
+}
+
+.lw-playing .lw.is-in:not(.lw-block) {
+  animation: lw-ink 0.36s var(--lw-ease) both;
+}
+
+.lw-playing .lw-hl.is-in:not(.lw-block) {
+  animation:
+    lw-ink 0.36s var(--lw-ease) both,
+    lw-sweep 0.78s cubic-bezier(0.33, 0.7, 0.2, 1) 0.1s both;
+}
+
+.lw-playing .lw-block.is-in {
+  animation: lw-rise 0.5s var(--lw-ease) both;
+}
+
+@keyframes lw-ink {
+  from {
+    opacity: 0;
+    filter: blur(3px);
+  }
+  to {
+    opacity: 1;
+    filter: none;
+  }
+}
+
+@keyframes lw-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes lw-sweep {
+  from {
+    background-size: 0% 100%;
+  }
+  to {
+    background-size: 100% 100%;
+  }
+}
+
+/* ── Fosforlu kalem ─────────────────────────────────────────────────────────────────────────────────────── */
+
+/* Kilit bilgi ("==…=="): tam satır fosforlu kalem. */
+.als.als-live mark.als-exam.lw-hl--key {
+  color: var(--lw-hl-key-ink);
+  background-color: transparent;
+  background-image: linear-gradient(var(--lw-hl-key), var(--lw-hl-key));
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  border-radius: 0.32em 0.2em 0.36em 0.22em;
+  padding: 0.02em 0.2em;
+  box-decoration-break: slice;
+  -webkit-box-decoration-break: slice;
+}
+
+/* Terim (**koyu**): satırın alt yarısında ince bir şerit; paragraf alacalı olmaz. */
+.als.als-live strong.lw-hl--term {
+  --lw-band: var(--lw-hl-term);
+  background-image: linear-gradient(transparent 58%, var(--lw-band) 58%, var(--lw-band) 92%, transparent 92%);
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  box-decoration-break: slice;
+  -webkit-box-decoration-break: slice;
+}
+
+/* "Bu Konudan Aklında Kalsın": zümrüt şerit. */
+.als.als-live .als-closing strong.lw-hl--term {
+  --lw-band: var(--lw-hl-ok);
+}
+
+/* ── Kalem ucu ──────────────────────────────────────────────────────────────────────────────────────────── */
+
+.lw-pen {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  width: 22px;
+  height: 22px;
+  pointer-events: none;
+  opacity: 0;
+  transition:
+    opacity 0.4s ease,
+    transform 0.12s linear;
+  will-change: transform;
+}
+
+.lw-playing .lw-pen.is-on {
+  opacity: 1;
+}
+
+.lw-pen svg {
+  display: block;
+  overflow: visible;
+  transform-origin: 3px 21px;
+  filter: drop-shadow(0 0 5px var(--lw-pen-glow)) drop-shadow(0 0 1px var(--lw-pen-glow));
+}
+
+.lw-playing .lw-pen.is-on svg {
+  animation: lw-nib 0.62s ease-in-out infinite;
+}
+
+.lw-pen-body {
+  fill: var(--lw-pen-body);
+}
+
+.lw-pen-band {
+  fill: none;
+  stroke: var(--lw-pen-band);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+
+.lw-pen-tip {
+  fill: var(--lw-pen-tip);
+}
+
+@keyframes lw-nib {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(-7deg) translateY(-1px);
+  }
+}
+
+/* ── Kontrol şeridi ─────────────────────────────────────────────────────────────────────────────────────── */
+
+.lw-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 0 0 var(--sp-3, 0.75rem);
+}
+
+.lw-controls-play,
+.lw-look {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.lw-controls-spacer {
+  flex: 1 1 0;
+}
+
+.lw-btn,
+.lw-look-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 0.95rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--cx-bg-2);
+  color: var(--cx-text-secondary);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color 0.16s ease,
+    color 0.16s ease,
+    transform 0.22s var(--cx-ease-out, ease);
+}
+
+.lw-btn:hover,
+.lw-btn:focus-visible,
+.lw-look-btn:hover,
+.lw-look-btn:focus-visible {
+  background: var(--cx-bg-3);
+  color: var(--cx-text-primary);
+}
+
+.lw-btn:active,
+.lw-look-btn:active {
+  transform: scale(0.97);
+}
+
+.lw-btn:focus-visible,
+.lw-look-btn:focus-visible {
+  outline: 2px solid var(--cx-focus);
+  outline-offset: 2px;
+}
+
+.lw-btn--speed {
+  min-width: 52px;
+  padding: 0 0.75rem;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+}
+
+.lw-btn--icon {
+  width: 44px;
+  padding: 0;
+}
+
+/* Gece / Defter: iki seçenekli tepsi; seçili olan dolu. */
+.lw-look {
+  gap: 0;
+  border-radius: 999px;
+  background: var(--cx-bg-1);
+  box-shadow: inset 0 0 0 1px var(--cx-border);
+}
+
+.lw-look-btn {
+  background: transparent;
+  padding: 0 0.85rem;
+}
+
+.lw-look-btn[aria-pressed="true"] {
+  background: var(--cx-bg-3);
+  color: var(--cx-text-primary);
+}
+
+/* Telefonda Gece / Defter yalnız simge (ad ekran okuyucuda): şerit tek satır kalır, "Hepsini göster" yazılı kalır. */
+@media (max-width: 480px) {
+  .lw-look-btn {
+    width: 44px;
+    padding: 0;
+  }
+  .lw-look-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+
+/* ── Kareli Defter ──────────────────────────────────────────────────────────────────────────────────────── */
+
+/*
+  Kâğıt: sıcak fildişi zemin, 24 px kareli ızgara (yalnız CSS), koyu mürekkep. Ders alanının renk belirteçleri kâğıt
+  tonlarına çevrilir; bloklar (formül kutusu, not, sınav tuzağı, soru, kapanış) kendi renkleriyle kâğıda oturur.
+  Telefonda kâğıt sayfa boşluğuna taşar (metin daralmaz); geniş ekranda solda ince kenar çizgisi.
+*/
+.als.als-live[data-gorunum="defter"] {
+  --lw-paper: #faf6ee;
+  --lw-ink: #1b2238;
+  --lw-grid: rgba(43, 76, 140, 0.08);
+  --lw-margin: rgba(214, 86, 96, 0.45);
+  --lw-sheet-pad: 0.75rem;
+
+  --cx-bg-0: #faf6ee;
+  --cx-bg-1: #f2eadb;
+  --cx-bg-2: #e9dfcc;
+  --cx-bg-3: #ddd0b7;
+  --cx-bg-4: #c4b497;
+  --cx-border: #e0d3bb;
+  --cx-border-2: #c9b99b;
+  --cx-dim: rgba(27, 22, 14, 0.45);
+  --cx-focus: #0e7490;
+  --cx-text-primary: #1b2238;
+  --cx-text-reading: #232c45;
+  --cx-text-secondary: #485270;
+  --cx-text-tertiary: #555f7c;
+  --cx-text-disabled: #767d94;
+  --cx-text-brand: #3730a3;
+  --cx-text-highlight: #874400;
+  --cx-highlight-weak: #fbecc0;
+  --cx-brand-weak: #e1e4fb;
+  --cx-brand-weak-plus: #c9cff9;
+  --cx-success: #047857;
+  --cx-success-weak: #d6f2e3;
+  --cx-danger: #b91c1c;
+  --cx-danger-weak: #fadfdb;
+  --cx-warning: #b4410a;
+  --cx-warning-weak: #fae4cf;
+
+  --c-bg: #faf6ee;
+  --c-surface-1: #f2eadb;
+  --c-surface-2: #e9dfcc;
+  --c-border: #e0d3bb;
+  --c-border-strong: #c9b99b;
+  --c-text: #1b2238;
+  --c-text-muted: #485270;
+  --c-brand: #a86b00;
+  --c-danger: #b91c1c;
+  --c-action: #4338ca;
+  --c-action-hover: #3730a3;
+  --c-action-pressed: #312e81;
+
+  --cp-bg: #faf6ee;
+  --cp-surface: #f2eadb;
+  --cp-surface-2: #e9dfcc;
+  --cp-border: #e0d3bb;
+  --cp-text: #1b2238;
+  --cp-muted: #485270;
+  --cp-gold: #874400;
+  --cp-accent: #4338ca;
+
+  --als-action: #4338ca;
+  --als-action-hover: #3730a3;
+  --als-action-pressed: #312e81;
+  --als-wrong: #b91c1c;
+
+  /* Defter: sıcak pastel sarı, açık mavi, nane yeşili; metin koyu mürekkep. */
+  --lw-hl-key: #ffec8a;
+  --lw-hl-key-ink: #1b2238;
+  --lw-hl-term: #c9e0ff;
+  --lw-hl-ok: #bdeed2;
+  --lw-pen-body: #1e2a5a;
+  --lw-pen-band: #f59e0b;
+  --lw-pen-tip: #b45309;
+  --lw-pen-glow: rgba(30, 42, 90, 0.22);
+
+  color-scheme: light;
+  color: var(--lw-ink);
+  width: calc(min(42rem, 100%) + 2 * var(--lw-sheet-pad));
+  max-width: none;
+  margin-inline: max(calc(-1 * var(--lw-sheet-pad)), calc((100% - 42rem) / 2 - var(--lw-sheet-pad)));
+  padding-inline: var(--lw-sheet-pad);
+  border-radius: 1.25rem;
+  background-color: var(--lw-paper);
+  background-image:
+    linear-gradient(var(--lw-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--lw-grid) 1px, transparent 1px);
+  background-size:
+    24px 24px,
+    24px 24px;
+  background-position:
+    -1px -1px,
+    -1px -1px;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.6) inset,
+    0 28px 60px -34px rgba(0, 0, 0, 0.75);
+}
+
+@media (min-width: 768px) {
+  .als.als-live[data-gorunum="defter"] {
+    --lw-sheet-pad: 2.25rem;
+    background-image:
+      linear-gradient(
+        90deg,
+        transparent calc(var(--lw-sheet-pad) - 0.95rem),
+        var(--lw-margin) calc(var(--lw-sheet-pad) - 0.95rem),
+        var(--lw-margin) calc(var(--lw-sheet-pad) - 0.95rem + 1.5px),
+        transparent calc(var(--lw-sheet-pad) - 0.95rem + 1.5px)
+      ),
+      linear-gradient(var(--lw-grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--lw-grid) 1px, transparent 1px);
+    background-size:
+      100% 100%,
+      24px 24px,
+      24px 24px;
+    background-position:
+      0 0,
+      -1px -1px,
+      -1px -1px;
+    background-repeat: no-repeat, repeat, repeat;
+  }
+}
+
+/* Üst çubuk kâğıdın tam genişliğinde, kâğıt renginde. */
+.als.als-live[data-gorunum="defter"] .als-top {
+  margin-inline: calc(-1 * var(--lw-sheet-pad));
+  padding-inline: var(--lw-sheet-pad);
+  border-radius: 1.25rem 1.25rem 0 0;
+  background: color-mix(in srgb, var(--lw-paper) 96%, transparent);
+}
+
+/* Defterde metin doğrudan kareli kâğıda yazılır: anlatım kartının zemini, kenarı ve ışığı kalkar. */
+.als-live[data-gorunum="defter"] .als-slide {
+  border-color: transparent;
+  background: transparent;
+  padding-inline: 0;
+}
+
+/* Koyu tema için yazılmış beyaz saydam yüzeyler kâğıtta mürekkep tonuna döner. */
+.als-live[data-gorunum="defter"] :is(.als-progress-track, .als-icon, .als-segments span, .als-carousel-tabs button, .als-carousel-nav button, .als-intro-tag, .als-intro-plan li > span) {
+  background: rgba(27, 34, 56, 0.07);
+}
+
+.als-live[data-gorunum="defter"] .als-kicker {
+  background: rgba(27, 34, 56, 0.06);
+  color: #3d465f;
+}
+
+/* Açık temanın ders kuralları (8 Kasım 2026) kâğıtta da geçerli. */
+.als-live[data-gorunum="defter"] .als-kicker--formula { background: rgba(226, 179, 64, 0.24); color: #6e4d00; }
+.als-live[data-gorunum="defter"] .als-kicker--trap { background: rgba(232, 93, 58, 0.15); color: #a8321a; }
+.als-live[data-gorunum="defter"] .als-kicker--hook { background: rgba(139, 92, 246, 0.15); color: #5b21b6; }
+.als-live[data-gorunum="defter"] .als-kicker--carousel { background: rgba(67, 83, 243, 0.13); color: #3730a3; }
+.als-live[data-gorunum="defter"] .als-kicker--general { background: rgba(56, 189, 248, 0.16); color: #075985; }
+.als-live[data-gorunum="defter"] .als-tag--warn { color: #6e4d00; }
+.als-live[data-gorunum="defter"] .als-tag--ok { color: #166534; }
+.als-live[data-gorunum="defter"] :is(.als-note-title, .als-formula-card-title) { color: #6e4d00; }
+.als-live[data-gorunum="defter"] .als-note--warn { background: rgba(224, 90, 79, 0.11); }
+.als-live[data-gorunum="defter"] .als-note--warn .als-note-title { color: #b91c1c; }
+.als-live[data-gorunum="defter"] .als-note--exam .als-note-title { color: #b13a09; }
+.als-live[data-gorunum="defter"] .als-note--remember .als-note-title { color: #15803d; }
+.als-live[data-gorunum="defter"] .als-note--mnemonic .als-note-title { color: #6d28d9; }
+.als-live[data-gorunum="defter"] .als-note--general .als-note-title { color: #1d4ed8; }
+.als-live[data-gorunum="defter"] :is(.als-option.is-right, .als-check.is-right, .als-feedback.is-right) { color: #166534; }
+.als-live[data-gorunum="defter"] .als-check.is-right { background: rgba(46, 158, 79, 0.12); }
+.als-live[data-gorunum="defter"] .als-check.is-wrong { background: rgba(224, 90, 79, 0.1); }
+.als-live[data-gorunum="defter"] :is(.als-check.is-wrong, .als-feedback.is-wrong) { color: #b91c1c; }
+.als-live[data-gorunum="defter"] :is(.als-explain, .als-explain--why) {
+  background: color-mix(in srgb, var(--c-action) 6%, #fffdf8);
+  color: var(--c-text);
+}
+.als-live[data-gorunum="defter"] .als-explain-kicker { color: #3730a3; }
+.als-live[data-gorunum="defter"] .als-explain--why .als-explain-kicker { color: #0f766e; }
+.als-live[data-gorunum="defter"] .als-stars { color: #6e4d00; }
+
+/* ── Hareket azaltma ────────────────────────────────────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .lw-playing .lw.is-in:not(.lw-block),
+  .lw-playing .lw-hl.is-in:not(.lw-block),
+  .lw-playing .lw-block.is-in,
+  .lw-pen svg {
+    animation: none;
+  }
+  .lw-pen {
+    transition: none;
+  }
+}

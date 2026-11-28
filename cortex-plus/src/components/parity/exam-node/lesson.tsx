@@ -65,6 +65,8 @@ export function LessonPlay({ life }: { life: NodeLifecycle }) {
               cramHref: examPrepCramSheetHref(prepId),
               cramLocked,
             }}
+            // Canlı Defter (28 Kasım 2026): adım ilk girişte kelime kelime yazılır; başlanmış derste metin tam açık.
+            live={{ autoplay: !startedBefore }}
           />
           </>
         ) : (

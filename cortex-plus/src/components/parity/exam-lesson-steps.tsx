@@ -64,6 +64,11 @@ import {
 import { noteRepeatsText, stripInlineSourceLine } from "@/lib/learning/lesson-source";
 import type { z } from "zod";
 import { AiNotice } from "@/components/legal/ai-notice";
+import { LiveWords } from "@/components/parity/live-notebook/live-words";
+import { useLivePrefs } from "@/components/parity/live-notebook/live-prefs";
+import { useLiveWriting } from "@/components/parity/live-notebook/use-live-writing";
+import { LiveControls, LivePen } from "@/components/parity/live-notebook/live-controls";
+import "@/styles/live-notebook.css";
 import "@/styles/exam-lesson-steps.css";
 
 /**
@@ -314,11 +319,14 @@ function LessonBlocks({
   source,
   topicHint,
   idBase,
+  live = false,
 }: {
   blocks: PlayBlock[];
   source?: { file: string; page?: number };
   topicHint: string;
   idBase: string;
+  /** Canlı Defter: anlatım metni kelime kelime yazılır (kutular tek parça açılır). */
+  live?: boolean;
 }) {
   let sourceShown = !source;
   const rendered = blocks.map((block, blockIndex) => {
@@ -329,7 +337,9 @@ function LessonBlocks({
             sourceShown = true;
             return (
               <Fragment key={key}>
-                <BoardBody text={block.text} topicHint={topicHint} />
+                <LiveWords on={live}>
+                  <BoardBody text={block.text} topicHint={topicHint} />
+                </LiveWords>
                 {bodyHasRemovalNote(block.text) ? (
                   <p className="als-removed" role="status" title="Materyalinle doğrulanamayan kısımları göstermedik.">
                     <Info className="h-3.5 w-3.5" aria-hidden />
@@ -675,7 +685,30 @@ function buildSteps(lesson: PlayLessonV3, view: LessonV2, building = false, brie
  * Giriş kartındaki "Bu derste neler var" listesi: kavramlar, tekrar etmeden.
  * İki-üç ekrana yayılan kavram bir kez yazılır; altındaki satır ilk ekranının.
  */
-function LessonPlan({ lesson, upcoming = [], building = false }: { lesson: PlayLessonV3; upcoming?: string[]; building?: boolean }) {
+/**
+ * Renk anahtarı (18 Ekim 2026; 30 Ekim: yalnız işaretin ne olduğunu söyler). Canlı Defter'de (28 Kasım 2026) kilit bilgi
+ * fosforlu kalemle çizildiği için anahtar da öyle: "Turuncu" yazıp sarı fosfor göstermesin.
+ */
+function KeyLegend({ live = false }: { live?: boolean }) {
+  return (
+    <p className="als-intro-legend">
+      {live ? <mark className="als-exam lw-hl--key">Fosforlu</mark> : <mark className="als-exam">Turuncu</mark>}
+      {": konunun kilit bilgisi."}
+    </p>
+  );
+}
+
+function LessonPlan({
+  lesson,
+  upcoming = [],
+  building = false,
+  live = false,
+}: {
+  lesson: PlayLessonV3;
+  upcoming?: string[];
+  building?: boolean;
+  live?: boolean;
+}) {
   const groups = conceptGroups(lesson.screens).filter(
     (group, index, all) => all.findIndex((other) => other.concept === group.concept) === index,
   );
@@ -716,9 +749,7 @@ function LessonPlan({ lesson, upcoming = [], building = false }: { lesson: PlayL
       {/* Renk anahtarı (18 Ekim 2026). 30 Ekim 2026: "sınavda çıkar" kesin bir vaatti ve stres testinde iç not gibi
           okundu; anahtar yalnız işaretin ne olduğunu söyler. */}
       {lessonHasExamMarks(lesson) ? (
-        <p className="als-intro-legend">
-          <mark className="als-exam">Turuncu</mark>: konunun kilit bilgisi.
-        </p>
+        <KeyLegend live={live} />
       ) : null}
       {/* Yapay zekâ şeffaflık notu (26 Kasım 2026, mağaza uyumluluğu). */}
       <AiNotice kind="lesson" className="als-ai-notice" />
@@ -801,6 +832,12 @@ export type LessonBriefOptions = {
   cramLocked?: boolean;
 };
 
+/** Canlı Defter Modu ayarı (`lesson.tsx` verir). */
+export type LiveNotebookOptions = {
+  /** true: adım bu oturumda ilk girişte kendiliğinden yazılır. false: ders başlanmış; metin tam açık gelir. */
+  autoplay: boolean;
+};
+
 /**
  * "Bu Derste Ne Öğreneceğiz?" (28 Kasım 2026): üst şerit (konu, süre, anlatım düzeyi), numaralı hedefler, kilit
  * kavramlar, varsa tek "Sınavda dikkat" kutusu. Veri dersin kendisinden (`lessonBrief`), model çağrısı yok.
@@ -811,6 +848,7 @@ function LessonPreface({
   minutes,
   levelLabel,
   examMarks,
+  live = false,
   headingId,
   headingLevel = 1,
 }: {
@@ -819,6 +857,8 @@ function LessonPreface({
   minutes: number | null;
   levelLabel?: string | null;
   examMarks: boolean;
+  /** Canlı Defter: renk anahtarı fosforlu kalemle (vurgunun gerçek görünümü). */
+  live?: boolean;
   headingId: string;
   headingLevel?: 1 | 2;
 }) {
@@ -896,9 +936,7 @@ function LessonPreface({
         </aside>
       ) : null}
       {examMarks ? (
-        <p className="als-intro-legend">
-          <mark className="als-exam">Turuncu</mark>: konunun kilit bilgisi.
-        </p>
+        <KeyLegend live={live} />
       ) : null}
       <AiNotice kind="lesson" className="als-ai-notice" />
     </section>
@@ -911,19 +949,24 @@ function LessonClosing({
   cramHref,
   cramLocked,
   topicHint,
+  live = false,
 }: {
   points: string[];
   cramHref?: string | null;
   cramLocked?: boolean;
   topicHint: string;
+  live?: boolean;
 }) {
   return (
-    <>
+    <LiveWords on={live}>
       <ul className="als-closing" aria-label={BRIEF_COPY.closingTitle}>
         {points.map((point) => (
           <li key={point}>
             <CircleCheck className="als-closing-icon" aria-hidden />
-            <RichBody text={point} topicHint={topicHint} />
+            {/* Metin tek hücrede: satır iki sütunlu ızgara (simge + metin); kalın ya da kelime kelime parçalar dağılmaz. */}
+            <span className="als-closing-text">
+              <RichBody text={point} topicHint={topicHint} />
+            </span>
           </li>
         ))}
       </ul>
@@ -936,7 +979,7 @@ function LessonClosing({
           {cramLocked ? <span className="als-closing-plus">Plus</span> : null}
         </ExternalAnchor>
       ) : null}
-    </>
+    </LiveWords>
   );
 }
 
@@ -961,8 +1004,16 @@ export function ExamLessonSteps({
   noteWarnings = [],
   sourceCorrection = null,
   brief = null,
+  live = null,
 }: {
   lesson: PlayLesson;
+  /**
+   * Canlı Defter Modu (28 Kasım 2026): anlatım ve kapanış adımları kelime kelime yazılır, vurgular fosforlu kalemle
+   * çizilir; Gece / Defter görünümü ve hız bu cihazda saklanır. Yalnız yol dersinde verilir; verilmezse ders bugünkü
+   * gibi (tur, ders sayfası, fikstürler). `autoplay: false` başlanmış derste (kaldığı yer, Tekrar incele, Dersi
+   * tekrarla): metin tam açık gelir, isteyen "Tekrar oynat"a basar.
+   */
+  live?: LiveNotebookOptions | null;
   /**
    * Konu başı "Bu Derste Ne Öğreneceğiz?" ve konu sonu "Bu Konudan Aklında Kalsın" (28 Kasım 2026). Verilmezse
    * eski giriş kartı ve özet çizilir (tur, ders sayfası, fikstürler).
@@ -1138,6 +1189,11 @@ export function ExamLessonSteps({
   const closeDialogRef = useRef<HTMLDivElement | null>(null);
   const mathTopicHint = play.title ?? "";
   const reduceMotion = useReducedMotion();
+  // Canlı Defter (28 Kasım 2026): tercihler hep okunur (kanca sırası sabit), yalnız canlı modda kullanılır.
+  const liveOn = Boolean(live);
+  const livePrefs = useLivePrefs();
+  const liveScopeRef = useRef<HTMLDivElement | null>(null);
+  const livePenRef = useRef<HTMLSpanElement | null>(null);
   const lessonStars = prepStars("lesson", null, null);
   const knownMinutes = typeof plannedMinutes === "number" && plannedMinutes > 0 ? plannedMinutes : null;
   const computedMinutes = activityDurationMinutes("lesson", {
@@ -1221,6 +1277,16 @@ export function ExamLessonSteps({
 
   const step = steps[Math.min(index, steps.length - 1)];
   const last = index >= steps.length - 1;
+  // Canlı Defter: anlatım ve kapanış adımları yazılır; önsöz, tekrar kapısı ve bekleme kartı yazılmaz.
+  const liveTypeable = liveOn && (step.kind === "section" || step.kind === "summary");
+  const liveWriting = useLiveWriting(liveScopeRef, livePenRef, {
+    enabled: liveOn,
+    stepKey: `${index}:${step.kind}`,
+    typeable: liveTypeable,
+    autoplay: live?.autoplay ?? false,
+    speed: livePrefs.speed,
+    reducedMotion: Boolean(reduceMotion),
+  });
   const onWaitStep = step.kind === "building";
   useEffect(() => {
     if (!onWaitStep) {
@@ -1498,7 +1564,11 @@ export function ExamLessonSteps({
   const toolbarShown = Boolean(toolbar || (sourcePreview && !figureSource) || (prefaceOn && step.kind !== "overview"));
 
   return (
-    <article className="als" ref={rootRef}>
+    <article
+      className={liveOn ? "als als-live" : "als"}
+      ref={rootRef}
+      data-gorunum={liveOn ? livePrefs.look : undefined}
+    >
       <header className="als-top" ref={topRef}>
         {index > 0 || onClose ? (
           <button type="button" className="als-icon" onClick={back} aria-label="Geri">
@@ -1566,6 +1636,18 @@ export function ExamLessonSteps({
           ) : null}
         </div>
       ) : null}
+      {/* Canlı Defter şeridi akışın içinde: düğme satırının altında, kıvılcımın üstünde; hiçbir şeyin üstüne binmez. */}
+      {liveOn ? (
+        <LiveControls
+          phase={liveWriting.phase}
+          speed={livePrefs.speed}
+          look={livePrefs.look}
+          onSpeed={livePrefs.setSpeed}
+          onShowAll={liveWriting.showAll}
+          onReplay={liveWriting.replay}
+          onLook={livePrefs.setLook}
+        />
+      ) : null}
       {/* Adım kıvılcımı düğme satırıyla başlığın arasında kendi yerinde: hiçbir düğmenin ya da başlığın üstüne binmez. */}
       <LessonSpark text={stepSpark} token={spark.token} />
       {figureSource ? (
@@ -1597,6 +1679,7 @@ export function ExamLessonSteps({
                 examMarks={lessonHasExamMarks(play)}
                 headingId={briefDialogHeadingId}
                 headingLevel={2}
+                live={liveOn}
               />
             </div>
             <div className="als-dialog-foot">
@@ -1708,6 +1791,7 @@ export function ExamLessonSteps({
               levelLabel={brief?.levelLabel}
               examMarks={lessonHasExamMarks(play)}
               headingId={briefHeadingId}
+              live={liveOn}
             />
           ) : (
             <h1 className="als-heading">{step.heading}</h1>
@@ -1721,7 +1805,7 @@ export function ExamLessonSteps({
           {step.kind === "overview" && !prefaceOn ? (
             <>
               {step.body ? <BoardBody text={step.body} topicHint={mathTopicHint} /> : null}
-              <LessonPlan lesson={play} upcoming={upcoming} building={building} />
+              <LessonPlan lesson={play} upcoming={upcoming} building={building} live={liveOn} />
             </>
           ) : null}
 
@@ -1732,6 +1816,7 @@ export function ExamLessonSteps({
               source={step.source}
               topicHint={mathTopicHint}
               idBase={`als-d-${index}`}
+              live={liveOn}
             />
           ) : null}
 
@@ -1859,15 +1944,23 @@ export function ExamLessonSteps({
           {step.kind === "summary" ? (
             <>
               {step.closing ? (
-                <LessonClosing points={step.points} cramHref={brief?.cramHref} cramLocked={brief?.cramLocked} topicHint={mathTopicHint} />
+                <LessonClosing
+                  points={step.points}
+                  cramHref={brief?.cramHref}
+                  cramLocked={brief?.cramLocked}
+                  topicHint={mathTopicHint}
+                  live={liveOn}
+                />
               ) : step.points.length ? (
-                <ul className="als-list">
-                  {step.points.map((point) => (
-                    <li key={point}>
-                      <RichBody text={point}  topicHint={mathTopicHint} />
-                    </li>
-                  ))}
-                </ul>
+                <LiveWords on={liveOn}>
+                  <ul className="als-list">
+                    {step.points.map((point) => (
+                      <li key={point}>
+                        <RichBody text={point}  topicHint={mathTopicHint} />
+                      </li>
+                    ))}
+                  </ul>
+                </LiveWords>
               ) : null}
               {step.next.length ? (
                 <>
@@ -2097,7 +2190,7 @@ export function ExamLessonSteps({
         // "Önce dene"de anlatım cevaptan sonra açılır. 16 Ekim 2026'ya kadar ikisi
         // birlikte görünüyordu: gövde sorunun hemen altında cevabı veriyordu.
         return (
-          <div className="als-step-content">
+          <div className="als-step-content" ref={liveScopeRef}>
             {checkFirst ? checkRegion : slideRegion}
             {checkFirst ? (revealed ? slideRegion : null) : checkRegion}
             {/* Sorunun ortada durduğu ekranda sonrası cevaptan sonra açılır. */}
@@ -2107,9 +2200,12 @@ export function ExamLessonSteps({
                   blocks={splitAtCheck(step.blocks).after}
                   topicHint={mathTopicHint}
                   idBase={`als-d-${index}-after`}
+                  live={liveOn}
                 />
               </div>
             ) : null}
+            {/* Kalem ucu: kapsamın son çocuğu (adımın ilk-çocuk kuralları bozulmasın); süs, birim sayılmaz. */}
+            {liveOn ? <LivePen ref={livePenRef} /> : null}
           </div>
         );
       })()}
